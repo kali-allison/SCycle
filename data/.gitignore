@@ -1,3 +1,0 @@
-# This file is here so git includes the folder tree but doesn't copy data files
-# around.
-!.gitignore
