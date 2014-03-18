@@ -5,8 +5,8 @@ PetscErrorCode rateAndStateFrictionScalar(PetscInt ind,PetscScalar vel, PetscSca
 
 PetscErrorCode agingLaw(const PetscInt ind, PetscScalar *dPsi, void *ctx);
 
-PetscErrorCode setRateAndState(UserContext *D);
+PetscErrorCode setRateAndState(UserContext &D);
 
-PetscErrorCode writeRateAndState(UserContext *D);
+PetscErrorCode writeRateAndState(UserContext &D);
 
 #endif

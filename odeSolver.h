@@ -1,7 +1,38 @@
-#ifndef TIMESOLVER_H_INCLUDED
-#define TIMESOLVER_H_INCLUDED
+#ifndef ODESOLVER_H_INCLUDED
+#define ODESOLVER_H_INCLUDED
 
 #define STRINGIFY(name) #name
+
+/*
+ * Provides a set of algorithms to solve a system of ODEs of
+ * the form y' = f(t,y).
+ *
+ * SOLVER TYPE      ALGORITHM
+ *  "FEULER"      forward Euler
+ *  "RK32"        explicit Runge-Kutta (2,3)
+ *
+ * To obtain solutions at user-specified times, use FEULER and call setStepSize
+ * in the routine f(t,y).
+ *
+ * y is represented as an array of one or more Vecs (PetSc data type).
+ *
+ * At minimum, the user must specify:
+ *     QUANTITY               FUNCTION
+ *  max number of steps      constructor
+ *  solver type              constructor
+ *  initial conditions       setInitialConds     Note: this array will be modified during integration
+ *  f(t,y)                   setRhsFunc
+ *  final time               constructor or setTimeRange
+ *
+ * Once the odeSolver context is set, call runTimeSolver() to perform
+ * the integration.
+ *
+ * y(t=final time) is stored in the initial conditions array.  Summary output
+ * information is provided by viewSolver.  Users can obtain information at
+ * each time step by specifying a user-defined monitor function with setTimeMonitor.
+ *
+ */
+
 
 class TimeSolver
 {
@@ -10,7 +41,7 @@ class TimeSolver
 
     PetscReal     _initT,_finalT,_currT,_deltaT,_minDeltaT,_maxDeltaT;
     PetscReal     _atol,_reltol;
-    PetscInt      _maxNumSteps,_stepCount;
+    PetscInt      _maxNumSteps,_stepCount,_numRejectedSteps,_numMinSteps,_numMaxSteps;
     std::string   _solverType;
     Vec           *_var,*_dvar;
     int           _lenVar;

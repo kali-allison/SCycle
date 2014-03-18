@@ -2,47 +2,19 @@
 #include <iostream>
 #include <string>
 #include "userContext.h"
+#include "init.hpp"
 #include "rateAndState.h"
+#include "rootFindingScalar.h"
 //~ #include "debuggingFuncs.h"
 #include "linearSysFuncs.h"
 #include "timeStepping.h"
-#include "timeSolver.h"
+#include "odeSolver.h"
 
 using namespace std;
 
-PetscErrorCode func(const PetscReal t,const int lenVar,Vec *var,Vec *dvar,void *ctx)
+int runTests(int argc,char **args)
 {
 
-  PetscErrorCode ierr = 0;
-
-  for (int ind=0;ind<lenVar;ind++) {
-    ierr = VecCopy(var[ind],dvar[ind]);CHKERRQ(ierr);
-    ierr= VecScale(dvar[ind],-t);CHKERRQ(ierr);
-  }
-
-  //~ ierr = VecCopy(*in,*out);CHKERRQ(ierr);
-  //~ ierr = VecScale(*out,-t);CHKERRQ(ierr);
-
-   return ierr;
-}
-
-int runTests(UserContext *D)
-{
-
-  PetscErrorCode ierr = 0;
-  PetscInt Ii=1;
-  PetscScalar val;
-
-  VecSet(D->tau,3.14e2);
-  computeSlipVel(D);
-  VecGetValues(D->V,1,&Ii,&val);
-  PetscPrintf(PETSC_COMM_WORLD,"V(1)=%e\n",val);
-
-  return ierr;
-}
-
-int runEqCycle(int argc,char **args)
-{
   PetscErrorCode ierr = 0;
   PetscInt       Ny=5, Nz=7, order=2;
   PetscBool      loadMat = PETSC_FALSE;
@@ -51,17 +23,22 @@ int runEqCycle(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  // Solution for my own timeSolver routines
-  //~UserContext D = UserContext(order,Ny,Nz,"dataTimeSolver/");
-  UserContext D = UserContext(order,Ny,Nz,"data/");
-  ierr = setParameters(&D);CHKERRQ(ierr);
-  ierr = D.writeParameters();CHKERRQ(ierr);
-  ierr = setRateAndState(&D);CHKERRQ(ierr);
-  ierr = setLinearSystem(&D,loadMat);CHKERRQ(ierr);
-  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-  //~ierr = setInitialTimeStep(&D);CHKERRQ(ierr);
-  //~ierr = D.writeInitialStep();CHKERRQ(ierr);
-  ierr = ComputeRHS(&D);CHKERRQ(ierr);
+  UserContext D(order,Ny,Nz,"data/");
+  //~ierr = setParameters(&D);CHKERRQ(ierr);
+  //~ierr = D.writeParameters();CHKERRQ(ierr);
+  //~ierr = setRateAndState(&D);CHKERRQ(ierr);
+  //~ierr = setLinearSystem(&D,loadMat);CHKERRQ(ierr);
+  //~if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+
+  //~PetscScalar outVal;
+  //~PetscInt numIts = 0;
+  //~PetscScalar leftBound=2.0, rightBound=20.0;
+  //~ierr = bisect((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,NULL);CHKERRQ(ierr);
+  //~ierr = safeSecant((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,&D);CHKERRQ(ierr);
+  //~ierr = secantMethod((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,&D);
+
+
+  //~ierr = computeSlipVel(&D);CHKERRQ(ierr);
 
   //~KSPCreate(PETSC_COMM_WORLD,&D.ksp);
   //~KSPSetType(D.ksp,KSPPREONLY);
@@ -81,6 +58,31 @@ int runEqCycle(int argc,char **args)
   //~endTime = MPI_Wtime();
   //~ierr = PetscPrintf(PETSC_COMM_WORLD,"its = %d, time =%g\n",its,(endTime-startTime)/10.);CHKERRQ(ierr);
   //~ierr = KSPView(D.ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  return ierr;
+}
+
+int runEqCycle(int argc,char **args)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Ny=5, Nz=7, order=2;
+  PetscBool      loadMat = PETSC_FALSE;
+  ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
+
+  // Solution for my own timeSolver routines
+  //~UserContext D = UserContext(order,Ny,Nz,"data/");
+  UserContext D(order,Ny,Nz,"data/");
+  ierr = setParameters(D);CHKERRQ(ierr);
+  ierr = D.writeParameters();CHKERRQ(ierr);
+  ierr = setRateAndState(D);CHKERRQ(ierr);
+  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
+  ierr = D.writeInitialStep();CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
@@ -105,10 +107,9 @@ int runEqCycle(int argc,char **args)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
 
   ierr = ts.viewSolver();CHKERRQ(ierr);
-
-
 
   return 0;
 }
@@ -118,6 +119,7 @@ int main(int argc,char **args)
   PetscInitialize(&argc,&args,NULL,NULL);
 
   runEqCycle(argc,args);
+  //~runTests(argc,args);
 
   PetscFinalize();
 

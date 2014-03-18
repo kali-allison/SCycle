@@ -1,55 +1,46 @@
 #include <petscts.h>
 #include "rootFindingScalar.h"
 
-PetscErrorCode func(PetscScalar in, PetscScalar *out)
+//~PetscErrorCode exFunc(PetscScalar in, PetscScalar *out,void *ctx)
+PetscErrorCode exFunc(const PetscInt ind, PetscScalar in,PetscScalar *out, void * ctx)
 {
   *out = in*in*in - 30.0*in*in + 2552;
-  //*out = exp(in/4) + exp(-in/4) - in;
   return 0;
 }
 
-PetscErrorCode funcPrime(PetscScalar in, PetscScalar *out)
-{
-  *out = 3*in*in - 60*in;
-  return 0;
-}
-
-PetscErrorCode secantMethod()
+PetscErrorCode secantMethod(PetscErrorCode (*func)(const PetscInt,const PetscScalar,PetscScalar *,void*),
+    const PetscInt ind, PetscScalar left,PetscScalar right,PetscScalar *out,PetscInt *its,PetscScalar atol,
+    PetscInt itMax,void *ctx)
 {
 
-  PetscErrorCode ierr;
-  PetscScalar    xkm1=10,xk=8,xkp1,fkm1,fk,fkp1,atol=1e-8;
-  PetscInt       maxNumIts=7,numIts=0;
+  PetscErrorCode ierr = 0;
+  PetscScalar    xkm1=10,xk=8,xkp1,fkm1,fk,fkp1;
+  PetscInt       numIts=0;
 
-  ierr = func(xkm1,&fkm1);CHKERRQ(ierr);
-  ierr = func(xk,&fk);CHKERRQ(ierr);
+  ierr = func(ind,xkm1,&fkm1,ctx);CHKERRQ(ierr);
+  ierr = func(ind,xk,&fk,ctx);CHKERRQ(ierr);
   fkp1 = fk;
 
-  while ( (numIts <= maxNumIts) & (sqrt(fkp1*fkp1) >= atol) ) {
-
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts = %u, xkm1 = %f, fxkm1 = %f, ",numIts,xkm1,fkm1);CHKERRQ(ierr);
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"xk = %f, fk = %f, ",xk,fk);CHKERRQ(ierr);
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"atol = %g, check = %f, ",atol, sqrt(fkp1*fkp1));CHKERRQ(ierr);
+  while ( (numIts <= itMax) & (sqrt(fkp1*fkp1) >= atol) ) {
 
     xkp1 = xk - fk*(xk-xkm1)/( fk - fkm1 );
-    ierr = func(xkp1,&fkp1);CHKERRQ(ierr);
+    ierr = func(ind,xkp1,&fkp1,ctx);CHKERRQ(ierr);
 
     xkm1 = xk; fkm1 = fk;
     xk = xkp1; fk = fkp1;
 
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"xk+1 = %f, fxk+1 = %f\n",xk,fk);CHKERRQ(ierr);
     numIts++;
   }
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts = %u, x_guess = %f, f_guess = %f\n",numIts,xkp1,fkp1);CHKERRQ(ierr);
+  *its = numIts;
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"SECANT: numIts = %u, x = %f, f(x) = %f\n",numIts,xkp1,fkp1);CHKERRQ(ierr);
   return 0;
 }
 
-PetscErrorCode bisect(PetscErrorCode (*pt2Func)(const PetscInt,const PetscScalar,PetscScalar *,void*),
-    const PetscInt ind, PetscScalar left,PetscScalar right,PetscScalar *out,PetscScalar atol,
+PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,PetscScalar *,void*),
+    const PetscInt ind, PetscScalar left,PetscScalar right,PetscScalar *out,PetscInt *its,PetscScalar atol,
     PetscInt itMax,void *ctx)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode ierr = 0;
   PetscScalar    fLeft,fRight;
 
 #if VERBOSE > 2
@@ -58,8 +49,8 @@ PetscErrorCode bisect(PetscErrorCode (*pt2Func)(const PetscInt,const PetscScalar
 #endif
 
   /*
-     Check inputs.
-  */
+   * Check inputs.
+   */
   if (left >= right) {
     SETERRQ(PETSC_COMM_WORLD,1,"left bound must be less than right bound");
     return 0;
@@ -69,46 +60,28 @@ PetscErrorCode bisect(PetscErrorCode (*pt2Func)(const PetscInt,const PetscScalar
     return 0;
   }
 
-  ierr = (*pt2Func)(ind,left,&fLeft,ctx);CHKERRQ(ierr);
-  ierr = (*pt2Func)(ind,right,&fRight,ctx);CHKERRQ(ierr);
+  ierr = func(ind,left,&fLeft,ctx);CHKERRQ(ierr);
+  ierr = func(ind,right,&fRight,ctx);CHKERRQ(ierr);
 #if VERBOSE > 2
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",fLeft,fRight);CHKERRQ(ierr);
 #endif
 
-  /*
-   * Compute root.
-   */
-  //~ PetscInt maxNumIts = ceil( log2(right-left) - log2(2*atol) );
   PetscInt numIts=0;
   PetscScalar mid,fMid;
 
-  // if step is too big, assign very large value to output
   if ( isnan(fLeft) || isnan(fRight) || isinf(fLeft) || isinf(fRight) ) {
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",fLeft,fRight);CHKERRQ(ierr);
-    //~ SETERRQ(PETSC_COMM_WORLD,1,"Function evaluated to nan");
-    mid = 1e9;fMid = 66666e-6;
+     SETERRQ(PETSC_COMM_WORLD,1,"Function evaluated to nan");
     return 0;
   }
   else if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
   else if (sqrt(fRight*fRight) <= atol) { *out = right; return 0; }
-  //~else if (fLeft*fRight >= 0) {
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",fLeft,fRight);CHKERRQ(ierr);
-    //~SETERRQ(PETSC_COMM_WORLD,1,"function must cross 0 between bounds");
-    //~return 0;
-  //~}
 
   mid = (left + right)*0.5;
-  ierr = func(mid,&fMid);CHKERRQ(ierr);
+  ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
   if (isnan(fMid)) { SETERRQ(PETSC_COMM_WORLD,1,"fMid evaluated to nan"); return 0; }
   while ( (numIts <= itMax) & (sqrt(fMid*fMid) >= atol) ) {
     mid = (left + right)*0.5;
-    ierr = (*pt2Func)(ind,mid,&fMid,ctx);CHKERRQ(ierr);
-
-    if (isnan(fMid)) { SETERRQ(PETSC_COMM_WORLD,1,"fMid evaluated to nan"); return 0; }
-
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts = %u, left = %f, fLeft = %f, ",numIts,left,fLeft);CHKERRQ(ierr);
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"right = %f, fRight = %f, mid = %f, fMid = %f, ",right,fRight,mid,fMid);CHKERRQ(ierr);
-    //ierr = PetscPrintf(PETSC_COMM_WORLD,"atol = %f, bool = %f\n",atol, sqrt(fMid*fMid) );CHKERRQ(ierr);
+    ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
 
     if (fLeft*fMid <= 0) {
       right = mid;
@@ -123,17 +96,82 @@ PetscErrorCode bisect(PetscErrorCode (*pt2Func)(const PetscInt,const PetscScalar
   }
 
 #if VERBOSE > 2
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxNumIts = %u/%u, final mid = %g, fMid = %g\n",numIts,maxNumIts,mid,fMid);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",numIts,itMax,mid,fMid);CHKERRQ(ierr);
 #endif
 
   *out = mid;
-  if (sqrt(fMid*fMid) > atol) {SETERRQ(PETSC_COMM_WORLD,1,"rootFinder did not converge");}
+  *its = numIts;
+  if (sqrt(fMid*fMid) > atol) {
+    SETERRQ(PETSC_COMM_WORLD,1,"rootFinder did not converge");
+    return 0;
+  }
 
   return ierr;
 }
 
-PetscErrorCode rootFinderScalar()
+PetscErrorCode safeSecant(PetscErrorCode (*func)(const PetscInt,const PetscScalar,PetscScalar *,void*),
+    const PetscInt ind, PetscScalar left,PetscScalar right,PetscScalar *out,PetscInt *its,PetscScalar atol,
+    PetscInt itMax,void *ctx)
 {
+  PetscErrorCode ierr = 0;
+  PetscScalar    fLeft,fRight,mid,fMid,xkm2,fkm2,xkm1,fkm1,xk,fk,d=1e-3;
+  PetscInt       numIts=0;
 
-  return 0;
+  // Check inputs.
+  if (left >= right) {
+    SETERRQ(PETSC_COMM_WORLD,1,"left bound must be less than right bound");
+    return 0;
+  }
+  else if (atol <= 0) {
+    SETERRQ(PETSC_COMM_WORLD,1,"atol must be > 0 for convergence");
+    return 0;
+  }
+
+  ierr = func(ind,left,&fLeft,ctx);CHKERRQ(ierr);
+  ierr = func(ind,right,&fRight,ctx);CHKERRQ(ierr);
+
+  // if step is too big, assign very large value to output
+  if ( isnan(fLeft) || isnan(fRight) || isinf(fLeft) || isinf(fRight) ) {
+    SETERRQ(PETSC_COMM_WORLD,1,"at least one bound evaluated to inf or nan");
+    return 0;
+  }
+  else if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
+  else if (sqrt(fRight*fRight) <= atol) { *out = right; return 0; }
+
+  mid = (left + right)*0.5; ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr); // bisect guess
+  if (isnan(fMid)) { SETERRQ(PETSC_COMM_WORLD,1,"fMid evaluated to nan"); return 0; }
+
+  // secant guess
+  xkm2 = mid - d*(right-left);            ierr = func(ind,xkm2,&fkm2,ctx);CHKERRQ(ierr);
+  xkm1 = mid + d*(right-left);            ierr = func(ind,xkm1,&fkm1,ctx);CHKERRQ(ierr);
+  xk = xkm1-fkm1*(xkm1-xkm2)/(fkm1-fkm2); ierr = func(ind,xk,&fk,ctx);CHKERRQ(ierr);
+  xkm2 = xkm1; fkm2 = fkm1; // save old steps
+  xkm1 = xk; fkm1 = fk;
+
+  while ( (numIts <= itMax) & (sqrt(fMid*fMid) >= atol) ) {
+
+    // bisect guess
+    mid = (left + right)*0.5; ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
+
+    // secant guess
+    xk = xkm1-fkm1*(xkm1-xkm2)/(fkm1-fkm2); ierr = func(ind,xk,&fk,ctx);CHKERRQ(ierr);
+    xkm2 = xkm1; fkm2 = fkm1; // save old steps
+    xkm1 = xk; fkm1 = fk;
+
+    // update bracket
+    if (fLeft*fMid <= 0) { right = mid; fRight = fMid; }
+    else { left = mid; fLeft = fMid; }
+
+    // if xk is inside bracket and decreases bracket size more than mid, use it!!
+    if (left < xk && xk < right) { mid = xk; fMid = fk; }
+
+    numIts++;
+  }
+
+  *out = mid;
+  *its = numIts;
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"SAFE-SECANT:  numIts = %i, x = %f, f(x) = %f\n",numIts,*out,fMid);CHKERRQ(ierr);
+  if (sqrt(fMid*fMid) > atol) {SETERRQ(PETSC_COMM_WORLD,1,"rootFinder did not converge");}
+
+  return ierr;
 }

@@ -1,16 +1,18 @@
 #include <petscts.h>
 #include <iostream>
 #include <string>
-#include "timeSolver.h"
+#include "odeSolver.h"
 
 using namespace std;
 
 
-//================= constructor and destructor =========================
+//================= constructors and destructor ========================
+
 TimeSolver::TimeSolver(PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
 _atol(1.0e-9),_reltol(1.0e-9),
-_maxNumSteps(maxNumSteps),_stepCount(0),_solverType(solverType),
+_maxNumSteps(maxNumSteps),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
+_solverType(solverType),
 _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 {
   _rhsFunc = &tempRhsFunc;
@@ -37,7 +39,7 @@ TimeSolver::~TimeSolver()
   }
 }
 
-//================= modify members =========================
+//================= modify data members ================================
 
 PetscErrorCode TimeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
@@ -104,6 +106,7 @@ PetscErrorCode TimeSolver::setTimeStepBounds(const PetscReal minDeltaT, const Pe
 }
 
 //================= output useful info =========================
+
 PetscErrorCode TimeSolver::viewSolver()
 {
   PetscErrorCode ierr;
@@ -121,7 +124,12 @@ PetscErrorCode TimeSolver::viewSolver()
                      _currT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   tolerance: %g\n",
                      _atol);CHKERRQ(ierr);
-
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of rejected steps: %i\n",
+                     _numRejectedSteps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times min step size enforced: %i\n",
+                     _numMinSteps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times max step size enforced: %i\n",
+                     _numMaxSteps);CHKERRQ(ierr);
   return 0;
 }
 
@@ -141,6 +149,7 @@ PetscErrorCode TimeSolver::debugMyCode(const PetscReal time,const PetscInt steps
 }
 
 //================= perform actual integration =========================
+
 PetscErrorCode TimeSolver::runTimeSolver()
 {
   PetscErrorCode ierr;
@@ -209,15 +218,14 @@ PetscErrorCode TimeSolver::odeRK32()
     ierr = VecDuplicate(_var[ind],&errVec[ind]);CHKERRQ(ierr);
   }
 
-  // set and record initial condition
+  // set initial condition
   ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);CHKERRQ(ierr);
   //~ierr = _timeMonitor(_initT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
-    attemptCount=1;
 
-    while (attemptCount<_maxNumSteps) { // repeat until time step is acceptable
+    while (1) { // repeat until time step is acceptable
 
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
@@ -244,21 +252,24 @@ PetscErrorCode TimeSolver::odeRK32()
         ierr = VecAXPY(var3rd[ind],_deltaT/6.0,dvardT[ind]);CHKERRQ(ierr);
       }
 
-      // calculate error (= 2norm weighted by # of elements)
+      // calculate error
       totErr = 0.0;
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(errVec[ind],-1.0,var2nd[ind],var3rd[ind]);CHKERRQ(ierr);
-        ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
-        if (err[ind]>totErr) { totErr=err[ind]; }
 
-        //~VecDot(errVec[ind],errVec[ind],&err[ind]);
-        //~VecGetSize(errVec[ind],&size);
-        //~totErr += err[ind]/size;
+        // error based on max norm
+        //~ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
+        //~if (err[ind]>totErr) { totErr=err[ind]; }
+
+        // error based on weighted 2 norm
+        VecDot(errVec[ind],errVec[ind],&err[ind]);
+        VecGetSize(errVec[ind],&size);
+        totErr += err[ind]/size;
       }
-      //~totErr = sqrt(totErr);
+      totErr = sqrt(totErr);
 
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, maxErr = %g, currT = %g,_deltaT=%g\n",
-                         //~attemptCount,maxErr,_currT,_deltaT);CHKERRQ(ierr);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, totErr = %g, currT = %g,_deltaT=%g\n",
+                         //~attemptCount,totErr,_currT,_deltaT);CHKERRQ(ierr);
 
       if (totErr<_atol) { break; }
       // else: step is unacceptable, so modify time step
@@ -266,10 +277,15 @@ PetscErrorCode TimeSolver::odeRK32()
       _deltaT = min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
       _deltaT = max(_minDeltaT,_deltaT);
       if (_minDeltaT == _deltaT) {
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"enforced min step size\n");CHKERRQ(ierr);
-        break; }
+        _numMinSteps++;
+        break;
+      }
+      else if (_maxDeltaT == _deltaT) {
+        _numMaxSteps++;
+        break;
+      }
 
-      attemptCount++;
+      _numRejectedSteps++;
     }
     //~debugMyCode(_currT,_stepCount,_var,"var");
     _currT = _currT+_deltaT;
@@ -282,7 +298,15 @@ PetscErrorCode TimeSolver::odeRK32()
     if (totErr!=0.0) {
       _deltaT=min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
       _deltaT = max(_minDeltaT,_deltaT);
+      if (_minDeltaT == _deltaT) {
+        _numMinSteps++;
+        break;
       }
+      else if (_maxDeltaT == _deltaT) {
+        _numMaxSteps++;
+        break;
+      }
+    }
 
     ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e %i\n",_stepCount,_currT,attemptCount);CHKERRQ(ierr);

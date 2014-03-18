@@ -5,12 +5,12 @@
 #include "userContext.h"
 
 // constructor
-UserContext::UserContext(PetscInt ord,PetscInt y,PetscInt z, std::string outFile)
+UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,const std::string outFile)
 :outFileRoot(outFile),
  order(ord),Ny(y),Nz(z),N(y*z),
  Ly(0),Lz(0),H(0),dy(0),dz(0),
  cs(0),G(0),rho(0),f0(0),v0(0),vp(0),D_c(0),
- kspTol(0),rootTol(0),
+ kspTol(0),rootTol(0),rootIts(0),
  strideLength(1),maxStepCount(1),initTime(0),currTime(0),maxTime(0),
  minDeltaT(1e-14),maxDeltaT(1e-14),
  count(0),atol(1e-14),initDeltaT(1e-14),

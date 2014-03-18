@@ -45,6 +45,7 @@ class UserContext {
 
   // tolerances for linear and nonlinear (for V) solve
   PetscScalar    kspTol,rootTol;
+  PetscInt       rootIts; // total number of its used
 
   // time stepping data
   TS             ts;
@@ -63,7 +64,7 @@ class UserContext {
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;
 
 
-  UserContext(PetscInt ord, PetscInt y, PetscInt z, std::string outFile);
+  UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,const std::string outFile);
   ~UserContext();
 
   /*
@@ -77,12 +78,12 @@ class UserContext {
    */
   PetscErrorCode writeOperators();
 
-  PetscErrorCode writeInitialStep();
-
   /*
    * Output displacement, shear stress, and psi on fault and surface.
    * Add current time to timeFile.
    */
+  PetscErrorCode writeInitialStep();
+
   PetscErrorCode writeCurrentStep();
 
   /*
@@ -92,6 +93,11 @@ class UserContext {
   PetscErrorCode saveCurrentPlace();
 
   PetscErrorCode loadCurrentPlace();
+
+  private:
+    // disable default copy constructor and assignment operator
+    UserContext(const UserContext & that);
+    UserContext& operator=( const UserContext& rhs );
 
 };
 

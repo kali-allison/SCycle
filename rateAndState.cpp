@@ -76,7 +76,7 @@ PetscErrorCode agingLaw(const PetscInt ind, PetscScalar *dPsi, void *ctx)
 }
 
 
-PetscErrorCode setRateAndState(UserContext *D)
+PetscErrorCode setRateAndState(UserContext &D)
 {
   PetscErrorCode ierr;
   PetscInt       Ii,Istart,Iend;
@@ -87,56 +87,56 @@ PetscErrorCode setRateAndState(UserContext *D)
 #endif
 
   //  constitutive parameters
-  v = D->G/(2*D->cs);
-  ierr = VecSet(D->eta,v);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D->eta);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->eta);CHKERRQ(ierr);
+  v = D.G/(2*D.cs);
+  ierr = VecSet(D.eta,v);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
 
   // Set normal stress along fault
   PetscScalar s_NORMVal = 50.0;
-  ierr = VecDuplicate(D->a,&D->s_NORM);CHKERRQ(ierr);
-  ierr = VecSet(D->s_NORM,s_NORMVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D->s_NORM);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->s_NORM);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.a,&D.s_NORM);CHKERRQ(ierr);
+  ierr = VecSet(D.s_NORM,s_NORMVal);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.s_NORM);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.s_NORM);CHKERRQ(ierr);
 
   // Set a
   PetscScalar aVal = 0.015;
-  ierr = VecSet(D->a,aVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D->a);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->a);CHKERRQ(ierr);
+  ierr = VecSet(D.a,aVal);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.a);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.a);CHKERRQ(ierr);
 
   // Set b
-  PetscScalar L1 = D->H;  //Defines depth at which (a-b) begins to increase.
-  PetscScalar L2 = 1.5*D->H;  //This is depth at which increase stops and fault is purely velocity strengthening.
+  PetscScalar L1 = D.H;  //Defines depth at which (a-b) begins to increase.
+  PetscScalar L2 = 1.5*D.H;  //This is depth at which increase stops and fault is purely velocity strengthening.
 
-  PetscInt    N1 = L1/D->dz;
-  PetscInt    N2 = L2/D->dz;
+  PetscInt    N1 = L1/D.dz;
+  PetscInt    N2 = L2/D.dz;
 
-  ierr = VecGetOwnershipRange(D->b,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(D.b,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii < N1+1) {
       v=0.02;
-      ierr = VecSetValues(D->b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(D.b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
     else if (Ii>N1 && Ii<=N2) {
-      v = 0.02/(L1-L2);v = v*Ii*D->dz - v*L2;
-      ierr = VecSetValues(D->b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      v = 0.02/(L1-L2);v = v*Ii*D.dz - v*L2;
+      ierr = VecSetValues(D.b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
       v = 0.0;
-      ierr = VecSetValues(D->b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(D.b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = VecAssemblyBegin(D->b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->b);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
 
-  //~ierr = VecSet(D->b,0.0);CHKERRQ(ierr);
+  //~ierr = VecSet(D.b,0.0);CHKERRQ(ierr);
 
   /* p.tau_inf = p.s_NORM(1)*p.a(1)*asinh( p.vp/(2*p.v0)*exp(p.f0/p.a(1)) ) */
-  v = 0.5*D->vp*exp(D->f0/aVal)/D->v0;
-  D->tau_inf = s_NORMVal * aVal * asinh((double) v);
+  v = 0.5*D.vp*exp(D.f0/aVal)/D.v0;
+  D.tau_inf = s_NORMVal * aVal * asinh((double) v);
 
-  ierr = VecSet(D->psi,D->f0);CHKERRQ(ierr);
+  ierr = VecSet(D.psi,D.f0);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
@@ -144,27 +144,27 @@ PetscErrorCode setRateAndState(UserContext *D)
   return 0;
 }
 
-PetscErrorCode writeRateAndState(UserContext *D)
+PetscErrorCode writeRateAndState(UserContext &D)
 {
   PetscErrorCode ierr;
   PetscViewer    viewer;
   const char * outFileLoc;
 
-  std::string str = D->outFileRoot + "a"; outFileLoc = str.c_str();
+  std::string str = D.outFileRoot + "a"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D->a,viewer);CHKERRQ(ierr);
+  ierr = VecView(D.a,viewer);CHKERRQ(ierr);
 
-  str = D->outFileRoot + "b"; outFileLoc = str.c_str();
+  str = D.outFileRoot + "b"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D->b,viewer);CHKERRQ(ierr);
+  ierr = VecView(D.b,viewer);CHKERRQ(ierr);
 
-  str = D->outFileRoot + "eta"; outFileLoc = str.c_str();
+  str = D.outFileRoot + "eta"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D->eta,viewer);CHKERRQ(ierr);
+  ierr = VecView(D.eta,viewer);CHKERRQ(ierr);
 
-  str = D->outFileRoot + "s_NORM"; outFileLoc = str.c_str();
+  str = D.outFileRoot + "s_NORM"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D->s_NORM,viewer);CHKERRQ(ierr);
+  ierr = VecView(D.s_NORM,viewer);CHKERRQ(ierr);
 
 
   return ierr;

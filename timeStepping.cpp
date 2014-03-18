@@ -10,17 +10,19 @@
 
 using namespace std;
 
-PetscErrorCode setInitialTimeStep(UserContext * D)
+PetscErrorCode setInitialTimeStep(UserContext& D)
 {
   PetscErrorCode ierr = 0;
 
-  ierr = KSPSolve(D->ksp,D->rhs,D->uhat);CHKERRQ(ierr);
+  ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
   ierr = computeTau(D);CHKERRQ(ierr);
   ierr = initSlipVel(D);CHKERRQ(ierr);
 
-  ierr = VecCopy(D->gF,D->faultDisp);CHKERRQ(ierr);
-  ierr = VecScale(D->faultDisp,2.0);CHKERRQ(ierr);
-  ierr = VecSet(D->gR,D->vp*D->initTime/2.0);CHKERRQ(ierr);
+  ierr = VecCopy(D.gF,D.faultDisp);CHKERRQ(ierr);
+  ierr = VecScale(D.faultDisp,2.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
+
+  ierr = ComputeRHS(D);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -28,7 +30,7 @@ PetscErrorCode setInitialTimeStep(UserContext * D)
 /*
  * Computes shear stress on fault (nodes 1:D.Nz of slip vector)
  */
-PetscErrorCode computeTau(UserContext * D)
+PetscErrorCode computeTau(UserContext& D)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii,Istart,Iend;
@@ -42,25 +44,25 @@ PetscErrorCode computeTau(UserContext * D)
 
   // compute initial shear stress (MPa)
   Vec sigma_xy;
-  ierr = VecDuplicate(D->uhat,&sigma_xy);CHKERRQ(ierr);
-  ierr = MatMult(D->Dy_Iz,D->uhat,sigma_xy);
-  ierr = VecDuplicate(D->gF,&D->tau);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.uhat,&sigma_xy);CHKERRQ(ierr);
+  ierr = MatMult(D.Dy_Iz,D.uhat,sigma_xy);
+  ierr = VecDuplicate(D.gF,&D.tau);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(sigma_xy,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii<D->Nz) {
+    if (Ii<D.Nz) {
       ierr = VecGetValues(sigma_xy,1,&Ii,&v);CHKERRQ(ierr);
-      ierr = VecSetValues(D->tau,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(D.tau,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = VecAssemblyBegin(D->tau);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->tau);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.tau);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.tau);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeTau in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
   double endTime = MPI_Wtime();
-  D->computeTauTime = D->computeTauTime + (endTime-startTime);
+  D.computeTauTime = D.computeTauTime + (endTime-startTime);
 
   return 0;
 }
@@ -69,7 +71,7 @@ PetscErrorCode computeTau(UserContext * D)
  * Computes slip approximate slip velocity using linear equation.
  * Only used to create inital guess for velocity.
  */
-PetscErrorCode initSlipVel(UserContext * D)
+PetscErrorCode initSlipVel(UserContext& D)
 {
   PetscErrorCode ierr = 0;
   Vec            temp1,temp2,temp3,temp4;
@@ -79,14 +81,14 @@ PetscErrorCode initSlipVel(UserContext * D)
 #endif
 
   //~ ierr = VecCreate(PETSC_COMM_WORLD,V);CHKERRQ(ierr);
-  //~ ierr = VecDuplicate(D->gF,D->V);CHKERRQ(ierr);
-  ierr = VecDuplicate(D->gF,&temp1);CHKERRQ(ierr);
-  ierr = VecDuplicate(D->gF,&temp2);CHKERRQ(ierr);
-  ierr = VecDuplicate(D->gF,&temp3);CHKERRQ(ierr);
-  ierr = VecDuplicate(D->gF,&temp4);CHKERRQ(ierr);
+  //~ ierr = VecDuplicate(D.gF,D.V);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.gF,&temp1);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.gF,&temp2);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.gF,&temp3);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.gF,&temp4);CHKERRQ(ierr);
 
-  ierr = VecPointwiseMult(temp1,D->s_NORM,D->a);CHKERRQ(ierr); // temp = s_NORM.*a
-  ierr = VecPointwiseDivide(temp1,D->tau,temp1);CHKERRQ(ierr); // temp = tau./(s_NORM.*a)
+  ierr = VecPointwiseMult(temp1,D.s_NORM,D.a);CHKERRQ(ierr); // temp = s_NORM.*a
+  ierr = VecPointwiseDivide(temp1,D.tau,temp1);CHKERRQ(ierr); // temp = tau./(s_NORM.*a)
 
   ierr = VecCopy(temp1,temp2);CHKERRQ(ierr);
 
@@ -95,12 +97,12 @@ PetscErrorCode initSlipVel(UserContext * D)
   ierr = VecExp(temp2);CHKERRQ(ierr);
 
   ierr = VecAXPY(temp2,1,temp1);CHKERRQ(ierr); // temp2 = temp1 + temp2 = 2*sinh[tau./(s_NORM.*a)]
-  ierr = VecPointwiseDivide(temp1,D->psi,D->a);CHKERRQ(ierr); // temp1 = psi./a
+  ierr = VecPointwiseDivide(temp1,D.psi,D.a);CHKERRQ(ierr); // temp1 = psi./a
   ierr = VecScale(temp1,-1.0);CHKERRQ(ierr); // temp1 = -psi./a
   ierr = VecExp(temp1); // temp1 = exp(-psi./a)
 
-  ierr = VecPointwiseMult(D->V,temp1,temp2); // temp1 = temp1.*temp2
-  ierr = VecScale(D->V,D->v0);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(D.V,temp1,temp2); // temp1 = temp1.*temp2
+  ierr = VecScale(D.V,D.v0);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending initSlipVel in timeStepping.c\n");CHKERRQ(ierr);
@@ -108,12 +110,12 @@ PetscErrorCode initSlipVel(UserContext * D)
   return 0;
 }
 
-PetscErrorCode computeSlipVel(UserContext * D)
+PetscErrorCode computeSlipVel(UserContext& D)
 {
   PetscErrorCode ierr = 0;
   Vec            left,right,out;
   PetscScalar    outVal,leftVal,rightVal;
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Ii,Istart,Iend,its;
 
   double startTime = MPI_Wtime();
 
@@ -121,9 +123,9 @@ PetscErrorCode computeSlipVel(UserContext * D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting computeSlipVel in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
-  ierr = VecDuplicate(D->tau,&right);CHKERRQ(ierr);
-  ierr = VecCopy(D->tau,right);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(right,right,D->eta);CHKERRQ(ierr);
+  ierr = VecDuplicate(D.tau,&right);CHKERRQ(ierr);
+  ierr = VecCopy(D.tau,right);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(right,right,D.eta);CHKERRQ(ierr);
   ierr = VecAbs(right);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -139,120 +141,25 @@ PetscErrorCode computeSlipVel(UserContext * D)
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     if (leftVal==rightVal) { outVal = leftVal; }
     else {
-      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,D->rootTol,1e3,D);CHKERRQ(ierr);
+      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e3,&D);CHKERRQ(ierr);
+      D.rootIts += its;
     }
-    ierr = VecSetValue(D->V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(D.V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(D->V);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->V);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.V);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.V);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeSlipVel in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
   double endTime = MPI_Wtime();
-  D->computeVelTime = D->computeVelTime + (endTime-startTime);
+  D.computeVelTime = D.computeVelTime + (endTime-startTime);
 
   return ierr;
 }
 
-PetscErrorCode timeStepRHSFuncPETSC(TS ts, PetscReal t, Vec in,Vec out, void * ctx)
-{
-  PetscErrorCode ierr;
-  PetscInt       Ii,Istart,Iend;
-  UserContext    *D = (UserContext*) ctx;
-  PetscScalar    wVal;
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting timeStepRHSFunc in timeStepping.c, at time t=%g\n",t);
-  CHKERRQ(ierr);
-#endif
-
-  // update uhat and psi from input w
-  ierr = VecGetOwnershipRange(in,&Istart,&Iend); // was geting from D->w
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if ( (Ii<D->Nz) & (Ii<Iend) ) {
-      ierr = VecGetValues(in,1,&Ii,&wVal);CHKERRQ(ierr);
-      ierr = VecSetValue(D->uhat,Ii,wVal,INSERT_VALUES);CHKERRQ(ierr);
-    }
-    if ( (Ii>=D->Nz) & (Ii<Iend) ) {
-      ierr = VecGetValues(in,1,&Ii,&wVal);CHKERRQ(ierr);
-      ierr = VecSetValue(D->psi,Ii-D->Nz,wVal,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(D->uhat);CHKERRQ(ierr);ierr = VecAssemblyBegin(D->psi);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->uhat);CHKERRQ(ierr);ierr = VecAssemblyEnd(D->psi);CHKERRQ(ierr);
-
-  // update gF from input w
-  ierr = VecGetOwnershipRange(in,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if ( Ii<D->Nz) {
-      ierr = VecGetValues(in,1,&Ii,&wVal);CHKERRQ(ierr);
-      ierr = VecSetValue(D->gF,Ii,wVal/2.0,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(D->gF);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->gF);CHKERRQ(ierr);
-
-  // update gR
-  ierr = VecGetOwnershipRange(D->gR,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if ( Ii<D->Nz) {
-      wVal = D->vp*t/2;
-      ierr = VecSetValue(D->gR,Ii,wVal,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(D->gR);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D->gR);CHKERRQ(ierr);
-
-  // solve for u
-  ierr = ComputeRHS(D);
-  ierr = KSPSolve(D->ksp,D->rhs,D->uhat);CHKERRQ(ierr);
-
-  ierr = computeTau(D);CHKERRQ(ierr);
-  ierr = computeSlipVel(D);CHKERRQ(ierr);
-
-  // create dw from vel and dpsi
-  ierr = VecGetOwnershipRange(D->V,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-      ierr = VecGetValues(D->V,1,&Ii,&wVal);CHKERRQ(ierr);
-      ierr = VecSetValue(out,Ii,wVal,INSERT_VALUES);CHKERRQ(ierr);
-
-      ierr = agingLaw(Ii,&wVal,D);CHKERRQ(ierr);
-      ierr = VecSetValue(out,Ii+D->Nz,wVal,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending timeStepRHSFunc in timeStepping.c, at time t=%g\n",t);CHKERRQ(ierr);
-#endif
-
-  return ierr;
-}
-
-/*
- * Called by TSSolve.
- */
-PetscErrorCode timeMonitorPETSC(TS ts,PetscInt step,PetscReal time,Vec w,void *ctx)
-{
-  PetscErrorCode ierr;
-  UserContext    *D = (UserContext*) ctx;
-
-  if ( step % D->strideLength == 0) {
-    D->count++;
-    D->currTime = time;
-    ierr = D->writeCurrentStep();CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"time = %g,count=%i\n",time,D->count);CHKERRQ(ierr);
-  }
-
-  ierr = 0;
-
-  return ierr;
-}
-
-PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext)
+PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,void* userContext)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii,Istart,Iend;
@@ -272,16 +179,16 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,
   ierr = VecSet(D->gR,D->vp*time/2.0);CHKERRQ(ierr);
 
   // solve for displacement
-  ierr = ComputeRHS(D);
+  ierr = ComputeRHS(*D);
   double startKspTime = MPI_Wtime();
     ierr = KSPSolve(D->ksp,D->rhs,D->uhat);CHKERRQ(ierr);
-    PetscInt its;
+    //~PetscInt its;
     //~ierr = KSPGetIterationNumber(D->ksp,&its);CHKERRQ(ierr);
     //~ierr = PetscPrintf(PETSC_COMM_WORLD,"number of iterations: %d\n",its);CHKERRQ(ierr);
   double endKspTime = MPI_Wtime();
   D->kspTime = D->kspTime + (endKspTime-startKspTime);
-  ierr = computeTau(D);CHKERRQ(ierr);
-  ierr = computeSlipVel(D);CHKERRQ(ierr);
+  ierr = computeTau(*D);CHKERRQ(ierr);
+  ierr = computeSlipVel(*D);CHKERRQ(ierr);
 
   // compute dvar
   ierr = VecGetOwnershipRange(D->V,&Istart,&Iend);
@@ -307,10 +214,10 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,
 
 
 PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
-                               const Vec *var, const int lenVar, void*userContext)
+                               const Vec* var, const int lenVar, void* userContext)
 {
   PetscErrorCode ierr = 0;
-  UserContext    *D = (UserContext*) userContext;
+  UserContext*    D = (UserContext*) userContext;
 
   if ( stepCount % D->strideLength == 0) {
     D->count++;
