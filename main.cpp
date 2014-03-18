@@ -23,23 +23,6 @@ int runTests(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  UserContext D(order,Ny,Nz,"data/");
-  //~ierr = setParameters(&D);CHKERRQ(ierr);
-  //~ierr = D.writeParameters();CHKERRQ(ierr);
-  //~ierr = setRateAndState(&D);CHKERRQ(ierr);
-  //~ierr = setLinearSystem(&D,loadMat);CHKERRQ(ierr);
-  //~if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-
-  //~PetscScalar outVal;
-  //~PetscInt numIts = 0;
-  //~PetscScalar leftBound=2.0, rightBound=20.0;
-  //~ierr = bisect((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,NULL);CHKERRQ(ierr);
-  //~ierr = safeSecant((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,&D);CHKERRQ(ierr);
-  //~ierr = secantMethod((*exFunc),1,leftBound,rightBound,&outVal,&numIts,1e-8,1e3,&D);
-
-
-  //~ierr = computeSlipVel(&D);CHKERRQ(ierr);
-
   //~KSPCreate(PETSC_COMM_WORLD,&D.ksp);
   //~KSPSetType(D.ksp,KSPPREONLY);
   //~KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
