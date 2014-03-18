@@ -86,7 +86,7 @@ int runEqCycle(int argc,char **args)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
-  TimeSolver ts = TimeSolver(D.maxStepCount,"RK32");
+  OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
   ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
   ierr = ts.setTolerance(D.atol);CHKERRQ(ierr);
@@ -97,7 +97,7 @@ int runEqCycle(int argc,char **args)
   ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
 
   double timeBeforeIntegration = MPI_Wtime();
-  ierr = ts.runTimeSolver();CHKERRQ(ierr);
+  ierr = ts.runOdeSolver();CHKERRQ(ierr);
   double timeAfterIntegration = MPI_Wtime();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
 

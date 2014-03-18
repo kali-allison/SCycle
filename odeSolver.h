@@ -34,7 +34,7 @@
  */
 
 
-class TimeSolver
+class OdeSolver
 {
 
   private:
@@ -55,9 +55,9 @@ class TimeSolver
 
   public:
 
-    TimeSolver(PetscInt maxNumSteps,std::string solverType);
-    TimeSolver(PetscScalar finalT,PetscInt maxNumSteps,std::string solverType);
-    ~TimeSolver();
+    OdeSolver(PetscInt maxNumSteps,std::string solverType);
+    OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,std::string solverType);
+    ~OdeSolver();
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
@@ -71,7 +71,7 @@ class TimeSolver
     PetscErrorCode viewSolver();
     PetscErrorCode debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str);
 
-    PetscErrorCode runTimeSolver();
+    PetscErrorCode runOdeSolver();
 
 };
 

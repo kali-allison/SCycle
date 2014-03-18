@@ -8,7 +8,7 @@ using namespace std;
 
 //================= constructors and destructor ========================
 
-TimeSolver::TimeSolver(PetscInt maxNumSteps,string solverType)
+OdeSolver::OdeSolver(PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
 _atol(1.0e-9),_reltol(1.0e-9),
 _maxNumSteps(maxNumSteps),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
@@ -19,7 +19,7 @@ _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
   _timeMonitor = &tempTimeMonitor;
 }
 
-TimeSolver::TimeSolver(PetscScalar finalT,PetscInt maxNumSteps,string solverType)
+OdeSolver::OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(finalT),_currT(0),_deltaT(finalT/maxNumSteps),_minDeltaT(1e-14),_maxDeltaT(finalT/10.0),
 _atol(1.0e-9),_reltol(1.0e-9),
 _maxNumSteps(maxNumSteps),_stepCount(0),_solverType(solverType),
@@ -29,7 +29,7 @@ _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
   _timeMonitor = &tempTimeMonitor;
 }
 
-TimeSolver::~TimeSolver()
+OdeSolver::~OdeSolver()
 {
   if (_dvar!=0) {
     for (int ind=0;ind<_lenVar;ind++) {
@@ -41,7 +41,7 @@ TimeSolver::~TimeSolver()
 
 //================= modify data members ================================
 
-PetscErrorCode TimeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
+PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
   _initT = initT;
   _currT = initT;
@@ -50,38 +50,38 @@ PetscErrorCode TimeSolver::setTimeRange(const PetscReal initT,const PetscReal fi
   return 0;
 }
 
-PetscErrorCode TimeSolver::setStepSize(const PetscReal deltaT)
+PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
 {
   _deltaT = deltaT;
   return 0;
 }
 
-PetscErrorCode TimeSolver::setTolerance(const PetscReal tol)
+PetscErrorCode OdeSolver::setTolerance(const PetscReal tol)
 {
   _atol = tol;
   _reltol = tol;
   return 0;
 }
 
-PetscErrorCode TimeSolver::setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*))
+PetscErrorCode OdeSolver::setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*))
 {
   _rhsFunc = rhsFunc;
   return 0;
 }
 
-PetscErrorCode TimeSolver::setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*))
+PetscErrorCode OdeSolver::setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*))
 {
   _timeMonitor = timeMonitor;
   return 0;
 }
 
-PetscErrorCode TimeSolver::setUserContext(void * userContext)
+PetscErrorCode OdeSolver::setUserContext(void * userContext)
 {
   _userContext = userContext;
   return 0;
 }
 
-PetscErrorCode TimeSolver::setInitialConds(Vec *var, const int lenVar)
+PetscErrorCode OdeSolver::setInitialConds(Vec *var, const int lenVar)
 {
   PetscErrorCode ierr = 0;
   PetscScalar    zero=0.0;
@@ -98,7 +98,7 @@ PetscErrorCode TimeSolver::setInitialConds(Vec *var, const int lenVar)
   return ierr;
 }
 
-PetscErrorCode TimeSolver::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
+PetscErrorCode OdeSolver::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
 {
   _minDeltaT = minDeltaT;
   _maxDeltaT = maxDeltaT;
@@ -107,7 +107,7 @@ PetscErrorCode TimeSolver::setTimeStepBounds(const PetscReal minDeltaT, const Pe
 
 //================= output useful info =========================
 
-PetscErrorCode TimeSolver::viewSolver()
+PetscErrorCode OdeSolver::viewSolver()
 {
   PetscErrorCode ierr;
 
@@ -134,7 +134,7 @@ PetscErrorCode TimeSolver::viewSolver()
 }
 
 // Outputs data at each time step.
-PetscErrorCode TimeSolver::debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str)
+PetscErrorCode OdeSolver::debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
@@ -150,7 +150,7 @@ PetscErrorCode TimeSolver::debugMyCode(const PetscReal time,const PetscInt steps
 
 //================= perform actual integration =========================
 
-PetscErrorCode TimeSolver::runTimeSolver()
+PetscErrorCode OdeSolver::runOdeSolver()
 {
   PetscErrorCode ierr;
 
@@ -167,7 +167,7 @@ PetscErrorCode TimeSolver::runTimeSolver()
   return 0;
 }
 
-PetscErrorCode TimeSolver::odeFEULER()
+PetscErrorCode OdeSolver::odeFEULER()
 {
 
   PetscErrorCode ierr = 0;
@@ -189,7 +189,7 @@ PetscErrorCode TimeSolver::odeFEULER()
   return ierr;
 }
 
-PetscErrorCode TimeSolver::odeRK32()
+PetscErrorCode OdeSolver::odeRK32()
 {
   PetscErrorCode ierr=0;
   int            attemptCount=0;
