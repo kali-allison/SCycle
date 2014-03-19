@@ -33,7 +33,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   // time monitering
   ctx.strideLength = 1;
   ctx.maxStepCount = 5e4;
-  ctx.initTime = 1e3; // 2.652e5
+  ctx.initTime = 0.0; // 2.652e5
   ctx.currTime = ctx.initTime;
   ctx.maxTime = 5000.*3.155926e1*3;// 5000.*3.1556926e7;
   ctx.atol = 1e-6;

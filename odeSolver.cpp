@@ -192,7 +192,6 @@ PetscErrorCode OdeSolver::odeFEULER()
 PetscErrorCode OdeSolver::odeRK32()
 {
   PetscErrorCode ierr=0;
-  int            attemptCount=0;
   PetscReal      err[_lenVar],totErr=0.0;
   PetscInt       size;
 
@@ -282,7 +281,7 @@ PetscErrorCode OdeSolver::odeRK32()
       }
       else if (_maxDeltaT == _deltaT) {
         _numMaxSteps++;
-        break;
+        //~break;
       }
 
       _numRejectedSteps++;
@@ -300,16 +299,14 @@ PetscErrorCode OdeSolver::odeRK32()
       _deltaT = max(_minDeltaT,_deltaT);
       if (_minDeltaT == _deltaT) {
         _numMinSteps++;
-        break;
       }
       else if (_maxDeltaT == _deltaT) {
         _numMaxSteps++;
-        break;
       }
     }
 
     ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e %i\n",_stepCount,_currT,attemptCount);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
   }
 
   // destruct temporary containers
