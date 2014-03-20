@@ -130,7 +130,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
 
-  //~ierr = VecSet(D.b,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.b,0.02);CHKERRQ(ierr);
 
   /* p.tau_inf = p.s_NORM(1)*p.a(1)*asinh( p.vp/(2*p.v0)*exp(p.f0/p.a(1)) ) */
   v = 0.5*D.vp*exp(D.f0/aVal)/D.v0;

@@ -50,13 +50,13 @@ int runEqCycle(int argc,char **args)
   PetscErrorCode ierr = 0;
   PetscInt       Ny=5, Nz=7, order=2;
   PetscBool      loadMat = PETSC_FALSE;
+
+  // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  // Solution for my own timeSolver routines
-  //~UserContext D = UserContext(order,Ny,Nz,"data/");
   UserContext D(order,Ny,Nz,"data/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
@@ -69,6 +69,8 @@ int runEqCycle(int argc,char **args)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
+  //~OdeSolver ts = OdeSolver(D.maxStepCount,"MANUAL");
+  //~ierr = ts.setSourceFile("britT");CHKERRQ(ierr);
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
   ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
@@ -82,6 +84,8 @@ int runEqCycle(int argc,char **args)
   double timeBeforeIntegration = MPI_Wtime();
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
   double timeAfterIntegration = MPI_Wtime();
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);

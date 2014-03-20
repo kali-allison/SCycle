@@ -276,7 +276,7 @@ PetscErrorCode UserContext::writeInitialStep()
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(w,wViewer);CHKERRQ(ierr);
-  ierr = VecView(uhat,uhatViewer);CHKERRQ(ierr);
+  ierr = VecView(gF,uhatViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
@@ -324,7 +324,7 @@ PetscErrorCode UserContext::writeCurrentStep()
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(w,wViewer);CHKERRQ(ierr);
-  ierr = VecView(uhat,uhatViewer);CHKERRQ(ierr);
+  ierr = VecView(gF,uhatViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);

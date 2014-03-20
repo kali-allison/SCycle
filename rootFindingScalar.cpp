@@ -52,11 +52,12 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
    * Check inputs.
    */
   if (left >= right) {
-    SETERRQ(PETSC_COMM_WORLD,1,"left bound must be less than right bound");
+    SETERRQ(PETSC_COMM_SELF,1,"left bound must be less than right bound");
+    //~abort();
     return 0;
   }
   else if (atol <= 0) {
-    SETERRQ(PETSC_COMM_WORLD,1,"atol must be > 0 for convergence");
+    SETERRQ(PETSC_COMM_SELF,1,"atol must be > 0 for convergence");
     return 0;
   }
 
@@ -71,6 +72,7 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
 
   if ( isnan(fLeft) || isnan(fRight) || isinf(fLeft) || isinf(fRight) ) {
      SETERRQ(PETSC_COMM_WORLD,1,"Function evaluated to nan");
+     abort();
     return 0;
   }
   else if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
@@ -102,7 +104,8 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
   *out = mid;
   *its = numIts;
   if (sqrt(fMid*fMid) > atol) {
-    SETERRQ(PETSC_COMM_WORLD,1,"rootFinder did not converge");
+    SETERRQ(PETSC_COMM_SELF,1,"rootFinder did not converge");
+    abort();
     return 0;
   }
 

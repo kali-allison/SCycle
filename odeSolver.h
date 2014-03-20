@@ -9,6 +9,7 @@
  *
  * SOLVER TYPE      ALGORITHM
  *  "FEULER"      forward Euler
+ *  "MANUAL"      time determined by user-specified file
  *  "RK32"        explicit Runge-Kutta (2,3)
  *
  * To obtain solutions at user-specified times, use FEULER and call setStepSize
@@ -42,7 +43,7 @@ class OdeSolver
     PetscReal     _initT,_finalT,_currT,_deltaT,_minDeltaT,_maxDeltaT;
     PetscReal     _atol,_reltol;
     PetscInt      _maxNumSteps,_stepCount,_numRejectedSteps,_numMinSteps,_numMaxSteps;
-    std::string   _solverType;
+    std::string   _solverType,_sourceFile;
     Vec           *_var,*_dvar;
     int           _lenVar;
     void          *_userContext;
@@ -50,6 +51,7 @@ class OdeSolver
     PetscErrorCode (*_timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*);
 
     PetscErrorCode odeFEULER();
+    PetscErrorCode odeMANUAL();
     PetscErrorCode odeRK32();
 
 
@@ -67,6 +69,7 @@ class OdeSolver
     PetscErrorCode setUserContext(void * userContext);
     PetscErrorCode setInitialConds(Vec *var, const int lenVar);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
+    PetscErrorCode setSourceFile(const std::string sourceFile);
 
     PetscErrorCode viewSolver();
     PetscErrorCode debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str);

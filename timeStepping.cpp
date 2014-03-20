@@ -131,6 +131,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecCopy(right,left);CHKERRQ(ierr);
   ierr = VecScale(left,-1.0);CHKERRQ(ierr);
+  //~ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
   PetscErrorCode (*frictionLaw)(const PetscInt,const PetscScalar, PetscScalar *, void *) = &rateAndStateFrictionScalar;
@@ -141,7 +142,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     if (leftVal==rightVal) { outVal = leftVal; }
     else {
-      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e3,&D);CHKERRQ(ierr);
+      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e4,&D);CHKERRQ(ierr);
       D.rootIts += its;
     }
     ierr = VecSetValue(D.V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
@@ -182,9 +183,6 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   ierr = ComputeRHS(*D);
   double startKspTime = MPI_Wtime();
     ierr = KSPSolve(D->ksp,D->rhs,D->uhat);CHKERRQ(ierr);
-    //~PetscInt its;
-    //~ierr = KSPGetIterationNumber(D->ksp,&its);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"number of iterations: %d\n",its);CHKERRQ(ierr);
   double endKspTime = MPI_Wtime();
   D->kspTime = D->kspTime + (endKspTime-startKspTime);
   ierr = computeTau(*D);CHKERRQ(ierr);

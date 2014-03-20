@@ -12,7 +12,7 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
 _atol(1.0e-9),_reltol(1.0e-9),
 _maxNumSteps(maxNumSteps),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
-_solverType(solverType),
+_solverType(solverType),_sourceFile(""),
 _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 {
   _rhsFunc = &tempRhsFunc;
@@ -22,7 +22,8 @@ _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 OdeSolver::OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(finalT),_currT(0),_deltaT(finalT/maxNumSteps),_minDeltaT(1e-14),_maxDeltaT(finalT/10.0),
 _atol(1.0e-9),_reltol(1.0e-9),
-_maxNumSteps(maxNumSteps),_stepCount(0),_solverType(solverType),
+_maxNumSteps(maxNumSteps),_stepCount(0),
+_solverType(solverType),_sourceFile(""),
 _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 {
   _rhsFunc = &tempRhsFunc;
@@ -105,6 +106,12 @@ PetscErrorCode OdeSolver::setTimeStepBounds(const PetscReal minDeltaT, const Pet
   return 0;
 }
 
+PetscErrorCode OdeSolver::setSourceFile(const std::string sourceFile)
+{
+  _sourceFile = sourceFile;
+  return 0;
+}
+
 //================= output useful info =========================
 
 PetscErrorCode OdeSolver::viewSolver()
@@ -157,6 +164,9 @@ PetscErrorCode OdeSolver::runOdeSolver()
   if (_solverType.compare("FEULER")==0) {
     ierr = odeFEULER();CHKERRQ(ierr);
   }
+  else if (_solverType.compare("MANUAL")==0) {
+    ierr = odeMANUAL();CHKERRQ(ierr);
+  }
   else if (_solverType.compare("RK32")==0) {
     ierr = odeRK32();CHKERRQ(ierr);
   }
@@ -176,9 +186,58 @@ PetscErrorCode OdeSolver::odeFEULER()
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
+
     ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);CHKERRQ(ierr);
     for (int varInd=0;varInd<_lenVar;varInd++) {
-      ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // in = in + deltaT*dwdt
+      ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
+    }
+    _currT = _currT + _deltaT;
+    if (_currT>_finalT) { _currT = _finalT; }
+    _stepCount++;
+    ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
+  }
+
+  return ierr;
+}
+
+PetscErrorCode OdeSolver::odeMANUAL()
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  Vec            timeVec;
+  PetscInt       Ii,Istart,Iend,innerCount=0;
+  PetscScalar    newTime;
+
+  // this code only works on 1 processor right now!!!
+  int size;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  if (size > 1) {
+    SETERRQ(PETSC_COMM_SELF,1,"The MANUAL ode algorithm only works on 1 processor");
+    abort();
+  }
+
+  VecCreate(PETSC_COMM_WORLD,&timeVec);CHKERRQ(ierr);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,_sourceFile.c_str(),FILE_MODE_READ,&viewer);
+  ierr = VecLoad(timeVec,viewer);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(timeVec,&Istart,&Iend);
+  Ii = Istart+1;
+  while (Ii<Iend && _stepCount < _maxNumSteps) {
+
+    if (innerCount == 0) {
+      ierr = VecGetValues(timeVec,1,&Ii,&newTime);CHKERRQ(ierr);
+     _deltaT = newTime - _currT;
+     _deltaT = (newTime - _currT)*0.25;
+      Ii++;
+      innerCount=4;
+    }
+    else { innerCount--; }
+
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ii=%i currTime=%g newTime=%g deltaT=%g\n",
+                       Ii,_currT,newTime,_deltaT);CHKERRQ(ierr);
+
+    ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);CHKERRQ(ierr);
+    for (int varInd=0;varInd<_lenVar;varInd++) {
+      ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
     }
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
@@ -306,7 +365,7 @@ PetscErrorCode OdeSolver::odeRK32()
     }
 
     ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
   }
 
   // destruct temporary containers
