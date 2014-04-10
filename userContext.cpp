@@ -65,12 +65,16 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   // initialize time stepping data
   VecDuplicate(eta,&V);
   VecDuplicate(eta,&faultDisp);
+  VecDuplicate(eta,&dpsi);
   VecCreate(PETSC_COMM_WORLD,&w);
   VecSetSizes(w,PETSC_DECIDE,2*Nz);
   VecSetFromOptions(w);
   TSCreate(PETSC_COMM_WORLD,&ts);
   var = new Vec[2];
   var[0] = faultDisp; var[1] = psi;
+
+  // lousy temporary solution to fact that psi changes in time stepping but can't be handed around as a variable
+  VecDuplicate(eta,&tempPsi);
 
   // viewers (bc PetSc appears to have an error in the way it handles them)
   PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outFileRoot+"time.txt").c_str(),&timeViewer);
@@ -133,6 +137,8 @@ UserContext::~UserContext()
   VecDestroy(&faultDisp);
   VecDestroy(&V);
   delete[] var;
+
+  VecDestroy(&tempPsi);
 
   // viewers
   PetscViewerDestroy(&timeViewer);
@@ -324,7 +330,7 @@ PetscErrorCode UserContext::writeCurrentStep()
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(w,wViewer);CHKERRQ(ierr);
-  ierr = VecView(gF,uhatViewer);CHKERRQ(ierr);
+  ierr = VecView(faultDisp,uhatViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);

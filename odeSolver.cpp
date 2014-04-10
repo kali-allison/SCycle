@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "odeSolver.h"
+#include "userContext.h"
 
 using namespace std;
 
@@ -141,16 +142,37 @@ PetscErrorCode OdeSolver::viewSolver()
 }
 
 // Outputs data at each time step.
-PetscErrorCode OdeSolver::debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str)
+PetscErrorCode OdeSolver::debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *str)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
-  PetscScalar    val;
+  PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
+  UserContext    *D = (UserContext*) _userContext;
+  PetscScalar k = D->G/2/D->Ly;
 
   ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(var[0],1,&Istart,&val);CHKERRQ(ierr);
+  ierr = VecGetValues(var[0],1,&Istart,&uVal);CHKERRQ(ierr);
+  ierr = VecGetValues(var[1],1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"  %s: %i %g %g\n",str,steps,time,val);CHKERRQ(ierr);
+  ierr= VecGetOwnershipRange(dvar[0],&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(dvar[0],1,&Istart,&velVal);CHKERRQ(ierr);
+  ierr = VecGetValues(dvar[1],1,&Istart,&dQVal);CHKERRQ(ierr);
+
+  ierr= VecGetOwnershipRange(D->gR,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(D->gR,1,&Istart,&gRval);CHKERRQ(ierr);
+
+  PetscScalar tauVal;
+  ierr = VecGetValues(D->tau,1,&Istart,&tauVal);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"tau = %e\n",tauVal);CHKERRQ(ierr);
+
+  if (steps == 0) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-15s\n",
+                       "Step","Stage","gR","D","Q","VL","V","dQ");
+    CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %6s | %.9e %.9e %.9e | %.9e %.9e %.9e\n",
+                     _stepCount,str,2*gRval*k,uVal,psiVal,D->vp/2,velVal,dQVal);CHKERRQ(ierr);
+
 
   return ierr;
 }
@@ -278,13 +300,12 @@ PetscErrorCode OdeSolver::odeRK32()
 
   // set initial condition
   ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);CHKERRQ(ierr);
-  //~ierr = _timeMonitor(_initT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
+  //~debug(_currT,_stepCount,_var,_dvar,"IC");
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
 
     while (1) { // repeat until time step is acceptable
-
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
@@ -292,6 +313,7 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecWAXPY(varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
       ierr = _rhsFunc(_currT+0.5*_deltaT,_lenVar,varHalfdT,dvarHalfdT,_userContext);
+      //~debug(_currT+0.5*_deltaT,_stepCount,varHalfdT,dvarHalfdT,"t+dt/2");
 
       // stage 2: integrate fields to _currT + _deltaT
       for (int ind=0;ind<_lenVar;ind++) {
@@ -299,6 +321,7 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecAXPY(vardT[ind],2*_deltaT,dvarHalfdT[ind]);CHKERRQ(ierr);
       }
       ierr = _rhsFunc(_currT+_deltaT,_lenVar,vardT,dvardT,_userContext);
+      //~debug(_currT+_deltaT,_stepCount,vardT,dvardT,"t+dt");
 
       // 2nd and 3rd order update
       for (int ind=0;ind<_lenVar;ind++) {
@@ -309,29 +332,33 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecAXPY(var3rd[ind],2*_deltaT/3.0,dvarHalfdT[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(var3rd[ind],_deltaT/6.0,dvardT[ind]);CHKERRQ(ierr);
       }
+      //~debug(_currT+_deltaT,_stepCount,var2nd,dvardT,"Y2");
+      //~debug(_currT+_deltaT,_stepCount,var3rd,dvardT,"Y3");
 
       // calculate error
       totErr = 0.0;
-      for (int ind=0;ind<_lenVar;ind++) {
+      //~for (int ind=0;ind<_lenVar;ind++) {
+        int ind = 0;
         ierr = VecWAXPY(errVec[ind],-1.0,var2nd[ind],var3rd[ind]);CHKERRQ(ierr);
 
         // error based on max norm
-        //~ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
+        ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
         //~if (err[ind]>totErr) { totErr=err[ind]; }
 
         // error based on weighted 2 norm
-        VecDot(errVec[ind],errVec[ind],&err[ind]);
-        VecGetSize(errVec[ind],&size);
-        totErr += err[ind]/size;
-      }
-      totErr = sqrt(totErr);
+        //~VecDot(errVec[ind],errVec[ind],&err[ind]);
+        //~VecGetSize(errVec[ind],&size);
+        //~totErr += err[ind]/size;
+      //~}
+      //~totErr = sqrt(totErr);
+      totErr = err[ind];
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"totErr=%7e\n",totErr);CHKERRQ(ierr);
 
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, totErr = %g, currT = %g,_deltaT=%g\n",
                          //~attemptCount,totErr,_currT,_deltaT);CHKERRQ(ierr);
 
       if (totErr<_atol) { break; }
       // else: step is unacceptable, so modify time step
-
       _deltaT = min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
       _deltaT = max(_minDeltaT,_deltaT);
       if (_minDeltaT == _deltaT) {
@@ -345,14 +372,15 @@ PetscErrorCode OdeSolver::odeRK32()
 
       _numRejectedSteps++;
     }
-    //~debugMyCode(_currT,_stepCount,_var,"var");
     _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
     for (int ind=0;ind<_lenVar;ind++) {
       ierr = VecCopy(var3rd[ind],_var[ind]);CHKERRQ(ierr);
-      ierr = VecCopy(dvardT[ind],_dvar[ind]);CHKERRQ(ierr);
     }
+    ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);
+    //~debug(_currT+_deltaT,_stepCount,_var,_dvar,"Y3 F");
+
     if (totErr!=0.0) {
       _deltaT=min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
       _deltaT = max(_minDeltaT,_deltaT);

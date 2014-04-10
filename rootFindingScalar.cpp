@@ -1,11 +1,18 @@
 #include <petscts.h>
+#include <assert.h>
 #include "rootFindingScalar.h"
 
-//~PetscErrorCode exFunc(PetscScalar in, PetscScalar *out,void *ctx)
+// Example function used for testing the rootfinding methods below.
 PetscErrorCode exFunc(const PetscInt ind, PetscScalar in,PetscScalar *out, void * ctx)
 {
-  *out = in*in*in - 30.0*in*in + 2552;
-  return 0;
+  PetscErrorCode ierr = 0;
+  //~*out = in*in*in - 30.0*in*in + 2552;
+  *out = in*in*in - in - 2;
+  if (isnan(*out) || isinf(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR:  in = %g\n",in);CHKERRQ(ierr);
+    assert(!isnan(*out));assert(!isinf(*out));
+  }
+  return ierr;
 }
 
 PetscErrorCode secantMethod(PetscErrorCode (*func)(const PetscInt,const PetscScalar,PetscScalar *,void*),
@@ -53,38 +60,46 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
    */
   if (left >= right) {
     SETERRQ(PETSC_COMM_SELF,1,"left bound must be less than right bound");
-    //~abort();
-    return 0;
+    assert(!isnan(fRight)); assert(!isinf(fRight));
+    assert(left < right);
+    return 1;
   }
   else if (atol <= 0) {
     SETERRQ(PETSC_COMM_SELF,1,"atol must be > 0 for convergence");
-    return 0;
+    assert(atol >= 0);
+    return 1;
   }
 
   ierr = func(ind,left,&fLeft,ctx);CHKERRQ(ierr);
   ierr = func(ind,right,&fRight,ctx);CHKERRQ(ierr);
+  if ( isnan(fLeft) || isnan(fRight)) {
+     SETERRQ(PETSC_COMM_WORLD,1,"bound evaluated to nan");
+     assert(!isnan(fLeft)); assert(!isnan(fRight));
+    return 1;
+  }
+  if ( isinf(fLeft) || isnan(fLeft)) {
+     SETERRQ(PETSC_COMM_WORLD,1,"bound evaluated to nan");
+     assert(!isinf(fLeft)); assert(!isinf(fRight));
+    return 1;
+  }
+
+
 #if VERBOSE > 2
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",fLeft,fRight);CHKERRQ(ierr);
 #endif
 
   PetscInt numIts=0;
-  PetscScalar mid,fMid;
+  PetscScalar mid,fMid = atol*2;
 
-  if ( isnan(fLeft) || isnan(fRight) || isinf(fLeft) || isinf(fRight) ) {
-     SETERRQ(PETSC_COMM_WORLD,1,"Function evaluated to nan");
-     abort();
-    return 0;
-  }
-  else if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"numits left right mid fMid\n");CHKERRQ(ierr);
+
+  if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
   else if (sqrt(fRight*fRight) <= atol) { *out = right; return 0; }
 
-  mid = (left + right)*0.5;
-  ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
-  if (isnan(fMid)) { SETERRQ(PETSC_COMM_WORLD,1,"fMid evaluated to nan"); return 0; }
   while ( (numIts <= itMax) & (sqrt(fMid*fMid) >= atol) ) {
     mid = (left + right)*0.5;
     ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
-
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %f %f %f %f\n",numIts,left,right,mid,fMid);CHKERRQ(ierr);
     if (fLeft*fMid <= 0) {
       right = mid;
       fRight = fMid;
@@ -104,8 +119,8 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
   *out = mid;
   *its = numIts;
   if (sqrt(fMid*fMid) > atol) {
-    SETERRQ(PETSC_COMM_SELF,1,"rootFinder did not converge");
-    abort();
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations",numIts);
+    assert(sqrt(fMid*fMid) < atol);
     return 0;
   }
 

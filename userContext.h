@@ -49,13 +49,16 @@ class UserContext {
 
   // time stepping data
   TS             ts;
-  Vec            w,faultDisp,*var;
+  Vec            w,faultDisp,dpsi,*var;
   PetscInt       strideLength; // stride
   PetscInt       maxStepCount; // largest number of time steps
   PetscReal      initTime,currTime,maxTime,minDeltaT,maxDeltaT;
   int            count;
   PetscScalar    atol;
   PetscScalar    initDeltaT;
+
+  // lousy temporary solution
+  Vec tempPsi;
 
   // viewers
   PetscViewer    timeViewer,wViewer,uhatViewer,velViewer,tauViewer,psiViewer;

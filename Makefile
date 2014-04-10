@@ -35,4 +35,4 @@ rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h
 timeStepping.o: timeStepping.cpp userContext.h linearSysFuncs.h rootFindingScalar.h timeStepping.h
 init.o: init.cpp userContext.h init.hpp
 #~ debuggingFuncs.o: debuggingFuncs.cpp userContext.h debuggingFuncs.h
-odeSolver.o: odeSolver.cpp odeSolver.h
+odeSolver.o: odeSolver.cpp odeSolver.h userContext.h

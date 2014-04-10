@@ -16,7 +16,8 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
 
   ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
   ierr = computeTau(D);CHKERRQ(ierr);
-  ierr = initSlipVel(D);CHKERRQ(ierr);
+  //~ierr = initSlipVel(D);CHKERRQ(ierr);
+  ierr = computeSlipVel(D);CHKERRQ(ierr);
 
   ierr = VecCopy(D.gF,D.faultDisp);CHKERRQ(ierr);
   ierr = VecScale(D.faultDisp,2.0);CHKERRQ(ierr);
@@ -134,7 +135,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
   //~ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
-  PetscErrorCode (*frictionLaw)(const PetscInt,const PetscScalar, PetscScalar *, void *) = &rateAndStateFrictionScalar;
+  PetscErrorCode (*frictionLaw)(const PetscInt,const PetscScalar,PetscScalar *, void *) = &stressMstrength;
 
   ierr = VecGetOwnershipRange(left,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -142,7 +143,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     if (leftVal==rightVal) { outVal = leftVal; }
     else {
-      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e4,&D);CHKERRQ(ierr);
+      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e5,&D);CHKERRQ(ierr);
       D.rootIts += its;
     }
     ierr = VecSetValue(D.V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
@@ -165,7 +166,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   PetscErrorCode ierr = 0;
   PetscInt       Ii,Istart,Iend;
   UserContext    *D = (UserContext*) userContext;
-  PetscScalar    val;
+  PetscScalar    val,psiVal;
 
   double startTime = MPI_Wtime();
 
@@ -174,10 +175,12 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   CHKERRQ(ierr);
 #endif
 
-  // update boundaries from input var
-  ierr = VecCopy(D->faultDisp,D->gF);CHKERRQ(ierr);
+  // update boundaries, state
+  ierr = VecCopy(var[0],D->gF);CHKERRQ(ierr);
   ierr = VecScale(D->gF,0.5);CHKERRQ(ierr);
+  ierr = VecCopy(var[1],D->tempPsi);CHKERRQ(ierr);
   ierr = VecSet(D->gR,D->vp*time/2.0);CHKERRQ(ierr);
+
 
   // solve for displacement
   ierr = ComputeRHS(*D);
@@ -185,6 +188,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
     ierr = KSPSolve(D->ksp,D->rhs,D->uhat);CHKERRQ(ierr);
   double endKspTime = MPI_Wtime();
   D->kspTime = D->kspTime + (endKspTime-startKspTime);
+
   ierr = computeTau(*D);CHKERRQ(ierr);
   ierr = computeSlipVel(*D);CHKERRQ(ierr);
 
@@ -194,7 +198,8 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
     ierr = VecGetValues(D->V,1,&Ii,&val);CHKERRQ(ierr);
     ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
-    ierr = agingLaw(Ii,&val,D);CHKERRQ(ierr);
+    ierr = VecGetValues(var[1],1,&Ii,&psiVal);
+    ierr = agingLaw(Ii,psiVal,&val,D);CHKERRQ(ierr);
     ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);

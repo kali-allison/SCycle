@@ -23,6 +23,39 @@ int runTests(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
+  //~// Test root finding routines
+  //~PetscScalar out;
+  //~PetscInt its;
+  //~ierr = bisect(exFunc,1,1,2,&out,&its,1e-4,1e3,NULL);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"out = %g, its = %i\n",out,its);CHKERRQ(ierr);
+
+  UserContext D(order,Ny,Nz,"data/");
+  ierr = setParameters(D);CHKERRQ(ierr);
+  ierr = D.writeParameters();CHKERRQ(ierr);
+  ierr = setRateAndState(D);CHKERRQ(ierr);
+  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
+  ierr = D.writeInitialStep();CHKERRQ(ierr);
+
+  // For testing rate and state functions
+  ierr = VecSet(D.a,0.015);
+  ierr = VecSet(D.b,0.02);
+  ierr = VecSet(D.eta,6);
+  ierr = VecSet(D.s_NORM,50.);
+  ierr = VecSet(D.psi,0.95);
+  ierr = VecSet(D.tau,1.377853449365693e+02);
+  ierr = computeSlipVel(D);
+  PetscInt Istart,Iend;
+  PetscScalar vel;
+  //~ierr = stressMstrength(1,9.999920e-07,&vel, &D);
+  ierr= VecGetOwnershipRange(D.V,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(D.V,1,&Istart,&vel);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"vel = %e\n",vel);
+
+
+  //~// For preconditioner experimentation
   //~KSPCreate(PETSC_COMM_WORLD,&D.ksp);
   //~KSPSetType(D.ksp,KSPPREONLY);
   //~KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);

@@ -72,7 +72,7 @@ class OdeSolver
     PetscErrorCode setSourceFile(const std::string sourceFile);
 
     PetscErrorCode viewSolver();
-    PetscErrorCode debugMyCode(const PetscReal time,const PetscInt steps,const Vec *var,const char *str);
+    PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *str);
 
     PetscErrorCode runOdeSolver();
 

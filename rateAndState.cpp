@@ -1,5 +1,6 @@
 #include <petscts.h>
 #include <string>
+#include <assert.h>
 #include "userContext.h"
 #include "rateAndState.h"
 
@@ -9,7 +10,8 @@
  * ind = index corresponding to velocity input (used in a, psi, and s_NORM).
  * out = a.*asinh( (V ./ (2.*v0)) .* exp((psi)./p.a) )
  */
-PetscErrorCode rateAndStateFrictionScalar(const PetscInt ind, PetscScalar vel,PetscScalar *out, void * ctx)
+//~PetscErrorCode rateAndStateFrictionScalar(const PetscInt ind, PetscScalar vel,PetscScalar *out, void * ctx)
+PetscErrorCode stressMstrength(const PetscInt ind,const PetscScalar vel,PetscScalar *out, void * ctx)
 {
   PetscErrorCode ierr;
   UserContext    *D = (UserContext*) ctx;
@@ -17,25 +19,38 @@ PetscErrorCode rateAndStateFrictionScalar(const PetscInt ind, PetscScalar vel,Pe
   PetscInt       Istart,Iend;
 
 #if VERBOSE > 1
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rateAndStateFrictionScalar in rateAndState.c\n");CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
   if ( (ind>=Istart) & (ind<Iend) ) {
-    ierr = VecGetValues(D->psi,1,&ind,&psi);CHKERRQ(ierr);
+    ierr = VecGetValues(D->tempPsi,1,&ind,&psi);CHKERRQ(ierr);
     ierr = VecGetValues(D->a,1,&ind,&a);CHKERRQ(ierr);
     ierr = VecGetValues(D->s_NORM,1,&ind,&sigma_n);CHKERRQ(ierr);
     ierr = VecGetValues(D->eta,1,&ind,&eta);CHKERRQ(ierr);
     ierr = VecGetValues(D->tau,1,&ind,&tau);CHKERRQ(ierr);
   }
   else {
-    SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in rateAndStateFrictionScalar\n");
+    SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in stressMstrength\n");
   }
 
    *out = (PetscScalar) a*sigma_n*asinh( (double) (vel/2/D->v0)*exp(psi/a) ) + eta*vel - tau;
+  if (isnan(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_n,eta,tau,vel);
+    CHKERRQ(ierr);
+    //~SETERRQ(PETSC_COMM_SELF,1,"stressMstrength evaluated to nan");
+    }
+  else if (isinf(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_n,eta,tau,vel);
+    CHKERRQ(ierr);
+    //~SETERRQ(PETSC_COMM_SELF,1,"stressMstrength evaluated to inf");
+    }
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
 
 #if VERBOSE > 1
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateFrictionScalar in rateAndState.c\n");CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -43,20 +58,18 @@ PetscErrorCode rateAndStateFrictionScalar(const PetscInt ind, PetscScalar vel,Pe
 /*
  * Computes dPsi, the change in the state evolution parameter
  */
-PetscErrorCode agingLaw(const PetscInt ind, PetscScalar *dPsi, void *ctx)
+PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi, void *ctx)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
-  PetscScalar    a,b,psi,vel;
+  PetscScalar    b,vel;
   UserContext    *D = (UserContext *) ctx;
 
   double startTime = MPI_Wtime();
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
   if ( (ind>=Istart) & (ind<Iend) ) {
-    ierr = VecGetValues(D->psi,1,&ind,&psi);CHKERRQ(ierr);
-    ierr = VecGetValues(D->a,1,&ind,&a);CHKERRQ(ierr);
-    ierr = VecGetValues(D->b,1,&ind,&b);CHKERRQ(ierr);
+    //~ierr = VecGetValues(D->psi,1,&ind,&psi);CHKERRQ(ierr);
     ierr = VecGetValues(D->b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(D->V,1,&ind,&vel);CHKERRQ(ierr);
   }
@@ -68,6 +81,25 @@ PetscErrorCode agingLaw(const PetscInt ind, PetscScalar *dPsi, void *ctx)
   else {
     *dPsi = (PetscScalar) (b*D->v0/D->D_c)*( exp((double) ( (D->f0-psi)/b) ) - (vel/D->v0) );
   }
+
+  //~if (ind==0) {
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,b=%g,f0=%g,D_c=%g,v0=%g,vel=%g\n",psi,b,D->f0,D->D_c,D->v0,vel);
+    //~CHKERRQ(ierr);
+  //~}
+
+  if (isnan(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,b=%g,f0=%g,D_c=%g,v0=%g,vel=%g\n",psi,b,D->f0,D->D_c,D->v0,vel);
+    CHKERRQ(ierr);
+    //~SETERRQ(PETSC_COMM_SELF,1,"agingLaw evaluated to nan");
+    }
+  else if (isinf(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,b=%g,f0=%g,D_c=%g,v0=%g,vel=%g\n",psi,b,D->f0,D->D_c,D->v0,vel);
+    CHKERRQ(ierr);
+    //~SETERRQ(PETSC_COMM_SELF,1,"agingLaw evaluated to inf");
+    }
+
+  assert(!isnan(*dPsi));
+  assert(!isinf(*dPsi));
 
   double endTime = MPI_Wtime();
   D->agingLawTime = D->agingLawTime + (endTime-startTime);
@@ -130,13 +162,14 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
 
-  ierr = VecSet(D.b,0.02);CHKERRQ(ierr);
+  //~ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
   /* p.tau_inf = p.s_NORM(1)*p.a(1)*asinh( p.vp/(2*p.v0)*exp(p.f0/p.a(1)) ) */
   v = 0.5*D.vp*exp(D.f0/aVal)/D.v0;
   D.tau_inf = s_NORMVal * aVal * asinh((double) v);
 
   ierr = VecSet(D.psi,D.f0);CHKERRQ(ierr);
+  ierr = VecSet(D.tempPsi,D.f0);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
