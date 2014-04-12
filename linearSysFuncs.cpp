@@ -25,24 +25,26 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
-  // use direct solve (LU)
-  KSPSetType(D.ksp,KSPPREONLY);
-  KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
-  KSPGetPC(D.ksp,&D.pc);
+  ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+
+  // use PETSc's direct LU - only available on 1 processor!!!
+  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+
+  // use HYPRE
+  //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
+  //~ierr = PCHYPRESetType(D.pc,"boomeramg");CHKERRQ(ierr);
+  //~ierr = KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
+
+  // use direct LU from MUMPS
   PCSetType(D.pc,PCLU);
+  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(D.pc);
 
-  // use GMRES with preconditioning
-  //~KSPSetType(D.ksp,KSPGMRES);
-  //~KSPGMRESSetRestart(D.ksp,100);
-  //~KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
-  //~KSPGetPC(D.ksp,&D.pc);
-  //~PCSetType(D.pc,PCHYPRE);
-  //~PCHYPRESetType(D.pc,"boomeramg");
-  //~KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
-  //~PCFactorSetLevels(D.pc,4);
-
-  KSPSetUp(D.ksp);
-  KSPSetFromOptions(D.ksp);
+  ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
   return ierr;

@@ -12,6 +12,79 @@
 
 using namespace std;
 
+// For preconditioner experimentation
+int linearSolveTests(int argc,char **args)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Ny=5, Nz=7, order=2;
+  PetscBool      loadMat = PETSC_FALSE;
+  ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
+
+  UserContext D(order,Ny,Nz,"data/");
+  ierr = setParameters(D);CHKERRQ(ierr);
+  ierr = D.writeParameters();CHKERRQ(ierr);
+  ierr = setRateAndState(D);CHKERRQ(ierr);
+  ierr = writeRateAndState(D);CHKERRQ(ierr);
+
+  // SBP operators and penalty terms
+  D.alphaF = -13.0/D.dy;
+  D.alphaR = -13.0/D.dy;
+  D.alphaS = -1.0;
+  D.alphaD = -1.0;
+  D.beta   = 1.0;
+
+  // set boundary data to match constant tectonic plate motion
+  ierr = VecSet(D.gF,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gS,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
+
+  if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
+  else { ierr = createOperators(D);CHKERRQ(ierr);}
+  ierr = ComputeRHS(D);CHKERRQ(ierr);
+
+  ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+
+  // use direct solve (LU)
+  //~ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+
+  // use preconditioning from HYPRE
+  //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
+  //~ierr = PCHYPRESetType(D.pc,"boomeramg");CHKERRQ(ierr);
+  //~ierr = KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
+
+  // use direct LU from MUMPS
+  PCSetType(D.pc,PCLU);
+  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(D.pc);
+
+
+  ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
+  PetscInt its,maxCount=10;
+  double startTime = MPI_Wtime();
+  for (int count=0;count<maxCount;count++) {
+    ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
+  }
+  ierr = KSPGetIterationNumber(D.ksp,&its);CHKERRQ(ierr);
+  double endTime = MPI_Wtime();
+  ierr = KSPView(D.ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nits = %d, time =%g\n",its,(endTime-startTime)/maxCount);CHKERRQ(ierr);
+
+
+  return ierr;
+}
+
+
 int runTests(int argc,char **args)
 {
 
@@ -47,12 +120,12 @@ int runTests(int argc,char **args)
   ierr = VecSet(D.psi,0.95);
   ierr = VecSet(D.tau,1.377853449365693e+02);
   ierr = computeSlipVel(D);
-  PetscInt Istart,Iend;
-  PetscScalar vel;
+  //~PetscInt Istart,Iend;
+  //~PetscScalar vel;
   //~ierr = stressMstrength(1,9.999920e-07,&vel, &D);
-  ierr= VecGetOwnershipRange(D.V,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(D.V,1,&Istart,&vel);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"vel = %e\n",vel);
+  //~ierr= VecGetOwnershipRange(D.V,&Istart,&Iend);CHKERRQ(ierr);
+  //~ierr = VecGetValues(D.V,1,&Istart,&vel);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"vel = %e\n",vel);
 
 
   //~// For preconditioner experimentation
@@ -114,6 +187,7 @@ int runEqCycle(int argc,char **args)
   ierr = ts.setUserContext(&D);CHKERRQ(ierr);
   ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
 
+
   double timeBeforeIntegration = MPI_Wtime();
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
   double timeAfterIntegration = MPI_Wtime();
@@ -138,11 +212,14 @@ int main(int argc,char **args)
 {
   PetscInitialize(&argc,&args,NULL,NULL);
 
+  PetscErrorCode ierr = 0;
+
   runEqCycle(argc,args);
+  //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
   //~runTests(argc,args);
 
   PetscFinalize();
 
-  return 0;
+  return ierr;
 }
 
