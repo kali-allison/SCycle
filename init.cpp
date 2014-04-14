@@ -1,7 +1,7 @@
 #include <petscts.h>
 #include <string>
 #include "userContext.h"
-//~#include "init.h"
+#include "init.hpp"
 
 PetscErrorCode setParameters(UserContext & ctx)
 {
@@ -32,7 +32,7 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // time monitering
   ctx.strideLength = 1;
-  ctx.maxStepCount = 2; // 8e4
+  ctx.maxStepCount = 3e4; // 8e4
   ctx.initTime = 4.5e3; // 400*1e3
   ctx.currTime = ctx.initTime;
   ctx.maxTime = ctx.initTime+5.2e5;// 5000.*3.1556926e7; 5000.*3.155926e3; 4.376288924960000e+05

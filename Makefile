@@ -27,7 +27,7 @@ include ${PETSC_DIR}/conf/test
 #=========================================================
 # Dependencies
 #=========================================================
-main.o: main.cpp userContext.h rateAndState.h rootFindingScalar.h linearSysFuncs.h odeSolver.h
+main.o: main.cpp userContext.h init.hpp rateAndState.h rootFindingScalar.h linearSysFuncs.h odeSolver.h
 userContext.o: userContext.cpp userContext.h
 rateAndState.o: rateAndState.cpp userContext.h rateAndState.h
 linearSysFuncs.o: linearSysFuncs.cpp userContext.h linearSysFuncs.h
