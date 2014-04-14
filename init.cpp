@@ -33,9 +33,9 @@ PetscErrorCode setParameters(UserContext & ctx)
   // time monitering
   ctx.strideLength = 1;
   ctx.maxStepCount = 3e4; // 8e4
-  ctx.initTime = 0; // 400*1e3
+  ctx.initTime = 4e5; // 400*1e3
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+4.376288924960000e+05;// 5000.*3.1556926e7; 5000.*3.155926e3
+  ctx.maxTime = ctx.initTime+4.4e+05;// 5000.*3.1556926e7; 5000.*3.155926e3
   ctx.atol = 1e-9;
   ctx.initDeltaT = 800;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,0.01);
