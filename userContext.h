@@ -38,6 +38,8 @@ class UserContext {
   Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
   Mat            Hinvy,Hinvz;
 
+  Mat            mu;
+
   Vec            rhs,uhat;
 
   KSP            ksp;

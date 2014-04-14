@@ -25,24 +25,26 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
-  // use direct solve (LU)
-  KSPSetType(D.ksp,KSPPREONLY);
-  KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
-  KSPGetPC(D.ksp,&D.pc);
+  ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+
+  // use PETSc's direct LU - only available on 1 processor!!!
+  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+
+  // use HYPRE
+  //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
+  //~ierr = PCHYPRESetType(D.pc,"boomeramg");CHKERRQ(ierr);
+  //~ierr = KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
+
+  // use direct LU from MUMPS
   PCSetType(D.pc,PCLU);
+  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(D.pc);
 
-  // use GMRES with preconditioning
-  //~KSPSetType(D.ksp,KSPGMRES);
-  //~KSPGMRESSetRestart(D.ksp,100);
-  //~KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
-  //~KSPGetPC(D.ksp,&D.pc);
-  //~PCSetType(D.pc,PCHYPRE);
-  //~PCHYPRESetType(D.pc,"boomeramg");
-  //~KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
-  //~PCFactorSetLevels(D.pc,4);
-
-  KSPSetUp(D.ksp);
-  KSPSetFromOptions(D.ksp);
+  ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
   return ierr;
@@ -58,7 +60,7 @@ PetscErrorCode ComputeRHS(UserContext &D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function ComputeRHS in linearSysFuncs.c.\n");CHKERRQ(ierr);
 #endif
 
-  /* rhs =  D.alphaF*p.G*D.Hinvy_Iz_e0y_Iz +... */
+  /* rhs =  D.alphaF*p.G*D.Hinvy_Iz_e0y_Iz*gF +... */
   ierr = MatMult(D.Hinvy_Iz_e0y_Iz,D.gF,D.rhs);CHKERRQ(ierr);
   ierr = VecScale(D.rhs,D.alphaF*D.G);CHKERRQ(ierr);
 
@@ -215,7 +217,6 @@ PetscErrorCode createOperators(UserContext &D)
 
   /* G*kron(Dy,Iz) */
   //Mat Dy_Iz;
-  //ierr = MatCreate(PETSC_COMM_WORLD,&Dy_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(D.Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Dy_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
@@ -236,7 +237,9 @@ PetscErrorCode createOperators(UserContext &D)
 #if DEBUG > 0
   checkMatrix(&D.Dy_Iz,D.debugFolder,"Dy_Iz",D);CHKERRQ(ierr);
 #endif
-ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
+ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
+//~ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
+
 
   /* kron(D2y,Iz) */
   Mat D2y_Iz;
@@ -293,18 +296,6 @@ ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
 #if DEBUG > 1
   checkMatrix(&D2yplusD2z,D.debugFolder,"D2yplusD2z",D);CHKERRQ(ierr);
 #endif
-
-//~ ierr = MatView(D2yplusD2z,PETSC_VIEWER_STDOUT_WORLD);
-
-//~ Mat tempTempMat;
-//~ PetscBool bool;
-//~ ierr = MatConvert(D2yplusD2z, MATSAME,MAT_INITIAL_MATRIX,&tempTempMat);
-//~ ierr = MatEqualVals(&D2yplusD2z,&tempTempMat,&bool,D);CHKERRQ(ierr);
-//~
-//~ ierr = MatScale(tempTempMat,-1.0);CHKERRQ(ierr);
-//~ ierr = MatEqualVals(&D2yplusD2z,&tempTempMat,&bool,D);CHKERRQ(ierr);
-//~
-//~ checkMatrix(&D2yplusD2z,D.debugFolder,"D2yplusD2z",D);CHKERRQ(ierr);
 
   /* kron(Hinvy,Iz) */
   Mat Hinvy_Iz;
@@ -656,19 +647,23 @@ ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
   checkMatrix(&D.Hinvy_Iz_BySy_Iz_eNy_Iz,D.debugFolder,"Hinvy_Iz_BySy_Iz_eNy_Iz",D);CHKERRQ(ierr);
 #endif
 
-//~ ierr = PetscPrintf(PETSC_COMM_WORLD,"D.G = %g\n",D.G);CHKERRQ(ierr);
-
   /* Compute A */
   // A = D.G*D2yplusD2z + alphaF*D.G*Hinvy_Iz*E0y_Iz
   ierr = MatMatMult(Hinvy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,1.0,&(D.A));CHKERRQ(ierr);
-  ierr = MatScale(D.A,D.alphaF*D.G);CHKERRQ(ierr);
-  ierr = MatAXPY(D.A,D.G,D2yplusD2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatScale(D.A,D.alphaF*D.G);CHKERRQ(ierr);
+  ierr = MatMatMult(D.mu,D.A,MAT_INITIAL_MATRIX,1.0,&D.A);CHKERRQ(ierr);
+  ierr = MatScale(D.A,D.alphaF);CHKERRQ(ierr);
+  ierr = MatMatMult(D.mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&D2yplusD2z);CHKERRQ(ierr);
+  ierr = MatAXPY(D.A,1.0,D2yplusD2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(D.A,D.G,D2yplusD2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
 #if DEBUG > 0
   checkMatrix(&D.A,D.debugFolder,"Astage1",D);CHKERRQ(ierr);
 #endif
 
   // + beta*Hinvy_Iz*(D.G*BySy_Iz)^T*E0y_Iz + ...
-  ierr = MatScale(BySy_Iz,D.G);CHKERRQ(ierr);
+  //~ierr = MatScale(BySy_Iz,D.G);CHKERRQ(ierr);
+  ierr = MatMatMult(D.mu,BySy_Iz,MAT_INITIAL_MATRIX,1.0,&BySy_Iz);CHKERRQ(ierr);
   ierr = MatMatMult(Hinvy_Iz,BySy_Iz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
   ierr = MatMatMult(temp,E0y_Iz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
   ierr = MatAYPX(D.A,D.beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -678,7 +673,9 @@ ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
 
   // + alphaR*D.G*Hinvy_Iz*ENy_Iz + ...
   ierr = MatMatMult(Hinvy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
-  ierr = MatAXPY(D.A,D.alphaR*D.G,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatMatMult(D.mu,temp,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
+  //~ierr = MatAXPY(D.A,D.alphaR*D.G,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(D.A,D.alphaR,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D.A,D.debugFolder,"Astage3",D);CHKERRQ(ierr);
 #endif
@@ -691,11 +688,10 @@ ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
   checkMatrix(&D.A,D.debugFolder,"Astage4",D);CHKERRQ(ierr);
 #endif
 
-  //~ ierr = MatView(D.A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
   // + alphaS*Iy_Hinvz*Iy_E0z*D.G*Iy_BzSz + ...
   ierr = MatMatMult(Iy_Hinvz,Iy_E0z,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
-  ierr = MatScale(Iy_BzSz,D.G);CHKERRQ(ierr);
+  //~ierr = MatScale(Iy_BzSz,D.G);CHKERRQ(ierr);
+  ierr = MatMatMult(D.mu,Iy_BzSz,MAT_INITIAL_MATRIX,1.0,&Iy_BzSz);CHKERRQ(ierr);
   ierr = MatMatMult(temp,Iy_BzSz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
   ierr = MatScale(temp,D.alphaS);CHKERRQ(ierr);
   ierr = MatAXPY(D.A,1.0,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -706,7 +702,6 @@ ierr = MatScale(D.Dy_Iz,D.G);CHKERRQ(ierr);
   // + alphaD*Iy_Hinvz*Iy_ENz*D.G*Iy_BzSz
   ierr = MatMatMult(Iy_Hinvz,Iy_ENz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
   ierr = MatMatMult(temp,Iy_BzSz,MAT_INITIAL_MATRIX,1.0,&temp);CHKERRQ(ierr);
-  //~ ierr = MatAXPY(D.A,D.alphaD*D.G,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatAXPY(D.A,D.alphaD,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
 #if DEBUG > 0

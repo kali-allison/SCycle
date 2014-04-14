@@ -55,6 +55,8 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   MatCreate(PETSC_COMM_WORLD,&Hinvy);
   MatCreate(PETSC_COMM_WORLD,&Hinvz);
 
+  MatCreate(PETSC_COMM_WORLD,&mu);
+
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
   VecSetFromOptions(rhs);
@@ -127,6 +129,8 @@ UserContext::~UserContext()
   MatDestroy(&Hinvy_Iz_BySy_Iz_eNy_Iz);
   MatDestroy(&Hinvy);
   MatDestroy(&Hinvz);
+
+  MatDestroy(&mu);
 
   KSPDestroy(&ksp);
   VecDestroy(&rhs);

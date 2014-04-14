@@ -168,8 +168,22 @@ PetscErrorCode setRateAndState(UserContext &D)
   v = 0.5*D.vp*exp(D.f0/aVal)/D.v0;
   D.tau_inf = s_NORMVal * aVal * asinh((double) v);
 
+  // set state
   ierr = VecSet(D.psi,D.f0);CHKERRQ(ierr);
   ierr = VecSet(D.tempPsi,D.f0);CHKERRQ(ierr);
+
+  // set shear modulus
+  Vec muVec;
+  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
+  ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+  ierr = VecSet(muVec,D.G);CHKERRQ(ierr);
+  ierr = MatSetSizes(D.mu,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(D.mu);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(D.mu,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(D.mu,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(D.mu);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(D.mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
@@ -199,6 +213,9 @@ PetscErrorCode writeRateAndState(UserContext &D)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(D.s_NORM,viewer);CHKERRQ(ierr);
 
+  str = D.outFileRoot + "mu"; outFileLoc = str.c_str();
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(D.mu,viewer);CHKERRQ(ierr);
 
   return ierr;
 }
