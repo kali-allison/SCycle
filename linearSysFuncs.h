@@ -11,4 +11,8 @@ PetscErrorCode createOperators(UserContext &D);
 
 PetscErrorCode SBPoperators(PetscInt ORDER, PetscInt N, Mat *PinvMat, Mat *D, Mat *D2, Mat *S);
 
+PetscErrorCode SBPopsArrays(PetscInt ORDER, PetscInt N,PetscScalar scale, PetscScalar *Hinv,PetscScalar *S,PetscInt *Slen);
+
+PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N);
+
 #endif

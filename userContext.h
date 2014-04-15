@@ -6,10 +6,10 @@
 class UserContext {
 
   public:
-//~
-  //~ // debugging folder tree
-  //~ std::string debugFolder;
-//~
+
+   // debugging folder tree
+   std::string debugFolder;
+
   // output data tree
   std::string outFileRoot;
 
@@ -37,6 +37,9 @@ class UserContext {
   Mat            IyHinvz_Iye0z,IyHinvz_IyeNz,Hinvy_Iz_e0y_Iz,Hinvy_Iz_BySy_Iz_e0y_Iz;
   Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
   Mat            Hinvy,Hinvz;
+
+  Mat            Hinvy_Izxe0y_Iz,Hinvy_IzxeNy_Iz,Iy_HinvzxIy_e0z;
+  Mat            Iy_HinvzxIy_eNz,Hinvy_IzxBySy_IzTxe0y_Iz,Hinvy_IzxBySy_IzTxeNy_Iz;
 
   Mat            mu;
 

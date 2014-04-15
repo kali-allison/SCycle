@@ -5,7 +5,7 @@
 #include "init.hpp"
 #include "rateAndState.h"
 #include "rootFindingScalar.h"
-//~ #include "debuggingFuncs.h"
+ #include "debuggingFuncs.hpp"
 #include "linearSysFuncs.h"
 #include "timeStepping.h"
 #include "odeSolver.h"
@@ -96,57 +96,33 @@ int runTests(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  //~// Test root finding routines
-  //~PetscScalar out;
-  //~PetscInt its;
-  //~ierr = bisect(exFunc,1,1,2,&out,&its,1e-4,1e3,NULL);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"out = %g, its = %i\n",out,its);CHKERRQ(ierr);
+  //~PetscScalar Hinvy[Ny];
+  //~ierr = SBPopsArrays(2,Ny,0.5,Hinvy);CHKERRQ(ierr);
+  //~ierr = printMyArray(Hinvy, Ny);CHKERRQ(ierr);
 
-  UserContext D(order,Ny,Nz,"data/");
-  ierr = setParameters(D);CHKERRQ(ierr);
-  ierr = D.writeParameters();CHKERRQ(ierr);
-  ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
-  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
-  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
-  ierr = D.writeInitialStep();CHKERRQ(ierr);
-
-  // For testing rate and state functions
-  ierr = VecSet(D.a,0.015);
-  ierr = VecSet(D.b,0.02);
-  ierr = VecSet(D.eta,6);
-  ierr = VecSet(D.s_NORM,50.);
-  ierr = VecSet(D.psi,0.95);
-  ierr = VecSet(D.tau,1.377853449365693e+02);
-  ierr = computeSlipVel(D);
-  //~PetscInt Istart,Iend;
-  //~PetscScalar vel;
-  //~ierr = stressMstrength(1,9.999920e-07,&vel, &D);
-  //~ierr= VecGetOwnershipRange(D.V,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = VecGetValues(D.V,1,&Istart,&vel);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"vel = %e\n",vel);
-
-
-  //~// For preconditioner experimentation
-  //~KSPCreate(PETSC_COMM_WORLD,&D.ksp);
-  //~KSPSetType(D.ksp,KSPPREONLY);
-  //~KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);
-  //~KSPGetPC(D.ksp,&D.pc);
-  //~PCSetType(D.pc,PCLU);
-  //~KSPSetUp(D.ksp);
-  //~KSPSetFromOptions(D.ksp);
-  //~double startTime = MPI_Wtime();
-  //~double endTime = MPI_Wtime();
-  //~PetscInt its;
-  //~startTime = MPI_Wtime();
-  //~for (int count=0;count<10;count++) {
-    //~KSPSolve(D.ksp,D.rhs,D.uhat);
-    //~ierr = KSPGetIterationNumber(D.ksp,&its);CHKERRQ(ierr);
+  //~PetscInt rows[Ny];
+  //~for (PetscInt ind=0;ind<Ny;ind++){
+    //~rows[ind]=ind;
   //~}
-  //~endTime = MPI_Wtime();
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"its = %d, time =%g\n",its,(endTime-startTime)/10.);CHKERRQ(ierr);
-  //~ierr = KSPView(D.ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~PetscInt Ii,Istart,Iend;
+
+  /* Try making things faster with arrays!!!*/
+  Mat Iy_Hinvz;
+  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,Ny*Nz,Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
+  //~ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
+  //~ierr = MatSetValues(Iy_Hinvz,1,&Istart,Ny,rows,Hinvy,INSERT_VALUES);CHKERRQ(ierr);
+  //~for (Ii=Istart;Ii<Nz;Ii++) {
+    //~ierr = MatSetValues(Hinvy_Iz_e0y_Iz,1,&Ii,1,&Ii,&(Hinvy[0]),INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -175,8 +151,6 @@ int runEqCycle(int argc,char **args)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
-  //~OdeSolver ts = OdeSolver(D.maxStepCount,"MANUAL");
-  //~ierr = ts.setSourceFile("britT");CHKERRQ(ierr);
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
   ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);

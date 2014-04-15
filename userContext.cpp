@@ -1,5 +1,5 @@
 #include <petscts.h>
-#include <iostream>
+//~#include <iostream>
 #include <sstream>
 #include <string>
 #include "userContext.h"
@@ -20,6 +20,10 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in userContext.cpp.\n");
 #endif
+
+  std::ostringstream convert;
+  convert << "./matlabAnswers/order" << order << "Ny" << y << "Nz" << z << "/";
+  debugFolder = convert.str();
 
   // Initialize elastic coefficients and frictional parameters
   VecCreate(PETSC_COMM_WORLD,&eta);
@@ -54,6 +58,13 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz_eNy_Iz);
   MatCreate(PETSC_COMM_WORLD,&Hinvy);
   MatCreate(PETSC_COMM_WORLD,&Hinvz);
+
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_Izxe0y_Iz);
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxeNy_Iz);
+  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_e0z);
+  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_eNz);
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxe0y_Iz);
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxeNy_Iz);
 
   MatCreate(PETSC_COMM_WORLD,&mu);
 
@@ -129,6 +140,13 @@ UserContext::~UserContext()
   MatDestroy(&Hinvy_Iz_BySy_Iz_eNy_Iz);
   MatDestroy(&Hinvy);
   MatDestroy(&Hinvz);
+
+  MatDestroy(&Hinvy_Izxe0y_Iz);
+  MatDestroy(&Hinvy_IzxeNy_Iz);
+  MatDestroy(&Iy_HinvzxIy_e0z);
+  MatDestroy(&Iy_HinvzxIy_eNz);
+  MatDestroy(&Hinvy_IzxBySy_IzTxe0y_Iz);
+  MatDestroy(&Hinvy_IzxBySy_IzTxeNy_Iz);
 
   MatDestroy(&mu);
 
@@ -239,35 +257,35 @@ PetscErrorCode UserContext::writeOperators()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Dy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_Iz_e0y_Iz";
+  str = "Hinvy_Izxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(Hinvy_Iz_e0y_Iz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Hinvy_Izxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_Iz_BySy_Iz_e0y_Iz";
+  str = "Hinvy_IzxBySy_IzTxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(Hinvy_Iz_BySy_Iz_e0y_Iz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Hinvy_IzxBySy_IzTxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_Iz_eNy_Iz";
+  str = "Hinvy_IzxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(Hinvy_Iz_eNy_Iz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Hinvy_IzxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_Iz_BySy_Iz_eNy_Iz";
+  str = "Hinvy_IzxBySy_IzTxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(Hinvy_Iz_BySy_Iz_eNy_Iz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Hinvy_IzxBySy_IzTxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "IyHinvz_Iye0z";
+  str = "Iy_HinvzxIy_e0z";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(Hinvy_Iz_BySy_Iz_eNy_Iz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Iy_HinvzxIy_e0z,outviewer);CHKERRQ(ierr);
 
-  str = "IyHinvz_IyeNz";
+  str = "Iy_HinvzxIy_eNz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  ierr = MatView(IyHinvz_IyeNz,outviewer);CHKERRQ(ierr);
+  ierr = MatView(Iy_HinvzxIy_eNz,outviewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
