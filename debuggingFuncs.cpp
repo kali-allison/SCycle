@@ -9,7 +9,7 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
 {
   PetscErrorCode ierr;
   Mat            debugMat;
-  PetscViewer    inviewer,outviewer;
+  PetscViewer    inviewer;
   PetscBool      debugBool = PETSC_FALSE;
   PetscInt       rowSizeDebugMat,colSizeDebugMat,rowSizeMat,colSizeMat;
 

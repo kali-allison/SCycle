@@ -18,12 +18,12 @@ PetscErrorCode setParameters(UserContext & ctx)
   //  frictional parameters
   ctx.f0 = 0.6;  //reference friction
   ctx.v0 = 1e-6; //(m/s) reference velocity
-  ctx.vp = 1e-4; //(m/s) plate rate KLA: 1e-4, ORIG: 1.e-9
+  ctx.vp = 1e-9; //(m/s) plate rate KLA: 1e-4, ORIG: 1.e-9
   ctx.D_c = 8e-3; //characteristic slip distance (m) 0.008
 
   //  constitutive parameters
   ctx.cs = 3; // shear wave speed (km/s)
-  ctx.G = 36; // shear modulus (GPa) ORIG:36
+  ctx.G = 24; // shear modulus (GPa) ORIG:36
   ctx.rho = ctx.G/(ctx.cs*ctx.cs);// Material density
 
   // tolerances for linear and nonlinear solve (for V)
@@ -32,11 +32,11 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // time monitering
   ctx.strideLength = 1;
-  ctx.maxStepCount = 9189; // 3e4,9189
+  ctx.maxStepCount = 8e4; // 3e4,9189
   //~ctx.maxStepCount = 2;
   ctx.initTime = 0; // 4.5e3
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+5.2e5;// 5000.*3.1556926e7; 5000.*3.155926e3; 4.376288924960000e+05
+  ctx.maxTime = ctx.initTime+5000.*3.155926e7;// 5000.*3.1556926e7; 5000.*3.155926e3; 5.2e+05
   ctx.atol = 1e-6;
   ctx.initDeltaT = 800;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,0.01);
