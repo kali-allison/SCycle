@@ -37,6 +37,8 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   VecDuplicate(eta,&psi);
   VecDuplicate(eta,&tau);
 
+  muArr = new PetscScalar[Ny*Nz];
+
   // Initialize boundary conditions
   VecDuplicate(eta,&gF);
   VecDuplicate(gF,&gR);
@@ -151,6 +153,7 @@ UserContext::~UserContext()
   MatDestroy(&Hinvy_IzxBySy_IzTxeNy_Iz);
 
   MatDestroy(&mu);
+  delete[] muArr;
 
   KSPDestroy(&ksp);
   VecDestroy(&rhs);

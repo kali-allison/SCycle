@@ -96,33 +96,26 @@ int runTests(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  //~PetscScalar Hinvy[Ny];
-  //~ierr = SBPopsArrays(2,Ny,0.5,Hinvy);CHKERRQ(ierr);
-  //~ierr = printMyArray(Hinvy, Ny);CHKERRQ(ierr);
+  UserContext D(order,Ny,Nz,"data/");
+  ierr = setParameters(D);CHKERRQ(ierr);
+  ierr = D.writeParameters();CHKERRQ(ierr);
+  ierr = setRateAndState(D);CHKERRQ(ierr);
+  ierr = writeRateAndState(D);CHKERRQ(ierr);
 
-  //~PetscInt rows[Ny];
-  //~for (PetscInt ind=0;ind<Ny;ind++){
-    //~rows[ind]=ind;
-  //~}
-  //~PetscInt Ii,Istart,Iend;
+  PetscInt Ii,Istart,Iend;
+  PetscScalar v;
+  ierr = MatGetOwnershipRange(D.mu,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    v = Ii+1;
+    D.muArr[Ii]=v;
+    ierr = MatSetValues(D.mu,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(D.mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D.mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-  /* Try making things faster with arrays!!!*/
-  Mat Iy_Hinvz;
-  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,Ny*Nz,Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
-  //~ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = MatSetValues(Iy_Hinvz,1,&Istart,Ny,rows,Hinvy,INSERT_VALUES);CHKERRQ(ierr);
-  //~for (Ii=Istart;Ii<Nz;Ii++) {
-    //~ierr = MatSetValues(Hinvy_Iz_e0y_Iz,1,&Ii,1,&Ii,&(Hinvy[0]),INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  //~ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
 
-  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = MatView(D.mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }

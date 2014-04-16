@@ -18,7 +18,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   //  frictional parameters
   ctx.f0 = 0.6;  //reference friction
   ctx.v0 = 1e-6; //(m/s) reference velocity
-  ctx.vp = 1e-4; //(m/s) plate rate KLA: 1e-4, ORIG: 1e-9
+  ctx.vp = 1e-9; //(m/s) plate rate KLA: 1e-4, ORIG: 1e-9
   ctx.D_c = 8e-3; // (m) characteristic slip distance 0.008
 
   ctx.muIn = 18; // (GPa) shear modulus inside basin
@@ -38,12 +38,12 @@ PetscErrorCode setParameters(UserContext & ctx)
   ctx.rootTol = 1e-12;
 
   // time monitering
-  ctx.strideLength = 1;
+  ctx.strideLength = 10;
   ctx.maxStepCount = 8e4; // 3e4,9189
   //~ctx.maxStepCount = 2;
-  ctx.initTime = 5e5; // spring-slider:5e5
+  ctx.initTime = 0; // spring-slider:5e5
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+1e7;// 5000.*3.1556926e7; 5000.*3.155926e3; spring-slider:5e+05
+  ctx.maxTime = ctx.initTime+5000.*3.1556926e7;// 5000.*3.1556926e7; 5000.*3.155926e3; spring-slider:5e+05
   ctx.atol = 1e-6;
   ctx.initDeltaT = 800;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,0.01);
