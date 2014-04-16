@@ -30,7 +30,7 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
 
   // use PETSc's direct LU - only available on 1 processor!!!
-  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+  ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
   //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
@@ -39,9 +39,9 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  PCSetType(D.pc,PCLU);
-  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(D.pc);
+  //~PCSetType(D.pc,PCLU);
+  //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  //~PCFactorSetUpMatSolverPackage(D.pc);
 
   //~ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
   //~ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
@@ -132,25 +132,25 @@ PetscErrorCode loadOperators(UserContext &D)
   ierr = MatLoad(D.Dy_Iz,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Iz_e0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Izxe0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_e0y_Iz);CHKERRQ(ierr);
   ierr = MatSetType(D.Hinvy_Iz_e0y_Iz,matType);CHKERRQ(ierr);
   ierr = MatLoad(D.Hinvy_Iz_e0y_Iz,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Iz_BySy_Iz_e0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxe0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_BySy_Iz_e0y_Iz);CHKERRQ(ierr);
   ierr = MatSetType(D.Hinvy_Iz_BySy_Iz_e0y_Iz,matType);CHKERRQ(ierr);
   ierr = MatLoad(D.Hinvy_Iz_BySy_Iz_e0y_Iz,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Iz_eNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxeNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_eNy_Iz);CHKERRQ(ierr);
   ierr = MatSetType(D.Hinvy_Iz_eNy_Iz,matType);CHKERRQ(ierr);
   ierr = MatLoad(D.Hinvy_Iz_eNy_Iz,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Iz_BySy_Iz_eNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxeNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_BySy_Iz_eNy_Iz);CHKERRQ(ierr);
   ierr = MatSetType(D.Hinvy_Iz_BySy_Iz_eNy_Iz,matType);CHKERRQ(ierr);
   ierr = MatLoad(D.Hinvy_Iz_BySy_Iz_eNy_Iz,fd);CHKERRQ(ierr);
@@ -162,7 +162,7 @@ PetscErrorCode loadOperators(UserContext &D)
   ierr = MatLoad(D.IyHinvz_Iye0z,fd);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"IyHinvz_IyeNz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Iy_HinvzxIy_eNz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
   ierr = MatCreate(PETSC_COMM_WORLD,&D.IyHinvz_IyeNz);CHKERRQ(ierr);
   ierr = MatSetType(D.IyHinvz_IyeNz,matType);CHKERRQ(ierr);
   ierr = MatLoad(D.IyHinvz_IyeNz,fd);CHKERRQ(ierr);
@@ -505,7 +505,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&Iy_HinvzxIy_ENz,D.debugFolder,"Iy_HinvzxIy_UENz",&D);CHKERRQ(ierr);
 #endif
 
-  // kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(E0z,Iz)
+  // kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(E0z,Iz)
   Mat Hinvy_IzxBySy_IzTxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxE0y_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(Hinvy_IzxBySy_IzTxE0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -528,7 +528,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(ENz,Iz)
+  // kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(ENz,Iz)
   Mat Hinvy_IzxBySy_IzTxENy_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxENy_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(Hinvy_IzxBySy_IzTxENy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -553,7 +553,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,E0z)*kron(Iy,BzSz)
+  // kron(Iy,Hinvz)*kron(Iy,E0z)*mu*kron(Iy,BzSz)
   Mat Iy_HinvxIy_E0zxIy_BzSz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvxIy_E0zxIy_BzSz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvxIy_E0zxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -565,22 +565,23 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     indx=Ii/D.Nz;J=Ii-indx*D.Nz;
     if (J==0) {
+      ierr = MatGetRow(D.mu,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
       for (indx=0;indx<Szlen;indx++) {
         cols[indx]=Ii+indx;
-        vals[indx]=HinvzArr[J]*SzArr[indx];
+        vals[indx]=constVals[0]*HinvzArr[J]*SzArr[indx];
       }
       ierr = MatSetValues(Iy_HinvxIy_E0zxIy_BzSz,1,&Ii,Szlen,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatRestoreRow(D.mu,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
     }
   }
   ierr = MatAssemblyBegin(Iy_HinvxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatMatMult(D.mu,Iy_HinvxIy_E0zxIy_BzSz,MAT_INITIAL_MATRIX,1.0,&Iy_HinvxIy_E0zxIy_BzSz);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&Iy_HinvxIy_E0zxIy_BzSz,D.debugFolder,"Iy_HinvxIy_E0zxIy_BzSz",&D);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,ENz)*kron(Iy,BzSz)
+  // kron(Iy,Hinvz)*kron(Iy,ENz)*mu*kron(Iy,BzSz)
   Mat Iy_HinvxIy_ENzxIy_BzSz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvxIy_ENzxIy_BzSz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvxIy_ENzxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -592,16 +593,18 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     J=(Ii+1)/D.Nz;J=Ii+1-J*D.Nz;
     if (J==0) {
+      ierr = MatGetRow(D.mu,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
       for (indx=0;indx<Szlen;indx++) {
         cols[indx]=Ii-Szlen+1+indx;
-        vals[indx]=HinvzArr[J]*SzArr[Sylen+indx];
+        vals[indx]=constVals[0]*HinvzArr[J]*SzArr[Sylen+indx];
       }
       ierr = MatSetValues(Iy_HinvxIy_ENzxIy_BzSz,1,&Ii,Szlen,cols,vals,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = MatRestoreRow(D.mu,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
     }
   }
   ierr = MatAssemblyBegin(Iy_HinvxIy_ENzxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvxIy_ENzxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatMatMult(D.mu,Iy_HinvxIy_ENzxIy_BzSz,MAT_INITIAL_MATRIX,1.0,&Iy_HinvxIy_ENzxIy_BzSz);CHKERRQ(ierr);
+  //~ierr = MatMatMult(D.mu,Iy_HinvxIy_ENzxIy_BzSz,MAT_INITIAL_MATRIX,1.0,&Iy_HinvxIy_ENzxIy_BzSz);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&Iy_HinvxIy_ENzxIy_BzSz,D.debugFolder,"Iy_HinvxIy_ENzxIy_BzSz",&D);CHKERRQ(ierr);
 #endif

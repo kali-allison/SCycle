@@ -9,7 +9,9 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
 :outFileRoot(outFile),
  order(ord),Ny(y),Nz(z),N(y*z),
  Ly(0),Lz(0),H(0),dy(0),dz(0),
- cs(0),G(0),rho(0),f0(0),v0(0),vp(0),D_c(0),
+ //~cs(0),G(0),rho(0),f0(0),v0(0),vp(0),D_c(0),
+ cs(0),f0(0),v0(0),vp(0),D_c(0),
+ muIn(0),muOut(0),D(0),W(0),rhoIn(0),rhoOut(0),
  kspTol(0),rootTol(0),rootIts(0),
  strideLength(1),maxStepCount(1),initTime(0),currTime(0),maxTime(0),
  minDeltaT(1e-14),maxDeltaT(1e-14),
@@ -209,15 +211,21 @@ PetscErrorCode UserContext::writeParameters()
   ierr = PetscViewerASCIIPrintf(outviewer,"v0 = %f\n",v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(outviewer,"vp = %f\n",vp);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(outviewer,"D_c = %f\n",D_c);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"muIn = %f\n",muIn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"muOut = %f\n",muOut);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"rhoIn = %f\n",rhoIn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"rhoOut = %f\n",rhoOut);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"D = %f\n",D);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"W = %f\n",W);CHKERRQ(ierr);
 
   // tolerances for linear and nonlinear (for vel) solve
   ierr = PetscViewerASCIIPrintf(outviewer,"kspTol = %f\n",kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(outviewer,"rootTol = %f\n",rootTol);CHKERRQ(ierr);
 
   //  constitutive parameters
-  ierr = PetscViewerASCIIPrintf(outviewer,"cs = %f\n",cs);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"G = %f\n",G);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"rho = %f\n",rho);CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(outviewer,"cs = %f\n",cs);CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(outviewer,"G = %f\n",G);CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(outviewer,"rho = %f\n",rho);CHKERRQ(ierr);
 
   // time monitering
   ierr = PetscViewerASCIIPrintf(outviewer,"strideLength = %i\n",strideLength);CHKERRQ(ierr);

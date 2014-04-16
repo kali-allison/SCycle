@@ -21,7 +21,9 @@ class UserContext {
   PetscScalar    Ly,Lz,H,dy,dz;
 
   // elastic coefficients and frictional parameters
-  PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
+  //~PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
+  PetscScalar    cs,f0,v0,vp,D_c,tau_inf;
+  PetscScalar    muIn,muOut,D,W,rhoIn,rhoOut;// for basin
   Vec            eta,s_NORM,a,b,psi,tau;
   Vec            V;
 

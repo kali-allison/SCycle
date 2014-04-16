@@ -118,12 +118,6 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
-  //  constitutive parameters
-  v = D.G/(2*D.cs);
-  ierr = VecSet(D.eta,v);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
-
   // Set normal stress along fault
   PetscScalar s_NORMVal = 50.0;
   ierr = VecDuplicate(D.a,&D.s_NORM);CHKERRQ(ierr);
@@ -172,18 +166,43 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecSet(D.psi,D.f0);CHKERRQ(ierr);
   ierr = VecSet(D.tempPsi,D.f0);CHKERRQ(ierr);
 
-  // set shear modulus
+  // set shear modulus and radiation damping coefficient
   Vec muVec;
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
-  ierr = VecSet(muVec,D.G);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar y,z,r,rbar=0.25*D.W*D.W,rw=1+0.5*D.W/D.D;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
+    y = D.dz*(Ii/D.Nz);
+    r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
+    v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
+    ierr = VecSetValues(muVec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    if (Ii<D.Nz) {
+      if (z<D.D) {v = 0.5*sqrt(D.rhoIn*v);}
+      else {v = 0.5*sqrt(D.rhoOut*v);}
+      ierr = VecSetValues(D.eta,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);  ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);    ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
+  //~ierr = VecView(muVec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = VecSet(muVec,D.G);CHKERRQ(ierr); // !!!!!!!!!!
+
   ierr = MatSetSizes(D.mu,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.mu);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.mu,1,NULL,1,NULL);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(D.mu,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(D.mu);CHKERRQ(ierr);
   ierr = MatDiagonalSet(D.mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
+    //~//  radiation damping
+  //~v = D.G/(2*D.cs);
+  //~ierr = VecSet(D.eta,v);CHKERRQ(ierr);
+  //~ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);

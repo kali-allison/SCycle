@@ -148,7 +148,7 @@ PetscErrorCode OdeSolver::debug(const PetscReal time,const PetscInt steps,const 
   PetscInt       Istart,Iend;
   PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
   UserContext    *D = (UserContext*) _userContext;
-  PetscScalar k = D->G/2/D->Ly;
+  PetscScalar k = D->muIn/2/D->Ly;
 
   ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(var[0],1,&Istart,&uVal);CHKERRQ(ierr);
