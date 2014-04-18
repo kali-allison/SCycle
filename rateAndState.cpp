@@ -112,7 +112,7 @@ PetscErrorCode setRateAndState(UserContext &D)
 {
   PetscErrorCode ierr;
   PetscInt       Ii,Istart,Iend;
-  PetscScalar    v;
+  PetscScalar    v,y,z;
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
@@ -132,12 +132,10 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecAssemblyEnd(D.a);CHKERRQ(ierr);
 
   // Set b
-  PetscScalar L1 = D.H;  //Defines depth at which (a-b) begins to increase.
+  PetscScalar L1 = D.H;  // Defines depth at which (a-b) begins to increase.
   PetscScalar L2 = 1.5*D.H;  //This is depth at which increase stops and fault is purely velocity strengthening.
-
   PetscInt    N1 = L1/D.dz;
   PetscInt    N2 = L2/D.dz;
-
   ierr = VecGetOwnershipRange(D.b,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii < N1+1) {
@@ -158,39 +156,26 @@ PetscErrorCode setRateAndState(UserContext &D)
 
   //~ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
-  /* p.tau_inf = p.s_NORM(1)*p.a(1)*asinh( p.vp/(2*p.v0)*exp(p.f0/p.a(1)) ) */
-  v = 0.5*D.vp*exp(D.f0/aVal)/D.v0;
-  D.tau_inf = s_NORMVal * aVal * asinh((double) v);
-
-  // set state
-  ierr = VecSet(D.psi,D.f0);CHKERRQ(ierr);
-  ierr = VecSet(D.tempPsi,D.f0);CHKERRQ(ierr);
-
-  // set shear modulus and radiation damping coefficient
+  // set shear modulus
   Vec muVec;
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
-  PetscScalar y,z,r,rbar=0.25*D.W*D.W,rw=1+0.5*D.W/D.D;
+  PetscScalar r,rbar=0.25*D.W*D.W,rw=1+0.5*D.W/D.D;
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
-    y = D.dz*(Ii/D.Nz);
+    y = D.dy*(Ii/D.Nz);
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
     D.muArr[Ii]=v;
-    ierr = VecSetValues(muVec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
-    if (Ii<D.Nz) {
-      if (z<D.D) {v = 0.5*sqrt(D.rhoIn*v);}
-      else {v = 0.5*sqrt(D.rhoOut*v);}
-      ierr = VecSetValues(D.eta,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
+    ierr = VecSetValues(muVec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);  ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);    ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
   //~ierr = VecView(muVec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecSet(muVec,D.G);CHKERRQ(ierr); // !!!!!!!!!!
+  //~ierr = VecSet(muVec,D.muOut);CHKERRQ(ierr); // !!!!!!!!!!
 
   ierr = MatSetSizes(D.mu,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.mu);CHKERRQ(ierr);
@@ -199,11 +184,39 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = MatSetUp(D.mu);CHKERRQ(ierr);
   ierr = MatDiagonalSet(D.mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
-    //~//  radiation damping
-  //~v = D.G/(2*D.cs);
-  //~ierr = VecSet(D.eta,v);CHKERRQ(ierr);
-  //~ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
+  // tau, psi, eta
+  PetscScalar psi,psi_p,a,b,eta,tau_inf,sigma_N,grShift;
+  ierr = VecGetOwnershipRange(D.tau,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    ierr =  VecGetValues(D.a,1,&Ii,&a);CHKERRQ(ierr);
+    ierr =  VecGetValues(D.b,1,&Ii,&b);CHKERRQ(ierr);
+    ierr =  VecGetValues(D.s_NORM,1,&Ii,&sigma_N);CHKERRQ(ierr);
+    ierr =  VecGetValues(D.eta,1,&Ii,&eta);CHKERRQ(ierr);
+
+    psi_p = D.f0 - b*log(D.vp/D.v0);
+    tau_inf = sigma_N*a*asinh( (double) 0.5*D.vp*exp(psi_p/a)/D.v0 );
+    z = ((double) Ii)*D.dz;
+    if (z < D.D) { eta = 0.5*sqrt(D.rhoIn*D.muArr[Ii]); }
+    else { eta = 0.5*sqrt(D.rhoOut*D.muArr[Ii]); }
+    psi = a*log( 2*D.v0*sinh((double)(tau_inf-eta*D.vp)/(sigma_N*a))/D.vp );
+    grShift = tau_inf*D.Ly/D.muArr[Ii];
+
+    ierr = VecSetValue(D.tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(D.eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(D.psi,Ii,psi,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(D.gRShift,Ii,grShift,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(D.tau);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.psi);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.gRShift);CHKERRQ(ierr);
+
+  ierr = VecAssemblyEnd(D.tau);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.psi);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.gRShift);CHKERRQ(ierr);
+
+  ierr = VecCopy(D.psi,D.tempPsi);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);

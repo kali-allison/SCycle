@@ -14,6 +14,15 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
 {
   PetscErrorCode ierr = 0;
 
+  // set boundary data to match constant tectonic plate motion
+  ierr = VecSet(D.gF,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gS,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(D.gR,1.0,D.gRShift);CHKERRQ(ierr);
+
+  ierr = ComputeRHS(D);CHKERRQ(ierr);
+
   ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
   ierr = computeTau(D);CHKERRQ(ierr);
   //~ierr = initSlipVel(D);CHKERRQ(ierr);
@@ -21,9 +30,21 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
 
   ierr = VecCopy(D.gF,D.faultDisp);CHKERRQ(ierr);
   ierr = VecScale(D.faultDisp,2.0);CHKERRQ(ierr);
-  ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
 
-  ierr = ComputeRHS(D);CHKERRQ(ierr);
+  PetscInt Ii,Istart,Iend;
+  PetscScalar u,y,z;
+  ierr = VecGetOwnershipRange(D.uhat,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    z = Ii-D.Nz*(Ii/D.Nz);
+    y = Ii/D.Nz;
+    if (z == 0) {
+      ierr = VecGetValues(D.uhat,1,&Ii,&u);CHKERRQ(ierr);
+      ierr = VecSetValue(D.surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(D.surfDisp);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.surfDisp);CHKERRQ(ierr);
+  //~ierr = VecView(D.surfDisp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -43,11 +64,10 @@ PetscErrorCode computeTau(UserContext& D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting computeTau in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
-  // compute initial shear stress (MPa)
+  // compute shear stress (MPa)
   Vec sigma_xy;
   ierr = VecDuplicate(D.uhat,&sigma_xy);CHKERRQ(ierr);
   ierr = MatMult(D.Dy_Iz,D.uhat,sigma_xy);
-  ierr = VecDuplicate(D.gF,&D.tau);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(sigma_xy,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<D.Nz) {
@@ -69,8 +89,8 @@ PetscErrorCode computeTau(UserContext& D)
 }
 
 /*
- * Computes slip approximate slip velocity using linear equation.
- * Only used to create inital guess for velocity.
+ * Computes approximate slip velocity using linear equation.
+ * Currently unused, but would make a decent guess for initial velocity
  */
 PetscErrorCode initSlipVel(UserContext& D)
 {
@@ -180,6 +200,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   ierr = VecScale(D->gF,0.5);CHKERRQ(ierr);
   ierr = VecCopy(var[1],D->tempPsi);CHKERRQ(ierr);
   ierr = VecSet(D->gR,D->vp*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(D->gR,1.0,D->gRShift);CHKERRQ(ierr);
 
 
   // solve for displacement
@@ -189,6 +210,21 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   double endKspTime = MPI_Wtime();
   D->kspTime = D->kspTime + (endKspTime-startKspTime);
 
+  // update surface displacement
+  PetscScalar u,y,z;
+  ierr = VecGetOwnershipRange(D->uhat,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    z = Ii-D->Nz*(Ii/D->Nz);
+    y = Ii/D->Nz;
+    if (z == 0) {
+      ierr = VecGetValues(D->uhat,1,&Ii,&u);CHKERRQ(ierr);
+      ierr = VecSetValue(D->surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(D->surfDisp);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D->surfDisp);CHKERRQ(ierr);
+
+  // update velocity and shear stress on fault
   ierr = computeTau(*D);CHKERRQ(ierr);
   ierr = computeSlipVel(*D);CHKERRQ(ierr);
 
@@ -230,23 +266,3 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
 
   return ierr;
 }
-
-
-//~ PetscErrorCode writeData(const char outFileRoot[],const char name[],PetscInt step,Vec w)
-//~ {
-  //~ PetscErrorCode ierr;
-  //~ PetscViewer outviewer;
-  //~ char * outFileLoc = malloc(1+strlen(outFileRoot)+strlen(name)+sizeof(PetscInt));
-  //~ char *strInt = malloc(1+sizeof(PetscInt));
-//~
-  //~ strcpy(outFileLoc,outFileRoot);
-  //~ strcat(outFileLoc,name);
-  //~ sprintf(strInt,"%d",step);
-  //~ strcat(outFileLoc,strInt);
-//~
-//~
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
-  //~ ierr = VecView(w,outviewer);CHKERRQ(ierr);
-//~
-  //~ return ierr;
-//~ }

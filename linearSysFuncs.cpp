@@ -16,12 +16,6 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   D.alphaD = -1.0;
   D.beta   = 1.0;
 
-  // set boundary data to match constant tectonic plate motion
-  ierr = VecSet(D.gF,0.0);CHKERRQ(ierr);
-  ierr = VecSet(D.gS,0.0);CHKERRQ(ierr);
-  ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
-  ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
-
   if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
@@ -43,9 +37,8 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
   //~PCFactorSetUpMatSolverPackage(D.pc);
 
-  //~ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
-  //~ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
-  //~ierr = ComputeRHS(D);CHKERRQ(ierr);
+  ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -60,29 +53,21 @@ PetscErrorCode ComputeRHS(UserContext &D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function ComputeRHS in linearSysFuncs.c.\n");CHKERRQ(ierr);
 #endif
 
-/* rhs =  D.alphaF*p.G*D.Hinvy_Iz_e0y_Iz*gF +... */
-  //~ierr = MatMult(D.Hinvy_Iz_e0y_Iz,D.gF,D.rhs);CHKERRQ(ierr);
-  //~ierr = VecScale(D.rhs,D.alphaF*D.G);CHKERRQ(ierr);
+/* rhs =  D.alphaF*mu*D.Hinvy_Iz_e0y_Iz*gF +... */
   ierr = MatMult(D.Hinvy_Izxe0y_Iz,D.gF,D.rhs);CHKERRQ(ierr);
   ierr = VecScale(D.rhs,D.alphaF);CHKERRQ(ierr);
 
-  /* + D.beta*D.G*D.Hinvy_Iz_BySy_Iz_e0y_Iz*gF + ... */
+  /* + D.beta*mu*D.Hinvy_Iz_BySy_Iz_e0y_Iz*gF + ... */
   Vec temp;
   ierr = VecDuplicate(D.rhs,&temp);CHKERRQ(ierr);
-  //~ierr = MatMult(D.Hinvy_Iz_BySy_Iz_e0y_Iz,D.gF,temp);CHKERRQ(ierr);
-  //~ierr = VecAXPY(D.rhs,D.beta*D.G,temp);CHKERRQ(ierr);
   ierr = MatMult(D.Hinvy_IzxBySy_IzTxe0y_Iz,D.gF,temp);CHKERRQ(ierr);
   ierr = VecAXPY(D.rhs,D.beta,temp);CHKERRQ(ierr);
 
-  /* + D.alphaR*D.G*D.Hinvy_Iz_eNy_Iz*gR + ... */
-  //~ierr = MatMult(D.Hinvy_Iz_eNy_Iz,D.gR,temp);CHKERRQ(ierr);
-  //~ierr = VecAXPY(D.rhs,D.alphaR*D.G,temp);CHKERRQ(ierr);
+  /* + D.alphaR*mu*D.Hinvy_Iz_eNy_Iz*gR + ... */
   ierr = MatMult(D.Hinvy_IzxeNy_Iz,D.gR,temp);CHKERRQ(ierr);
   ierr = VecAXPY(D.rhs,D.alphaR,temp);CHKERRQ(ierr);
 
-  /* + D.beta*D.G*D.Hinvy_Iz_BySy_Iz_eNy_Iz*gR + ... */
-  //~ierr = MatMult(D.Hinvy_Iz_BySy_Iz_eNy_Iz,D.gR,temp);CHKERRQ(ierr);
-  //~ierr = VecAXPY(D.rhs,D.beta*D.G,temp);CHKERRQ(ierr);
+  /* + D.beta*mu*D.Hinvy_Iz_BySy_Iz_eNy_Iz*gR + ... */
   ierr = MatMult(D.Hinvy_IzxBySy_IzTxeNy_Iz,D.gR,temp);CHKERRQ(ierr);
   ierr = VecAXPY(D.rhs,D.beta,temp);CHKERRQ(ierr);
 
@@ -297,6 +282,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = SBPopsArrays(D.order,D.Ny,1/D.dy,HinvyArr,SyArr,&Sylen);CHKERRQ(ierr);
   ierr = SBPopsArrays(D.order,D.Nz,1/D.dz,HinvzArr,SzArr,&Szlen);CHKERRQ(ierr);
 
+  double startArrLinOps = MPI_Wtime();
   // for producing rhs vector
   // kron(Hinvy,Iz)*kron(e0y,Iz)
   ierr = MatSetSizes(D.Hinvy_Izxe0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
@@ -639,6 +625,9 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
+
+  double endArrLinOps = MPI_Wtime();
+  D.arrLinOps = endArrLinOps - startArrLinOps;
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function createOperators in linearSysFuncs.c.\n");CHKERRQ(ierr);

@@ -60,7 +60,6 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
    */
   if (left >= right) {
     SETERRQ(PETSC_COMM_SELF,1,"left bound must be less than right bound");
-    assert(!isnan(fRight)); assert(!isinf(fRight));
     assert(left < right);
     return 1;
   }

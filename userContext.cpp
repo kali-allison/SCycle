@@ -16,7 +16,8 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
  strideLength(1),maxStepCount(1),initTime(0),currTime(0),maxTime(0),
  minDeltaT(1e-14),maxDeltaT(1e-14),
  count(0),atol(1e-14),initDeltaT(1e-14),
- computeTauTime(0),computeVelTime(0),kspTime(0),computeRhsTime(0),agingLawTime(0),rhsTime(0)
+ computeTauTime(0),computeVelTime(0),kspTime(0),computeRhsTime(0),agingLawTime(0),rhsTime(0),
+ fullLinOps(0),arrLinOps(0)
 {
 
 #if VERBOSE > 1
@@ -36,6 +37,7 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   VecDuplicate(eta,&b);
   VecDuplicate(eta,&psi);
   VecDuplicate(eta,&tau);
+  VecDuplicate(eta,&gRShift);
 
   muArr = new PetscScalar[Ny*Nz];
 
@@ -82,10 +84,10 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   // initialize time stepping data
   VecDuplicate(eta,&V);
   VecDuplicate(eta,&faultDisp);
+  VecCreate(PETSC_COMM_WORLD,&surfDisp);
+  VecSetSizes(surfDisp,PETSC_DECIDE,Ny);
+  VecSetFromOptions(surfDisp);
   VecDuplicate(eta,&dpsi);
-  VecCreate(PETSC_COMM_WORLD,&w);
-  VecSetSizes(w,PETSC_DECIDE,2*Nz);
-  VecSetFromOptions(w);
   TSCreate(PETSC_COMM_WORLD,&ts);
   var = new Vec[2];
   var[0] = faultDisp; var[1] = psi;
@@ -95,8 +97,8 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
 
   // viewers (bc PetSc appears to have an error in the way it handles them)
   PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outFileRoot+"time.txt").c_str(),&timeViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"w").c_str(),FILE_MODE_WRITE,&wViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"uhat").c_str(),FILE_MODE_WRITE,&uhatViewer);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),FILE_MODE_WRITE,&surfDispViewer);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),FILE_MODE_WRITE,&faultDispViewer);
   PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),FILE_MODE_WRITE,&velViewer);
   PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),FILE_MODE_WRITE,&tauViewer);
   PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),FILE_MODE_WRITE,&psiViewer);
@@ -122,6 +124,7 @@ UserContext::~UserContext()
   VecDestroy(&b);
   VecDestroy(&psi);
   VecDestroy(&tau);
+  VecDestroy(&gRShift);
 
   // boundary conditions
   VecDestroy(&gF);
@@ -160,8 +163,8 @@ UserContext::~UserContext()
   VecDestroy(&uhat);
 
   // time stepping system
-  VecDestroy(&w);
   VecDestroy(&faultDisp);
+  VecDestroy(&surfDisp);
   VecDestroy(&V);
   delete[] var;
 
@@ -169,8 +172,8 @@ UserContext::~UserContext()
 
   // viewers
   PetscViewerDestroy(&timeViewer);
-  PetscViewerDestroy(&wViewer);
-  PetscViewerDestroy(&uhatViewer);
+    PetscViewerDestroy(&faultDispViewer);
+  PetscViewerDestroy(&surfDispViewer);
   PetscViewerDestroy(&velViewer);
   PetscViewerDestroy(&tauViewer);
   PetscViewerDestroy(&psiViewer);
@@ -314,36 +317,32 @@ PetscErrorCode UserContext::writeInitialStep()
 #endif
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
-  ierr = VecView(w,wViewer);CHKERRQ(ierr);
-  ierr = VecView(gF,uhatViewer);CHKERRQ(ierr);
+  ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
+  ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerDestroy(&uhatViewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&faultDispViewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&surfDispViewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&velViewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&tauViewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&psiViewer);CHKERRQ(ierr);
 
-  std::string str = outFileRoot + "w";
-  const char * outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_APPEND,&wViewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),
+                               FILE_MODE_APPEND,&faultDispViewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "uhat";
-  outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_APPEND,&uhatViewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),
+                               FILE_MODE_APPEND,&surfDispViewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "vel";
-  outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_APPEND,&velViewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),
+                               FILE_MODE_APPEND,&velViewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "tau";
-  outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_APPEND,&tauViewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),
+                               FILE_MODE_APPEND,&tauViewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "psi";
-  outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_APPEND,&psiViewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),
+                               FILE_MODE_APPEND,&psiViewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
@@ -362,8 +361,8 @@ PetscErrorCode UserContext::writeCurrentStep()
 #endif
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
-  ierr = VecView(w,wViewer);CHKERRQ(ierr);
-  ierr = VecView(faultDisp,uhatViewer);CHKERRQ(ierr);
+  ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
+  ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);

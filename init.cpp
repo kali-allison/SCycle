@@ -8,8 +8,8 @@ PetscErrorCode setParameters(UserContext & ctx)
   //~ ctx->outFileRoot = ".data/";
 
   // domain geometry initialization
-  ctx.Ly = 24.0; // (km) length of fault, y in [0,Ly]
-  ctx.Lz = 24.0; // (km) z in [0,Lz]
+  ctx.Ly = 48.0; // (km) length of fault, y in [0,Ly]
+  ctx.Lz = 48.0; // (km) z in [0,Lz]
   ctx.H = 12.0; // (km) This is the depth as which (a-b) begins to increase
   ctx.N  = ctx.Nz*ctx.Ny;
   ctx.dy = ctx.Ly/(ctx.Ny-1.0); // (km)
@@ -40,14 +40,14 @@ PetscErrorCode setParameters(UserContext & ctx)
   // time monitering
   ctx.strideLength = 10;
   ctx.maxStepCount = 8e4; // 3e4,9189
-  //~ctx.maxStepCount = 2;
-  ctx.initTime = 0; // spring-slider:5e5
+  //~ctx.maxStepCount = 10;
+  ctx.initTime = 4e7; // spring-slider:5e5
   ctx.currTime = ctx.initTime;
   ctx.maxTime = ctx.initTime+5000.*3.1556926e7;// 5000.*3.1556926e7; 5000.*3.155926e3; spring-slider:5e+05
   ctx.atol = 1e-6;
-  ctx.initDeltaT = 800;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,0.01);
-  ctx.maxDeltaT = 1e3;
+  ctx.initDeltaT = ctx.minDeltaT;
+  ctx.maxDeltaT = 1e4;
 
 
   return 0;

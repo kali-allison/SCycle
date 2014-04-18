@@ -24,7 +24,7 @@ class UserContext {
   //~PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
   PetscScalar    cs,f0,v0,vp,D_c,tau_inf;
   PetscScalar    muIn,muOut,D,W,rhoIn,rhoOut,*muArr;// for basin
-  Vec            eta,s_NORM,a,b,psi,tau;
+  Vec            eta,s_NORM,a,b,psi,tau,gRShift;
   Vec            V;
 
   // penalty terms for BCs
@@ -56,7 +56,7 @@ class UserContext {
 
   // time stepping data
   TS             ts;
-  Vec            w,faultDisp,dpsi,*var;
+  Vec            faultDisp,dpsi,*var,surfDisp;
   PetscInt       strideLength; // stride
   PetscInt       maxStepCount; // largest number of time steps
   PetscReal      initTime,currTime,maxTime,minDeltaT,maxDeltaT;
@@ -68,10 +68,11 @@ class UserContext {
   Vec tempPsi;
 
   // viewers
-  PetscViewer    timeViewer,wViewer,uhatViewer,velViewer,tauViewer,psiViewer;
+  PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
 
   // run time info
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;
+  double fullLinOps,arrLinOps;
 
 
   UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,const std::string outFile);

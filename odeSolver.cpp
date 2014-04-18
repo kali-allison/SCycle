@@ -337,21 +337,21 @@ PetscErrorCode OdeSolver::odeRK32()
 
       // calculate error
       totErr = 0.0;
-      //~for (int ind=0;ind<_lenVar;ind++) {
-        int ind = 0;
+      for (int ind=0;ind<_lenVar;ind++) {
+        //~int ind = 0;
         ierr = VecWAXPY(errVec[ind],-1.0,var2nd[ind],var3rd[ind]);CHKERRQ(ierr);
 
         // error based on max norm
-        ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
+        //~ierr = VecNorm(errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
         //~if (err[ind]>totErr) { totErr=err[ind]; }
 
         // error based on weighted 2 norm
-        //~VecDot(errVec[ind],errVec[ind],&err[ind]);
-        //~VecGetSize(errVec[ind],&size);
-        //~totErr += err[ind]/size;
-      //~}
-      //~totErr = sqrt(totErr);
-      totErr = err[ind];
+        VecDot(errVec[ind],errVec[ind],&err[ind]);
+        VecGetSize(errVec[ind],&size);
+        totErr += err[ind]/size;
+      }
+      totErr = sqrt(totErr);
+      //~totErr = err[ind];
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"totErr=%7e\n",totErr);CHKERRQ(ierr);
 
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, totErr = %g, currT = %g,_deltaT=%g\n",

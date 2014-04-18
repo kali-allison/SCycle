@@ -126,7 +126,7 @@ int runEqCycle(int argc,char **args)
   PetscInt       Ny=5, Nz=7, order=2;
   PetscBool      loadMat = PETSC_FALSE;
 
-  // allow command line user input to override defaults
+  // allow commandline user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
@@ -137,9 +137,14 @@ int runEqCycle(int argc,char **args)
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
   ierr = writeRateAndState(D);CHKERRQ(ierr);
+
+  double startFullLinOps = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  double endFullLinOps = MPI_Wtime();
+  D.fullLinOps =  endFullLinOps - startFullLinOps;
+
   if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
+  ierr = setInitialTimeStep(D);CHKERRQ(ierr); // sets initial conditions in D.var
   ierr = D.writeInitialStep();CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
@@ -160,8 +165,10 @@ int runEqCycle(int argc,char **args)
   double timeAfterIntegration = MPI_Wtime();
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"full linear op. creation time = %g\n",D.fullLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"arr. linear op. creation time = %g\n",D.arrLinOps);CHKERRQ(ierr);
 
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
