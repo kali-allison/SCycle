@@ -39,8 +39,8 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // time monitering
   ctx.strideLength = 10;
-  ctx.maxStepCount = 8e4; // 3e4,9189
-  //~ctx.maxStepCount = 10;
+  //~ctx.maxStepCount = 8e4; // 3e4,9189
+  ctx.maxStepCount = 2;
   ctx.initTime = 4e7; // spring-slider:5e5
   ctx.currTime = ctx.initTime;
   ctx.maxTime = ctx.initTime+5000.*3.1556926e7;// 5000.*3.1556926e7; 5000.*3.155926e3; spring-slider:5e+05
