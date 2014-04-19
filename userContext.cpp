@@ -172,7 +172,7 @@ UserContext::~UserContext()
 
   // viewers
   PetscViewerDestroy(&timeViewer);
-    PetscViewerDestroy(&faultDispViewer);
+  PetscViewerDestroy(&faultDispViewer);
   PetscViewerDestroy(&surfDispViewer);
   PetscViewerDestroy(&velViewer);
   PetscViewerDestroy(&tauViewer);

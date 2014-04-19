@@ -96,26 +96,33 @@ int runTests(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  UserContext D(order,Ny,Nz,"data/");
-  ierr = setParameters(D);CHKERRQ(ierr);
-  ierr = D.writeParameters();CHKERRQ(ierr);
-  ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  //~PetscScalar Hinvy[Ny];
+  //~ierr = SBPopsArrays(2,Ny,0.5,Hinvy);CHKERRQ(ierr);
+  //~ierr = printMyArray(Hinvy, Ny);CHKERRQ(ierr);
 
-  PetscInt Ii,Istart,Iend;
-  PetscScalar v;
-  ierr = MatGetOwnershipRange(D.mu,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    v = Ii+1;
-    D.muArr[Ii]=v;
-    ierr = MatSetValues(D.mu,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(D.mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D.mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~PetscInt rows[Ny];
+  //~for (PetscInt ind=0;ind<Ny;ind++){
+    //~rows[ind]=ind;
+  //~}
+  //~PetscInt Ii,Istart,Iend;
 
-  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  /* Try making things faster with arrays!!!*/
+  Mat Iy_Hinvz;
+  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,Ny*Nz,Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
+  //~ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
+  //~ierr = MatSetValues(Iy_Hinvz,1,&Istart,Ny,rows,Hinvy,INSERT_VALUES);CHKERRQ(ierr);
+  //~for (Ii=Istart;Ii<Nz;Ii++) {
+    //~ierr = MatSetValues(Hinvy_Iz_e0y_Iz,1,&Ii,1,&Ii,&(Hinvy[0]),INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-  //~ierr = MatView(D.mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -126,7 +133,7 @@ int runEqCycle(int argc,char **args)
   PetscInt       Ny=5, Nz=7, order=2;
   PetscBool      loadMat = PETSC_FALSE;
 
-  // allow commandline user input to override defaults
+  // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
@@ -137,14 +144,12 @@ int runEqCycle(int argc,char **args)
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
   ierr = writeRateAndState(D);CHKERRQ(ierr);
-
-  double startFullLinOps = MPI_Wtime();
+  double timeBeforeOpCreation = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
-  double endFullLinOps = MPI_Wtime();
-  D.fullLinOps =  endFullLinOps - startFullLinOps;
-
+  double timeAfterOpCreation = MPI_Wtime();
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
   if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-  ierr = setInitialTimeStep(D);CHKERRQ(ierr); // sets initial conditions in D.var
+  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
@@ -165,10 +170,8 @@ int runEqCycle(int argc,char **args)
   double timeAfterIntegration = MPI_Wtime();
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"full linear op. creation time = %g\n",D.fullLinOps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"arr. linear op. creation time = %g\n",D.arrLinOps);CHKERRQ(ierr);
-
   ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);

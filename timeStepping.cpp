@@ -13,6 +13,9 @@ using namespace std;
 PetscErrorCode setInitialTimeStep(UserContext& D)
 {
   PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setInitialTimeStep in timeStepping.c\n");CHKERRQ(ierr);
+#endif
 
   // set boundary data to match constant tectonic plate motion
   ierr = VecSet(D.gF,0.0);CHKERRQ(ierr);
@@ -45,6 +48,10 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
   ierr = VecAssemblyBegin(D.surfDisp);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.surfDisp);CHKERRQ(ierr);
   //~ierr = VecView(D.surfDisp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setInitialTimeStep in timeStepping.c\n");CHKERRQ(ierr);
+#endif
 
   return ierr;
 }
