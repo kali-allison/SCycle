@@ -191,6 +191,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   // compute analytic surface displacement
   Vec anal;
   ierr = VecDuplicate(D.surfDisp,&anal);CHKERRQ(ierr);
+
   ierr = VecGetOwnershipRange(anal,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = Ii-D.Nz*(Ii/D.Nz);
@@ -239,7 +240,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   ierr = VecAbs(diff);CHKERRQ(ierr);
   ierr = VecNorm(diff,NORM_1_AND_2,maxErr);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %g %g %g %g %.9g %.9g,\n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %g %g %g %g %.9g %.9g\n",
                      D.Ny,D.Nz,D.dy,D.dz,D.Ly,D.Lz,maxErr[0],maxErr[1]);CHKERRQ(ierr);
 
 
@@ -393,19 +394,25 @@ int main(int argc,char **args)
 
   PetscErrorCode ierr = 0;
 
+  /*
+  PetscInt Ny = 401, Nz = 401;
+  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
+  screwDislocation(Ny,Nz);
+  */
 
   //~ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
 
   // compare screw dislocation with numerics
   PetscInt Ny=721, Nz=241;
-  //~for (Nz=401;Nz<802;Nz+=200) {
-    for (Ny=241;Ny<1442;Ny+=200) {
+  for (Nz=241;Nz<482;Nz+=120) {
+    for (Ny=241;Ny<1442;Ny+=120) {
       screwDislocation(Ny,Nz);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i ",Nz);CHKERRQ(ierr);
     }
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  //~}
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+
 
 
   //~runEqCycle(argc,args);
