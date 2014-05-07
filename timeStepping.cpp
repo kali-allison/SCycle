@@ -157,9 +157,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
   ierr = VecAbs(right);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
-  ierr = VecCopy(right,left);CHKERRQ(ierr);
-  ierr = VecScale(left,-1.0);CHKERRQ(ierr);
-  //~ierr = VecSet(left,0.0);CHKERRQ(ierr);
+  ierr = VecSet(left,0.0);CHKERRQ(ierr); // assumes right-lateral fault
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
   PetscErrorCode (*frictionLaw)(const PetscInt,const PetscScalar,PetscScalar *, void *) = &stressMstrength;

@@ -167,7 +167,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
   //~ierr = VecView(D.b,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
+  ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
   // set shear modulus
   Vec muVec;
@@ -182,9 +182,7 @@ PetscErrorCode setRateAndState(UserContext &D)
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
     D.muArr[Ii]=v;
-    //~D.muArr[Ii]=D.muOut; // !!!!!!!!
   }
-
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
     y = D.dy*(Ii/D.Nz);
@@ -214,7 +212,7 @@ PetscErrorCode setRateAndState(UserContext &D)
     ierr =  VecGetValues(D.s_NORM,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     psi_p = D.f0 - b*log(D.vp/D.v0);
-    tau_inf = sigma_N*a*asinh( (double) 0.5*D.vp*exp(psi_p/a)/D.v0 );
+    tau_inf = sigma_N*a*asinh( (double) 0.5*D.vp*exp(D.f0/a)/D.v0 );
     z = ((double) Ii)*D.dz;
     if (z < D.D) { eta = 0.5*sqrt(D.rhoIn*D.muArr[Ii]); }
     else { eta = 0.5*sqrt(D.rhoOut*D.muArr[Ii]); }
@@ -223,22 +221,20 @@ PetscErrorCode setRateAndState(UserContext &D)
 
     ierr = VecSetValue(D.tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(D.eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(D.psi,Ii,psi,INSERT_VALUES);CHKERRQ(ierr);
+    //~ierr = VecSetValue(D.psi,Ii,psi,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(D.gRShift,Ii,grShift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(D.tau);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.psi);CHKERRQ(ierr);
+  //~ierr = VecAssemblyBegin(D.psi);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(D.gRShift);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(D.tau);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.psi);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(D.psi);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.gRShift);CHKERRQ(ierr);
 
-  //~ierr = VecSet(D.eta,0.5*sqrt(D.rhoOut*D.muOut));CHKERRQ(ierr); // !!!!!!!!!!!
-  //~ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
+  ierr = VecSet(D.psi,D.f0);
   ierr = VecCopy(D.psi,D.tempPsi);CHKERRQ(ierr);
 
 #if VERBOSE > 1
@@ -270,7 +266,7 @@ PetscErrorCode writeRateAndState(UserContext &D)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(D.eta,viewer);CHKERRQ(ierr);
 
-  str = D.outFileRoot + "s_NORM"; outFileLoc = str.c_str();
+  str = D.outFileRoot + "sigma_N"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(D.s_NORM,viewer);CHKERRQ(ierr);
 

@@ -172,6 +172,8 @@ PetscErrorCode createOperators(UserContext &D)
   PetscScalar const *constVals;
   PetscScalar *vals;
 
+  double startTime = MPI_Wtime();
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function createOperators in linearSysFuncs.c.\n");
   CHKERRQ(ierr);
@@ -283,6 +285,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = SBPopsArrays(D.order,D.Nz,1/D.dz,HinvzArr,SzArr,&Szlen);CHKERRQ(ierr);
 
   double startArrLinOps = MPI_Wtime();
+
   // for producing rhs vector
   // kron(Hinvy,Iz)*kron(e0y,Iz)
   ierr = MatSetSizes(D.Hinvy_Izxe0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
@@ -625,9 +628,10 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
+  ierr = PetscFree(vals);CHKERRQ(ierr);
 
-  double endArrLinOps = MPI_Wtime();
-  D.arrLinOps = endArrLinOps - startArrLinOps;
+  D.fullLinOps = MPI_Wtime() - startTime;
+  D.arrLinOps = MPI_Wtime() - startArrLinOps;
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function createOperators in linearSysFuncs.c.\n");CHKERRQ(ierr);

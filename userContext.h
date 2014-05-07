@@ -97,6 +97,8 @@ class UserContext {
 
   PetscErrorCode writeCurrentStep();
 
+  PetscErrorCode printTiming();
+
   /*
    * Output operators, time, and all needed vectors so that problem solution
    * can be continued from this point.
