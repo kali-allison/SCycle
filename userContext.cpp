@@ -198,7 +198,7 @@ PetscErrorCode UserContext::writeParameters()
 
   PetscViewerCreate(PETSC_COMM_WORLD, &outviewer);
   PetscViewerSetType(outviewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(outviewer, FILE_MODE_APPEND);
+  PetscViewerFileSetMode(outviewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(outviewer, outFileLoc);
 
   ierr = PetscViewerASCIIPrintf(outviewer,"order = %i\n",order);CHKERRQ(ierr);
@@ -373,6 +373,35 @@ PetscErrorCode UserContext::writeCurrentStep()
 
   return 0;
 }
+
+
+PetscErrorCode UserContext::printTiming()
+{
+  PetscErrorCode ierr = 0;
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting printTiming in userContext.cpp.\n");
+#endif
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",fullLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",arrLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",computeTauTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",computeVelTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",kspTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",computeRhsTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",agingLawTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",rhsTime);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",rootIts);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending printTiming in userContext.cpp.\n");
+#endif
+
+
+  return ierr;
+}
+
 
 PetscErrorCode UserContext::loadCurrentPlace()
 {

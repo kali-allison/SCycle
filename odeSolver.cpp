@@ -393,7 +393,7 @@ PetscErrorCode OdeSolver::odeRK32()
     }
 
     ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
   }
 
   // destruct temporary containers

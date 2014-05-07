@@ -13,5 +13,5 @@ while [ $RETVAL -eq 0 ]
 do
   qstat | grep kallison | grep -v C
   RETVAL=$?
-  sleep 5
+  sleep 30
 done
