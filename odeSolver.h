@@ -25,6 +25,13 @@
  *  f(t,y)                   setRhsFunc
  *  final time               constructor or setTimeRange
  *
+ * Optional fields that can also be specified:
+ *     QUANTITY               FUNCTION
+ *  tolerance                setTolerance
+ *  maximum step size        setStepSize
+ *  minimum step size        setTimeStepBounds
+ *  initial step size        setTimeStepBounds
+ *
  * Once the odeSolver context is set, call runTimeSolver() to perform
  * the integration.
  *
