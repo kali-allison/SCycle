@@ -368,8 +368,10 @@ int runEqCycle(int argc,char **args)
 
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
 
+  int np;
+  MPI_Comm_size(MPI_COMM_WORLD,&np);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",1,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
