@@ -238,7 +238,8 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
 
   ierr = VecWAXPY(diff,-1.0,D.surfDisp,anal);CHKERRQ(ierr);
   ierr = VecAbs(diff);CHKERRQ(ierr);
-  ierr = VecNorm(diff,NORM_1_AND_2,maxErr);CHKERRQ(ierr);
+  ierr = VecNorm(diff,NORM_2,&maxErr[0]);CHKERRQ(ierr);
+  ierr = VecNorm(diff,NORM_INFINITY,&maxErr[1]);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %g %g %g %g %.9g %.9g\n",
                      D.Ny,D.Nz,D.dy,D.dz,D.Ly,D.Lz,maxErr[0],maxErr[1]);CHKERRQ(ierr);

@@ -5,8 +5,8 @@
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e eq_cycle_order2.err
-#PBS -o eq_cycle_order2.out
+#PBS -e eq_cycle_order4.err
+#PBS -o eq_cycle_order4.out
 #
 
 EXEC_DIR=/data/dunham/kallison/sedEqCycle
