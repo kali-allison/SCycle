@@ -14,7 +14,8 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,string solverType)
 _atol(1.0e-9),_reltol(1.0e-9),
 _maxNumSteps(maxNumSteps),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
 _solverType(solverType),_sourceFile(""),
-_var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
+_var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL),
+_runTime(0)
 {
   _rhsFunc = &tempRhsFunc;
   _timeMonitor = &tempTimeMonitor;
@@ -45,46 +46,71 @@ OdeSolver::~OdeSolver()
 
 PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
+  double startTime = MPI_Wtime();
   _initT = initT;
   _currT = initT;
   _finalT = finalT;
   _maxDeltaT = max((_finalT - initT)/10.0,_deltaT);
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
 {
+  double startTime = MPI_Wtime();
   _deltaT = deltaT;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setTolerance(const PetscReal tol)
 {
+  double startTime = MPI_Wtime();
   _atol = tol;
   _reltol = tol;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*))
 {
+  double startTime = MPI_Wtime();
   _rhsFunc = rhsFunc;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*))
 {
+  double startTime = MPI_Wtime();
   _timeMonitor = timeMonitor;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setUserContext(void * userContext)
 {
+  double startTime = MPI_Wtime();
   _userContext = userContext;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setInitialConds(Vec *var, const int lenVar)
 {
+  double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
   PetscScalar    zero=0.0;
 
@@ -97,19 +123,29 @@ PetscErrorCode OdeSolver::setInitialConds(Vec *var, const int lenVar)
     ierr = VecSet(_dvar[ind],zero);CHKERRQ(ierr);
   }
 
+  _runTime += MPI_Wtime() - startTime;
+
   return ierr;
 }
 
 PetscErrorCode OdeSolver::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
 {
+  double startTime = MPI_Wtime();
   _minDeltaT = minDeltaT;
   _maxDeltaT = maxDeltaT;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
 PetscErrorCode OdeSolver::setSourceFile(const std::string sourceFile)
 {
+  double startTime = MPI_Wtime();
   _sourceFile = sourceFile;
+
+  _runTime += MPI_Wtime() - startTime;
+
   return 0;
 }
 
@@ -119,7 +155,7 @@ PetscErrorCode OdeSolver::viewSolver()
 {
   PetscErrorCode ierr;
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"TimeSolver summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTimeSolver summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   solver type: %s\n",
                      (_solverType).c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
@@ -138,6 +174,8 @@ PetscErrorCode OdeSolver::viewSolver()
                      _numMinSteps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times max step size enforced: %i\n",
                      _numMaxSteps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time: %g\n",
+                     _runTime);CHKERRQ(ierr);
   return 0;
 }
 
@@ -174,6 +212,7 @@ PetscErrorCode OdeSolver::debug(const PetscReal time,const PetscInt steps,const 
                      _stepCount,str,2*gRval*k,uVal,psiVal,D->vp/2,velVal,dQVal);CHKERRQ(ierr);
 
 
+
   return ierr;
 }
 
@@ -181,6 +220,7 @@ PetscErrorCode OdeSolver::debug(const PetscReal time,const PetscInt steps,const 
 
 PetscErrorCode OdeSolver::runOdeSolver()
 {
+  double startTime = MPI_Wtime();
   PetscErrorCode ierr;
 
   if (_solverType.compare("FEULER")==0) {
@@ -195,6 +235,8 @@ PetscErrorCode OdeSolver::runOdeSolver()
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Solver type not understood\n");CHKERRQ(ierr);
   }
+
+  _runTime += MPI_Wtime() - startTime;
 
   return 0;
 }

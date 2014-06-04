@@ -349,7 +349,6 @@ int runEqCycle(int argc,char **args)
   double timeBeforeOpCreation = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
   double timeAfterOpCreation = MPI_Wtime();
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
   if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();CHKERRQ(ierr);
@@ -367,19 +366,20 @@ int runEqCycle(int argc,char **args)
   ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
 
 
-  double timeBeforeIntegration = MPI_Wtime();
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
-  double timeAfterIntegration = MPI_Wtime();
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"integration time: %f\n",timeAfterIntegration-timeBeforeIntegration);CHKERRQ(ierr);
-
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",1,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"writeTime = %g\n",D.writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
 
   ierr = ts.viewSolver();CHKERRQ(ierr);
@@ -405,6 +405,7 @@ int main(int argc,char **args)
   //~ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
 
   // compare screw dislocation with numerics
+  /*
   PetscInt Ny=721, Nz=241;
   for (Nz=241;Nz<482;Nz+=120) {
     for (Ny=241;Ny<1442;Ny+=120) {
@@ -413,10 +414,10 @@ int main(int argc,char **args)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+  */
 
 
-
-  //~runEqCycle(argc,args);
+  runEqCycle(argc,args);
   //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
   //~runTests(argc,args);
 

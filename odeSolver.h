@@ -54,6 +54,7 @@ class OdeSolver
     Vec           *_var,*_dvar;
     int           _lenVar;
     void          *_userContext;
+    double        _runTime;
     PetscErrorCode (*_rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*); // time, lenVar, var, dvar, ctx
     PetscErrorCode (*_timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*);
 

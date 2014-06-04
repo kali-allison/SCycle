@@ -72,7 +72,7 @@ class UserContext {
 
   // run time info
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;
-  double fullLinOps,arrLinOps;
+  double fullLinOps,arrLinOps,writeTime;
 
 
   UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,const std::string outFile);

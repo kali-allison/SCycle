@@ -284,10 +284,10 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = SBPopsArrays(D.order,D.Ny,1/D.dy,HinvyArr,SyArr,&Sylen);CHKERRQ(ierr);
   ierr = SBPopsArrays(D.order,D.Nz,1/D.dz,HinvzArr,SzArr,&Szlen);CHKERRQ(ierr);
 
-  double startArrLinOps = MPI_Wtime();
+  double startArrLinOps = MPI_Wtime(); //!!!!!!!!!!
 
   // for producing rhs vector
-  // kron(Hinvy,Iz)*kron(e0y,Iz)
+  // Hinvy_Izxe0y_Iz = kron(Hinvy,Iz)*kron(e0y,Iz)
   ierr = MatSetSizes(D.Hinvy_Izxe0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Hinvy_Izxe0y_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Hinvy_Izxe0y_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -304,7 +304,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&D.Hinvy_Izxe0y_Iz,D.debugFolder,"Hinvy_Izxe0y_Iz",&D);CHKERRQ(ierr);
 #endif
 
-  // kron(Hinvy,Iz)*kron(eNy,Iz)
+  // Hinvy_IzxeNy_Iz = kron(Hinvy,Iz)*kron(eNy,Iz)
   ierr = MatSetSizes(D.Hinvy_IzxeNy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Hinvy_IzxeNy_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Hinvy_IzxeNy_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -324,7 +324,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iz,Hiinvz)*kron(Iy,e0z)
+  // Iy_HinvzxIy_e0z = kron(Iz,Hiinvz)*kron(Iy,e0z)
   ierr = MatSetSizes(D.Iy_HinvzxIy_e0z,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Iy_HinvzxIy_e0z);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Iy_HinvzxIy_e0z,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -345,7 +345,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,eNz)
+  // Iy_HinvzxIy_eNz = kron(Iy,Hinvz)*kron(Iy,eNz)
   ierr = MatSetSizes(D.Iy_HinvzxIy_eNz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Iy_HinvzxIy_eNz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Iy_HinvzxIy_eNz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -367,7 +367,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(e0y,Iz)
+  // Hinvy_IzxBySy_IzTxe0y_Iz = kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(e0y,Iz)
   ierr = MatSetSizes(D.Hinvy_IzxBySy_IzTxe0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Hinvy_IzxBySy_IzTxe0y_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Hinvy_IzxBySy_IzTxe0y_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -386,7 +386,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&D.Hinvy_IzxBySy_IzTxe0y_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxe0y_Iz",&D);CHKERRQ(ierr);
 #endif
 
-  // kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(eNy,Iz)
+  // Hinvy_IzxBySy_IzTxeNy_Iz = kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(eNy,Iz)
   ierr = MatSetSizes(D.Hinvy_IzxBySy_IzTxeNy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Hinvy_IzxBySy_IzTxeNy_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D.Hinvy_IzxBySy_IzTxeNy_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -409,7 +409,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 
 
   // for producing matrix A
-  // kron(Hinvy,Iz)*kron(E0y,Iz)
+  // Hinvy_IzxE0y_Iz = kron(Hinvy,Iz)*kron(E0y,Iz)
   Mat Hinvy_IzxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxE0y_Iz);
   ierr = MatSetSizes(Hinvy_IzxE0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -428,7 +428,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&Hinvy_IzxE0y_Iz,D.debugFolder,"Hinvy_IzxUE0y_Iz",&D);CHKERRQ(ierr);
 #endif
 
-  // kron(Hinvy,Iz)*kron(ENy,Iz)
+  // Hinvy_IzxENy_Iz = kron(Hinvy,Iz)*kron(ENy,Iz)
   Mat Hinvy_IzxENy_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(Hinvy_IzxENy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -449,7 +449,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,E0z)
+  // Iy_HinvzxIy_E0z = kron(Iy,Hinvz)*kron(Iy,E0z)
   Mat Iy_HinvzxIy_E0z;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_E0z);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvzxIy_E0z,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -472,7 +472,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,ENz)
+  // Iy_HinvzxIy_ENz = kron(Iy,Hinvz)*kron(Iy,ENz)
   Mat Iy_HinvzxIy_ENz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_ENz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvzxIy_ENz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -494,7 +494,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&Iy_HinvzxIy_ENz,D.debugFolder,"Iy_HinvzxIy_UENz",&D);CHKERRQ(ierr);
 #endif
 
-  // kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(E0z,Iz)
+  // Hinvy_IzxBySy_IzTxE0y_Iz = kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(E0z,Iz)
   Mat Hinvy_IzxBySy_IzTxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxE0y_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(Hinvy_IzxBySy_IzTxE0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -515,7 +515,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(ENz,Iz)
+  // Hinvy_IzxBySy_IzTxENy_Iz = kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(ENz,Iz)
   Mat Hinvy_IzxBySy_IzTxENy_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxENy_Iz);CHKERRQ(ierr);
   ierr = MatSetSizes(Hinvy_IzxBySy_IzTxENy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -538,7 +538,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,E0z)*mu*kron(Iy,BzSz)
+  // Iy_HinvxIy_E0zxIy_BzSz = kron(Iy,Hinvz)*kron(Iy,E0z)*mu*kron(Iy,BzSz)
   Mat Iy_HinvxIy_E0zxIy_BzSz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvxIy_E0zxIy_BzSz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvxIy_E0zxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -566,7 +566,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
-  // kron(Iy,Hinvz)*kron(Iy,ENz)*mu*kron(Iy,BzSz)
+  // Iy_HinvxIy_ENzxIy_BzSz = kron(Iy,Hinvz)*kron(Iy,ENz)*mu*kron(Iy,BzSz)
   Mat Iy_HinvxIy_ENzxIy_BzSz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvxIy_ENzxIy_BzSz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvxIy_ENzxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
@@ -594,7 +594,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
   /* Compute A */
-  // A = mu*D2yplusD2z + alphaF*mu*Hinvy_Iz*E0y_Iz
+  // A = mu*D2yplusD2z + alphaF*mu*Hinvy_Iz*E0y_Iz...
   ierr = MatMatMult(D.mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&D.A);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D.A,D.debugFolder,"Astage1",&D);CHKERRQ(ierr);
@@ -923,7 +923,7 @@ PetscErrorCode SBPoperators(PetscInt ORDER, PetscInt N, Mat *PinvMat, Mat *D, Ma
 
 
     default:
-      SETERRQ(PETSC_COMM_WORLD,1,"ORDER not understood.");
+      SETERRQ(PETSC_COMM_WORLD,1,"SBP order not understood.");
       break;
   }
 

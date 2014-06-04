@@ -316,6 +316,8 @@ PetscErrorCode UserContext::writeInitialStep()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeInitialStep in userContext.c\n");CHKERRQ(ierr);
 #endif
 
+  double startTime = MPI_Wtime();
+
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
@@ -344,6 +346,8 @@ PetscErrorCode UserContext::writeInitialStep()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),
                                FILE_MODE_APPEND,&psiViewer);CHKERRQ(ierr);
 
+  writeTime += MPI_Wtime() - startTime;
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
 #endif
@@ -360,12 +364,16 @@ PetscErrorCode UserContext::writeCurrentStep()
   PetscPrintf(PETSC_COMM_WORLD,"Starting writeCurrentStep in userContext.cpp.\n");
 #endif
 
+  double startTime = MPI_Wtime();
+
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
   ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(V,velViewer);CHKERRQ(ierr);
   ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
   ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
+
+  writeTime += MPI_Wtime() - startTime;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending writeCurrentStep in userContext.cpp.\n");
