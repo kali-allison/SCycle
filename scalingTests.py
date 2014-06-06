@@ -42,6 +42,6 @@ results.write('---Strong Test: ' + str(time.time())+'\n')
 results.write("nodes m n runtime\n")
 for nodes in range(1,2):
     Ny=1201
-    n=401
+    Nz=401
     buildqsub(nodes,Ny,Nz)
 
