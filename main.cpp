@@ -335,6 +335,8 @@ int runEqCycle(int argc,char **args)
   PetscInt       Ny=301, Nz=301, order=4;
   PetscBool      loadMat = PETSC_FALSE;
 
+  double startTime = MPI_Wtime();
+
   // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
@@ -353,7 +355,7 @@ int runEqCycle(int argc,char **args)
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
@@ -372,6 +374,7 @@ int runEqCycle(int argc,char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&np);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"TOTAL RUN TIME: %f\n",MPI_Wtime() - startTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);

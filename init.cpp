@@ -8,8 +8,8 @@ PetscErrorCode setParameters(UserContext & ctx)
   //~ ctx->outFileRoot = "./data/";
 
   // domain geometry initialization
-  ctx.Ly = (ctx.Ny-1)*0.1; // (km) length of fault, y in [0,Ly]; 24; (ctx.Ny-1)*0.06
-  ctx.Lz = (ctx.Nz-1)*0.1; // (km) z in [0,Lz]
+  ctx.Ly = (ctx.Ny-1)*0.06; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50
+  ctx.Lz = (ctx.Nz-1)*0.06; // (km) z in [0,Lz]
   ctx.H = 12; // (km) This is the depth as which (a-b) begins to increase 12 km
   ctx.N  = ctx.Nz*ctx.Ny;
   ctx.dy = ctx.Ly/(ctx.Ny-1.0); // (km)
@@ -36,15 +36,15 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // tolerances for linear and nonlinear solve (for V)
   ctx.kspTol = 1e-6;
-  ctx.rootTol = 1e-12;
+  ctx.rootTol = 1e-6;
 
   // time monitering
   ctx.strideLength = 1;
-  ctx.maxStepCount = 4e5; // 3e4; 4e5
+  ctx.maxStepCount = 3; // 4e5
   //~ctx.maxStepCount = 10;
   ctx.initTime = 6.3e9; // spring-slider:5e5 sed eqCycle:6.3e10
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+6e10;// 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10;
+  ctx.maxTime = ctx.initTime+3.7e10;// 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10;
   ctx.atol = 1e-6;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,1e-3);
   ctx.initDeltaT = ctx.minDeltaT;
