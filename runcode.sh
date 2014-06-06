@@ -9,7 +9,7 @@
 #PBS -o eq_cycle_order4.out
 #
 
-EXEC_DIR=/data/dunham/kallison/sedEqCycle
+EXEC_DIR=/data/dunham/kallison/eqCycle
 cd $PBS_O_WORKDIR
 
 #~mpirun $EXEC_DIR/main -order 4 -Ny 301 -Nz 301

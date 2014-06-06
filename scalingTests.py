@@ -19,11 +19,11 @@ def buildqsub(nodes,Ny,Nz):
     scriptfile.write("#PBS -e eqCycle_nodes%u.err\n" %nodes)
     scriptfile.write("#PBS -o eqCycle_nodes%u.out\n" %nodes)
     scriptfile.write("#\n")
-    scriptfile.write("#EXEC_DIR=/data/dunham/kallison/eqCycle\n")
+    scriptfile.write("EXEC_DIR=/data/dunham/kallison/eqCycle\n")
     scriptfile.write("cd $PBS_O_WORKDIR\n")
     scriptfile.write("#\n")
 
-    scriptfile.write("mpirun EXEC_DIR/main -order 4 -Ny %u -Nz %u -log_summary\n" %(Ny,Nz) )
+    scriptfile.write("mpirun $EXEC_DIR/main -order 4 -Ny %u -Nz %u -log_summary\n" %(Ny,Nz) )
     scriptfile.close()
 
     print "Submitting job to queue."
@@ -33,7 +33,7 @@ def buildqsub(nodes,Ny,Nz):
     user=os.environ['USER']
     while not finished:
         time.sleep(interval)
-        finished,out=commands.getstatusoutput("qstat | grep  kallison -v C")
+        finished,out=commands.getstatusoutput("qstat | grep  kallison | grep -v C")
         print out
 
 #strong test
