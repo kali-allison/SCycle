@@ -1,6 +1,6 @@
 #!/bin/bash
-#PBS -N eq_cycle_order2
-#PBS -l nodes=2:ppn=16
+#PBS -N eq_cycle_order4
+#PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n

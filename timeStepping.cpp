@@ -267,7 +267,9 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
     D->count++;
     D->currTime = time;
     ierr = D->writeCurrentStep();CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
+    #if VERBOSE >0
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
+    #endif
   }
 
   return ierr;

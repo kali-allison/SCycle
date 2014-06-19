@@ -40,7 +40,8 @@ def buildqsub(nodes,Ny,Nz):
 results = open("results.txt",'w')
 results.write('---Strong Test: ' + str(time.time())+'\n')
 results.write("nodes m n runtime\n")
-for nodes in range(1,2):
+for power in range(0,6):
+    nodes = 2**power
     Ny=1201
     Nz=401
     buildqsub(nodes,Ny,Nz)

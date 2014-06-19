@@ -40,7 +40,7 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // time monitering
   ctx.strideLength = 1;
-  ctx.maxStepCount = 3; // 4e5
+  ctx.maxStepCount = 4e5; // 4e5
   //~ctx.maxStepCount = 10;
   ctx.initTime = 6.3e9; // spring-slider:5e5 sed eqCycle:6.3e10
   ctx.currTime = ctx.initTime;
