@@ -1,6 +1,7 @@
 #include <petscts.h>
 #include <iostream>
 #include <string>
+#include "odeSolver.h"
 #include "userContext.h"
 //~ #include "debuggingFuncs.h"
 #include "linearSysFuncs.h"
@@ -22,7 +23,7 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
   ierr = VecSet(D.gS,0.0);CHKERRQ(ierr);
   ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
   ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(D.gR,1.0,D.gRShift);CHKERRQ(ierr);
+  //~ierr = VecAXPY(D.gR,1.0,D.gRShift);CHKERRQ(ierr);
 
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
@@ -51,6 +52,49 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setInitialTimeStep in timeStepping.c\n");CHKERRQ(ierr);
+#endif
+
+  return ierr;
+}
+
+PetscErrorCode resumeCurrentTimeStep(UserContext& D)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting resumeCurrentTimeStep in timeStepping.c\n");CHKERRQ(ierr);
+#endif
+
+  // set boundary data to match constant tectonic plate motion
+  ierr = VecSet(D.gS,0.0);CHKERRQ(ierr);
+  ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
+  //~ierr = VecSet(D.gR,D.vp*D.currTime/2.0);CHKERRQ(ierr);
+
+  ierr = ComputeRHS(D);CHKERRQ(ierr);
+
+  ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
+  ierr = computeTau(D);CHKERRQ(ierr);
+  ierr = computeSlipVel(D);CHKERRQ(ierr);
+
+  ierr = VecCopy(D.gF,D.faultDisp);CHKERRQ(ierr);
+  ierr = VecScale(D.faultDisp,2.0);CHKERRQ(ierr);
+
+  PetscInt Ii,Istart,Iend;
+  PetscScalar u,y,z;
+  ierr = VecGetOwnershipRange(D.uhat,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    z = Ii-D.Nz*(Ii/D.Nz);
+    y = Ii/D.Nz;
+    if (z == 0) {
+      ierr = VecGetValues(D.uhat,1,&Ii,&u);CHKERRQ(ierr);
+      ierr = VecSetValue(D.surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(D.surfDisp);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.surfDisp);CHKERRQ(ierr);
+  //~ierr = VecView(D.surfDisp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending resumeCurrentTimeStep in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
   return ierr;
@@ -168,7 +212,7 @@ PetscErrorCode computeSlipVel(UserContext& D)
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     if (leftVal==rightVal) { outVal = leftVal; }
     else {
-      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e5,&D);CHKERRQ(ierr);
+      ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e8,&D);CHKERRQ(ierr);
       D.rootIts += its;
     }
     ierr = VecSetValue(D.V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
@@ -263,13 +307,17 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
   PetscErrorCode ierr = 0;
   UserContext*    D = (UserContext*) userContext;
 
-  if ( stepCount % D->strideLength == 0) {
-    D->count++;
-    D->currTime = time;
+  D->count++;
+  D->currTime = time;
+  if ( stepCount % D->writeStride == 0) {
     ierr = D->writeCurrentStep();CHKERRQ(ierr);
     #if VERBOSE >0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e %.15e\n",stepCount,D->currTime);CHKERRQ(ierr);
     #endif
+  }
+
+  if (stepCount % D->checkpointStride == 0) {
+    ierr = D->writeCurrentState();CHKERRQ(ierr);
   }
 
   return ierr;

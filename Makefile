@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=2 -DDEBUG=0 -DPERFORM_MMS=0
+DEBUG_MODULES   = -DVERBOSE=1 -DDEBUG=0 -DPERFORM_MMS=0
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -27,12 +27,12 @@ include ${PETSC_DIR}/conf/test
 #=========================================================
 # Dependencies
 #=========================================================
-main.o: main.cpp userContext.h init.hpp debuggingFuncs.hpp rateAndState.h rootFindingScalar.h linearSysFuncs.h odeSolver.h
-userContext.o: userContext.cpp userContext.h
-rateAndState.o: rateAndState.cpp userContext.h rateAndState.h
-linearSysFuncs.o: linearSysFuncs.cpp userContext.h linearSysFuncs.h
+main.o: main.cpp odeSolver.h  userContext.h init.hpp debuggingFuncs.hpp rateAndState.h rootFindingScalar.h linearSysFuncs.h
+userContext.o: userContext.cpp odeSolver.h userContext.h
+rateAndState.o: rateAndState.cpp odeSolver.h userContext.h rateAndState.h
+linearSysFuncs.o: linearSysFuncs.cpp odeSolver.h userContext.h linearSysFuncs.h
 rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h
-timeStepping.o: timeStepping.cpp userContext.h linearSysFuncs.h rootFindingScalar.h timeStepping.h
-init.o: init.cpp userContext.h init.hpp
-debuggingFuncs.o: debuggingFuncs.cpp userContext.h debuggingFuncs.hpp
-odeSolver.o: odeSolver.cpp odeSolver.h userContext.h
+timeStepping.o: timeStepping.cpp odeSolver.h  userContext.h linearSysFuncs.h rootFindingScalar.h timeStepping.h
+init.o: init.cpp odeSolver.h  userContext.h init.hpp
+debuggingFuncs.o: debuggingFuncs.cpp odeSolver.h  userContext.h debuggingFuncs.hpp
+odeSolver.o: odeSolver.cpp odeSolver.h

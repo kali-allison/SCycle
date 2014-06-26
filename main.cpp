@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include "odeSolver.h"
 #include "userContext.h"
 #include "init.hpp"
 #include "rateAndState.h"
@@ -9,7 +10,6 @@
 #include "debuggingFuncs.hpp"
 #include "linearSysFuncs.h"
 #include "timeStepping.h"
-#include "odeSolver.h"
 
 using namespace std;
 
@@ -28,7 +28,7 @@ int linearSolveTests(int argc,char **args)
   ierr = setParameters(D);CHKERRQ(ierr);
   //~ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  //~ierr = writeRateAndState(D);CHKERRQ(ierr);
+  //~ierr = D.writeRateAndState();CHKERRQ(ierr);
 
   // SBP operators and penalty terms
   D.alphaF = -13.0/D.dy;
@@ -43,7 +43,7 @@ int linearSolveTests(int argc,char **args)
   ierr = VecSet(D.gD,0.0);CHKERRQ(ierr);
   ierr = VecSet(D.gR,D.vp*D.initTime/2.0);CHKERRQ(ierr);
 
-  if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
+  if (loadMat) { ierr = D.loadOperators();CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
@@ -118,51 +118,70 @@ int runTests(int argc,char **args)
 
   PetscErrorCode ierr = 0;
   PetscInt       Ny=5, Nz=7, order=2;
-  PetscBool      loadMat = PETSC_FALSE;
+  PetscBool      loadState = PETSC_FALSE;
+
+  double startTime = MPI_Wtime();
+
+    // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,"-loadState",&loadState,NULL);CHKERRQ(ierr);
 
-  //~PetscScalar Hinvy[Ny];
-  //~ierr = SBPopsArrays(2,Ny,0.5,Hinvy);CHKERRQ(ierr);
-  //~ierr = printMyArray(Hinvy, Ny);CHKERRQ(ierr);
+  UserContext D(order,Ny,Nz,"data/");
+  D.inFileRoot = "inData/";
 
-  //~PetscInt rows[Ny];
-  //~for (PetscInt ind=0;ind<Ny;ind++){
-    //~rows[ind]=ind;
-  //~}
-  //~PetscInt Ii,Istart,Iend;
+  if (loadState) {
+    ierr = D.loadCurrentState();CHKERRQ(ierr);
+    //~double timeBeforeOpCreation = MPI_Wtime();
+    ierr = setLinearSystem(D,loadState);CHKERRQ(ierr);
+    //~double timeAfterOpCreation = MPI_Wtime();
+    ierr = resumeCurrentTimeStep(D);CHKERRQ(ierr);
+    ierr = D.writeInitialStep();CHKERRQ(ierr);
 
-  /* Try making things faster with arrays!!!*/
-  Mat Iy_Hinvz;
-  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,Ny*Nz,Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
-  //~ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = MatSetValues(Iy_Hinvz,1,&Istart,Ny,rows,Hinvy,INSERT_VALUES);CHKERRQ(ierr);
-  //~for (Ii=Istart;Ii<Nz;Ii++) {
-    //~ierr = MatSetValues(Hinvy_Iz_e0y_Iz,1,&Ii,1,&Ii,&(Hinvy[0]),INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  //~ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+    ierr = D.solver.setInitialConds(D.var,2);CHKERRQ(ierr);
+    ierr = D.solver.setRhsFunc(rhsFunc);CHKERRQ(ierr);
+    ierr = D.solver.setUserContext(&D);CHKERRQ(ierr);
+    ierr = D.solver.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
+    D.solver.resumeOdeSolver();
 
-  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
+  else{
+    ierr = setParameters(D);CHKERRQ(ierr);
+    ierr = setRateAndState(D);CHKERRQ(ierr);
+    //~double timeAfterOpCreation = MPI_Wtime();
+    ierr = setLinearSystem(D,loadState);CHKERRQ(ierr);
+    //~double timeAfterOpCreation = MPI_Wtime();
+    ierr = setInitialTimeStep(D);CHKERRQ(ierr);
+    ierr = D.writeInitialStep();CHKERRQ(ierr);
+
+    D.solver = OdeSolver(D.maxStepCount,"RK32");
+    ierr = D.solver.setInitialConds(D.var,2);CHKERRQ(ierr);
+    ierr = D.solver.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
+    ierr = D.solver.setTolerance(D.atol);CHKERRQ(ierr);
+    ierr = D.solver.setStepSize(D.initDeltaT);CHKERRQ(ierr);
+    ierr = D.solver.setTimeStepBounds(D.minDeltaT,D.maxDeltaT);CHKERRQ(ierr);
+    ierr = D.solver.setRhsFunc(rhsFunc);CHKERRQ(ierr);
+    ierr = D.solver.setUserContext(&D);CHKERRQ(ierr);
+    ierr = D.solver.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
+
+    ierr = D.writeCurrentState();CHKERRQ(ierr);
+    ierr = D.solver.runOdeSolver();CHKERRQ(ierr);
+  }
+
+  ierr = D.solver.viewSolver();CHKERRQ(ierr);
 
   return ierr;
 }
 
-//~int screwDislocation(int argc,char **args)
 int screwDislocation(PetscInt Ny,PetscInt Nz)
 {
   PetscErrorCode ierr = 0;
   PetscInt       order=4;
   PetscBool      loadMat = PETSC_FALSE;
   PetscViewer    viewer;
-  PetscScalar    u,y,z;
+  PetscScalar    u,z;
+  //~PetscScalar    y;
 
 
   // set up the problem context
@@ -170,7 +189,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  ierr = D.writeRateAndState();CHKERRQ(ierr);
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
   ierr = D.writeOperators();CHKERRQ(ierr);
 
@@ -195,7 +214,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   ierr = VecGetOwnershipRange(anal,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = Ii-D.Nz*(Ii/D.Nz);
-    y = D.dy*(Ii/D.Nz);
+    //~y = D.dy*(Ii/D.Nz);
     u = (1.0/PETSC_PI)*atan(D.dy*Ii/D.H);
     ierr = VecSetValues(anal,1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -333,7 +352,7 @@ int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ny=301, Nz=301, order=4;
-  PetscBool      loadMat = PETSC_FALSE;
+  PetscBool      loadState = PETSC_FALSE;
 
   double startTime = MPI_Wtime();
 
@@ -341,21 +360,21 @@ int runEqCycle(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,"-loadState",&loadState,NULL);CHKERRQ(ierr);
 
   UserContext D(order,Ny,Nz,"data/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  ierr = D.writeRateAndState();CHKERRQ(ierr);
   double timeBeforeOpCreation = MPI_Wtime();
-  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  ierr = setLinearSystem(D,loadState);CHKERRQ(ierr);
   double timeAfterOpCreation = MPI_Wtime();
-  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  if (!loadState) { ierr = D.writeOperators();CHKERRQ(ierr); }
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();CHKERRQ(ierr);
 
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
@@ -422,9 +441,9 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(argc,args);
+  //~runEqCycle(argc,args);
   //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
-  //~runTests(argc,args);
+  runTests(argc,args);
 
 
 

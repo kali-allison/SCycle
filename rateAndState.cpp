@@ -2,6 +2,7 @@
 #include <string>
 #include <assert.h>
 #include <limits>
+#include "odeSolver.h"
 #include "userContext.h"
 #include "rateAndState.h"
 
@@ -242,7 +243,7 @@ PetscErrorCode setRateAndState(UserContext &D)
 #endif
   return 0;
 }
-
+/*
 PetscErrorCode writeRateAndState(UserContext &D)
 {
   PetscErrorCode ierr;
@@ -282,3 +283,4 @@ PetscErrorCode writeRateAndState(UserContext &D)
 
   return ierr;
 }
+*/

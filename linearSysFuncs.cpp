@@ -1,5 +1,6 @@
 #include <petscts.h>
 #include <string>
+#include "odeSolver.h"
 #include "userContext.h"
 #include "debuggingFuncs.hpp"
 #include "linearSysFuncs.h"
@@ -9,6 +10,10 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
 {
   PetscErrorCode ierr = 0;
 
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setLinearSystem in linearSysFuncs.cpp.\n");CHKERRQ(ierr);
+#endif
+
   // SBP operators and penalty terms
   D.alphaF = -13.0/D.dy;
   D.alphaR = -13.0/D.dy;
@@ -16,7 +21,7 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   D.alphaD = -1.0;
   D.beta   = 1.0;
 
-  if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
+  if (loadMat) { ierr = D.loadOperators();CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
   ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
@@ -24,7 +29,7 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
 
   // use PETSc's direct LU - only available on 1 processor!!!
-  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+  ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
   //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
@@ -33,12 +38,16 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  PCSetType(D.pc,PCLU);
-  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(D.pc);
+  //~PCSetType(D.pc,PCLU);
+  //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  //~PCFactorSetUpMatSolverPackage(D.pc);
 
   ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setLinearSystem in linearSysFuncs.cpp.\n");CHKERRQ(ierr);
+#endif
 
   return ierr;
 }
@@ -87,77 +96,6 @@ PetscErrorCode ComputeRHS(UserContext &D)
   D.computeRhsTime = D.computeRhsTime + (endTime-startTime);
 
   return ierr;
-}
-
-
-PetscErrorCode loadOperators(UserContext &D)
-{
-  PetscErrorCode  ierr;
-  PetscViewer     fd;
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function loadOperators in linearSysFuncs.c.\n");CHKERRQ(ierr);
-#endif
-
-  int size;
-  MatType matType;
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
-  if (size > 1) {matType = MATMPIAIJ;}
-  else {matType = MATSEQAIJ;}
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"A",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.A);CHKERRQ(ierr);
-  ierr = MatSetType(D.A,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.A,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Dy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.Dy_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(D.Dy_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.Dy_Iz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Izxe0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_e0y_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(D.Hinvy_Iz_e0y_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.Hinvy_Iz_e0y_Iz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxe0y_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_BySy_Iz_e0y_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(D.Hinvy_Iz_BySy_Iz_e0y_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.Hinvy_Iz_BySy_Iz_e0y_Iz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxeNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_eNy_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(D.Hinvy_Iz_eNy_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.Hinvy_Iz_eNy_Iz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxeNy_Iz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.Hinvy_Iz_BySy_Iz_eNy_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(D.Hinvy_Iz_BySy_Iz_eNy_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.Hinvy_Iz_BySy_Iz_eNy_Iz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"IyHinvz_Iye0z",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.IyHinvz_Iye0z);CHKERRQ(ierr);
-  ierr = MatSetType(D.IyHinvz_Iye0z,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.IyHinvz_Iye0z,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Iy_HinvzxIy_eNz",FILE_MODE_READ,&fd);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&D.IyHinvz_IyeNz);CHKERRQ(ierr);
-  ierr = MatSetType(D.IyHinvz_IyeNz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(D.IyHinvz_IyeNz,fd);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&fd);CHKERRQ(ierr);
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function loadOperators in linearSysFuncs.c.\n");CHKERRQ(ierr);
-#endif
-
-    return ierr;
 }
 
 

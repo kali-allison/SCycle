@@ -13,6 +13,9 @@ class UserContext {
   // output data tree
   std::string outFileRoot;
 
+  // input data tree
+  std::string inFileRoot;
+
   // SBP operator order
   PetscInt       order;
 
@@ -36,10 +39,7 @@ class UserContext {
   // linear system
   Mat            A,D2y,D2z;
   Mat            Dy_Iz;
-  Mat            IyHinvz_Iye0z,IyHinvz_IyeNz,Hinvy_Iz_e0y_Iz,Hinvy_Iz_BySy_Iz_e0y_Iz;
-  Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
   Mat            Hinvy,Hinvz;
-
   Mat            Hinvy_Izxe0y_Iz,Hinvy_IzxeNy_Iz,Iy_HinvzxIy_e0z;
   Mat            Iy_HinvzxIy_eNz,Hinvy_IzxBySy_IzTxe0y_Iz,Hinvy_IzxBySy_IzTxeNy_Iz;
 
@@ -55,9 +55,9 @@ class UserContext {
   PetscInt       rootIts; // total number of its used
 
   // time stepping data
-  TS             ts;
+  OdeSolver      solver;
   Vec            faultDisp,dpsi,*var,surfDisp;
-  PetscInt       strideLength; // stride
+  PetscInt       writeStride,checkpointStride; // stride for writing data, checkpointing
   PetscInt       maxStepCount; // largest number of time steps
   PetscReal      initTime,currTime,maxTime,minDeltaT,maxDeltaT;
   int            count;
@@ -82,20 +82,14 @@ class UserContext {
    * Set values for model dimensions.
    */
   friend PetscErrorCode setParameters(UserContext * ctx);
+
+  // write state
   PetscErrorCode writeParameters();
-
-  /*
-   * Output A, Dy_Iz.
-   */
   PetscErrorCode writeOperators();
-
-  /*
-   * Output displacement, shear stress, and psi on fault and surface.
-   * Add current time to timeFile.
-   */
+  PetscErrorCode writeRateAndState();
   PetscErrorCode writeInitialStep();
-
   PetscErrorCode writeCurrentStep();
+  PetscErrorCode writeCurrentState();
 
   PetscErrorCode printTiming();
 
@@ -105,7 +99,10 @@ class UserContext {
    */
   PetscErrorCode saveCurrentPlace();
 
-  PetscErrorCode loadCurrentPlace();
+  PetscErrorCode loadCurrentState();
+  PetscErrorCode loadParameters();
+  PetscErrorCode loadOperators();
+  PetscErrorCode loadRateAndState();
 
   private:
     // disable default copy constructor and assignment operator

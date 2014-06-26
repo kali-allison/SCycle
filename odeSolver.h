@@ -51,6 +51,7 @@ class OdeSolver
     PetscReal     _atol,_reltol;
     PetscInt      _maxNumSteps,_stepCount,_numRejectedSteps,_numMinSteps,_numMaxSteps;
     std::string   _solverType,_sourceFile;
+    PetscBool     _finished;
     Vec           *_var,*_dvar;
     int           _lenVar;
     void          *_userContext;
@@ -65,6 +66,7 @@ class OdeSolver
 
   public:
 
+    OdeSolver();
     OdeSolver(PetscInt maxNumSteps,std::string solverType);
     OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,std::string solverType);
     ~OdeSolver();
@@ -81,7 +83,10 @@ class OdeSolver
 
     PetscErrorCode viewSolver();
     PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *str);
+    double viewRunTime();
 
+    PetscErrorCode saveOdeSolver();
+    PetscErrorCode resumeOdeSolver();
     PetscErrorCode runOdeSolver();
 
 };

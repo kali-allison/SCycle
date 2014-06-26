@@ -3,6 +3,8 @@
 
 PetscErrorCode setInitialTimeStep(UserContext& D);
 
+PetscErrorCode resumeCurrentTimeStep(UserContext& D);
+
 PetscErrorCode computeTau(UserContext& D);
 
 PetscErrorCode initSlipVel(UserContext& D);

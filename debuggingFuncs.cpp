@@ -1,5 +1,6 @@
 #include <petscts.h>
 #include <string>
+#include "odeSolver.h"
 #include "userContext.h"
 #include "debuggingFuncs.hpp"
 
