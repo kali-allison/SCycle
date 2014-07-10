@@ -27,7 +27,18 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
   ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
+
+    PetscViewer viewer;
+  std::string str= D.outFileRoot + "rhs";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(D.rhs,viewer);CHKERRQ(ierr);
+  str= D.outFileRoot + "uhat";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(D.uhat,viewer);CHKERRQ(ierr);
+
   ierr = computeTau(D);CHKERRQ(ierr);
+
+
   //~ierr = initSlipVel(D);CHKERRQ(ierr);
   ierr = computeSlipVel(D);CHKERRQ(ierr);
 
@@ -57,7 +68,7 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
 }
 
 /*
- * Computes shear stress on fault (nodes 1:D.Nz of slip vector)
+ * Computes shear stress on fault (nodes 1:D.Nz of slip vector) in MPa
  */
 PetscErrorCode computeTau(UserContext& D)
 {
@@ -71,7 +82,6 @@ PetscErrorCode computeTau(UserContext& D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting computeTau in timeStepping.c\n");CHKERRQ(ierr);
 #endif
 
-  // compute shear stress (MPa)
   Vec sigma_xy;
   ierr = VecDuplicate(D.uhat,&sigma_xy);CHKERRQ(ierr);
   ierr = MatMult(D.Dy_Iz,D.uhat,sigma_xy);

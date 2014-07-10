@@ -19,9 +19,13 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
-  ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetType(D.ksp,KSPGMRES);CHKERRQ(ierr);
   ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+
+  //~ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
 
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
@@ -33,9 +37,9 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  PCSetType(D.pc,PCLU);
-  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(D.pc);
+  //~PCSetType(D.pc,PCLU);
+  //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  //~PCFactorSetUpMatSolverPackage(D.pc);
 
   ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);

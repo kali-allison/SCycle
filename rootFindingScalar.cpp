@@ -98,7 +98,9 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
   while ( (numIts <= itMax) & (sqrt(fMid*fMid) >= atol) ) {
     mid = (left + right)*0.5;
     ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %f %f %f %f\n",numIts,left,right,mid,fMid);CHKERRQ(ierr);
+#if VERBOSE > 3
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",ind,numIts,left,right,mid,fMid);CHKERRQ(ierr);
+#endif
     if (fLeft*fMid <= 0) {
       right = mid;
       fRight = fMid;
@@ -118,7 +120,7 @@ PetscErrorCode bisect(PetscErrorCode (*func)(const PetscInt,const PetscScalar,Pe
   *out = mid;
   *its = numIts;
   if (sqrt(fMid*fMid) > atol) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations",numIts);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
     assert(sqrt(fMid*fMid) < atol);
     return 0;
   }

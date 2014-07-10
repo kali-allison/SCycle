@@ -261,42 +261,42 @@ PetscErrorCode UserContext::writeOperators()
   PetscViewer    outviewer;
   const char     *outFileLoc;
 
-  std::string str =  "A";
+  std::string str =  outFileRoot + "A";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(A,outviewer);CHKERRQ(ierr);
 
-  str = "Dy_Iz";
+  str = outFileRoot + "Dy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Dy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_Izxe0y_Iz";
+  str = outFileRoot + "Hinvy_Izxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_Izxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_IzxBySy_IzTxe0y_Iz";
+  str = outFileRoot + "Hinvy_IzxBySy_IzTxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxBySy_IzTxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_IzxeNy_Iz";
+  str = outFileRoot + "Hinvy_IzxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Hinvy_IzxBySy_IzTxeNy_Iz";
+  str = outFileRoot + "Hinvy_IzxBySy_IzTxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxBySy_IzTxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = "Iy_HinvzxIy_e0z";
+  str = outFileRoot + "Iy_HinvzxIy_e0z";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Iy_HinvzxIy_e0z,outviewer);CHKERRQ(ierr);
 
-  str = "Iy_HinvzxIy_eNz";
+  str = outFileRoot + "Iy_HinvzxIy_eNz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Iy_HinvzxIy_eNz,outviewer);CHKERRQ(ierr);
