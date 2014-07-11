@@ -351,7 +351,7 @@ int runEqCycle(int argc,char **args)
   double timeBeforeOpCreation = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
   double timeAfterOpCreation = MPI_Wtime();
-  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  //~if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
   //~ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   //~ierr = D.writeInitialStep();CHKERRQ(ierr);
 
@@ -407,7 +407,7 @@ int main(int argc,char **args)
   screwDislocation(Ny,Nz);
   */
 
-  //~ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
+  ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
 
   // compare screw dislocation with numerics
   /*
@@ -422,7 +422,7 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(argc,args);
+  //~runEqCycle(argc,args);
   //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
   //~runTests(argc,args);
 

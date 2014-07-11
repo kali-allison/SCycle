@@ -8,7 +8,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   //~ ctx->outFileRoot = "./data/";
 
   // domain geometry initialization
-  ctx.Ly = 72.0; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50
+  ctx.Ly = 24.0; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50
   ctx.Lz = 24.0; // (km) z in [0,Lz]
   ctx.H = 12; // (km) This is the depth as which (a-b) begins to increase 12 km
   ctx.N  = ctx.Nz*ctx.Ny;
@@ -27,7 +27,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   ctx.D = ctx.H/3; // (km) basin depth
   ctx.W = 24; // (km) basin width
   ctx.rhoIn = 2; // 1e3*(kg/m^3) density inside basin; sed cycle: 2.6
-  ctx.rhoOut = 2.8; // 1e3*(kg/m^3) density outside basin; sed cycle: 3
+  ctx.rhoOut = 2; // 1e3*(kg/m^3) density outside basin; sed cycle: 3
 
   //  constitutive parameters
   ctx.cs = std::max(sqrt(ctx.muIn/ctx.rhoIn),sqrt(ctx.muOut/ctx.rhoOut)); // shear wave speed (km/s)

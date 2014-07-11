@@ -7,7 +7,7 @@ using namespace std;
 
 PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode ierr = 0;
   Mat            debugMat;
   PetscViewer    inviewer;
   PetscBool      debugBool = PETSC_FALSE;
@@ -92,8 +92,8 @@ PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg,UserContext *D)
 
     indA=0;indB=0;
     while (indA<ncolsA && indB<ncolsB && *flg!=PETSC_FALSE) {
-      if ( abs(constValsA[indA])<1e-10 ) { indA++; }
-      else if ( abs(constValsB[indB])<1e-10 ) { indB++; }
+      if ( abs(constValsA[indA])<1e-14 ) { indA++; }
+      else if ( abs(constValsB[indB])<1e-14 ) { indB++; }
       else if ( constColsA[indA]==constColsB[indB] && abs(constValsA[indA]-constValsB[indB])<1e-5 ) {
         indA++;indB++;
         *flg=PETSC_TRUE;

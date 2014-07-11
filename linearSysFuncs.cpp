@@ -19,13 +19,13 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
-  ierr = KSPSetType(D.ksp,KSPGMRES);CHKERRQ(ierr);
-  ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
-
-  //~ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetType(D.ksp,KSPGMRES);CHKERRQ(ierr);
   //~ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
   //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+
+  ierr = KSPSetType(D.ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
 
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
@@ -37,9 +37,9 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  //~PCSetType(D.pc,PCLU);
-  //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
-  //~PCFactorSetUpMatSolverPackage(D.pc);
+  PCSetType(D.pc,PCLU);
+  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(D.pc);
 
   ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
@@ -398,7 +398,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatSetUp(D.Hinvy_IzxBySy_IzTxeNy_Iz);CHKERRQ(ierr);
   ierr = MatGetOwnershipRange(D.Hinvy_IzxBySy_IzTxeNy_Iz,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii>=Iend-D.Nz*Sylen) {
+    if (Ii>=D.Ny*D.Nz-D.Nz*Sylen) {
       indx = Ii-(Ii/D.Nz)*D.Nz;
       v = HinvyArr[Ii/D.Nz]*SyArr[2*Sylen-1-(Iend-1-Ii)/D.Nz];
       ierr = MatSetValues(D.Hinvy_IzxBySy_IzTxeNy_Iz,1,&Ii,1,&indx,&v,INSERT_VALUES);CHKERRQ(ierr);
@@ -408,7 +408,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(D.Hinvy_IzxBySy_IzTxeNy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(D.mu,D.Hinvy_IzxBySy_IzTxeNy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Hinvy_IzxBySy_IzTxeNy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&D.Hinvy_IzxBySy_IzTxeNy_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxeNy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&D.Hinvy_IzxBySy_IzTxeNy_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxeNy_Iz",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -429,7 +429,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(D.mu,Hinvy_IzxE0y_Iz,MAT_INITIAL_MATRIX,1.0,&Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Hinvy_IzxE0y_Iz,D.debugFolder,"Hinvy_IzxUE0y_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxE0y_Iz,D.debugFolder,"Hinvy_IzxUE0y_Iz",&D);CHKERRQ(ierr);
 #endif
 
   // Hinvy_IzxENy_Iz = kron(Hinvy,Iz)*kron(ENy,Iz)
@@ -449,7 +449,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(D.mu,Hinvy_IzxENy_Iz,MAT_INITIAL_MATRIX,1.0,&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Hinvy_IzxENy_Iz,D.debugFolder,"Hinvy_IzxUENy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxENy_Iz,D.debugFolder,"Hinvy_IzxUENy_Iz",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -472,7 +472,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_HinvzxIy_E0z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvzxIy_E0z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Iy_HinvzxIy_E0z,D.debugFolder,"Iy_HinvzxIy_UE0z",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Iy_HinvzxIy_E0z,D.debugFolder,"Iy_HinvzxIy_UE0z",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -495,7 +495,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_HinvzxIy_ENz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvzxIy_ENz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Iy_HinvzxIy_ENz,D.debugFolder,"Iy_HinvzxIy_UENz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Iy_HinvzxIy_ENz,D.debugFolder,"Iy_HinvzxIy_UENz",&D);CHKERRQ(ierr);
 #endif
 
   // Hinvy_IzxBySy_IzTxE0y_Iz = kron(Hinvy,Iz)*mu*kron(BySy,Iz)^T*kron(E0z,Iz)
@@ -515,7 +515,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Hinvy_IzxBySy_IzTxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxBySy_IzTxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Hinvy_IzxBySy_IzTxE0y_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxUE0y_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxE0y_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxUE0y_Iz",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -529,7 +529,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatSetUp(Hinvy_IzxBySy_IzTxENy_Iz);CHKERRQ(ierr);
   ierr = MatGetOwnershipRange(Hinvy_IzxBySy_IzTxENy_Iz,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii>=Iend-D.Nz*Sylen) {
+    if (Ii>=D.Ny*D.Nz-D.Nz*Sylen) {
       indx = (D.Ny-1)*D.Nz + Ii-(Ii/D.Nz)*D.Nz;
       v = D.muArr[indx]*HinvyArr[Ii/D.Nz]*SyArr[2*Sylen-1-(Iend-1-Ii)/D.Nz];
       ierr = MatSetValues(Hinvy_IzxBySy_IzTxENy_Iz,1,&Ii,1,&indx,&v,INSERT_VALUES);CHKERRQ(ierr);
@@ -538,7 +538,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Hinvy_IzxBySy_IzTxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxBySy_IzTxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Hinvy_IzxBySy_IzTxENy_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxUENy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxENy_Iz,D.debugFolder,"Hinvy_IzxBySy_IzTxUENy_Iz",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -566,7 +566,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_HinvxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Iy_HinvxIy_E0zxIy_BzSz,D.debugFolder,"Iy_HinvxIy_E0zxIy_BzSz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Iy_HinvxIy_E0zxIy_BzSz,D.debugFolder,"Iy_HinvxIy_E0zxIy_BzSz",&D);CHKERRQ(ierr);
 #endif
 
 
@@ -633,6 +633,7 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
   ierr = PetscFree(vals);CHKERRQ(ierr);
+  //!!!! Delete matrices used to create A
 
   D.fullLinOps = MPI_Wtime() - startTime;
   D.arrLinOps = MPI_Wtime() - startArrLinOps;

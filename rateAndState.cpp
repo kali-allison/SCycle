@@ -185,12 +185,14 @@ PetscErrorCode setRateAndState(UserContext &D)
     y = D.dy*(Ii/D.Nz);
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
-    D.muArr[Ii] = v;//!!!!!
-    //~D.muArr[Ii] = Ii+1;//!!!!!
+    //~D.muArr[Ii] = v;//!!!!!
+    D.muArr[Ii] = Ii+2;//!!!!!
     muInds[Ii] = Ii;
   }
   ierr = VecSetValues(muVec,D.Ny*D.Nz,muInds,D.muArr,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecView(muVec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
+  //~ierr = VecView(muVec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = MatSetSizes(D.mu,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.mu);CHKERRQ(ierr);
