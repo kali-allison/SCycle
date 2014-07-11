@@ -197,7 +197,7 @@ PetscErrorCode createOperators(UserContext &D)
   ierr = checkMatrix(&D2z,D.debugFolder,"D2z",&D);CHKERRQ(ierr);
 #endif
 
-  /* Scaling (why not do this while initializing each matrix?) */
+  /* Scaling */
   D.D2y = D2y;
   D.D2z = D2z;
   ierr = MatScale(D2y,1.0/D.dy/D.dy);CHKERRQ(ierr);
@@ -290,7 +290,10 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 
   double startArrLinOps = MPI_Wtime(); //!!!!!!!!!!
 
+  //====================================================================
   // for producing rhs vector
+  //====================================================================
+
   // Hinvy_Izxe0y_Iz = kron(Hinvy,Iz)*kron(e0y,Iz)
   ierr = MatSetSizes(D.Hinvy_Izxe0y_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.Hinvy_Izxe0y_Iz);CHKERRQ(ierr);
@@ -307,6 +310,9 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D.Hinvy_Izxe0y_Iz,D.debugFolder,"Hinvy_Izxe0y_Iz",&D);CHKERRQ(ierr);
 #endif
+
+
+
 
   // Hinvy_IzxeNy_Iz = kron(Hinvy,Iz)*kron(eNy,Iz)
   ierr = MatSetSizes(D.Hinvy_IzxeNy_Iz,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Nz);CHKERRQ(ierr);
@@ -412,7 +418,10 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
 #endif
 
 
+  //====================================================================
   // for producing matrix A
+  //====================================================================
+
   // Hinvy_IzxE0y_Iz = kron(Hinvy,Iz)*kron(E0y,Iz)
   Mat Hinvy_IzxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxE0y_Iz);
@@ -609,7 +618,6 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   checkMatrix(&D.A,D.debugFolder,"Astage2",&D);CHKERRQ(ierr);
 #endif
   // + beta*Hinvy_Iz*(mu*BySy_Iz)^T*E0y_Iz + ...
-  //~ierr = MatAYPX(D.A,D.beta,Hinvy_IzxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatAXPY(D.A,D.beta,Hinvy_IzxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D.A,D.debugFolder,"Astage3",&D);CHKERRQ(ierr);

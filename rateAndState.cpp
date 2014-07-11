@@ -185,8 +185,8 @@ PetscErrorCode setRateAndState(UserContext &D)
     y = D.dy*(Ii/D.Nz);
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
-    //~D.muArr[Ii] = v;//!!!!!
-    D.muArr[Ii] = Ii+2;//!!!!!
+    D.muArr[Ii] = v;//!!!!!
+    //~D.muArr[Ii] = Ii+2;//!!!!!
     muInds[Ii] = Ii;
   }
   ierr = VecSetValues(muVec,D.Ny*D.Nz,muInds,D.muArr,INSERT_VALUES);CHKERRQ(ierr);
