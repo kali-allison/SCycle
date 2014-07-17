@@ -27,10 +27,13 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
   ierr = MatGetSize(*mat,&rowSizeMat,&colSizeMat);CHKERRQ(ierr);
   if ( rowSizeDebugMat == rowSizeMat && colSizeDebugMat == colSizeMat) {
     ierr = MatEqual(debugMat,*mat,&debugBool);CHKERRQ(ierr);
-    if (debugBool==PETSC_FALSE) {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Trying MatEqualVals on %s\n",name.c_str());CHKERRQ(ierr);
-      ierr = MatEqualVals(&debugMat,mat,&debugBool,D);CHKERRQ(ierr);
-    }
+    //~if (debugBool==PETSC_FALSE) {
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Trying MatEqualVals on %s\n",name.c_str());CHKERRQ(ierr);
+      //~ierr = MatEqualVals(&debugMat,mat,&debugBool,D);CHKERRQ(ierr);
+    //~}
+  }
+  else{
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"   wrong size!!!\n");CHKERRQ(ierr);
   }
 
 #if VERBOSE == 1
@@ -92,9 +95,10 @@ PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg,UserContext *D)
 
     indA=0;indB=0;
     while (indA<ncolsA && indB<ncolsB && *flg!=PETSC_FALSE) {
-      if ( abs(constValsA[indA])<1e-14 ) { indA++; }
-      else if ( abs(constValsB[indB])<1e-14 ) { indB++; }
-      else if ( constColsA[indA]==constColsB[indB] && abs(constValsA[indA]-constValsB[indB])<1e-5 ) {
+      if ( abs(constValsA[indA])<1e-19 ) { indA++; }
+      else if ( abs(constValsB[indB])<1e-19 ) { indB++; }
+      else if ( constColsA[indA]==constColsB[indB] && abs(constValsA[indA]-constValsB[indB])<1e-19 ) {
+      //~if ( constColsA[indA]==constColsB[indB] && constValsA[indA]==constValsB[indB] ) {
         indA++;indB++;
         *flg=PETSC_TRUE;
       }

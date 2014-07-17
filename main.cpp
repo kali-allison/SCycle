@@ -256,25 +256,26 @@ int sbpConvergence(int argc,char **args)
   PetscScalar    u,y,z,err,n=7.0;
   PetscInt       Ii,Istart,Iend;
   PetscViewer    viewer;
+  PetscBool      loadMat = PETSC_FALSE;
 
-  PetscInt       order=2,Ny=301, Nz=301;
+  PetscInt       order=2,Ny=76, Nz=76;
   // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
   // set up the problem context
   UserContext D(order,Ny,Nz,"data/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = setLinearSystem(D,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
+  if (!loadMat) {ierr = D.writeOperators();CHKERRQ(ierr);}
 
   // set boundary conditions
   ierr = VecSet(D.gS,0.0);CHKERRQ(ierr); // surface
   ierr = VecSet(D.gD,0.0);CHKERRQ(ierr); // depth
-
-  // fault:
-  ierr = VecGetOwnershipRange(D.gR,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(D.gR,&Istart,&Iend); // fault and remote boundary conditions
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
     y = D.dy*(Ii/D.Nz);
@@ -292,39 +293,28 @@ int sbpConvergence(int argc,char **args)
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
     y = D.dy*(Ii/D.Nz);
-    u = cos(n*PETSC_PI*(z-D.Lz)/D.Lz)*cosh( (double)n*PETSC_PI*(y-D.Ly)/D.Lz );
+    u = cos(n*PETSC_PI*(z-D.Lz)/D.Lz)*cosh( (double) n*PETSC_PI*(y-D.Ly)/D.Lz );
     ierr = VecSetValue(uAnal,Ii,u,INSERT_VALUES);
   }
   ierr = VecAssemblyBegin(uAnal);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(uAnal);CHKERRQ(ierr);
 
   // output
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(D.outFileRoot+"uAnal").c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(uAnal,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(D.outFileRoot+"uAnal").c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = VecView(uAnal,viewer);CHKERRQ(ierr);
 
 
   ierr = ComputeRHS(D);CHKERRQ(ierr);
 
   ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
 
-  PetscScalar uhat;
-  ierr = VecGetOwnershipRange(uAnal,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(uAnal,1,&Ii,&u);
-    ierr = VecGetValues(D.uhat,1,&Ii,&uhat);
-    err += (u-uhat)*(u-uhat);
-  }
-  err = sqrt(err/((double) Ny*Nz));
-
-  //~ierr = VecAXPY(uAnal,-1.0,D.uhat);CHKERRQ(ierr);
-  //~ierr = VecNorm(uAnal,NORM_2,&err);
+  ierr = VecAXPY(uAnal,-1.0,D.uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
+  ierr = VecNorm(uAnal,NORM_2,&err);
+  //~ierr = VecNorm(D.uhat,NORM_2,&err);
+  err = err/sqrt( (double) D.Ny*D.Nz );
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %i %e %e %.9e\n",
-                     order,Ny,Nz,D.dy,D.dz,err);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(D.outFileRoot+"uhat").c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.uhat,viewer);CHKERRQ(ierr);
-
+                     D.order,D.Ny,D.Nz,D.dy,D.dz,err);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -351,43 +341,43 @@ int runEqCycle(int argc,char **args)
   double timeBeforeOpCreation = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
   double timeAfterOpCreation = MPI_Wtime();
-  //~if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
-  //~ierr = setInitialTimeStep(D);CHKERRQ(ierr);
-  //~ierr = D.writeInitialStep();CHKERRQ(ierr);
+  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
+  ierr = D.writeInitialStep();CHKERRQ(ierr);
 
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
-  //~OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
-  //~ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
-  //~ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
-  //~ierr = ts.setTolerance(D.atol);CHKERRQ(ierr);
-  //~ierr = ts.setStepSize(D.initDeltaT);CHKERRQ(ierr);
-  //~ierr = ts.setTimeStepBounds(D.minDeltaT,D.maxDeltaT);CHKERRQ(ierr);
-  //~ierr = ts.setRhsFunc(rhsFunc);CHKERRQ(ierr);
-  //~ierr = ts.setUserContext(&D);CHKERRQ(ierr);
-  //~ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
-//~
-//~
-  //~ierr = ts.runOdeSolver();CHKERRQ(ierr);
-//~
-  //~int np;
-  //~MPI_Comm_size(MPI_COMM_WORLD,&np);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"TOTAL RUN TIME: %f\n",MPI_Wtime() - startTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"writeTime = %g\n",D.writeTime);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
-//~
-  //~ierr = ts.viewSolver();CHKERRQ(ierr);
+  OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
+  ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
+  ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
+  ierr = ts.setTolerance(D.atol);CHKERRQ(ierr);
+  ierr = ts.setStepSize(D.initDeltaT);CHKERRQ(ierr);
+  ierr = ts.setTimeStepBounds(D.minDeltaT,D.maxDeltaT);CHKERRQ(ierr);
+  ierr = ts.setRhsFunc(rhsFunc);CHKERRQ(ierr);
+  ierr = ts.setUserContext(&D);CHKERRQ(ierr);
+  ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
+
+
+  ierr = ts.runOdeSolver();CHKERRQ(ierr);
+
+  int np;
+  MPI_Comm_size(MPI_COMM_WORLD,&np);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"TOTAL RUN TIME: %f\n",MPI_Wtime() - startTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"writeTime = %g\n",D.writeTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
+
+  ierr = ts.viewSolver();CHKERRQ(ierr);
 
 
 
@@ -407,7 +397,7 @@ int main(int argc,char **args)
   screwDislocation(Ny,Nz);
   */
 
-  ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
+  //~ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
 
   // compare screw dislocation with numerics
   /*
@@ -422,7 +412,7 @@ int main(int argc,char **args)
   */
 
 
-  //~runEqCycle(argc,args);
+  runEqCycle(argc,args);
   //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
   //~runTests(argc,args);
 

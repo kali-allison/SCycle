@@ -56,12 +56,6 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   MatCreate(PETSC_COMM_WORLD,&D2z);
   MatCreate(PETSC_COMM_WORLD,&Dy_Iz);
 
-  MatCreate(PETSC_COMM_WORLD,&IyHinvz_Iye0z);
-  MatCreate(PETSC_COMM_WORLD,&IyHinvz_IyeNz);
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz_e0y_Iz);
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz_BySy_Iz_eNy_Iz);
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz_BySy_Iz_e0y_Iz);
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz_eNy_Iz);
   MatCreate(PETSC_COMM_WORLD,&Hinvy);
   MatCreate(PETSC_COMM_WORLD,&Hinvz);
 
@@ -139,12 +133,6 @@ UserContext::~UserContext()
   MatDestroy(&D2y);
   MatDestroy(&D2z);
   MatDestroy(&Dy_Iz);
-  MatDestroy(&IyHinvz_Iye0z);
-  MatDestroy(&IyHinvz_IyeNz);
-  MatDestroy(&Hinvy_Iz_e0y_Iz);
-  MatDestroy(&Hinvy_Iz_BySy_Iz_e0y_Iz);
-  MatDestroy(&Hinvy_Iz_eNy_Iz);
-  MatDestroy(&Hinvy_Iz_BySy_Iz_eNy_Iz);
   MatDestroy(&Hinvy);
   MatDestroy(&Hinvz);
 
@@ -261,42 +249,42 @@ PetscErrorCode UserContext::writeOperators()
   PetscViewer    outviewer;
   const char     *outFileLoc;
 
-  std::string str =  outFileRoot + "A";
+  std::string str =  "A";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(A,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Dy_Iz";
+  str = "Dy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Dy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Hinvy_Izxe0y_Iz";
+  str = "Hinvy_Izxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_Izxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Hinvy_IzxBySy_IzTxe0y_Iz";
+  str = "Hinvy_IzxBySy_IzTxe0y_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxBySy_IzTxe0y_Iz,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Hinvy_IzxeNy_Iz";
+  str = "Hinvy_IzxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Hinvy_IzxBySy_IzTxeNy_Iz";
+  str = "Hinvy_IzxBySy_IzTxeNy_Iz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Hinvy_IzxBySy_IzTxeNy_Iz,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Iy_HinvzxIy_e0z";
+  str = "Iy_HinvzxIy_e0z";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Iy_HinvzxIy_e0z,outviewer);CHKERRQ(ierr);
 
-  str = outFileRoot + "Iy_HinvzxIy_eNz";
+  str = "Iy_HinvzxIy_eNz";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
   ierr = MatView(Iy_HinvzxIy_eNz,outviewer);CHKERRQ(ierr);

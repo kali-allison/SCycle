@@ -36,8 +36,8 @@ class UserContext {
   // linear system
   Mat            A,D2y,D2z;
   Mat            Dy_Iz;
-  Mat            IyHinvz_Iye0z,IyHinvz_IyeNz,Hinvy_Iz_e0y_Iz,Hinvy_Iz_BySy_Iz_e0y_Iz;
-  Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
+  //~Mat            IyHinvz_Iye0z,IyHinvz_IyeNz,Hinvy_Iz_e0y_Iz,Hinvy_Iz_BySy_Iz_e0y_Iz;
+  //~Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
   Mat            Hinvy,Hinvz;
 
   Mat            Hinvy_Izxe0y_Iz,Hinvy_IzxeNy_Iz,Iy_HinvzxIy_e0z;
