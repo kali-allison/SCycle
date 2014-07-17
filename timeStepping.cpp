@@ -303,7 +303,7 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
   if ( stepCount % D->strideLength == 0) {
     D->count++;
     D->currTime = time;
-    ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = D->writeStep();CHKERRQ(ierr);
     #if VERBOSE >0
       ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
