@@ -1,4 +1,5 @@
 #include <petscts.h>
+#include <petscviewerhdf5.h>
 //~#include <iostream>
 #include <sstream>
 #include <string>
@@ -28,16 +29,24 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
   convert << "./matlabAnswers/order" << order << "Ny" << y << "Nz" << z << "/";
   debugFolder = convert.str();
 
+  PetscViewerHDF5Open(PETSC_COMM_WORLD, "data.h5", FILE_MODE_WRITE, &viewer);
+  PetscViewerHDF5PushGroup(viewer, "/");
+  PetscViewerHDF5PushGroup(viewer, "/timeSeries");
+  PetscViewerHDF5SetTimestep(viewer, 0);
+
+
   // Initialize elastic coefficients and frictional parameters
   VecCreate(PETSC_COMM_WORLD,&eta);
   VecSetSizes(eta,PETSC_DECIDE,Nz);
-  VecSetFromOptions(eta);
-  VecDuplicate(eta,&s_NORM);
-  VecDuplicate(eta,&a);
-  VecDuplicate(eta,&b);
-  VecDuplicate(eta,&psi);
-  VecDuplicate(eta,&tau);
+  VecSetFromOptions(eta);     PetscObjectSetName((PetscObject) eta, "eta");
+  VecDuplicate(eta,&sigma_N); PetscObjectSetName((PetscObject) sigma_N, "sigma_N");
+  VecDuplicate(eta,&a);       PetscObjectSetName((PetscObject) a, "frica");
+  VecDuplicate(eta,&b);       PetscObjectSetName((PetscObject) b, "fricb");
+  VecDuplicate(eta,&psi);     PetscObjectSetName((PetscObject) psi, "psi");
+  VecDuplicate(eta,&tempPsi);
+  VecDuplicate(eta,&tau);     PetscObjectSetName((PetscObject) tau, "tau_qs");
   VecDuplicate(eta,&gRShift);
+
 
   muArr = new PetscScalar[Ny*Nz];
 
@@ -51,22 +60,24 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
 
   // Initialize the linear system
 
-  MatCreate(PETSC_COMM_WORLD,&A);
+  MatCreate(PETSC_COMM_WORLD,&A);     PetscObjectSetName((PetscObject) A, "matA");
   MatCreate(PETSC_COMM_WORLD,&D2y);
   MatCreate(PETSC_COMM_WORLD,&D2z);
-  MatCreate(PETSC_COMM_WORLD,&Dy_Iz);
+  MatCreate(PETSC_COMM_WORLD,&Dy_Iz); PetscObjectSetName((PetscObject) Dy_Iz, "Dy_Iz");
 
   MatCreate(PETSC_COMM_WORLD,&Hinvy);
   MatCreate(PETSC_COMM_WORLD,&Hinvz);
 
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_Izxe0y_Iz);
-  MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxeNy_Iz);
-  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_e0z);
-  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_eNz);
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_Izxe0y_Iz);  PetscObjectSetName((PetscObject) Hinvy_Izxe0y_Iz, "Hinvy_Izxe0y_Iz");
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxeNy_Iz);  PetscObjectSetName((PetscObject) Hinvy_IzxeNy_Iz, "Hinvy_IzxeNy_Iz");
+  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_e0z);  PetscObjectSetName((PetscObject) Iy_HinvzxIy_e0z, "Iy_HinvzxIy_e0z");
+  MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_eNz);  PetscObjectSetName((PetscObject) Iy_HinvzxIy_eNz, "Iy_HinvzxIy_eNz");
   MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxe0y_Iz);
+    PetscObjectSetName((PetscObject) Hinvy_IzxBySy_IzTxe0y_Iz, "Hinvy_IzxBySy_IzTxe0y_Iz");
   MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxBySy_IzTxeNy_Iz);
+    PetscObjectSetName((PetscObject) Hinvy_IzxBySy_IzTxeNy_Iz, "Hinvy_IzxBySy_IzTxeNy_Iz");
 
-  MatCreate(PETSC_COMM_WORLD,&mu);
+  MatCreate(PETSC_COMM_WORLD,&mu);     PetscObjectSetName((PetscObject) mu, "mu");
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
@@ -75,27 +86,23 @@ UserContext::UserContext(const PetscInt ord,const PetscInt y,const  PetscInt z,c
 
   KSPCreate(PETSC_COMM_WORLD,&ksp);
 
-  // initialize time stepping data
-  VecDuplicate(eta,&V);
-  VecDuplicate(eta,&faultDisp);
+  // initialize time stepping fields
+  VecDuplicate(eta,&vel);                  PetscObjectSetName((PetscObject) vel, "vel");
+  VecDuplicate(eta,&faultDisp);            PetscObjectSetName((PetscObject) faultDisp, "faultDisp");
   VecCreate(PETSC_COMM_WORLD,&surfDisp);
   VecSetSizes(surfDisp,PETSC_DECIDE,Ny);
-  VecSetFromOptions(surfDisp);
+  VecSetFromOptions(surfDisp);             PetscObjectSetName((PetscObject) surfDisp, "surfDisp");
   VecDuplicate(eta,&dpsi);
-  TSCreate(PETSC_COMM_WORLD,&ts);
   var = new Vec[2];
   var[0] = faultDisp; var[1] = psi;
 
-  // lousy temporary solution to fact that psi changes in time stepping but can't be handed around as a variable
-  VecDuplicate(eta,&tempPsi);
-
   // viewers (bc PetSc appears to have an error in the way it handles them)
   PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outFileRoot+"time.txt").c_str(),&timeViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),FILE_MODE_WRITE,&surfDispViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),FILE_MODE_WRITE,&faultDispViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),FILE_MODE_WRITE,&velViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),FILE_MODE_WRITE,&tauViewer);
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),FILE_MODE_WRITE,&psiViewer);
+  //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),FILE_MODE_WRITE,&surfDispViewer);
+  //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),FILE_MODE_WRITE,&faultDispViewer);
+  //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),FILE_MODE_WRITE,&velViewer);
+  //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),FILE_MODE_WRITE,&tauViewer);
+  //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),FILE_MODE_WRITE,&psiViewer);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in userContext.cpp.\n");
@@ -113,7 +120,7 @@ UserContext::~UserContext()
 
   // Elastic Coefficients and Frictional Parameters
   VecDestroy(&eta);
-  VecDestroy(&s_NORM);
+  VecDestroy(&sigma_N);
   VecDestroy(&a);
   VecDestroy(&b);
   VecDestroy(&psi);
@@ -153,18 +160,19 @@ UserContext::~UserContext()
   // time stepping system
   VecDestroy(&faultDisp);
   VecDestroy(&surfDisp);
-  VecDestroy(&V);
+  VecDestroy(&vel);
   delete[] var;
 
   VecDestroy(&tempPsi);
 
   // viewers
-  PetscViewerDestroy(&timeViewer);
-  PetscViewerDestroy(&faultDispViewer);
-  PetscViewerDestroy(&surfDispViewer);
-  PetscViewerDestroy(&velViewer);
-  PetscViewerDestroy(&tauViewer);
-  PetscViewerDestroy(&psiViewer);
+  PetscViewerDestroy(&viewer);
+  //~PetscViewerDestroy(&timeViewer);
+  //~PetscViewerDestroy(&faultDispViewer);
+  //~PetscViewerDestroy(&surfDispViewer);
+  //~PetscViewerDestroy(&velViewer);
+  //~PetscViewerDestroy(&tauViewer);
+  //~PetscViewerDestroy(&psiViewer);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in userContext.cpp.\n");
@@ -248,7 +256,7 @@ PetscErrorCode UserContext::writeOperators()
 
   PetscViewer    outviewer;
   const char     *outFileLoc;
-
+//~
   std::string str =  "A";
   outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&outviewer);CHKERRQ(ierr);
@@ -296,55 +304,55 @@ PetscErrorCode UserContext::writeOperators()
   return ierr;
 };
 
-PetscErrorCode UserContext::writeInitialStep()
-{
-  PetscErrorCode ierr;
+//PetscErrorCode UserContext::writeInitialStep()
+//{
+  //PetscErrorCode ierr;
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeInitialStep in userContext.c\n");CHKERRQ(ierr);
-#endif
+//#if VERBOSE > 1
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeInitialStep in userContext.c\n");CHKERRQ(ierr);
+//#endif
 
-  double startTime = MPI_Wtime();
+  //double startTime = MPI_Wtime();
 
-  PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
-  ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
-  ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
-  ierr = VecView(V,velViewer);CHKERRQ(ierr);
-  ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
-  ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
+  //PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
+  ////ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
+  ////ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
+  ////ierr = VecView(vel,velViewer);CHKERRQ(ierr);
+  ////ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
+  ////ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerDestroy(&faultDispViewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&surfDispViewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&velViewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&tauViewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&psiViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerDestroy(&faultDispViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerDestroy(&surfDispViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerDestroy(&velViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerDestroy(&tauViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerDestroy(&psiViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),
-                               FILE_MODE_APPEND,&faultDispViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"faultDisp").c_str(),
+                               ////FILE_MODE_APPEND,&faultDispViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),
-                               FILE_MODE_APPEND,&surfDispViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"surfDisp").c_str(),
+                               ////FILE_MODE_APPEND,&surfDispViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),
-                               FILE_MODE_APPEND,&velViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"vel").c_str(),
+                               ////FILE_MODE_APPEND,&velViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),
-                               FILE_MODE_APPEND,&tauViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"tau").c_str(),
+                               ////FILE_MODE_APPEND,&tauViewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),
-                               FILE_MODE_APPEND,&psiViewer);CHKERRQ(ierr);
+  ////ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outFileRoot+"psi").c_str(),
+                               ////FILE_MODE_APPEND,&psiViewer);CHKERRQ(ierr);
 
-  writeTime += MPI_Wtime() - startTime;
+  //writeTime += MPI_Wtime() - startTime;
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
-#endif
+//#if VERBOSE > 1
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
+//#endif
 
-  return ierr;
-}
+  //return ierr;
+//}
 
 
-PetscErrorCode UserContext::writeCurrentStep()
+PetscErrorCode UserContext::writeStep()
 {
   PetscErrorCode ierr;
 
@@ -354,12 +362,19 @@ PetscErrorCode UserContext::writeCurrentStep()
 
   double startTime = MPI_Wtime();
 
+  ierr = PetscViewerHDF5PushGroup(viewer, "/timeSeries");CHKERRQ(ierr);
+
+  ierr = VecView(vel, viewer);CHKERRQ(ierr);
+  ierr = VecView(psi, viewer);CHKERRQ(ierr);
+  ierr = VecView(tau, viewer);CHKERRQ(ierr);
+  ierr = VecView(surfDisp, viewer);CHKERRQ(ierr);
+  ierr = VecView(faultDisp, viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);CHKERRQ(ierr);
+
+
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
-  ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
-  ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
-  ierr = VecView(V,velViewer);CHKERRQ(ierr);
-  ierr = VecView(tau,tauViewer);CHKERRQ(ierr);
-  ierr = VecView(psi,psiViewer);CHKERRQ(ierr);
+
 
   writeTime += MPI_Wtime() - startTime;
 
@@ -368,6 +383,67 @@ PetscErrorCode UserContext::writeCurrentStep()
 #endif
 
   return 0;
+}
+
+
+PetscErrorCode UserContext::writeRateAndState()
+{
+  PetscErrorCode ierr = 0;
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeRateAndState in rateAndState.c\n");CHKERRQ(ierr);
+#endif
+
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/frictionContext");CHKERRQ(ierr);
+
+  ierr = VecView(a, viewer);CHKERRQ(ierr);
+  ierr = VecView(b, viewer);CHKERRQ(ierr);
+  ierr = VecView(eta, viewer);CHKERRQ(ierr);
+  ierr = VecView(sigma_N, viewer);CHKERRQ(ierr);
+  ierr = MatView(mu, viewer);CHKERRQ(ierr);
+
+
+  ierr = PetscViewerHDF5PopGroup(viewer);CHKERRQ(ierr);
+
+  //PetscViewer    viewer;
+  //const char * outFileLoc;
+
+  //std::string str = D.outFileRoot + "a"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.a,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "b"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.b,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "eta"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.eta,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "sigma_N"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.sigma_N,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "mu"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = MatView(D.mu,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "initPsi"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.psi,viewer);CHKERRQ(ierr);
+
+  //str = D.outFileRoot + "initTempPsi"; outFileLoc = str.c_str();
+  //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //ierr = VecView(D.tempPsi,viewer);CHKERRQ(ierr);
+
+  //ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeRateAndState in rateAndState.c\n");CHKERRQ(ierr);
+#endif
+
+  return ierr;
 }
 
 

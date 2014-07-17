@@ -1,4 +1,5 @@
 #include <petscts.h>
+#include <petscviewerhdf5.h>
 #include <iostream>
 #include <string>
 #include "userContext.h"
@@ -119,14 +120,14 @@ PetscErrorCode initSlipVel(UserContext& D)
 #endif
 
   //~ ierr = VecCreate(PETSC_COMM_WORLD,V);CHKERRQ(ierr);
-  //~ ierr = VecDuplicate(D.gF,D.V);CHKERRQ(ierr);
+  //~ ierr = VecDuplicate(D.gF,D.vel);CHKERRQ(ierr);
   ierr = VecDuplicate(D.gF,&temp1);CHKERRQ(ierr);
   ierr = VecDuplicate(D.gF,&temp2);CHKERRQ(ierr);
   ierr = VecDuplicate(D.gF,&temp3);CHKERRQ(ierr);
   ierr = VecDuplicate(D.gF,&temp4);CHKERRQ(ierr);
 
-  ierr = VecPointwiseMult(temp1,D.s_NORM,D.a);CHKERRQ(ierr); // temp = s_NORM.*a
-  ierr = VecPointwiseDivide(temp1,D.tau,temp1);CHKERRQ(ierr); // temp = tau./(s_NORM.*a)
+  ierr = VecPointwiseMult(temp1,D.sigma_N,D.a);CHKERRQ(ierr); // temp = sigma_N.*a
+  ierr = VecPointwiseDivide(temp1,D.tau,temp1);CHKERRQ(ierr); // temp = tau./(sigma_N.*a)
 
   ierr = VecCopy(temp1,temp2);CHKERRQ(ierr);
 
@@ -134,13 +135,13 @@ PetscErrorCode initSlipVel(UserContext& D)
   ierr = VecScale(temp2,-1.0);CHKERRQ(ierr);
   ierr = VecExp(temp2);CHKERRQ(ierr);
 
-  ierr = VecAXPY(temp2,1,temp1);CHKERRQ(ierr); // temp2 = temp1 + temp2 = 2*sinh[tau./(s_NORM.*a)]
+  ierr = VecAXPY(temp2,1,temp1);CHKERRQ(ierr); // temp2 = temp1 + temp2 = 2*sinh[tau./(sigma_N.*a)]
   ierr = VecPointwiseDivide(temp1,D.psi,D.a);CHKERRQ(ierr); // temp1 = psi./a
   ierr = VecScale(temp1,-1.0);CHKERRQ(ierr); // temp1 = -psi./a
   ierr = VecExp(temp1); // temp1 = exp(-psi./a)
 
-  ierr = VecPointwiseMult(D.V,temp1,temp2); // temp1 = temp1.*temp2
-  ierr = VecScale(D.V,D.v0);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(D.vel,temp1,temp2); // temp1 = temp1.*temp2
+  ierr = VecScale(D.vel,D.v0);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending initSlipVel in timeStepping.c\n");CHKERRQ(ierr);
@@ -181,10 +182,10 @@ PetscErrorCode computeSlipVel(UserContext& D)
       ierr = bisect((*frictionLaw),Ii,leftVal,rightVal,&outVal,&its,D.rootTol,1e5,&D);CHKERRQ(ierr);
       D.rootIts += its;
     }
-    ierr = VecSetValue(D.V,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(D.vel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(D.V);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.V);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(D.vel);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(D.vel);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeSlipVel in timeStepping.c\n");CHKERRQ(ierr);
@@ -270,9 +271,9 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
 #endif
 
   // compute dvar
-  ierr = VecGetOwnershipRange(D->V,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(D->vel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(D->V,1,&Ii,&val);CHKERRQ(ierr);
+    ierr = VecGetValues(D->vel,1,&Ii,&val);CHKERRQ(ierr);
     ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
     ierr = VecGetValues(var[1],1,&Ii,&psiVal);
@@ -302,10 +303,13 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
   if ( stepCount % D->strideLength == 0) {
     D->count++;
     D->currTime = time;
-    ierr = D->writeCurrentStep();CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    ierr = D->writeStep();CHKERRQ(ierr);
     #if VERBOSE >0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.9e\n",stepCount,D->currTime);CHKERRQ(ierr);
     #endif
+
+
   }
 
   return ierr;

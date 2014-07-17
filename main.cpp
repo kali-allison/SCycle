@@ -1,4 +1,5 @@
 #include <petscts.h>
+#include <petscviewerhdf5.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -162,7 +163,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   PetscInt       order=4;
   PetscBool      loadMat = PETSC_FALSE;
   PetscViewer    viewer;
-  PetscScalar    u,y,z;
+  PetscScalar    u,z;
 
 
   // set up the problem context
@@ -170,7 +171,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
+  ierr = D.writeRateAndState();CHKERRQ(ierr);
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
   ierr = D.writeOperators();CHKERRQ(ierr);
 
@@ -195,7 +196,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   ierr = VecGetOwnershipRange(anal,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = Ii-D.Nz*(Ii/D.Nz);
-    y = D.dy*(Ii/D.Nz);
+    //~y = D.dy*(Ii/D.Nz);
     u = (1.0/PETSC_PI)*atan(D.dy*Ii/D.H);
     ierr = VecSetValues(anal,1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -255,7 +256,7 @@ int sbpConvergence(int argc,char **args)
   Vec            uAnal;
   PetscScalar    u,y,z,err,n=7.0;
   PetscInt       Ii,Istart,Iend;
-  PetscViewer    viewer;
+  //~PetscViewer    viewer;
   PetscBool      loadMat = PETSC_FALSE;
 
   PetscInt       order=2,Ny=76, Nz=76;
@@ -337,13 +338,14 @@ int runEqCycle(int argc,char **args)
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = writeRateAndState(D);CHKERRQ(ierr);
-  double timeBeforeOpCreation = MPI_Wtime();
+  ierr = D.writeRateAndState();CHKERRQ(ierr);
+  //~double timeBeforeOpCreation = MPI_Wtime();
   ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
-  double timeAfterOpCreation = MPI_Wtime();
-  if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
+  ierr = D.writeOperators();CHKERRQ(ierr);
+  //~double timeAfterOpCreation = MPI_Wtime();
+  //~if (!loadMat) { ierr = D.writeOperators();CHKERRQ(ierr); }
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
-  ierr = D.writeInitialStep();CHKERRQ(ierr);
+  ierr = D.writeStep();
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"About to start integrating ODE\n");CHKERRQ(ierr);
 
@@ -360,22 +362,23 @@ int runEqCycle(int argc,char **args)
 
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
 
-  int np;
-  MPI_Comm_size(MPI_COMM_WORLD,&np);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"TOTAL RUN TIME: %f\n",MPI_Wtime() - startTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"writeTime = %g\n",D.writeTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
+
+  //~int np;
+  //~MPI_Comm_size(MPI_COMM_WORLD,&np);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"np %i, order %i, Ny %i, Nz %i\n",np,D.order,D.Ny, D.Nz);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"TOTAL RUN TIME: %f\n",MPI_Wtime() - startTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"total linear op time: %f\n",timeAfterOpCreation-timeBeforeOpCreation);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",D.fullLinOps);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",D.arrLinOps);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",D.computeTauTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",D.computeVelTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",D.kspTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"computeRhsTime = %g\n",D.computeRhsTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLawTime = %g\n",D.agingLawTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"rhsTime = %g\n",D.rhsTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"writeTime = %g\n",D.writeTime);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"rootIts = %i\n",D.rootIts);CHKERRQ(ierr);
 
   ierr = ts.viewSolver();CHKERRQ(ierr);
 

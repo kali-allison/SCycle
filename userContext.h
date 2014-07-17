@@ -10,8 +10,10 @@ class UserContext {
    // debugging folder tree
    std::string debugFolder;
 
-  // output data tree
+  // output data
   std::string outFileRoot;
+  PetscViewer    timeViewer;//surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
+  PetscViewer  viewer;
 
   // SBP operator order
   PetscInt       order;
@@ -24,8 +26,8 @@ class UserContext {
   //~PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
   PetscScalar    cs,f0,v0,vp,D_c,tau_inf;
   PetscScalar    muIn,muOut,D,W,rhoIn,rhoOut,*muArr;// for basin
-  Vec            eta,s_NORM,a,b,psi,tau,gRShift;
-  Vec            V;
+  Vec            eta,sigma_N,a,b,psi,tau,gRShift;
+  Vec            vel;
 
   // penalty terms for BCs
   PetscScalar    alphaF,alphaR,alphaS,alphaD,beta;
@@ -67,9 +69,6 @@ class UserContext {
   // lousy temporary solution
   Vec tempPsi;
 
-  // viewers
-  PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
-
   // run time info
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;
   double fullLinOps,arrLinOps,writeTime;
@@ -93,9 +92,8 @@ class UserContext {
    * Output displacement, shear stress, and psi on fault and surface.
    * Add current time to timeFile.
    */
-  PetscErrorCode writeInitialStep();
-
-  PetscErrorCode writeCurrentStep();
+  PetscErrorCode writeStep();
+  PetscErrorCode writeRateAndState();
 
   PetscErrorCode printTiming();
 
