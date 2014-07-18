@@ -232,12 +232,12 @@ PetscErrorCode UserContext::writeParameters()
   // time monitering
   ierr = PetscViewerASCIIPrintf(outviewer,"strideLength = %i\n",strideLength);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(outviewer,"maxStepCount = %i\n",maxStepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"initTime = %f\n",initTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"maxTime = %f\n",maxTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"initTime = %.15e\n",initTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"maxTime = %.15e\n",maxTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(outviewer,"atol = %f\n",atol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"initDeltaT = %f\n",initDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"minDeltaT = %f\n",minDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"maxDeltaT = %f\n",maxDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"initDeltaT = %.15e\n",initDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"minDeltaT = %.15e\n",minDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(outviewer,"maxDeltaT = %.15e\n",maxDeltaT);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeParameters in userContext.c\n");CHKERRQ(ierr);
@@ -375,7 +375,6 @@ PetscErrorCode UserContext::writeStep()
 
   PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
 
-  PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
   ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
   ierr = VecView(vel,velViewer);CHKERRQ(ierr);
@@ -416,25 +415,25 @@ PetscErrorCode UserContext::writeRateAndState()
   PetscViewer    viewer;
   const char * outFileLoc;
 
-  std::string str = D.outFileRoot + "a"; outFileLoc = str.c_str();
+  std::string str = outFileRoot + "a"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.a,viewer);CHKERRQ(ierr);
+  ierr = VecView(a,viewer);CHKERRQ(ierr);
 
-  str = D.outFileRoot + "b"; outFileLoc = str.c_str();
+  str = outFileRoot + "b"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.b,viewer);CHKERRQ(ierr);
+  ierr = VecView(b,viewer);CHKERRQ(ierr);
 
-  str = D.outFileRoot + "eta"; outFileLoc = str.c_str();
+  str = outFileRoot + "eta"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.eta,viewer);CHKERRQ(ierr);
+  ierr = VecView(eta,viewer);CHKERRQ(ierr);
 
-  str = D.outFileRoot + "sigma_N"; outFileLoc = str.c_str();
+  str = outFileRoot + "sigma_N"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.sigma_N,viewer);CHKERRQ(ierr);
+  ierr = VecView(sigma_N,viewer);CHKERRQ(ierr);
 
-  str = D.outFileRoot + "mu"; outFileLoc = str.c_str();
+  str = outFileRoot + "mu"; outFileLoc = str.c_str();
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(D.mu,viewer);CHKERRQ(ierr);
+  ierr = MatView(mu,viewer);CHKERRQ(ierr);
 
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 

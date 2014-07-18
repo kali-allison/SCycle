@@ -84,6 +84,7 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
 
   //~if (b==0) { *dPsi = 0; }
   if ( isinf(exp(1/b)) ) { *dPsi = 0; }
+  else if ( b <= 1e-3 ) { *dPsi = 0; }
   else {
     *dPsi = (PetscScalar) (b*D->v0/D->D_c)*( exp((double) ( (D->f0-psi)/b) ) - (vel/D->v0) );
   }
@@ -127,7 +128,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   PetscScalar    v,y,z;
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setRateAndState in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
   // Set normal stress along fault
@@ -173,7 +174,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
+  //~ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
   PetscScalar r,rbar=0.25*D.W*D.W,rw=1+0.5*D.W/D.D;
   for (Ii=0;Ii<D.Ny*D.Nz;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
@@ -181,9 +182,9 @@ PetscErrorCode setRateAndState(UserContext &D)
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
     D.muArr[Ii] = v;
-    //~D.muArr[Ii] = Ii+2;//!!!!!
     muInds[Ii] = Ii;
   }
+
   ierr = VecSetValues(muVec,D.Ny*D.Nz,muInds,D.muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
@@ -227,7 +228,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecCopy(D.psi,D.tempPsi);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setRateAndState in rateAndState.c\n");CHKERRQ(ierr);
 #endif
   return 0;
 }

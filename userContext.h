@@ -12,7 +12,7 @@ class UserContext {
 
   // output data
   std::string outFileRoot;
-  PetscViewer    timeViewer;//surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
+  PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
   PetscViewer  viewer;
 
   // SBP operator order
@@ -93,6 +93,7 @@ class UserContext {
    * Add current time to timeFile.
    */
   PetscErrorCode writeStep();
+  PetscErrorCode writeInitialStep();
   PetscErrorCode writeRateAndState();
 
   PetscErrorCode printTiming();

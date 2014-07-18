@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N homCycle
-#PBS -l nodes=1:ppn=1
+#PBS -l nodes=2:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
