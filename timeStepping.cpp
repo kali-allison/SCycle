@@ -305,12 +305,13 @@ PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
     D->currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = D->writeStep();CHKERRQ(ierr);
+  }
     #if VERBOSE >0
       ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,D->currTime);CHKERRQ(ierr);
     #endif
 
 
-  }
+
 
   return ierr;
 }

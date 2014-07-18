@@ -18,8 +18,8 @@ PetscErrorCode stressMstrength(const PetscInt ind,const PetscScalar vel,PetscSca
   PetscScalar    psi,a,sigma_n,eta,tau;
   PetscInt       Istart,Iend;
 
-#if VERBOSE > 1
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
@@ -71,6 +71,7 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
   PetscScalar    b,vel;
   UserContext    *D = (UserContext *) ctx;
 
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLaw, ind=%i\n",ind);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
@@ -166,7 +167,7 @@ PetscErrorCode setRateAndState(UserContext &D)
   }
   ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
-  //~ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
+  ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
   // set shear modulus
   Vec muVec;
