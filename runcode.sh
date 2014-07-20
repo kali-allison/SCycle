@@ -5,8 +5,8 @@
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e ssnp1_NyNz21.err
-#PBS -o ssnp1_NyNz21.out
+#PBS -e homnp1_NyNz201.err
+#PBS -o homnp1_NyNz201.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

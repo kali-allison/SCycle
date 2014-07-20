@@ -207,7 +207,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   double startTime = MPI_Wtime();
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rhsFunc in timeStepping.c, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rhsFunc in timeStepping.c, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
 
@@ -223,7 +223,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   ierr = ComputeRHS(*D);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute uhat, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute uhat, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
 
@@ -233,7 +233,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   D->kspTime = D->kspTime + (endKspTime-startKspTime);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: just computed uhat, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: just computed uhat, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
 
@@ -252,21 +252,21 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   ierr = VecAssemblyEnd(D->surfDisp);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute tau, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute tau, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
   // update velocity and shear stress on fault
   ierr = computeTau(*D);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute vel, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: about to compute vel, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
 
   ierr = computeSlipVel(*D);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: finished computing vel, at time t=%g\n",time);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   in rhsFun: finished computing vel, at time t=%.15e\n",time);
   CHKERRQ(ierr);
 #endif
 
@@ -284,7 +284,7 @@ PetscErrorCode rhsFunc(const PetscReal time,const int lenVar,Vec* var,Vec* dvar,
   ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rhsFunc in timeStepping.c, at time t=%g\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rhsFunc in timeStepping.c, at time t=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   double endTime = MPI_Wtime();
