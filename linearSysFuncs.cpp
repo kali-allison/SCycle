@@ -563,6 +563,8 @@ ierr = MatMatMult(D.mu,D.Dy_Iz,MAT_INITIAL_MATRIX,1.0,&D.Dy_Iz);CHKERRQ(ierr);
   // clean up
   ierr = PetscFree(cols);CHKERRQ(ierr);
   ierr = PetscFree(vals);CHKERRQ(ierr);
+  ierr = PetscFree(constCols);CHKERRQ(ierr);
+  ierr = PetscFree(constVals);CHKERRQ(ierr);
 
   ierr = MatDestroy(&Hinvy);CHKERRQ(ierr);
   ierr = MatDestroy(&D2y);CHKERRQ(ierr);
@@ -864,6 +866,8 @@ PetscErrorCode SBPoperators(PetscInt order, PetscInt N, Mat *PinvMat, Mat *D, Ma
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
   ierr = PetscFree(stencil);CHKERRQ(ierr);
+  ierr = PetscFree(constCols);CHKERRQ(ierr);
+  ierr = PetscFree(constVals);CHKERRQ(ierr);
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
 
 #if VERBOSE > 1

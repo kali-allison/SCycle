@@ -173,13 +173,12 @@ PetscErrorCode UserContext::writeParameters()
 #endif
 
   std::string str = outFileRoot + "parameters.txt";
-  const char * outFileLoc = str.c_str();
   PetscViewer    viewer;
 
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, outFileLoc);
+  PetscViewerFileSetName(viewer, str.c_str());
 
   ierr = PetscViewerASCIIPrintf(viewer,"order = %i\n",order);CHKERRQ(ierr);
 
@@ -437,7 +436,6 @@ PetscErrorCode UserContext::printTiming()
 #endif
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fullLinOps = %g\n",fullLinOps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"arrLinOps = %g\n",arrLinOps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeTauTime = %g\n",computeTauTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"computeVelTime = %g\n",computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"kspTime = %g\n",kspTime);CHKERRQ(ierr);
