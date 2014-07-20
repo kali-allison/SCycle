@@ -63,7 +63,6 @@ PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
   _deltaT = deltaT;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -74,7 +73,6 @@ PetscErrorCode OdeSolver::setTolerance(const PetscReal tol)
   _reltol = tol;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -84,7 +82,6 @@ PetscErrorCode OdeSolver::setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,c
   _rhsFunc = rhsFunc;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -94,7 +91,6 @@ PetscErrorCode OdeSolver::setTimeMonitor(PetscErrorCode (*timeMonitor)(const Pet
   _timeMonitor = timeMonitor;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -104,7 +100,6 @@ PetscErrorCode OdeSolver::setUserContext(void * userContext)
   _userContext = userContext;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -124,7 +119,6 @@ PetscErrorCode OdeSolver::setInitialConds(Vec *var, const int lenVar)
   }
 
   _runTime += MPI_Wtime() - startTime;
-
   return ierr;
 }
 
@@ -135,7 +129,6 @@ PetscErrorCode OdeSolver::setTimeStepBounds(const PetscReal minDeltaT, const Pet
   _maxDeltaT = maxDeltaT;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -145,7 +138,6 @@ PetscErrorCode OdeSolver::setSourceFile(const std::string sourceFile)
   _sourceFile = sourceFile;
 
   _runTime += MPI_Wtime() - startTime;
-
   return 0;
 }
 
@@ -330,11 +322,10 @@ PetscErrorCode OdeSolver::odeRK32()
   errVec  = new Vec[_lenVar];
   for (int ind=0;ind<_lenVar;ind++) {
     ierr = VecDuplicate(_var[ind],&varHalfdT[ind]);CHKERRQ(ierr);
+     ierr = VecDuplicate(_var[ind],&dvarHalfdT[ind]);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&vardT[ind]);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&var2nd[ind]);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&var3rd[ind]);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&dvarHalfdT[ind]);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&dvardT[ind]);CHKERRQ(ierr);
+    ierr = VecDuplicate(_var[ind],&var2nd[ind]);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&dvar2nd[ind]);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&var3rd[ind]);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&errVec[ind]);CHKERRQ(ierr);
@@ -393,7 +384,6 @@ PetscErrorCode OdeSolver::odeRK32()
         totErr += err[ind]/size;
       }
       totErr = sqrt(totErr);
-      //~totErr = err[ind];
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"totErr=%7e\n",totErr);CHKERRQ(ierr);
 
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, totErr = %g, currT = %g,_deltaT=%g\n",
@@ -435,23 +425,21 @@ PetscErrorCode OdeSolver::odeRK32()
     }
 
     ierr = _timeMonitor(_currT,_stepCount,_var,_lenVar,_userContext);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %e\n",_stepCount,_currT);CHKERRQ(ierr);
   }
 
   // destruct temporary containers
   for (int ind=0;ind<_lenVar;ind++) {
     VecDestroy(&varHalfdT[ind]); VecDestroy(&dvarHalfdT[ind]);
     VecDestroy(&vardT[ind]);     VecDestroy(&dvardT[ind]);
-    VecDestroy(&var2nd[ind]);
+    VecDestroy(&var2nd[ind]);    VecDestroy(&dvar2nd[ind]);
     VecDestroy(&var3rd[ind]);
     VecDestroy(&errVec[ind]);
   }
   delete[] varHalfdT; delete[] dvarHalfdT;
   delete[] vardT;     delete[] dvardT;
-  delete[] var2nd;
+  delete[] var2nd;    delete[] dvar2nd;
   delete[] var3rd;
   delete[] errVec;
-
 
   return ierr;
 }

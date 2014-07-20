@@ -26,21 +26,8 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
   ierr = VecAXPY(D.gR,1.0,D.gRShift);CHKERRQ(ierr);
 
   ierr = ComputeRHS(D);CHKERRQ(ierr);
-
   ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
-
-    PetscViewer viewer;
-  std::string str= D.outFileRoot + "rhs";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.rhs,viewer);CHKERRQ(ierr);
-  str= D.outFileRoot + "uhat";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.uhat,viewer);CHKERRQ(ierr);
-
   ierr = computeTau(D);CHKERRQ(ierr);
-
-
-  //~ierr = initSlipVel(D);CHKERRQ(ierr);
   ierr = computeSlipVel(D);CHKERRQ(ierr);
 
   ierr = VecCopy(D.gF,D.faultDisp);CHKERRQ(ierr);
@@ -59,7 +46,6 @@ PetscErrorCode setInitialTimeStep(UserContext& D)
   }
   ierr = VecAssemblyBegin(D.surfDisp);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.surfDisp);CHKERRQ(ierr);
-  //~ierr = VecView(D.surfDisp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setInitialTimeStep in timeStepping.c\n");CHKERRQ(ierr);
@@ -96,12 +82,15 @@ PetscErrorCode computeTau(UserContext& D)
   ierr = VecAssemblyBegin(D.tau);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.tau);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeTau in timeStepping.c\n");CHKERRQ(ierr);
-#endif
+
+  ierr = VecDestroy(&sigma_xy);CHKERRQ(ierr);
 
   double endTime = MPI_Wtime();
   D.computeTauTime = D.computeTauTime + (endTime-startTime);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeTau in timeStepping.c\n");CHKERRQ(ierr);
+#endif
 
   return 0;
 }
@@ -186,6 +175,10 @@ PetscErrorCode computeSlipVel(UserContext& D)
   }
   ierr = VecAssemblyBegin(D.vel);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.vel);CHKERRQ(ierr);
+
+  ierr = VecDestroy(&left);CHKERRQ(ierr);
+  ierr = VecDestroy(&right);CHKERRQ(ierr);
+  ierr = VecDestroy(&out);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending computeSlipVel in timeStepping.c\n");CHKERRQ(ierr);

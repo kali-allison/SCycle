@@ -132,18 +132,13 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setRateAndState in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
-  // Set normal stress along fault
+  // Set normal stress on fault
   PetscScalar sigma_NVal = 50.0;
-  //~ierr = VecDuplicate(D.a,&D.sigma_N);CHKERRQ(ierr);
   ierr = VecSet(D.sigma_N,sigma_NVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.sigma_N);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.sigma_N);CHKERRQ(ierr);
 
   // Set a
   PetscScalar aVal = 0.015;
   ierr = VecSet(D.a,aVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.a);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.a);CHKERRQ(ierr);
 
   // Set b
   PetscScalar L1 = D.H;  // Defines depth at which (a-b) begins to increase.
@@ -185,7 +180,6 @@ PetscErrorCode setRateAndState(UserContext &D)
     D.muArr[Ii] = v;
     muInds[Ii] = Ii;
   }
-
   ierr = VecSetValues(muVec,D.Ny*D.Nz,muInds,D.muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
@@ -227,6 +221,10 @@ PetscErrorCode setRateAndState(UserContext &D)
 
   ierr = VecSet(D.psi,D.f0);
   ierr = VecCopy(D.psi,D.tempPsi);CHKERRQ(ierr);
+
+
+  ierr = VecDestroy(&muVec);CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setRateAndState in rateAndState.c\n");CHKERRQ(ierr);

@@ -23,11 +23,9 @@ class UserContext {
   PetscScalar    Ly,Lz,H,dy,dz;
 
   // elastic coefficients and frictional parameters
-  //~PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
   PetscScalar    cs,f0,v0,vp,D_c,tau_inf;
   PetscScalar    muIn,muOut,D,W,rhoIn,rhoOut,*muArr;// for basin
-  Vec            eta,sigma_N,a,b,psi,tau,gRShift;
-  Vec            vel;
+  Vec            vel, eta,sigma_N,a,b,psi,tempPsi,tau,gRShift;
 
   // penalty terms for BCs
   PetscScalar    alphaF,alphaR,alphaS,alphaD,beta;
@@ -36,12 +34,7 @@ class UserContext {
   Vec            gF,gS,gR,gD;
 
   // linear system
-  Mat            A,D2y,D2z;
-  Mat            Dy_Iz;
-  //~Mat            IyHinvz_Iye0z,IyHinvz_IyeNz,Hinvy_Iz_e0y_Iz,Hinvy_Iz_BySy_Iz_e0y_Iz;
-  //~Mat            Hinvy_Iz_eNy_Iz,Hinvy_Iz_BySy_Iz_eNy_Iz;
-  Mat            Hinvy,Hinvz;
-
+  Mat            A,Dy_Iz;
   Mat            Hinvy_Izxe0y_Iz,Hinvy_IzxeNy_Iz,Iy_HinvzxIy_e0z;
   Mat            Iy_HinvzxIy_eNz,Hinvy_IzxBySy_IzTxe0y_Iz,Hinvy_IzxBySy_IzTxeNy_Iz;
 
@@ -54,7 +47,7 @@ class UserContext {
 
   // tolerances for linear and nonlinear (for V) solve
   PetscScalar    kspTol,rootTol;
-  PetscInt       rootIts; // total number of its used
+  PetscInt       rootIts; // total number of iterations
 
   // time stepping data
   TS             ts;
@@ -66,8 +59,6 @@ class UserContext {
   PetscScalar    atol;
   PetscScalar    initDeltaT;
 
-  // lousy temporary solution
-  Vec tempPsi;
 
   // run time info
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;

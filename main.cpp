@@ -326,8 +326,6 @@ int runEqCycle(int argc,char **args)
   PetscInt       Ny=301, Nz=301, order=4;
   PetscBool      loadMat = PETSC_FALSE;
 
-  double startTime = MPI_Wtime();
-
   // allow command line user input to override defaults
   ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
@@ -345,6 +343,7 @@ int runEqCycle(int argc,char **args)
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();
 
+  //~OdeSolver ts = OdeSolver(D.maxStepCount,"FEULER");
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
   ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
