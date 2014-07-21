@@ -370,7 +370,6 @@ int runEqCycle(int argc,char **args)
   ierr = ts.setUserContext(&D);CHKERRQ(ierr);
   ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
 
-
   ierr = ts.runOdeSolver();CHKERRQ(ierr);
 
   ierr = ts.viewSolver();CHKERRQ(ierr);
