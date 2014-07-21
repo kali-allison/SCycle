@@ -866,8 +866,6 @@ PetscErrorCode SBPoperators(PetscInt order, PetscInt N, Mat *PinvMat, Mat *D, Ma
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
   ierr = PetscFree(stencil);CHKERRQ(ierr);
-  //~ierr = PetscFree(constCols);CHKERRQ(ierr); // why not delete these?
-  //~ierr = PetscFree(constVals);CHKERRQ(ierr);
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
 
 #if VERBOSE > 1

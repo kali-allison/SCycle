@@ -34,7 +34,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   //~ctx.G = 24; // shear modulus (GPa) ORIG:36
   //~ctx.rho = ctx.G/(ctx.cs*ctx.cs);// Material density
 
-  // tolerances for linear and nonlinear solve (for V)
+  // tolerances for linear and nonlinear solve (for vel)
   ctx.kspTol = 1e-6;
   ctx.rootTol = 1e-6;
 

@@ -50,7 +50,6 @@ class UserContext {
   PetscInt       rootIts; // total number of iterations
 
   // time stepping data
-  TS             ts;
   Vec            faultDisp,dpsi,*var,surfDisp;
   PetscInt       strideLength; // stride
   PetscInt       maxStepCount; // largest number of time steps
