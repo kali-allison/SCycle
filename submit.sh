@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf eq_cycle_order*
+rm -rf eq_cycle_np*
 
 printf "\nSubmitting job using: \n\n"
 cat runcode.sh

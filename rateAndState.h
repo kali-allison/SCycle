@@ -7,6 +7,4 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi, PetscScalar *d
 
 PetscErrorCode setRateAndState(UserContext &D);
 
-PetscErrorCode writeRateAndState(UserContext &D);
-
 #endif

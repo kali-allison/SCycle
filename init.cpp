@@ -13,8 +13,13 @@ PetscErrorCode setParameters(UserContext &ctx)
   //~ ctx->outFileRoot = "./data/";
 
   // domain geometry initialization
+<<<<<<< HEAD
   ctx.Ly = 72; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50; (ctx.Ny-1)*0.06;
   ctx.Lz = 24; // (km) z in [0,Lz]; (ctx.Nz-1)*0.06;
+=======
+  ctx.Ly = 24.0; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50
+  ctx.Lz = 24.0; // (km) z in [0,Lz]
+>>>>>>> trialOutput
   ctx.H = 12; // (km) This is the depth as which (a-b) begins to increase 12 km
   ctx.N  = ctx.Nz*ctx.Ny;
   ctx.dy = ctx.Ly/(ctx.Ny-1.0); // (km)
@@ -27,30 +32,29 @@ PetscErrorCode setParameters(UserContext &ctx)
   ctx.vp = 1e-9; //(m/s) plate rate KLA: 1e-4, ORIG: 1e-9
   ctx.D_c = 8e-3; // (m) characteristic slip distance 0.008
 
-  ctx.muIn = 30; // (GPa) shear modulus inside basin; sed cycle: 18
+  ctx.muIn = 8; // (GPa) shear modulus inside basin; sed cycle: 8
   ctx.muOut = 30; // (GPa) shear modulus outside basin; sed cycle: 24
   ctx.D = ctx.H/3; // (km) basin depth
   ctx.W = 24; // (km) basin width
-  ctx.rhoIn = 3; // 1e3*(kg/m^3) density inside basin; sed cycle: 2.6
-  ctx.rhoOut = 3; // 1e3*(kg/m^3) density outside basin; sed cycle: 3
+  ctx.rhoIn = 2; // 1e3*(kg/m^3) density inside basin; sed cycle: 2.6
+  ctx.rhoOut = 2; // 1e3*(kg/m^3) density outside basin; sed cycle: 3
 
   //  constitutive parameters
   ctx.cs = std::max(sqrt(ctx.muIn/ctx.rhoIn),sqrt(ctx.muOut/ctx.rhoOut)); // shear wave speed (km/s)
   //~ctx.G = 24; // shear modulus (GPa) ORIG:36
   //~ctx.rho = ctx.G/(ctx.cs*ctx.cs);// Material density
 
-  // tolerances for linear and nonlinear solve (for V)
+  // tolerances for linear and nonlinear solve (for vel)
   ctx.kspTol = 1e-6;
   ctx.rootTol = 1e-6;
 
   // time monitering
-  ctx.writeStride = 10;
-  ctx.checkpointStride = 200;
-  ctx.maxStepCount = 4e5; // 4e5
-  //~ctx.maxStepCount = 10;
+  ctx.strideLength = 10;
+  ctx.maxStepCount = 1e8;
+  //~ctx.maxStepCount = 40;
   ctx.initTime = 6.3e9; // spring-slider:5e5 sed eqCycle:6.3e10
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+3.7e10;// 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10;
+  ctx.maxTime = ctx.initTime+1e3*3.1556926e7;// brit: 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10; hom:3.7e10
   ctx.atol = 1e-6;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,1e-3);
   ctx.initDeltaT = ctx.minDeltaT;

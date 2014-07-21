@@ -10,8 +10,10 @@ class UserContext {
    // debugging folder tree
    std::string debugFolder;
 
-  // output data tree
+  // output data
   std::string outFileRoot;
+  PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
+  PetscViewer  viewer;
 
   // input data tree
   std::string inFileRoot;
@@ -24,11 +26,9 @@ class UserContext {
   PetscScalar    Ly,Lz,H,dy,dz;
 
   // elastic coefficients and frictional parameters
-  //~PetscScalar    cs,G,rho,f0,v0,vp,D_c,tau_inf;
   PetscScalar    cs,f0,v0,vp,D_c,tau_inf;
   PetscScalar    muIn,muOut,D,W,rhoIn,rhoOut,*muArr;// for basin
-  Vec            eta,s_NORM,a,b,psi,tau,gRShift;
-  Vec            V;
+  Vec            vel, eta,sigma_N,a,b,psi,tempPsi,tau,gRShift;
 
   // penalty terms for BCs
   PetscScalar    alphaF,alphaR,alphaS,alphaD,beta;
@@ -37,9 +37,7 @@ class UserContext {
   Vec            gF,gS,gR,gD;
 
   // linear system
-  Mat            A,D2y,D2z;
-  Mat            Dy_Iz;
-  Mat            Hinvy,Hinvz;
+  Mat            A,Dy_Iz;
   Mat            Hinvy_Izxe0y_Iz,Hinvy_IzxeNy_Iz,Iy_HinvzxIy_e0z;
   Mat            Iy_HinvzxIy_eNz,Hinvy_IzxBySy_IzTxe0y_Iz,Hinvy_IzxBySy_IzTxeNy_Iz;
 
@@ -52,10 +50,13 @@ class UserContext {
 
   // tolerances for linear and nonlinear (for V) solve
   PetscScalar    kspTol,rootTol;
-  PetscInt       rootIts; // total number of its used
+  PetscInt       rootIts; // total number of iterations
 
   // time stepping data
+<<<<<<< HEAD
   OdeSolver      solver;
+=======
+>>>>>>> trialOutput
   Vec            faultDisp,dpsi,*var,surfDisp;
   PetscInt       writeStride,checkpointStride; // stride for writing data, checkpointing
   PetscInt       maxStepCount; // largest number of time steps
@@ -64,11 +65,6 @@ class UserContext {
   PetscScalar    atol;
   PetscScalar    initDeltaT;
 
-  // lousy temporary solution
-  Vec tempPsi;
-
-  // viewers
-  PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
 
   // run time info
   double computeTauTime,computeVelTime,kspTime,computeRhsTime,agingLawTime,rhsTime;
@@ -86,10 +82,21 @@ class UserContext {
   // write state
   PetscErrorCode writeParameters();
   PetscErrorCode writeOperators();
+<<<<<<< HEAD
   PetscErrorCode writeRateAndState();
   PetscErrorCode writeInitialStep();
   PetscErrorCode writeCurrentStep();
   PetscErrorCode writeCurrentState();
+=======
+
+  /*
+   * Output displacement, shear stress, and psi on fault and surface.
+   * Add current time to timeFile.
+   */
+  PetscErrorCode writeStep();
+  PetscErrorCode writeInitialStep();
+  PetscErrorCode writeRateAndState();
+>>>>>>> trialOutput
 
   PetscErrorCode printTiming();
 

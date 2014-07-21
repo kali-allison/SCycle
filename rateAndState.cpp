@@ -9,10 +9,9 @@
 /*
  * Computes rate and state friction as a function of input velocity
  * and relevant rate and state parameters.
- * ind = index corresponding to velocity input (used in a, psi, and s_NORM).
+ * ind = index corresponding to velocity input (used in a, psi, and sigma_N).
  * out = a.*asinh( (V ./ (2.*v0)) .* exp((psi)./p.a) )
  */
-//~PetscErrorCode rateAndStateFrictionScalar(const PetscInt ind, PetscScalar vel,PetscScalar *out, void * ctx)
 PetscErrorCode stressMstrength(const PetscInt ind,const PetscScalar vel,PetscScalar *out, void * ctx)
 {
   PetscErrorCode ierr;
@@ -20,15 +19,15 @@ PetscErrorCode stressMstrength(const PetscInt ind,const PetscScalar vel,PetscSca
   PetscScalar    psi,a,sigma_n,eta,tau;
   PetscInt       Istart,Iend;
 
-#if VERBOSE > 1
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting stressMstrength in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
   if ( (ind>=Istart) & (ind<Iend) ) {
     ierr = VecGetValues(D->tempPsi,1,&ind,&psi);CHKERRQ(ierr);
     ierr = VecGetValues(D->a,1,&ind,&a);CHKERRQ(ierr);
-    ierr = VecGetValues(D->s_NORM,1,&ind,&sigma_n);CHKERRQ(ierr);
+    ierr = VecGetValues(D->sigma_N,1,&ind,&sigma_n);CHKERRQ(ierr);
     ierr = VecGetValues(D->eta,1,&ind,&eta);CHKERRQ(ierr);
     ierr = VecGetValues(D->tau,1,&ind,&tau);CHKERRQ(ierr);
   }
@@ -37,6 +36,9 @@ PetscErrorCode stressMstrength(const PetscInt ind,const PetscScalar vel,PetscSca
   }
 
    *out = (PetscScalar) a*sigma_n*asinh( (double) (vel/2/D->v0)*exp(psi/a) ) + eta*vel - tau;
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_n,eta,tau,vel);
+#endif
   if (isnan(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
     ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_n,eta,tau,vel);
@@ -70,13 +72,13 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
   PetscScalar    b,vel;
   UserContext    *D = (UserContext *) ctx;
 
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"agingLaw, ind=%i\n",ind);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
 
   ierr = VecGetOwnershipRange(D->psi,&Istart,&Iend);
   if ( (ind>=Istart) & (ind<Iend) ) {
-    //~ierr = VecGetValues(D->psi,1,&ind,&psi);CHKERRQ(ierr);
     ierr = VecGetValues(D->b,1,&ind,&b);CHKERRQ(ierr);
-    ierr = VecGetValues(D->V,1,&ind,&vel);CHKERRQ(ierr);
+    ierr = VecGetValues(D->vel,1,&ind,&vel);CHKERRQ(ierr);
   }
   else {
     SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in agingLaw\n");
@@ -84,6 +86,7 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
 
   //~if (b==0) { *dPsi = 0; }
   if ( isinf(exp(1/b)) ) { *dPsi = 0; }
+  else if ( b <= 1e-3 ) { *dPsi = 0; }
   else {
     *dPsi = (PetscScalar) (b*D->v0/D->D_c)*( exp((double) ( (D->f0-psi)/b) ) - (vel/D->v0) );
   }
@@ -100,7 +103,6 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (D->f0-psi)/b) ));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/D->v0));
     CHKERRQ(ierr);
-    //~SETERRQ(PETSC_COMM_SELF,1,"agingLaw evaluated to nan");
   }
   else if (isinf(*dPsi)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*dPsi) evaluated to true\n");
@@ -109,7 +111,6 @@ PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dP
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*D->v0/D->D_c));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (D->f0-psi)/b) ));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/D->v0));
-    //~SETERRQ(PETSC_COMM_SELF,1,"agingLaw evaluated to inf");
   }
 
   assert(!isnan(*dPsi));
@@ -129,21 +130,16 @@ PetscErrorCode setRateAndState(UserContext &D)
   PetscScalar    v,y,z;
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setRateAndState in rateAndState.c\n");CHKERRQ(ierr);
 #endif
 
-  // Set normal stress along fault
-  PetscScalar s_NORMVal = 50.0;
-  ierr = VecDuplicate(D.a,&D.s_NORM);CHKERRQ(ierr);
-  ierr = VecSet(D.s_NORM,s_NORMVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.s_NORM);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.s_NORM);CHKERRQ(ierr);
+  // Set normal stress on fault
+  PetscScalar sigma_NVal = 50.0;
+  ierr = VecSet(D.sigma_N,sigma_NVal);CHKERRQ(ierr);
 
   // Set a
   PetscScalar aVal = 0.015;
   ierr = VecSet(D.a,aVal);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(D.a);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.a);CHKERRQ(ierr);
 
   // Set b
   PetscScalar L1 = D.H;  // Defines depth at which (a-b) begins to increase.
@@ -167,35 +163,27 @@ PetscErrorCode setRateAndState(UserContext &D)
   }
   ierr = VecAssemblyBegin(D.b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.b);CHKERRQ(ierr);
-  //~ierr = VecView(D.b,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
+  //ierr = VecSet(D.b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
   // set shear modulus
   Vec muVec;
+  PetscInt muInds[D.Ny*D.Nz];
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
+  //~ierr = VecGetOwnershipRange(muVec,&Istart,&Iend);CHKERRQ(ierr);
   PetscScalar r,rbar=0.25*D.W*D.W,rw=1+0.5*D.W/D.D;
   for (Ii=0;Ii<D.Ny*D.Nz;Ii++) {
     z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
     y = D.dy*(Ii/D.Nz);
     r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
     v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
-    D.muArr[Ii]=v;
+    D.muArr[Ii] = v;
+    muInds[Ii] = Ii;
   }
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
-    y = D.dy*(Ii/D.Nz);
-    r=y*y+(0.25*D.W*D.W/D.D/D.D)*z*z;
-    v = 0.5*(D.muOut-D.muIn)*(tanh((double)(r-rbar)/rw)+1) + D.muIn;
-
-    ierr = VecSetValues(muVec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
+  ierr = VecSetValues(muVec,D.Ny*D.Nz,muInds,D.muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
-  //~ierr = VecView(muVec,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecSet(muVec,D.muOut);CHKERRQ(ierr); // !!!!!!!!!!
 
   ierr = MatSetSizes(D.mu,PETSC_DECIDE,PETSC_DECIDE,D.Ny*D.Nz,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D.mu);CHKERRQ(ierr);
@@ -205,34 +193,31 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = MatDiagonalSet(D.mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
   // tau, psi, eta
-  PetscScalar psi,psi_p,a,b,eta,tau_inf,sigma_N,grShift;
+  PetscScalar a,b,eta,tau_inf,sigma_N,grShift;
   ierr = VecGetOwnershipRange(D.tau,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(D.a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(D.b,1,&Ii,&b);CHKERRQ(ierr);
-    ierr =  VecGetValues(D.s_NORM,1,&Ii,&sigma_N);CHKERRQ(ierr);
+    ierr =  VecGetValues(D.sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
-    psi_p = D.f0 - b*log(D.vp/D.v0);
+    //~psi_p = D.f0 - b*log(D.vp/D.v0);
     tau_inf = sigma_N*a*asinh( (double) 0.5*D.vp*exp(D.f0/a)/D.v0 );
     z = ((double) Ii)*D.dz;
     if (z < D.D) { eta = 0.5*sqrt(D.rhoIn*D.muArr[Ii]); }
     else { eta = 0.5*sqrt(D.rhoOut*D.muArr[Ii]); }
-    psi = a*log( 2*D.v0*sinh((double)(tau_inf-eta*D.vp)/(sigma_N*a))/D.vp );
+    //~psi = a*log( 2*D.v0*sinh((double)(tau_inf-eta*D.vp)/(sigma_N*a))/D.vp );
     grShift = tau_inf*D.Ly/D.muArr[Ii];
 
     ierr = VecSetValue(D.tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(D.eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);
-    //~ierr = VecSetValue(D.psi,Ii,psi,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(D.gRShift,Ii,grShift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(D.tau);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(D.eta);CHKERRQ(ierr);
-  //~ierr = VecAssemblyBegin(D.psi);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(D.gRShift);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(D.tau);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.eta);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(D.psi);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(D.gRShift);CHKERRQ(ierr);
 
   ierr = VecSet(D.psi,D.f0);
@@ -243,44 +228,3 @@ PetscErrorCode setRateAndState(UserContext &D)
 #endif
   return 0;
 }
-/*
-PetscErrorCode writeRateAndState(UserContext &D)
-{
-  PetscErrorCode ierr;
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeRateAndState in rateAndState.c\n");CHKERRQ(ierr);
-#endif
-
-  PetscViewer    viewer;
-  const char * outFileLoc;
-
-  std::string str = D.outFileRoot + "a"; outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.a,viewer);CHKERRQ(ierr);
-
-  str = D.outFileRoot + "b"; outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.b,viewer);CHKERRQ(ierr);
-
-  str = D.outFileRoot + "eta"; outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.eta,viewer);CHKERRQ(ierr);
-
-  str = D.outFileRoot + "sigma_N"; outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(D.s_NORM,viewer);CHKERRQ(ierr);
-
-  str = D.outFileRoot + "mu"; outFileLoc = str.c_str();
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,outFileLoc,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(D.mu,viewer);CHKERRQ(ierr);
-
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeRateAndState in rateAndState.c\n");CHKERRQ(ierr);
-#endif
-
-  return ierr;
-}
-*/
