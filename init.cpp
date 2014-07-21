@@ -22,7 +22,7 @@ PetscErrorCode setParameters(UserContext & ctx)
   ctx.vp = 1e-9; //(m/s) plate rate KLA: 1e-4, ORIG: 1e-9
   ctx.D_c = 8e-3; // (m) characteristic slip distance 0.008
 
-  ctx.muIn = 30; // (GPa) shear modulus inside basin; sed cycle: 8
+  ctx.muIn = 8; // (GPa) shear modulus inside basin; sed cycle: 8
   ctx.muOut = 30; // (GPa) shear modulus outside basin; sed cycle: 24
   ctx.D = ctx.H/3; // (km) basin depth
   ctx.W = 24; // (km) basin width
@@ -40,11 +40,11 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // time monitering
   ctx.strideLength = 1;
-  ctx.maxStepCount = 4e5;
-  //~ctx.maxStepCount = 10;
+  //ctx.maxStepCount = 1e8;
+  ctx.maxStepCount = 40;
   ctx.initTime = 6.3e9; // spring-slider:5e5 sed eqCycle:6.3e10
   ctx.currTime = ctx.initTime;
-  ctx.maxTime = ctx.initTime+5000*3.1556926e7;// brit: 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10; hom:3.7e10
+  ctx.maxTime = ctx.initTime+1e3*3.1556926e7;// brit: 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10; hom:3.7e10
   ctx.atol = 1e-6;
   ctx.minDeltaT = std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,1e-3);
   ctx.initDeltaT = ctx.minDeltaT;

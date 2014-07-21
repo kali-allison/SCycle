@@ -323,7 +323,7 @@ int sbpConvergence(int argc,char **args)
 int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ny=301, Nz=301, order=4;
+  PetscInt       Ny=401, Nz=401, order=4;
   PetscBool      loadMat = PETSC_FALSE;
 
   // allow command line user input to override defaults
@@ -332,8 +332,7 @@ int runEqCycle(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  UserContext D(order,Ny,Nz,"data/");
-  //UserContext D(order,Ny,Nz,"homnp1/Ny21_Nz21/");
+  UserContext D(order,Ny,Nz,"muIn8_muOut30/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
@@ -343,7 +342,6 @@ int runEqCycle(int argc,char **args)
   ierr = setInitialTimeStep(D);CHKERRQ(ierr);
   ierr = D.writeInitialStep();
 
-  //~OdeSolver ts = OdeSolver(D.maxStepCount,"FEULER");
   OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
   ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
   ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
