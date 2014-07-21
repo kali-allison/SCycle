@@ -293,7 +293,7 @@ PetscErrorCode UserContext::writeInitialStep()
 
   double startTime = MPI_Wtime();
 
-  PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
+  PetscViewerASCIIPrintf(timeViewer, "%.15e\n", currTime);
   ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
   ierr = VecView(vel,velViewer);CHKERRQ(ierr);
@@ -352,7 +352,7 @@ PetscErrorCode UserContext::writeStep()
   //~ierr = PetscViewerHDF5PopGroup(viewer);CHKERRQ(ierr);
 
 
-  PetscViewerASCIIPrintf(timeViewer, "%f\n", currTime);
+  PetscViewerASCIIPrintf(timeViewer, "%.15e\n", currTime);
 
   ierr = VecView(faultDisp,faultDispViewer);CHKERRQ(ierr);
   ierr = VecView(surfDisp,surfDispViewer);CHKERRQ(ierr);
