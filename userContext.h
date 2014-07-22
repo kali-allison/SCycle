@@ -15,9 +15,6 @@ class UserContext {
   PetscViewer    timeViewer,surfDispViewer,faultDispViewer,velViewer,tauViewer,psiViewer;
   PetscViewer  viewer;
 
-  // input data tree
-  std::string inFileRoot;
-
   // SBP operator order
   PetscInt       order;
 
@@ -53,12 +50,8 @@ class UserContext {
   PetscInt       rootIts; // total number of iterations
 
   // time stepping data
-<<<<<<< HEAD
-  OdeSolver      solver;
-=======
->>>>>>> trialOutput
   Vec            faultDisp,dpsi,*var,surfDisp;
-  PetscInt       writeStride,checkpointStride; // stride for writing data, checkpointing
+  PetscInt       strideLength; // stride
   PetscInt       maxStepCount; // largest number of time steps
   PetscReal      initTime,currTime,maxTime,minDeltaT,maxDeltaT;
   int            count;
@@ -78,16 +71,12 @@ class UserContext {
    * Set values for model dimensions.
    */
   friend PetscErrorCode setParameters(UserContext * ctx);
-
-  // write state
   PetscErrorCode writeParameters();
+
+  /*
+   * Output A, Dy_Iz.
+   */
   PetscErrorCode writeOperators();
-<<<<<<< HEAD
-  PetscErrorCode writeRateAndState();
-  PetscErrorCode writeInitialStep();
-  PetscErrorCode writeCurrentStep();
-  PetscErrorCode writeCurrentState();
-=======
 
   /*
    * Output displacement, shear stress, and psi on fault and surface.
@@ -96,7 +85,6 @@ class UserContext {
   PetscErrorCode writeStep();
   PetscErrorCode writeInitialStep();
   PetscErrorCode writeRateAndState();
->>>>>>> trialOutput
 
   PetscErrorCode printTiming();
 
@@ -106,10 +94,7 @@ class UserContext {
    */
   PetscErrorCode saveCurrentPlace();
 
-  PetscErrorCode loadCurrentState();
-  PetscErrorCode loadParameters();
-  PetscErrorCode loadOperators();
-  PetscErrorCode loadRateAndState();
+  PetscErrorCode loadCurrentPlace();
 
   private:
     // disable default copy constructor and assignment operator

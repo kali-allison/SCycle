@@ -1,27 +1,13 @@
 #include <petscts.h>
 #include <iostream>
 #include <string>
-#include <sstream>
-#include <fstream>
 #include "odeSolver.h"
-//~#include "userContext.h"
+#include "userContext.h"
 
 using namespace std;
 
 
 //================= constructors and destructor ========================
-
-OdeSolver::OdeSolver()
-:_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
-_atol(1.0e-9),_reltol(1.0e-9),
-_maxNumSteps(0),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
-_solverType("FEULER"),_sourceFile(""),
-_var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL),
-_runTime(0)
-{
-  _rhsFunc = &tempRhsFunc;
-  _timeMonitor = &tempTimeMonitor;
-}
 
 OdeSolver::OdeSolver(PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
@@ -40,8 +26,7 @@ OdeSolver::OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,string solverType)
 _atol(1.0e-9),_reltol(1.0e-9),
 _maxNumSteps(maxNumSteps),_stepCount(0),
 _solverType(solverType),_sourceFile(""),
-_var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL),
-_runTime(0)
+_var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 {
   _rhsFunc = &tempRhsFunc;
   _timeMonitor = &tempTimeMonitor;
@@ -171,7 +156,7 @@ PetscErrorCode OdeSolver::viewSolver()
                      _minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total number of steps taken: %i/%i\n",
                      _stepCount,_maxNumSteps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   final time reached: %.15e\n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   final time reached: %g\n",
                      _currT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   tolerance: %g\n",
                      _atol);CHKERRQ(ierr);
@@ -190,42 +175,37 @@ PetscErrorCode OdeSolver::viewSolver()
 PetscErrorCode OdeSolver::debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *str)
 {
   PetscErrorCode ierr = 0;
-  //~PetscInt       Istart,Iend;
-  //~PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
-  //~UserContext    *D = (UserContext*) _userContext;
-  //~PetscScalar k = D->muOut/2/D->Ly;
-//~
-  //~ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = VecGetValues(var[0],1,&Istart,&uVal);CHKERRQ(ierr);
-  //~ierr = VecGetValues(var[1],1,&Istart,&psiVal);CHKERRQ(ierr);
-//~
-  //~ierr= VecGetOwnershipRange(dvar[0],&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = VecGetValues(dvar[0],1,&Istart,&velVal);CHKERRQ(ierr);
-  //~ierr = VecGetValues(dvar[1],1,&Istart,&dQVal);CHKERRQ(ierr);
-//~
-  //~ierr= VecGetOwnershipRange(D->gR,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = VecGetValues(D->gR,1,&Istart,&gRval);CHKERRQ(ierr);
-//~
-  //~PetscScalar tauVal;
-  //~ierr = VecGetValues(D->tau,1,&Istart,&tauVal);CHKERRQ(ierr);
-  //ierr = PetscPrintf(PETSC_COMM_WORLD,"tau = %e\n",tauVal);CHKERRQ(ierr);
-//~
-  //~if (steps == 0) {
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-15s\n",
-                       //~"Step","Stage","gR","D","Q","VL","V","dQ");
-    //~CHKERRQ(ierr);
-  //~}
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %6s | %.9e %.9e %.9e | %.9e %.9e %.9e\n",
-                     //~_stepCount,str,2*gRval*k,uVal,psiVal,D->vp/2,velVal,dQVal);CHKERRQ(ierr);
-//~
-//~
+  PetscInt       Istart,Iend;
+  PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
+  UserContext    *D = (UserContext*) _userContext;
+  PetscScalar k = D->muOut/2/D->Ly;
+
+  ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(var[0],1,&Istart,&uVal);CHKERRQ(ierr);
+  ierr = VecGetValues(var[1],1,&Istart,&psiVal);CHKERRQ(ierr);
+
+  ierr= VecGetOwnershipRange(dvar[0],&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(dvar[0],1,&Istart,&velVal);CHKERRQ(ierr);
+  ierr = VecGetValues(dvar[1],1,&Istart,&dQVal);CHKERRQ(ierr);
+
+  ierr= VecGetOwnershipRange(D->gR,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(D->gR,1,&Istart,&gRval);CHKERRQ(ierr);
+
+  PetscScalar tauVal;
+  ierr = VecGetValues(D->tau,1,&Istart,&tauVal);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"tau = %e\n",tauVal);CHKERRQ(ierr);
+
+  if (steps == 0) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-15s\n",
+                       "Step","Stage","gR","D","Q","VL","V","dQ");
+    CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %6s | %.9e %.9e %.9e | %.9e %.9e %.9e\n",
+                     _stepCount,str,2*gRval*k,uVal,psiVal,D->vp/2,velVal,dQVal);CHKERRQ(ierr);
+
+
 
   return ierr;
-}
-
-double OdeSolver::viewRunTime()
-{
-  return _runTime;
 }
 
 //================= perform actual integration =========================
@@ -330,8 +310,8 @@ PetscErrorCode OdeSolver::odeRK32()
   PetscReal      err[_lenVar],totErr=0.0;
   PetscInt       size;
 
-  if (_finalT==_currT) { return ierr; }
-  else if (_deltaT==0) { _deltaT = (_finalT-_currT)/_maxNumSteps; }
+  if (_finalT==_initT) { return ierr; }
+  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   // containers for intermediate results
   Vec *varHalfdT,*dvarHalfdT,*vardT,*dvardT,*var2nd,*dvar2nd,*var3rd,*errVec;
@@ -463,107 +443,6 @@ PetscErrorCode OdeSolver::odeRK32()
 
   return ierr;
 }
-
-//================= checkpointing functions ================================
-
-PetscErrorCode OdeSolver::saveOdeSolver()
-{
-  PetscErrorCode ierr = 0;
-
-  #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting saveOdeSolver in odeSolver.cpp\n");CHKERRQ(ierr);
-#endif
-
-  //~std::string str = outFileRoot + "odeSolverContext.txt";
-  const char * outFileLoc = "data/odeSolverContext.txt";//str.c_str();
-  PetscViewer    outviewer;
-
-  PetscViewerCreate(PETSC_COMM_WORLD, &outviewer);
-  PetscViewerSetType(outviewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(outviewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(outviewer, outFileLoc);
-
-  ierr = PetscViewerASCIIPrintf(outviewer,"initT = %.15e\n",_initT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"currT = %.15e\n",_currT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"finalT = %.15e\n",_finalT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"deltaT = %.15e\n",_deltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"minDeltaT = %.15e\n",_minDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"maxDeltaT = %.15e\n",_maxDeltaT);CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIPrintf(outviewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"reltol = %.15e\n",_reltol);CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIPrintf(outviewer,"maxNumSteps = %i\n",_maxNumSteps);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"stepCount = %i\n",_stepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"numRejectedSteps = %i\n",_numRejectedSteps);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"numMinSteps = %i\n",_numMinSteps);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"numMaxSteps = %i\n",_numMaxSteps);CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIPrintf(outviewer,"solverType = %s\n",_solverType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(outviewer,"runTime = %.15e\n",_runTime);CHKERRQ(ierr);
-
-
-  PetscViewerDestroy(&outviewer);
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending saveOdeSolver in odeSolver.cpp\n");CHKERRQ(ierr);
-#endif
-
-  return ierr;
-}
-
-PetscErrorCode OdeSolver::resumeOdeSolver()
-{
-  PetscErrorCode ierr = 0;
-
-  #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting resumeOdeSolver in odeSolver.cpp\n");CHKERRQ(ierr);
-#endif
-
-  ifstream infile( ("inData/odeSolverContext.txt") );
-  string line,var;
-  string delim = " = ";
-  size_t pos = 0;
-  while (getline(infile, line))
-  {
-    istringstream iss(line);
-    pos = line.find(delim); // find position of delimiter
-    var = line.substr(0,pos);
-
-    if (var=="initT") { _initT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="currT") { _currT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="finalT") { _finalT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="deltaT") { _deltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="minDeltaT") { _minDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="maxDeltaT") { _maxDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-
-    if (var=="atol") { _atol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="reltol") { _reltol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-
-    if (var=="maxNumSteps") { _maxNumSteps = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="stepCount") { _stepCount = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="numRejectedSteps") { _numRejectedSteps = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="numMinSteps") { _numMinSteps = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-    if (var=="numMaxSteps") { _numMaxSteps = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-
-    if (var=="solverType") { _solverType = (line.substr(pos+delim.length(),line.npos) ); }
-    if (var=="runTime") { _runTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-  }
-
-    if (_stepCount<_maxNumSteps && _currT<_finalT) {
-      ierr = runOdeSolver();CHKERRQ(ierr);
-    }
-
-    _runTime += 5.00;
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending resumeOdeSolver in odeSolver.cpp\n");CHKERRQ(ierr);
-#endif
-
-
-  return ierr;
-}
-
 
 //================= placehold functions ================================
 PetscErrorCode tempRhsFunc(const PetscReal time, const int lenVar, Vec *var, Vec *dvar, void*userContext)

@@ -1,6 +1,5 @@
 #include <petscts.h>
 #include <string>
-#include "odeSolver.h"
 #include "userContext.h"
 #include "debuggingFuncs.hpp"
 #include "linearSysFuncs.h"
@@ -10,10 +9,6 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
 {
   PetscErrorCode ierr = 0;
 
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setLinearSystem in linearSysFuncs.cpp.\n");CHKERRQ(ierr);
-#endif
-
   // SBP operators and penalty terms
   D.alphaF = -13.0/D.dy;
   D.alphaR = -13.0/D.dy;
@@ -21,7 +16,7 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   D.alphaD = -1.0;
   D.beta   = 1.0;
 
-  if (loadMat) { ierr = D.loadOperators();CHKERRQ(ierr); }
+  if (loadMat) { ierr = loadOperators(D);CHKERRQ(ierr); }
   else { ierr = createOperators(D);CHKERRQ(ierr);}
 
   //~ierr = KSPSetType(D.ksp,KSPGMRES);CHKERRQ(ierr);
@@ -33,7 +28,7 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
 
   // use PETSc's direct LU - only available on 1 processor!!!
-  ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
+  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
   //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
@@ -42,16 +37,12 @@ PetscErrorCode setLinearSystem(UserContext &D, const PetscBool loadMat)
   //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  //~PCSetType(D.pc,PCLU);
-  //~PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
-  //~PCFactorSetUpMatSolverPackage(D.pc);
+  PCSetType(D.pc,PCLU);
+  PCFactorSetMatSolverPackage(D.pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(D.pc);
 
   ierr = KSPSetUp(D.ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(D.ksp);CHKERRQ(ierr);
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setLinearSystem in linearSysFuncs.cpp.\n");CHKERRQ(ierr);
-#endif
 
   return ierr;
 }

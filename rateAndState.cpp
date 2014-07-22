@@ -2,7 +2,6 @@
 #include <string>
 #include <assert.h>
 #include <limits>
-#include "odeSolver.h"
 #include "userContext.h"
 #include "rateAndState.h"
 
@@ -223,8 +222,14 @@ PetscErrorCode setRateAndState(UserContext &D)
   ierr = VecSet(D.psi,D.f0);
   ierr = VecCopy(D.psi,D.tempPsi);CHKERRQ(ierr);
 
+
+  ierr = VecDestroy(&muVec);CHKERRQ(ierr);
+
+
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending rateAndStateConstParams in rateAndState.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setRateAndState in rateAndState.c\n");CHKERRQ(ierr);
 #endif
   return 0;
 }
+
+

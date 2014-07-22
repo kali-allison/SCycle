@@ -1,25 +1,15 @@
 #include <petscts.h>
 #include <string>
-#include <sstream>
-#include <fstream>
-#include "odeSolver.h"
 #include "userContext.h"
 #include "init.hpp"
 
-using namespace std;
-
-PetscErrorCode setParameters(UserContext &ctx)
+PetscErrorCode setParameters(UserContext & ctx)
 {
   //~ ctx->outFileRoot = "./data/";
 
   // domain geometry initialization
-<<<<<<< HEAD
-  ctx.Ly = 72; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50; (ctx.Ny-1)*0.06;
-  ctx.Lz = 24; // (km) z in [0,Lz]; (ctx.Nz-1)*0.06;
-=======
   ctx.Ly = 24.0; // (km) length of fault, y in [0,Ly]; 0.06 = hask/50
   ctx.Lz = 24.0; // (km) z in [0,Lz]
->>>>>>> trialOutput
   ctx.H = 12; // (km) This is the depth as which (a-b) begins to increase 12 km
   ctx.N  = ctx.Nz*ctx.Ny;
   ctx.dy = ctx.Ly/(ctx.Ny-1.0); // (km)
@@ -63,3 +53,4 @@ PetscErrorCode setParameters(UserContext &ctx)
 
   return 0;
 }
+
