@@ -241,7 +241,7 @@ PetscErrorCode UserContext::writeOperators()
 
   PetscViewer    viewer;
 
-  std::string str =  outFileRoot + "A";
+  std::string str =  outFileRoot + "matA";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(A,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
