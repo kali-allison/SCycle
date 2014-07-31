@@ -332,6 +332,7 @@ int runEqCycle(int argc,char **args)
   ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
   ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
+  //UserContext D(order,Ny,Nz,"/data/dunham/kallison/muIn8_muOut30/order4/Ny1201_Nz401/Dc4e-3/");
   UserContext D(order,Ny,Nz,"data/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);

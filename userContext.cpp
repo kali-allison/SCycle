@@ -185,34 +185,34 @@ PetscErrorCode UserContext::writeParameters()
   // domain geometry
   ierr = PetscViewerASCIIPrintf(viewer,"Ny = %i\n",Ny);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Nz = %i\n",Nz);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Ly = %f\n",Ly);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Lz = %f\n",Lz);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"H = %f\n",H);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dy = %f\n",dy);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dz = %f\n",dz);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Ly = %g\n",Ly);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g\n",Lz);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"H = %g\n",H);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"dy = %g\n",dy);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"dz = %g\n",dz);CHKERRQ(ierr);
 
   // parameters
-  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %f\n",f0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %f\n",v0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"vp = %f\n",vp);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"D_c = %f\n",D_c);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"muIn = %f\n",muIn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"muOut = %f\n",muOut);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"rhoIn = %f\n",rhoIn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"rhoOut = %f\n",rhoOut);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"D = %f\n",D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"W = %f\n",W);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %g\n",f0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %e\n",v0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vp = %e\n",vp);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"D_c = %g\n",D_c);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"muIn = %g\n",muIn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"muOut = %g\n",muOut);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rhoIn = %g\n",rhoIn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rhoOut = %g\n",rhoOut);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"D = %g\n",D);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"W = %g\n",W);CHKERRQ(ierr);
 
   // tolerances for linear and nonlinear (for vel) solve
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %f\n",kspTol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %f\n",rootTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %g\n",kspTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %g\n",rootTol);CHKERRQ(ierr);
 
   // time monitering
   ierr = PetscViewerASCIIPrintf(viewer,"strideLength = %i\n",strideLength);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",maxStepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e\n",initTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e\n",maxTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %f\n",atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"atol = %g\n",atol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e\n",initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e\n",minDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e\n",maxDeltaT);CHKERRQ(ierr);

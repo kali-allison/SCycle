@@ -17,7 +17,6 @@ ex12: ex12.o
 #.PHONY : clean
 clean::
 	-rm -f *.o main
-	-rm -f data/*
 
 depend:
 	-g++ -MM *.c*
