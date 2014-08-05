@@ -1,6 +1,6 @@
 #!/bin/bash
-#PBS -N order4
-#PBS -l nodes=2:ppn=16
+#PBS -N eqCycle
+#PBS -l nodes=4:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
@@ -12,4 +12,4 @@
 EXEC_DIR=/data/dunham/kallison/eqCycle
 cd $PBS_O_WORKDIR
 
-mpirun $EXEC_DIR/main -order 2 -Ny 401 -Nz 401
+mpirun $EXEC_DIR/main -order 2 -Ny 2001 -Nz 2001

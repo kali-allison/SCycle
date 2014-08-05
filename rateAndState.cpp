@@ -166,7 +166,8 @@ PetscErrorCode setRateAndState(UserContext &D)
 
   // set shear modulus
   Vec muVec;
-  PetscInt muInds[D.Ny*D.Nz];
+  PetscInt *muInds;//[D.Ny*D.Nz];
+  ierr = PetscMalloc(D.Ny*D.Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,D.Ny*D.Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);

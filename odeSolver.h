@@ -48,7 +48,9 @@ class OdeSolver
   private:
 
     PetscReal     _initT,_finalT,_currT,_deltaT,_minDeltaT,_maxDeltaT;
-    PetscReal     _atol,_reltol;
+    PetscReal     _atol,_reltol; // absolute and relative tolerances
+    PetscReal     _kappa; // safety factor in step size determinance
+    PetscReal     _absErr[3]; // safety factor in step size determinance
     PetscInt      _maxNumSteps,_stepCount,_numRejectedSteps,_numMinSteps,_numMaxSteps;
     std::string   _solverType,_sourceFile;
     Vec           *_var,*_dvar;
@@ -61,6 +63,8 @@ class OdeSolver
     PetscErrorCode odeFEULER();
     PetscErrorCode odeMANUAL();
     PetscErrorCode odeRK32();
+
+    PetscReal computeStep(const PetscReal order,const PetscReal totErr);
 
 
   public:

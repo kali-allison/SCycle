@@ -11,23 +11,25 @@ using namespace std;
 
 OdeSolver::OdeSolver(PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(0),_currT(0),_deltaT(0),_minDeltaT(1e-14),_maxDeltaT(1e-14),
-_atol(1.0e-9),_reltol(1.0e-9),
+_atol(1.0e-9),_reltol(1.0e-9),_kappa(0.9),
 _maxNumSteps(maxNumSteps),_stepCount(0),_numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0),
 _solverType(solverType),_sourceFile(""),
 _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL),
 _runTime(0)
 {
+  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
   _rhsFunc = &tempRhsFunc;
   _timeMonitor = &tempTimeMonitor;
 }
 
 OdeSolver::OdeSolver(PetscScalar finalT,PetscInt maxNumSteps,string solverType)
 :_initT(0),_finalT(finalT),_currT(0),_deltaT(finalT/maxNumSteps),_minDeltaT(1e-14),_maxDeltaT(finalT/10.0),
-_atol(1.0e-9),_reltol(1.0e-9),
+_atol(1.0e-9),_reltol(1.0e-9),_kappa(0.9),
 _maxNumSteps(maxNumSteps),_stepCount(0),
 _solverType(solverType),_sourceFile(""),
 _var(NULL),_dvar(NULL),_lenVar(0),_userContext(NULL)
 {
+  //~_absErr[3] = {0};
   _rhsFunc = &tempRhsFunc;
   _timeMonitor = &tempTimeMonitor;
 }
@@ -310,6 +312,10 @@ PetscErrorCode OdeSolver::odeRK32()
   PetscReal      err[_lenVar],totErr=0.0;
   PetscInt       size;
 
+  // step size controls
+  PetscReal      ord=2.0,kappa=0.9,alpha = 1.0/(1.0+ord);
+  PetscReal      absErr[3] = {0,0,0},stepRatio=1.0;
+
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
@@ -333,7 +339,6 @@ PetscErrorCode OdeSolver::odeRK32()
 
   // set initial condition
   ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);CHKERRQ(ierr);
-  //~debug(_currT,_stepCount,_var,_dvar,"IC");
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -346,7 +351,6 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecWAXPY(varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
       ierr = _rhsFunc(_currT+0.5*_deltaT,_lenVar,varHalfdT,dvarHalfdT,_userContext);
-      //~debug(_currT+0.5*_deltaT,_stepCount,varHalfdT,dvarHalfdT,"t+dt/2");
 
       // stage 2: integrate fields to _currT + _deltaT
       for (int ind=0;ind<_lenVar;ind++) {
@@ -354,7 +358,6 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecAXPY(vardT[ind],2*_deltaT,dvarHalfdT[ind]);CHKERRQ(ierr);
       }
       ierr = _rhsFunc(_currT+_deltaT,_lenVar,vardT,dvardT,_userContext);
-      //~debug(_currT+_deltaT,_stepCount,vardT,dvardT,"t+dt");
 
       // 2nd and 3rd order update
       for (int ind=0;ind<_lenVar;ind++) {
@@ -365,8 +368,6 @@ PetscErrorCode OdeSolver::odeRK32()
         ierr = VecAXPY(var3rd[ind],2*_deltaT/3.0,dvarHalfdT[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(var3rd[ind],_deltaT/6.0,dvardT[ind]);CHKERRQ(ierr);
       }
-      //~debug(_currT+_deltaT,_stepCount,var2nd,dvardT,"Y2");
-      //~debug(_currT+_deltaT,_stepCount,var3rd,dvardT,"Y3");
 
       // calculate error
       totErr = 0.0;
@@ -384,22 +385,19 @@ PetscErrorCode OdeSolver::odeRK32()
         totErr += err[ind]/size;
       }
       totErr = sqrt(totErr);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"totErr=%7e\n",totErr);CHKERRQ(ierr);
 
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"  attemptCount =  %d, totErr = %g, currT = %g,_deltaT=%g\n",
-                         //~attemptCount,totErr,_currT,_deltaT);CHKERRQ(ierr);
 
       if (totErr<_atol) { break; }
+      _deltaT = computeStep(ord,totErr);
       // else: step is unacceptable, so modify time step
-      _deltaT = min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
-      _deltaT = max(_minDeltaT,_deltaT);
+      //~_deltaT = min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
+      //~_deltaT = max(_minDeltaT,_deltaT);
       if (_minDeltaT == _deltaT) {
         _numMinSteps++;
         break;
       }
       else if (_maxDeltaT == _deltaT) {
         _numMaxSteps++;
-        //~break;
       }
 
       _numRejectedSteps++;
@@ -411,11 +409,11 @@ PetscErrorCode OdeSolver::odeRK32()
       ierr = VecCopy(var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
     ierr = _rhsFunc(_currT,_lenVar,_var,_dvar,_userContext);
-    //~debug(_currT+_deltaT,_stepCount,_var,_dvar,"Y3 F");
 
     if (totErr!=0.0) {
-      _deltaT=min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
-      _deltaT = max(_minDeltaT,_deltaT);
+      _deltaT = computeStep(ord,totErr);
+      //~_deltaT=min(_maxDeltaT,0.9*_deltaT*pow(_atol/totErr,1.0/3.0));
+      //~_deltaT = max(_minDeltaT,_deltaT);
       if (_minDeltaT == _deltaT) {
         _numMinSteps++;
       }
@@ -442,6 +440,46 @@ PetscErrorCode OdeSolver::odeRK32()
   delete[] errVec;
 
   return ierr;
+}
+
+
+PetscReal OdeSolver::computeStep(const PetscReal order,const PetscReal totErr)
+{
+  PetscReal stepRatio;
+
+
+  // if using integral feedback controller (I)
+  PetscReal alpha = 1./(1.+order);
+  stepRatio = _kappa*pow(_atol/totErr,alpha);
+
+/*
+  //if using proportional-integral-derivative feedback (PID)
+  _absErr[(_stepCount-1)%3] = totErr;
+
+  PetscReal alpha = 0.49/order;
+  PetscReal beta  = 0.34/order;
+  PetscReal gamma = 0.1/order;
+
+  if (_stepCount < 4) {
+    stepRatio = _kappa*pow(_atol/totErr,1./(1.+order));
+  }
+  else {
+    stepRatio = _kappa*pow(_atol/_absErr[(_stepCount-1)%3],alpha)
+                           *pow(_atol/_absErr[(_stepCount-2)%3],beta)
+                           *pow(_atol/_absErr[(_stepCount-3)%3],gamma);
+  }
+*/
+
+    //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
+                //~_stepCount,_absErr[0],_absErr[1],_absErr[2]);
+
+  PetscReal deltaT = stepRatio*_deltaT;
+
+  // respect bounds on min and max possible step size
+  deltaT=min(_maxDeltaT,deltaT);
+  deltaT = max(_minDeltaT,deltaT);
+
+  return deltaT;
 }
 
 //================= placehold functions ================================

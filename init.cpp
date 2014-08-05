@@ -34,17 +34,17 @@ PetscErrorCode setParameters(UserContext & ctx)
 
   // tolerances for linear and nonlinear solve (for vel)
   ctx.kspTol = 1e-6;
-  ctx.rootTol = 1e-9;
+  ctx.rootTol = 1e-6;
 
   // time monitering
   ctx.strideLength = 10;
   ctx.maxStepCount = 1e8;
-  //~ctx.maxStepCount = 40;
+  //~ctx.maxStepCount = 10;
   ctx.initTime = 6.3e9; // spring-slider:5e5 sed eqCycle:6.3e10
   ctx.currTime = ctx.initTime;
   ctx.maxTime = ctx.initTime+5e3*3.1556926e7;// brit: 5000.*3.1556926e7; spring-slider:5e+05, sed cycle: 6e10; hom:3.7e10
-  ctx.atol = 1e-9;
-  ctx.minDeltaT = 1e-6;//std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,1e-3);
+  ctx.atol = 1e-6;
+  ctx.minDeltaT = 1e-4;//std::min(0.5*std::min(ctx.Ly/ctx.Ny,ctx.Lz/ctx.Nz)/ctx.cs,1e-3);
   ctx.initDeltaT = ctx.minDeltaT;
   ctx.maxDeltaT = 1e7;
 
