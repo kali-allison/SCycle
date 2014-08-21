@@ -1,6 +1,10 @@
 #ifndef ROOTFINDINGSCALAR_H_INCLUDED
 #define ROOTFINDINGSCALAR_H_INCLUDED
 
+#include <petscts.h>
+#include <assert.h>
+
+
 PetscErrorCode exFunc(const PetscInt ind, PetscScalar in,PetscScalar *out, void * ctx);
 
 PetscErrorCode funcPrime(PetscScalar in, PetscScalar *out);

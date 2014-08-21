@@ -1,11 +1,4 @@
-#include <petscts.h>
-#include <string>
-#include <cmath>
-#include "odeSolver.h"
-#include "userContext.h"
 #include "debuggingFuncs.hpp"
-
-using namespace std;
 
 PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
 {

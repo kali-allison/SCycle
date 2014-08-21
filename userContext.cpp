@@ -1,8 +1,3 @@
-#include <petscts.h>
-#include <petscviewerhdf5.h>
-//~#include <iostream>
-#include <sstream>
-#include <string>
 #include "userContext.h"
 
 // constructor

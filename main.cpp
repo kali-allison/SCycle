@@ -1,19 +1,15 @@
 #include <petscts.h>
 #include <petscviewerhdf5.h>
-#include <iostream>
-#include <sstream>
 #include <string>
-#include "userContext.h"
-#include "init.hpp"
-#include "rateAndState.h"
-#include "rootFindingScalar.h"
-#include "debuggingFuncs.hpp"
-#include "linearSysFuncs.h"
-#include "timeStepping.h"
-#include "odeSolver.h"
+
+#include "domain.hpp"
+//~#include "odeSolver.hpp"
+#include "lithosphere.hpp"
+
+
 
 using namespace std;
-
+/*
 // For preconditioner experimentation
 int linearSolveTests(int argc,char **args)
 {
@@ -94,7 +90,7 @@ PetscViewer outviewer;
 
   ierr = KSPView(D.ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = PCView(D.pc,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
+*/
 
 
 
@@ -110,48 +106,27 @@ PetscViewer outviewer;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nits = %d, time =%g\n",its,(endTime-startTime)/maxCount);CHKERRQ(ierr);
   */
 
-  return ierr;
-}
+  //~return ierr;
+//~}
 
-
+/*
 int runTests(int argc,char **args)
 {
 
   PetscErrorCode ierr = 0;
-  PetscInt       Ny=5, Nz=7, order=2;
-  PetscBool      loadMat = PETSC_FALSE;
-  ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
 
-  //~PetscScalar Hinvy[Ny];
-  //~ierr = SBPopsArrays(2,Ny,0.5,Hinvy);CHKERRQ(ierr);
-  //~ierr = printMyArray(Hinvy, Ny);CHKERRQ(ierr);
+  Domain domain("init.txt");
+  domain.write();
 
-  //~PetscInt rows[Ny];
-  //~for (PetscInt ind=0;ind<Ny;ind++){
-    //~rows[ind]=ind;
-  //~}
-  //~PetscInt Ii,Istart,Iend;
+  Lithosphere lith(domain);
 
-  /* Try making things faster with arrays!!!*/
-  Mat Iy_Hinvz;
-  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,Ny*Nz,Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
-  //~ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = MatSetValues(Iy_Hinvz,1,&Istart,Ny,rows,Hinvy,INSERT_VALUES);CHKERRQ(ierr);
-  //~for (Ii=Istart;Ii<Nz;Ii++) {
-    //~ierr = MatSetValues(Hinvy_Iz_e0y_Iz,1,&Ii,1,&Ii,&(Hinvy[0]),INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  //~ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Fault fault(domain);
+  VecView(fault._vel,PETSC_VIEWER_STDOUT_WORLD);
 
-  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~VecSet(fault._var[0],
+  VecView(fault._vel,PETSC_VIEWER_STDOUT_WORLD);
+
+
 
   return ierr;
 }
@@ -318,49 +293,22 @@ int sbpConvergence(int argc,char **args)
                      D.order,D.Ny,D.Nz,D.dy,D.dz,err);CHKERRQ(ierr);
 
   return ierr;
-}
+}*/
 
 int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ny=401, Nz=401, order=4;
-  PetscBool      loadMat = PETSC_FALSE;
 
-  // allow command line user input to override defaults
-  ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
+  Domain domain("init.txt");
+  domain.write();
 
-  //UserContext D(order,Ny,Nz,"/data/dunham/kallison/muIn8_muOut30/order4/Ny1201_Nz401/Dc4e-3/");
-  UserContext D(order,Ny,Nz,"data/");
-  ierr = setParameters(D);CHKERRQ(ierr);
-  ierr = D.writeParameters();CHKERRQ(ierr);
-  ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = D.writeRateAndState();CHKERRQ(ierr);
-  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
-  ierr = D.writeOperators();CHKERRQ(ierr);
-  ierr = setInitialTimeStep(D);CHKERRQ(ierr);
-  ierr = D.writeInitialStep();
-
-  OdeSolver ts = OdeSolver(D.maxStepCount,"RK32");
-  ierr = ts.setInitialConds(D.var,2);CHKERRQ(ierr);
-  ierr = ts.setTimeRange(D.initTime,D.maxTime);CHKERRQ(ierr);
-  ierr = ts.setTolerance(D.atol);CHKERRQ(ierr);
-  ierr = ts.setStepSize(D.initDeltaT);CHKERRQ(ierr);
-  ierr = ts.setTimeStepBounds(D.minDeltaT,D.maxDeltaT);CHKERRQ(ierr);
-  ierr = ts.setRhsFunc(rhsFunc);CHKERRQ(ierr);
-  ierr = ts.setUserContext(&D);CHKERRQ(ierr);
-  ierr = ts.setTimeMonitor(timeMonitor);CHKERRQ(ierr);
+  Lithosphere lith(domain);
+  ierr = lith.writeStep();CHKERRQ(ierr);
+  ierr = lith.integrate();CHKERRQ(ierr);
+  ierr = lith.view();CHKERRQ(ierr);
 
 
-  ierr = ts.runOdeSolver();CHKERRQ(ierr);
-
-  ierr = ts.viewSolver();CHKERRQ(ierr);
-
-
-
-  return 0;
+  return ierr;
 }
 
 int main(int argc,char **args)

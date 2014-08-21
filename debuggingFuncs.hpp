@@ -1,6 +1,13 @@
 #ifndef DEBUGGINGFUNCS_H_INCLUDED
 #define DEBUGGINGFUNCS_H_INCLUDED
 
+#include <petscts.h>
+#include <cmath>
+#include <string>
+#include "userContext.h"
+
+using namespace std;
+
 PetscErrorCode checkMatrix(Mat *mat,std::string fileLoc,std::string name, UserContext *D);
 
 /*

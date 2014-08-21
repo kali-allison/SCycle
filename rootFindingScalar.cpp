@@ -1,5 +1,3 @@
-#include <petscts.h>
-#include <assert.h>
 #include "rootFindingScalar.h"
 
 // Example function used for testing the rootfinding methods below.

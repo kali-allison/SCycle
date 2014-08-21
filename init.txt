@@ -1,0 +1,31 @@
+
+order = 2
+Ny = 401
+Nz = 401
+Ly = 24
+Lz = 24
+
+Dc = 8e-3
+
+bAbove = 0.02
+bBelow = 0.0
+muIn = 8
+muOut = 36
+rhoIn = 2
+rhoOut = 2.8
+depth = 4
+width = 24
+seisDepth = 12
+
+strideLength = 1
+maxStepCount = 10
+initTime = 6.3e9
+maxTime = 8e11
+minDeltaT = 1e-3
+maxDeltaT = 1e7
+atol = 1e-5
+
+kspTol = 1e-6
+rootTol = 1e-9
+
+outputDir = data/

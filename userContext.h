@@ -3,6 +3,12 @@
 
 #define STRINGIFY(name) #name
 
+#include <petscts.h>
+#include <petscviewerhdf5.h>
+#include <iostream>
+#include <sstream>
+#include <string>
+
 class UserContext {
 
   public:
