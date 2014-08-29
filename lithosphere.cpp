@@ -188,25 +188,29 @@ PetscErrorCode Lithosphere::setupKSP()
   //~ierr = KSPSetOperators(_ksp,_A,_A,SAME_PRECONDITIONER);CHKERRQ(ierr);
   //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
 
-  ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
-  ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+
 
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
-  //~ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
-  //~ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-  //~ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  //~ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
+  ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+  ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
 
   // use direct LU from MUMPS
-  PCSetType(_pc,PCLU);
-  PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(_pc);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+  //~ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+  //~PCSetType(_pc,PCLU);
+  //~PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
+  //~PCFactorSetUpMatSolverPackage(_pc);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
 
   ierr = KSPSetUp(_ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);

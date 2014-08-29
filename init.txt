@@ -19,14 +19,14 @@ seisDepth = 12
 sigma_N = 50.0
 
 strideLength = 1
-maxStepCount = 5
+maxStepCount = 10
 initTime = 6.3e9
 maxTime = 8e11
 minDeltaT = 1e-3
 maxDeltaT = 1e7
 atol = 1e-5
 
-kspTol = 1e-6
+kspTol = 1e-7
 rootTol = 1e-9
 
 outputDir = data/

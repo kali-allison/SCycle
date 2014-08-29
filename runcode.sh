@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N eqCycle
-#PBS -l nodes=4:ppn=16
+#PBS -l nodes=2:ppn=16
 #PBS -q default
 #PBS -V
 #PBS -m n
