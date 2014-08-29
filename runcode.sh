@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N eqCycle
-#PBS -l nodes=2:ppn=16
+#PBS -N Dc_4e-3
+#PBS -l nodes=4:ppn=16
 #PBS -q default
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e data/eqCycle.err
-#PBS -o data/eqCycle.out
+#PBS -e data/err.txt
+#PBS -o data/out.txt
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

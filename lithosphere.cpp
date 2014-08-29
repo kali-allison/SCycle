@@ -329,8 +329,8 @@ PetscErrorCode Lithosphere::writeStep()
   double startTime = MPI_Wtime();
 
   if (_stepCount==0) {
-    _sbp.writeOps(_outputDir);
-    _fault.writeContext(_outputDir);
+    ierr = _sbp.writeOps(_outputDir);CHKERRQ(ierr);
+    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),FILE_MODE_WRITE,&_surfDispViewer);CHKERRQ(ierr);
@@ -339,9 +339,12 @@ PetscErrorCode Lithosphere::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),
                                    FILE_MODE_APPEND,&_surfDispViewer);CHKERRQ(ierr);
   }
-  _fault.writeStep(_outputDir,_stepCount);
-  PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);
-  ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
+  else {
+    ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
+  }
+  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
