@@ -78,6 +78,8 @@ PetscErrorCode Domain::loadData(const char *file)
       if (var=="width") { _width = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       if (var=="seisDepth") { _seisDepth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
+      if (var=="sigma_N") { _sigma_N_val = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+
       if (var=="strideLength") { _strideLength = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       if (var=="maxStepCount") { _maxStepCount = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       if (var=="initTime") { _initTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
@@ -109,6 +111,8 @@ PetscErrorCode Domain::loadData(const char *file)
     MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+    MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
     MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
@@ -142,6 +146,8 @@ PetscErrorCode Domain::loadData(const char *file)
     MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+    MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
     MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
     MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
@@ -195,6 +201,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"seisDepth = %f\n",_seisDepth);CHKERRQ(ierr);
+
+    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_val = %f\n",_sigma_N_val);CHKERRQ(ierr);
 
     // time monitering
     ierr = PetscPrintf(PETSC_COMM_SELF,"strideLength = %i\n",_strideLength);CHKERRQ(ierr);
@@ -253,6 +261,8 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"seisDepth = %.15e\n",_seisDepth);CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"_sigma_N_val = %.15e\n",_sigma_N_val);CHKERRQ(ierr);
 
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"strideLength = %i\n",_strideLength);CHKERRQ(ierr);

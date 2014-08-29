@@ -37,6 +37,7 @@ class Fault
     // fields that exist on fault
     Vec            _faultDisp,_vel;
     Vec            _psi,_tempPsi,_dPsi;
+    PetscScalar     _sigma_N_val;
 
     // viewers
     PetscViewer   _faultDispViewer,_velViewer,_tauViewer,_psiViewer;

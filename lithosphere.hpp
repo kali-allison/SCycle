@@ -39,6 +39,7 @@ class Lithosphere
     Vec                  _rhs,_uhat,_sigma_xy,_bcRShift,_surfDisp;
     KSP                  _ksp;
     PC                   _pc;
+    PetscScalar          _kspTol;
 
     SbpOps               _sbp;
     Fault                _fault;

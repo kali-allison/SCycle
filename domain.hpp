@@ -23,6 +23,7 @@ class Domain
     PetscScalar *_muArr,*_rhoArr;
     Mat          _mu;
     PetscScalar  _bAbove,_bBelow;
+    PetscScalar  _sigma_N_val;
     PetscScalar  _depth,_width,_seisDepth;
 
     // time integration settings

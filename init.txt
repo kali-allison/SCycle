@@ -1,15 +1,14 @@
-
-order = 2
-Ny = 401
-Nz = 401
+order = 4
+Ny = 501
+Nz = 501
 Ly = 24
 Lz = 24
 
-Dc = 8e-3
+Dc = 16e-3
 
 bAbove = 0.02
 bBelow = 0.0
-muIn = 8
+muIn = 36
 muOut = 36
 rhoIn = 2
 rhoOut = 2.8
@@ -17,8 +16,10 @@ depth = 4
 width = 24
 seisDepth = 12
 
+sigma_N = 50.0
+
 strideLength = 1
-maxStepCount = 10
+maxStepCount = 5
 initTime = 6.3e9
 maxTime = 8e11
 minDeltaT = 1e-3

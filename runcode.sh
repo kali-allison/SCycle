@@ -1,15 +1,15 @@
 #!/bin/bash
 #PBS -N eqCycle
 #PBS -l nodes=4:ppn=16
-#PBS -q tgp
+#PBS -q default
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e hetCycle.err
-#PBS -o hetCycle.out
+#PBS -e data/eqCycle.err
+#PBS -o data/eqCycle.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle
 cd $PBS_O_WORKDIR
 
-mpirun $EXEC_DIR/main -order 2 -Ny 2001 -Nz 2001
+mpirun $EXEC_DIR/main

@@ -8,7 +8,8 @@ Fault::Fault(Domain&D)
   _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _bAbove(D._bAbove),_bBelow(D._bBelow),
   _muIn(D._muIn),_muOut(D._muOut),_rhoIn(D._rhoIn),_rhoOut(D._rhoOut),
-  _muArr(D._muArr),_rhoArr(D._rhoArr)
+  _muArr(D._muArr),_rhoArr(D._rhoArr),
+  _sigma_N_val(D._sigma_N_val)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in fault.cpp.\n");
@@ -192,7 +193,6 @@ PetscErrorCode Fault::setFields()
 
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
-  ierr = VecSet(_sigma_N,50.);CHKERRQ(ierr);
   ierr = VecSet(_a,0.015);CHKERRQ(ierr);
 
   // Set b
@@ -221,32 +221,36 @@ PetscErrorCode Fault::setFields()
   //~ierr = VecSet(_b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
 
-  // tau, eta, gRShift
+  // tau, eta, gRShift, sigma_N
   PetscScalar a,b,eta,tau_inf,sigma_N,bcRShift;
   ierr = VecGetOwnershipRange(_tau,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
-    ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
+    //~ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
-    tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
     z = ((double) Ii)*_h;
+
+    if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; }
+    else { sigma_N = 9.8*_rhoArr[Ii]*z; }
     eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
-    //~if (z < _depth) { eta = 0.5*sqrt(_rhoIn*_muArr[Ii]); }
-    //~else { eta = 0.5*sqrt(_rhoOut*_muArr[Ii]); }
+    tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
     bcRShift = tau_inf*_L/_muArr[Ii];
 
     ierr = VecSetValue(_tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_bcRShift,Ii,bcRShift,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(_sigma_N,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_tau);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_eta);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcRShift);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tau);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_eta);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRShift);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1

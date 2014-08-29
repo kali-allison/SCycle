@@ -9,7 +9,7 @@ Lithosphere::Lithosphere(Domain&D)
   _outputDir(D._outputDir),
   _v0(D._v0),_vp(D._vp),
   _rhoIn(D._rhoIn),_rhoOut(D._rhoOut),_muIn(D._muIn),_muOut(D._muOut),_muArr(D._muArr),_mu(D._mu),
-  _depth(D._depth),_width(D._width),
+  _depth(D._depth),_width(D._width),_kspTol(D._kspTol),
   _sbp(D),_fault(D),
   _strideLength(D._strideLength),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),_minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
@@ -184,9 +184,9 @@ PetscErrorCode Lithosphere::setupKSP()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setupKSP in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  //~ierr = KSPSetType(D.ksp,KSPGMRES);CHKERRQ(ierr);
-  //~ierr = KSPSetOperators(D.ksp,D.A,D.A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  //~ierr = KSPGetPC(D.ksp,&D.pc);CHKERRQ(ierr);
+  //~ierr = KSPSetType(_ksp,KSPGMRES);CHKERRQ(ierr);
+  //~ierr = KSPSetOperators(_ksp,_A,_A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
 
   ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
   ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
@@ -196,15 +196,17 @@ PetscErrorCode Lithosphere::setupKSP()
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
-  //~ierr = PCSetType(D.pc,PCHYPRE);CHKERRQ(ierr);
-  //~ierr = PCHYPRESetType(D.pc,"boomeramg");CHKERRQ(ierr);
-  //~ierr = KSPSetTolerances(D.ksp,D.kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  //~ierr = PCFactorSetLevels(D.pc,4);CHKERRQ(ierr);
+  //~ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+  //~ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+  //~ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  //~ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
 
   // use direct LU from MUMPS
   PCSetType(_pc,PCLU);
   PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
   PCFactorSetUpMatSolverPackage(_pc);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
 
   ierr = KSPSetUp(_ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);
@@ -318,7 +320,7 @@ PetscErrorCode Lithosphere::writeStep()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeStep in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -326,7 +328,6 @@ PetscErrorCode Lithosphere::writeStep()
     _sbp.writeOps(_outputDir);
     _fault.writeContext(_outputDir);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
-    PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),FILE_MODE_WRITE,&_surfDispViewer);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
@@ -340,7 +341,7 @@ PetscErrorCode Lithosphere::writeStep()
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeStep in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   return ierr;
 }
