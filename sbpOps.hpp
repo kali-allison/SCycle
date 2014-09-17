@@ -48,6 +48,7 @@ class SbpOps
 
     Mat _A;
     Mat _Dy_Iz; // pull creation of this out of computeA
+    Mat _Hinv;
     //~Vec _rhs;
 
     SbpOps(Domain&D);
@@ -55,6 +56,7 @@ class SbpOps
 
     //~PetscErrorCode setSystem();
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
+    PetscErrorCode computeHinv();
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);

@@ -295,6 +295,114 @@ int sbpConvergence(int argc,char **args)
   return ierr;
 }*/
 
+int noSlip(int argc,char **args)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain domain("init.txt");
+
+  // set domain._mu differently
+  PetscInt       Ii;
+  PetscScalar    v,y,z;
+  Vec muVec;
+  PetscInt *muInds;
+  PetscScalar *_muArr;
+  ierr = PetscMalloc(domain._Ny*domain._Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
+  ierr = PetscMalloc(domain._Ny*domain._Nz*sizeof(PetscScalar),&_muArr);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
+  ierr = VecSetSizes(muVec,PETSC_DECIDE,domain._Ny*domain._Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+
+  PetscScalar r = 0;
+  PetscScalar rbar = 0.25*domain._width*domain._width;
+  PetscScalar rw = 1+0.5*domain._width/domain._depth;
+  for (Ii=0;Ii<domain._Ny*domain._Nz;Ii++) {
+    z = domain._dz*(Ii-domain._Nz*(Ii/domain._Nz));
+    y = domain._dy*(Ii/domain._Nz);
+    r=y*y+(0.25*domain._width*domain._width/domain._depth/domain._depth)*z*z;
+
+    //~v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
+    if (y<=10) { v = domain._muIn; }
+    else { v = domain._muOut; }
+
+    _muArr[Ii] = v;
+    muInds[Ii] = Ii;
+  }
+  ierr = VecSetValues(muVec,domain._Ny*domain._Nz,muInds,_muArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(domain._mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
+  VecDestroy(&muVec);
+  PetscFree(muInds);
+
+
+
+  domain.write();
+  SbpOps sbp(domain);
+
+  // set up ksp
+  KSP ksp;
+  PC  pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(ksp,domain._kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
+
+
+  // boundary conditions
+  Vec bcF,bcS,bcR,bcD;
+  VecCreate(PETSC_COMM_WORLD,&bcF);
+  VecSetSizes(bcF,PETSC_DECIDE,domain._Nz);
+  VecSetFromOptions(bcF);     PetscObjectSetName((PetscObject) bcF, "bcF");
+  VecSet(bcF,0.0);
+  VecDuplicate(bcF,&bcR); PetscObjectSetName((PetscObject) bcR, "bcR");
+  VecSet(bcR,1.0);
+
+  VecCreate(PETSC_COMM_WORLD,&bcS);
+  VecSetSizes(bcS,PETSC_DECIDE,domain._Ny);
+  VecSetFromOptions(bcS);     PetscObjectSetName((PetscObject) bcS, "bcS");
+  VecSet(bcS,0.0);
+  VecDuplicate(bcS,&bcD); PetscObjectSetName((PetscObject) bcD, "bcD");
+  VecSet(bcD,0.0);
+
+
+  // set rhs and uhat vectors
+  Vec rhs,uhat;
+  VecCreate(PETSC_COMM_WORLD,&rhs);
+  VecSetSizes(rhs,PETSC_DECIDE,domain._Ny*domain._Nz);
+  VecSetFromOptions(rhs);
+  sbp.setRhs(rhs,bcF,bcR,bcS,bcD);
+  VecDuplicate(rhs,&uhat); PetscObjectSetName((PetscObject) uhat, "uhat");
+  VecSet(uhat,21.0);
+
+  ierr = KSPSolve(ksp,rhs,uhat);CHKERRQ(ierr);
+
+  PetscViewer viewer;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"data/uhat",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(uhat,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"data/rhs",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(rhs,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // compute shear stress
+  Vec sigma_xy;
+  VecDuplicate(rhs,&sigma_xy);
+  MatMult(sbp._Dy_Iz,uhat,sigma_xy);
+
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"data/sigma_xy",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(sigma_xy,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  return ierr;
+}
+
 int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
@@ -303,6 +411,8 @@ int runEqCycle(int argc,char **args)
   domain.write();
 
   Lithosphere lith(domain);
+
+
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
   ierr = lith.view();CHKERRQ(ierr);
@@ -340,8 +450,7 @@ int main(int argc,char **args)
 
 
   runEqCycle(argc,args);
-  //~ierr = linearSolveTests(argc,args);CHKERRQ(ierr);
-  //~runTests(argc,args);
+  //~noSlip(argc,args);
 
 
 

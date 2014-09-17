@@ -262,7 +262,7 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"seisDepth = %.15e\n",_seisDepth);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"_sigma_N_val = %.15e\n",_sigma_N_val);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_val = %.15e\n",_sigma_N_val);CHKERRQ(ierr);
 
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"strideLength = %i\n",_strideLength);CHKERRQ(ierr);
@@ -309,7 +309,7 @@ PetscErrorCode Domain::setFields()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setShearModulus in domain.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFields in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
   PetscInt       Ii;
@@ -355,7 +355,7 @@ PetscErrorCode Domain::setFields()
   PetscFree(muInds);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setShearModulus in domain.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFields in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 return ierr;
 }

@@ -520,6 +520,39 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   return 0;
 }
 
+// Hinv = kron(Hy,Hz)
+PetscErrorCode SbpOps::computeHinv()
+{
+  PetscErrorCode ierr = 0;
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+   PetscInt Istart,Iend,Ii,i,j;
+   PetscScalar v;
+
+  ierr = MatCreate(PETSC_COMM_WORLD,&_Hinv);CHKERRQ(ierr);
+  ierr = MatSetSizes(_Hinv,PETSC_DECIDE,PETSC_DECIDE,_Nz*_Ny,_Nz*_Ny);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_Hinv);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_Hinv,1,NULL,0,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_Hinv,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_Hinv);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(_Hinv,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    i = Ii/_Nz; j = Ii-i*_Nz;
+    v=1.0/(_HinvyArr[i]*_HinvzArr[j]);
+    ierr = MatSetValues(_Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(_Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(_Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  return ierr;
+}
 
 
 PetscErrorCode SbpOps::sbpOpsArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,PetscScalar *S,PetscInt *Slen)

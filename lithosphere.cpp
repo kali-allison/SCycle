@@ -64,6 +64,7 @@ Lithosphere::Lithosphere(Domain&D)
   _quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT);
   _quadrature->setTolerance(D._atol);
 
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in lithosphere.cpp.\n");
 #endif
