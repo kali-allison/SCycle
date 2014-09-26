@@ -16,6 +16,10 @@ Domain::Domain(const char *file)
   _v0=1e-6;
   _vp=1e-9;
 
+  _csIn = sqrt(_muIn/_rhoIn);
+  _csOut = sqrt(_muOut/_rhoOut);
+
+
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
 
@@ -30,6 +34,10 @@ Domain::~Domain()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in domain.cpp.\n");
 #endif
+
+  PetscFree(_muArr);
+  PetscFree(_rhoArr);
+  PetscFree(_csArr);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in domain.cpp.\n");
@@ -320,6 +328,7 @@ PetscErrorCode Domain::setFields()
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArr);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_rhoArr);CHKERRQ(ierr);
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArr);CHKERRQ(ierr);
 
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
@@ -335,6 +344,9 @@ PetscErrorCode Domain::setFields()
 
     v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
     _rhoArr[Ii] = v;
+
+    v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
+    _csArr[Ii] = v;
 
     v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
     _muArr[Ii] = v;

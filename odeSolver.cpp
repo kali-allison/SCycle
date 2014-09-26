@@ -1,7 +1,7 @@
 #include "odeSolver.hpp"
 
 enum CONTROL { controlP,controlPI,controlPID };
-const CONTROL controlType = controlP;
+const CONTROL controlType = controlPID;
 
 using namespace std;
 

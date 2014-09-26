@@ -29,7 +29,7 @@ class Fault
     // elastic coefficients and frictional parameters
     PetscScalar    _depth,_seisDepth,_cs,_f0,_v0,_vp;
     PetscScalar    _bAbove,_bBelow;
-    PetscScalar    _muIn,_muOut,_rhoIn,_rhoOut,*_muArr,*_rhoArr;// for basin
+    PetscScalar    _muIn,_muOut,_rhoIn,_rhoOut,*_muArr,*_rhoArr,*_csArr;// for basin
     Vec            _eta,_sigma_N,_a,_b;
 
     Vec            _bcRShift;

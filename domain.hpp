@@ -20,7 +20,8 @@ class Domain
     // sedimentary basin properties
     PetscScalar  _muIn,_muOut;
     PetscScalar  _rhoIn,_rhoOut;
-    PetscScalar *_muArr,*_rhoArr;
+    PetscScalar  _csIn,_csOut;
+    PetscScalar *_muArr,*_rhoArr,*_csArr;
     Mat          _mu;
     PetscScalar  _bAbove,_bBelow;
     PetscScalar  _sigma_N_val;

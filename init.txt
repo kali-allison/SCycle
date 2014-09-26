@@ -1,6 +1,6 @@
-order = 4
-Ny = 1001
-Nz = 1001
+order = 2
+Ny = 301
+Nz = 301
 Ly = 24
 Lz = 24
 
@@ -8,9 +8,9 @@ Dc = 8e-3
 
 bAbove = 0.02
 bBelow = 0.0
-muIn = 18
+muIn = 36
 muOut = 36
-rhoIn = 2
+rhoIn = 2.8
 rhoOut = 2.8
 depth = 4
 width = 24
@@ -19,12 +19,12 @@ seisDepth = 12
 sigma_N = 50.0
 
 strideLength = 1
-maxStepCount = 10
+maxStepCount = 1e8
 initTime = 6.3e9
-maxTime = 6e11
+maxTime = 1.8e10
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-atol = 1e-5
+atol = 1e-7
 
 kspTol = 1e-7
 rootTol = 1e-9

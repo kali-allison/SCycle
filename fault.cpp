@@ -8,7 +8,7 @@ Fault::Fault(Domain&D)
   _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _bAbove(D._bAbove),_bBelow(D._bBelow),
   _muIn(D._muIn),_muOut(D._muOut),_rhoIn(D._rhoIn),_rhoOut(D._rhoOut),
-  _muArr(D._muArr),_rhoArr(D._rhoArr),
+  _muArr(D._muArr),_rhoArr(D._rhoArr),_csArr(D._csArr),
   _sigma_N_val(D._sigma_N_val)
 {
 #if VERBOSE > 1
@@ -233,7 +233,10 @@ PetscErrorCode Fault::setFields()
 
     if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; }
     else { sigma_N = 9.8*_rhoArr[Ii]*z; }
-    eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
+
+    //~eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
+    eta = 0.5*_muArr[Ii]/_csArr[Ii];
+
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
     bcRShift = tau_inf*_L/_muArr[Ii];
 
