@@ -1,6 +1,7 @@
 #include "debuggingFuncs.hpp"
 
-PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
+//~PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
+PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name)
 {
   PetscErrorCode ierr = 0;
   Mat            debugMat;
@@ -22,10 +23,10 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
   ierr = MatGetSize(*mat,&rowSizeMat,&colSizeMat);CHKERRQ(ierr);
   if ( rowSizeDebugMat == rowSizeMat && colSizeDebugMat == colSizeMat) {
     ierr = MatEqual(debugMat,*mat,&debugBool);CHKERRQ(ierr);
-    //~if (debugBool==PETSC_FALSE) {
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Trying MatEqualVals on %s\n",name.c_str());CHKERRQ(ierr);
-      //~ierr = MatEqualVals(&debugMat,mat,&debugBool,D);CHKERRQ(ierr);
-    //~}
+    if (debugBool==PETSC_FALSE) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Trying MatEqualVals on %s\n",name.c_str());CHKERRQ(ierr);
+      ierr = MatEqualVals(&debugMat,mat,&debugBool);CHKERRQ(ierr);
+    }
   }
   else{
     ierr = PetscPrintf(PETSC_COMM_WORLD,"   wrong size!!!\n");CHKERRQ(ierr);
@@ -60,9 +61,12 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name,UserContext *D)
  * Determines if two matrices have equal contents (even if the
  * preallocated structure is different).
  */
-PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg,UserContext *D)
+//~PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg,UserContext *D)
+PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg)
 {
   PetscErrorCode ierr;
+  PetscScalar    tol = 1e-13;
+
   PetscInt       rowSizeA,colSizeA,rowSizeB,colSizeB;
   PetscInt       Ii,Istart,Iend,indA,indB,ncolsA,ncolsB;
   *flg = PETSC_TRUE;
@@ -90,17 +94,22 @@ PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg,UserContext *D)
 
     indA=0;indB=0;
     while (indA<ncolsA && indB<ncolsB && *flg!=PETSC_FALSE) {
-      if ( abs(constValsA[indA])<1e-19 ) { indA++; }
-      else if ( abs(constValsB[indB])<1e-19 ) { indB++; }
-      else if ( constColsA[indA]==constColsB[indB] && abs(constValsA[indA]-constValsB[indB])<1e-19 ) {
+      tol = pow(0.1, 13) * max(abs(constValsA[indA]), abs(constValsB[indB])); // corresponds to match up to # of sig figs = 13
+    //~while (indA<ncolsA && indB<ncolsB ) {
+      if ( abs(constValsA[indA])<1e-13 ) { indA++; }
+      else if ( abs(constValsB[indB])<1e-13 ) { indB++; }
+      //~else if ( constColsA[indA]==constColsB[indB] &&
+                //~abs(constValsA[indA]-constValsB[indB])<tol*constValsA[indA] ) {
+      else if ( constColsA[indA]==constColsB[indB] && abs(constValsA[indA]-constValsB[indB])<tol ) {
       //~if ( constColsA[indA]==constColsB[indB] && constValsA[indA]==constValsB[indB] ) {
         indA++;indB++;
-        *flg=PETSC_TRUE;
+        //~*flg=PETSC_TRUE;
       }
       else {
         *flg=PETSC_FALSE;
-        ierr=PetscPrintf(PETSC_COMM_WORLD,"A(%d,%d)=%g,B(%d,%d)=%g\n",
+        ierr=PetscPrintf(PETSC_COMM_WORLD,"A(%d,%d)=%.15e,B(%d,%d)=%.15e\n",
           Ii,indA,constValsA[indA],Ii,indB,constValsB[indB]);
+          indA++;indB++;
         }
     }
     ierr = MatRestoreRow(*A,Ii,&ncolsA,&constColsA,&constValsA);CHKERRQ(ierr);
@@ -122,5 +131,139 @@ PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N)
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%f]\n",myArray[N-1]);CHKERRQ(ierr);
   return 0;
+}
+
+
+PetscErrorCode testDebugFuncs()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting testDebugFuncs in debuggingFuncs.c\n");CHKERRQ(ierr);
+#endif
+  PetscInt nRows=3,nCols=4;
+  PetscInt Ii,Istart,Iend,Jj,Jstart,Jend;
+  PetscScalar v;
+  PetscBool flag;
+
+  Mat A;
+  MatCreate(PETSC_COMM_WORLD,&A); PetscObjectSetName((PetscObject) A, "A");
+  ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,nRows,nCols);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(A);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(A,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(A,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(A);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(A,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRangeColumn(A,&Jstart,&Jend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    for (Jj=Jstart;Jj<Jend;Jj++) {
+      v = (Ii+1)*(Jj+1);
+      ierr = MatSetValues(A,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  Mat B;
+  ierr = MatDuplicate(A,MAT_COPY_VALUES,&B);CHKERRQ(ierr); PetscObjectSetName((PetscObject) B, "B");
+
+  // checking that equal matrices are found to be equal
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Equal Matrices are evaluated as equal\n");CHKERRQ(ierr);
+  ierr = MatEqualVals(&A,&B,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting true, got: %i\n",flag);CHKERRQ(ierr);
+
+  // checking that matrices w/ differing first entries are found unequal
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Entry (0,0) differs\n");CHKERRQ(ierr);
+  Ii = 0; Jj = 0; v = 5;
+  ierr = MatSetValues(B,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(B,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatEqualVals(&A,&B,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting false, got: %i\n",flag);CHKERRQ(ierr);
+
+
+  // checking that matrices w/ additional differing entries are found to be unequal
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Entry (1,2) differs\n");CHKERRQ(ierr);
+  Ii = 0; Jj = 0; v = 1;
+  ierr = MatSetValues(B,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  Ii = 1; Jj = 2; v = 5;
+  ierr = MatSetValues(B,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(B,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatEqualVals(&A,&B,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting false, got: %i\n",flag);CHKERRQ(ierr);
+
+
+  // checking that entries equal to 0 are viewed the same as nonexistant entries
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\nNew Matrices C and D defined:\n\n\n");CHKERRQ(ierr);
+  Ii = 1; Jj = 2; v = 6;
+  ierr = MatSetValues(B,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  Ii = 0; Jj = 0; v = -1;
+  ierr = MatSetValues(B,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(B,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  Mat C;
+  ierr = MatDuplicate(A,MAT_COPY_VALUES,&C);CHKERRQ(ierr); PetscObjectSetName((PetscObject) C, "C");
+  ierr = MatAXPY(C,1.0,B,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  Mat D;
+  MatCreate(PETSC_COMM_WORLD,&D); PetscObjectSetName((PetscObject) D, "D");
+  ierr = MatSetSizes(D,PETSC_DECIDE,PETSC_DECIDE,nRows,nCols);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(D);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(D,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(D,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(D);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(D,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRangeColumn(D,&Jstart,&Jend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    for (Jj=Jstart;Jj<Jend;Jj++) {
+      if (Ii==0 && Jj==0) {}
+    else {
+      v = 2*(Ii+1)*(Jj+1);
+      ierr = MatSetValues(D,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr); }
+    }
+  }
+  ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(D,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Entry (0,0)=0 vs does not exist\n");CHKERRQ(ierr);
+  ierr = MatEqualVals(&C,&D,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting true, got: %i\n",flag);CHKERRQ(ierr);
+
+
+  // checking that the tolerance in MatEqualVals works the way I think it does
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Tolerance Check on entry (1,2), diff < tol\n");CHKERRQ(ierr);
+  Ii = 1; Jj = 2; v = 12 + 1e-14;
+  ierr = MatSetValues(D,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(D,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatEqualVals(&C,&D,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting true, got: %i\n",flag);CHKERRQ(ierr);
+
+
+  // checking that the tolerance in MatEqualVals works the way I think it does
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTEST: Tolerance Check on entry (1,2), diff > tol (barely)\n");CHKERRQ(ierr);
+  Ii = 1; Jj = 2; v = 12 - 1e-10;
+  ierr = MatSetValues(D,1,&Ii,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatView(D,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatEqualVals(&C,&D,&flag);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"expecting false, got: %i\n",flag);CHKERRQ(ierr);
+
+
+
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending testDebugFuncs in debuggingFuncs.c\n");CHKERRQ(ierr);
+#endif
+  return ierr;
 }
 

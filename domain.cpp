@@ -336,7 +336,8 @@ PetscErrorCode Domain::setFields()
 
   PetscScalar r = 0;
   PetscScalar rbar = 0.25*_width*_width;
-  PetscScalar rw = 1+0.5*_width/_depth;
+  //~PetscScalar rw = 1+0.5*_width/_depth;
+  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
     y = _dy*(Ii/_Nz);
@@ -352,6 +353,27 @@ PetscErrorCode Domain::setFields()
     _muArr[Ii] = v;
     muInds[Ii] = Ii;
   }
+
+#if DEBUG > 0
+  PetscPrintf(PETSC_COMM_WORLD,"!!Setting mu = diag(2:Ny*Nz+1).\n");
+  for (Ii=0;Ii<_Ny*_Nz;Ii++) {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    y = _dy*(Ii/_Nz);
+    r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
+
+    v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
+    _rhoArr[Ii] = v;
+
+    v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
+    _csArr[Ii] = v;
+
+    //~v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
+    _muArr[Ii] = Ii+2;
+    muInds[Ii] = Ii;
+  }
+#endif
+
+
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
@@ -362,6 +384,7 @@ PetscErrorCode Domain::setFields()
   ierr = MatSeqAIJSetPreallocation(_mu,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_mu);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  //~ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);

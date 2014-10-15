@@ -30,7 +30,7 @@ include ${PETSC_DIR}/conf/test
 rootFinder.o: rootFinder.cpp rootFinder.hpp fault.hpp
 fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
 
-debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp userContext.h
+debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp fault.hpp
 main.o: main.cpp lithosphere.hpp domain.hpp

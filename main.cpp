@@ -452,6 +452,8 @@ int main(int argc,char **args)
   runEqCycle(argc,args);
   //~noSlip(argc,args);
 
+  //~testDebugFuncs();
+
 
 
   PetscFinalize();

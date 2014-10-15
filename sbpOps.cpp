@@ -7,26 +7,37 @@ SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
   _Sylen(0),_Szlen(0),
-  _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0)
+  _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
+  _debugFolder("./matlabAnswers/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
 #endif
+
+    stringstream ss;
+    ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
+    _debugFolder += ss.str();
 
   //~VecCreate(PETSC_COMM_WORLD,&_rhs);
   //~VecSetSizes(_rhs,PETSC_DECIDE,D.Nz*D.Nz);
   //~VecSetFromOptions(_rhs);     PetscObjectSetName((PetscObject) _rhs, "_rhs");
 
   // create final operator A
-  MatCreate(PETSC_COMM_WORLD,&_A);
+  MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
 
   // map boundary conditions to rhs vector
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_Izxe0y_Iz);
+    PetscObjectSetName((PetscObject) _Hinvy_Izxe0y_Iz, "_Hinvy_Izxe0y_Iz");
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxeNy_Iz);
+    PetscObjectSetName((PetscObject) _Hinvy_IzxeNy_Iz, "_Hinvy_IzxeNy_Iz");
   MatCreate(PETSC_COMM_WORLD,&_Iy_HinvzxIy_e0z);
+    PetscObjectSetName((PetscObject) _Iy_HinvzxIy_e0z, "_Iy_HinvzxIy_e0z");
   MatCreate(PETSC_COMM_WORLD,&_Iy_HinvzxIy_eNz);
+    PetscObjectSetName((PetscObject) _Iy_HinvzxIy_eNz, "_Iy_HinvzxIy_eNz");
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxe0y_Iz);
+    PetscObjectSetName((PetscObject) _Hinvy_IzxBySy_IzTxe0y_Iz, "_Hinvy_IzxBySy_IzTxe0y_Iz");
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxeNy_Iz);
+    PetscObjectSetName((PetscObject) _Hinvy_IzxBySy_IzTxeNy_Iz, "_Hinvy_IzxBySy_IzTxeNy_Iz");
 
   // temporary
   PetscMalloc(_Ny*sizeof(PetscScalar),&_HinvyArr);
@@ -39,7 +50,7 @@ SbpOps::SbpOps(Domain&D)
   sbpOpsArrays(_Nz,1/_dz,_HinvzArr,_SzArr,&_Szlen);
 
 
-  MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
+  MatCreate(PETSC_COMM_WORLD,&_Dy_Iz); PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");
 
   computeA();
   computeRhsFactors();
@@ -115,7 +126,7 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyEnd(_Hinvy_Izxe0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(*_mu,_Hinvy_Izxe0y_Iz,MAT_INITIAL_MATRIX,1.0,&_Hinvy_Izxe0y_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Hinvy_Izxe0y_Iz,_debugFolder,"Hinvy_Izxe0y_Iz",&D);CHKERRQ(ierr);
+  checkMatrix(&_Hinvy_Izxe0y_Iz,_debugFolder,"Hinvy_Izxe0y_Iz");CHKERRQ(ierr);
 #endif
 
   // Hinvy_IzxeNy_Iz = kron(Hinvy,Iz)*kron(eNy,Iz)
@@ -134,7 +145,7 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyEnd(_Hinvy_IzxeNy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(*_mu,_Hinvy_IzxeNy_Iz,MAT_INITIAL_MATRIX,1.0,&_Hinvy_IzxeNy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Hinvy_IzxeNy_Iz,_debugFolder,"Hinvy_IzxeNy_Iz",&D);CHKERRQ(ierr);
+  checkMatrix(&_Hinvy_IzxeNy_Iz,_debugFolder,"Hinvy_IzxeNy_Iz");CHKERRQ(ierr);
 #endif
 
 
@@ -154,7 +165,8 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyBegin(_Iy_HinvzxIy_e0z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(_Iy_HinvzxIy_e0z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Iy_HinvzxIy_e0z,_debugFolder,"Iy_HinvzxIy_e0z",&D);CHKERRQ(ierr);
+  //~checkMatrix(&_Iy_HinvzxIy_e0z,_debugFolder,"Iy_HinvzxIy_e0z",&D);CHKERRQ(ierr);
+  checkMatrix(&_Iy_HinvzxIy_e0z,_debugFolder,"Iy_HinvzxIy_e0z");CHKERRQ(ierr);
 #endif
 
   // Iy_HinvzxIy_eNz = kron(Iy,Hinvz)*kron(Iy,eNz)
@@ -174,7 +186,7 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyBegin(_Iy_HinvzxIy_eNz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(_Iy_HinvzxIy_eNz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Iy_HinvzxIy_eNz,_debugFolder,"Iy_HinvzxIy_eNz",&D);CHKERRQ(ierr);
+  checkMatrix(&_Iy_HinvzxIy_eNz,_debugFolder,"Iy_HinvzxIy_eNz");CHKERRQ(ierr);
 #endif
 
   // Hinvy_IzxBySy_IzTxe0y_Iz = kron(Hinvy,Iz)*kron(BySy,Iz)^T*kron(e0y,Iz)
@@ -192,7 +204,7 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyBegin(_Hinvy_IzxBySy_IzTxe0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(_Hinvy_IzxBySy_IzTxe0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Hinvy_IzxBySy_IzTxe0y_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxe0y_Iz",&D);CHKERRQ(ierr);
+  checkMatrix(&_Hinvy_IzxBySy_IzTxe0y_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxe0y_Iz");CHKERRQ(ierr);
 #endif
 
 
@@ -213,7 +225,7 @@ PetscErrorCode SbpOps::computeRhsFactors()
   ierr = MatAssemblyBegin(_Hinvy_IzxBySy_IzTxeNy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(_Hinvy_IzxBySy_IzTxeNy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&_Hinvy_IzxBySy_IzTxeNy_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxeNy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&_Hinvy_IzxBySy_IzTxeNy_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxeNy_Iz");CHKERRQ(ierr);
 #endif
 
   ierr = PetscFree(cols);CHKERRQ(ierr);
@@ -277,14 +289,14 @@ PetscErrorCode SbpOps::computeA()
     for (J=0;J<ncols;J++) {cols[J]=constCols[J]*_Nz;}
     for (J=Ii*_Nz;J<(Ii+1)*_Nz;J++) {
       ierr = MatSetValues(_Dy_Iz,1,&J,ncols,cols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1;}
+      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1; }
     }
     ierr = MatRestoreRow(Dy,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz",&D);CHKERRQ(ierr);
+  checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
 ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
 
@@ -292,6 +304,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   // kron(D2y,Iz)
   Mat D2y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&D2y_Iz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
   ierr = MatSetSizes(D2y_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(D2y_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(D2y_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
@@ -303,15 +316,19 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
     for (J=0;J<ncols;J++) { cols[J]=constCols[J]*_Nz;}
     for (J=Ii*_Nz;J<(Ii+1)*_Nz;J++) {
       ierr = MatSetValues(D2y_Iz,1,&J,ncols,cols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1;}
+      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1; }
     }
     ierr = MatRestoreRow(D2y,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz",&D);CHKERRQ(ierr);
+  checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
 #endif
+  PetscViewer outview;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/D2y_Iz",FILE_MODE_WRITE,&outview);CHKERRQ(ierr);
+  ierr = MatView(D2y_Iz,outview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&outview);CHKERRQ(ierr);
 
   // kron(Iy,D2z)
   Mat Iy_D2z;
@@ -333,21 +350,27 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z",&D);CHKERRQ(ierr);
+  checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z");CHKERRQ(ierr);
 #endif
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Iy_D2z",FILE_MODE_WRITE,&outview);CHKERRQ(ierr);
+  ierr = MatView(Iy_D2z,outview);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&outview);CHKERRQ(ierr);
 
 
 
   Mat D2yplusD2z;
   ierr = MatDuplicate(D2y_Iz,MAT_COPY_VALUES,&(D2yplusD2z));CHKERRQ(ierr);
   ierr = MatAXPY(D2yplusD2z,1.0,Iy_D2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2yplusD2z");CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&D2yplusD2z,_debugFolder,"D2yplusD2z",&D);CHKERRQ(ierr);
+  checkMatrix(&D2yplusD2z,_debugFolder,"D2yplusD2z");CHKERRQ(ierr);
 #endif
+
 
   // Hinvy_IzxE0y_Iz = kron(Hinvy,Iz)*kron(E0y,Iz)
   Mat Hinvy_IzxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxE0y_Iz);
+  PetscObjectSetName((PetscObject) Hinvy_IzxE0y_Iz, "Hinvy_IzxE0y_Iz");
   ierr = MatSetSizes(Hinvy_IzxE0y_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(Hinvy_IzxE0y_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -361,7 +384,8 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(*_mu,Hinvy_IzxE0y_Iz,MAT_INITIAL_MATRIX,1.0,&Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&Hinvy_IzxE0y_Iz,_debugFolder,"Hinvy_IzxUE0y_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxE0y_Iz,_debugFolder,"Hinvy_IzxUE0y_Iz");CHKERRQ(ierr);
+  //~ierr = MatView(Hinvy_IzxE0y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
   // Hinvy_IzxENy_Iz = kron(Hinvy,Iz)*kron(ENy,Iz)
@@ -381,7 +405,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatMatMult(*_mu,Hinvy_IzxENy_Iz,MAT_INITIAL_MATRIX,1.0,&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&Hinvy_IzxENy_Iz,_debugFolder,"Hinvy_IzxUENy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxENy_Iz,_debugFolder,"Hinvy_IzxUENy_Iz");CHKERRQ(ierr);
 #endif
 
 
@@ -402,7 +426,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Hinvy_IzxBySy_IzTxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxBySy_IzTxE0y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxE0y_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxUE0y_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxE0y_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxUE0y_Iz");CHKERRQ(ierr);
 #endif
 
 
@@ -425,7 +449,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Hinvy_IzxBySy_IzTxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_IzxBySy_IzTxENy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxENy_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxUENy_Iz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Hinvy_IzxBySy_IzTxENy_Iz,_debugFolder,"Hinvy_IzxBySy_IzTxUENy_Iz");CHKERRQ(ierr);
 #endif
 
 
@@ -451,7 +475,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_HinvzxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvzxIy_E0zxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  ierr = checkMatrix(&Iy_HinvzxIy_E0zxIy_BzSz,_debugFolder,"Iy_HinvzxIy_E0zxIy_BzSz",&D);CHKERRQ(ierr);
+  ierr = checkMatrix(&Iy_HinvzxIy_E0zxIy_BzSz,_debugFolder,"Iy_HinvzxIy_E0zxIy_BzSz");CHKERRQ(ierr);
 #endif
 
 
@@ -477,19 +501,59 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(Iy_HinvzxIy_ENzxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Iy_HinvzxIy_ENzxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&Iy_HinvzxIy_ENzxIy_BzSz,_debugFolder,"Iy_HinvzxIy_ENzxIy_BzSz",&D);CHKERRQ(ierr);
+  checkMatrix(&Iy_HinvzxIy_ENzxIy_BzSz,_debugFolder,"Iy_HinvzxIy_ENzxIy_BzSz");CHKERRQ(ierr);
 #endif
+
+  PetscViewer viewer;
 
   // compute A
   ierr = MatMatMult(*_mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&_A);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaF,Hinvy_IzxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaR,Hinvy_IzxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaS,Iy_HinvzxIy_E0zxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaD,Iy_HinvzxIy_ENzxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+  ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage1",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"A",&D);CHKERRQ(ierr);
+  checkMatrix(&_A,_debugFolder,"Astage1");CHKERRQ(ierr);
+#endif
+  ierr = MatAXPY(_A,_alphaF,Hinvy_IzxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage2",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+#if DEBUG > 0
+  checkMatrix(&_A,_debugFolder,"Astage2");CHKERRQ(ierr);
+#endif
+  ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage3",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+#if DEBUG > 0
+  checkMatrix(&_A,_debugFolder,"Astage3");CHKERRQ(ierr);
+#endif
+  ierr = MatAXPY(_A,_alphaR,Hinvy_IzxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage4",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+#if DEBUG > 0
+  checkMatrix(&_A,_debugFolder,"Astage4");CHKERRQ(ierr);
+#endif
+  ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage5",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  ierr = MatAXPY(_A,_alphaS,Iy_HinvzxIy_E0zxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage6",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  ierr = MatAXPY(_A,_alphaD,Iy_HinvzxIy_ENzxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/matA",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+#if DEBUG > 0
+  checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
 #endif
 
   // clean up
@@ -617,7 +681,7 @@ PetscErrorCode  SbpOps::sbpOpsMats(PetscInt N, Mat &D, Mat &D2)
   PetscScalar const *constVals;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpOps in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
 #endif
 
   /* Create matrix operators: PinvMat, Q, D2, S */
@@ -883,7 +947,7 @@ PetscErrorCode  SbpOps::sbpOpsMats(PetscInt N, Mat &D, Mat &D2)
   ierr = MatDestroy(&Q);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpOps in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
 #endif
 
   return 0;

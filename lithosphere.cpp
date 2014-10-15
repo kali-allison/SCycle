@@ -56,12 +56,13 @@ Lithosphere::Lithosphere(Domain&D)
   MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);
   _fault.setTau(_sigma_xy);
   _fault.setFaultDisp(_bcF);
+  // might need to update velocity here
 
   VecDuplicate(_bcS,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
   setSurfDisp();
 
-  //~_quadrature = new FEuler(_maxStepCount,_maxTime,_initDeltaT);
-  _quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT);
+  _quadrature = new FEuler(_maxStepCount,_maxTime,_initDeltaT);
+  //~_quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT);
   _quadrature->setTolerance(D._atol);
 
 
@@ -99,7 +100,7 @@ PetscErrorCode Lithosphere::view()
   PetscErrorCode ierr = 0;
   ierr = _quadrature->view();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Timing Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Run Time Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
@@ -195,23 +196,23 @@ PetscErrorCode Lithosphere::setupKSP()
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
   // use HYPRE
-  ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-  ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
-  ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-  ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
-
-  // use direct LU from MUMPS
-  //~ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
   //~ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
   //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-  //~PCSetType(_pc,PCLU);
-  //~PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
-  //~PCFactorSetUpMatSolverPackage(_pc);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+  //~ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+  //~ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+  //~ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  //~ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
+
+  // use direct LU from MUMPS
+  ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+  PCSetType(_pc,PCLU);
+  PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(_pc);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
 
   ierr = KSPSetUp(_ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);
@@ -339,6 +340,33 @@ PetscErrorCode Lithosphere::writeStep()
     ierr = PetscViewerDestroy(&_surfDispViewer);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),
                                    FILE_MODE_APPEND,&_surfDispViewer);CHKERRQ(ierr);
+
+    // output BC data
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhs").c_str(),FILE_MODE_WRITE,&_rhsv);CHKERRQ(ierr);
+    ierr = VecView(_rhs,_rhsv);CHKERRQ(ierr);
+    PetscViewerDestroy(&_rhsv);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhs").c_str(),FILE_MODE_APPEND,&_rhsv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcF").c_str(),FILE_MODE_WRITE,&_bcFv);CHKERRQ(ierr);
+    ierr = VecView(_bcF,_bcFv);CHKERRQ(ierr);
+    PetscViewerDestroy(&_bcFv);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcF").c_str(),FILE_MODE_APPEND,&_bcFv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_WRITE,&_bcRv);CHKERRQ(ierr);
+    ierr = VecView(_bcR,_bcRv);CHKERRQ(ierr);
+    PetscViewerDestroy(&_bcRv);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_APPEND,&_bcRv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcS").c_str(),FILE_MODE_WRITE,&_bcSv);CHKERRQ(ierr);
+    ierr = VecView(_bcS,_bcSv);CHKERRQ(ierr);
+    PetscViewerDestroy(&_bcSv);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcS").c_str(),FILE_MODE_APPEND,&_bcSv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcD").c_str(),FILE_MODE_WRITE,&_bcDv);CHKERRQ(ierr);
+    ierr = VecView(_bcD,_bcDv);CHKERRQ(ierr);
+    PetscViewerDestroy(&_bcDv);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcD").c_str(),FILE_MODE_APPEND,&_bcDv);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_WRITE,&_uhatViewer);CHKERRQ(ierr);
+    ierr = VecView(_uhat,_uhatViewer);CHKERRQ(ierr);
+    PetscViewerDestroy(&_uhatViewer);CHKERRQ(ierr);
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_APPEND,&_uhatViewer);CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);

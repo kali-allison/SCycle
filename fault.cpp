@@ -3,7 +3,7 @@
 
 //================= constructor and destructor ========================
 Fault::Fault(Domain&D)
-: _N(D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
+: _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _bAbove(D._bAbove),_bBelow(D._bBelow),
@@ -238,7 +238,7 @@ PetscErrorCode Fault::setFields()
     eta = 0.5*_muArr[Ii]/_csArr[Ii];
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
-    bcRShift = tau_inf*_L/_muArr[Ii];
+    bcRShift = tau_inf*_L/_muArr[_sizeMuArr-_N+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);

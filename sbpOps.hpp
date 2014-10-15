@@ -7,6 +7,7 @@
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
 
+using namespace std;
 
 class SbpOps
 {
@@ -33,6 +34,9 @@ class SbpOps
 
     // boundary conditions
     PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
+
+    // directory for matrix debugging
+    string _debugFolder;
 
 
     PetscErrorCode computeA();

@@ -18,7 +18,8 @@ class Fault
   public:
 
     // domain properties
-    const PetscInt     _N; //number of nodes on fault
+    const PetscInt     _N;  //number of nodes on fault
+    const PetscInt _sizeMuArr;
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
     const PetscScalar  _Dc;
 

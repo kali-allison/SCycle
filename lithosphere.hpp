@@ -30,6 +30,7 @@ class Lithosphere
 
     // boundary conditions
     Vec                  _bcF,_bcS,_bcR,_bcD;
+    PetscViewer          _bcFv,_bcSv,_bcRv,_bcDv,_rhsv;
 
     // off-fault material fields
     const PetscScalar    _rhoIn,_rhoOut,_muIn,_muOut;
@@ -55,7 +56,7 @@ class Lithosphere
     //~OdeSolver           *_quadrature;
 
     // viewers
-    PetscViewer          _timeViewer,_surfDispViewer;
+    PetscViewer          _timeViewer,_surfDispViewer,_uhatViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
