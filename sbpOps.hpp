@@ -43,6 +43,7 @@ class SbpOps
     PetscErrorCode computeRhsFactors();
     PetscErrorCode sbpOpsArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,PetscScalar *S,PetscInt *Slen);
     PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
+    PetscErrorCode computeD2mu(Mat &D2mu);
 
     // disable default copy constructor and assignment operator
     SbpOps(const SbpOps & that);

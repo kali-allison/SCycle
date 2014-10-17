@@ -239,6 +239,35 @@ PetscErrorCode SbpOps::computeRhsFactors()
 return ierr;
 }
 
+
+PetscErrorCode SbpOps::computeD2mu(Mat &D2mu)
+{
+  PetscErrorCode  ierr = 0;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeD2mu in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  PetscScalar     v=0,dy2=_dy*_dy,dz2=_dz*_dz;
+  PetscInt        Ii,Jj,Istart,Iend;
+
+  // first try just making 1-dimensional D2mu (pick y arbitrarily)
+
+  ierr = MatGetOwnershipRange(D2mu,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    v = (_muArr[Ii
+
+  }
+
+
+  ierr = MatAssemblyBegin(D2mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D2mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeD2mu in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
 PetscErrorCode SbpOps::computeA()
 {
   PetscErrorCode  ierr = 0;
@@ -325,10 +354,6 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
 #endif
-  PetscViewer outview;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/D2y_Iz",FILE_MODE_WRITE,&outview);CHKERRQ(ierr);
-  ierr = MatView(D2y_Iz,outview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&outview);CHKERRQ(ierr);
 
   // kron(Iy,D2z)
   Mat Iy_D2z;
@@ -352,16 +377,25 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z");CHKERRQ(ierr);
 #endif
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Iy_D2z",FILE_MODE_WRITE,&outview);CHKERRQ(ierr);
-  ierr = MatView(Iy_D2z,outview);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&outview);CHKERRQ(ierr);
 
 
 
   Mat D2yplusD2z;
-  ierr = MatDuplicate(D2y_Iz,MAT_COPY_VALUES,&(D2yplusD2z));CHKERRQ(ierr);
-  ierr = MatAXPY(D2yplusD2z,1.0,Iy_D2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2yplusD2z");CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&D2yplusD2z);CHKERRQ(ierr);
+  ierr = MatSetSizes(D2yplusD2z,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(D2yplusD2z);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(D2yplusD2z,9,NULL,9,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(D2yplusD2z,9,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(D2yplusD2z);CHKERRQ(ierr);
+  ierr = computeD2mu(D2yplusD2z);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n here \n\n");CHKERRQ(ierr);
+
+
+  //~ierr = MatDuplicate(D2y_Iz,MAT_COPY_VALUES,&(D2yplusD2z));CHKERRQ(ierr);
+  //~ierr = MatAXPY(D2yplusD2z,1.0,Iy_D2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+  ierr = PetscObjectSetName((PetscObject) D2yplusD2z, "D2yplusD2z");CHKERRQ(ierr);
+  ierr = MatView(D2yplusD2z,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&D2yplusD2z,_debugFolder,"D2yplusD2z");CHKERRQ(ierr);
 #endif
@@ -509,7 +543,7 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   // compute A
   ierr = MatMatMult(*_mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&_A);CHKERRQ(ierr);
 
-  ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage1",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_A,viewer);CHKERRQ(ierr);

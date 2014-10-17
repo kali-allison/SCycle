@@ -403,6 +403,24 @@ int noSlip(int argc,char **args)
   return ierr;
 }
 
+// perform MMS in space
+int mmsSpace(int argc,char **args)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain domain("init.txt");
+
+  PetscMPIInt localRank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  domain.view(localRank);
+
+  SbpOps sbp(domain);
+
+  return ierr;
+}
+
+
+
 int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
@@ -449,7 +467,8 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(argc,args);
+  //~runEqCycle(argc,args);
+  mmsSpace(argc,args);
   //~noSlip(argc,args);
 
   //~testDebugFuncs();
