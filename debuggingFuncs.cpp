@@ -121,9 +121,14 @@ PetscErrorCode MatEqualVals(Mat * A, Mat * B,PetscBool *flg)
   return ierr;
 }
 
+// prints 1d array
 PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N)
 {
   PetscErrorCode ierr;
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMyArray in debuggingFuncs.c\n");CHKERRQ(ierr);
+#endif
+
   PetscInt       Ii;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"[");CHKERRQ(ierr);
   for (Ii=0;Ii<N-1;Ii++) {
@@ -131,7 +136,37 @@ PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N)
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%f]\n",myArray[N-1]);CHKERRQ(ierr);
   return 0;
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMyArray in debuggingFuncs.c\n");CHKERRQ(ierr);
+#endif
 }
+
+// prints 1d array representing 2d matrix
+PetscErrorCode printMy2DArray(PetscScalar *myArray, PetscInt Nrow, PetscInt Ncol)
+{
+  PetscErrorCode ierr;
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMy2DArray in debuggingFuncs.c\n\n\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt       Ii,Jj;
+
+  for (Ii=0;Ii<Nrow;Ii++)
+  {
+    for (Jj=0;Jj<Ncol-1;Jj++)
+    {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"%f ",myArray[Ii*Nrow+Jj]);CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%f\n",myArray[Ii*Nrow+Jj]);CHKERRQ(ierr);
+  }
+
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMy2DArray in debuggingFuncs.c\n\n\n");CHKERRQ(ierr);
+#endif
+  return 0;
+}
+
+
 
 
 PetscErrorCode testDebugFuncs()

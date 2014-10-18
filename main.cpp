@@ -410,9 +410,9 @@ int mmsSpace(int argc,char **args)
 
   Domain domain("init.txt");
 
-  PetscMPIInt localRank;
-  MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
-  domain.view(localRank);
+  //~PetscMPIInt localRank;
+  //~MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  //~domain.view(localRank);
 
   SbpOps sbp(domain);
 
@@ -467,8 +467,8 @@ int main(int argc,char **args)
   */
 
 
-  //~runEqCycle(argc,args);
-  mmsSpace(argc,args);
+  runEqCycle(argc,args);
+  //~mmsSpace(argc,args);
   //~noSlip(argc,args);
 
   //~testDebugFuncs();

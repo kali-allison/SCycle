@@ -20,6 +20,7 @@ PetscErrorCode MatEqualVals(Mat *A, Mat *B, PetscBool *flg);
 
 
 PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N);
+PetscErrorCode printMy2DArray(PetscScalar *myArray, PetscInt Nrow, PetscInt Ncol);
 
 // test function
 PetscErrorCode testDebugFuncs();

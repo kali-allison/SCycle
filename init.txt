@@ -1,15 +1,15 @@
 order = 2
-Ny = 5
-Nz = 5
-Ly = 4
-Lz = 4
+Ny = 801
+Nz = 801
+Ly = 24
+Lz = 24
 
 Dc = 8e-3
 
 bAbove = 0.02
 bBelow = 0.0
-muIn = 1
-muOut = 1
+muIn = 36
+muOut = 36
 rhoIn = 2.560
 rhoOut = 2.8
 depth = 4

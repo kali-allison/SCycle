@@ -39,21 +39,27 @@ SbpOps::SbpOps(Domain&D)
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxeNy_Iz);
     PetscObjectSetName((PetscObject) _Hinvy_IzxBySy_IzTxeNy_Iz, "_Hinvy_IzxBySy_IzTxeNy_Iz");
 
-  // temporary
+  // arrays holding 1D SBP operators
   PetscMalloc(_Ny*sizeof(PetscScalar),&_HinvyArr);
   PetscMalloc(2*_Ny*sizeof(PetscScalar),&_SyArr);
+  PetscMalloc(_Ny*_Ny*sizeof(PetscScalar),&_D1y);
+  PetscMalloc(_Ny*_Ny*sizeof(PetscScalar),&_D2y);
+  sbpArrays(_Ny,1/_dy,_HinvyArr,_D1y,_D2y,_SyArr,&_Sylen);
+
   PetscMalloc(_Nz*sizeof(PetscScalar),&_HinvzArr);
   PetscMalloc(2*_Nz*sizeof(PetscScalar),&_SzArr);
-
-
-  sbpOpsArrays(_Ny,1/_dy,_HinvyArr,_SyArr,&_Sylen);
-  sbpOpsArrays(_Nz,1/_dz,_HinvzArr,_SzArr,&_Szlen);
+  PetscMalloc(_Nz*_Nz*sizeof(PetscScalar),&_D1z);
+  PetscMalloc(_Nz*_Nz*sizeof(PetscScalar),&_D2z);
+  sbpArrays(_Nz,1/_dz,_HinvzArr,_D1z,_D2z,_SzArr,&_Szlen);
 
 
   MatCreate(PETSC_COMM_WORLD,&_Dy_Iz); PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");
 
+  computeDy_Iz();
   computeA();
   computeRhsFactors();
+
+  MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz); // scale for shear stress computations
 
 
 #if VERBOSE > 1
@@ -81,11 +87,14 @@ SbpOps::~SbpOps()
 
   MatDestroy(&_Dy_Iz);
 
-  //~KSPDestroy(&_ksp);
-
   PetscFree(_HinvyArr);
-  PetscFree(_HinvzArr);
+  PetscFree(_D1y);
+  PetscFree(_D2y);
   PetscFree(_SyArr);
+
+  PetscFree(_HinvzArr);
+  PetscFree(_D1z);
+  PetscFree(_D2z);
   PetscFree(_SzArr);
 
 #if VERBOSE > 1
@@ -239,44 +248,468 @@ PetscErrorCode SbpOps::computeRhsFactors()
 return ierr;
 }
 
-
-PetscErrorCode SbpOps::computeD2mu(Mat &D2mu)
+// this is only valid for 2nd order
+// to do 4th order, I would need to change my computation of Rmuy
+PetscErrorCode SbpOps::computeD2ymu(Mat &D2ymu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeD2mu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeD2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
-  PetscScalar     v=0,dy2=_dy*_dy,dz2=_dz*_dz;
-  PetscInt        Ii,Jj,Istart,Iend;
+  PetscScalar     v=0;
+  PetscInt        Istart,Iend; // range of matrix rows stored locally
+  PetscInt        Ii,Jj; // local matrix indices
+  PetscInt        Irow,Icol; // array indices
 
-  // first try just making 1-dimensional D2mu (pick y arbitrarily)
 
-  ierr = MatGetOwnershipRange(D2mu,&Istart,&Iend);CHKERRQ(ierr);
+  // kron muxBySy_Iz
+  Mat muxBySy_Iz;
+  MatCreate(PETSC_COMM_WORLD,&muxBySy_Iz);
+  ierr = PetscObjectSetName((PetscObject) muxBySy_Iz, "muxBySy_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(muxBySy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(muxBySy_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(muxBySy_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(muxBySy_Iz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(muxBySy_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(muxBySy_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    Irow = Ii/_Nz; // corresponding row in By*Sy
+    if (Irow == 0) {
+      for (Icol=0;Icol<_Sylen;Icol++) // iterate over columns in By*Sy
+      {
+        v = _SyArr[Icol];
+        Jj = Ii%_Nz + Icol*_Nz; // map cols in Dy to cols in Dy_Iz
+        if (v!=0) { ierr = MatSetValues(muxBySy_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+      }
+    }
+    if (Ii > _Ny*_Nz -_Nz-1) {
+      for (Icol=0;Icol<_Sylen;Icol++) // iterate over columns in By*Sy
+      {
+        v = _SyArr[_Sylen + Icol];
+        Jj = Ii%_Nz + (_Ny-_Sylen + Icol)*_Nz; // map cols in SyArr to cols in BySy_Iz
+        ierr = MatSetValues(muxBySy_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+      }
+    }
+  }
+  ierr = MatAssemblyBegin(muxBySy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(muxBySy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
+  //~ierr = MatView(muxBySy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // mu*kron(Hy,Iz)
+  Mat muxHy_Iz;
+  MatCreate(PETSC_COMM_WORLD,&muxHy_Iz);
+  ierr = PetscObjectSetName((PetscObject) muxHy_Iz, "muxHy_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(muxHy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(muxHy_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(muxHy_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(muxHy_Iz,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(muxHy_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(muxHy_Iz,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++)
   {
-    v = (_muArr[Ii
-
+    Irow = Ii/_Nz; // corresponding row in Hy
+    v = _muArr[Irow]/_HinvyArr[Irow];
+    ierr = MatSetValues(muxHy_Iz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
   }
+  ierr = MatAssemblyBegin(muxHy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(muxHy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(Hinvy,Iz)
+  Mat Hinvy_Iz;
+  MatCreate(PETSC_COMM_WORLD,&Hinvy_Iz);
+  ierr = PetscObjectSetName((PetscObject) Hinvy_Iz, "Hinvy_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(Hinvy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Hinvy_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Hinvy_Iz,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Hinvy_Iz,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Hinvy_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Hinvy_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii/_Nz; // corresponding row in Hiny
+    v = _HinvyArr[Irow];
+    ierr = MatSetValues(Hinvy_Iz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  ierr = MatAssemblyBegin(Hinvy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Hinvy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Hinvy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(D2y,Iz)
+  Mat D2y_Iz;
+  MatCreate(PETSC_COMM_WORLD,&D2y_Iz);
+  ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(D2y_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(D2y_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(D2y_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(D2y_Iz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(D2y_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(D2y_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii/_Nz; // corresponding row in D2y
+    for (Icol=0;Icol<_Ny;Icol++)
+    { // iterate over columns in Dy
+      v = _D2y[Irow*_Ny+Icol];
+      Jj = Ii%_Nz + Icol*_Nz; // map cols in D2y to cols in D2y_Iz
+      if (v!=0) { ierr = MatSetValues(D2y_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(D2y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(D2y',Iz)
+  Mat D2yT_Iz;
+  MatCreate(PETSC_COMM_WORLD,&D2yT_Iz);
+  ierr = PetscObjectSetName((PetscObject) D2yT_Iz, "D2yT_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(D2yT_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(D2yT_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(D2yT_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(D2yT_Iz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(D2yT_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(D2yT_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii/_Nz; // corresponding row in D2y
+    for (Icol=0;Icol<_Ny;Icol++) // iterate over columns in D2y
+    {
+      v = _D2y[Icol*_Ny+Irow]; // swapped Irow and Icol rel to kron(D2y,Iz) eq to access D2y'
+      Jj = Ii%_Nz + Icol*_Nz; // map cols in D2y' to cols in D2y_Iz
+      if (v!=0) { ierr = MatSetValues(D2yT_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(D2yT_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(D2yT_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(D2yT_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 
-  ierr = MatAssemblyBegin(D2mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D2mu,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  // kron(C,Iz)
+  Mat C_Iz;
+  MatCreate(PETSC_COMM_WORLD,&C_Iz);
+  ierr = PetscObjectSetName((PetscObject) C_Iz, "C_Iz");CHKERRQ(ierr);
+  ierr = MatSetSizes(C_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(C_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(C_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(C_Iz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(C_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(C_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    if  (Ii>_Nz-1 && Ii<(_Ny*_Nz-_Nz) ) {
+      v = 1;
+      ierr = MatSetValues(C_Iz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+    }
+  }
+  ierr = MatAssemblyBegin(C_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(C_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(C_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+  // Rymu = (D2yT x C_Iz x mu x D2y_Iz)/4/dy^3;
+  Mat Rymu;
+  ierr = MatMatMatMult(D2yT_Iz,C_Iz,*_mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
+  ierr = MatMatMult(Rymu,D2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
+  ierr = MatScale(Rymu,0.25*_dy*_dy*_dy);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"_dy=%f",_dy);CHKERRQ(ierr);
+
+  ierr = PetscObjectSetName((PetscObject) Rymu, "Rymu");CHKERRQ(ierr);
+  //~ierr = MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  //~Mat D2ymu;
+  ierr = MatTransposeMatMult(_Dy_Iz,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
+  ierr = MatMatMult(D2ymu,_Dy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
+  ierr = MatScale(D2ymu,-1);CHKERRQ(ierr);
+  ierr = MatAXPY(D2ymu,-1,Rymu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(D2ymu,1,muxBySy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatMatMult(Hinvy_Iz,D2ymu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
+
+  ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
+  //~ierr = MatView(D2ymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  MatDestroy(&muxBySy_Iz);
+  MatDestroy(&muxHy_Iz);
+  MatDestroy(&Hinvy_Iz);
+  MatDestroy(&D2y_Iz);
+  MatDestroy(&D2yT_Iz);
+  MatDestroy(&C_Iz);
+  MatDestroy(&Rymu);
+
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeD2mu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeD2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
 
+
+// this is only valid for 2nd order
+// to do 4th order, I would need to change my computation of Rmuz
+PetscErrorCode SbpOps::computeD2zmu(Mat &D2zmu)
+{
+  PetscErrorCode  ierr = 0;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeD2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  PetscScalar     v=0;
+  PetscInt        Istart,Iend; // range of matrix rows stored locally
+  PetscInt        Ii,Jj; // local matrix indices
+  PetscInt        Irow,Icol; // array indices
+
+  // kron(Iy,Dz)
+  Mat Iy_Dz;
+  MatCreate(PETSC_COMM_WORLD,&Iy_Dz);
+  ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_Dz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_Dz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_Dz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_Dz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_Dz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Iy_Dz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii%_Nz; // corresponding row in D1z
+    for (Icol=0;Icol<_Nz;Icol++)
+    { // iterate over columns in Dy
+      v = _D1z[Irow*_Nz+Icol];
+      Jj = Ii + Icol-Irow; // map cols in Dy to cols in Iy_Dz
+      if (v!=0) { ierr = MatSetValues(Iy_Dz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(Iy_Dz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Iy_Dz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // mux kron(Iy,BzSz)
+  Mat muxIy_BzSz;
+  MatCreate(PETSC_COMM_WORLD,&muxIy_BzSz);
+  ierr = PetscObjectSetName((PetscObject) muxIy_BzSz, "muxIy_BzSz");CHKERRQ(ierr);
+  ierr = MatSetSizes(muxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(muxIy_BzSz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(muxIy_BzSz,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(muxIy_BzSz,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(muxIy_BzSz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(muxIy_BzSz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    //~Irow = Ii%_Nz; // corresponding row in By*Sy
+    if (Ii%_Nz == 0) {
+      for (Icol=0;Icol<_Szlen;Icol++) // iterate over columns in Bz*Sz
+      {
+        v = _SzArr[Icol];
+        Jj = Ii + Icol; // map cols in Dy to cols in Dy_Iz
+        ierr = MatSetValues(muxIy_BzSz,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+      }
+    }
+    if (Ii%_Nz ==_Ny ) {
+      for (Icol=0;Icol<_Szlen;Icol++) // iterate over columns in By*Sy
+      {
+        v = _SzArr[_Szlen + Icol];
+        Jj = Ii + Icol-_Szlen+1; // map cols in SyArr to cols in BySy_Iz
+        if (v!=0) { ierr = MatSetValues(muxIy_BzSz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+      }
+    }
+  }
+  ierr = MatAssemblyBegin(muxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(muxIy_BzSz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatMatMult(*_mu,muxIy_BzSz,MAT_INITIAL_MATRIX,1.0,&muxIy_BzSz);CHKERRQ(ierr);
+  //~ierr = MatView(muxIy_BzSz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // mu*kron(Iy,Hz)
+  Mat muxIy_Hz;
+  MatCreate(PETSC_COMM_WORLD,&muxIy_Hz);
+  ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
+  ierr = MatSetSizes(muxIy_Hz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(muxIy_Hz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(muxIy_Hz,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(muxIy_Hz,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(muxIy_Hz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(muxIy_Hz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii%_Nz; // corresponding row in Hz
+    v = _muArr[Irow]/_HinvzArr[Irow];
+    ierr = MatSetValues(muxIy_Hz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  ierr = MatAssemblyBegin(muxIy_Hz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(muxIy_Hz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(muxIy_Hz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(Iy,Hinvz)
+  Mat Iy_Hinvz;
+  MatCreate(PETSC_COMM_WORLD,&Iy_Hinvz);
+  ierr = PetscObjectSetName((PetscObject) Iy_Hinvz, "Iy_Hinvz");CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_Hinvz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_Hinvz,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_Hinvz,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_Hinvz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Iy_Hinvz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii%_Nz; // corresponding row in Hinvz
+    v = _HinvzArr[Irow];
+    ierr = MatSetValues(Iy_Hinvz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  ierr = MatAssemblyBegin(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Iy_Hinvz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_Hinvz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(Iy,D2z)
+  Mat Iy_D2z;
+  MatCreate(PETSC_COMM_WORLD,&Iy_D2z);
+  ierr = PetscObjectSetName((PetscObject) Iy_D2z, "Iy_D2z");CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_D2z,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_D2z);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_D2z,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_D2z,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_D2z);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Iy_D2z,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii%_Nz; // corresponding row in D2z
+    for (Icol=0;Icol<_Nz;Icol++)
+    { // iterate over columns in Dy
+      v = _D2z[Irow*_Nz+Icol];
+      Jj = Ii + Icol - Irow; // map cols in D2z to cols in Iy_D2z
+      if (v!=0) { ierr = MatSetValues(Iy_D2z,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_D2z,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(Iy,D2z')
+  Mat Iy_D2zT;
+  MatCreate(PETSC_COMM_WORLD,&Iy_D2zT);
+  ierr = PetscObjectSetName((PetscObject) Iy_D2zT, "Iy_D2zT");CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_D2zT,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_D2zT);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_D2zT,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_D2zT,5,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_D2zT);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Iy_D2zT,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii%_Nz; // corresponding row in D2y
+    for (Icol=0;Icol<_Nz;Icol++) // iterate over columns in D2y
+    {
+      v = _D2z[Icol*_Nz+Irow]; // swapped Irow and Icol rel to kron(Iy,D2z) eq to access D2z'
+      Jj = Ii + Icol - Irow; // map cols in D2y' to cols in D2y_Iz
+      //~Jj = Ii - Icol + Irow; // map cols in D2z' to cols in Iy_D2zT
+      if (v!=0) { ierr = MatSetValues(Iy_D2zT,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(Iy_D2zT,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Iy_D2zT,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_D2zT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+  // kron(Iy,C)
+  Mat Iy_C;
+  MatCreate(PETSC_COMM_WORLD,&Iy_C);
+  ierr = PetscObjectSetName((PetscObject) Iy_C, "Iy_C");CHKERRQ(ierr);
+  ierr = MatSetSizes(Iy_C,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(Iy_C);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(Iy_C,1,NULL,0,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(Iy_C,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(Iy_C);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(Iy_C,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    if  (Ii%_Nz!=0 && Ii%_Nz!=_Ny ) {
+      v = 1;
+      ierr = MatSetValues(Iy_C,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+    }
+  }
+  ierr = MatAssemblyBegin(Iy_C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(Iy_C,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(Iy_C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // Rzmu = (Iy_D2zT x Iy_C x mu x Iy_D2z)/4/dz^3;
+  Mat Rzmu;
+  ierr = MatMatMatMult(Iy_D2zT,Iy_C,*_mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
+  ierr = MatMatMult(Rzmu,Iy_D2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
+  ierr = MatScale(Rzmu,0.25*_dz*_dz*_dz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) Rzmu, "Rzmu");CHKERRQ(ierr);
+  //~ierr = MatView(Rzmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  //~Mat D2zmu;
+  ierr = MatTransposeMatMult(Iy_Dz,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
+  ierr = MatMatMult(D2zmu,Iy_Dz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
+  ierr = MatScale(D2zmu,-1);CHKERRQ(ierr);
+  ierr = MatAXPY(D2zmu,-1,Rzmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(D2zmu,1,muxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatMatMult(Iy_Hinvz,D2zmu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
+
+  ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
+  //~ierr = MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  MatDestroy(&Iy_Dz);
+  MatDestroy(&muxIy_BzSz);
+  MatDestroy(&muxIy_Hz);
+  MatDestroy(&Iy_Hinvz);
+  MatDestroy(&Iy_D2z);
+  MatDestroy(&Iy_D2zT);
+  MatDestroy(&Iy_C);
+  MatDestroy(&Rzmu);
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeD2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+// compute matrix for shear stress (not scaled by mu!!): kron(Dy,Iz)
+PetscErrorCode SbpOps::computeDy_Iz()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  PetscScalar     v=0;
+  PetscInt        Istart,Iend; // range of matrix rows stored locally
+  PetscInt        Ii, Jj; // local matrix row and col indices
+  PetscInt        Irow,Icol; // array indices
+
+  ierr = MatSetSizes(_Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_Dy_Iz);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_Dy_Iz,2,NULL,2,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_Dy_Iz,2,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_Dy_Iz);CHKERRQ(ierr);
+  ierr = MatGetOwnershipRange(_Dy_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    Irow = Ii/_Nz; // corresponding row in Dy
+    for (Icol=0;Icol<_Ny;Icol++)
+    { // iterate over columns in Dy
+      assert(Irow*_Ny+Icol<_Ny*_Nz);
+      v = _D1y[Irow*_Ny+Icol];
+      //~v = 0;
+      Jj = Ii%_Nz + Icol*_Nz; // map cols in Dy to cols in _Dy_Iz
+      assert(Jj<_Ny*_Nz);
+      if (v!=0) { ierr = MatSetValues(_Dy_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES); }
+    }
+  }
+  ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+// compute matrix relating displacement to vector b containing boundary conditions
 PetscErrorCode SbpOps::computeA()
 {
   PetscErrorCode  ierr = 0;
-  PetscScalar     v;
-  PetscInt        Ii,J,Istart,Iend,ncols,indx,*cols,Jj;
-  Mat             D2y,D2z,Dy,Dz;
-
-  PetscInt const *constCols;
-  PetscScalar const *constVals;
+  PetscScalar     v = 0;
+  //~PetscInt        Ii,J,Istart,Iend,ncols,indx,*cols,Jj;
+  PetscInt        Ii,J,Istart,Iend,indx,*cols;
   PetscScalar *vals;
 
   double startTime = MPI_Wtime();
@@ -290,115 +723,19 @@ PetscErrorCode SbpOps::computeA()
   PetscMalloc(_Nz*sizeof(PetscScalar),&vals);
 
 
-  ierr = sbpOpsMats(_Ny-1,Dy,D2y);CHKERRQ(ierr);
-  ierr = sbpOpsMats(_Nz-1,Dz,D2z);CHKERRQ(ierr);
+  Mat D2ymu;
+  ierr = MatCreate(PETSC_COMM_WORLD,&D2ymu);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
+  ierr = computeD2ymu(D2ymu);CHKERRQ(ierr);
 
+  Mat D2zmu;
+  ierr = MatCreate(PETSC_COMM_WORLD,&D2zmu);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
+  ierr = computeD2zmu(D2zmu);CHKERRQ(ierr);
 
-#if DEBUG > 1
-  ierr = checkMatrix(&Dy,_debugFolder,"Dy",&D);CHKERRQ(ierr);
-  ierr = checkMatrix(&D2y,_debugFolder,"D2y",&D);CHKERRQ(ierr);
-  ierr = checkMatrix(&Dz,_debugFolder,"Dz",&D);CHKERRQ(ierr);
-  ierr = checkMatrix(&D2z,_debugFolder,"D2z",&D);CHKERRQ(ierr);
-#endif
-
-  // Scaling
-  ierr = MatScale(D2y,1.0/_dy/_dy);CHKERRQ(ierr);
-  ierr = MatScale(D2z,1.0/_dz/_dz);CHKERRQ(ierr);
-  ierr = MatScale(Dy,1.0/_dy);CHKERRQ(ierr);
-
-  // _Dy_Iz = mu*kron(Dy,Iz)
-  ierr = MatSetSizes(_Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_Dy_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_Dy_Iz,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatGetOwnershipRange(Dy,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = MatGetRow(Dy,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-    for (J=0;J<ncols;J++) {cols[J]=constCols[J]*_Nz;}
-    for (J=Ii*_Nz;J<(Ii+1)*_Nz;J++) {
-      ierr = MatSetValues(_Dy_Iz,1,&J,ncols,cols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1; }
-    }
-    ierr = MatRestoreRow(Dy,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
-#endif
-ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
-
-
-  // kron(D2y,Iz)
-  Mat D2y_Iz;
-  ierr = MatCreate(PETSC_COMM_WORLD,&D2y_Iz);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
-  ierr = MatSetSizes(D2y_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(D2y_Iz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(D2y_Iz,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(D2y_Iz,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(D2y_Iz);CHKERRQ(ierr);
-  ierr = MatGetOwnershipRange(D2y,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = MatGetRow(D2y,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-    for (J=0;J<ncols;J++) { cols[J]=constCols[J]*_Nz;}
-    for (J=Ii*_Nz;J<(Ii+1)*_Nz;J++) {
-      ierr = MatSetValues(D2y_Iz,1,&J,ncols,cols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-      for (Jj=0;Jj<ncols;Jj++) { cols[Jj]=cols[Jj]+1; }
-    }
-    ierr = MatRestoreRow(D2y,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
-#endif
-
-  // kron(Iy,D2z)
-  Mat Iy_D2z;
-  ierr = MatCreate(PETSC_COMM_WORLD,&Iy_D2z);CHKERRQ(ierr);
-  ierr = MatSetSizes(Iy_D2z,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Iy_D2z);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Iy_D2z,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Iy_D2z,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Iy_D2z);CHKERRQ(ierr);
-  ierr = MatGetOwnershipRange(D2z,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = MatGetRow(D2z,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-    for (Jj=Ii;Jj<_Ny*_Nz;Jj=Jj+_Nz) {
-      for (J=0;J<ncols;J++) { cols[J] = constCols[J]+(Jj/_Nz)*_Nz; }
-      ierr = MatSetValues(Iy_D2z,1,&Jj,ncols,cols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-    }
-    ierr = MatRestoreRow(D2z,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Iy_D2z,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z");CHKERRQ(ierr);
-#endif
-
-
-
-  Mat D2yplusD2z;
-  ierr = MatCreate(PETSC_COMM_WORLD,&D2yplusD2z);CHKERRQ(ierr);
-  ierr = MatSetSizes(D2yplusD2z,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(D2yplusD2z);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(D2yplusD2z,9,NULL,9,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(D2yplusD2z,9,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(D2yplusD2z);CHKERRQ(ierr);
-  ierr = computeD2mu(D2yplusD2z);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n here \n\n");CHKERRQ(ierr);
-
-
-  //~ierr = MatDuplicate(D2y_Iz,MAT_COPY_VALUES,&(D2yplusD2z));CHKERRQ(ierr);
-  //~ierr = MatAXPY(D2yplusD2z,1.0,Iy_D2z,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-
-  ierr = PetscObjectSetName((PetscObject) D2yplusD2z, "D2yplusD2z");CHKERRQ(ierr);
-  ierr = MatView(D2yplusD2z,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&D2yplusD2z,_debugFolder,"D2yplusD2z");CHKERRQ(ierr);
-#endif
+  Mat D2mu;
+  ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&D2mu);CHKERRQ(ierr);
+  ierr = MatAYPX(D2mu,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
 
   // Hinvy_IzxE0y_Iz = kron(Hinvy,Iz)*kron(E0y,Iz)
@@ -541,8 +878,9 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   PetscViewer viewer;
 
   // compute A
-  ierr = MatMatMult(*_mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&_A);CHKERRQ(ierr);
-
+  //~ierr = MatMatMult(*_mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&_A);CHKERRQ(ierr);
+  ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
+  ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage1",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -594,14 +932,8 @@ ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
   ierr = PetscFree(cols);CHKERRQ(ierr);
   ierr = PetscFree(vals);CHKERRQ(ierr);
 
-  ierr = MatDestroy(&D2y);CHKERRQ(ierr);
-  ierr = MatDestroy(&Dy);CHKERRQ(ierr);
-  ierr = MatDestroy(&Dz);CHKERRQ(ierr);
-  ierr = MatDestroy(&D2z);CHKERRQ(ierr);
-
-  ierr = MatDestroy(&D2y_Iz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Iy_D2z);CHKERRQ(ierr);
-  ierr = MatDestroy(&D2yplusD2z);CHKERRQ(ierr);
+  ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
+  ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
   ierr = MatDestroy(&Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
   ierr = MatDestroy(&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
   ierr = MatDestroy(&Hinvy_IzxBySy_IzTxE0y_Iz);CHKERRQ(ierr);
@@ -653,15 +985,21 @@ PetscErrorCode SbpOps::computeHinv()
 }
 
 
-PetscErrorCode SbpOps::sbpOpsArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,PetscScalar *S,PetscInt *Slen)
+
+// creates array versions of the 1D SBP factors
+// currently, D1 and D2 are only valid in 1D
+// (also, D1 might need to have it's first and last rows modified??)
+PetscErrorCode SbpOps::sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
+                             PetscScalar *D1,PetscScalar *D2,PetscScalar *S,PetscInt *Slen)
 {
   PetscErrorCode ierr = 0;
-
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpOpsArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  switch ( _order ) {
+PetscInt Ii=0;
+
+switch ( _order ) {
     case 2:
       std::fill_n(Hinv, N, scale);
       Hinv[0] = 2.0*scale;
@@ -670,6 +1008,26 @@ PetscErrorCode SbpOps::sbpOpsArrays(const PetscInt N,const PetscScalar scale,Pet
       S[0]=1.5*scale;S[1]=-2*scale;S[2]=0.5*scale;
       S[3]=0.5*scale;S[4]=-2*scale;S[5]=1.5*scale;
       *Slen = 3;
+
+      std::fill_n(D1, N*N, 0.0);
+      D1[0] = -1*scale; D1[1] = 1*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D1[Ii*N+Ii -1] = -0.5*scale;
+        D1[Ii*N+Ii +1] = 0.5*scale;
+      }
+      D1[N*N-1] = 1*scale; D1[N*N-2] = -1*scale; // last row
+      //~ierr = printMy2DArray(D1,N,N);CHKERRQ(ierr);
+
+      std::fill_n(D2, N*N, 0.0);
+      D2[0] = 1*scale*scale; D2[1] = -2*scale*scale; D2[2] = 1*scale*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D2[Ii*N+Ii -1] = 1*scale*scale;
+        D2[Ii*N+Ii]   = -2*scale*scale;
+        D2[Ii*N+Ii +1] = 1*scale*scale;
+      }
+      D2[N*N-3] = 1*scale*scale; D2[N*N-2] = -2*scale*scale; D2[N*N-1] = 1*scale*scale; // last row
+      //~ierr = printMy2DArray(D2,N,N);CHKERRQ(ierr);
+
 
       break;
 
@@ -690,6 +1048,28 @@ PetscErrorCode SbpOps::sbpOpsArrays(const PetscInt N,const PetscScalar scale,Pet
       S[4]=-scale/3.0;S[5]=1.5*scale;S[6]=-3.0*scale;S[7]=11.0/6.0*scale;
       *Slen = 4;
 
+
+      // these are actually only 2nd order accurate for now
+      std::fill_n(D1, N*N, 0.0);
+      D1[0] = -1*scale; D1[1] = 1*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D1[Ii*N+Ii -1] = -0.5*scale;
+        D1[Ii*N+Ii +1] = 0.5*scale;
+      }
+      D1[N*N-1] = 1*scale; D1[N*N-2] = -1*scale; // last row
+      //~ierr = printMy2DArray(D1,N,N);CHKERRQ(ierr);
+
+
+      std::fill_n(D2, N*N, 0.0);
+      D2[0] = 1*scale*scale; D2[1] = -2*scale*scale; D2[2] = 1*scale*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D2[Ii*N+Ii -1] = 1*scale*scale;
+        D2[Ii*N+Ii]   = -2*scale*scale;
+        D2[Ii*N+Ii +1] = 1*scale*scale;
+      }
+      D2[N*N-3] = 1*scale*scale; D2[N*N-2] = -2*scale*scale; D2[N*N-1] = 1*scale*scale; // last row
+      //~ierr = printMy2DArray(D2,N,N);CHKERRQ(ierr);
+
       break;
 
     default:
@@ -697,309 +1077,301 @@ PetscErrorCode SbpOps::sbpOpsArrays(const PetscInt N,const PetscScalar scale,Pet
       break;
   }
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpOpsArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-  }
-
-
-PetscErrorCode  SbpOps::sbpOpsMats(PetscInt N, Mat &D, Mat &D2)
-{
-  PetscErrorCode ierr;
-  PetscScalar    v,*stencil;
-  PetscInt       Ii,J,Istart,Iend,*cols,ncols;
-  Mat            Hinv,S,Q;
-
-  PetscInt const *constCols;
-  PetscScalar const *constVals;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
-
-  /* Create matrix operators: PinvMat, Q, D2, S */
-  ierr = MatCreate(PETSC_COMM_WORLD,&Hinv);CHKERRQ(ierr);
-  ierr = MatSetSizes(Hinv,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Hinv);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Hinv,1,NULL,0,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Hinv,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Hinv);CHKERRQ(ierr);
-
-  ierr = MatCreate(PETSC_COMM_WORLD,&Q);CHKERRQ(ierr);
-  ierr = MatSetSizes(Q,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(Q);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(Q,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(Q,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(Q);CHKERRQ(ierr);
-
-  ierr = MatCreate(PETSC_COMM_WORLD,&D2);CHKERRQ(ierr);
-  ierr = MatSetSizes(D2,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(D2);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(D2,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(D2,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(D2);CHKERRQ(ierr);
-
-  ierr = MatCreate(PETSC_COMM_WORLD,&S);CHKERRQ(ierr);
-  ierr = MatSetSizes(S,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(S);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(S,5,NULL,5,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(S,5,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(S);CHKERRQ(ierr);
-
-  PetscMalloc(16*sizeof(PetscInt),&cols);
-  PetscMalloc(16*sizeof(PetscScalar),&stencil);
-
-  switch ( _order ) {
-    case 2:
-
-      ierr = MatGetOwnershipRange(Q,&Istart,&Iend); CHKERRQ(ierr);
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        if (Ii<N) { v=0.5;J=Ii+1; ierr=MatSetValues(Q,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr); }
-        if (Ii>0) { v=-0.5;J=Ii-1; ierr=MatSetValues(Q,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr); }
-      }
-      if (Istart==0) { v=-0.5; ierr=MatSetValues(Q,1,&Istart,1,&Istart,&v,INSERT_VALUES);CHKERRQ(ierr); }
-      if (Iend==N+1) { v=0.5;Ii=N; ierr=MatSetValues(Q,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr); }
-
-      ierr = MatGetOwnershipRange(Hinv,&Istart,&Iend); CHKERRQ(ierr);
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        v=1.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Istart==0) { v=2.0; ierr=MatSetValues(Hinv,1,&Istart,1,&Istart,&v,INSERT_VALUES);CHKERRQ(ierr); }
-      if (Iend==N+1) { v=2.0;Ii=Iend-1; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr); }
-
-      ierr = MatGetOwnershipRange(D2,&Istart,&Iend);CHKERRQ(ierr);
-      stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        if (Ii>0 && Ii<N) {
-          cols[0] = Ii-1;cols[1]=Ii;cols[2]=Ii+1;
-          v=1.0;ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-        }
-      }
-      if (Istart==0) {
-        cols[0]=Istart;cols[1]=Istart+1;cols[2]=Istart+2;
-        ierr=MatSetValues(D2,1,&Istart,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=N;
-        cols[2]=Ii;cols[1]=Ii-1;cols[0]=Ii-2;
-        ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-      ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
-      if (Istart==0) {
-        cols[0]=0;cols[1]=1;cols[2]=2;
-        stencil[0]=1.5;stencil[1]=-2;stencil[2]=0.5; // -1 * row from paper
-        ierr=MatSetValues(S,1,&Istart,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=Iend-1;
-        cols[2]=N;cols[1]=N-1;cols[0]=N-2;
-        stencil[0]=0.5;stencil[1]=-2;stencil[2]=1.5;
-        ierr=MatSetValues(S,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-      break;
-
-    case 4:
-      if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
-
-      ierr = MatGetOwnershipRange(Q,&Istart,&Iend); CHKERRQ(ierr);
-      if (Istart==0) {
-        cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;
-        stencil[0]=-1.0/2.0;stencil[1]=59.0/96.0;stencil[2]=-1.0/12.0;stencil[3]=-1.0/32.0;
-        ierr=MatSetValues(Q,1,&Istart,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=1;
-        cols[0]=0;cols[1]=2;stencil[0]=-59.0/96.0;stencil[1]=59.0/96.0;
-        ierr=MatSetValues(Q,1,&Ii,2,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=2;
-        cols[0]=0;cols[1]=1;cols[2]=3;cols[3]=4;
-        stencil[0]=1.0/12.0;stencil[1]=-59.0/96.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/12.0;
-        ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=3;
-        cols[0]=0;cols[1]=2;cols[2]=4;cols[3]=5;
-        stencil[0]=1.0/32.0;stencil[1]=-59.0/96.0;stencil[2]=2.0/3.0;stencil[3]=-1.0/12.0;
-        ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=N;
-        cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
-        stencil[0]=1.0/32.0;stencil[1]=1.0/12.0;stencil[2]=-59.0/96.0;stencil[3]=1.0/2.0;
-        ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N-1;
-        cols[0]=N-2;cols[1]=N;
-        stencil[0]=-59.0/96.0;stencil[1]=59.0/96.0;
-        ierr=MatSetValues(Q,1,&Ii,2,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N-2;
-        cols[0]=N-4;cols[1]=N-3;cols[2]=N-1;cols[3]=N;
-        stencil[0]=1.0/12.0;stencil[1]=-59.0/96.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/12.0;
-        ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N-3;
-        cols[0]=N-5;cols[1]=N-4;cols[2]=N-2;cols[3]=N;
-        stencil[0]=1.0/12.0;stencil[1]=-2.0/3.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/32.0;
-        ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        if (Ii>3 && Ii<N-3) {
-          cols[0]=Ii-2;cols[1]=Ii-1;cols[2]=Ii+1;cols[3]=Ii+2;
-          stencil[0]=1.0/12.0;stencil[1]=-2.0/3.0;stencil[2]=2.0/3.0;stencil[3]=-1.0/12.0;
-          ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-        }
-      }
-
-      ierr = MatGetOwnershipRange(Hinv,&Istart,&Iend); CHKERRQ(ierr);
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        v=1.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Istart==0) {
-        Ii=Istart;v=48.0/17.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=Istart+1;v=48.0/59.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=Istart+2;v=48.0/43.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=Istart+3;v=48.0/49.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=N;v=48.0/17.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=N-1;v=48.0/59.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=N-2;v=48.0/43.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-        Ii=N-3;v=48.0/49.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-
-      ierr = MatGetOwnershipRange(D2,&Istart,&Iend);CHKERRQ(ierr);
-      for (Ii=Istart;Ii<Iend;Ii++) {
-        if (Ii>3 && Ii<N-3) {
-          cols[0]=Ii-2;cols[1]=Ii-1;cols[2]=Ii;cols[3]=Ii+1;cols[4]=Ii+2;
-          stencil[0]=-1.0/12.0;stencil[1]=4.0/3.0;stencil[2]=-5.0/2.0;stencil[3]=4.0/3.0;stencil[4]=-1.0/12.0;
-          ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-        }
-      }
-      if (Istart==0) {
-        Ii=Istart;
-        cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
-        stencil[0]=2.0;stencil[1]=-5.0;stencil[2]=4.0;stencil[3]=-1.0;
-        ierr=MatSetValues(D2,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=Istart+1;
-        cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
-        stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
-        ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=Istart+2;
-        cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
-        stencil[0]=-4.0/43.0;stencil[1]=59.0/43.0;stencil[2]=-110.0/43.0;stencil[3]=59.0/43;stencil[4]=-4.0/43.0;
-        ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=Istart+3;
-        cols[0]=0;cols[1]=2;cols[2]=3;cols[3]=4;cols[4]=5;
-        stencil[0]=-1.0/49.0;stencil[1]=59.0/49.0;stencil[2]=-118.0/49.0;stencil[3]=64.0/49.0;stencil[4]=-4.0/49.0;
-        ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=N-3;
-        cols[0]=N-5;cols[1]=N-4;cols[2]=N-3;cols[3]=N-2;cols[4]=N;
-        stencil[0]=-4.0/49.;stencil[1]=64.0/49.0;stencil[2]=-118.0/49.0;stencil[3]=59.0/49.0;stencil[4]=-1.0/49.0;
-        ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N-2;
-        cols[0]=N-4;cols[1]=N-3;cols[2]=N-2;cols[3]=N-1;cols[4]=N;
-        stencil[0]=-4.0/43.0;stencil[1]=59.0/43.0;stencil[2]=-110.0/43.0;stencil[3]=59.0/43.0;stencil[4]=-4.0/43.0;
-        ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N-1;
-        cols[0]=N-2;cols[1]=N-1;cols[2]=N;
-        stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
-        ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-
-        Ii=N;
-        cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
-        stencil[0]=-1.0;stencil[1]=4.0;stencil[2]=-5.0;stencil[3]=2.0;
-        ierr=MatSetValues(D2,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-      ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
-      if (Istart==0) {
-        cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;
-        stencil[0]=11.0/6.0;stencil[1]=-3.0;stencil[2]=3.0/2.0;stencil[3]=-1.0/3.0; // -1 * row from paper
-        ierr=MatSetValues(S,1,&Istart,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      if (Iend==N+1) {
-        Ii=Iend-1;
-        cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
-        stencil[0]=-1.0/3.0;stencil[1]=3.0/2.0;stencil[2]=-3.0;stencil[3]=11.0/6.0;
-        ierr=MatSetValues(S,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-      break;
-
-
-    default:
-      SETERRQ(PETSC_COMM_WORLD,1,"SBP order not understood.");
-      break;
-  }
-
-  ierr = MatAssemblyBegin(Q,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(D2,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyBegin(S,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = MatAssemblyEnd(Q,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D2,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(S,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = MatMatMult(Hinv,Q,MAT_INITIAL_MATRIX,1.0,&D);CHKERRQ(ierr);
-  ierr = MatSetOption(D,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_FALSE);
-  ierr = MatSetFromOptions(D);CHKERRQ(ierr);
-
-  // D(1,:) = S(1,:); D(end,:) = S(end,:)
-  ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
-  if (Istart == 0) {
-    ierr = MatGetRow(S,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-    for (J=0;J<ncols;J++) { stencil[J]=-1.0*constVals[J];}
-    ierr = MatSetValues(D,1,&Istart,ncols,constCols,stencil,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = MatRestoreRow(S,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-  }
-  Ii=N;
-  if (Ii>=Istart && Ii<Iend) {
-    ierr = MatGetRow(S,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-    ierr = MatSetValues(D,1,&Ii,ncols,constCols,constVals,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = MatRestoreRow(S,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
-  }
-  ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-
-  ierr = PetscFree(cols);CHKERRQ(ierr);
-  ierr = PetscFree(stencil);CHKERRQ(ierr);
-  ierr = MatDestroy(&Hinv);CHKERRQ(ierr);
-  ierr = MatDestroy(&S);CHKERRQ(ierr);
-  ierr = MatDestroy(&Q);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  return 0;
+  return ierr;
 }
+
+
+//PetscErrorCode  SbpOps::sbpOpsMats(PetscInt N, Mat &D, Mat &D2)
+//{
+  //PetscErrorCode ierr;
+  //PetscScalar    v,*stencil;
+  //PetscInt       Ii,J,Istart,Iend,*cols,ncols;
+  //Mat            Hinv,S,Q;
+
+  //PetscInt const *constCols;
+  //PetscScalar const *constVals;
+
+//#if VERBOSE >1
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
+//#endif
+
+  ///* Create matrix operators: PinvMat, Q, D2, S */
+  //ierr = MatCreate(PETSC_COMM_WORLD,&Hinv);CHKERRQ(ierr);
+  //ierr = MatSetSizes(Hinv,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
+  //ierr = MatSetFromOptions(Hinv);CHKERRQ(ierr);
+  //ierr = MatMPIAIJSetPreallocation(Hinv,1,NULL,0,NULL);CHKERRQ(ierr);
+  //ierr = MatSeqAIJSetPreallocation(Hinv,1,NULL);CHKERRQ(ierr);
+  //ierr = MatSetUp(Hinv);CHKERRQ(ierr);
+
+  //ierr = MatCreate(PETSC_COMM_WORLD,&Q);CHKERRQ(ierr);
+  //ierr = MatSetSizes(Q,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
+  //ierr = MatSetFromOptions(Q);CHKERRQ(ierr);
+  //ierr = MatMPIAIJSetPreallocation(Q,5,NULL,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSeqAIJSetPreallocation(Q,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSetUp(Q);CHKERRQ(ierr);
+
+  //ierr = MatCreate(PETSC_COMM_WORLD,&D2);CHKERRQ(ierr);
+  //ierr = MatSetSizes(D2,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
+  //ierr = MatSetFromOptions(D2);CHKERRQ(ierr);
+  //ierr = MatMPIAIJSetPreallocation(D2,5,NULL,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSeqAIJSetPreallocation(D2,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSetUp(D2);CHKERRQ(ierr);
+
+  //ierr = MatCreate(PETSC_COMM_WORLD,&S);CHKERRQ(ierr);
+  //ierr = MatSetSizes(S,PETSC_DECIDE,PETSC_DECIDE,N+1,N+1);CHKERRQ(ierr);
+  //ierr = MatSetFromOptions(S);CHKERRQ(ierr);
+  //ierr = MatMPIAIJSetPreallocation(S,5,NULL,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSeqAIJSetPreallocation(S,5,NULL);CHKERRQ(ierr);
+  //ierr = MatSetUp(S);CHKERRQ(ierr);
+
+  //PetscMalloc(16*sizeof(PetscInt),&cols);
+  //PetscMalloc(16*sizeof(PetscScalar),&stencil);
+
+  //switch ( _order ) {
+    //case 2:
+
+      //ierr = MatGetOwnershipRange(Q,&Istart,&Iend); CHKERRQ(ierr);
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //if (Ii<N) { v=0.5;J=Ii+1; ierr=MatSetValues(Q,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr); }
+        //if (Ii>0) { v=-0.5;J=Ii-1; ierr=MatSetValues(Q,1,&Ii,1,&J,&v,INSERT_VALUES);CHKERRQ(ierr); }
+      //}
+      //if (Istart==0) { v=-0.5; ierr=MatSetValues(Q,1,&Istart,1,&Istart,&v,INSERT_VALUES);CHKERRQ(ierr); }
+      //if (Iend==N+1) { v=0.5;Ii=N; ierr=MatSetValues(Q,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr); }
+
+      //ierr = MatGetOwnershipRange(Hinv,&Istart,&Iend); CHKERRQ(ierr);
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //v=1.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Istart==0) { v=2.0; ierr=MatSetValues(Hinv,1,&Istart,1,&Istart,&v,INSERT_VALUES);CHKERRQ(ierr); }
+      //if (Iend==N+1) { v=2.0;Ii=Iend-1; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr); }
+
+      //ierr = MatGetOwnershipRange(D2,&Istart,&Iend);CHKERRQ(ierr);
+      //stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //if (Ii>0 && Ii<N) {
+          //cols[0] = Ii-1;cols[1]=Ii;cols[2]=Ii+1;
+          //v=1.0;ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+        //}
+      //}
+      //if (Istart==0) {
+        //cols[0]=Istart;cols[1]=Istart+1;cols[2]=Istart+2;
+        //ierr=MatSetValues(D2,1,&Istart,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=N;
+        //cols[2]=Ii;cols[1]=Ii-1;cols[0]=Ii-2;
+        //ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+
+      //ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
+      //if (Istart==0) {
+        //cols[0]=0;cols[1]=1;cols[2]=2;
+        //stencil[0]=1.5;stencil[1]=-2;stencil[2]=0.5; // -1 * row from paper
+        //ierr=MatSetValues(S,1,&Istart,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=Iend-1;
+        //cols[2]=N;cols[1]=N-1;cols[0]=N-2;
+        //stencil[0]=0.5;stencil[1]=-2;stencil[2]=1.5;
+        //ierr=MatSetValues(S,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+
+      //break;
+
+    //case 4:
+      //if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
+
+      //ierr = MatGetOwnershipRange(Q,&Istart,&Iend); CHKERRQ(ierr);
+      //if (Istart==0) {
+        //cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;
+        //stencil[0]=-1.0/2.0;stencil[1]=59.0/96.0;stencil[2]=-1.0/12.0;stencil[3]=-1.0/32.0;
+        //ierr=MatSetValues(Q,1,&Istart,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=1;
+        //cols[0]=0;cols[1]=2;stencil[0]=-59.0/96.0;stencil[1]=59.0/96.0;
+        //ierr=MatSetValues(Q,1,&Ii,2,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=2;
+        //cols[0]=0;cols[1]=1;cols[2]=3;cols[3]=4;
+        //stencil[0]=1.0/12.0;stencil[1]=-59.0/96.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/12.0;
+        //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=3;
+        //cols[0]=0;cols[1]=2;cols[2]=4;cols[3]=5;
+        //stencil[0]=1.0/32.0;stencil[1]=-59.0/96.0;stencil[2]=2.0/3.0;stencil[3]=-1.0/12.0;
+        //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=N;
+        //cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
+        //stencil[0]=1.0/32.0;stencil[1]=1.0/12.0;stencil[2]=-59.0/96.0;stencil[3]=1.0/2.0;
+        //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N-1;
+        //cols[0]=N-2;cols[1]=N;
+        //stencil[0]=-59.0/96.0;stencil[1]=59.0/96.0;
+        //ierr=MatSetValues(Q,1,&Ii,2,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N-2;
+        //cols[0]=N-4;cols[1]=N-3;cols[2]=N-1;cols[3]=N;
+        //stencil[0]=1.0/12.0;stencil[1]=-59.0/96.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/12.0;
+        //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N-3;
+        //cols[0]=N-5;cols[1]=N-4;cols[2]=N-2;cols[3]=N;
+        //stencil[0]=1.0/12.0;stencil[1]=-2.0/3.0;stencil[2]=59.0/96.0;stencil[3]=-1.0/32.0;
+        //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //if (Ii>3 && Ii<N-3) {
+          //cols[0]=Ii-2;cols[1]=Ii-1;cols[2]=Ii+1;cols[3]=Ii+2;
+          //stencil[0]=1.0/12.0;stencil[1]=-2.0/3.0;stencil[2]=2.0/3.0;stencil[3]=-1.0/12.0;
+          //ierr=MatSetValues(Q,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+        //}
+      //}
+
+      //ierr = MatGetOwnershipRange(Hinv,&Istart,&Iend); CHKERRQ(ierr);
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //v=1.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Istart==0) {
+        //Ii=Istart;v=48.0/17.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=Istart+1;v=48.0/59.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=Istart+2;v=48.0/43.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=Istart+3;v=48.0/49.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=N;v=48.0/17.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=N-1;v=48.0/59.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=N-2;v=48.0/43.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+        //Ii=N-3;v=48.0/49.0; ierr=MatSetValues(Hinv,1,&Ii,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+
+
+      //ierr = MatGetOwnershipRange(D2,&Istart,&Iend);CHKERRQ(ierr);
+      //for (Ii=Istart;Ii<Iend;Ii++) {
+        //if (Ii>3 && Ii<N-3) {
+          //cols[0]=Ii-2;cols[1]=Ii-1;cols[2]=Ii;cols[3]=Ii+1;cols[4]=Ii+2;
+          //stencil[0]=-1.0/12.0;stencil[1]=4.0/3.0;stencil[2]=-5.0/2.0;stencil[3]=4.0/3.0;stencil[4]=-1.0/12.0;
+          //ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+        //}
+      //}
+      //if (Istart==0) {
+        //Ii=Istart;
+        //cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
+        //stencil[0]=2.0;stencil[1]=-5.0;stencil[2]=4.0;stencil[3]=-1.0;
+        //ierr=MatSetValues(D2,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=Istart+1;
+        //cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
+        //stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
+        //ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=Istart+2;
+        //cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;cols[4]=4;
+        //stencil[0]=-4.0/43.0;stencil[1]=59.0/43.0;stencil[2]=-110.0/43.0;stencil[3]=59.0/43;stencil[4]=-4.0/43.0;
+        //ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=Istart+3;
+        //cols[0]=0;cols[1]=2;cols[2]=3;cols[3]=4;cols[4]=5;
+        //stencil[0]=-1.0/49.0;stencil[1]=59.0/49.0;stencil[2]=-118.0/49.0;stencil[3]=64.0/49.0;stencil[4]=-4.0/49.0;
+        //ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=N-3;
+        //cols[0]=N-5;cols[1]=N-4;cols[2]=N-3;cols[3]=N-2;cols[4]=N;
+        //stencil[0]=-4.0/49.;stencil[1]=64.0/49.0;stencil[2]=-118.0/49.0;stencil[3]=59.0/49.0;stencil[4]=-1.0/49.0;
+        //ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N-2;
+        //cols[0]=N-4;cols[1]=N-3;cols[2]=N-2;cols[3]=N-1;cols[4]=N;
+        //stencil[0]=-4.0/43.0;stencil[1]=59.0/43.0;stencil[2]=-110.0/43.0;stencil[3]=59.0/43.0;stencil[4]=-4.0/43.0;
+        //ierr=MatSetValues(D2,1,&Ii,5,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N-1;
+        //cols[0]=N-2;cols[1]=N-1;cols[2]=N;
+        //stencil[0]=1.0;stencil[1]=-2.0;stencil[2]=1.0;
+        //ierr=MatSetValues(D2,1,&Ii,3,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+
+        //Ii=N;
+        //cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
+        //stencil[0]=-1.0;stencil[1]=4.0;stencil[2]=-5.0;stencil[3]=2.0;
+        //ierr=MatSetValues(D2,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+
+      //ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
+      //if (Istart==0) {
+        //cols[0]=0;cols[1]=1;cols[2]=2;cols[3]=3;
+        //stencil[0]=11.0/6.0;stencil[1]=-3.0;stencil[2]=3.0/2.0;stencil[3]=-1.0/3.0; // -1 * row from paper
+        //ierr=MatSetValues(S,1,&Istart,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+      //if (Iend==N+1) {
+        //Ii=Iend-1;
+        //cols[0]=N-3;cols[1]=N-2;cols[2]=N-1;cols[3]=N;
+        //stencil[0]=-1.0/3.0;stencil[1]=3.0/2.0;stencil[2]=-3.0;stencil[3]=11.0/6.0;
+        //ierr=MatSetValues(S,1,&Ii,4,cols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+      //}
+
+      //break;
+
+
+    //default:
+      //SETERRQ(PETSC_COMM_WORLD,1,"SBP order not understood.");
+      //break;
+  //}
+
+  //ierr = MatAssemblyBegin(Q,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyBegin(Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyBegin(D2,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyBegin(S,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  //ierr = MatAssemblyEnd(Q,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyEnd(Hinv,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyEnd(D2,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyEnd(S,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  //ierr = MatMatMult(Hinv,Q,MAT_INITIAL_MATRIX,1.0,&D);CHKERRQ(ierr);
+  //ierr = MatSetOption(D,MAT_NEW_NONZERO_LOCATION_ERR,PETSC_FALSE);
+  //ierr = MatSetFromOptions(D);CHKERRQ(ierr);
+
+  //// D(1,:) = S(1,:); D(end,:) = S(end,:)
+  //ierr = MatGetOwnershipRange(S,&Istart,&Iend);CHKERRQ(ierr);
+  //if (Istart == 0) {
+    //ierr = MatGetRow(S,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
+    //for (J=0;J<ncols;J++) { stencil[J]=-1.0*constVals[J];}
+    //ierr = MatSetValues(D,1,&Istart,ncols,constCols,stencil,INSERT_VALUES);CHKERRQ(ierr);
+    //ierr = MatRestoreRow(S,Istart,&ncols,&constCols,&constVals);CHKERRQ(ierr);
+  //}
+  //Ii=N;
+  //if (Ii>=Istart && Ii<Iend) {
+    //ierr = MatGetRow(S,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
+    //ierr = MatSetValues(D,1,&Ii,ncols,constCols,constVals,INSERT_VALUES);CHKERRQ(ierr);
+    //ierr = MatRestoreRow(S,Ii,&ncols,&constCols,&constVals);CHKERRQ(ierr);
+  //}
+  //ierr = MatAssemblyBegin(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //ierr = MatAssemblyEnd(D,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  //ierr = PetscFree(cols);CHKERRQ(ierr);
+  //ierr = PetscFree(stencil);CHKERRQ(ierr);
+  //ierr = MatDestroy(&Hinv);CHKERRQ(ierr);
+  //ierr = MatDestroy(&S);CHKERRQ(ierr);
+  //ierr = MatDestroy(&Q);CHKERRQ(ierr);
+
+//#if VERBOSE > 1
+  //ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpOpsMats in sbpOpsMats.cpp.\n");CHKERRQ(ierr);
+//#endif
+
+  //return 0;
+//}
 
 
 //======================== public member functions =====================
 
-//~PetscErrorCode SbpOps::setSystem()
-//~{
-  //~PetscErrorCode ierr = 0;
-//~
-  //~ierr = computeA();CHKERRQ(ierr);
-  //~ierr = computeRhsFactors();CHKERRQ(ierr);
-//~
-  //~return ierr;
-//~}
-
+// map the boundary condition vectors to rhs
 PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
 {
   PetscErrorCode ierr = 0;
@@ -1124,6 +1496,7 @@ PetscErrorCode SbpOps::loadOps(const std::string inputDir)
   _runTime = MPI_Wtime() - startTime;
     return ierr;
 }
+
 
 PetscErrorCode SbpOps::writeOps(const std::string outputDir)
 {

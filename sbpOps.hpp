@@ -6,6 +6,7 @@
 //~#include "userContext.h"
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
+#include <assert.h>
 
 using namespace std;
 
@@ -28,8 +29,8 @@ class SbpOps
     Mat _Hinvy_IzxBySy_IzTxe0y_Iz, _Hinvy_IzxBySy_IzTxeNy_Iz;
 
     // SBP factors
-    PetscScalar *_HinvyArr,*_SyArr;
-    PetscScalar *_HinvzArr,*_SzArr;
+    PetscScalar *_HinvyArr,*_D1y,*_D2y,*_SyArr;
+    PetscScalar *_HinvzArr,*_D1z,*_D2z,*_SzArr;
     PetscInt _Sylen,_Szlen;
 
     // boundary conditions
@@ -39,11 +40,16 @@ class SbpOps
     string _debugFolder;
 
 
+    PetscErrorCode computeDy_Iz();
     PetscErrorCode computeA();
     PetscErrorCode computeRhsFactors();
-    PetscErrorCode sbpOpsArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,PetscScalar *S,PetscInt *Slen);
-    PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
-    PetscErrorCode computeD2mu(Mat &D2mu);
+    //~PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
+
+    PetscErrorCode sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
+                             PetscScalar *D1,PetscScalar *D2,PetscScalar *S,PetscInt *Slen);
+    //~PetscErrorCode computeD2mu(Mat &D2mu);
+    PetscErrorCode computeD2ymu(Mat &D2ymu);
+    PetscErrorCode computeD2zmu(Mat &D2zmu);
 
     // disable default copy constructor and assignment operator
     SbpOps(const SbpOps & that);
@@ -52,7 +58,7 @@ class SbpOps
   public:
 
     Mat _A;
-    Mat _Dy_Iz; // pull creation of this out of computeA
+    Mat _Dy_Iz;
     Mat _Hinv;
     //~Vec _rhs;
 
