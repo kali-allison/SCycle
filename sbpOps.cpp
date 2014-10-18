@@ -875,7 +875,7 @@ PetscErrorCode SbpOps::computeA()
   checkMatrix(&Iy_HinvzxIy_ENzxIy_BzSz,_debugFolder,"Iy_HinvzxIy_ENzxIy_BzSz");CHKERRQ(ierr);
 #endif
 
-  PetscViewer viewer;
+  //~PetscViewer viewer;
 
   // compute A
   //~ierr = MatMatMult(*_mu,D2yplusD2z,MAT_INITIAL_MATRIX,1.0,&_A);CHKERRQ(ierr);
@@ -883,47 +883,47 @@ PetscErrorCode SbpOps::computeA()
   ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage1",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage1",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"Astage1");CHKERRQ(ierr);
 #endif
   ierr = MatAXPY(_A,_alphaF,Hinvy_IzxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage2",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage2",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"Astage2");CHKERRQ(ierr);
 #endif
   ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage3",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage3",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"Astage3");CHKERRQ(ierr);
 #endif
   ierr = MatAXPY(_A,_alphaR,Hinvy_IzxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage4",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage4",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"Astage4");CHKERRQ(ierr);
 #endif
   ierr = MatAXPY(_A,_beta,Hinvy_IzxBySy_IzTxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage5",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage5",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   ierr = MatAXPY(_A,_alphaS,Iy_HinvzxIy_E0zxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage6",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/Astage6",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   ierr = MatAXPY(_A,_alphaD,Iy_HinvzxIy_ENzxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/matA",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"/Users/kallison/dataFE/matA",FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = MatView(_A,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
 #endif

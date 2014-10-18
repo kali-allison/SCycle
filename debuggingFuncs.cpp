@@ -135,7 +135,7 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMyArray in debuggingFuncs.c\n
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%f, ",myArray[Ii]);CHKERRQ(ierr);
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%f]\n",myArray[N-1]);CHKERRQ(ierr);
-  return 0;
+  return ierr;
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMyArray in debuggingFuncs.c\n");CHKERRQ(ierr);
 #endif
@@ -163,7 +163,7 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMy2DArray in debuggingFuncs.c
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMy2DArray in debuggingFuncs.c\n\n\n");CHKERRQ(ierr);
 #endif
-  return 0;
+  return ierr;
 }
 
 
