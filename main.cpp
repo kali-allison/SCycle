@@ -467,8 +467,8 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(argc,args);
-  //~mmsSpace(argc,args);
+  //~runEqCycle(argc,args);
+  mmsSpace(argc,args);
   //~noSlip(argc,args);
 
   //~testDebugFuncs();

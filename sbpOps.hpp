@@ -29,8 +29,8 @@ class SbpOps
     Mat _Hinvy_IzxBySy_IzTxe0y_Iz, _Hinvy_IzxBySy_IzTxeNy_Iz;
 
     // SBP factors
-    PetscScalar *_HinvyArr,*_D1y,*_D2y,*_SyArr;
-    PetscScalar *_HinvzArr,*_D1z,*_D2z,*_SzArr;
+    PetscScalar *_HinvyArr,*_D1y,*_D1yint,*_D2y,*_SyArr;
+    PetscScalar *_HinvzArr,*_D1z,*_D1zint,*_D2z,*_SzArr;
     PetscInt _Sylen,_Szlen;
 
     // boundary conditions
@@ -46,7 +46,8 @@ class SbpOps
     //~PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
 
     PetscErrorCode sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
-                             PetscScalar *D1,PetscScalar *D2,PetscScalar *S,PetscInt *Slen);
+                             PetscScalar *D1,PetscScalar *D1int,PetscScalar *D2,
+                             PetscScalar *S,PetscInt *Slen);
     //~PetscErrorCode computeD2mu(Mat &D2mu);
     PetscErrorCode computeD2ymu(Mat &D2ymu);
     PetscErrorCode computeD2zmu(Mat &D2zmu);

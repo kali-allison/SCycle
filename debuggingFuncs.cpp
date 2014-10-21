@@ -9,6 +9,7 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name)
   PetscBool      debugBool = PETSC_FALSE;
   PetscInt       rowSizeDebugMat,colSizeDebugMat,rowSizeMat,colSizeMat;
 
+
   string matSourceFile = fileLoc + name;
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inviewer);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,matSourceFile.c_str(),FILE_MODE_READ,&inviewer);
@@ -18,6 +19,13 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name)
   ierr = MatLoad(debugMat,inviewer);CHKERRQ(ierr);
   ierr = MatAssemblyBegin(debugMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(debugMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Printing matrix %s from Matlab output:\n",matSourceFile.c_str());
+  //~ierr = MatView(debugMat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Printing matrix %s created by Petsc:\n",name.c_str());
+  //~ierr = MatView(*mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
 
   ierr = MatGetSize(debugMat,&rowSizeDebugMat,&colSizeDebugMat);CHKERRQ(ierr);
   ierr = MatGetSize(*mat,&rowSizeMat,&colSizeMat);CHKERRQ(ierr);

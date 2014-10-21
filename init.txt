@@ -1,6 +1,6 @@
 order = 2
-Ny = 801
-Nz = 801
+Ny = 50
+Nz = 50
 Ly = 24
 Lz = 24
 
@@ -8,8 +8,8 @@ Dc = 8e-3
 
 bAbove = 0.02
 bBelow = 0.0
-muIn = 36
-muOut = 36
+muIn = 1
+muOut = 1
 rhoIn = 2.560
 rhoOut = 2.8
 depth = 4
@@ -29,4 +29,4 @@ atol = 1e-7
 kspTol = 1e-7
 rootTol = 1e-9
 
-outputDir = /Users/kallison/dataFE/
+outputDir = data/

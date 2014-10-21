@@ -369,6 +369,7 @@ PetscErrorCode Domain::setFields()
 
     //~v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
     _muArr[Ii] = Ii+2;
+    //~_muArr[Ii] = 1.0;
     muInds[Ii] = Ii;
   }
 #endif
