@@ -4,7 +4,6 @@
 #include <petscksp.h>
 #include <string>
 #include <cmath>
-//~#include "userContext.h"
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
@@ -38,6 +37,10 @@ class Lithosphere
     Mat                  _mu;
     const PetscScalar    _depth,_width;
     Vec                  _rhs,_uhat,_sigma_xy,_bcRShift,_surfDisp;
+
+
+    // linear system data
+    std::string          _linSolver;
     KSP                  _ksp;
     PC                   _pc;
     PetscScalar          _kspTol;
@@ -46,14 +49,13 @@ class Lithosphere
     Fault                _fault;
 
     // time stepping data
+    std::string          _timeIntegrator;
     PetscInt             _strideLength; // stride
     PetscInt             _maxStepCount; // largest number of time steps
     PetscReal            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                  _stepCount;
     PetscScalar          _atol;
     PetscScalar          _initDeltaT;
-
-    //~OdeSolver           *_quadrature;
 
     // viewers
     PetscViewer          _timeViewer,_surfDispViewer,_uhatViewer;
@@ -67,8 +69,6 @@ class Lithosphere
     Lithosphere(const Lithosphere &that);
     Lithosphere& operator=(const Lithosphere &rhs);
 
-    //~PetscErrorCode setShearModulus();
-    //~PetscErrorCode updateBCs();
     PetscErrorCode computeShearStress();
     PetscErrorCode setupKSP();
     PetscErrorCode setSurfDisp();
@@ -83,9 +83,9 @@ class Lithosphere
     ~Lithosphere();
 
     PetscErrorCode d_dt(PetscScalar const time,Vec const*var,Vec*dvar);
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,const Vec* var,const Vec*dvar);
     PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *stage);
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
 
     // IO commands
     PetscErrorCode view();

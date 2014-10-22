@@ -9,8 +9,10 @@ Lithosphere::Lithosphere(Domain&D)
   _outputDir(D._outputDir),
   _v0(D._v0),_vp(D._vp),
   _rhoIn(D._rhoIn),_rhoOut(D._rhoOut),_muIn(D._muIn),_muOut(D._muOut),_muArr(D._muArr),_mu(D._mu),
-  _depth(D._depth),_width(D._width),_kspTol(D._kspTol),
+  _depth(D._depth),_width(D._width),
+  _linSolver(D._linSolver),_kspTol(D._kspTol),
   _sbp(D),_fault(D),
+  _timeIntegrator(D._timeIntegrator),
   _strideLength(D._strideLength),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),_minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
@@ -61,8 +63,16 @@ Lithosphere::Lithosphere(Domain&D)
   VecDuplicate(_bcS,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
   setSurfDisp();
 
-  _quadrature = new FEuler(_maxStepCount,_maxTime,_initDeltaT);
-  //~_quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT);
+  if (_timeIntegrator.compare("FEuler")==0) {
+    _quadrature = new FEuler(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK32")==0) {
+    _quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
+    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+  }
   _quadrature->setTolerance(D._atol);
 
 
@@ -105,6 +115,7 @@ PetscErrorCode Lithosphere::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
 }
 
@@ -195,24 +206,32 @@ PetscErrorCode Lithosphere::setupKSP()
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
-  // use HYPRE
-  //~ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  //~ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-  //~ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
-  //~ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-  //~ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  //~ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
+  if (_linSolver.compare("MUMPSLU")==0) {
+    // use HYPRE
+    ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+    ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+    ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+    ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: HYPRE boomeramg\n\n");CHKERRQ(ierr);
+  }
 
-  // use direct LU from MUMPS
-  ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
-  ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-  PCSetType(_pc,PCLU);
-  PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(_pc);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+  else if (_linSolver.compare("MUMPSLU")==0) {
+    // use direct LU from MUMPS
+    ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+    ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+    PCSetType(_pc,PCLU);
+    PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
+    PCFactorSetUpMatSolverPackage(_pc);
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+  }
+  else {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
+    assert(0>1);
+  }
 
   ierr = KSPSetUp(_ksp);CHKERRQ(ierr);
   ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);

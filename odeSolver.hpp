@@ -6,6 +6,7 @@
 #include <cmath>
 #include "lithosphere.hpp"
 
+using namespace std;
 
 /*
  * Provides a set of algorithms to solve a system of ODEs of
@@ -53,14 +54,14 @@ class OdeSolver
     PetscInt      _maxNumSteps,_stepCount;
     Vec           *_var,*_dvar;
     int           _lenVar;
-    //~void          *_userContext;
     double        _runTime;
+    string        _controlType;
     //~PetscErrorCode (*_rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*); // time, lenVar, var, dvar, ctx
     //~PetscErrorCode (*_timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*);
 
   public:
 
-    OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT);
+    OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~OdeSolver();
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
@@ -74,7 +75,6 @@ class OdeSolver
     virtual PetscErrorCode setInitialConds(Vec *var, const int lenVar) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(Lithosphere *obj) = 0;
-
 };
 
 PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
@@ -85,7 +85,7 @@ PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount
 class FEuler : public OdeSolver
 {
   public:
-    FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT);
+    FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     PetscErrorCode view();
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
@@ -112,7 +112,7 @@ class RK32 : public OdeSolver
 
   public:
 
-    RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT);
+    RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32();
 
 

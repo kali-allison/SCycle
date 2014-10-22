@@ -753,7 +753,6 @@ PetscErrorCode SbpOps::computeDy_Iz()
   PetscInt        Ii, Jj; // local matrix row and col indices
   PetscInt        Irow,Icol; // array indices
 
-
   ierr = MatSetSizes(_Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "Dy_Iz");CHKERRQ(ierr);
   ierr = MatSetFromOptions(_Dy_Iz);CHKERRQ(ierr);

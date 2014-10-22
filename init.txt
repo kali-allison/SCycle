@@ -1,32 +1,37 @@
 order = 2
-Ny = 801
-Nz = 801
-Ly = 24
-Lz = 24
+Ny = 5
+Nz = 5
+Ly = 6.283185307179586e+00
+Lz = 6.283185307179586e+00
 
 Dc = 8e-3
 
+seisDepth = 12
 bAbove = 0.02
 bBelow = 0.0
+sigma_N = 50.0
+
+shearDistribution = mms
 muIn = 36
 muOut = 36
 rhoIn = 2.560
 rhoOut = 2.8
 depth = 4
 width = 24
-seisDepth = 12
 
-sigma_N = 50.0
+linSolver = MUMPSLU
+kspTol = 1e-7
 
+timeIntegrator = FEuler
+timeControlType = P
 strideLength = 1
-maxStepCount = 1e8
+maxStepCount = 1
 initTime = 0.0
 maxTime = 1e3
 minDeltaT = 100
 maxDeltaT = 1e7
 atol = 1e-7
 
-kspTol = 1e-7
 rootTol = 1e-9
 
 outputDir = data/

@@ -1,15 +1,16 @@
 #include "odeSolver.hpp"
 
-enum CONTROL { controlP,controlPI,controlPID };
-const CONTROL controlType = controlPID;
+//~enum CONTROL { controlP,controlPI,controlPID };
+//~const CONTROL controlType = controlPID;
 
 using namespace std;
 
-OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT)
-:_initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
-_maxNumSteps(maxNumSteps),_stepCount(0),
-_var(NULL),_dvar(NULL),_lenVar(0),//_userContext(NULL),
-_runTime(0)
+OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+: _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
+  _maxNumSteps(maxNumSteps),_stepCount(0),
+  _var(NULL),_dvar(NULL),_lenVar(0),
+  _runTime(0),
+  _controlType(controlType)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -102,8 +103,8 @@ PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
 
 //================= FEuler child class functions =======================
 
-FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT)
-: OdeSolver(maxNumSteps,finalT,deltaT)
+FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+: OdeSolver(maxNumSteps,finalT,deltaT,controlType)
 {}
 
 PetscErrorCode FEuler::view()
@@ -189,8 +190,8 @@ PetscErrorCode FEuler::integrate(Lithosphere *obj)
 
 //================= RK32 child class functions =========================
 
-RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT)
-: OdeSolver(maxNumSteps,finalT,deltaT),
+RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+: OdeSolver(maxNumSteps,finalT,deltaT,controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),_kappa(0.9),_ord(2.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -238,14 +239,18 @@ PetscErrorCode RK32::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: ");CHKERRQ(ierr);
-  if (controlType == controlP) {
+  if (_controlType.compare("P") == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"P\n");CHKERRQ(ierr);
   }
-  else if (controlType == controlPI) {
+  else if (_controlType.compare("PI") == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"PI\n");CHKERRQ(ierr);
   }
-  else if (controlType == controlPID) {
+  else if (_controlType.compare("PID") == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"PID\n");CHKERRQ(ierr);
+  }
+  else {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");CHKERRQ(ierr);
+    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
                      _initT,_finalT);CHKERRQ(ierr);
@@ -349,12 +354,12 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
 #endif
   PetscReal stepRatio;
 
-  if (controlType == controlP) {
+  if (_controlType.compare("P") == 0) {
     // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_atol/totErr,alpha);
   }
-  else if (controlType == controlPID) {
+  else if (_controlType.compare("PID") == 0) {
 
     //if using proportional-integral-derivative feedback (PID)
     _absErr[(_stepCount+_numRejectedSteps-1)%3] = totErr;
@@ -371,6 +376,10 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
                              *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
                              *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
     }
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
+    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
 
     //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
