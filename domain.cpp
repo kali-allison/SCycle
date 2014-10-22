@@ -349,8 +349,9 @@ PetscErrorCode Domain::setFields()
     v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
     _csArr[Ii] = v;
 
-    v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
-    _muArr[Ii] = v;
+    //~v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
+    //~_muArr[Ii] = v;
+    _muArr[Ii] = Ii+2;
     muInds[Ii] = Ii;
   }
 
@@ -373,7 +374,6 @@ PetscErrorCode Domain::setFields()
     muInds[Ii] = Ii;
   }
 #endif
-
 
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);

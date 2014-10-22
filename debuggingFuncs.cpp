@@ -143,10 +143,11 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMyArray in debuggingFuncs.c\n
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%f, ",myArray[Ii]);CHKERRQ(ierr);
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%f]\n",myArray[N-1]);CHKERRQ(ierr);
-  return ierr;
+
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMyArray in debuggingFuncs.c\n");CHKERRQ(ierr);
 #endif
+  return ierr;
 }
 
 // prints 1d array representing 2d matrix

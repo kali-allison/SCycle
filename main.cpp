@@ -403,10 +403,24 @@ int noSlip(int argc,char **args)
   return ierr;
 }
 
+
+PetscErrorCode writeVec(Vec vec,const char * loc)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer);
+  ierr = VecView(vec,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
+
+
 // perform MMS in space
 int mmsSpace(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
+  PetscInt       Ii = 0;
+  PetscScalar    y,z;
 
   Domain domain("init.txt");
 
@@ -414,7 +428,122 @@ int mmsSpace(int argc,char **args)
   //~MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
   //~domain.view(localRank);
 
+  // set shear modulus to sin(y+z) + 2
+  Vec muVec,uAnal,source;
+  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
+  ierr = VecSetSizes(muVec,PETSC_DECIDE,domain._Ny*domain._Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+  ierr = VecDuplicate(muVec,&uAnal);CHKERRQ(ierr);
+  ierr = VecDuplicate(muVec,&source);CHKERRQ(ierr);
+
+
+  PetscInt *muInds;
+  ierr = PetscMalloc(domain._Ny*domain._Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
+
+  PetscScalar *uAnalArr,*sourceArr;
+  ierr = PetscMalloc(domain._Ny*domain._Nz*sizeof(PetscScalar),&uAnalArr);CHKERRQ(ierr);
+  ierr = PetscMalloc(domain._Ny*domain._Nz*sizeof(PetscScalar),&sourceArr);CHKERRQ(ierr);
+
+  for (Ii=0;Ii<domain._Ny*domain._Nz;Ii++)
+  {
+    z = domain._dz*(Ii-domain._Nz*(Ii/domain._Nz));
+    y = domain._dy*(Ii/domain._Nz);
+    domain._muArr[Ii] = sin(y+z) + 2.0;
+    muInds[Ii] = Ii;
+
+    uAnalArr[Ii] = cos(z)*sin(y);
+    //~sourceArr[Ii] = -cos(y+z)*cos(z)*cos(y)
+                //~+ (sin(y+z)+2)*cos(z)*sin(y)
+                //~+ cos(y+z)*sin(z)*sin(y)
+                //~+ (sin(y+z)+2)*cos(z)*sin(y);
+    //~sourceArr[Ii] = (cos(y)*cos(z) + sin(y)*sin(z))*cos(y+z) - 2*cos(y)*sin(z)*(2+sin(y+z));
+    sourceArr[Ii] = cos(y+z)*(cos(y)*cos(z) - sin(y)*sin(z)) - 2*(sin(y+z)+2)*cos(z)*sin(y);;
+  }
+  ierr = VecSetValues(uAnal,domain._Ny*domain._Nz,muInds,uAnalArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(uAnal);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(uAnal);CHKERRQ(ierr);
+
+  ierr = VecSetValues(source,domain._Ny*domain._Nz,muInds,sourceArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
+
+  ierr = VecSetValues(muVec,domain._Ny*domain._Nz,muInds,domain._muArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(domain._mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  //~ierr = MatView(domain._mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+  // set up linear system
   SbpOps sbp(domain);
+
+
+  // boundary conditions (all 0)
+  Vec bcF,bcR,bcS,bcD,rhs;
+  VecCreate(PETSC_COMM_WORLD,&bcF);
+  VecSetSizes(bcF,PETSC_DECIDE,domain._Nz);
+  VecSetFromOptions(bcF);
+  VecSet(bcF,0.0);
+  VecDuplicate(bcF,&bcR); VecCopy(bcF,bcR);
+  VecCreate(PETSC_COMM_WORLD,&bcS);
+  VecSetSizes(bcS,PETSC_DECIDE,domain._Ny);
+  VecSetFromOptions(bcS);
+  VecSet(bcS,0.0);
+  VecDuplicate(bcS,&bcD); VecCopy(bcS,bcD);
+
+  VecCreate(PETSC_COMM_WORLD,&rhs);
+  VecSetSizes(rhs,PETSC_DECIDE,domain._Ny*domain._Nz);
+  VecSetFromOptions(rhs);
+  VecSet(rhs,0.0);
+  ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
+  ierr = VecAXPY(rhs,1.0,source);CHKERRQ(ierr); // rhs = rhs - source
+
+
+  KSP ksp;
+  PC  pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+  ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCLU);CHKERRQ(ierr);
+  PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
+  PCFactorSetUpMatSolverPackage(pc);
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+
+
+  Vec uhat;
+  ierr = VecDuplicate(rhs,&uhat);CHKERRQ(ierr);
+  ierr = KSPSolve(ksp,rhs,uhat);CHKERRQ(ierr);
+
+
+  // output vectors for visualization with matlab
+  ierr = writeVec(uhat,"data/uhat");CHKERRQ(ierr);
+  ierr = writeVec(uAnal,"data/uAnal");CHKERRQ(ierr);
+  ierr = writeVec(source,"data/source");CHKERRQ(ierr);
+  ierr = writeVec(muVec,"data/muVec");CHKERRQ(ierr);
+  ierr = writeVec(rhs,"data/rhs");CHKERRQ(ierr);
+  sbp.writeOps("data/");
+
+  PetscScalar err;
+  ierr = VecAXPY(uAnal,-1.0,uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
+  ierr = VecAbs(uAnal);CHKERRQ(ierr);
+  ierr = VecSum(uAnal,&err);
+  err = sqrt(err/(domain._Ny*domain._Nz));
+  //~ierr = VecNorm(uAnal,NORM_2,&err);
+  //~err = err/sqrt( (double) domain._Ny*domain._Nz );
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %i %.9e\n",
+                     domain._order,domain._Ny,domain._Nz,err);CHKERRQ(ierr);
+
+  //~VecDestroy(&muVec);
+  //~VecDestroy(&uAnal);
+  //~VecDestroy(&source);
+  //~PetscFree(muInds);
+  //~PetscFree(uAnalArr);
+  //~PetscFree(sourceArr);
+
 
   return ierr;
 }
@@ -467,8 +596,8 @@ int main(int argc,char **args)
   */
 
 
-  //~runEqCycle(argc,args);
-  mmsSpace(argc,args);
+  runEqCycle(argc,args);
+  //~mmsSpace(argc,args);
   //~noSlip(argc,args);
 
   //~testDebugFuncs();
