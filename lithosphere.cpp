@@ -58,6 +58,7 @@ Lithosphere::Lithosphere(Domain&D)
   MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);
   _fault.setTau(_sigma_xy);
   _fault.setFaultDisp(_bcF);
+  _fault.computeVel();
   // might need to update velocity here
 
   VecDuplicate(_bcS,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");

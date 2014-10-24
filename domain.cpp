@@ -1,8 +1,10 @@
 #include "domain.hpp"
 
 Domain::Domain(const char *file)
-: _file(file),_shearDistribution(""),_linSolver(""),
-  _timeControlType(""),_timeIntegrator(""),_outputDir("")
+//~: _file(file),_shearDistribution("constant"),_linSolver("MUMPSLU"),
+  //~_timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
+: _file(file),_shearDistribution("bbbb"),_linSolver("bbbb"),
+  _timeControlType("bbbb"),_timeIntegrator("bbbb"),_outputDir("bbbb/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -21,10 +23,12 @@ Domain::Domain(const char *file)
   _csOut = sqrt(_muOut/_rhoOut);
 
 
+  //~view(0);
+  //~view(1);
+
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
 
-   //~view(0);
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
 #endif
@@ -32,7 +36,7 @@ Domain::Domain(const char *file)
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_shearDistribution(""),_linSolver(""),
+: _file(file),_shearDistribution("mms"),_linSolver(""),
   _timeControlType(""),_timeIntegrator(""),_outputDir("")
 {
 #if VERBOSE > 1
@@ -54,6 +58,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _csIn = sqrt(_muIn/_rhoIn);
   _csOut = sqrt(_muOut/_rhoOut);
 
+  view(0);
+  view(1);
 
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
@@ -92,6 +98,15 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
+  // how do I send strings instead of using these temporary char arrays?
+  const char *outputDir,*linSolver,*shearDistribution,*timeIntegrator,*timeControlType;
+  PetscMalloc(256*sizeof(char),&outputDir);
+  PetscMalloc(256*sizeof(char),&linSolver);
+  PetscMalloc(256*sizeof(char),&shearDistribution);
+  PetscMalloc(256*sizeof(char),&timeIntegrator);
+  PetscMalloc(256*sizeof(char),&timeControlType);
+
+
   if (rank==0) {
     ifstream infile( file );
     string line,var;
@@ -103,132 +118,130 @@ PetscErrorCode Domain::loadData(const char *file)
       pos = line.find(delim); // find position of delimiter
       var = line.substr(0,pos);
 
-      if (var=="order") { _order = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="Ny") { _Ny = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="Nz") { _Nz = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="Ly") { _Ly = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="Lz") { _Lz = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"while loop: var=%s,    linSolver = %s\n",var.c_str(),linSolver);CHKERRQ(ierr);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   rootTol = %e\n",_rootTol);CHKERRQ(ierr);
 
-      if (var=="Dc") { _Dc = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      if (var.compare("order")==0) { _order = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       //fault properties
-      if (var=="seisDepth") { _seisDepth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="bAbove") { _bAbove = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="bBelow") { _bBelow = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="sigma_N") { _sigma_N_val = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // sedimentary basin properties
-      if (var=="shearDistribution") { _shearDistribution = line.substr(pos+delim.length(),line.npos); }
-      if (var=="muIn") { _muIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="muOut") { _muOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="rhoIn") { _rhoIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="rhoOut") { _rhoOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="depth") { _depth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="width") { _width = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("muIn")==0) { _muIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("muOut")==0) { _muOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoIn")==0) { _rhoIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoOut")==0) { _rhoOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("width")==0) { _width = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
-      if (var=="linSolver") { _linSolver = line.substr(pos+delim.length(),line.npos); }
-      if (var=="kspTol") { _kspTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // time integration properties
-      if (var=="timeIntegrator") { _timeIntegrator = line.substr(pos+delim.length(),line.npos); }
-      if (var=="timeControlType") { _timeControlType = line.substr(pos+delim.length(),line.npos); }
-      if (var=="strideLength") { _strideLength = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="maxStepCount") { _maxStepCount = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="initTime") { _initTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="maxTime") { _maxTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="minDeltaT") { _minDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="maxDeltaT") {_maxDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="initDeltaT") { _initDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      if (var=="atol") { _atol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("strideLength")==0){
+        _strideLength = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() );
+      }
+      else if (var.compare("maxStepCount")==0) {
+        _maxStepCount = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() );
+      }
+      else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
 
       // other tolerances
-      if (var=="rootTol") { _rootTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
-      // output directory
-      if (var=="outputDir") { _outputDir = line.substr(pos+delim.length(),line.npos); }
+      // strings D:
+      //~else if (var.compare("shearDistribution")==0) { shearDistribution = line.substr(pos+delim.length(),line.npos).c_str(); }
+      //~else if (var.compare("linSolver")==0) { linSolver = line.substr(pos+delim.length(),line.npos).c_str(); }
+      //~else if (var.compare("timeIntegrator")==0) { timeIntegrator = line.substr(pos+delim.length(),line.npos).c_str(); }
+      //~else if (var.compare("timeControlType")==0) { timeControlType = line.substr(pos+delim.length(),line.npos).c_str(); }
+      else if (var.compare("outputDir")==0) { outputDir = line.substr(pos+delim.length(),line.npos).c_str(); }
     }
-    // send loaded values to all other processors
-    MPI_Bcast(&_order,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Ny,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Nz,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Ly,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Lz,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_Dc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_shearDistribution,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_rhoOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_linSolver,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_timeIntegrator,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_timeControlType,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_initTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_minDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_initDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_atol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_outputDir,1,MPI_CHAR,0,PETSC_COMM_WORLD);
   }
-  else { // receive values loaded by processor #0
-    MPI_Bcast(&_order,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Ny,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Nz,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Ly,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_Lz,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_Dc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_shearDistribution,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_rhoOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_linSolver,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_timeIntegrator,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_timeControlType,1,MPI_CHAR,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_initTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_minDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_maxDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_initDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-    MPI_Bcast(&_atol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-    MPI_Bcast(&_outputDir,1,MPI_CHAR,0,PETSC_COMM_WORLD);
+  else
+  {
+    outputDir = "aaaaaaaa";
   }
+    _outputDir = "data/";
+    _shearDistribution = "basin";
+    _linSolver = "MUMPSLU";
+    _timeIntegrator = "RK32";
+    _timeControlType = "P";
+
+  // send loaded values to all other processors
+  MPI_Bcast(&_order,1,MPI_INT,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_Ny,1,MPI_INT,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_Nz,1,MPI_INT,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_Ly,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_Lz,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_Dc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_initTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_maxTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_minDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_maxDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_initDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_atol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+
+  // broadcast char arrays and then store as string data member
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"about to use mpi_bcast for outputdir.\n");CHKERRQ(ierr);
+  //~MPI_Bcast(&outputDir[0],sizeof(outputDir)+1,MPI_CHAR,0,PETSC_COMM_WORLD);
+  //~MPI_Bcast(&shearDistribution,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
+  //~MPI_Bcast(&linSolver,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
+  //~MPI_Bcast(&timeIntegrator,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
+  //~MPI_Bcast(&timeControlType,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
+//~
+  //~MPI_Barrier;
+  //~_outputDir = string(outputDir);
+  //~_shearDistribution = shearDistribution;
+  //~_linSolver = linSolver;
+  //~_timeIntegrator = timeIntegrator;
+  //~_timeControlType = timeControlType;
+
+
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n_linSolver=%s\n",_linSolver.c_str());CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"linSolver=%s\n\n",linSolver);CHKERRQ(ierr);
+
+  //~PetscFree(outputDir);
+  //~PetscFree(linSolver);
+  //~PetscFree(shearDistribution);
+  //~PetscFree(timeIntegrator);
+  //~PetscFree(timeControlType);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
