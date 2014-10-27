@@ -10,13 +10,16 @@ include ${PETSC_DIR}/conf/rules
 
 main:  main.o debuggingFuncs.o odeSolver.o sbpOps.o lithosphere.o fault.o domain.o rootFinder.o debuggingFuncs.o userContext.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm main.o
 
-ex12: ex12.o
+helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm helloWorld.o
+
 
 #.PHONY : clean
 clean::
-	-rm -f *.o main trial
+	-rm -f *.o main helloWorld
 
 depend:
 	-g++ -MM *.c*

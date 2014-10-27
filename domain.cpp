@@ -3,8 +3,8 @@
 Domain::Domain(const char *file)
 //~: _file(file),_shearDistribution("constant"),_linSolver("MUMPSLU"),
   //~_timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
-: _file(file),_shearDistribution("bbbb"),_linSolver("bbbb"),
-  _timeControlType("bbbb"),_timeIntegrator("bbbb"),_outputDir("bbbb/")
+: _file(file),_shearDistribution("constructor"),_linSolver("constructor"),
+  _timeControlType("constructor"),_timeIntegrator("constructor"),_outputDir("constructor")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -23,8 +23,9 @@ Domain::Domain(const char *file)
   _csOut = sqrt(_muOut/_rhoOut);
 
 
-  //~view(0);
-  //~view(1);
+  view(0);
+  view(1);
+  view(2);
 
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
@@ -98,13 +99,12 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  // how do I send strings instead of using these temporary char arrays?
-  const char *outputDir,*linSolver,*shearDistribution,*timeIntegrator,*timeControlType;
-  PetscMalloc(256*sizeof(char),&outputDir);
-  PetscMalloc(256*sizeof(char),&linSolver);
-  PetscMalloc(256*sizeof(char),&shearDistribution);
-  PetscMalloc(256*sizeof(char),&timeIntegrator);
-  PetscMalloc(256*sizeof(char),&timeControlType);
+  int charSize = 200;
+  char *outputDir = (char *) malloc(sizeof(char)*charSize+1);
+  char *linSolver = (char *) malloc(sizeof(char)*charSize+1);
+  char *shearDistribution = (char *) malloc(sizeof(char)*charSize+1);
+  char *timeIntegrator = (char *) malloc(sizeof(char)*charSize+1);
+  char *timeControlType = (char *) malloc(sizeof(char)*charSize+1);
 
 
   if (rank==0) {
@@ -117,9 +117,6 @@ PetscErrorCode Domain::loadData(const char *file)
       istringstream iss(line);
       pos = line.find(delim); // find position of delimiter
       var = line.substr(0,pos);
-
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"while loop: var=%s,    linSolver = %s\n",var.c_str(),linSolver);CHKERRQ(ierr);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   rootTol = %e\n",_rootTol);CHKERRQ(ierr);
 
       if (var.compare("order")==0) { _order = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
@@ -166,22 +163,28 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // strings D:
-      //~else if (var.compare("shearDistribution")==0) { shearDistribution = line.substr(pos+delim.length(),line.npos).c_str(); }
-      //~else if (var.compare("linSolver")==0) { linSolver = line.substr(pos+delim.length(),line.npos).c_str(); }
-      //~else if (var.compare("timeIntegrator")==0) { timeIntegrator = line.substr(pos+delim.length(),line.npos).c_str(); }
-      //~else if (var.compare("timeControlType")==0) { timeControlType = line.substr(pos+delim.length(),line.npos).c_str(); }
-      else if (var.compare("outputDir")==0) { outputDir = line.substr(pos+delim.length(),line.npos).c_str(); }
+      else if (var.compare("shearDistribution")==0) {
+        _shearDistribution = line.substr(pos+delim.length(),line.npos);
+        strcpy(shearDistribution,_shearDistribution.c_str());
+        }
+      else if (var.compare("linSolver")==0) {
+        _linSolver = line.substr(pos+delim.length(),line.npos);
+        strcpy(linSolver,_linSolver.c_str());
+        }
+      else if (var.compare("timeIntegrator")==0) {
+        _timeIntegrator = line.substr(pos+delim.length(),line.npos);
+        strcpy(timeIntegrator,_timeIntegrator.c_str());
+        }
+      else if (var.compare("timeControlType")==0) {
+        _timeControlType = line.substr(pos+delim.length(),line.npos);
+        strcpy(timeControlType,_timeControlType.c_str());
+        }
+      else if (var.compare("outputDir")==0) {
+        _outputDir =  line.substr(pos+delim.length(),line.npos);
+        strcpy(outputDir,_outputDir.c_str());
+      }
     }
   }
-  else
-  {
-    outputDir = "aaaaaaaa";
-  }
-    _outputDir = "data/";
-    _shearDistribution = "basin";
-    _linSolver = "MUMPSLU";
-    _timeIntegrator = "RK32";
-    _timeControlType = "P";
 
   // send loaded values to all other processors
   MPI_Bcast(&_order,1,MPI_INT,0,PETSC_COMM_WORLD);
@@ -218,30 +221,24 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
 
-  // broadcast char arrays and then store as string data member
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"about to use mpi_bcast for outputdir.\n");CHKERRQ(ierr);
-  //~MPI_Bcast(&outputDir[0],sizeof(outputDir)+1,MPI_CHAR,0,PETSC_COMM_WORLD);
-  //~MPI_Bcast(&shearDistribution,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
-  //~MPI_Bcast(&linSolver,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
-  //~MPI_Bcast(&timeIntegrator,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
-  //~MPI_Bcast(&timeControlType,256*sizeof(char),MPI_CHAR,0,PETSC_COMM_WORLD);
-//~
-  //~MPI_Barrier;
-  //~_outputDir = string(outputDir);
-  //~_shearDistribution = shearDistribution;
-  //~_linSolver = linSolver;
-  //~_timeIntegrator = timeIntegrator;
-  //~_timeControlType = timeControlType;
+   MPI_Bcast(&outputDir[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+   MPI_Bcast(&linSolver[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+   MPI_Bcast(&timeIntegrator[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+   MPI_Bcast(&timeControlType[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+
+  _outputDir = outputDir;
+  _linSolver = linSolver;
+  _shearDistribution = shearDistribution;
+  _timeIntegrator = timeIntegrator;
+  _timeControlType = timeControlType;
 
 
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n_linSolver=%s\n",_linSolver.c_str());CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"linSolver=%s\n\n",linSolver);CHKERRQ(ierr);
-
-  //~PetscFree(outputDir);
-  //~PetscFree(linSolver);
-  //~PetscFree(shearDistribution);
-  //~PetscFree(timeIntegrator);
-  //~PetscFree(timeControlType);
+  free(outputDir);
+  free(linSolver);
+  free(shearDistribution);
+  free(timeIntegrator);
+  free(timeControlType);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
