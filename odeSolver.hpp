@@ -13,8 +13,8 @@ using namespace std;
  * the form y' = f(t,y).
  *
  * SOLVER TYPE      ALGORITHM
- *  FEuler      forward Euler
- *  RK32        explicit Runge-Kutta (2,3)
+ *  FEuler        forward Euler
+ *  RK32          explicit Runge-Kutta (2,3)
  *
  * To obtain solutions at user-specified times, use FEuler and call setStepSize
  * in the routine f(t,y).
@@ -26,9 +26,12 @@ using namespace std;
  *  max number of steps      constructor
  *  solver type              constructor
  *  initial conditions       setInitialConds     Note: this array will be modified during integration
+ *  initial step size        constructor
+ *  step size alg            constructor (this is only used by the adaptive time-stepping algorithm)
  *  f(t,y)                   object passed to integrate must have member function d_dt(PetscScalar, PetscScalar*,PetscScalar*)
  *  final time               constructor and setTimeRange
  *  timeMonitor              object passed to integrate must have member function timeMonitor
+ *
  *
  * Optional fields that can also be specified:
  *     QUANTITY               FUNCTION
@@ -56,8 +59,6 @@ class OdeSolver
     int           _lenVar;
     double        _runTime;
     string        _controlType;
-    //~PetscErrorCode (*_rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*); // time, lenVar, var, dvar, ctx
-    //~PetscErrorCode (*_timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*);
 
   public:
 
@@ -68,7 +69,6 @@ class OdeSolver
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*));
     PetscErrorCode setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*));
-    PetscErrorCode setUserContext(void * userContext);
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
@@ -114,8 +114,6 @@ class RK32 : public OdeSolver
 
     RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32();
-
-
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);

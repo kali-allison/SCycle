@@ -1,6 +1,6 @@
 order = 2
-Ny = 21
-Nz = 21
+Ny = 801
+Nz = 801
 Ly = 24
 Lz = 24
 
@@ -19,18 +19,18 @@ rhoOut = 2.8
 depth = 4
 width = 24
 
-linSolver = MUMPSLU
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 1
+strideLength = 10
+maxStepCount = 1e8
 initTime = 6.3e9
 maxTime = 5e11
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-atol = 1e-7
+atol = 1e-5
 
 rootTol = 1e-9
 

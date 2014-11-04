@@ -320,14 +320,14 @@ int runEqCycle(int argc,char **args)
   PetscErrorCode ierr = 0;
 
   Domain domain("init.txt");
-  //~domain.write();
+  domain.write();
 
-  //~Lithosphere lith(domain);
+  Lithosphere lith(domain);
 
 
-  //~ierr = lith.writeStep();CHKERRQ(ierr);
-  //~ierr = lith.integrate();CHKERRQ(ierr);
-  //~ierr = lith.view();CHKERRQ(ierr);
+  ierr = lith.writeStep();CHKERRQ(ierr);
+  ierr = lith.integrate();CHKERRQ(ierr);
+  ierr = lith.view();CHKERRQ(ierr);
 
 
   return ierr;

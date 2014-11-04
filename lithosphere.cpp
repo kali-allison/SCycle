@@ -74,7 +74,6 @@ Lithosphere::Lithosphere(Domain&D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
     assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
-  _quadrature->setTolerance(D._atol);
 
 
 #if VERBOSE > 1
@@ -207,7 +206,7 @@ PetscErrorCode Lithosphere::setupKSP()
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
-  if (_linSolver.compare("MUMPSLU")==0) {
+  if (_linSolver.compare("AMG")==0) {
     // use HYPRE
     ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
@@ -361,32 +360,10 @@ PetscErrorCode Lithosphere::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),
                                    FILE_MODE_APPEND,&_surfDispViewer);CHKERRQ(ierr);
 
-    // output BC data
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhs").c_str(),FILE_MODE_WRITE,&_rhsv);CHKERRQ(ierr);
-    ierr = VecView(_rhs,_rhsv);CHKERRQ(ierr);
-    PetscViewerDestroy(&_rhsv);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhs").c_str(),FILE_MODE_APPEND,&_rhsv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcF").c_str(),FILE_MODE_WRITE,&_bcFv);CHKERRQ(ierr);
-    ierr = VecView(_bcF,_bcFv);CHKERRQ(ierr);
-    PetscViewerDestroy(&_bcFv);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcF").c_str(),FILE_MODE_APPEND,&_bcFv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_WRITE,&_bcRv);CHKERRQ(ierr);
-    ierr = VecView(_bcR,_bcRv);CHKERRQ(ierr);
-    PetscViewerDestroy(&_bcRv);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_APPEND,&_bcRv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcS").c_str(),FILE_MODE_WRITE,&_bcSv);CHKERRQ(ierr);
-    ierr = VecView(_bcS,_bcSv);CHKERRQ(ierr);
-    PetscViewerDestroy(&_bcSv);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcS").c_str(),FILE_MODE_APPEND,&_bcSv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcD").c_str(),FILE_MODE_WRITE,&_bcDv);CHKERRQ(ierr);
-    ierr = VecView(_bcD,_bcDv);CHKERRQ(ierr);
-    PetscViewerDestroy(&_bcDv);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcD").c_str(),FILE_MODE_APPEND,&_bcDv);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_WRITE,&_uhatViewer);CHKERRQ(ierr);
-    ierr = VecView(_uhat,_uhatViewer);CHKERRQ(ierr);
-    PetscViewerDestroy(&_uhatViewer);CHKERRQ(ierr);
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_APPEND,&_uhatViewer);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_WRITE,&_uhatViewer);CHKERRQ(ierr);
+    //~ierr = VecView(_uhat,_uhatViewer);CHKERRQ(ierr);
+    //~PetscViewerDestroy(&_uhatViewer);CHKERRQ(ierr);
+    //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_APPEND,&_uhatViewer);CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);

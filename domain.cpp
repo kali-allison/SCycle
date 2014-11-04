@@ -1,10 +1,8 @@
 #include "domain.hpp"
 
 Domain::Domain(const char *file)
-//~: _file(file),_shearDistribution("constant"),_linSolver("MUMPSLU"),
-  //~_timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
-: _file(file),_shearDistribution("constructor"),_linSolver("constructor"),
-  _timeControlType("constructor"),_timeIntegrator("constructor"),_outputDir("constructor")
+: _file(file),_shearDistribution("basin"),_linSolver("AMG"),
+  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -22,23 +20,26 @@ Domain::Domain(const char *file)
   _csIn = sqrt(_muIn/_rhoIn);
   _csOut = sqrt(_muOut/_rhoOut);
 
-
-  view(0);
-  view(1);
-  view(2);
-
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
 
+#if VERBOSE > 2 // each processor prints loaded values to screen
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  for (int Ii=0;Ii<size;Ii++) { view(Ii); }
+#endif
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
 #endif
+
 }
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_shearDistribution("mms"),_linSolver(""),
-  _timeControlType(""),_timeIntegrator(""),_outputDir("")
+: _file(file),_shearDistribution("basin"),_linSolver("AMG"),
+  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -59,12 +60,16 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _csIn = sqrt(_muIn/_rhoIn);
   _csOut = sqrt(_muOut/_rhoOut);
 
-  view(0);
-  view(1);
-
   MatCreate(PETSC_COMM_WORLD,&_mu);
   setFields();
 
+#if VERBOSE > 2 // each processor prints loaded values to screen
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  for (int Ii=0;Ii<size;Ii++) { view(Ii); }
+#endif
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
 #endif
@@ -99,6 +104,7 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
+  // temporary char arrays used to set std::string data members
   int charSize = 200;
   char *outputDir = (char *) malloc(sizeof(char)*charSize+1);
   char *linSolver = (char *) malloc(sizeof(char)*charSize+1);
@@ -106,7 +112,7 @@ PetscErrorCode Domain::loadData(const char *file)
   char *timeIntegrator = (char *) malloc(sizeof(char)*charSize+1);
   char *timeControlType = (char *) malloc(sizeof(char)*charSize+1);
 
-
+  // 1 processor loads settings from file, communicates variables to all other processors
   if (rank==0) {
     ifstream infile( file );
     string line,var;
@@ -133,6 +139,10 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // sedimentary basin properties
+      else if (var.compare("shearDistribution")==0) {
+        _shearDistribution = line.substr(pos+delim.length(),line.npos);
+        strcpy(shearDistribution,_shearDistribution.c_str());
+      }
       else if (var.compare("muIn")==0) { _muIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("muOut")==0) { _muOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("rhoIn")==0) { _rhoIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
@@ -141,16 +151,23 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("width")==0) { _width = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
+      else if (var.compare("linSolver")==0) {
+        _linSolver = line.substr(pos+delim.length(),line.npos);
+        strcpy(linSolver,_linSolver.c_str());
+      }
       else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // time integration properties
-
-      else if (var.compare("strideLength")==0){
-        _strideLength = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() );
+      else if (var.compare("timeIntegrator")==0) {
+        _timeIntegrator = line.substr(pos+delim.length(),line.npos);
+        strcpy(timeIntegrator,_timeIntegrator.c_str());
       }
-      else if (var.compare("maxStepCount")==0) {
-        _maxStepCount = (int) atof( (line.substr(pos+delim.length(),line.npos)).c_str() );
+      else if (var.compare("timeControlType")==0) {
+        _timeControlType = line.substr(pos+delim.length(),line.npos);
+        strcpy(timeControlType,_timeControlType.c_str());
       }
+      else if (var.compare("strideLength")==0){ _strideLength = (int)atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
@@ -158,27 +175,10 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
       else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
-
       // other tolerances
       else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
-      // strings D:
-      else if (var.compare("shearDistribution")==0) {
-        _shearDistribution = line.substr(pos+delim.length(),line.npos);
-        strcpy(shearDistribution,_shearDistribution.c_str());
-        }
-      else if (var.compare("linSolver")==0) {
-        _linSolver = line.substr(pos+delim.length(),line.npos);
-        strcpy(linSolver,_linSolver.c_str());
-        }
-      else if (var.compare("timeIntegrator")==0) {
-        _timeIntegrator = line.substr(pos+delim.length(),line.npos);
-        strcpy(timeIntegrator,_timeIntegrator.c_str());
-        }
-      else if (var.compare("timeControlType")==0) {
-        _timeControlType = line.substr(pos+delim.length(),line.npos);
-        strcpy(timeControlType,_timeControlType.c_str());
-        }
+      // output directory
       else if (var.compare("outputDir")==0) {
         _outputDir =  line.substr(pos+delim.length(),line.npos);
         strcpy(outputDir,_outputDir.c_str());
@@ -200,6 +200,7 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
+  MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -207,8 +208,11 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
+  MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
+  MPI_Bcast(&timeIntegrator[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&timeControlType[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_initTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -220,12 +224,7 @@ PetscErrorCode Domain::loadData(const char *file)
 
   MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
-
-   MPI_Bcast(&outputDir[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
-   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
-   MPI_Bcast(&linSolver[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
-   MPI_Bcast(&timeIntegrator[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
-   MPI_Bcast(&timeControlType[0],sizeof(char)*charSize-1,MPI_CHAR,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&outputDir[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
 
   _outputDir = outputDir;
   _linSolver = linSolver;
@@ -246,6 +245,7 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
+// Specified processor prints scalar/string data members to stdout.
 PetscErrorCode Domain::view(PetscMPIInt rank)
 {
   PetscErrorCode ierr = 0;
@@ -318,6 +318,9 @@ ierr = PetscPrintf(PETSC_COMM_SELF,"Ending view in domain.cpp.\n");CHKERRQ(ierr)
   return ierr;
 }
 
+// Save all scalar fields to text file named domain.txt in output directory.
+// Note that only the rank 0 processor's values will be saved.
+// Also save the shear modulus matrix.
 PetscErrorCode Domain::write()
 {
   PetscErrorCode ierr = 0;
@@ -334,6 +337,7 @@ PetscErrorCode Domain::write()
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
 
+  // domain properties
   ierr = PetscViewerASCIIPrintf(viewer,"order = %i\n",_order);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Ny = %i\n",_Ny);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Nz = %i\n",_Nz);CHKERRQ(ierr);
@@ -439,7 +443,6 @@ PetscErrorCode Domain::setFields()
 
   PetscScalar r = 0;
   PetscScalar rbar = 0.25*_width*_width;
-  //~PetscScalar rw = 1+0.5*_width/_depth;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
@@ -471,26 +474,6 @@ PetscErrorCode Domain::setFields()
     _muArr[Ii] = v;
     muInds[Ii] = Ii;
   }
-
-//#if DEBUG > 0
-  //PetscPrintf(PETSC_COMM_WORLD,"!!Setting mu = diag(2:Ny*Nz+1).\n");
-  //for (Ii=0;Ii<_Ny*_Nz;Ii++) {
-    //z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //y = _dy*(Ii/_Nz);
-    //r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
-
-    //v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
-    //_rhoArr[Ii] = v;
-
-    //v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
-    //_csArr[Ii] = v;
-
-    ////~v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
-    //_muArr[Ii] = Ii+2;
-    ////~_muArr[Ii] = 1.0;
-    //muInds[Ii] = Ii;
-  //}
-//#endif
 
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);

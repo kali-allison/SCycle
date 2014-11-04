@@ -15,6 +15,7 @@ class Domain
 
     const char * _file;
 
+    // domain properties
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz,_dy,_dz,_Dc;
 

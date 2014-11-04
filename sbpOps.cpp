@@ -18,9 +18,6 @@ SbpOps::SbpOps(Domain&D)
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
     _debugFolder += ss.str();
 
-  //~VecCreate(PETSC_COMM_WORLD,&_rhs);
-  //~VecSetSizes(_rhs,PETSC_DECIDE,D.Nz*D.Nz);
-  //~VecSetFromOptions(_rhs);     PetscObjectSetName((PetscObject) _rhs, "_rhs");
 
   // create final operator A
   MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
