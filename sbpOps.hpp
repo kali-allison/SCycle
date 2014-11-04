@@ -3,10 +3,10 @@
 
 #include <petscksp.h>
 #include <string>
-//~#include "userContext.h"
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
 #include <assert.h>
+#include "spmat.hpp"
 
 using namespace std;
 
@@ -18,7 +18,7 @@ class SbpOps
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
     //~PetscScalar        *const _muArr;
-    PetscScalar        *_muArr;
+    PetscScalar      *_muArr;
     Mat              *_mu;
 
     double _runTime;
@@ -33,6 +33,16 @@ class SbpOps
     PetscScalar *_HinvzArr,*_D1z,*_D1zint,*_D2z,*_SzArr;
     PetscInt _Sylen,_Szlen;
 
+    // Spmats holding 1D SBP operators (temporarily named with extraneous S's)
+    // needed for all orders
+    Spmat _Hy,_HyinvS,_D1yS,_D1yintS,_D2yS,_SyS,_Iy;
+    Spmat _Hz,_HzinvS,_D1zS,_D1zintS,_D2zS,_SzS,_Iz;
+    Spmat _C2y,_C2z; // only needed for 2nd order
+
+    // only needed for 4th order
+    Spmat _C3y,_C4y,_D3y,_D4y,_B3,_B4;
+    Spmat _C3z,_C4z,_D3z,_D4z;
+
     // boundary conditions
     PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
 
@@ -44,6 +54,11 @@ class SbpOps
     PetscErrorCode computeA();
     PetscErrorCode computeRhsFactors();
     //~PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
+
+    PetscErrorCode sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,
+                 Spmat& D1int, Spmat& D2, Spmat& S);
+    PetscErrorCode sbpSpmat4(const PetscInt N,const PetscScalar scale,
+                Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
     PetscErrorCode sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
                              PetscScalar *D1,PetscScalar *D1int,PetscScalar *D2,

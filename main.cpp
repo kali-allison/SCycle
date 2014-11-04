@@ -5,6 +5,7 @@
 #include "domain.hpp"
 //~#include "odeSolver.hpp"
 #include "lithosphere.hpp"
+#include "spmat.hpp"
 
 
 
@@ -16,10 +17,11 @@ using namespace std;
 int runTests(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
+
+  //~spmatTests();
   Domain domain("init.txt");
-  domain.write();
   Lithosphere lith(domain);
-  Fault fault(domain);
+
   return ierr;
 }
 
@@ -314,7 +316,6 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
 }
 
 
-
 int runEqCycle(int argc,char **args)
 {
   PetscErrorCode ierr = 0;
@@ -361,7 +362,8 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(argc,args);
+  //~runEqCycle(argc,args);
+  runTests(argc,args);
   /*
   PetscInt Ny=21;
   for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)

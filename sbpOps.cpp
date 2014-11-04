@@ -7,6 +7,11 @@ SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
   _Sylen(0),_Szlen(0),
+  _Hy(_Ny,_Ny),_HyinvS(_Ny,_Ny),_D1yS(_Ny,_Ny),_D1yintS(_Ny,_Ny),_D2yS(_Ny,_Ny),_SyS(_Ny,_Ny),_Iy(_Ny,_Ny),
+  _Hz(_Nz,_Nz),_HzinvS(_Nz,_Nz),_D1zS(_Nz,_Nz),_D1zintS(_Nz,_Nz),_D2zS(_Nz,_Nz),_SzS(_Nz,_Nz),_Iz(_Nz,_Nz),
+  _C2y(_Ny,_Ny),_C2z(_Nz,_Nz),
+  _C3y(_Ny,_Ny),_C4y(_Ny,_Ny),_D3y(_Ny,_Ny),_D4y(_Ny,_Ny),_B3(_Ny*_Nz,_Ny*_Nz),_B4(_Ny*_Nz,_Ny*_Nz),
+  _C3z(_Nz,_Nz),_C4z(_Nz,_Nz),_D3z(_Nz,_Nz),_D4z(_Nz,_Nz),
   _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
@@ -50,6 +55,25 @@ SbpOps::SbpOps(Domain&D)
   PetscMalloc(_Nz*_Nz*sizeof(PetscScalar),&_D1zint);
   PetscMalloc(_Nz*_Nz*sizeof(PetscScalar),&_D2z);
   sbpArrays(_Nz,1/_dz,_HinvzArr,_D1z,_D1zint,_D2z,_SzArr,&_Szlen);
+
+  // Spmats holding 1D SBP operators
+  sbpSpmat(_Ny,1/_dy,_Hy,_HyinvS,_D1yS,_D1yintS,_D2yS,_SyS);
+  _C2y.eye(); _C2y(0,0,0); _C2y(_Ny-1,_Ny-1,0);
+  sbpSpmat(_Nz,1/_dz,_Hz,_HzinvS,_D1zS,_D1zintS,_D2zS,_SzS);
+  _C2z.eye(); _C2z(0,0,0); _C2z(_Nz-1,_Nz-1,0);
+  _Iy.eye();
+  _Iz.eye();
+
+  sbpSpmat4(_Ny,1/_dy,_D3y,_D4y,_C3y,_C4y);
+  _B4(0,0,_muArr[0]);
+  _B4(_Ny*_Nz-1,_Ny*_Nz-1,_muArr[_Ny*_Nz-1]);
+  _B3(0,0,0.5*(_muArr[0]+_muArr[1]));
+  _B3(_Ny*_Nz-1,_Ny*_Nz-1,0.5*(_muArr[_Ny*_Nz-2]+_muArr[_Ny*_Nz-1]));
+  for (PetscInt Ii=1;Ii<_Ny*_Nz-1;Ii++)
+  {
+    _B3(Ii,Ii,0.5*(_muArr[Ii]+_muArr[Ii+1]));
+    _B4(Ii,Ii,_muArr[Ii]);
+  }
 
 
   MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
@@ -284,10 +308,14 @@ PetscErrorCode SbpOps::computeD2ymu(Mat &D2ymu)
   }
   ierr = MatAssemblyBegin(Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat Dy_IzS(_Ny*_Nz,_Ny*_Nz);
+  Dy_IzS = kron(_D1yintS,_Iz);
+  Dy_IzS.convert(Dy_Iz);
 #if DEBUG > 0
 //~ierr = MatView(Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
 #endif
+
 
   //~ierr = printMyArray(_SyArr,_Sylen*2);CHKERRQ(ierr);
   // kron muxBySy_Iz
@@ -321,11 +349,15 @@ ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(muxBySy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(muxBySy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  //~ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
+  Spmat muxBySy_IzS(_Ny*_Nz,_Ny*_Nz);
+  muxBySy_IzS = kron(_SyS,_Iz);
+  muxBySy_IzS.convert(muxBySy_Iz);
+  ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
 //~ierr = MatView(muxBySy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&muxBySy_Iz,_debugFolder,"muxBySy_Iz");CHKERRQ(ierr);
 #endif
+
 
   // mu*kron(Hy,Iz)
   Mat muxHy_Iz;
@@ -345,6 +377,10 @@ ierr = checkMatrix(&muxBySy_Iz,_debugFolder,"muxBySy_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(muxHy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(muxHy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat muxHy_IzS(_Ny*_Nz,_Ny*_Nz);
+  muxHy_IzS = kron(_Hy,_Iz);
+  muxHy_IzS.convert(muxHy_Iz);
+  ierr = MatMatMult(*_mu,muxHy_Iz,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
 ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -368,6 +404,9 @@ ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(Hinvy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat Hyinv_IzS(_Ny*_Nz,_Ny*_Nz);
+  Hyinv_IzS = kron(_HyinvS,_Iz);
+  Hyinv_IzS.convert(Hinvy_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&Hinvy_Iz,_debugFolder,"Hinvy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(Hinvy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -395,6 +434,9 @@ ierr = checkMatrix(&Hinvy_Iz,_debugFolder,"Hinvy_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat D2y_IzS(_Ny*_Nz,_Ny*_Nz);
+  D2y_IzS = kron(_D2yS,_Iz);
+  D2y_IzS.convert(D2y_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
 //~ierr = MatView(D2y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -422,6 +464,10 @@ ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(D2yT_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(D2yT_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat D2yT_IzS(_Ny*_Nz,_Ny*_Nz);
+  Spmat D2yT(_D2yS); D2yT.transpose();
+  D2yT_IzS = kron(D2yT,_Iz);
+  D2yT_IzS.convert(D2yT_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&D2yT_Iz,_debugFolder,"D2yT_Iz");CHKERRQ(ierr);
 //~ierr = MatView(D2yT_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -446,6 +492,9 @@ ierr = checkMatrix(&D2yT_Iz,_debugFolder,"D2yT_Iz");CHKERRQ(ierr);
   }
   ierr = MatAssemblyBegin(C_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  Spmat C2y_IzS(_Ny*_Nz,_Ny*_Nz);
+  C2y_IzS = kron(_C2y,_Iz);
+  C2y_IzS.convert(C_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&C_Iz,_debugFolder,"Cy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(C_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -484,6 +533,8 @@ ierr = checkMatrix(&D2ymu,_debugFolder,"D2ymu");CHKERRQ(ierr);
   MatDestroy(&D2yT_Iz);
   MatDestroy(&C_Iz);
   MatDestroy(&Rymu);
+
+
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeD2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -1039,6 +1090,209 @@ PetscErrorCode SbpOps::computeHinv()
 
   return ierr;
 }
+
+PetscErrorCode SbpOps::sbpSpmat4(const PetscInt N,const PetscScalar scale,
+                Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4)
+{
+PetscErrorCode ierr = 0;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpSpmat4 in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt Ii = 0;
+
+  D3(0,0,-1);D3(0,1,3);D3(0,2,-3);D3(0,3,1); // 1st row
+  D3(1,0,-1);D3(1,1,3);D3(1,2,-3);D3(1,3,1); // 2nd row
+  D3(2,0,-185893.0/301051.0); // 3rd row
+  D3(2,1,7900024961.0/54642863857.0);
+  D3(2,2,-33235054191.0/54642863857.0);
+  D3(2,3,-36887526683.0/54642863857.0);
+  D3(2,4,26183621850.0/54642863857.0);
+  D3(2,5,-4386.0/181507.0);
+  for (Ii=3;Ii<N-4;Ii++)
+  {
+    D3(Ii,Ii-1,-1.0);
+    D3(Ii,Ii,3);
+    D3(Ii,Ii+1,-3);
+    D3(Ii,Ii+2,1.0);
+  }
+  D3(N-3,N-1,-D3(2,0));// third to last row
+  D3(N-3,N-2,-D3(2,1));
+  D3(N-3,N-3,-D3(2,2));
+  D3(N-3,N-4,-D3(2,3));
+  D3(N-3,N-5,-D3(2,4));
+  D3(N-3,N-6,-D3(2,5));
+  D3(N-2,N-4,-1);D3(N-2,N-3,3);D3(N-2,N-2,-3);D3(N-2,N-1,1); // 2nd to last row
+  D3(N-1,N-4,-1);D3(N-1,N-3,3);D3(N-1,N-2,-3);D3(N-1,N-1,1); // last row
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD3:\n");CHKERRQ(ierr);
+  //~D3.printPetsc();
+
+
+  D4(0,0,1); D4(0,1,-4); D4(0,2,6); D4(0,3,-4); D4(0,4,1); // 1st row
+  D4(1,0,1); D4(1,1,-4); D4(1,2,6); D4(1,3,-4); D4(1,4,1); // 1st row
+  for (Ii=2;Ii<N-2;Ii++)
+  {
+    D4(Ii,Ii-2,1);
+    D4(Ii,Ii-1,-4);
+    D4(Ii,Ii,6);
+    D4(Ii,Ii+1,-4);
+    D4(Ii,Ii+2,1);
+  }
+  D4(N-2,N-5,1); D4(N-2,N-4,-4); D4(N-2,N-3,6); D4(N-2,N-2,-4); D4(N-2,N-1,1); // 2nd to last row
+  D4(N-1,N-5,1); D4(N-1,N-4,-4); D4(N-1,N-3,6); D4(N-1,N-2,-4); D4(N-1,N-1,1); // last row
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD4:\n");CHKERRQ(ierr);
+  //~D4.printPetsc();
+
+
+  C3.eye();
+  C3(0,0,0);
+  C3(1,1,0);
+  C3(2,2,163928591571.0/53268010936.0);
+  C3(3,3,189284.0/185893.0);
+  C3(N-5,N-5,C3(3,3));
+  C3(N-4,N-4,0);
+  C3(N-3,N-3,C3(2,2));
+  C3(N-2,N-2,0);
+  C3(N-1,N-1,0);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC3:\n");CHKERRQ(ierr);
+  //~C3.printPetsc();
+
+  C4.eye();
+  C4(0,0,0);
+  C4(1,1,0);
+  C4(2,2,1644330.0/301051.0);
+  C4(3,3,156114.0/181507.0);
+  C4(N-4,N-4,C4(3,3));
+  C4(N-3,N-3,C4(2,2));
+  C4(N-2,N-2,0);
+  C4(N-1,N-1,0);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC4:\n");CHKERRQ(ierr);
+  //~C4.printPetsc();
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpSpmat4 in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+PetscErrorCode SbpOps::sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,
+                 Spmat& D1int, Spmat& D2, Spmat& S)
+{
+PetscErrorCode ierr = 0;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpSpmat in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+PetscInt Ii=0;
+
+switch ( _order ) {
+    case 2:
+      H.eye(); H(0,0,0.5); H(N-1,N-1,0.5); H.scale(1/scale);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
+      //~Hinv.printPetsc();
+
+      for (Ii=0;Ii<N-1;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
+      //~Hinv.printPetsc();
+
+
+      S(0,0,1.5*scale);     S(0,1,-2.0*scale);      S(0,2,0.5*scale); // -1* p666 of Mattsson 2010
+      S(N-1,N-3,0.5*scale); S(N-1,N-2,-2.0*scale);  S(N-1,N-1,1.5*scale);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nS:\n");CHKERRQ(ierr);
+      //~S.printPetsc();
+
+      D1int(0,0,-1.0*scale);D1int(0,1,scale); // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D1int(Ii,Ii-1,-0.5*scale);
+        D1int(Ii,Ii+1,0.5*scale);
+      }
+      D1int(N-1,N-1,scale);D1int(N-1,N-2,-1*scale); // last row
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
+      //~D1int.printPetsc();
+
+      D1 = D1int; // copy D1int's interior
+      D1(0,0,S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
+      // last row
+      D1(N-1,N-3,S(N-1,N-3));
+      D1(N-1,N-2,S(N-1,N-2));
+      D1(N-1,N-1,S(N-1,N-1));
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
+      //~D1.printPetsc();
+
+      D2(0,0,scale*scale); D2(0,1,-2.0*scale*scale); D2(0,2,scale*scale); // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D2(Ii,Ii-1,scale*scale);
+        D2(Ii,Ii,-2.0*scale*scale);
+        D2(Ii,Ii+1,scale*scale);
+      }
+      D2(N-1,N-3,scale*scale);D2(N-1,N-2,-2.0*scale*scale);D2(N-1,N-1,scale*scale); // last row
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD2:\n");CHKERRQ(ierr);
+      //~D2.printPetsc();
+
+      break;
+
+    case 4:
+      assert(N>8); // N must be >8 for 4th order SBP
+      //~if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
+
+      H.eye();
+      H(0,0,17.0/48.0);
+      H(1,1,59.0/48.0);
+      H(2,2,43.0/48.0);
+      H(3,3,49.0/48.0);
+      H.scale(1/scale);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
+      //~Hinv.printPetsc();
+
+      for (Ii=0;Ii<N-1;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
+      //~Hinv.printPetsc();
+
+      // row 1: -1* p666 of Mattsson 2010
+      S(0,0,11.0/6.0); S(0,1,-3.0); S(0,2,1.5); S(0,3,-1.0/3.0);
+      S(N-1,N-1,11.0/6.0); S(N-1,N-2,-3.0); S(N-1,N-3,1.5); S(N-1,N-4,-1.0/3.0);
+      S.scale(scale);
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
+      //~Hinv.printPetsc();
+
+
+      /*
+      // these are actually only 2nd order accurate for now
+      std::fill_n(D1, N*N, 0.0);
+      D1[0] = -1*scale; D1[1] = 1*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D1[Ii*N+Ii -1] = -0.5*scale;
+        D1[Ii*N+Ii +1] = 0.5*scale;
+      }
+      D1[N*N-1] = 1*scale; D1[N*N-2] = -1*scale; // last row
+      //~ierr = printMy2DArray(D1,N,N);CHKERRQ(ierr);
+
+
+      std::fill_n(D2, N*N, 0.0);
+      D2[0] = 1*scale*scale; D2[1] = -2*scale*scale; D2[2] = 1*scale*scale; // first row
+      for (Ii=1;Ii<N-1;Ii++) {
+        D2[Ii*N+Ii -1] = 1*scale*scale;
+        D2[Ii*N+Ii]   = -2*scale*scale;
+        D2[Ii*N+Ii +1] = 1*scale*scale;
+      }
+      D2[N*N-3] = 1*scale*scale; D2[N*N-2] = -2*scale*scale; D2[N*N-1] = 1*scale*scale; // last row
+      //~ierr = printMy2DArray(D2,N,N);CHKERRQ(ierr);
+      */
+      break;
+
+    default:
+      SETERRQ(PETSC_COMM_WORLD,1,"order not understood.");
+      break;
+  }
+
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpSpmat in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 
 
 

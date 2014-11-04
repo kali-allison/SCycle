@@ -1,6 +1,6 @@
 order = 2
-Ny = 801
-Nz = 801
+Ny = 10
+Nz = 10
 Ly = 24
 Lz = 24
 
@@ -11,7 +11,7 @@ bAbove = 0.02
 bBelow = 0.0
 sigma_N = 50.0
 
-shearDistribution = basin
+shearDistribution = gradient
 muIn = 16
 muOut = 36
 rhoIn = 2.56
