@@ -1,6 +1,6 @@
 order = 2
-Ny = 10
-Nz = 10
+Ny = 5
+Nz = 4
 Ly = 24
 Lz = 24
 

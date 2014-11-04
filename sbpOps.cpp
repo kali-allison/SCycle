@@ -65,7 +65,7 @@ SbpOps::SbpOps(Domain&D)
   _Iz.eye();
 
   //~if (_order==4) {
-    sbpSpmat4(_Ny,1/_dy,_D3y,_D4y,_C3y,_C4y);
+    //~sbpSpmat4(_Ny,1/_dy,_D3y,_D4y,_C3y,_C4y);
     _B4(0,0,_muArr[0]);
     _B4(_Ny*_Nz-1,_Ny*_Nz-1,_muArr[_Ny*_Nz-1]);
     _B3(0,0,0.5*(_muArr[0]+_muArr[1]));
@@ -312,7 +312,7 @@ PetscErrorCode SbpOps::computeD2ymu(Mat &D2ymu)
   ierr = MatAssemblyEnd(Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat Dy_IzS(_Ny*_Nz,_Ny*_Nz);
   Dy_IzS = kron(_D1yintS,_Iz);
-  //~Dy_IzS.convert(Dy_Iz);
+  Dy_IzS.convert(Dy_Iz);
 #if DEBUG > 0
 //~ierr = MatView(Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
@@ -353,8 +353,8 @@ ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
   ierr = MatAssemblyEnd(muxBySy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat muxBySy_IzS(_Ny*_Nz,_Ny*_Nz);
   muxBySy_IzS = kron(_SyS,_Iz);
-  //~muxBySy_IzS.convert(muxBySy_Iz);
-  //~ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
+  muxBySy_IzS.convert(muxBySy_Iz);
+  ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
 //~ierr = MatView(muxBySy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&muxBySy_Iz,_debugFolder,"muxBySy_Iz");CHKERRQ(ierr);
@@ -381,8 +381,8 @@ ierr = checkMatrix(&muxBySy_Iz,_debugFolder,"muxBySy_Iz");CHKERRQ(ierr);
   ierr = MatAssemblyEnd(muxHy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat muxHy_IzS(_Ny*_Nz,_Ny*_Nz);
   muxHy_IzS = kron(_Hy,_Iz);
-  //~muxHy_IzS.convert(muxHy_Iz);
-  //~ierr = MatMatMult(*_mu,muxHy_Iz,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
+  muxHy_IzS.convert(muxHy_Iz);
+  ierr = MatMatMult(*_mu,muxHy_Iz,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
 #if DEBUG > 0
 ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -408,7 +408,7 @@ ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
   ierr = MatAssemblyEnd(Hinvy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat Hyinv_IzS(_Ny*_Nz,_Ny*_Nz);
   Hyinv_IzS = kron(_HyinvS,_Iz);
-  //~Hyinv_IzS.convert(Hinvy_Iz);
+  Hyinv_IzS.convert(Hinvy_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&Hinvy_Iz,_debugFolder,"Hinvy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(Hinvy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -438,7 +438,7 @@ ierr = checkMatrix(&Hinvy_Iz,_debugFolder,"Hinvy_Iz");CHKERRQ(ierr);
   ierr = MatAssemblyEnd(D2y_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat D2y_IzS(_Ny*_Nz,_Ny*_Nz);
   D2y_IzS = kron(_D2yS,_Iz);
-  //~D2y_IzS.convert(D2y_Iz);
+  D2y_IzS.convert(D2y_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
 //~ierr = MatView(D2y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -469,7 +469,7 @@ ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
   Spmat D2yT_IzS(_Ny*_Nz,_Ny*_Nz);
   Spmat D2yT(_D2yS); D2yT.transpose();
   D2yT_IzS = kron(D2yT,_Iz);
-  //~D2yT_IzS.convert(D2yT_Iz);
+  D2yT_IzS.convert(D2yT_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&D2yT_Iz,_debugFolder,"D2yT_Iz");CHKERRQ(ierr);
 //~ierr = MatView(D2yT_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -496,7 +496,7 @@ ierr = checkMatrix(&D2yT_Iz,_debugFolder,"D2yT_Iz");CHKERRQ(ierr);
   ierr = MatAssemblyEnd(C_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   Spmat C2y_IzS(_Ny*_Nz,_Ny*_Nz);
   C2y_IzS = kron(_C2y,_Iz);
-  //~C2y_IzS.convert(C_Iz);
+  C2y_IzS.convert(C_Iz);
 #if DEBUG > 0
 ierr = checkMatrix(&C_Iz,_debugFolder,"Cy_Iz");CHKERRQ(ierr);
 //~ierr = MatView(C_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
