@@ -63,7 +63,7 @@ class SbpOps
     PetscErrorCode sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
                              PetscScalar *D1,PetscScalar *D1int,PetscScalar *D2,
                              PetscScalar *S,PetscInt *Slen);
-    //~PetscErrorCode computeD2mu(Mat &D2mu);
+    //~PetscErrorCode computeD2mu(Mat &D2mu); // will replace following 2
     PetscErrorCode computeD2ymu(Mat &D2ymu);
     PetscErrorCode computeD2zmu(Mat &D2zmu);
 

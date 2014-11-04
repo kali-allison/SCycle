@@ -363,15 +363,15 @@ int main(int argc,char **args)
 
 
   //~runEqCycle(argc,args);
-  runTests(argc,args);
-  /*
+  //~runTests(argc,args);
+
   PetscInt Ny=21;
   for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
   {
     //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);CHKERRQ(ierr);
     mmsSpace(Ny,Ny); // perform MMS
   }
-  * */
+
 
   PetscFinalize();
   return ierr;
