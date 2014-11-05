@@ -5,7 +5,7 @@
 #include "domain.hpp"
 //~#include "odeSolver.hpp"
 #include "lithosphere.hpp"
-#include "sbpops.hpp"
+#include "sbpOps.hpp"
 #include "spmat.hpp"
 
 
