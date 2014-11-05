@@ -36,7 +36,7 @@ public:
   void printPetsc() const;
 
   // convert to PETSc style matrix
-  void convert(Mat& petscMat) const;
+  void convert(Mat& petscMat, PetscInt N) const;
 
   friend Spmat kron(const Spmat& left,const Spmat& right);
 

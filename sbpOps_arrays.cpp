@@ -1177,7 +1177,8 @@ PetscErrorCode SbpOps::computeA()
   Mat D2ymu;
   ierr = MatCreate(PETSC_COMM_WORLD,&D2ymu);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
-  ierr = computeD2ymuS(D2ymu);CHKERRQ(ierr);
+  //~ierr = MatView(D2ymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = computeD2ymuS(D2ymu);CHKERRQ(ierr); // not quite correct in mms
 
   Mat D2zmu;
   ierr = MatCreate(PETSC_COMM_WORLD,&D2zmu);CHKERRQ(ierr);

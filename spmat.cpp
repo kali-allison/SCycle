@@ -58,10 +58,17 @@ void Spmat::printPetsc() const
 
 
 // convert to PETSc style matrix
-// assumes matrix has already been allocated appropriately
-void Spmat::convert(Mat& petscMat) const
+// assumes matrix has already been created, but not allocated
+void Spmat::convert(Mat& petscMat, PetscInt N) const
 {
   PetscInt Istart,Iend;
+
+  MatCreate(PETSC_COMM_WORLD,&petscMat);
+  MatSetSizes(petscMat,PETSC_DECIDE,PETSC_DECIDE,_rowSize,_colSize);
+  MatSetFromOptions(petscMat);
+  MatMPIAIJSetPreallocation(petscMat,N,NULL,N,NULL);
+  MatSeqAIJSetPreallocation(petscMat,N,NULL);
+  MatSetUp(petscMat);
   MatGetOwnershipRange(petscMat,&Istart,&Iend);
 
   PetscInt row,col;
@@ -257,14 +264,8 @@ int spmatTests()
   result3.printPetsc();
 
   Mat petscMat;
-  ierr = MatCreate(PETSC_COMM_WORLD,&petscMat);CHKERRQ(ierr);
+  result3.convert(petscMat,6);
   ierr = PetscObjectSetName((PetscObject) petscMat, "petscMat");CHKERRQ(ierr);
-  ierr = MatSetSizes(petscMat,PETSC_DECIDE,PETSC_DECIDE,6,6);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(petscMat);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(petscMat,6,NULL,6,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(petscMat,6,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(petscMat);CHKERRQ(ierr);
-  result3.convert(petscMat);
   ierr = MatView(petscMat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;

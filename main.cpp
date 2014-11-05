@@ -5,6 +5,7 @@
 #include "domain.hpp"
 //~#include "odeSolver.hpp"
 #include "lithosphere.hpp"
+#include "sbpops.hpp"
 #include "spmat.hpp"
 
 
@@ -20,7 +21,8 @@ int runTests(int argc,char **args)
 
   //~spmatTests();
   Domain domain("init.txt");
-  Lithosphere lith(domain);
+  SbpOps sbp(domain);
+  //~Lithosphere lith(domain);
 
   return ierr;
 }
@@ -364,6 +366,7 @@ int main(int argc,char **args)
 
   //~runEqCycle(argc,args);
   //~runTests(argc,args);
+
 
   PetscInt Ny=21;
   for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)

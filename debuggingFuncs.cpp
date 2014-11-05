@@ -21,12 +21,6 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name)
   ierr = MatAssemblyEnd(debugMat,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
 
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Printing matrix %s from Matlab output:\n",matSourceFile.c_str());
-  //~ierr = MatView(debugMat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Printing matrix %s created by Petsc:\n",name.c_str());
-  //~ierr = MatView(*mat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
-
   ierr = MatGetSize(debugMat,&rowSizeDebugMat,&colSizeDebugMat);CHKERRQ(ierr);
   ierr = MatGetSize(*mat,&rowSizeMat,&colSizeMat);CHKERRQ(ierr);
   if ( rowSizeDebugMat == rowSizeMat && colSizeDebugMat == colSizeMat) {

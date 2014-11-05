@@ -37,7 +37,7 @@ fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp fault.hpp
-main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp
+main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.o
 odeSolver.o: odeSolver.cpp odeSolver.hpp
 rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h
 sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
