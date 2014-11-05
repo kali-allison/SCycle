@@ -84,7 +84,7 @@ void Spmat::convert(Mat& petscMat, PetscInt N) const
       row = Ii->first;
       col = Jj->first;
       val = Jj->second;
-      if (row>=Istart && col<Iend) {
+      if (row>=Istart && row<Iend) {
         MatSetValues(petscMat,1,&row,1,&col,&val,INSERT_VALUES);
       }
     }
