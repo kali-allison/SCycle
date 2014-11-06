@@ -27,9 +27,7 @@ public:
   Spmat(const Spmat &that); // copy constructor
   void eye(); // initialize matrix as identity matrix
 
-  // returns the size of the matrix along the specified direction
-  // (1 = row, 2 = col, as in matlab)
-  size_t size(const int dim) const;
+  size_t size(const int dim) const; // (1 = row, 2 = col, as in matlab)
   void scale(double val); // multiply every entry in the matrix by val
   void transpose();
   void print() const;

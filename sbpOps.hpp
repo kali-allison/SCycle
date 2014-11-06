@@ -37,11 +37,6 @@ class SbpOps
     // needed for all orders
     Spmat _Hy,_HyinvS,_D1yS,_D1yintS,_D2yS,_SyS,_Iy;
     Spmat _Hz,_HzinvS,_D1zS,_D1zintS,_D2zS,_SzS,_Iz;
-    Spmat _C2y,_C2z; // only needed for 2nd order
-
-    // only needed for 4th order
-    Spmat _C3y,_C4y,_D3y,_D4y,_B3,_B4;
-    Spmat _C3z,_C4z,_D3z,_D4z;
 
     // boundary conditions
     PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
@@ -63,10 +58,11 @@ class SbpOps
     PetscErrorCode sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
                              PetscScalar *D1,PetscScalar *D1int,PetscScalar *D2,
                              PetscScalar *S,PetscInt *Slen);
-    PetscErrorCode computeD2ymuS(Mat &D2ymu); // will replace following 2
-    PetscErrorCode computeD2zmuS(Mat &D2zmu);
     PetscErrorCode computeD2ymu(Mat &D2ymu);
     PetscErrorCode computeD2zmu(Mat &D2zmu);
+    PetscErrorCode computeRymu(Mat &Rymu,PetscInt order);
+    PetscErrorCode computeRzmu(Mat &Rzmu, PetscInt order);
+
 
     // disable default copy constructor and assignment operator
     SbpOps(const SbpOps & that);
@@ -76,7 +72,7 @@ class SbpOps
 
     Mat _A;
     Mat _Dy_Iz;
-    Mat _Hinv;
+    Mat _H;
     //~Vec _rhs;
 
     SbpOps(Domain&D);
@@ -84,7 +80,7 @@ class SbpOps
 
     //~PetscErrorCode setSystem();
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
-    PetscErrorCode computeHinv();
+    PetscErrorCode computeH();
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);

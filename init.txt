@@ -1,8 +1,8 @@
-order = 2
-Ny = 5
-Nz = 4
-Ly = 24
-Lz = 24
+order = 4
+Ny = 11
+Nz = 11
+Ly = 6.283185307179586
+Lz = 6.283185307179586
 
 Dc = 8e-3
 
@@ -12,8 +12,8 @@ bBelow = 0.0
 sigma_N = 50.0
 
 shearDistribution = mms
-muIn = 16
-muOut = 36
+muIn = 1
+muOut = 1
 rhoIn = 2.56
 rhoOut = 2.8
 depth = 4

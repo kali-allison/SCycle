@@ -207,6 +207,7 @@ PetscErrorCode writeVec(Vec vec,const char * loc)
 }
 
 
+
 // perform MMS in space
 int mmsSpace(PetscInt Ny,PetscInt Nz)
 {
@@ -324,15 +325,11 @@ int runEqCycle(int argc,char **args)
 
   Domain domain("init.txt");
   domain.write();
-
   Lithosphere lith(domain);
-
 
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
   ierr = lith.view();CHKERRQ(ierr);
-
-
   return ierr;
 }
 
