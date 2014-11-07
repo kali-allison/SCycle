@@ -405,7 +405,7 @@ int main(int argc,char **args)
 
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %18s %18s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  //~PetscInt Ny=21;
+  PetscInt Ny=21;
   //~for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
   for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
   {
