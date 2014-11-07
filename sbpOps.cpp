@@ -460,22 +460,17 @@ switch ( order ) {
       Mat Iy_C4z;
       Iy_C4zS.convert(Iy_C4z,1);
 
-      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy^5
-      //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy^7
+      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
+      //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
       Mat temp;
       ierr = MatTransposeMatMult(Iy_D3z,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMult(temp,mu3,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMult(temp,Iy_D3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-      //~ierr = MatScale(temp,pow(_dz,5)/18);CHKERRQ(ierr);
       ierr = MatScale(temp,1.0/_dz/18);CHKERRQ(ierr);
-      //~PetscPrintf(PETSC_COMM_WORLD,"\n\nRmzu1:\n");
-      //~ierr = MatView(temp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
 
       ierr = MatTransposeMatMult(Iy_D4z,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
       ierr = MatMatMult(Rzmu,*_mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
       ierr = MatMatMult(Rzmu,Iy_D4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
-      //~ierr = MatScale(Rzmu,pow(_dz,7)/144);CHKERRQ(ierr);
       ierr = MatScale(Rzmu,1.0/_dz/144);CHKERRQ(ierr);
 
       ierr = MatAYPX(Rzmu,1.0,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -621,26 +616,19 @@ switch ( order ) {
       //~PetscPrintf(PETSC_COMM_WORLD,"\n\nC4y_IzS:\n");
       //~C4y_IzS.printPetsc();
 
-      // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy^5
-      //      + (D4y_Iz^T x C4y_Iz x mu x D4y_Iz)/144/dy^7
+      // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy
+      //      + (D4y_Iz^T x C4y_Iz x mu x D4y_Iz)/144/dy
       Mat temp;
       ierr = MatTransposeMatMult(D3y_Iz,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMult(temp,mu3,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMult(temp,D3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-      //~ierr = MatScale(temp,pow(_dy,5)/18);CHKERRQ(ierr);
       ierr = MatScale(temp,1.0/_dy/18.0);CHKERRQ(ierr);
-      //~PetscPrintf(PETSC_COMM_WORLD,"\n\nRmyu1:\n");
-      //~ierr = MatView(temp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
 
       ierr = MatTransposeMatMult(D4y_Iz,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       ierr = MatMatMult(Rymu,*_mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       //~ierr = MatMatMult(Rymu,mu3,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       ierr = MatMatMult(Rymu,D4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
-      //~ierr = MatScale(Rymu,pow(_dy,7)/144);CHKERRQ(ierr);
       ierr = MatScale(Rymu,1.0/_dy/144.0);CHKERRQ(ierr);
-      //~PetscPrintf(PETSC_COMM_WORLD,"\n\D3y*C3y:\n");
-      //~ierr = MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
       ierr = MatAYPX(Rymu,1.0,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) Rymu, "Rymu");CHKERRQ(ierr);
@@ -769,41 +757,48 @@ ierr = MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 
 
-// compute matrix for shear stress (not scaled by mu!!): kron(Dy,Iz)
+// compute matrix for shear stress (scaled by mu!!): kron(Dy,Iz)
 PetscErrorCode SbpOps::computeDy_Iz()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
-  PetscScalar     v=0;
-  PetscInt        Istart,Iend; // range of matrix rows stored locally
-  PetscInt        Ii, Jj; // local matrix row and col indices
-  PetscInt        Irow,Icol; // array indices
+  //~PetscScalar     v=0;
+  //~PetscInt        Istart,Iend; // range of matrix rows stored locally
+  //~PetscInt        Ii, Jj; // local matrix row and col indices
+  //~PetscInt        Irow,Icol; // array indices
 
-  ierr = MatSetSizes(_Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "Dy_Iz");CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_Dy_Iz,_Sylen,NULL,_Sylen,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_Dy_Iz,_Sylen,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatGetOwnershipRange(_Dy_Iz,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++)
-  {
-    Irow = Ii/_Nz;
-    for (Icol=0;Icol<_Ny;Icol++) // iterate over columns in Dy
-    {
-      assert(Irow*_Ny+Icol<_Ny*_Ny);
-      v = _muArr[Ii]*_D1y[Irow*_Ny+Icol];
-      Jj = Ii%_Nz + Icol*_Nz; // map cols in Dy to cols in _Dy_Iz
-      assert(Jj<_Ny*_Nz);
-      if (v!=0) {
-        ierr = MatSetValues(_Dy_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES);
-        }
-    }
-  }
-  ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
-  ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatSetSizes(_Dy_Iz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  //~ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "Dy_Iz");CHKERRQ(ierr);
+  //~ierr = MatSetFromOptions(_Dy_Iz);CHKERRQ(ierr);
+  //~ierr = MatMPIAIJSetPreallocation(_Dy_Iz,_Sylen,NULL,_Sylen,NULL);CHKERRQ(ierr);
+  //~ierr = MatSeqAIJSetPreallocation(_Dy_Iz,_Sylen,NULL);CHKERRQ(ierr);
+  //~ierr = MatSetUp(_Dy_Iz);CHKERRQ(ierr);
+  //~ierr = MatGetOwnershipRange(_Dy_Iz,&Istart,&Iend);CHKERRQ(ierr);
+  //~for (Ii=Istart;Ii<Iend;Ii++)
+  //~{
+    //~Irow = Ii/_Nz;
+    //~for (Icol=0;Icol<_Ny;Icol++) // iterate over columns in Dy
+    //~{
+      //~assert(Irow*_Ny+Icol<_Ny*_Ny);
+      //~v = _muArr[Ii]*_D1y[Irow*_Ny+Icol];
+      //~Jj = Ii%_Nz + Icol*_Nz; // map cols in Dy to cols in _Dy_Iz
+      //~assert(Jj<_Ny*_Nz);
+      //~if (v!=0) {
+        //~ierr = MatSetValues(_Dy_Iz,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+        //~}
+    //~}
+  //~}
+  //~ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  //~ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+
+  Spmat Sy_Iz(_Ny*_Nz,_Ny*_Nz);
+  Sy_Iz = kron(_SyS,_Iz);
+  Sy_Iz.convert(_Dy_Iz,5);
+  ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
+
 #if DEBUG > 0
 //~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
