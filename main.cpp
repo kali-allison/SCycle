@@ -299,17 +299,14 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
   ierr = writeVec(rhs,"data/rhs");CHKERRQ(ierr);
   sbp.writeOps("data/");
 
-  // measure error in L2 norm
-  PetscScalar errU,errTau;
-  ierr = VecAXPY(uAnal,-1.0,uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
-  ierr = VecNorm(uAnal,NORM_2,&errU);
-  errU = errU/sqrt( (double) Ny*Nz );
-
 
   // MMS for shear stress on fault
   Vec tauHat, tauAnal, sigma_xy;
   ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
-  ierr = MatMult(sbp._Dy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
+  ierr = MatMult(sbp._Dy_Iz,uAnal,sigma_xy);CHKERRQ(ierr);
+
+
+
 
   ierr = VecDuplicate(bcF,&tauHat);CHKERRQ(ierr);
   ierr = VecDuplicate(bcF,&tauAnal);CHKERRQ(ierr);
@@ -329,6 +326,16 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
   }
   ierr = VecAssemblyBegin(tauHat);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(tauHat);CHKERRQ(ierr);
+  //~ierr = VecView(tauHat,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+
+
+  // measure error in L2 norm
+  PetscScalar errU,errTau;
+  ierr = VecAXPY(uAnal,-1.0,uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
+  ierr = VecNorm(uAnal,NORM_2,&errU);
+  errU = errU/sqrt( (double) Ny*Nz );
 
   ierr = VecAXPY(tauAnal,-1.0,tauHat);CHKERRQ(ierr); //overwrites 1st arg with sum
   ierr = VecNorm(tauAnal,NORM_2,&errTau);
@@ -336,8 +343,8 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
 
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%5i %5i %5i %.12e %.12e\n",
-                     //~domain._order,domain._Ny,domain._Nz,log2(errU),log2(errTau));CHKERRQ(ierr);
-                     domain._order,domain._Ny,domain._Nz,errU,errTau);CHKERRQ(ierr);
+                     domain._order,domain._Ny,domain._Nz,log2(errU),log2(errTau));CHKERRQ(ierr);
+                     //~domain._order,domain._Ny,domain._Nz,errU,errTau);CHKERRQ(ierr);
 
   VecDestroy(&uAnal);
   VecDestroy(&source);
@@ -398,10 +405,11 @@ int main(int argc,char **args)
 
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %18s %18s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  PetscInt Ny=21;
-  for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
+  //~PetscInt Ny=21;
+  //~for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
+  for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
   {
-    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);CHKERRQ(ierr);
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
     mmsSpace(Ny,Ny); // perform MMS
   }
 

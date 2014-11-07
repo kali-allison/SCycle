@@ -793,10 +793,11 @@ PetscErrorCode SbpOps::computeDy_Iz()
   //~ierr = MatAssemblyBegin(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   //~ierr = MatAssemblyEnd(_Dy_Iz,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 
-
   Spmat Sy_Iz(_Ny*_Nz,_Ny*_Nz);
-  Sy_Iz = kron(_SyS,_Iz);
+  Sy_Iz = kron(_D1yS,_Iz);
   Sy_Iz.convert(_Dy_Iz,5);
+
+
   ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
 
 #if DEBUG > 0
@@ -1187,12 +1188,14 @@ switch ( _order ) {
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
       //~D1int.printPetsc();
 
-      D1 = D1int; // copy D1int's interior
+      //~D1 = D1int; // copy D1int's interior
+      //~D1(N-1,N-3,S(N-1,N-3)); // last row
+      //~D1(N-1,N-2,S(N-1,N-2));
+      //~D1(N-1,N-1,S(N-1,N-1));
+      D1 = S; // actually only want shear stress on fault, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
-      // last row
-      D1(N-1,N-3,S(N-1,N-3));
-      D1(N-1,N-2,S(N-1,N-2));
-      D1(N-1,N-1,S(N-1,N-1));
+
+
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
       //~D1.printPetsc();
 
@@ -1281,9 +1284,11 @@ switch ( _order ) {
 
 
       // 1st derivative, same interior stencil but transition at boundaries
-      D1 = D1int;
+      //~D1 = D1int;
+      //~D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
+      D1 = S; // only need 1st derivative on boundaries, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
-      D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4));
+
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
       //~D1.printPetsc();
       break;
