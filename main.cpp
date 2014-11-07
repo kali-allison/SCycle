@@ -343,7 +343,7 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
   errTau = errTau/sqrt( (double) Nz );
 
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%5i %5i %5i %.12e %.12e\n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%5i %5i %5i %20.12e %20.12e\n",
                      domain._order,domain._Ny,domain._Nz,log2(errU),log2(errTau));CHKERRQ(ierr);
                      //~domain._order,domain._Ny,domain._Nz,errU,errTau);CHKERRQ(ierr);
 
@@ -404,7 +404,7 @@ int main(int argc,char **args)
   //~runTests(argc,args);
 
 
-  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %18s %18s\n",
+  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
   //~for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
