@@ -239,7 +239,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
     y = domain._dy*(Ii/Nz);
     inds[Ii] = Ii;
 
-    uAnalArr[Ii] = cos(z)*sin(y);
+    uAnalArr[Ii] = sin(y)*cos(z);
     sourceArr[Ii] = cos(y+z)*(-cos(y)*cos(z) + sin(y)*sin(z)) + 2*(sin(y+z)+2)*cos(z)*sin(y);;
   }
   ierr = VecSetValues(uAnal,Ny*Nz,inds,uAnalArr,INSERT_VALUES);CHKERRQ(ierr);

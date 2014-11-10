@@ -23,23 +23,18 @@ class SbpOps
     double _runTime;
 
     // map boundary conditions to rhs vector
-    Mat _Hinvy_Izxe0y_Iz, _Hinvy_IzxeNy_Iz;
-    Mat _Iy_HinvzxIy_e0z, _Iy_HinvzxIy_eNz;
-    Mat _Hinvy_IzxBySy_IzTxe0y_Iz, _Hinvy_IzxBySy_IzTxeNy_Iz;
-
-    // new naming conventions for SAT boundary conditions
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
     Mat _AL,_AR,_AT,_AB;
 
     // SBP factors
-    PetscScalar *_HinvyArr,*_D1y,*_D1yint,*_D2y,*_SyArr;
-    PetscScalar *_HinvzArr,*_D1z,*_D1zint,*_D2z,*_SzArr;
-    PetscInt _Sylen,_Szlen;
+    //~PetscScalar *_HinvyArr,*_D1y,*_D1yint,*_D2y,*_SyArr;
+    //~PetscScalar *_HinvzArr,*_D1z,*_D1zint,*_D2z,*_SzArr;
+    //~PetscInt _Sylen,_Szlen;
 
     // Spmats holding 1D SBP operators (temporarily named with extraneous S's)
     // needed for all orders
-    Spmat _Hy,_HyinvS,_D1yS,_D1yintS,_D2yS,_SyS,_Iy;
-    Spmat _Hz,_HzinvS,_D1zS,_D1zintS,_D2zS,_SzS,_Iz;
+    Spmat _Hy,_Hyinv,_D1y,_D1yint,_D2y,_Sy,_Iy;
+    Spmat _Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz,_Iz;
 
     // boundary conditions
     PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
@@ -50,9 +45,7 @@ class SbpOps
 
     PetscErrorCode computeDy_Iz();
     PetscErrorCode computeA();
-    PetscErrorCode computeRhsFactors();
     PetscErrorCode satBoundaries();
-    //~PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
 
     PetscErrorCode sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,
                  Spmat& D1int, Spmat& D2, Spmat& S);
