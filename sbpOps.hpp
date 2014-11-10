@@ -3,9 +3,9 @@
 
 #include <petscksp.h>
 #include <string>
+#include <assert.h>
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
-#include <assert.h>
 #include "spmat.hpp"
 
 using namespace std;
@@ -17,7 +17,6 @@ class SbpOps
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
-    //~PetscScalar        *const _muArr;
     PetscScalar      *_muArr;
     Mat              *_mu;
 
@@ -27,6 +26,10 @@ class SbpOps
     Mat _Hinvy_Izxe0y_Iz, _Hinvy_IzxeNy_Iz;
     Mat _Iy_HinvzxIy_e0z, _Iy_HinvzxIy_eNz;
     Mat _Hinvy_IzxBySy_IzTxe0y_Iz, _Hinvy_IzxBySy_IzTxeNy_Iz;
+
+    // new naming conventions for SAT boundary conditions
+    Mat _rhsL,_rhsR,_rhsT,_rhsB;
+    Mat _AL,_AR,_AT,_AB;
 
     // SBP factors
     PetscScalar *_HinvyArr,*_D1y,*_D1yint,*_D2y,*_SyArr;
@@ -48,6 +51,7 @@ class SbpOps
     PetscErrorCode computeDy_Iz();
     PetscErrorCode computeA();
     PetscErrorCode computeRhsFactors();
+    PetscErrorCode satBoundaries();
     //~PetscErrorCode sbpOpsMats(PetscInt N, Mat &D, Mat &D2);
 
     PetscErrorCode sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,

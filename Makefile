@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=0 -DDEBUG=0
+DEBUG_MODULES   = -DVERBOSE=1 -DDEBUG=0
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -33,7 +33,6 @@ include ${PETSC_DIR}/conf/test
 spmat.o: spmat.cpp spmat.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp fault.hpp
 fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
-
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp fault.hpp

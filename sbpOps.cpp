@@ -16,6 +16,7 @@ SbpOps::SbpOps(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
 #endif
 
+
     stringstream ss;
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
     _debugFolder += ss.str();
@@ -37,6 +38,18 @@ SbpOps::SbpOps(Domain&D)
     PetscObjectSetName((PetscObject) _Hinvy_IzxBySy_IzTxe0y_Iz, "_Hinvy_IzxBySy_IzTxe0y_Iz");
   MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxeNy_Iz);
     PetscObjectSetName((PetscObject) _Hinvy_IzxBySy_IzTxeNy_Iz, "_Hinvy_IzxBySy_IzTxeNy_Iz");
+
+  // new naming conventions
+  MatCreate(PETSC_COMM_WORLD,&_rhsL); PetscObjectSetName((PetscObject) _rhsL, "_rhsL");
+  MatCreate(PETSC_COMM_WORLD,&_rhsR); PetscObjectSetName((PetscObject) _rhsR, "_rhsR");
+  MatCreate(PETSC_COMM_WORLD,&_rhsT); PetscObjectSetName((PetscObject) _rhsT, "_rhsT");
+  MatCreate(PETSC_COMM_WORLD,&_rhsB); PetscObjectSetName((PetscObject) _rhsB, "_rhsB");
+
+  MatCreate(PETSC_COMM_WORLD,&_AL); PetscObjectSetName((PetscObject) _AL, "_AL");
+  MatCreate(PETSC_COMM_WORLD,&_AR); PetscObjectSetName((PetscObject) _AR, "_AR");
+  MatCreate(PETSC_COMM_WORLD,&_AT); PetscObjectSetName((PetscObject) _AT, "_AT");
+  MatCreate(PETSC_COMM_WORLD,&_AB); PetscObjectSetName((PetscObject) _AB, "_AB");
+
 
 
   // arrays holding 1D SBP operators
@@ -64,9 +77,14 @@ SbpOps::SbpOps(Domain&D)
   MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
   PetscObjectSetName((PetscObject) _Dy_Iz, "Dy_Iz");
 
+
+  satBoundaries();
+
   computeDy_Iz();
   computeA();
   computeRhsFactors();
+
+
 
   PetscErrorCode computeH();
 
@@ -94,6 +112,16 @@ SbpOps::~SbpOps()
   MatDestroy(&_Hinvy_IzxBySy_IzTxe0y_Iz);
   MatDestroy(&_Hinvy_IzxBySy_IzTxeNy_Iz);
 
+  // new naming conventions
+  MatDestroy(&_rhsL);
+  MatDestroy(&_rhsR);
+  MatDestroy(&_rhsT);
+  MatDestroy(&_rhsB);
+  MatDestroy(&_AL);
+  MatDestroy(&_AR);
+  MatDestroy(&_AT);
+  MatDestroy(&_AB);
+
   MatDestroy(&_Dy_Iz);
 
   PetscFree(_HinvyArr);
@@ -115,6 +143,216 @@ SbpOps::~SbpOps()
 
 
 //======================== meat ========================================
+
+// enforce SAT boundaries
+PetscErrorCode SbpOps::satBoundaries()
+{
+  PetscErrorCode  ierr = 0;
+
+  double startTime = MPI_Wtime();
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function satBoundaries in sbpOps.cpp.\n");
+  CHKERRQ(ierr);
+#endif
+
+  // matrices that will be needed multiple times
+  // kron(Hyinv,Iz)
+  Spmat Hyinv_IzS(_Ny*_Nz,_Ny*_Nz);
+  Hyinv_IzS = kron(_HyinvS,_Iz);
+  Mat Hyinv_Iz;
+  Hyinv_IzS.convert(Hyinv_Iz,1);
+  ierr = PetscObjectSetName((PetscObject) Hyinv_Iz, "Hyinv_Iz");CHKERRQ(ierr);
+
+
+  // mu*kron(BySy,Iz)
+  Spmat muxBySy_IzS(_Ny*_Nz,_Ny*_Nz);
+  muxBySy_IzS = kron(_SyS,_Iz);
+  Mat muxBySy_Iz;
+  if (_order==2) { muxBySy_IzS.convert(muxBySy_Iz,3); }
+  if (_order==4) { muxBySy_IzS.convert(muxBySy_Iz,5); }
+  ierr = MatMatMult(*_mu,muxBySy_Iz,MAT_INITIAL_MATRIX,1.0,&muxBySy_Iz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) muxBySy_Iz, "muxBySy_Iz");CHKERRQ(ierr);
+
+  // kron(E0y,Iz)
+  Spmat E0y(_Ny,_Ny);
+  E0y(0,0,1.0);
+  Spmat E0y_IzS(_Ny*_Nz,_Ny*_Nz);
+  E0y_IzS = kron(E0y,_Iz);
+  Mat E0y_Iz;
+  E0y_IzS.convert(E0y_Iz,1);
+  ierr = PetscObjectSetName((PetscObject) E0y_Iz, "E0y_Iz");CHKERRQ(ierr);
+
+
+  // kron(e0y,Iz)
+  Spmat e0y(_Ny,1);
+  e0y(0,0,1.0);
+  Spmat e0y_IzS(_Ny*_Nz,_Nz);
+  e0y_IzS = kron(e0y,_Iz);
+  Mat e0y_Iz;
+  e0y_IzS.convert(e0y_Iz,1);
+  ierr = PetscObjectSetName((PetscObject) e0y_Iz, "e0y_Iz");CHKERRQ(ierr);
+
+  // kron(ENy,Iz)
+  Spmat ENy(_Ny,_Ny);
+  ENy(_Ny-1,_Ny-1,1.0);
+  Spmat ENy_IzS(_Ny*_Nz,_Ny*_Nz);
+  ENy_IzS = kron(ENy,_Iz);
+  Mat ENy_Iz;
+  ENy_IzS.convert(ENy_Iz,1);
+  ierr = PetscObjectSetName((PetscObject) ENy_Iz, "ENy_Iz");CHKERRQ(ierr);
+  //~MatView(ENy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+
+  // kron(eNy,Iz)
+  Spmat eNy(_Ny,1);
+  eNy(_Ny-1,0,1.0);
+  Spmat eNy_IzS(_Ny*_Nz,_Nz);
+  eNy_IzS = kron(eNy,_Iz);
+  Mat eNy_Iz;
+  eNy_IzS.convert(eNy_Iz,1);
+  ierr = PetscObjectSetName((PetscObject) eNy_Iz, "eNy_Iz");CHKERRQ(ierr);
+
+
+  // enforcement of bcL ================================================
+  // map bcL to rhs
+  // if bcL = displacement: _alphaF*mu*_Hinvy_Izxe0y_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxe0y_Iz
+  ierr = MatMatMatMult(*_mu,Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
+  ierr = MatScale(_rhsL,_alphaF);CHKERRQ(ierr);
+  Mat temp;
+  ierr = MatTransposeMatMult(muxBySy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatAYPX(_rhsL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  // if bcL = traction-free
+  // _rhsL is unneeded bc bcL = 0
+
+  // in computation of A
+  // if bcL = displacement: _alphaF*mu*_Hinvy_IzxE0y_Iz + _beta*mu*_Hinvy_IzxBySy_IzTxE0y_Iz
+  ierr = MatMatMatMult(*_mu,Hyinv_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AL);CHKERRQ(ierr);
+  ierr = MatScale(_AL,_alphaF);CHKERRQ(ierr);
+
+  ierr = MatTransposeMatMult(muxBySy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+
+  ierr = MatAYPX(_AL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _AL, "AL");CHKERRQ(ierr);
+
+  MatDestroy(&temp);
+
+  // enforcement of bcR ================================================
+  // map bcR to rhs
+  // if bcR = displacement: _alphaR*mu*_Hinvy_IzxeNy_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxeNy_Iz
+  ierr = MatMatMatMult(*_mu,Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
+  ierr = MatScale(_rhsR,_alphaF);CHKERRQ(ierr);
+  ierr = MatTransposeMatMult(muxBySy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatAYPX(_rhsL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  // if bcR = traction-free
+  // _rhsR is unneeded because bcR = 0
+
+  // in computation of A
+  // if bcR = displacement: _alphaR*mu*Hinvy_Iz*ENy_Iz + _beta*Hinvy_Iz*(muxBySy_Iz)'*ENy_Iz
+  ierr = MatMatMatMult(*_mu,Hyinv_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AR);CHKERRQ(ierr);
+  ierr = MatScale(_AR,_alphaR);CHKERRQ(ierr);
+
+  ierr = MatTransposeMatMult(muxBySy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+
+  ierr = MatAYPX(_AR,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _AR, "AR");CHKERRQ(ierr);
+
+
+
+  // if Nz > 1
+
+
+
+// kron(Iy,Hzinv)
+  Spmat Iy_HzinvS(_Ny*_Nz,_Ny*_Nz);
+  Iy_HzinvS = kron(_Iy,_HzinvS);
+  Mat Iy_Hzinv;
+  Iy_HzinvS.convert(Iy_Hzinv,1);
+  ierr = PetscObjectSetName((PetscObject) Iy_Hzinv, "Iy_Hzinv");CHKERRQ(ierr);
+
+  // mu*kron(Iy,BzSz)
+  Spmat muxIy_BzSzS(_Ny*_Nz,_Ny*_Nz);
+  muxIy_BzSzS = kron(_Iy,_SzS);
+  Mat muxIy_BzSz;
+  if (_order==2) { muxIy_BzSzS.convert(muxIy_BzSz,3); }
+  if (_order==4) { muxIy_BzSzS.convert(muxIy_BzSz,5); }
+  ierr = MatMatMult(*_mu,muxIy_BzSz,MAT_INITIAL_MATRIX,1.0,&muxIy_BzSz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) muxIy_BzSz, "muxIy_BzSz");CHKERRQ(ierr);
+
+  // kron(Iy,E0z)
+  Spmat E0z(_Nz,_Nz);
+  E0z(0,0,1.0);
+  Spmat Iy_E0zS(_Ny*_Nz,_Ny*_Nz);
+  Iy_E0zS = kron(_Iy,E0z);
+  Mat Iy_E0z;
+  Iy_E0zS.convert(Iy_E0z,1);
+  ierr = PetscObjectSetName((PetscObject) Iy_E0z, "Iy_E0z");CHKERRQ(ierr);
+
+  // kron(Iy,e0z)
+  Spmat e0z(_Nz,1);
+  e0z(0,0,1.0);
+  Spmat Iy_e0zS(_Ny*_Nz,_Nz);
+  Iy_e0zS = kron(_Iy,e0z);
+  Mat Iy_e0z;
+  Iy_e0zS.convert(Iy_e0z,1);
+  ierr = PetscObjectSetName((PetscObject) Iy_e0z, "Iy_e0z");CHKERRQ(ierr);
+
+  // kron(Iy,ENz)
+  Spmat ENz(_Nz,_Nz);
+  ENz(_Nz-1,_Nz-1,1.0);
+  Spmat Iy_ENzS(_Ny*_Nz,_Ny*_Nz);
+  Iy_ENzS = kron(_Iy,ENz);
+  Mat Iy_ENz;
+  Iy_ENzS.convert(Iy_ENz,1);
+  ierr = PetscObjectSetName((PetscObject) Iy_ENz, "Iy_ENz");CHKERRQ(ierr);
+  //~ierr = MatView(Iy_ENz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // kron(Iy,eNz)
+  Spmat eNz(_Nz,1);
+  eNz(_Nz-1,0,1.0);
+  Spmat Iy_eNzS(_Ny*_Nz,_Nz);
+  eNy_IzS = kron(_Iy,eNz);
+  Mat Iy_eNz;
+  Iy_eNzS.convert(Iy_eNz,1);
+  ierr = PetscObjectSetName((PetscObject) Iy_eNz, "Iy_eNz");CHKERRQ(ierr);
+
+
+  // enforcement of bcT ================================================
+  // map bcS to rhs
+  // if bcT = traction-free, then no need for _rhsT
+
+  // in computation of A
+  // if bcT = traction-free: _alphaS*Iy_Hinvz*Iy_E0z*muxIy_BzSz
+  ierr = MatMatMatMult(Iy_Hzinv,Iy_E0z,muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AT);CHKERRQ(ierr);
+  ierr = MatScale(_AT,_alphaS);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _AT, "AT");CHKERRQ(ierr);
+
+  // enforcement of bcB ================================================
+  // map bcB to rhs
+  // if bcB = traction-free, then no need for _rhsB
+
+  // in computation of A
+  // if bcB = traction-free: _alphaD*Iy_Hinvz*Iy_E0z*muxIy_BzSz
+  ierr = MatMatMatMult(Iy_Hzinv,Iy_ENz,muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AB);CHKERRQ(ierr);
+  ierr = MatScale(_AB,_alphaD);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _AB, "AB");CHKERRQ(ierr);
+
+
+
+
+  _runTime += MPI_Wtime() - startTime;
+
+  MatDestroy(&temp);
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function satBoundaries in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+return ierr;
+}
+
+
 
 PetscErrorCode SbpOps::computeRhsFactors()
 {
@@ -662,7 +900,7 @@ switch ( order ) {
 PetscErrorCode SbpOps::computeD2zmu(Mat &D2zmu)
 {
   PetscErrorCode  ierr = 0;
-#if VERBOSE >1
+#if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeD2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
@@ -797,12 +1035,13 @@ PetscErrorCode SbpOps::computeDy_Iz()
   Sy_Iz = kron(_D1yS,_Iz);
   Sy_Iz.convert(_Dy_Iz,5);
 
-
   ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
 
 #if DEBUG > 0
-//~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
+#endif
+#if VERBOSE > 2
+  ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
@@ -848,6 +1087,7 @@ PetscErrorCode SbpOps::computeA()
   ierr = MatAYPX(D2mu,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
 
+/*
   // Hinvy_IzxE0y_Iz = kron(Hinvy,Iz)*kron(E0y,Iz)
   Mat Hinvy_IzxE0y_Iz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Hinvy_IzxE0y_Iz);
@@ -934,7 +1174,7 @@ PetscErrorCode SbpOps::computeA()
 #endif
 
 
-  // Iy_HinvzxIy_E0zxmuxmuxIy_BzSz = kron(Iy,_Hinvz)*kron(Iy,E0z)*mu*kron(Iy,BzSz)
+  // Iy_HinvzxIy_E0zxmuxIy_BzSz = kron(Iy,_Hinvz)*kron(Iy,E0z)*mu*kron(Iy,BzSz)
   Mat Iy_HinvzxIy_E0zxmuxIy_BzSz;
   ierr = MatCreate(PETSC_COMM_WORLD,&Iy_HinvzxIy_E0zxmuxIy_BzSz);CHKERRQ(ierr);
   ierr = MatSetSizes(Iy_HinvzxIy_E0zxmuxIy_BzSz,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
@@ -984,31 +1224,31 @@ PetscErrorCode SbpOps::computeA()
 #if DEBUG > 0
   checkMatrix(&Iy_HinvzxIy_ENzxmuxIy_BzSz,_debugFolder,"Iy_HinvzxIy_ENzxmuxIy_BzSz");CHKERRQ(ierr);
 #endif
+*/
+
 
   // compute A
   ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
   ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"Astage1");CHKERRQ(ierr);
-#endif
-  ierr = MatAXPY(_A,_alphaF,Hinvy_IzxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"Astage2");CHKERRQ(ierr);
-#endif
-  ierr = MatAXPY(_A,_beta,Hinvy_IzxmuxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"Astage3");CHKERRQ(ierr);
-#endif
-  ierr = MatAXPY(_A,_alphaR,Hinvy_IzxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"Astage4");CHKERRQ(ierr);
-#endif
-  ierr = MatAXPY(_A,_beta,Hinvy_IzxmuxBySy_IzTxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaS,Iy_HinvzxIy_E0zxmuxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,_alphaD,Iy_HinvzxIy_ENzxmuxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+  // use new Mats _AL etc
+  ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+  //~ierr = MatAXPY(_A,_alphaF,Hinvy_IzxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(_A,_beta,Hinvy_IzxmuxBySy_IzTxE0y_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(_A,_alphaR,Hinvy_IzxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(_A,_beta,Hinvy_IzxmuxBySy_IzTxENy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(_A,_alphaS,Iy_HinvzxIy_E0zxmuxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ierr = MatAXPY(_A,_alphaD,Iy_HinvzxIy_ENzxmuxIy_BzSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+
+
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
+  //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
   // clean up
@@ -1017,12 +1257,13 @@ PetscErrorCode SbpOps::computeA()
 
   ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
   ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
-  ierr = MatDestroy(&Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Hinvy_IzxmuxBySy_IzTxE0y_Iz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Hinvy_IzxmuxBySy_IzTxENy_Iz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Iy_HinvzxIy_E0zxmuxIy_BzSz);CHKERRQ(ierr);
-  ierr = MatDestroy(&Iy_HinvzxIy_ENzxmuxIy_BzSz);CHKERRQ(ierr);
+
+  //~ierr = MatDestroy(&Hinvy_IzxE0y_Iz);CHKERRQ(ierr);
+  //~ierr = MatDestroy(&Hinvy_IzxENy_Iz);CHKERRQ(ierr);
+  //~ierr = MatDestroy(&Hinvy_IzxmuxBySy_IzTxE0y_Iz);CHKERRQ(ierr);
+  //~ierr = MatDestroy(&Hinvy_IzxmuxBySy_IzTxENy_Iz);CHKERRQ(ierr);
+  //~ierr = MatDestroy(&Iy_HinvzxIy_E0zxmuxIy_BzSz);CHKERRQ(ierr);
+  //~ierr = MatDestroy(&Iy_HinvzxIy_ENzxmuxIy_BzSz);CHKERRQ(ierr);
 
   _runTime = MPI_Wtime() - startTime;
 
@@ -1166,18 +1407,24 @@ switch ( _order ) {
     case 2:
     {
       H.eye(); H(0,0,0.5); H(N-1,N-1,0.5); H.scale(1/scale);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-      //~Hinv.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
+        Hinv.printPetsc();
+      #endif
 
       for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
-      //~Hinv.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
+        //~Hinv.printPetsc();
+      #endif
 
 
       S(0,0,1.5*scale);     S(0,1,-2.0*scale);      S(0,2,0.5*scale); // -1* p666 of Mattsson 2010
       S(N-1,N-3,0.5*scale); S(N-1,N-2,-2.0*scale);  S(N-1,N-1,1.5*scale);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nS:\n");CHKERRQ(ierr);
-      //~S.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nS:\n");CHKERRQ(ierr);
+        S.printPetsc();
+      #endif
 
       D1int(0,0,-1.0*scale);D1int(0,1,scale); // first row
       for (Ii=1;Ii<N-1;Ii++) {
@@ -1185,19 +1432,21 @@ switch ( _order ) {
         D1int(Ii,Ii+1,0.5*scale);
       }
       D1int(N-1,N-1,scale);D1int(N-1,N-2,-1*scale); // last row
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
-      //~D1int.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
+        D1int.printPetsc();
+      #endif
 
       //~D1 = D1int; // copy D1int's interior
       //~D1(N-1,N-3,S(N-1,N-3)); // last row
       //~D1(N-1,N-2,S(N-1,N-2));
       //~D1(N-1,N-1,S(N-1,N-1));
-      D1 = S; // actually only want shear stress on fault, not interior
+      D1 = S; // only want shear stress on fault, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
-
-
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
-      //~D1.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
+        D1.printPetsc();
+      #endif
 
       D2(0,0,scale*scale); D2(0,1,-2.0*scale*scale); D2(0,2,scale*scale); // first row
       for (Ii=1;Ii<N-1;Ii++) {
@@ -1206,8 +1455,10 @@ switch ( _order ) {
         D2(Ii,Ii+1,scale*scale);
       }
       D2(N-1,N-3,scale*scale);D2(N-1,N-2,-2.0*scale*scale);D2(N-1,N-1,scale*scale); // last row
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD2:\n");CHKERRQ(ierr);
-      //~D2.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD2:\n");CHKERRQ(ierr);
+        D2.printPetsc();
+      #endif
 
       break;
     }
@@ -1226,19 +1477,25 @@ switch ( _order ) {
       H(N-3,N-3,43.0/48.0);
       H(N-4,N-4,49.0/48.0);
       H.scale(1/scale);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-      //~Hinv.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
+        Hinv.printPetsc();
+      #endif
 
       for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
-      //~Hinv.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
+        Hinv.printPetsc();
+      #endif
 
       // row 1: -1* p666 of Mattsson 2010
       S(0,0,11.0/6.0); S(0,1,-3.0); S(0,2,1.5); S(0,3,-1.0/3.0);
       S(N-1,N-1,11.0/6.0); S(N-1,N-2,-3.0); S(N-1,N-3,1.5); S(N-1,N-4,-1.0/3.0);
       S.scale(scale);
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nS:\n");CHKERRQ(ierr);
-      //~S.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nS:\n");CHKERRQ(ierr);
+        S.printPetsc();
+      #endif
 
       // interior stencil for 1st derivative, scaled by multiplication with Hinv's values
       for (Ii=4;Ii<N-4;Ii++)
@@ -1279,8 +1536,10 @@ switch ( _order ) {
       D1int(N-4,N-3,59.0/96.0*Hinv(N-4,N-4));
       D1int(N-4,N-5,-2.0/3.0*Hinv(N-4,N-4));
       D1int(N-4,N-6,1.0/12.0*Hinv(N-4,N-4));
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1int:\n");CHKERRQ(ierr);
-      //~D1int.printPetsc();
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1int:\n");CHKERRQ(ierr);
+        D1int.printPetsc();
+      #endif
 
 
       // 1st derivative, same interior stencil but transition at boundaries
@@ -1288,9 +1547,11 @@ switch ( _order ) {
       //~D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
       D1 = S; // only need 1st derivative on boundaries, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
+        D1.printPetsc();
+      #endif
 
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
-      //~D1.printPetsc();
       break;
     }
 
@@ -1717,22 +1978,22 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
 
 
   // rhs =  _alphaF*mu*_Hinvy_Izxe0y_Iz*_bcF +...
-  ierr = MatMult(_Hinvy_Izxe0y_Iz,_bcF,rhs);CHKERRQ(ierr);
-  ierr = VecScale(rhs,_alphaF);CHKERRQ(ierr);
+  //~ierr = MatMult(_Hinvy_Izxe0y_Iz,_bcF,rhs);CHKERRQ(ierr);
+  //~ierr = VecScale(rhs,_alphaF);CHKERRQ(ierr);
 
-  // + _beta*mu*_Hinvy_IzxBySy_IzTxe0y_Iz*_bcF + ...
-  Vec temp;
-  ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
-  ierr = MatMult(_Hinvy_IzxBySy_IzTxe0y_Iz,_bcF,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(rhs,_beta,temp);CHKERRQ(ierr);
+  // + _beta*_Hinvy_IzxBySy_IzTxe0y_Iz*_bcF + ...
+  //~Vec temp;
+  //~ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
+  //~ierr = MatMult(_Hinvy_IzxBySy_IzTxe0y_Iz,_bcF,temp);CHKERRQ(ierr);
+  //~ierr = VecAXPY(rhs,_beta,temp);CHKERRQ(ierr);
 
   // + _alphaR*mu*_Hinvy_IzxeNy_Iz*_bcR + ...
-  ierr = MatMult(_Hinvy_IzxeNy_Iz,_bcR,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(rhs,_alphaR,temp);CHKERRQ(ierr);
+  //~ierr = MatMult(_Hinvy_IzxeNy_Iz,_bcR,temp);CHKERRQ(ierr);
+  //~ierr = VecAXPY(rhs,_alphaR,temp);CHKERRQ(ierr);
 
-  // + _beta*mu*_Hinvy_IzxBySy_IzTxeNy_Iz*_bcR + ...
-  ierr = MatMult(_Hinvy_IzxBySy_IzTxeNy_Iz,_bcR,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(rhs,_beta,temp);CHKERRQ(ierr);
+  // + _beta*_Hinvy_IzxBySy_IzTxeNy_Iz*_bcR + ...
+  //~ierr = MatMult(_Hinvy_IzxBySy_IzTxeNy_Iz,_bcR,temp);CHKERRQ(ierr);
+  //~ierr = VecAXPY(rhs,_beta,temp);CHKERRQ(ierr);
 
   //~ // - _alphaS*M.Iy_HinvzxIy_e0z*_bcS + ...
   //~ ierr = MatMult(_IyHinvz_Iye0z,_bcS,temp);CHKERRQ(ierr);
@@ -1742,7 +2003,16 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   //~ ierr = MatMult(_IyHinvz_IyeNz,_bcD,temp);CHKERRQ(ierr);
   //~ ierr = VecAXPY(_rhs,_alphaD,temp);CHKERRQ(ierr);
 
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
+
+  // using new naming conventions
+  ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // !!!!!
+  ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR*_bcR
+  //~ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
+  //~ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
+
+
+
+  //~ierr = VecDestroy(&temp);CHKERRQ(ierr);
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);

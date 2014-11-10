@@ -110,7 +110,7 @@ PetscErrorCode Lithosphere::view()
   PetscErrorCode ierr = 0;
   ierr = _quadrature->view();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Run Time Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
@@ -313,7 +313,7 @@ PetscErrorCode Lithosphere::timeMonitor(const PetscReal time, const PetscInt ste
     ierr = writeStep();CHKERRQ(ierr);
   }
 
-#if VERBOSE >0
+#if VERBOSE > 0
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
 #endif
   return ierr;

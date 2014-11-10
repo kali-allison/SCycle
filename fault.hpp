@@ -19,7 +19,7 @@ class Fault
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
-    const PetscInt _sizeMuArr;
+    const PetscInt     _sizeMuArr;
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
     const PetscScalar  _Dc;
 
@@ -30,7 +30,7 @@ class Fault
     // elastic coefficients and frictional parameters
     PetscScalar    _depth,_seisDepth,_cs,_f0,_v0,_vp;
     PetscScalar    _bAbove,_bBelow;
-    PetscScalar    _muIn,_muOut,_rhoIn,_rhoOut,*_muArr,*_rhoArr,*_csArr;// for basin
+    PetscScalar   *_muArr,*_rhoArr,*_csArr;// for basin
     Vec            _eta,_sigma_N,_a,_b;
 
     Vec            _bcRShift;

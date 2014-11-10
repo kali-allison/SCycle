@@ -15,12 +15,14 @@ using namespace std;
 
 
 
-int runTests(int argc,char **args)
+int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
   //~spmatTests();
-  Domain domain("init.txt");
+  Domain domain(inputFile);
+  //~Domain domain(inputFile,5,4);
+  domain.write();
   SbpOps sbp(domain);
   //~Lithosphere lith(domain);
 
@@ -209,13 +211,13 @@ PetscErrorCode writeVec(Vec vec,const char * loc)
 
 
 // perform MMS in space
-int mmsSpace(PetscInt Ny,PetscInt Nz)
+int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii = 0;
   PetscScalar    y,z;
 
-  Domain domain("init.txt",Ny,Nz);
+  Domain domain(inputFile,Ny,Nz);
 
   // set vectors containing analytical distribution for displacement and source
   Vec uAnal,source;
@@ -358,11 +360,15 @@ int mmsSpace(PetscInt Ny,PetscInt Nz)
 }
 
 
-int runEqCycle(int argc,char **args)
+int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  Domain domain("init.txt");
+  //~const char * inputFile;
+  //~if (argc > 1) { inputFile = args[1]; }
+  //~else { inputFile = "init.txt"; }
+
+  Domain domain(inputFile);
   domain.write();
   Lithosphere lith(domain);
 
@@ -377,6 +383,10 @@ int main(int argc,char **args)
   PetscInitialize(&argc,&args,NULL,NULL);
 
   PetscErrorCode ierr = 0;
+
+  const char * inputFile;
+  if (argc > 1) { inputFile = args[1]; }
+  else { inputFile = "init.txt"; }
 
   /*
   PetscInt Ny = 401, Nz = 401;
@@ -400,18 +410,18 @@ int main(int argc,char **args)
   */
 
 
-  //~runEqCycle(argc,args);
-  //~runTests(argc,args);
+  //~runEqCycle(inputFile);
+  //~runTests(inputFile);
 
 
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
-  //~for (Ny=21;Ny<162;Ny=(Ny-1)*2+1)
-  for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
+  for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
+  //~//for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
   {
-    //~PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
-    mmsSpace(Ny,Ny); // perform MMS
+    //~//PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
+    mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
 
 

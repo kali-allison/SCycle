@@ -1,7 +1,8 @@
 #include "domain.hpp"
 
 Domain::Domain(const char *file)
-: _file(file),_shearDistribution("basin"),_linSolver("AMG"),
+: _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
+ _shearDistribution("basin"),_linSolver("AMG"),
   _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
@@ -12,16 +13,15 @@ Domain::Domain(const char *file)
 
   _dy = _Ly/(_Ny-1.0);
   _dz = _Lz/(_Nz-1.0);
-  _initDeltaT = _minDeltaT;
+
+  if (_initDeltaT==0) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
-  _vp=1e-9;
+  //~_vp=1e-9;
+  _vp=1e-4;
 
-  _csIn = sqrt(_muIn/_rhoIn);
-  _csOut = sqrt(_muOut/_rhoOut);
-
-  MatCreate(PETSC_COMM_WORLD,&_mu);
-  setFields();
+  //~_csIn = sqrt(_muIn/_rhoIn);
+  //~_csOut = sqrt(_muOut/_rhoOut);
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -30,6 +30,12 @@ Domain::Domain(const char *file)
 
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
+
+
+MatCreate(PETSC_COMM_WORLD,&_mu);
+setFields();
+
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
 #endif
@@ -38,11 +44,12 @@ Domain::Domain(const char *file)
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_shearDistribution("basin"),_linSolver("AMG"),
+: _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
+  _shearDistribution("basin"),_linSolver("AMG"),
   _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor:Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
 #endif
 
   loadData(_file);
@@ -52,16 +59,11 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   _dy = _Ly/(_Ny-1.0);
   _dz = _Lz/(_Nz-1.0);
-  _initDeltaT = _minDeltaT;
+  if (_initDeltaT==0) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
   _vp=1e-9;
-
-  _csIn = sqrt(_muIn/_rhoIn);
-  _csOut = sqrt(_muOut/_rhoOut);
-
-  MatCreate(PETSC_COMM_WORLD,&_mu);
-  setFields();
+  //~_vp=1e-4;
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -70,8 +72,13 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
+
+MatCreate(PETSC_COMM_WORLD,&_mu);
+setFields();
+
+
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor:Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
 #endif
 }
 
@@ -98,7 +105,7 @@ PetscErrorCode Domain::loadData(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
 #endif
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
@@ -116,71 +123,66 @@ PetscErrorCode Domain::loadData(const char *file)
   if (rank==0) {
     ifstream infile( file );
     string line,var;
-    string delim = " = ";
+    //~string delim = " = ";
     size_t pos = 0;
     while (getline(infile, line))
     {
       istringstream iss(line);
-      pos = line.find(delim); // find position of delimiter
+      pos = line.find(_delim); // find position of delimiter
       var = line.substr(0,pos);
 
-      if (var.compare("order")==0) { _order = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       //fault properties
-      else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // sedimentary basin properties
       else if (var.compare("shearDistribution")==0) {
-        _shearDistribution = line.substr(pos+delim.length(),line.npos);
+        _shearDistribution = line.substr(pos+_delim.length(),line.npos);
         strcpy(shearDistribution,_shearDistribution.c_str());
+        loadShearModulusSettings(infile);
       }
-      else if (var.compare("muIn")==0) { _muIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("muOut")==0) { _muOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("rhoIn")==0) { _rhoIn = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("rhoOut")==0) { _rhoOut = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("width")==0) { _width = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
       else if (var.compare("linSolver")==0) {
-        _linSolver = line.substr(pos+delim.length(),line.npos);
+        _linSolver = line.substr(pos+_delim.length(),line.npos);
         strcpy(linSolver,_linSolver.c_str());
       }
-      else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // time integration properties
       else if (var.compare("timeIntegrator")==0) {
-        _timeIntegrator = line.substr(pos+delim.length(),line.npos);
+        _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
         strcpy(timeIntegrator,_timeIntegrator.c_str());
       }
       else if (var.compare("timeControlType")==0) {
-        _timeControlType = line.substr(pos+delim.length(),line.npos);
+        _timeControlType = line.substr(pos+_delim.length(),line.npos);
         strcpy(timeControlType,_timeControlType.c_str());
       }
-      else if (var.compare("strideLength")==0){ _strideLength = (int)atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("strideLength")==0){ _strideLength = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // other tolerances
-      else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // output directory
       else if (var.compare("outputDir")==0) {
-        _outputDir =  line.substr(pos+delim.length(),line.npos);
+        _outputDir =  line.substr(pos+_delim.length(),line.npos);
         strcpy(outputDir,_outputDir.c_str());
       }
     }
@@ -201,6 +203,8 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -245,6 +249,61 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
+
+
+PetscErrorCode Domain::loadShearModulusSettings(ifstream& infile)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of _delimiter
+    var = line.substr(0,pos);
+
+    if (line.compare(_endBlock)==0)
+    {
+      //~PetscPrintf(PETSC_COMM_WORLD,"\n\nfound _endBlock in loadShearModulusSettings\n");
+      break; // done loading block, exit while loop
+    }
+    else if (_shearDistribution.compare("basin")==0)
+    {
+      if (var.compare("muIn")==0) { _muIn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("muOut")==0) { _muOut = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoIn")==0) { _rhoIn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoOut")==0) { _rhoOut = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("width")==0) { _width = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    }
+    else if (_shearDistribution.compare("constant")==0)
+    {
+      // look for mu, rho
+      if (var.compare("mu")==0) { _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rho")==0) { _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    }
+    else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
+    {
+      // look for rho, mu will be prescribed
+      if (var.compare("rho")==0) { _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    }
+    else { // print error message and fail
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
+      assert(0>1);
+    }
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
 // Specified processor prints scalar/string data members to stdout.
 PetscErrorCode Domain::view(PetscMPIInt rank)
 {
@@ -278,12 +337,24 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
 
     // sedimentary basin properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"muIn = %f\n",_muIn);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"muOut = %f\n",_muOut);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"rhoIn = %f\n",_rhoIn);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOut = %f\n",_rhoOut);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
+    if (_shearDistribution.compare("basin")==0)
+    {
+      ierr = PetscPrintf(PETSC_COMM_SELF,"muIn = %f\n",_muIn);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"muOut = %f\n",_muOut);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoIn = %f\n",_rhoIn);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOut = %f\n",_rhoOut);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
+    }
+    else if (_shearDistribution.compare("constant")==0)
+    {
+      ierr = PetscPrintf(PETSC_COMM_SELF,"mu = %f\n",_muVal);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rho = %f\n",_rhoVal);CHKERRQ(ierr);
+    }
+    else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
+    {
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rho = %f\n",_rhoVal);CHKERRQ(ierr);
+    }
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // linear solve settings
@@ -359,13 +430,25 @@ PetscErrorCode Domain::write()
 
   // sedimentary basin properties
   ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"muIn = %.15e\n",_muIn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"muOut = %.15e\n",_muOut);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"rhoIn = %.15e\n",_rhoIn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"rhoOut = %.15e\n",_rhoOut);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+  if (_shearDistribution.compare("basin")==0)
+    {
+      ierr = PetscViewerASCIIPrintf(viewer,"muIn = %.15e\n",_muIn);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muOut = %.15e\n",_muOut);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoIn = %.15e\n",_rhoIn);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoOut = %.15e\n",_rhoOut);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
+    }
+    else if (_shearDistribution.compare("constant")==0)
+    {
+      ierr = PetscViewerASCIIPrintf(viewer,"mu = %.15e\n",_muVal);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rho = %.15e\n",_rhoVal);CHKERRQ(ierr);
+    }
+    else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
+    {
+      ierr = PetscViewerASCIIPrintf(viewer,"rho = %.15e\n",_rhoVal);CHKERRQ(ierr);
+    }
+    ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
@@ -449,22 +532,30 @@ PetscErrorCode Domain::setFields()
     y = _dy*(Ii/_Nz);
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 
-    v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
-    _rhoArr[Ii] = v;
-
-    v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
-    _csArr[Ii] = v;
-
     if (_shearDistribution.compare("basin")==0) {
+      v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
+      _rhoArr[Ii] = v;
+
+      _csIn = sqrt(_muIn/_rhoIn);
+      _csOut = sqrt(_muOut/_rhoOut);
+      v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
+      _csArr[Ii] = v;
+
       v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
     }
     else if (_shearDistribution.compare("constant")==0) {
-      v = _muIn;
+      _rhoArr[Ii] = _rhoVal;
+      _csArr[Ii] = sqrt(_muVal/_rhoVal);
+      v = _muVal;
     }
     else if (_shearDistribution.compare("gradient")==0) {
+      _rhoArr[Ii] = _rhoVal;
+       _csArr[Ii] = sqrt(_muVal/_rhoVal);
       v = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
+      _rhoArr[Ii] = _rhoVal;
+       _csArr[Ii] = sqrt(_muVal/_rhoVal);
       v = sin(y+z) + 2.0;
     }
     else {

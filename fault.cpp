@@ -7,7 +7,6 @@ Fault::Fault(Domain&D)
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _bAbove(D._bAbove),_bBelow(D._bBelow),
-  _muIn(D._muIn),_muOut(D._muOut),_rhoIn(D._rhoIn),_rhoOut(D._rhoOut),
   _muArr(D._muArr),_rhoArr(D._rhoArr),_csArr(D._csArr),
   _sigma_N_val(D._sigma_N_val)
 {
@@ -15,7 +14,7 @@ Fault::Fault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in fault.cpp.\n");
 #endif
 
-  _cs = std::max(sqrt(_muIn/_rhoIn),sqrt(_muOut/_rhoOut)); // shear wave speed (km/s)
+  //~_cs = std::max(sqrt(_muIn/_rhoIn),sqrt(_muOut/_rhoOut)); // shear wave speed (km/s)
 
   // fields that exist on the fault
   VecCreate(PETSC_COMM_WORLD,&_tau);
@@ -62,7 +61,7 @@ Fault::~Fault()
   VecDestroy(&_faultDisp);
   VecDestroy(&_vel);
 
-  VecDestroy(&_bcRShift);
+  //~VecDestroy(&_bcRShift);
 
   // frictional fields
   VecDestroy(&_eta);
@@ -206,8 +205,6 @@ PetscErrorCode Fault::setFields()
       ierr = VecSetValues(_b,1,&Ii,&_bAbove,INSERT_VALUES);CHKERRQ(ierr);
     }
     else if (Ii>N1 && Ii<=N2) {
-      //~v = 0.02/(_seisDepth-L2);v = v*Ii*_h - v*L2;
-      //~v = (Ii*_h-_seisDepth)*(_bAbove-_bBelow)/(L2-_seisDepth) - _bAbove;
       v = (double) (Ii*_h-_seisDepth)*(_bAbove-_bBelow)/(_seisDepth-L2) + _bAbove;
       ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }

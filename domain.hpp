@@ -14,6 +14,8 @@ class Domain
   public:
 
     const char * _file;
+    string       _delim; // format is: var delim value (without the white space)
+    string       _startBlock,_endBlock; // format for start/end of block of input parameters
 
     // domain properties
     PetscInt     _order,_Ny,_Nz;
@@ -24,21 +26,21 @@ class Domain
     PetscScalar  _bAbove,_bBelow;
     PetscScalar  _sigma_N_val;
 
-    // sedimentary basin properties
-    std::string  _shearDistribution;
-    PetscScalar  _muIn,_muOut;
-    PetscScalar  _rhoIn,_rhoOut;
-    PetscScalar  _csIn,_csOut;
-    PetscScalar *_muArr,*_rhoArr,*_csArr;
-    Mat          _mu;
+    // shear distribution properties
+    string       _shearDistribution; // options: mms, constant, gradient, basin
+    PetscScalar  _muVal,_rhoVal,_csVal; // if constant
+    PetscScalar  _muIn,_muOut,_rhoIn,_rhoOut,_csIn,_csOut; // if basin
     PetscScalar  _depth,_width;
+    PetscScalar *_muArr,*_rhoArr,*_csArr; // general data containers
+    Mat          _mu;
+
 
     // linear solver settings
     std::string _linSolver;
     PetscScalar  _kspTol;
 
     // time integration settings
-    std::string  _timeControlType,_timeIntegrator;
+    string       _timeControlType,_timeIntegrator;
     PetscInt     _strideLength,_maxStepCount;
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
@@ -48,7 +50,7 @@ class Domain
     PetscScalar  _rootTol;
 
     // directory for output
-    std::string  _outputDir;
+    string  _outputDir;
 
     // values not loaded in input file
     PetscScalar  _f0,_v0,_vp;
@@ -67,9 +69,12 @@ class Domain
     Domain(const Domain &that);
     Domain& operator=(const Domain &rhs);
 
-    PetscErrorCode loadData(const char *file);
+
     PetscErrorCode setFields();
 
+    // load settings from input file
+    PetscErrorCode loadData(const char *file);
+    PetscErrorCode loadShearModulusSettings(ifstream& infile);
 
 };
 

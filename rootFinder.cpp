@@ -35,7 +35,7 @@ Bisect::~Bisect(){}
 PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 2
+#if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting bisect in rootFinder.cpp\n");
   ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
 #endif
@@ -47,7 +47,7 @@ PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
 
   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-#if VERBOSE > 2
+#if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
 #endif
 
@@ -58,7 +58,7 @@ PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
     _mid = (_left + _right)*0.5;
     ierr = obj->getResid(ind,_mid,&_fMid);CHKERRQ(ierr);
     //~ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
-#if VERBOSE > 3
+#if VERBOSE > 4
     ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
                        ind,numIts,_left,_right,_mid,_fMid);CHKERRQ(ierr);
 #endif
@@ -73,7 +73,7 @@ PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
    numIts++;
   }
 
-#if VERBOSE > 2
+#if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
                      numIts,_maxNumIts,_mid,_fMid);CHKERRQ(ierr);
 #endif
