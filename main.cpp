@@ -122,79 +122,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
   return ierr;
 }
 */
-/* I'm only saving this bc I might want to look at the function used for the analytic solution.
- * It has not been rewritten since the refactoring, so it will not run.
-// performs MMS test for SBP operator convergence
-int sbpConvergence(int argc,char **args)
-{
-  PetscErrorCode ierr = 0;
-  Vec            uAnal;
-  PetscScalar    u,y,z,err,n=7.0;
-  PetscInt       Ii,Istart,Iend;
-  //~PetscViewer    viewer;
-  PetscBool      loadMat = PETSC_FALSE;
 
-  PetscInt       order=2,Ny=76, Nz=76;
-  // allow command line user input to override defaults
-  ierr = PetscOptionsGetInt(NULL,"-order",&order,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetBool(NULL,"-loadMat",&loadMat,NULL);CHKERRQ(ierr);
-
-  // set up the problem context
-  UserContext D(order,Ny,Nz,"data/");
-  ierr = setParameters(D);CHKERRQ(ierr);
-  ierr = setRateAndState(D);CHKERRQ(ierr);
-  ierr = setLinearSystem(D,loadMat);CHKERRQ(ierr);
-  if (!loadMat) {ierr = D.writeOperators();CHKERRQ(ierr);}
-
-  // set boundary conditions
-  ierr = VecSet(D.gS,0.0);CHKERRQ(ierr); // surface
-  ierr = VecSet(D.gD,0.0);CHKERRQ(ierr); // depth
-  ierr = VecGetOwnershipRange(D.gR,&Istart,&Iend); // fault and remote boundary conditions
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
-    y = D.dy*(Ii/D.Nz);
-    u = cos(n*PETSC_PI*(z-D.Lz)/D.Lz);
-    ierr = VecSetValue(D.gR,Ii,u,INSERT_VALUES);
-
-    u = u*cosh( (double)n*PETSC_PI*D.Ly/D.Lz );
-    ierr = VecSetValue(D.gF,Ii,u,INSERT_VALUES);
-  }
-  ierr = VecAssemblyBegin(D.gF);CHKERRQ(ierr); ierr = VecAssemblyBegin(D.gR);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(D.gF);CHKERRQ(ierr);   ierr = VecAssemblyEnd(D.gR);CHKERRQ(ierr);
-
-  VecDuplicate(D.uhat,&uAnal);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(uAnal,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    z = D.dz*(Ii-D.Nz*(Ii/D.Nz));
-    y = D.dy*(Ii/D.Nz);
-    u = cos(n*PETSC_PI*(z-D.Lz)/D.Lz)*cosh( (double) n*PETSC_PI*(y-D.Ly)/D.Lz );
-    ierr = VecSetValue(uAnal,Ii,u,INSERT_VALUES);
-  }
-  ierr = VecAssemblyBegin(uAnal);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(uAnal);CHKERRQ(ierr);
-
-  // output
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(D.outFileRoot+"uAnal").c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = VecView(uAnal,viewer);CHKERRQ(ierr);
-
-
-  ierr = ComputeRHS(D);CHKERRQ(ierr);
-
-  ierr = KSPSolve(D.ksp,D.rhs,D.uhat);CHKERRQ(ierr);
-
-  ierr = VecAXPY(uAnal,-1.0,D.uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
-  ierr = VecNorm(uAnal,NORM_2,&err);
-  //~ierr = VecNorm(D.uhat,NORM_2,&err);
-  err = err/sqrt( (double) D.Ny*D.Nz );
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %i %e %e %.9e\n",
-                     D.order,D.Ny,D.Nz,D.dy,D.dz,err);CHKERRQ(ierr);
-
-  return ierr;
-}
-* */
 
 // Note that due to a memory problem in PETSc, looping over this many
 // times will result in an error.
@@ -208,14 +136,19 @@ PetscErrorCode writeVec(Vec vec,const char * loc)
   return ierr;
 }
 
-
-
-// perform MMS in space
+/* Perform MMS in space:
+ *  In order to test only the interior stencils and operators
+ * use y,z = [0,2*pi]. This will make all boundary vectors 0, and so will
+ * not test operators which map BC vectors to rhs and A.
+ *
+ * To test that BC vectors are being mapped correctly, use y,z =[L0,L]
+ * where neither L0 nor L are multiples of pi.
+ */
 int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii = 0;
-  PetscScalar    y,z;
+  PetscScalar    y,z,v=0;
 
   Domain domain(inputFile,Ny,Nz);
 
@@ -233,14 +166,48 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = PetscMalloc(Ny*Nz*sizeof(PetscScalar),&uAnalArr);CHKERRQ(ierr);
   ierr = PetscMalloc(Ny*Nz*sizeof(PetscScalar),&sourceArr);CHKERRQ(ierr);
 
+  // boundary conditions
+  Vec bcF,bcR,bcS,bcD,rhs;
+  VecCreate(PETSC_COMM_WORLD,&bcF);
+  VecSetSizes(bcF,PETSC_DECIDE,Nz);
+  VecSetFromOptions(bcF);
+  VecDuplicate(bcF,&bcR);
+  VecCreate(PETSC_COMM_WORLD,&bcS);
+  VecSetSizes(bcS,PETSC_DECIDE,Ny);
+  VecSetFromOptions(bcS);
+  VecDuplicate(bcS,&bcD);
+
+  // set values for boundaries, source, and analytic solution
+  PetscInt indx = 0;
   for (Ii=0;Ii<Ny*Nz;Ii++)
   {
-    z = domain._dz*(Ii-Nz*(Ii/Nz));
     y = domain._dy*(Ii/Nz);
+    z = domain._dz*(Ii-Nz*(Ii/Nz));
     inds[Ii] = Ii;
 
     uAnalArr[Ii] = sin(y)*cos(z);
-    sourceArr[Ii] = cos(y+z)*(-cos(y)*cos(z) + sin(y)*sin(z)) + 2*(sin(y+z)+2)*cos(z)*sin(y);;
+    sourceArr[Ii] = cos(y+z)*(-cos(y)*cos(z) + sin(y)*sin(z)) + 2*(sin(y+z)+2)*cos(z)*sin(y);
+
+    // BCs
+    if (y==0) {
+      v = sin(y)*cos(z);
+      ierr = VecSetValue(bcF,Ii,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (y==domain._Ly) {
+      indx = z/domain._dz;
+      v = sin(y)*cos(z);
+      ierr = VecSetValue(bcR,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (z==0) {
+      indx = (int) (y/domain._dy);
+      v = -domain._muArr[Ii]*sin(y)*sin(z);
+      ierr = VecSetValue(bcS,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (z==domain._Lz) {
+      indx = (int) (y/domain._dy);
+      v = -domain._muArr[Ii]*sin(y)*sin(z);
+      ierr = VecSetValue(bcD,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
   ierr = VecSetValues(uAnal,Ny*Nz,inds,uAnalArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(uAnal);CHKERRQ(ierr);
@@ -250,28 +217,31 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
 
+  VecAssemblyBegin(bcF); VecAssemblyEnd(bcF);
+  VecAssemblyBegin(bcR); VecAssemblyEnd(bcR);
+  VecAssemblyBegin(bcS); VecAssemblyEnd(bcS);
+  VecAssemblyBegin(bcD); VecAssemblyEnd(bcD);
+
+  //~ierr = VecView(bcF,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = VecView(bcR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = VecView(bcS,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = VecView(bcD,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
   // set up linear system
   SbpOps sbp(domain);
 
 
-  // boundary conditions (all 0)
-  Vec bcF,bcR,bcS,bcD,rhs;
-  VecCreate(PETSC_COMM_WORLD,&bcF);
-  VecSetSizes(bcF,PETSC_DECIDE,Nz);
-  VecSetFromOptions(bcF);
-  VecSet(bcF,0.0);
-  VecDuplicate(bcF,&bcR); VecCopy(bcF,bcR);
-  VecCreate(PETSC_COMM_WORLD,&bcS);
-  VecSetSizes(bcS,PETSC_DECIDE,Ny);
-  VecSetFromOptions(bcS);
-  VecSet(bcS,0.0);
-  VecDuplicate(bcS,&bcD); VecCopy(bcS,bcD);
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
   VecSetFromOptions(rhs);
   VecSet(rhs,0.0);
   ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
+//~ierr = writeVec(rhs,"data/rhs_b");CHKERRQ(ierr);
+ //~sbp.writeOps("data/");
+//~assert(0>1);
+
   ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
 
 
@@ -299,7 +269,12 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = writeVec(uAnal,"data/uAnal");CHKERRQ(ierr);
   ierr = writeVec(source,"data/source");CHKERRQ(ierr);
   ierr = writeVec(rhs,"data/rhs");CHKERRQ(ierr);
-  sbp.writeOps("data/");
+
+  ierr = writeVec(bcF,"data/bcF");CHKERRQ(ierr);
+  ierr = writeVec(bcR,"data/bcR");CHKERRQ(ierr);
+  ierr = writeVec(bcS,"data/bcS");CHKERRQ(ierr);
+  ierr = writeVec(bcD,"data/bcD");CHKERRQ(ierr);
+ //~sbp.writeOps("data/");
 
 
   // MMS for shear stress on fault
@@ -307,13 +282,10 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
   ierr = MatMult(sbp._Dy_Iz,uAnal,sigma_xy);CHKERRQ(ierr);
 
-
-
-
   ierr = VecDuplicate(bcF,&tauHat);CHKERRQ(ierr);
   ierr = VecDuplicate(bcF,&tauAnal);CHKERRQ(ierr);
   PetscInt Istart,Iend;
-  PetscScalar v = 0.0;
+  v = 0.0;
   ierr = VecGetOwnershipRange(sigma_xy,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<Nz) {
@@ -332,8 +304,6 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   //~ierr = VecView(tauAnal,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 
-
-
   // measure error in L2 norm
   PetscScalar errU,errTau;
   ierr = VecAXPY(uAnal,-1.0,uhat);CHKERRQ(ierr); //overwrites 1st arg with sum
@@ -347,14 +317,18 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%5i %5i %5i %20.12e %20.12e\n",
                      domain._order,domain._Ny,domain._Nz,log2(errU),log2(errTau));CHKERRQ(ierr);
-                     //~domain._order,domain._Ny,domain._Nz,errU,errTau);CHKERRQ(ierr);
 
+
+  // clean up
   VecDestroy(&uAnal);
   VecDestroy(&source);
   PetscFree(inds);
   PetscFree(uAnalArr);
   PetscFree(sourceArr);
-
+  VecDestroy(&bcF);
+  VecDestroy(&bcR);
+  VecDestroy(&bcS);
+  VecDestroy(&bcD);
 
   return ierr;
 }
@@ -418,9 +392,9 @@ int main(int argc,char **args)
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
   for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  //~//for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
+  //for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
   {
-    //~//PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
+    //PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
     mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
 

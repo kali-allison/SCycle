@@ -189,10 +189,15 @@ PetscErrorCode SbpOps::satBoundaries()
   // if bcR = displacement: _alphaR*mu*_Hinvy_IzxeNy_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxeNy_Iz
   ierr = MatMatMatMult(*_mu,Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
   ierr = MatScale(_rhsR,_alphaF);CHKERRQ(ierr);
+
   ierr = MatTransposeMatMult(muxBySy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
   ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-  ierr = MatAYPX(_rhsL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  // if bcR = traction-free
+
+  ierr = MatAYPX(_rhsR,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
+  //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  // else if bcR = traction-free
   // _rhsR is unneeded because bcR = 0
 
   // in computation of A
@@ -218,6 +223,7 @@ PetscErrorCode SbpOps::satBoundaries()
   Mat Iy_Hzinv;
   Iy_HzinvS.convert(Iy_Hzinv,1);
   ierr = PetscObjectSetName((PetscObject) Iy_Hzinv, "Iy_Hzinv");CHKERRQ(ierr);
+  //~ierr = MatView(Iy_Hzinv,PETSC_VIEWER_STDOUT_WORLD);
 
   // mu*kron(Iy,BzSz)
   Spmat muxIy_BzSzS(_Ny*_Nz,_Ny*_Nz);
@@ -254,21 +260,25 @@ PetscErrorCode SbpOps::satBoundaries()
   Mat Iy_ENz;
   Iy_ENzS.convert(Iy_ENz,1);
   ierr = PetscObjectSetName((PetscObject) Iy_ENz, "Iy_ENz");CHKERRQ(ierr);
-  //~ierr = MatView(Iy_ENz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   // kron(Iy,eNz)
   Spmat eNz(_Nz,1);
   eNz(_Nz-1,0,1.0);
   Spmat Iy_eNzS(_Ny*_Nz,_Nz);
-  eNy_IzS = kron(_Iy,eNz);
+  Iy_eNzS = kron(_Iy,eNz);
   Mat Iy_eNz;
   Iy_eNzS.convert(Iy_eNz,1);
   ierr = PetscObjectSetName((PetscObject) Iy_eNz, "Iy_eNz");CHKERRQ(ierr);
+  //~ierr = MatView(Iy_eNz,PETSC_VIEWER_STDOUT_WORLD);
 
 
   // enforcement of bcT ================================================
   // map bcS to rhs
-  // if bcT = traction-free, then no need for _rhsT
+  // if bcT = traction:
+  ierr = MatMatMult(Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
+  ierr = MatScale(_rhsT,_alphaS);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
+  //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   // in computation of A
   // if bcT = traction-free: _alphaS*Iy_Hinvz*Iy_E0z*muxIy_BzSz
@@ -278,7 +288,11 @@ PetscErrorCode SbpOps::satBoundaries()
 
   // enforcement of bcB ================================================
   // map bcB to rhs
-  // if bcB = traction-free, then no need for _rhsB
+  // if bcB = traction:
+  ierr = MatMatMult(Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
+  ierr = MatScale(_rhsB,_alphaD);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
+  //~ierr = MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   // in computation of A
   // if bcB = traction-free: _alphaD*Iy_Hinvz*Iy_E0z*muxIy_BzSz
@@ -1033,7 +1047,8 @@ switch ( _order ) {
       //~D1(N-1,N-3,S(N-1,N-3)); // last row
       //~D1(N-1,N-2,S(N-1,N-2));
       //~D1(N-1,N-1,S(N-1,N-1));
-      D1 = S; // only want shear stress on fault, not interior
+      //~D1 = S;
+      // only want shear stress on fault, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
@@ -1293,10 +1308,11 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   // + _alphaD*M.Iy_HinvzxIy_eNz*_bcD
 
   // using new naming conventions
+  //~ierr = VecSet(rhs,0.0);
   ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
   ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  //~ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
-  //~ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
+  ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
+  ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
 
 
 #if VERBOSE >1
@@ -1404,6 +1420,50 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // matrices to map SAT boundaries to rhs
+  str = outputDir + "rhsL";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsL,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "rhsR";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsR,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "rhsT";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsT,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "rhsB";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsB,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // matrices to map SAT boundaries to A
+  str = outputDir + "AL";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_AL,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "AR";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsR,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "AT";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rhsT,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "AB";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_AB,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+
 
   //~str = outputDir + "Hinvy_Izxe0y_Iz";
   //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);

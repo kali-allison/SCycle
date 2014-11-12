@@ -290,6 +290,8 @@ PetscErrorCode Lithosphere::d_dt(PetscScalar const time,Vec const*var,Vec*dvar)
   _linSolveCount++;
   ierr = setSurfDisp();
 
+  // instead of doing this, I could hand Fault D1y, and use
+  // MatMult(D1y,_faultDisp)
   ierr = MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);CHKERRQ(ierr);
   ierr = _fault.setTau(_sigma_xy);CHKERRQ(ierr);
 
