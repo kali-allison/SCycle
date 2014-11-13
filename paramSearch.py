@@ -2,7 +2,8 @@ import commands
 import os
 import string
 import os.path
-import time
+import datetime
+import math
 import datetime as datetime
 import subprocess as sb
 
@@ -15,7 +16,7 @@ def buildLaunchScript(mu,initFile,baseDir):
   scriptfile = open(scriptName, "w")
   scriptfile.write("#!/bin/bash\n")
   scriptfile.write("#PBS -N %s\n" %jobname) #name of job
-  scriptfile.write("#PBS -l nodes=%u:ppn=%u\n"%(1,1) )
+  scriptfile.write("#PBS -l nodes=%u:ppn=%u\n"%(4,16) )
   scriptfile.write("#PBS -q tgp\n")
   scriptfile.write("#PBS -V\n")
   scriptfile.write("#PBS -m n\n")
@@ -36,7 +37,7 @@ def buildLaunchScript(mu,initFile,baseDir):
 
 #create input file
 def buildInitFile(mu,baseDir):
-    origFile = baseDir + "/test.in"
+    origFile = baseDir + "/basin.in"
     initFile = baseDir + "/init_mu_" + str(mu) + ".in"
 
     sb.call(["cp",origFile,initFile]) #copy the file to be modified
@@ -48,8 +49,23 @@ def buildInitFile(mu,baseDir):
     # modify prefix on data output
     whole_thing = whole_thing.replace("outputDir = data/", "outputDir = %s/data/mu_%s_" %(baseDir,mu))
 
+
+    # determine size of problem to run
+    Dc = 8.0e-3
+    sigmaN = 50.0
+    b = 0.02
+    Lz = 24.0
+    Lb = mu*Dc/sigmaN/b
+    Nstar = Lz*5/Lb
+    N = math.ceil(Nstar)
+
+    # modify problem size
+    whole_thing = whole_thing.replace("Ny = 801", "Ny = %i" %(N+10))
+    whole_thing = whole_thing.replace("Nz = 801", "Nz = %i" %(N+10))
+
+
     # modify shear modulus (mu)
-    whole_thing = whole_thing.replace("mu = 36", "mu = " + str(mu))
+    whole_thing = whole_thing.replace("muIn = 36", "muIn = " + str(mu))
     text_file.close()
 
 
@@ -80,7 +96,7 @@ for mu in [9,12,15,18]:
 
   # record job submission in log
   results.write("Submitting job: %s\n" %initFile)
-  results.write( '   %s\n' %(time.time()) )
+  results.write( '   %s\n' %(datetime.datetime.now()) )
 
   # submit job to queue
   print "Submitting job to queue."
