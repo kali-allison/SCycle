@@ -338,10 +338,6 @@ int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  //~const char * inputFile;
-  //~if (argc > 1) { inputFile = args[1]; }
-  //~else { inputFile = "init.txt"; }
-
   Domain domain(inputFile);
   domain.write();
   Lithosphere lith(domain);

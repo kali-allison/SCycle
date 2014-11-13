@@ -43,6 +43,9 @@ SbpOps::SbpOps(Domain&D)
   _Iy.eye();
   _Iz.eye();
 
+  //~_alphaF = -1.0/_Hy(0,0);
+  //~_alphaR = -1.0/_Hy(0,0);
+
   satBoundaries();
   computeDy_Iz();
   computeA();
@@ -808,6 +811,7 @@ ierr = MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 PetscErrorCode SbpOps::computeDy_Iz()
 {
   PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -829,6 +833,7 @@ ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
+  _runTime = MPI_Wtime() - startTime;
   return ierr;
 }
 
@@ -870,9 +875,9 @@ PetscErrorCode SbpOps::computeA()
 
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
-  //~//ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
-//~
+
   // clean up
   ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
   ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
@@ -891,7 +896,7 @@ PetscErrorCode SbpOps::computeA()
 PetscErrorCode SbpOps::computeH()
 {
   PetscErrorCode ierr = 0;
-
+  double startTime = MPI_Wtime();
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -912,7 +917,7 @@ PetscErrorCode SbpOps::computeH()
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
-
+  _runTime = MPI_Wtime() - startTime;
   return ierr;
 }
 
@@ -1007,6 +1012,7 @@ PetscErrorCode SbpOps::sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& 
                  Spmat& D1int, Spmat& D2, Spmat& S)
 {
 PetscErrorCode ierr = 0;
+double startTime = MPI_Wtime();
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpSpmat in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -1175,6 +1181,7 @@ switch ( _order ) {
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpSpmat in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
+  _runTime = MPI_Wtime() - startTime;
   return ierr;
 }
 
@@ -1187,7 +1194,6 @@ switch ( _order ) {
 PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
 {
   PetscErrorCode ierr = 0;
-
   double startTime = MPI_Wtime();
 
 #if VERBOSE >1
@@ -1214,7 +1220,6 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
 #endif
 
   _runTime += MPI_Wtime() - startTime;
-
   return ierr;
 }
 
@@ -1315,6 +1320,7 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
   ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+
   // matrices to map SAT boundaries to rhs
   str = outputDir + "rhsL";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -1336,6 +1342,7 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
   ierr = MatView(_rhsB,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+
   // matrices to map SAT boundaries to A
   str = outputDir + "AL";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -1356,38 +1363,6 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_AB,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-
-
-  //~str = outputDir + "Hinvy_Izxe0y_Iz";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Hinvy_Izxe0y_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "Hinvy_IzxBySy_IzTxe0y_Iz";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Hinvy_IzxBySy_IzTxe0y_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "Hinvy_IzxeNy_Iz";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Hinvy_IzxeNy_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "Hinvy_IzxBySy_IzTxeNy_Iz";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Hinvy_IzxBySy_IzTxeNy_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "Iy_HinvzxIy_e0z";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Iy_HinvzxIy_e0z,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "Iy_HinvzxIy_eNz";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_Iy_HinvzxIy_eNz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps.cpp\n");CHKERRQ(ierr);

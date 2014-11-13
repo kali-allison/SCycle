@@ -36,7 +36,8 @@ class SbpOps
     Spmat _Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz,_Iz;
 
     // boundary conditions
-    PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
+    //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
+    PetscScalar _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
 
     // directory for matrix debugging
     string _debugFolder;
