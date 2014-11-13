@@ -3,9 +3,9 @@
 
 #include <petscksp.h>
 #include <string>
+#include <assert.h>
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
-#include <assert.h>
 #include "spmat.hpp"
 
 using namespace std;

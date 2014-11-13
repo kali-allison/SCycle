@@ -11,16 +11,17 @@ Domain::Domain(const char *file)
 
   loadData(_file);
 
+  assert(_Ny>1);
   _dy = _Ly/(_Ny-1.0);
-  _dz = _Lz/(_Nz-1.0);
+  if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
+  else (_dz = 1);
 
-  if (_initDeltaT==0) {_initDeltaT = _minDeltaT; }
+  if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
   //~_vp=1e-9;
   _vp=1e-4;
 
-  //~_csIn = sqrt(_muIn/_rhoIn);
   //~_csOut = sqrt(_muOut/_rhoOut);
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
@@ -57,9 +58,13 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _Ny = Ny;
   _Nz = Nz;
 
+
+  assert(_Ny>1);
   _dy = _Ly/(_Ny-1.0);
-  _dz = _Lz/(_Nz-1.0);
-  if (_initDeltaT==0) {_initDeltaT = _minDeltaT; }
+  if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
+  else (_dz = 1);
+
+  if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
   _vp=1e-9;
@@ -576,7 +581,7 @@ PetscErrorCode Domain::setFields()
   ierr = MatSeqAIJSetPreallocation(_mu,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_mu);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
-  //~ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);

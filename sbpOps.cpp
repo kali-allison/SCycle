@@ -6,8 +6,8 @@
 SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
-  _Hy(_Ny,_Ny),_Hyinv(_Ny,_Ny),_D1y(_Ny,_Ny),_D1yint(_Ny,_Ny),_D2y(_Ny,_Ny),_Sy(_Ny,_Ny),_Iy(_Ny,_Ny),
-  _Hz(_Nz,_Nz),_Hzinv(_Nz,_Nz),_D1z(_Nz,_Nz),_D1zint(_Nz,_Nz),_D2z(_Nz,_Nz),_Sz(_Nz,_Nz),_Iz(_Nz,_Nz),
+  _Hy(_Ny,_Ny),_Hyinv(_Ny,_Ny),_D1yS(_Ny,_Ny),_D1yintS(_Ny,_Ny),_D2yS(_Ny,_Ny),_Sy(_Ny,_Ny),_Iy(_Ny,_Ny),
+  _Hz(_Nz,_Nz),_Hzinv(_Nz,_Nz),_D1zS(_Nz,_Nz),_D1zintS(_Nz,_Nz),_D2zS(_Nz,_Nz),_Sz(_Nz,_Nz),_Iz(_Nz,_Nz),
   _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
@@ -25,35 +25,29 @@ SbpOps::SbpOps(Domain&D)
   MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
 
   // map boundary conditions to rhs vector
-  MatCreate(PETSC_COMM_WORLD,&_rhsL); PetscObjectSetName((PetscObject) _rhsL, "_rhsL");
-  MatCreate(PETSC_COMM_WORLD,&_rhsR); PetscObjectSetName((PetscObject) _rhsR, "_rhsR");
-  MatCreate(PETSC_COMM_WORLD,&_rhsT); PetscObjectSetName((PetscObject) _rhsT, "_rhsT");
-  MatCreate(PETSC_COMM_WORLD,&_rhsB); PetscObjectSetName((PetscObject) _rhsB, "_rhsB");
+  MatCreate(PETSC_COMM_WORLD,&_rhsL);
+  MatCreate(PETSC_COMM_WORLD,&_rhsR);
+  MatCreate(PETSC_COMM_WORLD,&_rhsT);
+  MatCreate(PETSC_COMM_WORLD,&_rhsB);
 
-  MatCreate(PETSC_COMM_WORLD,&_AL); PetscObjectSetName((PetscObject) _AL, "_AL");
-  MatCreate(PETSC_COMM_WORLD,&_AR); PetscObjectSetName((PetscObject) _AR, "_AR");
-  MatCreate(PETSC_COMM_WORLD,&_AT); PetscObjectSetName((PetscObject) _AT, "_AT");
-  MatCreate(PETSC_COMM_WORLD,&_AB); PetscObjectSetName((PetscObject) _AB, "_AB");
+  MatCreate(PETSC_COMM_WORLD,&_AL);
+  MatCreate(PETSC_COMM_WORLD,&_AR);
+  MatCreate(PETSC_COMM_WORLD,&_AT);
+  MatCreate(PETSC_COMM_WORLD,&_AB);
 
 
   // Spmats holding 1D SBP operators
-  sbpSpmat(_Ny,1/_dy,_Hy,_Hyinv,_D1y,_D1yint,_D2y,_Sy);
-  sbpSpmat(_Nz,1/_dz,_Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz);
+  sbpSpmat(_Ny,1/_dy,_Hy,_Hyinv,_D1yS,_D1yintS,_D2yS,_Sy);
+  if (_Nz > 1) { sbpSpmat(_Nz,1/_dz,_Hz,_Hzinv,_D1zS,_D1zintS,_D2zS,_Sz); }
+  else { _Hz.eye(); }
   _Iy.eye();
   _Iz.eye();
 
-
-  MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
-  PetscObjectSetName((PetscObject) _Dy_Iz, "Dy_Iz");
-
   satBoundaries();
-
   computeDy_Iz();
   computeA();
 
-
-  PetscErrorCode computeH();
-
+  computeH();
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -169,6 +163,8 @@ PetscErrorCode SbpOps::satBoundaries()
   ierr = MatTransposeMatMult(muxBySy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
   ierr = MatMatMult(Hyinv_Iz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
   ierr = MatAYPX(_rhsL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
+  //~ierr = MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
   // if bcL = traction-free
   // _rhsL is unneeded bc bcL = 0
 
@@ -182,7 +178,7 @@ PetscErrorCode SbpOps::satBoundaries()
 
   ierr = MatAYPX(_AL,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _AL, "AL");CHKERRQ(ierr);
-
+  //~ierr = MatView(_AL,PETSC_VIEWER_STDOUT_WORLD);
 
   // enforcement of bcR ================================================
   // map bcR to rhs
@@ -196,7 +192,6 @@ PetscErrorCode SbpOps::satBoundaries()
   ierr = MatAYPX(_rhsR,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
   //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
   // else if bcR = traction-free
   // _rhsR is unneeded because bcR = 0
 
@@ -210,10 +205,11 @@ PetscErrorCode SbpOps::satBoundaries()
 
   ierr = MatAYPX(_AR,_beta,temp,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _AR, "AR");CHKERRQ(ierr);
+  //~ierr = MatView(_AR,PETSC_VIEWER_STDOUT_WORLD);
 
 
 
-  // if Nz > 1
+  // These matrices are nnz if Nz > 1
 
 
 
@@ -269,7 +265,6 @@ PetscErrorCode SbpOps::satBoundaries()
   Mat Iy_eNz;
   Iy_eNzS.convert(Iy_eNz,1);
   ierr = PetscObjectSetName((PetscObject) Iy_eNz, "Iy_eNz");CHKERRQ(ierr);
-  //~ierr = MatView(Iy_eNz,PETSC_VIEWER_STDOUT_WORLD);
 
 
   // enforcement of bcT ================================================
@@ -285,6 +280,7 @@ PetscErrorCode SbpOps::satBoundaries()
   ierr = MatMatMatMult(Iy_Hzinv,Iy_E0z,muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AT);CHKERRQ(ierr);
   ierr = MatScale(_AT,_alphaS);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _AT, "AT");CHKERRQ(ierr);
+  //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   // enforcement of bcB ================================================
   // map bcB to rhs
@@ -299,7 +295,7 @@ PetscErrorCode SbpOps::satBoundaries()
   ierr = MatMatMatMult(Iy_Hzinv,Iy_ENz,muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_AB);CHKERRQ(ierr);
   ierr = MatScale(_AB,_alphaD);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _AB, "AB");CHKERRQ(ierr);
-
+  //~ierr = MatView(_AB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   _runTime += MPI_Wtime() - startTime;
 
@@ -324,7 +320,7 @@ PetscErrorCode SbpOps::computeD2ymu(Mat &D2ymu)
   // kron(Dy,Iz) (interior stencil)
   Mat Dy_Iz;
   Spmat Dy_IzS(_Ny*_Nz,_Ny*_Nz);
-  Dy_IzS = kron(_D1yint,_Iz);
+  Dy_IzS = kron(_D1yintS,_Iz);
   if (_order==2) { Dy_IzS.convert(Dy_Iz,2); }
   else if (_order==4) { Dy_IzS.convert(Dy_Iz,5); }
   ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
@@ -414,7 +410,7 @@ PetscErrorCode SbpOps::computeRzmu(Mat &Rzmu,PetscInt order)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
 
@@ -440,7 +436,7 @@ switch ( order ) {
       // kron(Iy,D2z)
       Mat Iy_D2z;
       Spmat Iy_D2zS(_Ny*_Nz,_Ny*_Nz);
-      Iy_D2zS = kron(_Iy,_D2z);
+      Iy_D2zS = kron(_Iy,_D2zS);
       Iy_D2zS.convert(Iy_D2z,5);
       ierr = PetscObjectSetName((PetscObject) Iy_D2z, "Iy_D2z");CHKERRQ(ierr);
       #if DEBUG > 0
@@ -548,7 +544,7 @@ switch ( order ) {
 #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -559,7 +555,7 @@ PetscErrorCode SbpOps::computeRymu(Mat &Rymu,PetscInt order)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
 
@@ -569,7 +565,7 @@ switch ( order ) {
       // kron(D2y,Iz)
       Mat D2y_Iz;
       Spmat D2y_IzS(_Ny*_Nz,_Ny*_Nz);
-      D2y_IzS = kron(_D2y,_Iz);
+      D2y_IzS = kron(_D2yS,_Iz);
       D2y_IzS.convert(D2y_Iz,5);
       ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
       #if DEBUG > 0
@@ -703,7 +699,7 @@ switch ( order ) {
   #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -721,7 +717,7 @@ PetscErrorCode SbpOps::computeD2zmu(Mat &D2zmu)
 // kron(Iy,Dz)
   Mat Iy_Dz;
   Spmat Iy_DzS(_Ny*_Nz,_Ny*_Nz);
-  Iy_DzS = kron(_Iy,_D1zint);
+  Iy_DzS = kron(_Iy,_D1zintS);
   if (_order==2) { Iy_DzS.convert(Iy_Dz,2); }
   else if (_order==4) { Iy_DzS.convert(Iy_Dz,5); }
   ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
@@ -817,10 +813,11 @@ PetscErrorCode SbpOps::computeDy_Iz()
 #endif
 
   Spmat Sy_Iz(_Ny*_Nz,_Ny*_Nz);
-  Sy_Iz = kron(_D1y,_Iz);
+  Sy_Iz = kron(_D1yS,_Iz);
   Sy_Iz.convert(_Dy_Iz,5);
 
   ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
 
 #if DEBUG > 0
 ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
@@ -840,10 +837,6 @@ ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 PetscErrorCode SbpOps::computeA()
 {
   PetscErrorCode  ierr = 0;
-  //~PetscScalar     v = 0;
-  //~PetscInt        Ii,J,Istart,Iend,indx,*cols;
-  //~PetscScalar *vals;
-
   double startTime = MPI_Wtime();
 
 #if VERBOSE > 1
@@ -869,7 +862,6 @@ PetscErrorCode SbpOps::computeA()
   ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
   ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-
   // use new Mats _AL etc
   ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -878,12 +870,13 @@ PetscErrorCode SbpOps::computeA()
 
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
-  //~ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~//ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
-
+//~
   // clean up
   ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
   ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
+
 
   _runTime = MPI_Wtime() - startTime;
 
@@ -903,9 +896,18 @@ PetscErrorCode SbpOps::computeH()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  Spmat Hyinv_Hzinv(_Ny*_Nz,_Ny*_Nz);
-  Hyinv_Hzinv = kron(_Hyinv,_Hzinv);
-  Hyinv_Hzinv.convert(_H,1);
+  // kron(Hyinv, Hzinv)
+  //~Spmat Hyinv_Hzinv(_Ny*_Nz,_Ny*_Nz);
+  //~Hyinv_Hzinv = kron(_Hyinv,_Hzinv);
+  //~Hyinv_Hzinv.convert(_H,1);
+
+  // kron(Hy,Hz)
+  Spmat Hy_Hz(_Ny*_Nz,_Ny*_Nz);
+  Hy_Hz = kron(_Hy,_Hz);
+  Hy_Hz.convert(_H,1);
+
+  ierr = PetscObjectSetName((PetscObject) _H, "H");CHKERRQ(ierr);
+  //~ierr = MatView(_H,PETSC_VIEWER_STDOUT_WORLD);
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -921,6 +923,8 @@ PetscErrorCode ierr = 0;
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpSpmat4 in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
+
+  if (N < 2) { return ierr; }
 
   PetscInt Ii = 0;
 
@@ -1177,115 +1181,6 @@ switch ( _order ) {
 
 
 
-// creates array versions of the 1D SBP factors
-// currently, D1 and D2 are only valid in 1D
-// (also, D1 might need to have it's first and last rows modified??)
-PetscErrorCode SbpOps::sbpArrays(const PetscInt N,const PetscScalar scale,PetscScalar *Hinv,
-                             PetscScalar *D1,PetscScalar *D1int,PetscScalar *D2,
-                             PetscScalar *S,PetscInt *Slen)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbpArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-
-PetscInt Ii=0;
-
-switch ( _order ) {
-    case 2:
-      std::fill_n(Hinv, N, scale);
-      Hinv[0] = 2.0*scale;
-      Hinv[N-1] = 2.0*scale;
-
-      S[0]=1.5*scale;S[1]=-2*scale;S[2]=0.5*scale;
-      S[3]=0.5*scale;S[4]=-2*scale;S[5]=1.5*scale;
-      *Slen = 3;
-
-      std::fill_n(D1int, N*N, 0.0);
-      D1int[0] = -1*scale; D1int[1] = 1*scale; // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D1int[Ii*N+Ii -1] = -0.5*scale;
-        D1int[Ii*N+Ii +1] = 0.5*scale;
-      }
-      D1int[N*N-1] = 1*scale; D1int[N*N-2] = -1*scale; // last row
-      //~ierr = printMy2DArray(D1int,N,N);CHKERRQ(ierr);
-
-      std::fill_n(D1, N*N, 0.0);
-      D1[0] = -S[0]; D1[1] = -S[1];  D1[2] = -S[2];// first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D1[Ii*N+Ii -1] = -0.5*scale;
-        D1[Ii*N+Ii +1] = 0.5*scale;
-      }
-      D1[N*N-3] = S[3]; D1[N*N-2] = S[4]; D1[N*N-1] = S[5];// last row
-      //~ierr = printMy2DArray(D1,N,N);CHKERRQ(ierr);
-
-      std::fill_n(D2, N*N, 0.0);
-      D2[0] = 1*scale*scale; D2[1] = -2*scale*scale; D2[2] = 1*scale*scale; // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D2[Ii*N+Ii -1] = 1*scale*scale;
-        D2[Ii*N+Ii]   = -2*scale*scale;
-        D2[Ii*N+Ii +1] = 1*scale*scale;
-      }
-      D2[N*N-3] = 1*scale*scale; D2[N*N-2] = -2*scale*scale; D2[N*N-1] = 1*scale*scale; // last row
-      //~ierr = printMy2DArray(D2,N,N);CHKERRQ(ierr);
-
-
-      break;
-
-    case 4:
-      if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
-
-      std::fill_n(Hinv,N,scale);
-      Hinv[0] = scale*48.0/17.0;
-      Hinv[1] = scale*48.0/59.0;
-      Hinv[2] = scale*48.0/43.0;
-      Hinv[3] = scale*48.0/49.0;
-      Hinv[N-4] = scale*48.0/49.0;
-      Hinv[N-3] = scale*48.0/43.0;
-      Hinv[N-2] = scale*48.0/59.0;
-      Hinv[N-1] = scale*48.0/17.0;
-
-      S[0]=11.0/6.0*scale;S[1]=-3.0*scale;S[2]=1.5*scale;S[3]=-scale/3.0;
-      S[4]=-scale/3.0;S[5]=1.5*scale;S[6]=-3.0*scale;S[7]=11.0/6.0*scale;
-      *Slen = 4;
-
-
-      // these are actually only 2nd order accurate for now
-      std::fill_n(D1, N*N, 0.0);
-      D1[0] = -1*scale; D1[1] = 1*scale; // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D1[Ii*N+Ii -1] = -0.5*scale;
-        D1[Ii*N+Ii +1] = 0.5*scale;
-      }
-      D1[N*N-1] = 1*scale; D1[N*N-2] = -1*scale; // last row
-      //~ierr = printMy2DArray(D1,N,N);CHKERRQ(ierr);
-
-
-      std::fill_n(D2, N*N, 0.0);
-      D2[0] = 1*scale*scale; D2[1] = -2*scale*scale; D2[2] = 1*scale*scale; // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D2[Ii*N+Ii -1] = 1*scale*scale;
-        D2[Ii*N+Ii]   = -2*scale*scale;
-        D2[Ii*N+Ii +1] = 1*scale*scale;
-      }
-      D2[N*N-3] = 1*scale*scale; D2[N*N-2] = -2*scale*scale; D2[N*N-1] = 1*scale*scale; // last row
-      //~ierr = printMy2DArray(D2,N,N);CHKERRQ(ierr);
-
-      break;
-
-    default:
-      SETERRQ(PETSC_COMM_WORLD,1,"order not understood.");
-      break;
-  }
-
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbpArrays in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-
 //======================== public member functions =====================
 
 // map the boundary condition vectors to rhs
@@ -1299,7 +1194,6 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-
   // rhs =  _alphaF*mu*_Hinvy_Izxe0y_Iz*_bcF +...
   // + _beta*_Hinvy_IzxBySy_IzTxe0y_Iz*_bcF + ...
   // + _alphaR*mu*_Hinvy_IzxeNy_Iz*_bcR + ...
@@ -1308,7 +1202,7 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   // + _alphaD*M.Iy_HinvzxIy_eNz*_bcD
 
   // using new naming conventions
-  //~ierr = VecSet(rhs,0.0);
+  ierr = VecSet(rhs,0.0);
   ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
   ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
   ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);

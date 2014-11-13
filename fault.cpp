@@ -444,6 +444,8 @@ PetscErrorCode Fault::writeStep(const string outputDir,const PetscInt step)
 
   if (step==0) {
 
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"\n in fault::writeStep, setting up viewers:\n");CHKERRQ(ierr);
+
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"faultDisp").c_str(),FILE_MODE_WRITE,&_faultDispViewer);
       ierr = VecView(_faultDisp,_faultDispViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_faultDispViewer);CHKERRQ(ierr);

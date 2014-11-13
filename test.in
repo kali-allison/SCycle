@@ -1,6 +1,6 @@
 order = 2
-Ny = 5
-Nz = 4
+Ny = 21
+Nz = 1
 Ly = 24
 Lz = 24
 
@@ -8,17 +8,13 @@ Dc = 8e-3
 
 seisDepth = 12
 bAbove = 0.02
-bBelow = 0.0
+bBelow = 0.02
 sigma_N = 50.0
 
-shearDistribution = basin
+shearDistribution = constant
 {
-muIn = 36
-muOut = 36
-rhoIn = 2.56
-rhoOut = 2.8
-depth = 4
-width = 24
+mu = 36
+rho = 2.8
 }
 
 
@@ -27,14 +23,13 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 10
+strideLength = 10
+maxStepCount = 1e8
 initTime = 4e5
 maxTime = 4.3e6
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-initDeltaT = 1e-3
-atol = 1e-5
+atol = 1e-7
 
 rootTol = 1e-9
 
