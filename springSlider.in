@@ -11,6 +11,8 @@ bAbove = 0.02
 bBelow = 0.02
 sigma_N = 50.0
 
+vp = 1e-4
+
 shearDistribution = constant
 {
 mu = 36

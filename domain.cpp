@@ -20,7 +20,7 @@ Domain::Domain(const char *file)
   _f0=0.6;
   _v0=1e-6;
   //~_vp=1e-9;
-  _vp=1e-4;
+  //~_vp=1e-4;
 
   //~_csOut = sqrt(_muOut/_rhoOut);
 
@@ -150,6 +150,8 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
+      else if (var.compare("vp")==0) { _vp = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
       // sedimentary basin properties
       else if (var.compare("shearDistribution")==0) {
         _shearDistribution = line.substr(pos+_delim.length(),line.npos);
@@ -206,6 +208,7 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_vp,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_muVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -339,6 +342,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"bBelow = %f\n",_bBelow);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_val = %f\n",_sigma_N_val);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %f\n",_vp);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // sedimentary basin properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
@@ -432,6 +437,8 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"bBelow = %.15e\n",_bBelow);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_val = %.15e\n",_sigma_N_val);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vp);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // sedimentary basin properties
   ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
@@ -482,7 +489,6 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerASCIIPrintf(viewer,"f0 = %g\n",_f0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"v0 = %e\n",_v0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"vp = %e\n",_vp);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
 

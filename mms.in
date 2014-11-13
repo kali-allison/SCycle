@@ -10,6 +10,7 @@ seisDepth = 12
 bAbove = 0.02
 bBelow = 0.0
 sigma_N = 50.0
+vp = 1e-9
 
 shearDistribution = mms
 {
