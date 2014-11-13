@@ -581,7 +581,7 @@ PetscErrorCode Domain::setFields()
   ierr = MatSeqAIJSetPreallocation(_mu,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_mu);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);

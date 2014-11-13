@@ -6,8 +6,8 @@
 SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
-  _Hy(_Ny,_Ny),_Hyinv(_Ny,_Ny),_D1yS(_Ny,_Ny),_D1yintS(_Ny,_Ny),_D2yS(_Ny,_Ny),_Sy(_Ny,_Ny),_Iy(_Ny,_Ny),
-  _Hz(_Nz,_Nz),_Hzinv(_Nz,_Nz),_D1zS(_Nz,_Nz),_D1zintS(_Nz,_Nz),_D2zS(_Nz,_Nz),_Sz(_Nz,_Nz),_Iz(_Nz,_Nz),
+  _Hy(_Ny,_Ny),_Hyinv(_Ny,_Ny),_D1y(_Ny,_Ny),_D1yint(_Ny,_Ny),_D2y(_Ny,_Ny),_Sy(_Ny,_Ny),_Iy(_Ny,_Ny),
+  _Hz(_Nz,_Nz),_Hzinv(_Nz,_Nz),_D1z(_Nz,_Nz),_D1zint(_Nz,_Nz),_D2z(_Nz,_Nz),_Sz(_Nz,_Nz),_Iz(_Nz,_Nz),
   _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
@@ -37,8 +37,8 @@ SbpOps::SbpOps(Domain&D)
 
 
   // Spmats holding 1D SBP operators
-  sbpSpmat(_Ny,1/_dy,_Hy,_Hyinv,_D1yS,_D1yintS,_D2yS,_Sy);
-  if (_Nz > 1) { sbpSpmat(_Nz,1/_dz,_Hz,_Hzinv,_D1zS,_D1zintS,_D2zS,_Sz); }
+  sbpSpmat(_Ny,1/_dy,_Hy,_Hyinv,_D1y,_D1yint,_D2y,_Sy);
+  if (_Nz > 1) { sbpSpmat(_Nz,1/_dz,_Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz); }
   else { _Hz.eye(); }
   _Iy.eye();
   _Iz.eye();
@@ -320,7 +320,7 @@ PetscErrorCode SbpOps::computeD2ymu(Mat &D2ymu)
   // kron(Dy,Iz) (interior stencil)
   Mat Dy_Iz;
   Spmat Dy_IzS(_Ny*_Nz,_Ny*_Nz);
-  Dy_IzS = kron(_D1yintS,_Iz);
+  Dy_IzS = kron(_D1yint,_Iz);
   if (_order==2) { Dy_IzS.convert(Dy_Iz,2); }
   else if (_order==4) { Dy_IzS.convert(Dy_Iz,5); }
   ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
@@ -436,7 +436,7 @@ switch ( order ) {
       // kron(Iy,D2z)
       Mat Iy_D2z;
       Spmat Iy_D2zS(_Ny*_Nz,_Ny*_Nz);
-      Iy_D2zS = kron(_Iy,_D2zS);
+      Iy_D2zS = kron(_Iy,_D2z);
       Iy_D2zS.convert(Iy_D2z,5);
       ierr = PetscObjectSetName((PetscObject) Iy_D2z, "Iy_D2z");CHKERRQ(ierr);
       #if DEBUG > 0
@@ -565,7 +565,7 @@ switch ( order ) {
       // kron(D2y,Iz)
       Mat D2y_Iz;
       Spmat D2y_IzS(_Ny*_Nz,_Ny*_Nz);
-      D2y_IzS = kron(_D2yS,_Iz);
+      D2y_IzS = kron(_D2y,_Iz);
       D2y_IzS.convert(D2y_Iz,5);
       ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
       #if DEBUG > 0
@@ -717,7 +717,7 @@ PetscErrorCode SbpOps::computeD2zmu(Mat &D2zmu)
 // kron(Iy,Dz)
   Mat Iy_Dz;
   Spmat Iy_DzS(_Ny*_Nz,_Ny*_Nz);
-  Iy_DzS = kron(_Iy,_D1zintS);
+  Iy_DzS = kron(_Iy,_D1zint);
   if (_order==2) { Iy_DzS.convert(Iy_Dz,2); }
   else if (_order==4) { Iy_DzS.convert(Iy_Dz,5); }
   ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
@@ -813,7 +813,7 @@ PetscErrorCode SbpOps::computeDy_Iz()
 #endif
 
   Spmat Sy_Iz(_Ny*_Nz,_Ny*_Nz);
-  Sy_Iz = kron(_D1yS,_Iz);
+  Sy_Iz = kron(_D1y,_Iz);
   Sy_Iz.convert(_Dy_Iz,5);
 
   ierr = MatMatMult(*_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);

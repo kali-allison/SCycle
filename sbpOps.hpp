@@ -32,8 +32,8 @@ class SbpOps
 
     // Spmats holding 1D SBP operators (temporarily named with extraneous S's)
     // needed for all orders
-    Spmat _Hy,_Hyinv,_D1yS,_D1yintS,_D2yS,_Sy,_Iy;
-    Spmat _Hz,_Hzinv,_D1zS,_D1zintS,_D2zS,_Sz,_Iz;
+    Spmat _Hy,_Hyinv,_D1y,_D1yint,_D2y,_Sy,_Iy;
+    Spmat _Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz,_Iz;
 
     // boundary conditions
     PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms

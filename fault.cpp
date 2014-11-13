@@ -14,8 +14,6 @@ Fault::Fault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in fault.cpp.\n");
 #endif
 
-  //~_cs = std::max(sqrt(_muIn/_rhoIn),sqrt(_muOut/_rhoOut)); // shear wave speed (km/s)
-
   // fields that exist on the fault
   VecCreate(PETSC_COMM_WORLD,&_tau);
   VecSetSizes(_tau,PETSC_DECIDE,_N);
