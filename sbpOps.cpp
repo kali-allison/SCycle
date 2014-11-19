@@ -922,12 +922,13 @@ PetscErrorCode ierr = 0;
   PetscInt Ii=0;
 
   D2(0,0,scale*scale); D2(0,1,-2.0*scale*scale); D2(0,2,scale*scale); // first row
-  for (Ii=1;Ii<N-1;Ii++) {
-    D2(Ii,Ii-1,scale*scale);
-    D2(Ii,Ii,-2.0*scale*scale);
-    D2(Ii,Ii+1,scale*scale);
-  }
+      for (Ii=1;Ii<N-1;Ii++) {
+        D2(Ii,Ii-1,scale*scale);
+        D2(Ii,Ii,-2.0*scale*scale);
+        D2(Ii,Ii+1,scale*scale);
+      }
   D2(N-1,N-3,scale*scale);D2(N-1,N-2,-2.0*scale*scale);D2(N-1,N-1,scale*scale); // last row
+
   #if VERBOSE > 2
     ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD2:\n");CHKERRQ(ierr);
     D2.printPetsc();
