@@ -79,7 +79,10 @@ def buildInitFile(mu,baseDir):
 
 
 # keep log of parameter space search performed
-results = open("paramSearchLog.txt",'a')
+baseDir = "/data/dunham/kallison/paramSearch_2014_11_12"
+logFile = baseDir + "/paramSearchLog.txt"
+print logFile
+results = open(logFile,'a')
 results.write('--- STARTING Parameter Space Test in mu ---\n')
 results.write( '   starting at time: %s\n' %(datetime.datetime.now()) )
 results.write('  basin Depth is 4 km\n')
@@ -90,17 +93,14 @@ results.close()
 for mu in [12, 9]:
   print "mu = " + str(mu)
 
-  baseDir = "/data/dunham/kallison/paramSearch_2014_11_12"
-
   initFile = buildInitFile(mu,baseDir)
   scriptName = buildLaunchScript(mu,initFile,baseDir)
   print scriptName
   jobname = "mu_" + str(mu)
 
 
-
   # record job submission in log
-  results = open(baseDir+"paramSearchLog.txt",'a')
+  results = open(logFile,'a')
   results.write("Submitting job: %s\n" %initFile)
   results.write( '   submitting at time: %s\n' %(datetime.datetime.now()) )
   results.close()
@@ -118,15 +118,17 @@ for mu in [12, 9]:
       finished,out=commands.getstatusoutput("qstat -u kallison | grep %s | grep -v C" %jobname)
       print out
 
-  results = open(basinDir+"paramSearchLog.txt",'a')
+  results = open(logFile,'a')
   results.write( '   job exited at time: %s\n' %(datetime.datetime.now()) )
   results.write( '\n' )
   results.write( '----------------------------------------------------\n' )
   results.close()
 
 
-results = open(basinDir+"paramSearchLog.txt",'a')
+results = open(logFile,'a')
 results.write('\n\n--- FINISHED Parameter Space Test in mu ---\n')
+results.write( '   ending at time: %s\n' %(datetime.datetime.now()) )
+results.write( '----------------------------------------------------\n' )
 results.close()
 
 
