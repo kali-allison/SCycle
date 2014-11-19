@@ -25,8 +25,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
+strideLength = 1
+maxStepCount = 40
 initTime = 4e5
 maxTime = 4.3e6
 minDeltaT = 1e-3

@@ -23,8 +23,15 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  SbpOps sbp(domain);
-  //~Lithosphere lith(domain);
+  //~SbpOps sbp(domain);
+
+  //~Fault fault(domain);
+  //~fault.writeContext(domain._outputDir);
+  //~fault.writeStep(domain._outputDir,0);
+
+  Lithosphere lith(domain);
+  ierr = lith.writeStep();CHKERRQ(ierr);
+  ierr = lith.view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -380,7 +387,7 @@ int main(int argc,char **args)
   */
 
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
   //~runTests(inputFile);
 
 

@@ -28,7 +28,7 @@ Lithosphere::Lithosphere(Domain&D)
   VecSetFromOptions(_bcF);     PetscObjectSetName((PetscObject) _bcF, "_bcF");
   VecSet(_bcF,0.0);
 
-  VecDuplicate(_bcF,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "_bcRShift");
+  //~VecDuplicate(_bcF,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "_bcRShift");
   _bcRShift = _fault.getBcRShift();
   //~VecSet(_bcRShift,0.0); // !!!!!!!!
   VecDuplicate(_bcF,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
@@ -95,10 +95,15 @@ Lithosphere::~Lithosphere()
 
   // body fields
   VecDestroy(&_rhs);
-  //~VecDestroy(&_uhat);
-  //~VecDestroy(&_sigma_xy);
-//~
-  //~KSPDestroy(&_ksp);
+  VecDestroy(&_uhat);
+  VecDestroy(&_sigma_xy);
+  VecDestroy(&_surfDisp);
+
+  KSPDestroy(&_ksp);
+
+  PetscViewerDestroy(&_timeViewer);
+  PetscViewerDestroy(&_surfDispViewer);
+  //~PetscViewerDestroy(&_uhatViewer);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in lithosphere.cpp.\n");
@@ -333,7 +338,7 @@ PetscErrorCode Lithosphere::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_fault._var, 2);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(*_fault._var, 2);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;

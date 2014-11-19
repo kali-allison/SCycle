@@ -67,9 +67,6 @@ public:
     size_t _rowSize;
     size_t _colSize;
 
-    // disable default assignment operator
-    //~Spmat& operator=(const Spmat &rhs);
-
 };
 
 //~Mat& kron(const Spmat& left,const Spmat& right);

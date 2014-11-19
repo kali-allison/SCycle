@@ -10,10 +10,52 @@
 
 using namespace std;
 
+
+/*
+ * Container for matrices that are needed temporarily to construct
+ * main operators. These include 1D SBP operators that are later mapped
+ * to 2D, and 2D factors that are used to enforce boundaries.
+ */
+struct TempMats
+    {
+      const PetscInt    _order,_Ny,_Nz;
+      const PetscReal   _dy,_dz;
+      Mat              *_mu;
+
+      Spmat _Hy,_D1y,_D1yint,_Iy;
+      Spmat _Hz,_D1zint,_Iz;
+
+      Mat _muxBySy_Iz;
+      Mat _Hyinv_Iz;
+
+      Mat _muxIy_BzSz;
+      Mat _Iy_Hzinv;
+
+      Mat _AL;
+      Mat _AR;
+      Mat _AT;
+      Mat _AB;
+
+      TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
+      ~TempMats();
+
+    private:
+      // disable default copy constructor and assignment operator
+      TempMats(const TempMats & that);
+      TempMats& operator=( const TempMats& rhs );
+  };
+
+
+/*
+ * Note: PETSc's ability to count matrix creation/destructions is off.
+ * For every MATAXPY, the number of destructions increments by 1 more than
+ * the number of creations. Thus, after satBoundaries() the number will be off by 4.
+ */
+
 class SbpOps
 {
 
-  private:
+  protected:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -23,17 +65,7 @@ class SbpOps
     double _runTime;
 
     // map boundary conditions to rhs vector
-    Mat _Hinvy_Izxe0y_Iz, _Hinvy_IzxeNy_Iz;
-    Mat _Iy_HinvzxIy_e0z, _Iy_HinvzxIy_eNz;
-    Mat _Hinvy_IzxBySy_IzTxe0y_Iz, _Hinvy_IzxBySy_IzTxeNy_Iz;
-
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
-    Mat _AL,_AR,_AT,_AB;
-
-    // Spmats holding 1D SBP operators (temporarily named with extraneous S's)
-    // needed for all orders
-    Spmat _Hy,_Hyinv,_D1y,_D1yint,_D2y,_Sy,_Iy;
-    Spmat _Hz,_Hzinv,_D1z,_D1zint,_D2z,_Sz,_Iz;
 
     // boundary conditions
     //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
@@ -43,19 +75,14 @@ class SbpOps
     string _debugFolder;
 
 
-    PetscErrorCode computeDy_Iz();
-    PetscErrorCode computeA();
-    PetscErrorCode satBoundaries();
+    PetscErrorCode computeDy_Iz(const TempMats& tempMats);
+    PetscErrorCode computeA(const TempMats& tempMats);
+    PetscErrorCode satBoundaries(TempMats& tempMats);
 
-    PetscErrorCode sbpSpmat(const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,
-                 Spmat& D1int, Spmat& D2, Spmat& S);
-    PetscErrorCode sbpSpmat4(const PetscInt N,const PetscScalar scale,
-                Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
-
-    PetscErrorCode computeD2ymu(Mat &D2ymu);
-    PetscErrorCode computeD2zmu(Mat &D2zmu);
-    PetscErrorCode computeRymu(Mat &Rymu,PetscInt order);
-    PetscErrorCode computeRzmu(Mat &Rzmu, PetscInt order);
+    PetscErrorCode computeD2ymu(const TempMats& tempMats, Mat &D2ymu);
+    PetscErrorCode computeD2zmu(const TempMats& tempMats, Mat &D2zmu);
+    PetscErrorCode computeRymu(const TempMats& tempMats,Mat &Rymu);
+    PetscErrorCode computeRzmu(const TempMats& tempMats,Mat &Rzmu);
 
 
     // disable default copy constructor and assignment operator
@@ -67,14 +94,13 @@ class SbpOps
     Mat _A;
     Mat _Dy_Iz;
     Mat _H;
-    //~Vec _rhs;
 
     SbpOps(Domain&D);
     ~SbpOps();
 
     //~PetscErrorCode setSystem();
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
-    PetscErrorCode computeH();
+    PetscErrorCode computeH(const TempMats& tempMats);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
@@ -86,5 +112,12 @@ class SbpOps
 
 
 };
+
+// functions to construct 1D sbp operators
+PetscErrorCode sbpSpmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
+                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
+PetscErrorCode sbpSpmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
+PetscErrorCode sbpSpmat4(const PetscInt N,const PetscScalar scale,
+                         Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

@@ -58,7 +58,7 @@ class Lithosphere
     PetscScalar          _initDeltaT;
 
     // viewers
-    PetscViewer          _timeViewer,_surfDispViewer,_uhatViewer;
+    PetscViewer          _timeViewer,_surfDispViewer;//,_uhatViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;

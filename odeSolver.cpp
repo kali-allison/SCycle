@@ -31,6 +31,7 @@ OdeSolver::~OdeSolver()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver destructor in odeSolver.cpp.\n");
 #endif
+
   if (_dvar!=0) {
     for (int ind=0;ind<_lenVar;ind++) {
       VecDestroy(&_dvar[ind]);
@@ -130,7 +131,7 @@ PetscErrorCode FEuler::view()
 #endif
 }
 
-PetscErrorCode FEuler::setInitialConds(Vec *var, const int lenVar)
+PetscErrorCode FEuler::setInitialConds(Vec& var, const int lenVar)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -139,7 +140,7 @@ PetscErrorCode FEuler::setInitialConds(Vec *var, const int lenVar)
   PetscErrorCode ierr = 0;
   PetscScalar    zero=0.0;
 
-  _var = var;
+  _var = &var;
   _lenVar = lenVar;
 
   _dvar = new Vec[_lenVar];
@@ -289,7 +290,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32::setInitialConds(Vec *var, const int lenVar)
+PetscErrorCode RK32::setInitialConds(Vec& var, const int lenVar)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
@@ -298,7 +299,7 @@ PetscErrorCode RK32::setInitialConds(Vec *var, const int lenVar)
   PetscErrorCode ierr = 0;
   PetscScalar    zero=0.0;
 
-  _var = var;
+  _var = &var;
   _lenVar = lenVar;
 
   _dvar = new Vec[_lenVar];

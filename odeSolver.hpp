@@ -72,7 +72,7 @@ class OdeSolver
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(Vec *var, const int lenVar) = 0;
+    virtual PetscErrorCode setInitialConds(Vec& var, const int lenVar) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(Lithosphere *obj) = 0;
 };
@@ -90,7 +90,7 @@ class FEuler : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(Vec *var, const int lenVar);
+    PetscErrorCode setInitialConds(Vec& var, const int lenVar);
     PetscErrorCode integrate(Lithosphere *obj);
 };
 
@@ -117,7 +117,7 @@ class RK32 : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(Vec *var, const int lenVar);
+    PetscErrorCode setInitialConds(Vec& var, const int lenVar);
     PetscErrorCode view();
 
     PetscErrorCode integrate(Lithosphere *obj);

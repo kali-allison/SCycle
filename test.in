@@ -1,6 +1,6 @@
 order = 2
-Ny = 801
-Nz = 801
+Ny = 4
+Nz = 1
 Ly = 24
 Lz = 24
 
@@ -8,7 +8,7 @@ Dc = 8e-3
 
 seisDepth = 12
 bAbove = 0.02
-bBelow = 0.0
+bBelow = 0.02
 sigma_N = 50.0
 
 vp = 1e-4
@@ -17,7 +17,7 @@ shearDistribution = basin
 {
 muIn = 36
 muOut = 36
-rhoIn = 2.56
+rhoIn = 2.8
 rhoOut = 2.8
 depth = 4
 width = 24
@@ -29,8 +29,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
+strideLength = 1
+maxStepCount = 3
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3

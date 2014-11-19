@@ -59,13 +59,20 @@ Fault::~Fault()
   VecDestroy(&_faultDisp);
   VecDestroy(&_vel);
 
-  //~VecDestroy(&_bcRShift);
+  VecDestroy(&_bcRShift);
 
   // frictional fields
   VecDestroy(&_eta);
   VecDestroy(&_sigma_N);
   VecDestroy(&_a);
   VecDestroy(&_b);
+
+
+  PetscViewerDestroy(&_faultDispViewer);
+  PetscViewerDestroy(&_velViewer);
+  PetscViewerDestroy(&_tauViewer);
+  PetscViewerDestroy(&_psiViewer);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in fault.cpp.\n");

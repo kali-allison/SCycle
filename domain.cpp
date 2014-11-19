@@ -99,6 +99,8 @@ Domain::~Domain()
   PetscFree(_rhoArr);
   PetscFree(_csArr);
 
+  MatDestroy(&_mu);
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in domain.cpp.\n");
 #endif
