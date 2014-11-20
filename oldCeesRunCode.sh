@@ -1,6 +1,6 @@
 #!/bin/bash
-#PBS -N scaling
-#PBS -l nodes=1
+#PBS -N memCheck
+#PBS -l nodes=4:ppn=8
 #PBS -q Q26b
 #PBS -V
 #PBS -m n
@@ -10,6 +10,7 @@
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle
+INIT_DIR=/data/dunham/kallison/eqCycle
 cd $PBS_O_WORKDIR
 
-mpirun $EXEC_DIR/main
+mpirun $EXEC_DIR/main $INIT_DIR/init_mu_9.in
