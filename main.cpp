@@ -3,7 +3,6 @@
 #include <string>
 
 #include "domain.hpp"
-//~#include "odeSolver.hpp"
 #include "lithosphere.hpp"
 #include "sbpOps.hpp"
 #include "spmat.hpp"
@@ -387,8 +386,8 @@ int main(int argc,char **args)
   */
 
 
-  //~runEqCycle(inputFile);
-  runTests(inputFile);
+  runEqCycle(inputFile);
+  //~runTests(inputFile);
 
 
   //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",

@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N eqCycleLU
+#PBS -N eqCycle
 #PBS -l nodes=4:ppn=16
 #PBS -q tgp
 #PBS -V
@@ -10,6 +10,7 @@
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle
+INIT_DIR=$EXEC_DIR
 cd $PBS_O_WORKDIR
 
-mpirun $EXEC_DIR/main
+mpirun $EXEC_DIR/main $INIT_DIR/init_mu_9.in
