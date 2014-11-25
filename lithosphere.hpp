@@ -4,13 +4,14 @@
 #include <petscksp.h>
 #include <string>
 #include <cmath>
+#include <vector>
+#include "userContext.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
 
-class OdeSolver;
 
-class Lithosphere
+class Lithosphere: public UserContext
 {
 
   protected:
@@ -28,7 +29,6 @@ class Lithosphere
     const PetscScalar    _v0,_vp;
 
     // boundary conditions
-    Vec                  _bcF,_bcS,_bcR,_bcD;
     PetscViewer          _bcFv,_bcSv,_bcRv,_bcDv,_rhsv;
 
     // off-fault material fields
@@ -46,7 +46,6 @@ class Lithosphere
     PetscScalar          _kspTol;
 
     SbpOps               _sbp;
-    Fault                _fault;
 
     // time stepping data
     std::string          _timeIntegrator;
@@ -73,26 +72,35 @@ class Lithosphere
     PetscErrorCode setupKSP();
     PetscErrorCode setSurfDisp();
 
-    PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar);
-
   public:
+
+    //~typedef typename std::vector<Vec>::iterator it_vec;
+    //~typedef typename std::vector<Vec>::const_iterator const_it_vec;
+
+    // boundary conditions
+    Vec                  _bcF,_bcS,_bcR,_bcD;
+
+    Fault                _fault;
 
     OdeSolver           *_quadrature;
 
     Lithosphere(Domain&D);
     ~Lithosphere();
-
-    PetscErrorCode d_dt(PetscScalar const time,Vec const*var,Vec*dvar);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,const Vec* var,const Vec*dvar);
-    PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *stage);
+    //~PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
+                     //~const std::vector<Vec>& var,const std::vector<Vec>& dvar);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+    PetscErrorCode debug(const PetscReal time,const PetscInt steps,
+                     const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
 
     // IO commands
     PetscErrorCode view();
     PetscErrorCode writeStep();
     PetscErrorCode read();
 };
-
-#include "odeSolver.hpp"
 
 #endif

@@ -4,7 +4,7 @@
 #include <petscksp.h>
 #include <cmath>
 #include <assert.h>
-//~#include "userContext.h"
+#include <vector>
 #include "domain.hpp"
 
 using namespace std;
@@ -38,10 +38,10 @@ class Fault
     // fields that exist on fault
     Vec            _faultDisp,_vel;
     Vec            _psi,_tempPsi,_dPsi;
-    PetscScalar     _sigma_N_val;
+    PetscScalar    _sigma_N_val;
 
     // viewers
-    PetscViewer   _faultDispViewer,_velViewer,_tauViewer,_psiViewer;
+    PetscViewer    _faultDispViewer,_velViewer,_tauViewer,_psiViewer;
 
     PetscErrorCode computeVel();
     PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
@@ -53,15 +53,21 @@ class Fault
   //~public:
 
     RootFinder    *_rootAlg; // algorithm used to solve for velocity on fault
-    Vec            _var[2];
+    //~Vec           *_var;
+    vector<Vec>    _var;
     Vec            _tau;
 
+    // iterators for _var
+    typedef typename vector<Vec>::iterator it_vec;
+    typedef typename vector<Vec>::const_iterator const_it_vec;
 
     Fault(Domain&D);
     ~Fault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
-    PetscErrorCode d_dt(Vec const*var,Vec*dvar);
+    //~PetscErrorCode d_dt(const vector<Vec>&  var,vector<Vec>& dvar);
+    PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
 
 
     PetscErrorCode setFields();

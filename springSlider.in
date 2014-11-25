@@ -23,10 +23,10 @@ rho = 2.8
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
 strideLength = 1
-maxStepCount = 40
+maxStepCount = 1e5
 initTime = 4e5
 maxTime = 4.3e6
 minDeltaT = 1e-3

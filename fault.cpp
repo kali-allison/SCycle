@@ -1,5 +1,6 @@
 #include "fault.hpp"
 
+using namespace std;
 
 //================= constructor and destructor ========================
 Fault::Fault(Domain&D)
@@ -24,8 +25,9 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tau,&_faultDisp); PetscObjectSetName((PetscObject) _faultDisp, "faultDisp");
   VecDuplicate(_tau,&_vel); PetscObjectSetName((PetscObject) _vel, "vel");
 
-  _var[0] = _faultDisp;
-  _var[1] = _psi;
+  // set up initial conditions for integration (shallow copy)
+  _var.push_back(_faultDisp);
+  _var.push_back(_psi);
 
   // frictional fields
   VecDuplicate(_tau,&_eta); PetscObjectSetName((PetscObject) _eta, "eta");
@@ -39,6 +41,11 @@ Fault::Fault(Domain&D)
 
   setFields();
 
+  // initialize viewers for destructor
+  _faultDispViewer = NULL;
+  _velViewer = NULL;
+  _tauViewer = NULL;
+  _psiViewer = NULL;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in fault.cpp.\n");
@@ -366,28 +373,36 @@ PetscErrorCode Fault::getResid(const PetscInt ind,const PetscScalar vel,PetscSca
 
 }
 
-
-PetscErrorCode Fault::d_dt(Vec const*var,Vec *dvar)
+//~PetscErrorCode Fault::d_dt(const vector<Vec>& var,vector<Vec>& dvar)
+PetscErrorCode Fault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
+                        it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
   PetscScalar    val,psiVal;
   PetscInt       Ii,Istart,Iend;
 
-  ierr = VecCopy(var[1],_tempPsi);CHKERRQ(ierr);
-  ierr = computeVel();CHKERRQ(ierr);
+  assert(varBegin+1 != varEnd);
 
+  //~ierr = VecCopy(var[1],_tempPsi);CHKERRQ(ierr);
+  ierr = VecCopy(*(varBegin+1),_tempPsi);CHKERRQ(ierr);
+  ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_vel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(_vel,1,&Ii,&val);CHKERRQ(ierr);
-    ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    //~ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(*dvarBegin,Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
-    ierr = VecGetValues(var[1],1,&Ii,&psiVal);
+    //~ierr = VecGetValues(var[1],1,&Ii,&psiVal);
+    ierr = VecGetValues(*(varBegin+1),1,&Ii,&psiVal);
     ierr = agingLaw(Ii,psiVal,&val);CHKERRQ(ierr);
-    ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    //~ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(*(dvarBegin+1),Ii,val,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
+  //~ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(*dvarBegin);CHKERRQ(ierr); ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   return ierr;
 }

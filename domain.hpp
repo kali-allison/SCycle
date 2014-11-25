@@ -7,15 +7,13 @@
 #include <fstream>
 #include <assert.h>
 
-using namespace std;
-
 class Domain
 {
   public:
 
     const char * _file;
-    string       _delim; // format is: var delim value (without the white space)
-    string       _startBlock,_endBlock; // format for start/end of block of input parameters
+    std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _startBlock,_endBlock; // format for start/end of block of input parameters
 
     // domain properties
     PetscInt     _order,_Ny,_Nz;
@@ -27,7 +25,7 @@ class Domain
     PetscScalar  _sigma_N_val;
 
     // shear distribution properties
-    string       _shearDistribution; // options: mms, constant, gradient, basin
+    std::string       _shearDistribution; // options: mms, constant, gradient, basin
     PetscScalar  _muVal,_rhoVal,_csVal; // if constant
     PetscScalar  _muIn,_muOut,_rhoIn,_rhoOut,_csIn,_csOut; // if basin
     PetscScalar  _depth,_width;
@@ -40,7 +38,7 @@ class Domain
     PetscScalar  _kspTol;
 
     // time integration settings
-    string       _timeControlType,_timeIntegrator;
+    std::string       _timeControlType,_timeIntegrator;
     PetscInt     _strideLength,_maxStepCount;
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
@@ -50,7 +48,7 @@ class Domain
     PetscScalar  _rootTol;
 
     // directory for output
-    string  _outputDir;
+    std::string  _outputDir;
 
     // values not loaded in input file
     PetscScalar  _f0,_v0,_vp;
@@ -74,7 +72,7 @@ class Domain
 
     // load settings from input file
     PetscErrorCode loadData(const char *file);
-    PetscErrorCode loadShearModulusSettings(ifstream& infile);
+    PetscErrorCode loadShearModulusSettings(std::ifstream& infile);
 
 };
 

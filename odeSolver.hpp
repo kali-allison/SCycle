@@ -4,6 +4,8 @@
 #include <petscts.h>
 #include <string>
 #include <cmath>
+#include <vector>
+#include <algorithm>
 #include "lithosphere.hpp"
 
 using namespace std;
@@ -53,28 +55,43 @@ class OdeSolver
 {
   protected:
 
-    PetscReal     _initT,_finalT,_currT,_deltaT;
-    PetscInt      _maxNumSteps,_stepCount;
-    Vec           *_var,*_dvar;
-    int           _lenVar;
-    double        _runTime;
-    string        _controlType;
+    PetscReal           _initT,_finalT,_currT,_deltaT;
+    PetscInt            _maxNumSteps,_stepCount;
+    std::vector<Vec>    _var,_dvar;
+    int                 _lenVar;
+    double              _runTime;
+    string              _controlType;
 
   public:
+
+    // iterators for _var and _dvar
+    typedef typename vector<Vec>::iterator it_vec;
+    typedef typename vector<Vec>::const_iterator const_it_vec;
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~OdeSolver();
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
-    PetscErrorCode setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*));
-    PetscErrorCode setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*));
+    //~PetscErrorCode setRhsFunc(PetscErrorCode (*rhsFunc)(const PetscReal,const int,Vec*,Vec*,void*));
+    //~PetscErrorCode setTimeMonitor(PetscErrorCode (*timeMonitor)(const PetscReal,const PetscInt,const Vec*,const int,void*));
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(Vec& var, const int lenVar) = 0;
+    virtual PetscErrorCode setInitialConds(std::vector<Vec>& var, const int lenVar) = 0;
     virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(Lithosphere *obj) = 0;
+    virtual PetscErrorCode integrate(UserContext *obj) = 0;
+
+    // from Effective STL
+    struct DeleteVecObject // used in destructor
+    {
+      void operator()(Vec& ptr) const
+      {
+        VecDestroy(&ptr);
+      }
+    };
+
+
 };
 
 PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
@@ -90,8 +107,8 @@ class FEuler : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(Vec& var, const int lenVar);
-    PetscErrorCode integrate(Lithosphere *obj);
+    PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
+    PetscErrorCode integrate(UserContext *obj);
 };
 
 class RK32 : public OdeSolver
@@ -104,8 +121,10 @@ class RK32 : public OdeSolver
     PetscReal   _absErr[3]; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-    Vec *_varHalfdT,*_dvarHalfdT,*_vardT,*_dvardT,*_var2nd,*_dvar2nd,*_var3rd;
-    Vec *_errVec;
+    //~Vec *_varHalfdT,*_dvarHalfdT,*_vardT,*_dvardT,*_var2nd,*_dvar2nd,*_var3rd;
+    //~Vec *_errVec;
+    std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    std::vector<Vec> _errVec;
 
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
@@ -117,10 +136,10 @@ class RK32 : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(Vec& var, const int lenVar);
+    PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
     PetscErrorCode view();
 
-    PetscErrorCode integrate(Lithosphere *obj);
+    PetscErrorCode integrate(UserContext *obj);
 
 };
 

@@ -1,5 +1,6 @@
 #include "lithosphere.hpp"
 
+using namespace std;
 
 //================= constructor and destructor ========================
 
@@ -11,12 +12,13 @@ Lithosphere::Lithosphere(Domain&D)
   _rhoIn(D._rhoIn),_rhoOut(D._rhoOut),_muIn(D._muIn),_muOut(D._muOut),_muArr(D._muArr),_mu(D._mu),
   _depth(D._depth),_width(D._width),
   _linSolver(D._linSolver),_kspTol(D._kspTol),
-  _sbp(D),_fault(D),
+  _sbp(D),
   _timeIntegrator(D._timeIntegrator),
   _strideLength(D._strideLength),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),_minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0)
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
+  _fault(D)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in lithosphere.cpp.\n");
@@ -75,6 +77,9 @@ Lithosphere::Lithosphere(Domain&D)
     assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
 
+  // initialize viewers so destructor works
+  _timeViewer = NULL;
+  _surfDispViewer = NULL;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in lithosphere.cpp.\n");
@@ -103,7 +108,6 @@ Lithosphere::~Lithosphere()
 
   PetscViewerDestroy(&_timeViewer);
   PetscViewerDestroy(&_surfDispViewer);
-  //~PetscViewerDestroy(&_uhatViewer);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in lithosphere.cpp.\n");
@@ -274,7 +278,9 @@ PetscErrorCode Lithosphere::setSurfDisp()
   return ierr;
 }
 
-PetscErrorCode Lithosphere::d_dt(PetscScalar const time,Vec const*var,Vec*dvar)
+//~PetscErrorCode Lithosphere::d_dt(const PetscScalar time,const vector<Vec>& var,vector<Vec>& dvar)
+PetscErrorCode Lithosphere::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                 it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -282,7 +288,8 @@ PetscErrorCode Lithosphere::d_dt(PetscScalar const time,Vec const*var,Vec*dvar)
 #endif
 
   // update boundaries
-  ierr = VecCopy(var[0],_bcF);CHKERRQ(ierr);
+  //~ierr = VecCopy(var[0],_bcF);CHKERRQ(ierr);
+  ierr = VecCopy(*varBegin,_bcF);CHKERRQ(ierr);
   ierr = VecScale(_bcF,0.5);CHKERRQ(ierr);
   ierr = VecSet(_bcR,_vp*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcR,1.0,_bcRShift);CHKERRQ(ierr);
@@ -295,12 +302,14 @@ PetscErrorCode Lithosphere::d_dt(PetscScalar const time,Vec const*var,Vec*dvar)
   _linSolveCount++;
   ierr = setSurfDisp();
 
+  // solve for shear stress
   // instead of doing this, I could hand Fault D1y, and use
   // MatMult(D1y,_faultDisp)
   ierr = MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);CHKERRQ(ierr);
   ierr = _fault.setTau(_sigma_xy);CHKERRQ(ierr);
 
-  ierr = _fault.d_dt(var,dvar);
+  //~ierr = _fault.d_dt(var,dvar);
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending d_dt in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -308,7 +317,11 @@ PetscErrorCode Lithosphere::d_dt(PetscScalar const time,Vec const*var,Vec*dvar)
   return ierr;
 }
 
-PetscErrorCode Lithosphere::timeMonitor(const PetscReal time, const PetscInt stepCount,const Vec* var,const Vec*dvar)
+//~PetscErrorCode Lithosphere::timeMonitor(const PetscReal time, const PetscInt stepCount,
+  //~const vector<Vec>& var,const vector<Vec>& dvar)
+PetscErrorCode Lithosphere::timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
   //~UserContext*    D = (UserContext*) userContext;
@@ -338,7 +351,7 @@ PetscErrorCode Lithosphere::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(*_fault._var, 2);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(_fault._var, 2);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
@@ -366,11 +379,6 @@ PetscErrorCode Lithosphere::writeStep()
     ierr = PetscViewerDestroy(&_surfDispViewer);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDisp").c_str(),
                                    FILE_MODE_APPEND,&_surfDispViewer);CHKERRQ(ierr);
-
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_WRITE,&_uhatViewer);CHKERRQ(ierr);
-    //~ierr = VecView(_uhat,_uhatViewer);CHKERRQ(ierr);
-    //~PetscViewerDestroy(&_uhatViewer);CHKERRQ(ierr);
-    //~PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uhat").c_str(),FILE_MODE_APPEND,&_uhatViewer);CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
@@ -389,7 +397,8 @@ PetscErrorCode Lithosphere::writeStep()
 
 
 // Outputs data at each time step.
-PetscErrorCode Lithosphere::debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *stage)
+PetscErrorCode Lithosphere::debug(const PetscReal time,const PetscInt steps,
+                 const vector<Vec>& var,const vector<Vec>& dvar,const char *stage)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;

@@ -1,5 +1,7 @@
 #include "domain.hpp"
 
+using namespace std;
+
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
  _shearDistribution("basin"),_linSolver("AMG"),

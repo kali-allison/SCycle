@@ -8,7 +8,8 @@ CLINKER		      = openmpicc
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
 
-main:  main.o debuggingFuncs.o odeSolver.o sbpOps.o lithosphere.o fault.o domain.o rootFinder.o debuggingFuncs.o userContext.o spmat.o
+main:  main.o debuggingFuncs.o odeSolver.o sbpOps.o lithosphere.o fault.o\
+ domain.o rootFinder.o debuggingFuncs.o spmat.o earth.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
@@ -35,11 +36,11 @@ rootFinder.o: rootFinder.cpp rootFinder.hpp fault.hpp
 fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp fault.hpp
+ debuggingFuncs.hpp fault.hpp usercontext.hpp
+earth.o: earth.cpp earth.hpp userContext.hpp lithosphere.hpp
 main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.o
 odeSolver.o: odeSolver.cpp odeSolver.hpp
 rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h
 sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
-userContext.o: userContext.cpp userContext.h
 domain.o: domain.cpp domain.hpp
 
