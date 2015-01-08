@@ -13,6 +13,10 @@
 
 class Lithosphere: public UserContext
 {
+  private:
+    // disable default copy constructor and assignment operator
+    Lithosphere(const Lithosphere &that);
+    Lithosphere& operator=(const Lithosphere &rhs);
 
   protected:
 
@@ -63,11 +67,6 @@ class Lithosphere: public UserContext
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
-
-    // disable default copy constructor and assignment operator
-    Lithosphere(const Lithosphere &that);
-    Lithosphere& operator=(const Lithosphere &rhs);
-
     PetscErrorCode computeShearStress();
     PetscErrorCode setupKSP();
     PetscErrorCode setSurfDisp();
@@ -86,21 +85,57 @@ class Lithosphere: public UserContext
 
     Lithosphere(Domain&D);
     ~Lithosphere();
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    //~PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,
-                     //~const std::vector<Vec>& var,const std::vector<Vec>& dvar);
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd);
     PetscErrorCode debug(const PetscReal time,const PetscInt steps,
                      const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
 
     // IO commands
-    PetscErrorCode view();
+    virtual PetscErrorCode view() = 0;
     PetscErrorCode writeStep();
     PetscErrorCode read();
 };
+
+
+// for models consisting solely of the lithosphere, uncoupled to anything else
+// !!!TO DO: move Lithosphere's quadrature and integrate function here
+class OnlyLithosphere: public Lithosphere
+{
+
+  public:
+    OnlyLithosphere(Domain&D);
+    // use Lithosphere's destructor
+
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
+    PetscErrorCode view();
+};
+
+
+// for models consisting of coupled spring sliders, no damping
+class CoupledLithosphere: public Lithosphere
+{
+
+  public:
+    CoupledLithosphere(Domain&D);
+    // use Lithosphere's destructor
+
+    PetscErrorCode resetInitialConds();
+
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                 it_vec dvarBegin,it_vec dvarEnd,Vec& tauMod); // if it's coupled to another spring-slider
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
+    PetscErrorCode view();
+};
+
+
 
 #endif

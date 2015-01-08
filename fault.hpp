@@ -29,7 +29,7 @@ class Fault
 
     // elastic coefficients and frictional parameters
     PetscScalar    _depth,_seisDepth,_cs,_f0,_v0,_vp;
-    PetscScalar    _bAbove,_bBelow;
+    PetscScalar    _aVal,_bAbove,_bBelow;
     PetscScalar   *_muArr,*_rhoArr,*_csArr;// for basin
     Vec            _eta,_sigma_N,_a,_b;
 
@@ -65,7 +65,6 @@ class Fault
     ~Fault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
-    //~PetscErrorCode d_dt(const vector<Vec>&  var,vector<Vec>& dvar);
     PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 

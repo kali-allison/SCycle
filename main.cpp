@@ -4,6 +4,7 @@
 
 #include "domain.hpp"
 #include "lithosphere.hpp"
+#include "asthenosphere.hpp"
 #include "earth.hpp"
 #include "sbpOps.hpp"
 #include "spmat.hpp"
@@ -61,9 +62,11 @@ int runTests(const char * inputFile)
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
-  //~Lithosphere lith(domain);
-  //~ierr = lith.writeStep();CHKERRQ(ierr);
-  //~ierr = lith.view();CHKERRQ(ierr);
+  OnlyAsthenosphere lith(domain);
+  //~OnlyLithosphere lith(domain);
+  ierr = lith.writeStep();CHKERRQ(ierr);
+  ierr = lith.integrate();CHKERRQ(ierr);
+  ierr = lith.view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -379,7 +382,8 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  Lithosphere lith(domain);
+  //~OnlyLithosphere lith(domain);
+  OnlyAsthenosphere lith(domain);
 
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
@@ -398,13 +402,6 @@ int coupledSpringSliders(const char * inputFile1, const char * inputFile2)
   ierr = earth.integrate();CHKERRQ(ierr);
   ierr = earth.view();CHKERRQ(ierr);
 
-  //~Domain domain1(inputFile1);
-  //~Lithosphere slider1(domain1);
-  //~slider1.writeStep();
-  //~slider1.integrate();
-
-  //~Domain domain2(inputFile2);
-  //~Lithosphere slider2(domain1);
   return ierr;
 }
 
@@ -419,7 +416,7 @@ int main(int argc,char **args)
   else { inputFile = "init.txt"; }
 
   runEqCycle(inputFile);
-
+//~
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
   //~else { inputFile2 = inputFile; }

@@ -1,4 +1,4 @@
-order = 4
+order = 2
 Ny = 21
 Nz = 1
 Ly = 24
@@ -7,6 +7,7 @@ Lz = 24
 Dc = 8e-3
 
 seisDepth = 12
+a = 0.015
 bAbove = 0.02
 bBelow = 0.02
 sigma_N = 50.0
@@ -15,7 +16,7 @@ vp = 1e-4
 
 shearDistribution = constant
 {
-mu = 36
+mu = 30
 rho = 2.8
 }
 
@@ -23,7 +24,7 @@ rho = 2.8
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
 maxStepCount = 1e5

@@ -11,7 +11,7 @@ class Domain
 {
   public:
 
-    const char * _file;
+    const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _startBlock,_endBlock; // format for start/end of block of input parameters
 
@@ -21,7 +21,7 @@ class Domain
 
     // fault properties
     PetscScalar  _seisDepth;
-    PetscScalar  _bAbove,_bBelow;
+    PetscScalar  _aVal,_bAbove,_bBelow;
     PetscScalar  _sigma_N_val;
 
     // shear distribution properties
@@ -31,6 +31,9 @@ class Domain
     PetscScalar  _depth,_width;
     PetscScalar *_muArr,*_rhoArr,*_csArr; // general data containers
     Mat          _mu;
+
+    // viscosity for asthenosphere
+    PetscScalar  _visc;
 
 
     // linear solver settings

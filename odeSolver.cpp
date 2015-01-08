@@ -138,7 +138,7 @@ PetscErrorCode FEuler::setInitialConds(vector<Vec>& var, const int lenVar)
   PetscErrorCode ierr = 0;
 
   _var = var; // shallow copy
-  _lenVar = lenVar;
+  _lenVar = var.size();
 
   _dvar.reserve(_lenVar);
   for (int ind=0;ind<_lenVar;ind++) {
@@ -293,14 +293,7 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var, const int lenVar)
   PetscErrorCode ierr = 0;
 
   _var = var;
-  _lenVar = lenVar;
-
-  //~_dvar = new Vec[_lenVar];
-
-  //~_varHalfdT = new Vec[_lenVar]; _dvarHalfdT = new Vec[_lenVar];
-  //~_vardT     = new Vec[_lenVar];     _dvardT = new Vec[_lenVar];
-  //~_var2nd    = new Vec[_lenVar];    _dvar2nd = new Vec[_lenVar];
-  //~_var3rd    = new Vec[_lenVar];
+  _lenVar = var.size();
 
   _errVec.reserve(_lenVar);
 
@@ -309,20 +302,30 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var, const int lenVar)
   _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
   _var3rd   .reserve(_lenVar);
 
+  _dvar.reserve(_lenVar);
   for (int ind=0;ind<_lenVar;ind++) {
     ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
     ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
 
     ierr = VecDuplicate(_var[ind],&_varHalfdT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_varHalfdT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvarHalfdT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvarHalfdT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_vardT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_vardT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvardT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvardT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_var2nd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_var2nd[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvar2nd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvar2nd[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
 
     ierr = VecDuplicate(_var[ind],&_errVec[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_errVec[ind],0.0);CHKERRQ(ierr);
   }
+
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
