@@ -8,6 +8,8 @@ import math
 import datetime as datetime
 import subprocess as sb
 
+
+# builds shell script to run simulation on cees-rcf
 def buildLaunchScript(mu,initFile,baseDir):
 
   jobname = "mu_" + str(mu)
@@ -22,10 +24,38 @@ def buildLaunchScript(mu,initFile,baseDir):
   scriptfile.write("#PBS -V\n")
   scriptfile.write("#PBS -m n\n")
   scriptfile.write("#PBS -k oe\n")
-  scriptfile.write("#PBS -e %s/mu_%u.err\n" %(baseDir,mu))
-  scriptfile.write("#PBS -o %s/mu_%u.out\n" %(baseDir,mu))
+  scriptfile.write("#PBS -e %s/d_5_mu_%u.err\n" %(baseDir,mu))
+  scriptfile.write("#PBS -o %s/d_5_mu_%u.out\n" %(baseDir,mu))
   scriptfile.write("#\n")
-  scriptfile.write("EXEC_DIR=/data/dunham/kallison/paramSearch_2014_11_12\n")
+  scriptfile.write("EXEC_DIR=/data/dunham/kallison/paramSearch\n")
+  scriptfile.write("INPUT_FILE=%s\n" %initFile)
+  scriptfile.write("cd $PBS_O_WORKDIR\n")
+  scriptfile.write("#\n")
+
+  scriptfile.write("mpirun $EXEC_DIR/main $INPUT_FILE\n" )
+  scriptfile.close()
+
+  return scriptName
+
+# builds shell script to run simulation on cees-cluster
+def buildLaunchScript_Old(mu,initFile,baseDir):
+
+  jobname = "mu_" + str(mu)
+
+  #~print "Creating shell script."
+  scriptName = baseDir + "/paramSearch.sh"
+  scriptfile = open(scriptName, "w")
+  scriptfile.write("#!/bin/bash\n")
+  scriptfile.write("#PBS -N %s\n" %jobname) #name of job
+  scriptfile.write("#PBS -l nodes=%u:ppn=%u\n"%(4,8) )
+  scriptfile.write("#PBS -q Q26b\n")
+  scriptfile.write("#PBS -V\n")
+  scriptfile.write("#PBS -m n\n")
+  scriptfile.write("#PBS -k oe\n")
+  scriptfile.write("#PBS -e %s/d_5_mu_%u.err\n" %(baseDir,mu))
+  scriptfile.write("#PBS -o %s/d_5_mu_%u.out\n" %(baseDir,mu))
+  scriptfile.write("#\n")
+  scriptfile.write("EXEC_DIR=/data/dunham/kallison/paramSearch\n")
   scriptfile.write("INPUT_FILE=%s\n" %initFile)
   scriptfile.write("cd $PBS_O_WORKDIR\n")
   scriptfile.write("#\n")
@@ -39,7 +69,7 @@ def buildLaunchScript(mu,initFile,baseDir):
 #create input file
 def buildInitFile(mu,baseDir):
     origFile = baseDir + "/basin.in"
-    initFile = baseDir + "/init_mu_" + str(mu) + ".in"
+    initFile = baseDir + "/d_5_init_mu_" + str(mu) + ".in"
 
     sb.call(["cp",origFile,initFile]) #copy the file to be modified
 
@@ -48,7 +78,7 @@ def buildInitFile(mu,baseDir):
     whole_thing = text_file.read()
 
     # modify prefix on data output
-    whole_thing = whole_thing.replace("outputDir = data/", "outputDir = %s/data/mu_%s_" %(baseDir,mu))
+    whole_thing = whole_thing.replace("outputDir = data/", "outputDir = %s/data/d_5_mu_%s_" %(baseDir,mu))
 
 
     # determine size of problem to run
@@ -85,7 +115,7 @@ print logFile
 results = open(logFile,'a')
 results.write('--- STARTING Parameter Space Test in mu ---\n')
 results.write( '   starting at time: %s\n' %(datetime.datetime.now()) )
-results.write('  basin Depth is 4 km\n')
+results.write('  basin Depth is 5 km\n')
 results.write('\n\n\n')
 results.close()
 
@@ -95,8 +125,9 @@ for mu in [9]:
 
   initFile = buildInitFile(mu,baseDir)
   scriptName = buildLaunchScript(mu,initFile,baseDir)
+  #~scriptName = buildLaunchScript_Old(mu,initFile,baseDir)
   print scriptName
-  jobname = "d_4_mu_" + str(mu)
+  jobname = "mu_" + str(mu)
 
 
   # record job submission in log
@@ -126,7 +157,7 @@ for mu in [9]:
 
 
 results = open(logFile,'a')
-results.write('\n\n--- FINISHED Parameter Space Test in mu ---\n')
+results.write('\n\n--- FINISHED Parameter Space Test in mu with d = 5 km---\n')
 results.write( '   ending at time: %s\n' %(datetime.datetime.now()) )
 results.write( '----------------------------------------------------\n' )
 results.close()
