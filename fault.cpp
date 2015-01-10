@@ -1,14 +1,16 @@
 #include "fault.hpp"
 
+using namespace std;
 
 //================= constructor and destructor ========================
 Fault::Fault(Domain&D)
 : _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
-  _bAbove(D._bAbove),_bBelow(D._bBelow),
+  _aVal(D._aVal),_bAbove(D._bAbove),_bBelow(D._bBelow),
   _muArr(D._muArr),_rhoArr(D._rhoArr),_csArr(D._csArr),
-  _sigma_N_val(D._sigma_N_val)
+  _sigma_N_val(D._sigma_N_val),
+  _faultDispViewer(NULL),_velViewer(NULL),_tauViewer(NULL),_psiViewer(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in fault.cpp.\n");
@@ -24,8 +26,9 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tau,&_faultDisp); PetscObjectSetName((PetscObject) _faultDisp, "faultDisp");
   VecDuplicate(_tau,&_vel); PetscObjectSetName((PetscObject) _vel, "vel");
 
-  _var[0] = _faultDisp;
-  _var[1] = _psi;
+  // set up initial conditions for integration (shallow copy)
+  _var.push_back(_faultDisp);
+  _var.push_back(_psi);
 
   // frictional fields
   VecDuplicate(_tau,&_eta); PetscObjectSetName((PetscObject) _eta, "eta");
@@ -38,7 +41,6 @@ Fault::Fault(Domain&D)
   _rootAlg = new Bisect(_maxNumIts,_rootTol);
 
   setFields();
-
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in fault.cpp.\n");
@@ -197,7 +199,7 @@ PetscErrorCode Fault::setFields()
 
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
-  ierr = VecSet(_a,0.015);CHKERRQ(ierr);
+  ierr = VecSet(_a,_aVal);CHKERRQ(ierr);
 
   // Set b
   PetscScalar L2 = 1.5*_seisDepth;  //This is depth at which increase stops and fault is purely velocity strengthening
@@ -220,10 +222,9 @@ PetscErrorCode Fault::setFields()
   }
   ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
-  //~ierr = VecSet(_b,0.02);CHKERRQ(ierr); // for spring-slider!!!!!!!!!!!!!!!!
 
 
-  // tau, eta, gRShift, sigma_N
+  // tau, eta, bcRShift, sigma_N
   PetscScalar a,b,eta,tau_inf,sigma_N,bcRShift;
   ierr = VecGetOwnershipRange(_tau,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -234,7 +235,7 @@ PetscErrorCode Fault::setFields()
     z = ((double) Ii)*_h;
 
     if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; }
-    else { sigma_N = 9.8*_rhoArr[Ii]*z; }
+    //~else { sigma_N = 9.8*_rhoArr[Ii]*z; }
 
     //~eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     eta = 0.5*_muArr[Ii]/_csArr[Ii];
@@ -338,7 +339,8 @@ PetscErrorCode Fault::getResid(const PetscInt ind,const PetscScalar vel,PetscSca
     SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in stressMstrength\n");
   }
 
-   *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + eta*vel - tau;
+   if (a==0) { *out = eta*vel - tau; }
+   else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + eta*vel - tau; }
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,eta,tau,vel);
 #endif
@@ -366,28 +368,36 @@ PetscErrorCode Fault::getResid(const PetscInt ind,const PetscScalar vel,PetscSca
 
 }
 
-
-PetscErrorCode Fault::d_dt(Vec const*var,Vec *dvar)
+//~PetscErrorCode Fault::d_dt(const vector<Vec>& var,vector<Vec>& dvar)
+PetscErrorCode Fault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
+                        it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
   PetscScalar    val,psiVal;
   PetscInt       Ii,Istart,Iend;
 
-  ierr = VecCopy(var[1],_tempPsi);CHKERRQ(ierr);
-  ierr = computeVel();CHKERRQ(ierr);
+  assert(varBegin+1 != varEnd);
 
+  //~ierr = VecCopy(var[1],_tempPsi);CHKERRQ(ierr);
+  ierr = VecCopy(*(varBegin+1),_tempPsi);CHKERRQ(ierr);
+  ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_vel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(_vel,1,&Ii,&val);CHKERRQ(ierr);
-    ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    //~ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(*dvarBegin,Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
-    ierr = VecGetValues(var[1],1,&Ii,&psiVal);
+    //~ierr = VecGetValues(var[1],1,&Ii,&psiVal);
+    ierr = VecGetValues(*(varBegin+1),1,&Ii,&psiVal);
     ierr = agingLaw(Ii,psiVal,&val);CHKERRQ(ierr);
-    ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    //~ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(*(dvarBegin+1),Ii,val,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
+  //~ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(*dvarBegin);CHKERRQ(ierr); ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   return ierr;
 }
@@ -431,6 +441,11 @@ PetscErrorCode Fault::writeContext(const string outputDir)
   str = outputDir + "sigma_N";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "bcRshift";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_bcRShift,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1

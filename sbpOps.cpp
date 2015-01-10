@@ -1088,11 +1088,10 @@ switch ( order ) {
         D1int.printPetsc();
       #endif
 
-      //~D1 = D1int; // copy D1int's interior
-      //~D1(N-1,N-3,S(N-1,N-3)); // last row
-      //~D1(N-1,N-2,S(N-1,N-2));
-      //~D1(N-1,N-1,S(N-1,N-1));
-      //~D1 = S;
+      D1 = D1int; // copy D1int's interior
+      D1(N-1,N-3,S(N-1,N-3)); // last row
+      D1(N-1,N-2,S(N-1,N-2));
+      D1(N-1,N-1,S(N-1,N-1));
       // only want shear stress on fault, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
       #if VERBOSE > 2

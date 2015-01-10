@@ -1,9 +1,12 @@
 #include "domain.hpp"
 
-Domain::Domain(const char *file)
+using namespace std;
+
+ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
- _shearDistribution("basin"),_linSolver("AMG"),
-  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
+ _shearDistribution("basin"),_visc(nan("")),
+ _linSolver("AMG"),
+ _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -19,8 +22,6 @@ Domain::Domain(const char *file)
   if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
-  //~_vp=1e-9;
-  //~_vp=1e-4;
 
   //~_csOut = sqrt(_muOut/_rhoOut);
 
@@ -67,8 +68,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
   _f0=0.6;
   _v0=1e-6;
-  _vp=1e-9;
-  //~_vp=1e-4;
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -148,6 +147,7 @@ PetscErrorCode Domain::loadData(const char *file)
 
       //fault properties
       else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("a")==0) { _aVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -160,6 +160,9 @@ PetscErrorCode Domain::loadData(const char *file)
         strcpy(shearDistribution,_shearDistribution.c_str());
         loadShearModulusSettings(infile);
       }
+
+      // viscosity for asthenosphere
+      else if (var.compare("visc")==0) { _visc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
       else if (var.compare("linSolver")==0) {
@@ -207,6 +210,7 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_Dc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_aVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -221,6 +225,8 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_rhoOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  MPI_Bcast(&_visc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -369,6 +375,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     }
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
+    ierr = PetscPrintf(PETSC_COMM_SELF,"visc = %.15e\n",_visc);CHKERRQ(ierr);
+
     // linear solve settings
     ierr = PetscPrintf(PETSC_COMM_SELF,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
@@ -441,6 +449,8 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vp);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"visc = %.15e\n",_visc);CHKERRQ(ierr);
 
   // sedimentary basin properties
   ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);

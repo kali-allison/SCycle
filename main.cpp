@@ -4,6 +4,8 @@
 
 #include "domain.hpp"
 #include "lithosphere.hpp"
+#include "asthenosphere.hpp"
+#include "earth.hpp"
 #include "sbpOps.hpp"
 #include "spmat.hpp"
 
@@ -18,19 +20,53 @@ int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
+  /* Proof Vec is actually a pointer
+  PetscScalar    v = 0.0;
+  PetscInt       Ii,Istart,Iend;
+  Vec trial;
+  ierr = VecCreate(PETSC_COMM_WORLD,&trial);CHKERRQ(ierr);
+  ierr = VecSetSizes(trial,PETSC_DECIDE,3);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(trial);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) trial, "trial");CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(trial,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    v = Ii;
+    ierr = VecSetValues(trial,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(trial);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(trial);CHKERRQ(ierr);
+
+  ierr = VecView(trial,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+  vector<Vec>  newVec(1);
+  newVec[0] = trial;
+  ierr = VecView(newVec[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  Ii = 1;
+  v = 5.0;
+  ierr = VecSetValues(newVec[0],1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(trial);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(trial);CHKERRQ(ierr);
+  ierr = VecView(newVec[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = VecView(trial,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  */
+
   //~spmatTests();
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  SbpOps sbp(domain);
+  //~SbpOps sbp(domain);
 
   //~Fault fault(domain);
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
-  //~Lithosphere lith(domain);
-  //~ierr = lith.writeStep();CHKERRQ(ierr);
-  //~ierr = lith.view();CHKERRQ(ierr);
+  OnlyAsthenosphere lith(domain);
+  //~OnlyLithosphere lith(domain);
+  ierr = lith.writeStep();CHKERRQ(ierr);
+  ierr = lith.integrate();CHKERRQ(ierr);
+  ierr = lith.view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -346,11 +382,26 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  Lithosphere lith(domain);
+  //~OnlyLithosphere lith(domain);
+  OnlyAsthenosphere lith(domain);
 
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
   ierr = lith.view();CHKERRQ(ierr);
+  return ierr;
+}
+
+int coupledSpringSliders(const char * inputFile1, const char * inputFile2)
+{
+  PetscErrorCode ierr = 0;
+
+  Earth earth(inputFile1,inputFile2);
+  ierr = earth.writeStep();CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n----------------------------------------------------\n\n");CHKERRQ(ierr);
+  ierr = earth.integrate();CHKERRQ(ierr);
+  ierr = earth.view();CHKERRQ(ierr);
+
   return ierr;
 }
 
@@ -364,29 +415,14 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  /*
-  PetscInt Ny = 401, Nz = 401;
-  ierr = PetscOptionsGetInt(NULL,"-Ny",&Ny,NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsGetInt(NULL,"-Nz",&Nz,NULL);CHKERRQ(ierr);
-  screwDislocation(Ny,Nz);
-  */
-
-  //~ierr = sbpConvergence(argc,args);CHKERRQ(ierr);// perform MMS
-
-  // compare screw dislocation with numerics
-  /*
-  PetscInt Ny=721, Nz=241;
-  for (Nz=241;Nz<482;Nz+=120) {
-    for (Ny=241;Ny<1442;Ny+=120) {
-      screwDislocation(Ny,Nz);
-    }
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
-  */
-
-
   runEqCycle(inputFile);
+//~
+  //~const char* inputFile2;
+  //~if (argc > 2) {inputFile2 = args[2]; }
+  //~else { inputFile2 = inputFile; }
+  //~coupledSpringSliders(inputFile, inputFile2);
+
+
   //~runTests(inputFile);
 
 

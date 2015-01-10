@@ -1,0 +1,42 @@
+order = 2
+Ny = 21
+Nz = 1
+Ly = 30 # km
+Lz = 30 # km
+
+Dc = 1e-3 # m
+
+seisDepth = 12 # km
+a = 0.01
+bAbove = 0.014
+bBelow = 0.014
+sigma_N = 75 # MPa
+
+vp = 1e-9    # m/s
+
+shearDistribution = constant
+{
+mu = 30      # GPa
+rho = 3.333    # g/cm^3
+}
+
+visc = 3e13 # GPa s
+
+linSolver = MUMPSLU
+kspTol = 1e-7
+
+timeIntegrator = RK32
+timeControlType = P
+strideLength = 10
+maxStepCount = 1e7
+initTime = 75e9       # s
+maxTime = 4e11      # s
+minDeltaT = 1e-5     # s
+maxDeltaT = 1e7      # s
+atol = 1e-7
+
+rootTol = 1e-9
+
+outputDir = maxwellSS/max_visc_3e13_
+
+

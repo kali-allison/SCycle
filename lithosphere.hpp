@@ -4,14 +4,19 @@
 #include <petscksp.h>
 #include <string>
 #include <cmath>
+#include <vector>
+#include "userContext.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
 
-class OdeSolver;
 
-class Lithosphere
+class Lithosphere: public UserContext
 {
+  private:
+    // disable default copy constructor and assignment operator
+    Lithosphere(const Lithosphere &that);
+    Lithosphere& operator=(const Lithosphere &rhs);
 
   protected:
 
@@ -28,7 +33,6 @@ class Lithosphere
     const PetscScalar    _v0,_vp;
 
     // boundary conditions
-    Vec                  _bcF,_bcS,_bcR,_bcD;
     PetscViewer          _bcFv,_bcSv,_bcRv,_bcDv,_rhsv;
 
     // off-fault material fields
@@ -46,7 +50,6 @@ class Lithosphere
     PetscScalar          _kspTol;
 
     SbpOps               _sbp;
-    Fault                _fault;
 
     // time stepping data
     std::string          _timeIntegrator;
@@ -64,35 +67,75 @@ class Lithosphere
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
-
-    // disable default copy constructor and assignment operator
-    Lithosphere(const Lithosphere &that);
-    Lithosphere& operator=(const Lithosphere &rhs);
-
     PetscErrorCode computeShearStress();
     PetscErrorCode setupKSP();
     PetscErrorCode setSurfDisp();
 
-    PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar);
-
   public:
+
+    //~typedef typename std::vector<Vec>::iterator it_vec;
+    //~typedef typename std::vector<Vec>::const_iterator const_it_vec;
+
+    // boundary conditions
+    Vec                  _bcF,_bcS,_bcR,_bcD;
+
+    Fault                _fault;
 
     OdeSolver           *_quadrature;
 
     Lithosphere(Domain&D);
     ~Lithosphere();
-
-    PetscErrorCode d_dt(PetscScalar const time,Vec const*var,Vec*dvar);
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode timeMonitor(const PetscReal time, const PetscInt stepCount,const Vec* var,const Vec*dvar);
-    PetscErrorCode debug(const PetscReal time,const PetscInt steps,const Vec *var,const Vec *dvar,const char *stage);
+    PetscErrorCode debug(const PetscReal time,const PetscInt steps,
+                     const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
 
     // IO commands
-    PetscErrorCode view();
+    virtual PetscErrorCode view() = 0;
     PetscErrorCode writeStep();
     PetscErrorCode read();
 };
 
-#include "odeSolver.hpp"
+
+// for models consisting solely of the lithosphere, uncoupled to anything else
+// !!!TO DO: move Lithosphere's quadrature and integrate function here
+class OnlyLithosphere: public Lithosphere
+{
+
+  public:
+    OnlyLithosphere(Domain&D);
+    // use Lithosphere's destructor
+
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
+    PetscErrorCode view();
+};
+
+
+// for models consisting of coupled spring sliders, no damping
+class CoupledLithosphere: public Lithosphere
+{
+
+  public:
+    CoupledLithosphere(Domain&D);
+    // use Lithosphere's destructor
+
+    PetscErrorCode resetInitialConds();
+
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                 it_vec dvarBegin,it_vec dvarEnd,Vec& tauMod); // if it's coupled to another spring-slider
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
+    PetscErrorCode view();
+};
+
+
 
 #endif

@@ -8,7 +8,8 @@ using namespace std;
 OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
-  _var(NULL),_dvar(NULL),_lenVar(0),
+  //~_var(NULL),_dvar(NULL),
+  _lenVar(0),
   _runTime(0),
   _controlType(controlType)
 {
@@ -32,12 +33,9 @@ OdeSolver::~OdeSolver()
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver destructor in odeSolver.cpp.\n");
 #endif
 
-  if (_dvar!=0) {
-    for (int ind=0;ind<_lenVar;ind++) {
-      VecDestroy(&_dvar[ind]);
-    }
-    delete[] _dvar;
-  }
+  for_each(_var.begin(),_var.end(),DeleteVecObject()); // from Effective STL
+  for_each(_dvar.begin(),_dvar.end(),DeleteVecObject());
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver destructor in odeSolver.cpp.\n");
 #endif
@@ -131,22 +129,21 @@ PetscErrorCode FEuler::view()
 #endif
 }
 
-PetscErrorCode FEuler::setInitialConds(Vec& var, const int lenVar)
+PetscErrorCode FEuler::setInitialConds(vector<Vec>& var, const int lenVar)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  PetscScalar    zero=0.0;
 
-  _var = &var;
-  _lenVar = lenVar;
+  _var = var; // shallow copy
+  _lenVar = var.size();
 
-  _dvar = new Vec[_lenVar];
+  _dvar.reserve(_lenVar);
   for (int ind=0;ind<_lenVar;ind++) {
     ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],zero);CHKERRQ(ierr);
+    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -156,7 +153,7 @@ PetscErrorCode FEuler::setInitialConds(Vec& var, const int lenVar)
   return ierr;
 }
 
-PetscErrorCode FEuler::integrate(Lithosphere *obj)
+PetscErrorCode FEuler::integrate(UserContext *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::integrate in odeSolver.cpp.\n");
@@ -169,7 +166,8 @@ PetscErrorCode FEuler::integrate(Lithosphere *obj)
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
-    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    //~ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
     //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
     for (int varInd=0;varInd<_lenVar;varInd++) {
       ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
@@ -177,7 +175,8 @@ PetscErrorCode FEuler::integrate(Lithosphere *obj)
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    //~ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -223,11 +222,6 @@ RK32::~RK32()
     VecDestroy(&_var3rd[ind]);
     VecDestroy(&_errVec[ind]);
   }
-  delete[] _varHalfdT; delete[] _dvarHalfdT;
-  delete[] _vardT;     delete[] _dvardT;
-  delete[] _var2nd;    delete[] _dvar2nd;
-  delete[] _var3rd;
-  delete[] _errVec;
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
 #endif
@@ -290,41 +284,48 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32::setInitialConds(Vec& var, const int lenVar)
+PetscErrorCode RK32::setInitialConds(vector<Vec>& var, const int lenVar)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  PetscScalar    zero=0.0;
 
-  _var = &var;
-  _lenVar = lenVar;
+  _var = var;
+  _lenVar = var.size();
 
-  _dvar = new Vec[_lenVar];
+  _errVec.reserve(_lenVar);
 
-  _varHalfdT = new Vec[_lenVar]; _dvarHalfdT = new Vec[_lenVar];
-  _vardT     = new Vec[_lenVar];     _dvardT = new Vec[_lenVar];
-  _var2nd    = new Vec[_lenVar];    _dvar2nd = new Vec[_lenVar];
-  _var3rd    = new Vec[_lenVar];
+  _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
+  _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
+  _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
+  _var3rd   .reserve(_lenVar);
 
-  _errVec  = new Vec[_lenVar];
-
+  _dvar.reserve(_lenVar);
   for (int ind=0;ind<_lenVar;ind++) {
     ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],zero);CHKERRQ(ierr);
+    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
 
     ierr = VecDuplicate(_var[ind],&_varHalfdT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_varHalfdT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvarHalfdT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvarHalfdT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_vardT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_vardT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvardT[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvardT[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_var2nd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_var2nd[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_dvar2nd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_dvar2nd[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
 
     ierr = VecDuplicate(_var[ind],&_errVec[ind]);CHKERRQ(ierr);
+        ierr = VecSet(_errVec[ind],0.0);CHKERRQ(ierr);
   }
+
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -441,7 +442,7 @@ PetscReal RK32::computeError()
 }
 
 
-PetscErrorCode RK32::integrate(Lithosphere *obj)
+PetscErrorCode RK32::integrate(UserContext *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
@@ -456,7 +457,8 @@ PetscErrorCode RK32::integrate(Lithosphere *obj)
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  //~ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
   //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"IC");CHKERRQ(ierr);
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -472,7 +474,8 @@ PetscErrorCode RK32::integrate(Lithosphere *obj)
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
+      //~ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_varHalfdT.end(),_dvarHalfdT.begin(),_dvarHalfdT.end());CHKERRQ(ierr);
       //~ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT,_dvarHalfdT,"t+dt/2");CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
@@ -480,7 +483,8 @@ PetscErrorCode RK32::integrate(Lithosphere *obj)
         ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
+      //~ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_vardT.end(),_dvardT.begin(),_dvardT.end());CHKERRQ(ierr);
       //~ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT,_dvardT,"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
@@ -510,14 +514,16 @@ PetscErrorCode RK32::integrate(Lithosphere *obj)
     for (int ind=0;ind<_lenVar;ind++) {
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
-    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    //~ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
     //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    //~ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
