@@ -36,7 +36,7 @@ rootFinder.o: rootFinder.cpp rootFinder.hpp fault.hpp
 fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp fault.hpp usercontext.hpp
+ debuggingFuncs.hpp fault.hpp userContext.hpp
 asthenosphere.o: asthenosphere.cpp asthenosphere.hpp domain.hpp lithosphere.hpp
 earth.o: earth.cpp earth.hpp userContext.hpp lithosphere.hpp
 main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.o
