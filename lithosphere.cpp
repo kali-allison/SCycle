@@ -34,14 +34,11 @@ Lithosphere::Lithosphere(Domain&D)
   VecSetSizes(_bcF,PETSC_DECIDE,_Nz);
   VecSetFromOptions(_bcF);     PetscObjectSetName((PetscObject) _bcF, "_bcF");
   VecSet(_bcF,0.0);
-  //~VecSet(_bcF,_vp*_initTime/2.0);
 
   _bcRShift = _fault.getBcRShift();
   VecDuplicate(_bcF,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
   VecSet(_bcR,_vp*_initTime/2.0);
   VecAXPY(_bcR,1.0,_bcRShift);
-  VecSet(_bcRShift,5.0);
-  VecSet(_bcR,5.0);
 
   VecCreate(PETSC_COMM_WORLD,&_bcS);
   VecSetSizes(_bcS,PETSC_DECIDE,_Ny);

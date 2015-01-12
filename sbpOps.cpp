@@ -9,6 +9,7 @@ SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
   _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
+  //~_alphaF(-2.0/_dy),_alphaR(-2.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
 #if VERBOSE > 1
@@ -35,13 +36,13 @@ SbpOps::SbpOps(Domain&D)
   {
     // NOT a member of this class, contains stuff to be deleted before end of constructor
     TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
-    //~_alphaF = -1.0/_Hy(0,0);
-    //~_alphaR = -1.0/_Hy(0,0);
+    //~_alphaF = -20.0/tempFactors._Hy(0,0);
+    //~_alphaR = -20.0/tempFactors._Hy(0,0);
 
     computeDy_Iz(tempFactors);
     satBoundaries(tempFactors);
     computeA(tempFactors);
-    //~computeH(tempFactors);
+    computeH(tempFactors);
   }
 
 #if VERBOSE > 1
@@ -877,7 +878,7 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
   return 0;
 }
 
-// Hinv = kron(Hy,Hz)
+// H = kron(Hy,Hz)
 PetscErrorCode SbpOps::computeH(const TempMats& tempMats)
 {
   PetscErrorCode ierr = 0;
@@ -886,15 +887,12 @@ PetscErrorCode SbpOps::computeH(const TempMats& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  // kron(Hyinv, Hzinv)
-  //~Spmat Hyinv_Hzinv(_Ny*_Nz,_Ny*_Nz);
-  //~Hyinv_Hzinv = kron(_Hyinv,_Hzinv);
-  //~Hyinv_Hzinv.convert(_H,1);
-
+ {
   // kron(Hy,Hz)
   Spmat Hy_Hz(_Ny*_Nz,_Ny*_Nz);
   Hy_Hz = kron(tempMats._Hy,tempMats._Hz);
   Hy_Hz.convert(_H,1);
+ }
 
   ierr = PetscObjectSetName((PetscObject) _H, "H");CHKERRQ(ierr);
   //~ierr = MatView(_H,PETSC_VIEWER_STDOUT_WORLD);

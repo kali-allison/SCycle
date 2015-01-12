@@ -416,7 +416,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -427,7 +427,7 @@ int main(int argc,char **args)
   //~runTests(inputFile);
 
   // MMS test (compare with answers produced by
-  /*
+
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
@@ -437,7 +437,7 @@ int main(int argc,char **args)
     //PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
     mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
-  */
+
 
 
   PetscFinalize();
