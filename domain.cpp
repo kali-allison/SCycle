@@ -2,7 +2,7 @@
 
 using namespace std;
 
- Domain::Domain(const char *file)
+Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
  _shearDistribution("basin"),_visc(nan("")),
  _linSolver("AMG"),
@@ -19,7 +19,8 @@ using namespace std;
   if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   else (_dz = 1);
 
-  if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
+  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n minDeltaT=%g\n\n");
   _f0=0.6;
   _v0=1e-6;
 
@@ -34,8 +35,8 @@ using namespace std;
 #endif
 
 
-MatCreate(PETSC_COMM_WORLD,&_mu);
-setFields();
+  MatCreate(PETSC_COMM_WORLD,&_mu);
+  setFields();
 
 
 #if VERBOSE > 1
@@ -77,8 +78,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
 
-MatCreate(PETSC_COMM_WORLD,&_mu);
-setFields();
+  MatCreate(PETSC_COMM_WORLD,&_mu);
+  setFields();
 
 
 #if VERBOSE > 1
@@ -578,7 +579,7 @@ PetscErrorCode Domain::setFields()
     }
     else if (_shearDistribution.compare("mms")==0) {
       _rhoArr[Ii] = _rhoVal;
-       _csArr[Ii] = sqrt(_muVal/_rhoVal);
+      _csArr[Ii] = sqrt(_muVal/_rhoVal);
       v = sin(y+z) + 2.0;
     }
     else {

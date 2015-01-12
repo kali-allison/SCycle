@@ -18,9 +18,6 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,stri
 #endif
   double startTime = MPI_Wtime();
 
-  //~_rhsFunc = &newtempRhsFunc;
-  //~_timeMonitor = &newtempTimeMonitor;
-
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver constructor in odeSolver.cpp.\n");
@@ -33,8 +30,9 @@ OdeSolver::~OdeSolver()
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver destructor in odeSolver.cpp.\n");
 #endif
 
-  for_each(_var.begin(),_var.end(),DeleteVecObject()); // from Effective STL
-  for_each(_dvar.begin(),_dvar.end(),DeleteVecObject());
+  // because I don't allocate the contents of _var, I don't delete them in this class either
+  //~for_each(_var.begin(),_var.end(),DeleteVecObject()); // from Effective STL
+  //~for_each(_dvar.begin(),_dvar.end(),DeleteVecObject());
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver destructor in odeSolver.cpp.\n");

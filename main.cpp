@@ -56,14 +56,15 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  //~SbpOps sbp(domain);
+  SbpOps sbp(domain);
+  sbp.writeOps("data/");
 
   //~Fault fault(domain);
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
-  OnlyAsthenosphere lith(domain);
-  //~OnlyLithosphere lith(domain);
+  //~OnlyAsthenosphere lith(domain);
+  OnlyLithosphere lith(domain);
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
   ierr = lith.view();CHKERRQ(ierr);
@@ -382,8 +383,8 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  //~OnlyLithosphere lith(domain);
-  OnlyAsthenosphere lith(domain);
+  OnlyLithosphere lith(domain);
+  //~OnlyAsthenosphere lith(domain);
 
   ierr = lith.writeStep();CHKERRQ(ierr);
   ierr = lith.integrate();CHKERRQ(ierr);
@@ -416,7 +417,7 @@ int main(int argc,char **args)
   else { inputFile = "init.txt"; }
 
   runEqCycle(inputFile);
-//~
+
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
   //~else { inputFile2 = inputFile; }
@@ -425,16 +426,18 @@ int main(int argc,char **args)
 
   //~runTests(inputFile);
 
-
-  //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
-             //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  //~PetscInt Ny=21;
-  //~for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  //~//for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
-  //~{
-    //~//PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
-    //~mmsSpace(inputFile,Ny,Ny); // perform MMS
-  //~}
+  // MMS test (compare with answers produced by
+  /*
+  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
+             "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
+  PetscInt Ny=21;
+  for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
+  //for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
+  {
+    //PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
+    mmsSpace(inputFile,Ny,Ny); // perform MMS
+  }
+  */
 
 
   PetscFinalize();

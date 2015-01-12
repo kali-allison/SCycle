@@ -14,7 +14,8 @@ using namespace std;
 /*
  * Container for matrices that are needed temporarily to construct
  * main operators. These include 1D SBP operators that are later mapped
- * to 2D, and 2D factors that are used to enforce boundaries.
+ * to 2D, and the 2D factors that are used to enforce boundaries in the
+ * A matrix.
  */
 struct TempMats
     {
