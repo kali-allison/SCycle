@@ -1,44 +1,42 @@
 order = 2
-Ny = 801
-Nz = 801
+Ny = 501
+Nz = 501
 Ly = 24
 Lz = 24
 
 Dc = 8e-3
 
 seisDepth = 12
+a = 0.015
 bAbove = 0.02
 bBelow = 0.0
 sigma_N = 50.0
 
 vp = 1e-9
 
-shearDistribution = basin
+shearDistribution = constant
 {
-muIn = 36
-muOut = 36
-rhoIn = 2.56
-rhoOut = 2.8
-depth = 4
-width = 24
+mu = 36
+rho = 2.8
 }
 
 
-linSolver = AMG
+linSolver = MUMPSLU
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
+strideLength = 1
+maxStepCount = 1e6
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-atol = 1e-5
+initDeltaT = 1e-5
+atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/2_1_muIn36_
 
 
