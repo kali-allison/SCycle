@@ -37,6 +37,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/withH_
 
 

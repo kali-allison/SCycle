@@ -265,27 +265,26 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   VecAssemblyBegin(bcS); VecAssemblyEnd(bcS);
   VecAssemblyBegin(bcD); VecAssemblyEnd(bcD);
 
-  //~ierr = VecView(bcF,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecView(bcR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecView(bcS,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecView(bcD,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 
   // set up linear system
   SbpOps sbp(domain);
-
-
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
   VecSetFromOptions(rhs);
   VecSet(rhs,0.0);
   ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
-//~ierr = writeVec(rhs,"data/rhs_b");CHKERRQ(ierr);
- //~sbp.writeOps("data/");
-//~assert(0>1);
 
-  ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
+  // without multiplying rhs by source
+  //~ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
+
+  // with multiplying rhs by source
+  Vec temp;
+  ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
+  ierr = MatMult(sbp._H,source,temp);CHKERRQ(ierr);
+  ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
+
 
 
   KSP ksp;
@@ -428,15 +427,15 @@ int main(int argc,char **args)
 
   // MMS test (compare with answers produced by
 
+
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
   for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  //for (Ny=21;Ny<322;Ny=(Ny-1)*2+1)
   {
-    //PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
     mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
+
 
 
 

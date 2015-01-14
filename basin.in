@@ -37,6 +37,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/2_K_muIn36_
+outputDir = data/2_20_muIn36_
 
 

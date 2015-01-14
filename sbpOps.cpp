@@ -40,9 +40,9 @@ SbpOps::SbpOps(Domain&D)
     //~_alphaR = -20.0/tempFactors._Hy(0,0);
 
     computeDy_Iz(tempFactors);
+    computeH(tempFactors);
     satBoundaries(tempFactors);
     computeA(tempFactors);
-    computeH(tempFactors);
   }
 
 #if VERBOSE > 1
@@ -868,6 +868,11 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
   ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
   ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
 
+  // if using H A uhat = H rhs
+  Mat temp;
+  ierr = MatMatMult(_H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  MatDestroy(&temp);
 
   _runTime = MPI_Wtime() - startTime;
 
@@ -1227,12 +1232,23 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   // - _alphaS*M.Iy_HinvzxIy_e0z*_bcS + ...
   // + _alphaD*M.Iy_HinvzxIy_eNz*_bcD
 
-  // using new naming conventions
+  // without HA uhat = H rhs
   ierr = VecSet(rhs,0.0);
-  ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
-  ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
-  ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
+  //~ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
+  //~ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  //~ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
+  //~ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
+
+
+  // // with HA uhat = H rhs
+  Vec temp;
+  ierr = VecDuplicate(rhs,&temp);
+  ierr = VecSet(temp,0.0);
+  ierr = MatMult(_rhsL,_bcF,temp);CHKERRQ(ierr); // rhs = _rhsL * _bcF
+  ierr = MatMultAdd(_rhsR,_bcR,temp,temp); // rhs = rhs + _rhsR * _bcR
+  ierr = MatMultAdd(_rhsT,_bcS,temp,temp);
+  ierr = MatMultAdd(_rhsB,_bcD,temp,temp);
+  ierr = MatMult(_H,temp,rhs);
 
 
 #if VERBOSE >1

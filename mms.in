@@ -34,4 +34,4 @@ atol = 1e-5
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/mms_
