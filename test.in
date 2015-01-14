@@ -21,7 +21,7 @@ rho = 2.8
 }
 
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -30,13 +30,13 @@ strideLength = 1
 maxStepCount = 15
 initTime = 6.3e9
 maxTime = 5e10
-minDeltaT = 1e-5
+minDeltaT = 1e-3
 maxDeltaT = 1e7
-initDeltaT = 1e-5
+initDeltaT = 1e-3
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/withH_
+outputDir = data/chol_
 
 

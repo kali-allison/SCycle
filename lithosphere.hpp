@@ -36,10 +36,8 @@ class Lithosphere: public UserContext
     PetscViewer          _bcFv,_bcSv,_bcRv,_bcDv,_rhsv;
 
     // off-fault material fields
-    const PetscScalar    _rhoIn,_rhoOut,_muIn,_muOut;
     PetscScalar         *_muArr;
     Mat                  _mu;
-    const PetscScalar    _depth,_width;
     Vec                  _rhs,_uhat,_sigma_xy,_bcRShift,_surfDisp;
 
 

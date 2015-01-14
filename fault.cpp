@@ -378,24 +378,18 @@ PetscErrorCode Fault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
 
   assert(varBegin+1 != varEnd);
 
-  //~ierr = VecCopy(var[1],_tempPsi);CHKERRQ(ierr);
   ierr = VecCopy(*(varBegin+1),_tempPsi);CHKERRQ(ierr);
   ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_vel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(_vel,1,&Ii,&val);CHKERRQ(ierr);
-    //~ierr = VecSetValue(dvar[0],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(*dvarBegin,Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
-    //~ierr = VecGetValues(var[1],1,&Ii,&psiVal);
     ierr = VecGetValues(*(varBegin+1),1,&Ii,&psiVal);
     ierr = agingLaw(Ii,psiVal,&val);CHKERRQ(ierr);
-    //~ierr = VecSetValue(dvar[1],Ii,val,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(*(dvarBegin+1),Ii,val,INSERT_VALUES);CHKERRQ(ierr);
   }
-  //~ierr = VecAssemblyBegin(dvar[0]);CHKERRQ(ierr); ierr = VecAssemblyBegin(dvar[1]);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(dvar[0]);CHKERRQ(ierr);   ierr = VecAssemblyEnd(dvar[1]);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(*dvarBegin);CHKERRQ(ierr); ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 

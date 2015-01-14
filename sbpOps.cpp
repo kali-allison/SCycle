@@ -34,13 +34,12 @@ SbpOps::SbpOps(Domain&D)
   MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
 
   {
-    // NOT a member of this class, contains stuff to be deleted before end of constructor
+    /* NOT a member of this class, contains stuff to be deleted before
+     * end of constructor to save on memory usage.
+     */
     TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
-    //~_alphaF = -20.0/tempFactors._Hy(0,0);
-    //~_alphaR = -20.0/tempFactors._Hy(0,0);
 
     computeDy_Iz(tempFactors);
-    computeH(tempFactors);
     satBoundaries(tempFactors);
     computeA(tempFactors);
   }
@@ -76,7 +75,11 @@ SbpOps::~SbpOps()
 
 //======================== meat ========================================
 
-// enforce SAT boundaries
+/* Enforce boundary conditions using SAT penalty terms, computing both
+ * matrices used to build the rhs vector from the boundary vectors and
+ * the matrices that are added to the spatial derivative matrices to
+ * form the A matrix.
+ */
 PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
 {
   PetscErrorCode  ierr = 0;
@@ -88,7 +91,11 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   CHKERRQ(ierr);
 #endif
 
-{
+  // temporary matrices needed throughout function
+  Mat temp1,temp2,temp3;
+
+// matrices in y-direction (left and right boundaries)
+{ // enclose in brackets so that destructors are called at end
   // kron(E0y,Iz)
   Mat E0y_Iz;
   {
@@ -136,16 +143,18 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   }
 
 
-  // enforcement of bcL ================================================
+  // enforcement of left boundary _bcL =================================
   // map bcL to rhs
   // if bcL = displacement: _alphaF*mu*_Hinvy_Izxe0y_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxe0y_Iz
   MatDestroy(&_rhsL);
   ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
   ierr = MatScale(_rhsL,_alphaF);CHKERRQ(ierr);
-  Mat temp1,temp2;
   ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
   ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
   ierr = MatAYPX(_rhsL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+  ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+  MatDestroy(&temp3); //!!!
   ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
   MatDestroy(&temp1);
   MatDestroy(&temp2);
@@ -166,7 +175,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   MatDestroy(&temp1);
   MatDestroy(&temp2);
 
-  // enforcement of bcR ================================================
+  // enforcement of right boundary bcR =================================
   // map bcR to rhs
   // if bcR = displacement: _alphaR*mu*_Hinvy_IzxeNy_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxeNy_Iz
   MatDestroy(&_rhsR);
@@ -177,6 +186,9 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
   ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+  ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+  MatDestroy(&temp3); //!!!
   ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
   MatDestroy(&temp1);
   MatDestroy(&temp2);
@@ -206,6 +218,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
 }
 
 
+// matrices in z-direction (top and bottom boundaries)
   // These matrices are nnz if Nz > 1
 {
   // kron(Iy,E0z)
@@ -253,12 +266,15 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   }
 
 
-  // enforcement of bcT ================================================
+  // enforcement of top boundary bcT ===================================
   // map bcS to rhs
   // if bcT = traction:
   MatDestroy(&_rhsT);
   ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
   ierr = MatScale(_rhsT,_alphaS);CHKERRQ(ierr);
+  ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+  ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+  MatDestroy(&temp3); //!!!
   ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
   //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
@@ -269,12 +285,15 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
   //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  // enforcement of bcB ================================================
+  // enforcement of bottom boundary bcB ================================
   // map bcB to rhs
   // if bcB = traction:
   MatDestroy(&_rhsB);
   ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
   ierr = MatScale(_rhsB,_alphaD);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+  ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+  MatDestroy(&temp3); //!!!
   ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
   //~ierr = MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
@@ -870,9 +889,11 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
 
   // if using H A uhat = H rhs
   Mat temp;
-  ierr = MatMatMult(_H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
   ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  MatDestroy(&temp);
+  ierr = MatDestroy(&temp);CHKERRQ(ierr);
+
+  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
 
   _runTime = MPI_Wtime() - startTime;
 
@@ -883,31 +904,7 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
   return 0;
 }
 
-// H = kron(Hy,Hz)
-PetscErrorCode SbpOps::computeH(const TempMats& tempMats)
-{
-  PetscErrorCode ierr = 0;
-  double startTime = MPI_Wtime();
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
 
- {
-  // kron(Hy,Hz)
-  Spmat Hy_Hz(_Ny*_Nz,_Ny*_Nz);
-  Hy_Hz = kron(tempMats._Hy,tempMats._Hz);
-  Hy_Hz.convert(_H,1);
- }
-
-  ierr = PetscObjectSetName((PetscObject) _H, "H");CHKERRQ(ierr);
-  //~ierr = MatView(_H,PETSC_VIEWER_STDOUT_WORLD);
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-  _runTime = MPI_Wtime() - startTime;
-  return ierr;
-}
 
 
 
@@ -1232,23 +1229,11 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   // - _alphaS*M.Iy_HinvzxIy_e0z*_bcS + ...
   // + _alphaD*M.Iy_HinvzxIy_eNz*_bcD
 
-  // without HA uhat = H rhs
   ierr = VecSet(rhs,0.0);
-  //~ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
-  //~ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  //~ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
-  //~ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
-
-
-  // // with HA uhat = H rhs
-  Vec temp;
-  ierr = VecDuplicate(rhs,&temp);
-  ierr = VecSet(temp,0.0);
-  ierr = MatMult(_rhsL,_bcF,temp);CHKERRQ(ierr); // rhs = _rhsL * _bcF
-  ierr = MatMultAdd(_rhsR,_bcR,temp,temp); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,_bcS,temp,temp);
-  ierr = MatMultAdd(_rhsB,_bcD,temp,temp);
-  ierr = MatMult(_H,temp,rhs);
+  ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
+  ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
+  ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
 
 
 #if VERBOSE >1
@@ -1427,7 +1412,9 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
   MatCreate(PETSC_COMM_WORLD,&_AT);
   MatCreate(PETSC_COMM_WORLD,&_AB);
 
-  _Iy.eye();
+  MatCreate(PETSC_COMM_WORLD,&_H);
+
+  _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
 
 
@@ -1487,6 +1474,16 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
     }
   }
 
+
+  // H matrix
+  {
+    // kron(Hy,Hz)
+    Spmat Hy_Hz(_Ny*_Nz,_Ny*_Nz);
+    Hy_Hz = kron(_Hy,_Hz);
+    Hy_Hz.convert(_H,1);
+  }
+  PetscObjectSetName((PetscObject) _H, "H");
+
 };
 
 TempMats::~TempMats()
@@ -1501,6 +1498,8 @@ TempMats::~TempMats()
   MatDestroy(&_AR);
   MatDestroy(&_AT);
   MatDestroy(&_AB);
+
+  MatDestroy(&_H);
 };
 
 

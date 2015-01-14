@@ -1,8 +1,6 @@
 #include "lithosphere.hpp"
 
 // allow this to work when coupled or not
-//~enum CONTROL { controlP,controlPI,controlPID };
-//~const CONTROL controlType = controlPID;
 
 using namespace std;
 
@@ -13,8 +11,7 @@ Lithosphere::Lithosphere(Domain&D)
   _Ly(D._Ly),_Lz(D._Lz),_dy(_Ly/(_Ny-1.)),_dz(_Lz/(_Nz-1.)),
   _outputDir(D._outputDir),
   _v0(D._v0),_vp(D._vp),
-  _rhoIn(D._rhoIn),_rhoOut(D._rhoOut),_muIn(D._muIn),_muOut(D._muOut),_muArr(D._muArr),_mu(D._mu),
-  _depth(D._depth),_width(D._width),
+  _muArr(D._muArr),_mu(D._mu),
   _linSolver(D._linSolver),_kspTol(D._kspTol),
   _sbp(D),
   _timeIntegrator(D._timeIntegrator),
@@ -57,7 +54,9 @@ Lithosphere::Lithosphere(Domain&D)
   _sbp.setRhs(_rhs,_bcF,_bcR,_bcS,_bcD);
 
   VecDuplicate(_rhs,&_uhat);
+  double startTime = MPI_Wtime();
   KSPSolve(_ksp,_rhs,_uhat);
+  _factorTime += MPI_Wtime() - startTime;
 
   VecDuplicate(_rhs,&_sigma_xy);
   MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);
@@ -76,7 +75,7 @@ Lithosphere::Lithosphere(Domain&D)
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    assert(0>1); // automatically fail
   }
 
 #if VERBOSE > 1
@@ -131,6 +130,23 @@ PetscErrorCode Lithosphere::computeShearStress()
 }
 
 
+/*
+ * Set up the Krylov Subspace and Preconditioner (KSP) environment. A
+ * table of options available through PETSc and linked external packages
+ * is available at
+ * http://www.mcs.anl.gov/petsc/documentation/linearsolvertable.html.
+ *
+ * The methods implemented here are:
+ *     Algorithm             Package           input file syntax
+ * algebraic multigrid       HYPRE                AMG
+ * direct LU                 MUMPS                MUMPSLU
+ * direct Cholesky           MUMPS                MUMPSCHOLESKY         !!! TESTING NOW
+ *
+ * A list of options for each algorithm that can be set can be optained
+ * by running the code with the argument main <input file> -help and
+ * searching through the output for "Preconditioner (PC) options" and
+ * "Krylov Method (KSP) options".
+ */
 PetscErrorCode Lithosphere::setupKSP()
 {
   PetscErrorCode ierr = 0;
@@ -167,8 +183,21 @@ PetscErrorCode Lithosphere::setupKSP()
     ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
     PCSetType(_pc,PCLU);
     PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
+    //~PCFactorSetUseInplace(_pc);
     PCFactorSetUpMatSolverPackage(_pc);
     //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct LU\n\n");CHKERRQ(ierr);
+  }
+
+  else if (_linSolver.compare("MUMPSCHOLESKY")==0) {
+    // use direct LL^T (Cholesky factorization) from MUMPS
+    ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+    ierr = KSPSetOperators(_ksp,_sbp._A,_sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+    PCSetType(_pc,PCCHOLESKY);
+    PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);
+    //~PCFactorSetUseInplace(_pc);
+    PCFactorSetUpMatSolverPackage(_pc);
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n!!ksp type: MUMPS direct Cholesky\n\n");CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
@@ -276,7 +305,7 @@ PetscErrorCode Lithosphere::debug(const PetscReal time,const PetscInt steps,
   PetscInt       Istart,Iend;
   PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
 
-  PetscScalar k = _muOut/2/_Ly;
+  //~PetscScalar k = _muOut/2/_Ly;
 
   ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(var[0],1,&Istart,&uVal);CHKERRQ(ierr);
@@ -299,7 +328,7 @@ PetscErrorCode Lithosphere::debug(const PetscReal time,const PetscInt steps,
     CHKERRQ(ierr);
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",steps,stage);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",2*gRval*k,uVal,psiVal);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",2*gRval*k,uVal,psiVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velVal,dQVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
 
@@ -386,9 +415,12 @@ PetscErrorCode OnlyLithosphere::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring)(s): %g\n",_factorTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+
+  ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
 

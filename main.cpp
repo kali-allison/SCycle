@@ -269,6 +269,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 
   // set up linear system
   SbpOps sbp(domain);
+  TempMats tempFactors(domain._order,domain._Ny,domain._dy,domain._Nz,domain._dz,&domain._mu);
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
@@ -282,7 +283,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   // with multiplying rhs by source
   Vec temp;
   ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
-  ierr = MatMult(sbp._H,source,temp);CHKERRQ(ierr);
+  ierr = MatMult(tempFactors._H,source,temp);CHKERRQ(ierr);
   ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
 
 
@@ -415,7 +416,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -425,9 +426,8 @@ int main(int argc,char **args)
 
   //~runTests(inputFile);
 
-  // MMS test (compare with answers produced by
-
-
+  // MMS test (compare with answers produced by Matlab file by same name)
+  /*
   PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   PetscInt Ny=21;
@@ -435,6 +435,8 @@ int main(int argc,char **args)
   {
     mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
+  */
+
 
 
 

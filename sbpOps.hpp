@@ -37,10 +37,16 @@ struct TempMats
       Mat _AT;
       Mat _AB;
 
+      Mat _H;
+
       TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
       ~TempMats();
 
+
+
     private:
+      PetscErrorCode computeH();
+
       // disable default copy constructor and assignment operator
       TempMats(const TempMats & that);
       TempMats& operator=( const TempMats& rhs );
@@ -48,9 +54,17 @@ struct TempMats
 
 
 /*
+ * This class contains the summation-by-parts (SBP) matrices needed at
+ * each time step to (1) compute the displacement in the medium, and (2) the
+ * shear stress from the displacement. (1) Is accomplished by first
+ * forming the vector rhs, which contains the boundary conditions, using
+ * the function setRhs, and then using the matrix _A to compute the
+ * displacement vector (uhat) from the linear equation A uhat = rhs.
+ *
  * Note: PETSc's ability to count matrix creation/destructions is off.
  * For every MATAXPY, the number of destructions increments by 1 more than
- * the number of creations. Thus, after satBoundaries() the number will be off by 4.
+ * the number of creations. Thus, after satBoundaries() the number will
+ * be off by 4.
  */
 
 class SbpOps
@@ -80,6 +94,12 @@ class SbpOps
     PetscErrorCode computeA(const TempMats& tempMats);
     PetscErrorCode satBoundaries(TempMats& tempMats);
 
+    /*
+     * Functions to compute intermediate matrices that comprise A:
+     *     (second derivative in y) D2y = D2ymu + R2ymu
+     *     (second derivative in z) D2z = D2zmu + R2zmu
+     * where R2ymu and R2zmu vanish as the grid spacing approaches 0.
+     */
     PetscErrorCode computeD2ymu(const TempMats& tempMats, Mat &D2ymu);
     PetscErrorCode computeD2zmu(const TempMats& tempMats, Mat &D2zmu);
     PetscErrorCode computeRymu(const TempMats& tempMats,Mat &Rymu);
@@ -94,14 +114,12 @@ class SbpOps
 
     Mat _A;
     Mat _Dy_Iz;
-    Mat _H;
 
     SbpOps(Domain&D);
     ~SbpOps();
 
-    //~PetscErrorCode setSystem();
+    // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
-    PetscErrorCode computeH(const TempMats& tempMats);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
