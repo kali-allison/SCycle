@@ -8,8 +8,7 @@
 SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
-  _alphaF(-13.0/_dy),_alphaR(-13.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
-  //~_alphaF(-2.0/_dy),_alphaR(-2.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
+  _alphaF(D._alpha/_dy),_alphaR(D._alpha/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
 #if VERBOSE > 1
@@ -1400,6 +1399,10 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
   _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
   _Hz(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
 {
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats::TempMats in sbpOps.cpp.\n");
+#endif
+
   // so the destructor can run happily
   MatCreate(PETSC_COMM_WORLD,&_muxBySy_Iz);
   MatCreate(PETSC_COMM_WORLD,&_Hyinv_Iz);
@@ -1484,10 +1487,17 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
   }
   PetscObjectSetName((PetscObject) _H, "H");
 
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats::TempMats in sbpOps.cpp.\n");
+#endif
 };
 
 TempMats::~TempMats()
 {
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats::~TempMats in sbpOps.cpp.\n");
+#endif
+
   MatDestroy(&_muxBySy_Iz);
   MatDestroy(&_Hyinv_Iz);
 
@@ -1500,6 +1510,10 @@ TempMats::~TempMats()
   MatDestroy(&_AB);
 
   MatDestroy(&_H);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats::~TempMats in sbpOps.cpp.\n");
+#endif
 };
 
 

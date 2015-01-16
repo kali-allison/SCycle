@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N chol
+#PBS -N o4_a2hNN_chol_withH_
 #PBS -l nodes=1:ppn=1
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e data/lu.err
-#PBS -o data/lu.out
+#PBS -e data/o4_a2hNN_chol_withH.err
+#PBS -o data/o4_a2hNN_chol_withH.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

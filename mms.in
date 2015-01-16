@@ -19,6 +19,7 @@ mu = 16
 rho = 2.8
 }
 
+alpha = -13.0
 linSolver = AMG
 kspTol = 1e-7
 

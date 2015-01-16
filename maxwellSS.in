@@ -22,6 +22,7 @@ rho = 3.333    # g/cm^3
 
 visc = 3e13 # GPa s
 
+alpha = -13.0
 linSolver = MUMPSLU
 kspTol = 1e-7
 

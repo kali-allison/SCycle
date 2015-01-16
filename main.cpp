@@ -57,17 +57,17 @@ int runTests(const char * inputFile)
   //~Domain domain(inputFile,5,4);
   domain.write();
   SbpOps sbp(domain);
-  sbp.writeOps("data/");
+  //~sbp.writeOps("data/");
 
   //~Fault fault(domain);
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  OnlyLithosphere lith(domain);
-  ierr = lith.writeStep();CHKERRQ(ierr);
-  ierr = lith.integrate();CHKERRQ(ierr);
-  ierr = lith.view();CHKERRQ(ierr);
+  //~OnlyLithosphere lith(domain);
+  //~ierr = lith.writeStep();CHKERRQ(ierr);
+  //~ierr = lith.integrate();CHKERRQ(ierr);
+  //~ierr = lith.view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -278,13 +278,13 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
 
   // without multiplying rhs by source
-  //~ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
+  ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
 
   // with multiplying rhs by source
-  Vec temp;
-  ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
-  ierr = MatMult(tempFactors._H,source,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
+  //~Vec temp;
+  //~ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
+  //~ierr = MatMult(tempFactors._H,source,temp);CHKERRQ(ierr);
+  //~ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
 
 
 
@@ -436,6 +436,7 @@ int main(int argc,char **args)
     mmsSpace(inputFile,Ny,Ny); // perform MMS
   }
   */
+
 
 
 

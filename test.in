@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 501
 Nz = 501
 Ly = 24
@@ -20,14 +20,14 @@ mu = 36
 rho = 2.8
 }
 
-
+alpha = -96.0/17.0
 linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 15
+maxStepCount = 1e6
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3
@@ -37,6 +37,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/chol_
+outputDir = data/o4_a2hNN_chol_withH_
 
 

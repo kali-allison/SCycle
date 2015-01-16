@@ -166,6 +166,7 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("visc")==0) { _visc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
+      else if (var.compare("alpha")==0) { _alpha = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("linSolver")==0) {
         _linSolver = line.substr(pos+_delim.length(),line.npos);
         strcpy(linSolver,_linSolver.c_str());
@@ -229,6 +230,7 @@ PetscErrorCode Domain::loadData(const char *file)
 
   MPI_Bcast(&_visc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
+  MPI_Bcast(&_alpha,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
@@ -379,6 +381,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"visc = %.15e\n",_visc);CHKERRQ(ierr);
 
     // linear solve settings
+    ierr = PetscPrintf(PETSC_COMM_SELF,"alpha = %.15e\n",_alpha);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -476,6 +479,7 @@ PetscErrorCode Domain::write()
     ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // linear solve settings
+  ierr = PetscViewerASCIIPrintf(viewer,"alpha = %g\n",_alpha);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %g\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);

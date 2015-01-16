@@ -37,8 +37,9 @@ class Domain
 
 
     // linear solver settings
+    PetscScalar _alpha; // SAT penalty coefficient numerator for Dirichlet boundary
     std::string _linSolver;
-    PetscScalar  _kspTol;
+    PetscScalar _kspTol;
 
     // time integration settings
     std::string       _timeControlType,_timeIntegrator;
