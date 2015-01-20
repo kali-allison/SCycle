@@ -4,11 +4,13 @@
 
 
 //================= constructor and destructor ========================
-
+/* SAT params _alphaF,_alphaR set to values that work for both 2nd and
+ * 4th order but are not ideal for 4th.
+ */
 SbpOps::SbpOps(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(D._muArr),_mu(&D._mu),
-  _alphaF(D._alpha/_dy),_alphaR(D._alpha/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
+  _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/")
 {
 #if VERBOSE > 1
@@ -37,6 +39,13 @@ SbpOps::SbpOps(Domain&D)
      * end of constructor to save on memory usage.
      */
     TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+    // reset SAT params
+    if (_order==4) {
+      _alphaF = tempFactors._Hy(0,0);
+      _alphaR = tempFactors._Hy(0,0);
+    }
+
 
     computeDy_Iz(tempFactors);
     satBoundaries(tempFactors);
@@ -891,6 +900,7 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
   ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
   ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatDestroy(&temp);CHKERRQ(ierr);
+  ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
 
   ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
 

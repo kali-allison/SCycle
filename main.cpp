@@ -5,7 +5,6 @@
 #include "domain.hpp"
 #include "lithosphere.hpp"
 #include "asthenosphere.hpp"
-#include "earth.hpp"
 #include "sbpOps.hpp"
 #include "spmat.hpp"
 
@@ -64,7 +63,7 @@ int runTests(const char * inputFile)
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  //~OnlyLithosphere lith(domain);
+  //~SymmLithosphere lith(domain);
   //~ierr = lith.writeStep();CHKERRQ(ierr);
   //~ierr = lith.integrate();CHKERRQ(ierr);
   //~ierr = lith.view();CHKERRQ(ierr);
@@ -383,7 +382,7 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  OnlyLithosphere lith(domain);
+  SymmLithosphere lith(domain);
   //~OnlyAsthenosphere lith(domain);
 
   ierr = lith.writeStep();CHKERRQ(ierr);
@@ -392,19 +391,19 @@ int runEqCycle(const char * inputFile)
   return ierr;
 }
 
-int coupledSpringSliders(const char * inputFile1, const char * inputFile2)
-{
-  PetscErrorCode ierr = 0;
-
-  Earth earth(inputFile1,inputFile2);
-  ierr = earth.writeStep();CHKERRQ(ierr);
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n----------------------------------------------------\n\n");CHKERRQ(ierr);
-  ierr = earth.integrate();CHKERRQ(ierr);
-  ierr = earth.view();CHKERRQ(ierr);
-
-  return ierr;
-}
+//~int coupledSpringSliders(const char * inputFile1, const char * inputFile2)
+//~{
+  //~PetscErrorCode ierr = 0;
+//~
+  //~Earth earth(inputFile1,inputFile2);
+  //~ierr = earth.writeStep();CHKERRQ(ierr);
+//~
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n----------------------------------------------------\n\n");CHKERRQ(ierr);
+  //~ierr = earth.integrate();CHKERRQ(ierr);
+  //~ierr = earth.view();CHKERRQ(ierr);
+//~
+  //~return ierr;
+//~}
 
 int main(int argc,char **args)
 {

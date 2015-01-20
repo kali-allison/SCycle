@@ -1,6 +1,6 @@
-order = 4
-Ny = 501
-Nz = 501
+order = 2
+Ny = 101
+Nz = 101
 Ly = 24
 Lz = 24
 
@@ -27,7 +27,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e6
+maxStepCount = 5
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3
@@ -37,6 +37,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/o4_a2hNN_chol_withH_
+outputDir = data/
 
 

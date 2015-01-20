@@ -28,9 +28,9 @@ class Fault
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
     // elastic coefficients and frictional parameters
-    PetscScalar    _depth,_seisDepth,_cs,_f0,_v0,_vp;
+    PetscScalar    _seisDepth,_cs,_f0,_v0,_vp;
     PetscScalar    _aVal,_bAbove,_bBelow;
-    PetscScalar   *_muArr,*_rhoArr,*_csArr;// for basin
+    PetscScalar   *_muArr,*_rhoArr,*_csArr;
     Vec            _eta,_sigma_N,_a,_b;
 
     Vec            _bcRShift;
@@ -55,7 +55,7 @@ class Fault
     RootFinder    *_rootAlg; // algorithm used to solve for velocity on fault
     //~Vec           *_var;
     vector<Vec>    _var;
-    Vec            _tau;
+    Vec            _tauQS;
 
     // iterators for _var
     typedef typename vector<Vec>::iterator it_vec;
@@ -70,7 +70,7 @@ class Fault
 
 
     PetscErrorCode setFields();
-    PetscErrorCode setTau(const Vec&sigma_xy);
+    PetscErrorCode setTauQS(const Vec&sigma_xy);
     PetscErrorCode setFaultDisp(Vec const &bcF);
     const Vec& getBcRShift() const;
 
@@ -78,6 +78,8 @@ class Fault
     PetscErrorCode writeStep(const string outputDir,const PetscInt step);
     PetscErrorCode read();
 };
+
+
 
 #include "rootFinder.hpp"
 

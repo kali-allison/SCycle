@@ -6,7 +6,7 @@ using namespace std;
 Fault::Fault(Domain&D)
 : _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
-  _depth(D._depth),_seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
+  _seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _aVal(D._aVal),_bAbove(D._bAbove),_bBelow(D._bBelow),
   _muArr(D._muArr),_rhoArr(D._rhoArr),_csArr(D._csArr),
   _sigma_N_val(D._sigma_N_val),
@@ -17,26 +17,26 @@ Fault::Fault(Domain&D)
 #endif
 
   // fields that exist on the fault
-  VecCreate(PETSC_COMM_WORLD,&_tau);
-  VecSetSizes(_tau,PETSC_DECIDE,_N);
-  VecSetFromOptions(_tau);     PetscObjectSetName((PetscObject) _tau, "tau");
-  VecDuplicate(_tau,&_psi); PetscObjectSetName((PetscObject) _psi, "psi");
-  VecDuplicate(_tau,&_tempPsi); PetscObjectSetName((PetscObject) _tempPsi, "tempPsi");
-  VecDuplicate(_tau,&_dPsi); PetscObjectSetName((PetscObject) _dPsi, "dPsi");
-  VecDuplicate(_tau,&_faultDisp); PetscObjectSetName((PetscObject) _faultDisp, "faultDisp");
-  VecDuplicate(_tau,&_vel); PetscObjectSetName((PetscObject) _vel, "vel");
+  VecCreate(PETSC_COMM_WORLD,&_tauQS);
+  VecSetSizes(_tauQS,PETSC_DECIDE,_N);
+  VecSetFromOptions(_tauQS);     PetscObjectSetName((PetscObject) _tauQS, "tau");
+  VecDuplicate(_tauQS,&_psi); PetscObjectSetName((PetscObject) _psi, "psi");
+  VecDuplicate(_tauQS,&_tempPsi); PetscObjectSetName((PetscObject) _tempPsi, "tempPsi");
+  VecDuplicate(_tauQS,&_dPsi); PetscObjectSetName((PetscObject) _dPsi, "dPsi");
+  VecDuplicate(_tauQS,&_faultDisp); PetscObjectSetName((PetscObject) _faultDisp, "faultDisp");
+  VecDuplicate(_tauQS,&_vel); PetscObjectSetName((PetscObject) _vel, "vel");
 
   // set up initial conditions for integration (shallow copy)
   _var.push_back(_faultDisp);
   _var.push_back(_psi);
 
   // frictional fields
-  VecDuplicate(_tau,&_eta); PetscObjectSetName((PetscObject) _eta, "eta");
-  VecDuplicate(_tau,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "sigma_N");
-  VecDuplicate(_tau,&_a); PetscObjectSetName((PetscObject) _a, "_a");
-  VecDuplicate(_tau,&_b); PetscObjectSetName((PetscObject) _b, "_b");
+  VecDuplicate(_tauQS,&_eta); PetscObjectSetName((PetscObject) _eta, "eta");
+  VecDuplicate(_tauQS,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "sigma_N");
+  VecDuplicate(_tauQS,&_a); PetscObjectSetName((PetscObject) _a, "_a");
+  VecDuplicate(_tauQS,&_b); PetscObjectSetName((PetscObject) _b, "_b");
 
-  VecDuplicate(_tau,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "_b");
+  VecDuplicate(_tauQS,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "_b");
 
   _rootAlg = new Bisect(_maxNumIts,_rootTol);
 
@@ -54,7 +54,7 @@ Fault::~Fault()
 #endif
 
   // fields that exist on the fault
-  VecDestroy(&_tau);
+  VecDestroy(&_tauQS);
   VecDestroy(&_psi);
   VecDestroy(&_tempPsi);
   VecDestroy(&_dPsi);
@@ -94,8 +94,8 @@ PetscErrorCode Fault::computeVel()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting computeVel in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-  ierr = VecDuplicate(_tau,&right);CHKERRQ(ierr);
-  ierr = VecCopy(_tau,right);CHKERRQ(ierr);
+  ierr = VecDuplicate(_tauQS,&right);CHKERRQ(ierr);
+  ierr = VecCopy(_tauQS,right);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_eta);CHKERRQ(ierr);
   ierr = VecAbs(right);CHKERRQ(ierr);
 
@@ -226,7 +226,7 @@ PetscErrorCode Fault::setFields()
 
   // tau, eta, bcRShift, sigma_N
   PetscScalar a,b,eta,tau_inf,sigma_N,bcRShift;
-  ierr = VecGetOwnershipRange(_tau,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_tauQS,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
@@ -243,17 +243,17 @@ PetscErrorCode Fault::setFields()
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
     bcRShift = tau_inf*_L/_muArr[_sizeMuArr-_N+Ii]; // use last values of muArr
 
-    ierr = VecSetValue(_tau,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(_tauQS,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_eta,Ii,eta,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_bcRShift,Ii,bcRShift,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_sigma_N,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(_tau);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_tauQS);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_eta);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcRShift);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
 
-  ierr = VecAssemblyEnd(_tau);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_tauQS);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_eta);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRShift);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
@@ -282,11 +282,11 @@ PetscErrorCode Fault::setFaultDisp(Vec const &bcF)
 }
 
 
-PetscErrorCode Fault::setTau(const Vec&sigma_xy)
+PetscErrorCode Fault::setTauQS(const Vec&sigma_xy)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setTau in lithosphere.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setTauQS in lithosphere.cpp.\n");CHKERRQ(ierr);
 #endif
 
   PetscInt       Ii,Istart,Iend;
@@ -296,15 +296,15 @@ PetscErrorCode Fault::setTau(const Vec&sigma_xy)
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
       ierr = VecGetValues(sigma_xy,1,&Ii,&v);CHKERRQ(ierr);
-      ierr = VecSetValues(_tau,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_tauQS,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = VecAssemblyBegin(_tau);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_tau);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_tauQS);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_tauQS);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setTau in lithosphere.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setTauQS in lithosphere.c\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -333,7 +333,7 @@ PetscErrorCode Fault::getResid(const PetscInt ind,const PetscScalar vel,PetscSca
     ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
     ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
     ierr = VecGetValues(_eta,1,&ind,&eta);CHKERRQ(ierr);
-    ierr = VecGetValues(_tau,1,&ind,&tau);CHKERRQ(ierr);
+    ierr = VecGetValues(_tauQS,1,&ind,&tau);CHKERRQ(ierr);
   }
   else {
     SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in stressMstrength\n");
@@ -373,6 +373,10 @@ PetscErrorCode Fault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
                         it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
+#if VERBOSE > 3
+   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::d_dt in fault.cpp\n");CHKERRQ(ierr);
+#endif
+
   PetscScalar    val,psiVal;
   PetscInt       Ii,Istart,Iend;
 
@@ -394,6 +398,9 @@ PetscErrorCode Fault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   return ierr;
+#if VERBOSE > 3
+   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::d_dt in fault.cpp\n");CHKERRQ(ierr);
+#endif
 }
 
 
@@ -468,7 +475,7 @@ PetscErrorCode Fault::writeStep(const string outputDir,const PetscInt step)
       ierr = PetscViewerDestroy(&_velViewer);CHKERRQ(ierr);
 
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"tau").c_str(),FILE_MODE_WRITE,&_tauViewer);
-      ierr = VecView(_tau,_tauViewer);CHKERRQ(ierr);
+      ierr = VecView(_tauQS,_tauViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_tauViewer);CHKERRQ(ierr);
 
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"psi").c_str(),FILE_MODE_WRITE,&_psiViewer);
@@ -490,7 +497,7 @@ PetscErrorCode Fault::writeStep(const string outputDir,const PetscInt step)
   else {
     ierr = VecView(_faultDisp,_faultDispViewer);CHKERRQ(ierr);
     ierr = VecView(_vel,_velViewer);CHKERRQ(ierr);
-    ierr = VecView(_tau,_tauViewer);CHKERRQ(ierr);
+    ierr = VecView(_tauQS,_tauViewer);CHKERRQ(ierr);
     ierr = VecView(_psi,_psiViewer);CHKERRQ(ierr);
   }
 
@@ -499,4 +506,6 @@ PetscErrorCode Fault::writeStep(const string outputDir,const PetscInt step)
 #endif
   return ierr;
 }
+
+
 

@@ -76,7 +76,7 @@ PetscErrorCode OnlyAsthenosphere::resetInitialConds()
   ierr = KSPSolve(_ksp,_rhs,_uhat);CHKERRQ(ierr);
 
   ierr = MatMult(_sbp._Dy_Iz,_uhat,_sigma_xy);CHKERRQ(ierr);
-  ierr = _fault.setTau(_sigma_xy);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sigma_xy);CHKERRQ(ierr);
   ierr = _fault.setFaultDisp(_bcF);CHKERRQ(ierr);
   ierr = _fault.computeVel();CHKERRQ(ierr);
 
@@ -119,7 +119,7 @@ PetscErrorCode OnlyAsthenosphere::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = MatMultAdd(_mu,*(varBegin+2),_sigma_xy,_sigma_xy);
   ierr = VecScale(_sigma_xy,-2.0);CHKERRQ(ierr);
 
-  ierr = _fault.setTau(_sigma_xy);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sigma_xy);CHKERRQ(ierr);
 
   // set rates for faultDisp and state
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);

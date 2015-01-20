@@ -9,7 +9,7 @@ include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
 
 main:  main.o debuggingFuncs.o odeSolver.o sbpOps.o lithosphere.o fault.o\
- domain.o rootFinder.o debuggingFuncs.o spmat.o earth.o asthenosphere.o
+ domain.o rootFinder.o debuggingFuncs.o spmat.o asthenosphere.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
@@ -38,7 +38,6 @@ debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
 lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp fault.hpp userContext.hpp
 asthenosphere.o: asthenosphere.cpp asthenosphere.hpp domain.hpp lithosphere.hpp
-earth.o: earth.cpp earth.hpp userContext.hpp lithosphere.hpp
 main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.o
 odeSolver.o: odeSolver.cpp odeSolver.hpp
 rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h

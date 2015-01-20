@@ -96,11 +96,11 @@ class Lithosphere: public UserContext
 
 // for models consisting solely of the lithosphere, uncoupled to anything else
 // !!!TO DO: move Lithosphere's quadrature and integrate function here
-class OnlyLithosphere: public Lithosphere
+class SymmLithosphere: public Lithosphere
 {
 
   public:
-    OnlyLithosphere(Domain&D);
+    SymmLithosphere(Domain&D);
     // use Lithosphere's destructor
 
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
@@ -114,11 +114,11 @@ class OnlyLithosphere: public Lithosphere
 
 
 // for models consisting of coupled spring sliders, no damping
-class CoupledLithosphere: public Lithosphere
+class AsymmLithosphere: public Lithosphere
 {
 
   public:
-    CoupledLithosphere(Domain&D);
+    AsymmLithosphere(Domain&D);
     // use Lithosphere's destructor
 
     PetscErrorCode resetInitialConds();
