@@ -24,25 +24,31 @@ class Domain
     PetscScalar  _aVal,_bAbove,_bBelow;
     PetscScalar  _sigma_N_val;
 
-    // shear distribution properties
-    std::string       _shearDistribution; // options: mms, constant, gradient, basin
-    PetscScalar  _muVal,_rhoVal,_csVal; // if constant
-    PetscScalar  _muIn,_muOut,_rhoIn,_rhoOut,_csIn,_csOut; // if basin
+    // material distribution properties
+    std::string  _shearDistribution, // options: mms, constant, gradient, basin
+                 _problemType; // options: full, symmetric (only solve y>0 portion)
+    // + side fields (always initiated)
+    PetscScalar  _muValPlus,_rhoValPlus; // if constant
+    PetscScalar  _muInPlus,_muOutPlus,_rhoInPlus,_rhoOutPlus; // if basin
     PetscScalar  _depth,_width;
-    PetscScalar *_muArr,*_rhoArr,*_csArr; // general data containers
-    Mat          _mu;
+    PetscScalar *_muArrPlus,*_csArrPlus; // general data containers
+    Mat          _muPlus;
+    // - side fields (sometimes initiated)
+    PetscScalar  _muValMinus,_rhoValMinus; // if constant
+    PetscScalar  _muInMinus,_muOutMinus,_rhoInMinus,_rhoOutMinus; // if basin
+    PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
+    Mat          _muMinus;
 
     // viscosity for asthenosphere
     PetscScalar  _visc;
 
 
     // linear solver settings
-    PetscScalar _alpha; // SAT penalty coefficient numerator for Dirichlet boundary
     std::string _linSolver;
     PetscScalar _kspTol;
 
     // time integration settings
-    std::string       _timeControlType,_timeIntegrator;
+    std::string  _timeControlType,_timeIntegrator;
     PetscInt     _strideLength,_maxStepCount;
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
@@ -72,11 +78,12 @@ class Domain
     Domain& operator=(const Domain &rhs);
 
 
-    PetscErrorCode setFields();
+    PetscErrorCode setFieldsPlus();
+    PetscErrorCode setFieldsMinus();
 
     // load settings from input file
     PetscErrorCode loadData(const char *file);
-    PetscErrorCode loadShearModulusSettings(std::ifstream& infile);
+    PetscErrorCode loadMaterialSettings(std::ifstream& infile,char* problemType);
 
 };
 

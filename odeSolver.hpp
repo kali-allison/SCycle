@@ -6,7 +6,8 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
-#include "lithosphere.hpp"
+#include <assert.h>
+#include "integratorContext.hpp"
 
 using namespace std;
 
@@ -80,7 +81,7 @@ class OdeSolver
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::vector<Vec>& var, const int lenVar) = 0;
     virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(UserContext *obj) = 0;
+    virtual PetscErrorCode integrate(IntegratorContext *obj) = 0;
 
     // from Effective STL
     struct DeleteVecObject // used in destructor
@@ -108,7 +109,7 @@ class FEuler : public OdeSolver
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
     PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
-    PetscErrorCode integrate(UserContext *obj);
+    PetscErrorCode integrate(IntegratorContext *obj);
 };
 
 class RK32 : public OdeSolver
@@ -139,7 +140,7 @@ class RK32 : public OdeSolver
     PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
     PetscErrorCode view();
 
-    PetscErrorCode integrate(UserContext *obj);
+    PetscErrorCode integrate(IntegratorContext *obj);
 
 };
 

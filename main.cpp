@@ -2,11 +2,14 @@
 #include <petscviewerhdf5.h>
 #include <string>
 
+#include "spmat.hpp"
 #include "domain.hpp"
+#include "sbpOps.hpp"
+#include "fault.hpp"
 #include "lithosphere.hpp"
 #include "asthenosphere.hpp"
-#include "sbpOps.hpp"
-#include "spmat.hpp"
+
+
 
 
 
@@ -55,18 +58,27 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  SbpOps sbp(domain);
-  //~sbp.writeOps("data/");
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  //~sbp.writeOps("data/plus_");
+  //~SbpOps sbpMinus(domain,*domain._muArrMinus,domain._muMinus);
+  //~sbpMinus.writeOps("data/minus_");
 
   //~Fault fault(domain);
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  //~SymmLithosphere lith(domain);
-  //~ierr = lith.writeStep();CHKERRQ(ierr);
-  //~ierr = lith.integrate();CHKERRQ(ierr);
-  //~ierr = lith.view();CHKERRQ(ierr);
+  //~FullLithosphere lith(domain);
+  Lithosphere *lith;
+  if (domain._problemType.compare("symmetric")==0) {
+    lith = new SymmLithosphere(domain);
+  }
+  else {
+    lith = new FullLithosphere(domain);
+  }
+  ierr = lith->writeStep();CHKERRQ(ierr);
+  ierr = lith->integrate();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -82,7 +94,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
 
 
   // set up the problem context
-  UserContext D(order,Ny,Nz,"data/");
+  IntegratorContext D(order,Ny,Nz,"data/");
   ierr = setParameters(D);CHKERRQ(ierr);
   ierr = D.writeParameters();CHKERRQ(ierr);
   ierr = setRateAndState(D);CHKERRQ(ierr);
@@ -242,12 +254,12 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
     }
     if (z==0) {
       indx = (int) (y/domain._dy);
-      v = -domain._muArr[Ii]*sin(y)*sin(z);
+      v = -domain._muArrPlus[Ii]*sin(y)*sin(z);
       ierr = VecSetValue(bcS,indx,v,INSERT_VALUES);CHKERRQ(ierr);
     }
     if (z==domain._Lz) {
       indx = (int) (y/domain._dy);
-      v = -domain._muArr[Ii]*sin(y)*sin(z);
+      v = -domain._muArrPlus[Ii]*sin(y)*sin(z);
       ierr = VecSetValue(bcD,indx,v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -267,8 +279,8 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 
 
   // set up linear system
-  SbpOps sbp(domain);
-  TempMats tempFactors(domain._order,domain._Ny,domain._dy,domain._Nz,domain._dz,&domain._mu);
+  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  TempMats tempFactors(domain._order,domain._Ny,domain._dy,domain._Nz,domain._dz,&domain._muPlus);
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
@@ -336,7 +348,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 
       z = domain._dz*(Ii-Nz*(Ii/Nz));
       y = domain._dy*(Ii/Nz);
-      v = domain._muArr[Ii]*cos(z)*cos(y);
+      v = domain._muArrPlus[Ii]*cos(z)*cos(y);
       ierr = VecSetValues(tauAnal,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -382,28 +394,16 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
+  //~FullLithosphere lith(domain);
   SymmLithosphere lith(domain);
   //~OnlyAsthenosphere lith(domain);
 
   ierr = lith.writeStep();CHKERRQ(ierr);
-  ierr = lith.integrate();CHKERRQ(ierr);
-  ierr = lith.view();CHKERRQ(ierr);
+  //~ierr = lith.integrate();CHKERRQ(ierr);
+  //~ierr = lith.view();CHKERRQ(ierr);
   return ierr;
 }
 
-//~int coupledSpringSliders(const char * inputFile1, const char * inputFile2)
-//~{
-  //~PetscErrorCode ierr = 0;
-//~
-  //~Earth earth(inputFile1,inputFile2);
-  //~ierr = earth.writeStep();CHKERRQ(ierr);
-//~
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n\n----------------------------------------------------\n\n");CHKERRQ(ierr);
-  //~ierr = earth.integrate();CHKERRQ(ierr);
-  //~ierr = earth.view();CHKERRQ(ierr);
-//~
-  //~return ierr;
-//~}
 
 int main(int argc,char **args)
 {
@@ -415,7 +415,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -423,7 +423,7 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
   /*

@@ -16,8 +16,9 @@ vp = 1e-4
 
 shearDistribution = constant
 {
-mu = 30
-rho = 2.8
+problem = symmetric
+muPlus = 30
+rhoPlus = 2.8
 }
 
 alpha = -13.0
@@ -27,8 +28,8 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e5
-initTime = 4e5
+maxStepCount = 1e4
+initTime = 1e4
 maxTime = 4.3e6
 minDeltaT = 1e-3
 maxDeltaT = 1e7
@@ -36,6 +37,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/symm_
 
 

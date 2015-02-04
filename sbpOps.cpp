@@ -7,50 +7,52 @@
 /* SAT params _alphaF,_alphaR set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-SbpOps::SbpOps(Domain&D)
+SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
-  _muArr(D._muArr),_mu(&D._mu),
+  _muArr(&muArr),_mu(&mu),
+  _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
-  _debugFolder("./matlabAnswers/")
+  _debugFolder("./matlabAnswers/"),_A(NULL),_Dy_Iz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
 #endif
 
-
+  if(_muArr) { // ensure that _muArr is not NULL
     stringstream ss;
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
     _debugFolder += ss.str();
 
 
-  // create final operator A
-  MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
-//~
-  //~// map boundary conditions to rhs vector
-  MatCreate(PETSC_COMM_WORLD,&_rhsL);
-  MatCreate(PETSC_COMM_WORLD,&_rhsR);
-  MatCreate(PETSC_COMM_WORLD,&_rhsT);
-  MatCreate(PETSC_COMM_WORLD,&_rhsB);
+    // create final operator A
+    MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
 
-  MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
+    // map boundary conditions to rhs vector
+    MatCreate(PETSC_COMM_WORLD,&_rhsL);
+    MatCreate(PETSC_COMM_WORLD,&_rhsR);
+    MatCreate(PETSC_COMM_WORLD,&_rhsT);
+    MatCreate(PETSC_COMM_WORLD,&_rhsB);
 
-  {
-    /* NOT a member of this class, contains stuff to be deleted before
-     * end of constructor to save on memory usage.
-     */
-    TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+    MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
 
-    // reset SAT params
-    if (_order==4) {
-      _alphaF = tempFactors._Hy(0,0);
-      _alphaR = tempFactors._Hy(0,0);
+    {
+      /* NOT a member of this class, contains stuff to be deleted before
+       * end of constructor to save on memory usage.
+       */
+      TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+      // reset SAT params
+      if (_order==4) {
+        _alphaF = tempFactors._Hy(0,0);
+        _alphaR = tempFactors._Hy(0,0);
+      }
+
+
+      computeDy_Iz(tempFactors);
+      satBoundaries(tempFactors);
+      computeA(tempFactors);
     }
-
-
-    computeDy_Iz(tempFactors);
-    satBoundaries(tempFactors);
-    computeA(tempFactors);
-  }
+}
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -1243,7 +1245,6 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
   ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
   ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
-
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);

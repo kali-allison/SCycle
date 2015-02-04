@@ -4,14 +4,26 @@
 #include <petscksp.h>
 #include <string>
 #include <cmath>
+#include <assert.h>
 #include <vector>
-#include "userContext.hpp"
+#include "integratorContext.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
 
 
-class Lithosphere: public UserContext
+
+/* TO DO:
+ *   - Change dependence on fault so that integrate doesn't have to be
+ *     defined separately for Full and Symm versions???
+ *      -> will need to have check that it's been set to prevent seg faults
+ *
+ */
+
+
+/* Base class for an elastic lithosphere
+ */
+class Lithosphere: public IntegratorContext
 {
   private:
     // disable default copy constructor and assignment operator
@@ -23,31 +35,26 @@ class Lithosphere: public UserContext
     // domain properties
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
-
-    // debugging folder tree
-    //~std::string _debugDir;
+    const std::string    _problemType; // symmetric (only y>0) or full
 
     // output data
     std::string          _outputDir;
 
     const PetscScalar    _v0,_vp;
 
-    // boundary conditions
-    PetscViewer          _bcFv,_bcSv,_bcRv,_bcDv,_rhsv;
-
-    // off-fault material fields
-    PetscScalar         *_muArr;
-    Mat                  _mu;
-    Vec                  _rhs,_uhat,_sigma_xy,_bcRShift,_surfDisp;
-
+    // off-fault material fields: + side
+    PetscScalar         *_muArrPlus;
+    Mat                  _muPlus;
+    Vec                  _bcRplusShift,_surfDispPlus;
+    Vec                  _rhsPlus,_uhatPlus,_sigma_xyPlus;
 
     // linear system data
     std::string          _linSolver;
-    KSP                  _ksp;
-    PC                   _pc;
+    KSP                  _kspPlus;
+    PC                   _pcPlus;
     PetscScalar          _kspTol;
 
-    SbpOps               _sbp;
+    SbpOps               _sbpPlus;
 
     // time stepping data
     std::string          _timeIntegrator;
@@ -59,81 +66,141 @@ class Lithosphere: public UserContext
     PetscScalar          _initDeltaT;
 
     // viewers
-    PetscViewer          _timeViewer,_surfDispViewer;//,_uhatViewer;
+    PetscViewer          _timeViewer,_surfDispPlusViewer;//,_uhatViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
-    PetscErrorCode computeShearStress();
-    PetscErrorCode setupKSP();
-    PetscErrorCode setSurfDisp();
+
+    PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
 
   public:
 
-    //~typedef typename std::vector<Vec>::iterator it_vec;
-    //~typedef typename std::vector<Vec>::const_iterator const_it_vec;
-
     // boundary conditions
-    Vec                  _bcF,_bcS,_bcR,_bcD;
-
-    Fault                _fault;
+    Vec                  _bcTplus,_bcRplus,_bcBplus,_bcFplus;
 
     OdeSolver           *_quadrature;
 
     Lithosphere(Domain&D);
     ~Lithosphere();
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
+
+
+
+    PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
     PetscErrorCode debug(const PetscReal time,const PetscInt steps,
                      const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
 
+
+    PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd) = 0;
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
     // IO commands
-    virtual PetscErrorCode view() = 0;
-    PetscErrorCode writeStep();
-    PetscErrorCode read();
+    PetscErrorCode view();
+    PetscErrorCode virtual writeStep() = 0;
 };
 
 
-// for models consisting solely of the lithosphere, uncoupled to anything else
-// !!!TO DO: move Lithosphere's quadrature and integrate function here
+
+
+
+/* Contains all the fields and methods needed to model an elastic lithosphere
+ * whose material properties are *symmetric* about the fault. The algorithm
+ * is described in Brittany Erickson's paper on the earthquake cycle in
+ * sedimentary basins.
+ */
 class SymmLithosphere: public Lithosphere
 {
+  private:
+    // disable default copy constructor and assignment operator
+    SymmLithosphere(const SymmLithosphere &that);
+    SymmLithosphere& operator=(const SymmLithosphere &rhs);
+
+  protected:
+
+
+    PetscErrorCode setShifts();
+    PetscErrorCode setSurfDisp();
+
+    PetscErrorCode computeShearStress();
 
   public:
+
+    SymmFault       _fault;
+
+
     SymmLithosphere(Domain&D);
-    // use Lithosphere's destructor
+    ~SymmLithosphere();
 
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd);
 
-    PetscErrorCode view();
+    // IO commands
+    PetscErrorCode writeStep();
 };
 
 
-// for models consisting of coupled spring sliders, no damping
-class AsymmLithosphere: public Lithosphere
+
+
+
+
+
+
+
+
+/* Contains all the fields and methods needed to model an elastic lithosphere
+ * whose material properties are *not* necessarily symmetric about the fault.
+ * The algorithm is described is based on Brittany Erickson's paper on
+ * the earthquake cycle in sedimentary basins, with modifications to the
+ * boundary condition on the fault.
+ */
+class FullLithosphere: public Lithosphere
 {
+  protected:
+
+    // off-fault material fields: - side
+    PetscScalar         *_muArrMinus;
+    Mat                  _muMinus;
+    Vec                  _bcRminusShift,_surfDispMinus;
+    Vec                  _rhsMinus,_uhatMinus,_sigma_xyMinus;
+
+    PetscViewer          _surfDispMinusViewer;
+
+    // linear system data
+    std::string          _linSolver;
+    KSP                  _kspMinus;
+    PC                   _pcMinus;
+
+    SbpOps               _sbpMinus;
+
+
+    PetscErrorCode setShifts();
+    PetscErrorCode setSurfDisp();
+
+    PetscErrorCode computeShearStress();
 
   public:
-    AsymmLithosphere(Domain&D);
-    // use Lithosphere's destructor
 
-    PetscErrorCode resetInitialConds();
+    // boundary conditions
+    Vec                  _bcTminus,_bcRminus,_bcBminus,_bcFminus;
 
+    FullFault            _fault;
+
+
+    FullLithosphere(Domain&D);
+    ~FullLithosphere();
+
+
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,Vec& tauMod); // if it's coupled to another spring-slider
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd);
 
-    PetscErrorCode view();
+    // IO commands
+    PetscErrorCode writeStep();
 };
-
-
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef USERCONTEXT_H_INCLUDED
-#define USERCONTEXT_H_INCLUDED
+#ifndef INTEGRATORCONTEXT_HPP_INCLUDED
+#define INTEGRATORCONTEXT_HPP_INCLUDED
 
 #include <petscksp.h>
 #include <vector>
@@ -11,8 +11,7 @@
 
 class OdeSolver;
 
-
-class UserContext
+class IntegratorContext
 {
   public:
 
@@ -26,7 +25,6 @@ class UserContext
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd) = 0;
-                             //~const std::vector<Vec>& var,const std::vector<Vec>& dvar) = 0;
 };
 
 #include "odeSolver.hpp"

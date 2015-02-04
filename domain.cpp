@@ -4,7 +4,10 @@ using namespace std;
 
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
- _shearDistribution("basin"),_visc(nan("")),
+ _shearDistribution("basin"),_problemType("full"),
+ _muArrPlus(NULL),_csArrPlus(NULL),_muPlus(NULL),
+ _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
+ _visc(nan("")),
  _linSolver("AMG"),
  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
@@ -24,7 +27,6 @@ Domain::Domain(const char *file)
   _f0=0.6;
   _v0=1e-6;
 
-  //~_csOut = sqrt(_muOut/_rhoOut);
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -35,9 +37,13 @@ Domain::Domain(const char *file)
 #endif
 
 
-  MatCreate(PETSC_COMM_WORLD,&_mu);
-  setFields();
+  MatCreate(PETSC_COMM_WORLD,&_muPlus);
+  setFieldsPlus();
 
+  if (_problemType.compare("full")==0) {
+    MatCreate(PETSC_COMM_WORLD,&_muMinus);
+    setFieldsMinus();
+  }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
@@ -48,8 +54,12 @@ Domain::Domain(const char *file)
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
-  _shearDistribution("basin"),_linSolver("AMG"),
-  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
+ _shearDistribution("basin"),_problemType("full"),
+ _muArrPlus(NULL),_csArrPlus(NULL),
+ _muArrMinus(NULL),_csArrMinus(NULL),
+ _visc(nan("")),
+ _linSolver("AMG"),
+ _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor:Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
@@ -78,8 +88,13 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
 
-  MatCreate(PETSC_COMM_WORLD,&_mu);
-  setFields();
+  MatCreate(PETSC_COMM_WORLD,&_muPlus);
+  setFieldsPlus();
+
+  if (_problemType.compare("full")==0) {
+    MatCreate(PETSC_COMM_WORLD,&_muMinus);
+    setFieldsMinus();
+  }
 
 
 #if VERBOSE > 1
@@ -95,11 +110,14 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in domain.cpp.\n");
 #endif
 
-  PetscFree(_muArr);
-  PetscFree(_rhoArr);
-  PetscFree(_csArr);
+  PetscFree(_muArrPlus);
+  PetscFree(_csArrPlus);
+  PetscFree(_muArrMinus);
+  PetscFree(_csArrMinus);
 
-  MatDestroy(&_mu);
+  MatDestroy(&_muPlus);
+  MatDestroy(&_muMinus);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in domain.cpp.\n");
@@ -122,6 +140,7 @@ PetscErrorCode Domain::loadData(const char *file)
   int charSize = 200;
   char *outputDir = (char *) malloc(sizeof(char)*charSize+1);
   char *linSolver = (char *) malloc(sizeof(char)*charSize+1);
+  char *problemType = (char *) malloc(sizeof(char)*charSize+1);
   char *shearDistribution = (char *) malloc(sizeof(char)*charSize+1);
   char *timeIntegrator = (char *) malloc(sizeof(char)*charSize+1);
   char *timeControlType = (char *) malloc(sizeof(char)*charSize+1);
@@ -159,14 +178,13 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("shearDistribution")==0) {
         _shearDistribution = line.substr(pos+_delim.length(),line.npos);
         strcpy(shearDistribution,_shearDistribution.c_str());
-        loadShearModulusSettings(infile);
+        loadMaterialSettings(infile,problemType);
       }
 
       // viscosity for asthenosphere
       else if (var.compare("visc")==0) { _visc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       // linear solver settings
-      else if (var.compare("alpha")==0) { _alpha = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("linSolver")==0) {
         _linSolver = line.substr(pos+_delim.length(),line.npos);
         strcpy(linSolver,_linSolver.c_str());
@@ -219,18 +237,24 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_vp,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoIn,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoOut,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&problemType[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muValPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoValPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muInPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muOutPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoInPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoOutPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muValMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoValMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muInMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_muOutMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoInMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_rhoOutMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&_visc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
-  MPI_Bcast(&_alpha,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
@@ -252,6 +276,7 @@ PetscErrorCode Domain::loadData(const char *file)
   _outputDir = outputDir;
   _linSolver = linSolver;
   _shearDistribution = shearDistribution;
+  _problemType = problemType;
   _timeIntegrator = timeIntegrator;
   _timeControlType = timeControlType;
 
@@ -259,6 +284,7 @@ PetscErrorCode Domain::loadData(const char *file)
   free(outputDir);
   free(linSolver);
   free(shearDistribution);
+  free(problemType);
   free(timeIntegrator);
   free(timeControlType);
 
@@ -270,15 +296,18 @@ PetscErrorCode Domain::loadData(const char *file)
 
 
 
-PetscErrorCode Domain::loadShearModulusSettings(ifstream& infile)
+PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
+
   string line,var;
   size_t pos = 0;
+
+  // load settings for distribution type (order of lines non significant)
   while (getline(infile, line))
   {
     istringstream iss(line);
@@ -290,25 +319,42 @@ PetscErrorCode Domain::loadShearModulusSettings(ifstream& infile)
       //~PetscPrintf(PETSC_COMM_WORLD,"\n\nfound _endBlock in loadShearModulusSettings\n");
       break; // done loading block, exit while loop
     }
+
+    else if (var.compare("problem")==0)
+    {
+      std::string problemTypeString = line.substr(pos+_delim.length(),line.npos); // symmetric or full
+      strcpy(problemType,problemTypeString.c_str());
+    }
+
     else if (_shearDistribution.compare("basin")==0)
     {
-      if (var.compare("muIn")==0) { _muIn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("muOut")==0) { _muOut = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("rhoIn")==0) { _rhoIn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("rhoOut")==0) { _rhoOut = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      if (var.compare("muInPlus")==0) { _muInPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("muOutPlus")==0) { _muOutPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoInPlus")==0) { _rhoInPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoOutPlus")==0) { _rhoOutPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("muInMinus")==0) { _muInMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("muOutMinus")==0) { _muOutMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoInMinus")==0) { _rhoInMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoOutMinus")==0) { _rhoOutMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
       else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("width")==0) { _width = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     }
     else if (_shearDistribution.compare("constant")==0)
     {
       // look for mu, rho
-      if (var.compare("mu")==0) { _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("rho")==0) { _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      if (var.compare("muPlus")==0) { _muValPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoPlus")==0) { _rhoValPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("muMinus")==0) { _muValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoMinus")==0) { _rhoValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
       // look for rho, mu will be prescribed
-      if (var.compare("rho")==0) { _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      if (var.compare("rhoPlus")==0) { _rhoValPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("rhoMinus")==0) { _rhoValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     }
     else { // print error message and fail
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
@@ -358,30 +404,51 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
 
     // sedimentary basin properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
+    // y>0 properties
     if (_shearDistribution.compare("basin")==0)
     {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"muIn = %f\n",_muIn);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"muOut = %f\n",_muOut);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoIn = %f\n",_rhoIn);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOut = %f\n",_rhoOut);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"muInPlus = %f\n",_muInPlus);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"muOutPlus = %f\n",_muOutPlus);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoInPlus = %f\n",_rhoInPlus);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOutPlus = %f\n",_rhoOutPlus);CHKERRQ(ierr);
+
+      ierr = PetscPrintf(PETSC_COMM_SELF,"depthPlus = %f\n",_depth);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"widthPlus = %f\n",_width);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"mu = %f\n",_muVal);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rho = %f\n",_rhoVal);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"muPlus = %f\n",_muValPlus);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rho = %f\n",_rhoVal);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
+    }
+    if (_problemType.compare("full")==0)
+    {
+      if (_shearDistribution.compare("basin")==0)
+      {
+        ierr = PetscPrintf(PETSC_COMM_SELF,"muInMinus = %f\n",_muInMinus);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"muOutMinus = %f\n",_muOutMinus);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoInMinus = %f\n",_rhoInMinus);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOutMinus = %f\n",_rhoOutMinus);CHKERRQ(ierr);
+      }
+      else if (_shearDistribution.compare("constant")==0)
+      {
+        ierr = PetscPrintf(PETSC_COMM_SELF,"muMinus = %f\n",_muValMinus);CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
+      }
+      else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
+      {
+        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
+      }
     }
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     ierr = PetscPrintf(PETSC_COMM_SELF,"visc = %.15e\n",_visc);CHKERRQ(ierr);
 
     // linear solve settings
-    ierr = PetscPrintf(PETSC_COMM_SELF,"alpha = %.15e\n",_alpha);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -456,30 +523,51 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerASCIIPrintf(viewer,"visc = %.15e\n",_visc);CHKERRQ(ierr);
 
-  // sedimentary basin properties
+  // material properties
   ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
+  // y>0 properties
   if (_shearDistribution.compare("basin")==0)
+  {
+    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %f\n",_muInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %f\n",_muOutPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %f\n",_rhoInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %f\n",_rhoOutPlus);CHKERRQ(ierr);
+
+    ierr = PetscViewerASCIIPrintf(viewer,"depth = %f\n",_depth);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"width = %f\n",_width);CHKERRQ(ierr);
+  }
+  else if (_shearDistribution.compare("constant")==0)
+  {
+    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %f\n",_muValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
+  }
+  else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
+  {
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
+  }
+  if (_problemType.compare("full")==0)
+  {
+    if (_shearDistribution.compare("basin")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"muIn = %.15e\n",_muIn);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"muOut = %.15e\n",_muOut);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoIn = %.15e\n",_rhoIn);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoOut = %.15e\n",_rhoOut);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %f\n",_muInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %f\n",_muOutMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %f\n",_rhoInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %f\n",_rhoOutMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"mu = %.15e\n",_muVal);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rho = %.15e\n",_rhoVal);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %f\n",_muValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"rho = %.15e\n",_rhoVal);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
     }
-    ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // linear solve settings
-  ierr = PetscViewerASCIIPrintf(viewer,"alpha = %g\n",_alpha);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %g\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
@@ -516,10 +604,18 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output shear modulus matrix
-  str =  _outputDir + "mu";
+  str =  _outputDir + "muPlus";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_mu,viewer);CHKERRQ(ierr);
+  ierr = MatView(_muPlus,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  if (_problemType.compare("full")==0)
+  {
+    str =  _outputDir + "muMinus";
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    ierr = MatView(_muMinus,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  }
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending write in domain.cpp.\n");CHKERRQ(ierr);
@@ -531,7 +627,7 @@ PetscErrorCode Domain::write()
 
 
 
-PetscErrorCode Domain::setFields()
+PetscErrorCode Domain::setFieldsPlus()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -539,14 +635,15 @@ PetscErrorCode Domain::setFields()
 #endif
 
   PetscInt       Ii;
-  PetscScalar    v,y,z;
+  PetscScalar    v,y,z,csIn,csOut;
 
   Vec muVec;
   PetscInt *muInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArr);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_rhoArr);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArr);CHKERRQ(ierr);
+
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
+
 
   ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
   ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
@@ -561,50 +658,127 @@ PetscErrorCode Domain::setFields()
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 
     if (_shearDistribution.compare("basin")==0) {
-      v = 0.5*(_rhoOut-_rhoIn)*(tanh((double)(r-rbar)/rw)+1) + _rhoIn;
-      _rhoArr[Ii] = v;
+      v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
 
-      _csIn = sqrt(_muIn/_rhoIn);
-      _csOut = sqrt(_muOut/_rhoOut);
-      v = 0.5*(_csOut-_csIn)*(tanh((double)(r-rbar)/rw)+1) + _csIn;
-      _csArr[Ii] = v;
+      csIn = sqrt(_muInPlus/_rhoInPlus);
+      csOut = sqrt(_muOutPlus/_rhoOutPlus);
+      v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
+      _csArrPlus[Ii] = v;
 
-      v = 0.5*(_muOut-_muIn)*(tanh((double)(r-rbar)/rw)+1) + _muIn;
+      v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
     }
     else if (_shearDistribution.compare("constant")==0) {
-      _rhoArr[Ii] = _rhoVal;
-      _csArr[Ii] = sqrt(_muVal/_rhoVal);
-      v = _muVal;
+      _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
+      v = _muValPlus;
     }
     else if (_shearDistribution.compare("gradient")==0) {
-      _rhoArr[Ii] = _rhoVal;
-       _csArr[Ii] = sqrt(_muVal/_rhoVal);
+       _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
       v = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
-      _rhoArr[Ii] = _rhoVal;
-      _csArr[Ii] = sqrt(_muVal/_rhoVal);
+       _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
       v = sin(y+z) + 2.0;
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
       assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
     }
-    _muArr[Ii] = v;
+    _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
   }
-
-  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_mu,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_mu);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_mu,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_mu,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_mu);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_mu,muVec,INSERT_VALUES);CHKERRQ(ierr);
-  //~ierr = MatView(_mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatSetSizes(_muPlus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_muPlus);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_muPlus,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_muPlus,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
+  VecDestroy(&muVec);
+  PetscFree(muInds);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFields in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+return ierr;
+}
+
+
+/* Arrays start at fault and move out to remote boundaries.
+ */
+PetscErrorCode Domain::setFieldsMinus()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFields in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt       Ii;
+  PetscScalar    v,y,z,csIn,csOut;
+
+  Vec muVec;
+  PetscInt *muInds;
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
+
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrMinus);CHKERRQ(ierr);
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrMinus);CHKERRQ(ierr);
+
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
+  ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+
+  PetscScalar r = 0;
+  PetscScalar rbar = 0.25*_width*_width;
+  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
+  for (Ii=0;Ii<_Ny*_Nz;Ii++) {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~y = _Ly - _dy*(Ii/_Nz);
+    y = - _dy*(Ii/_Nz);
+    r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
+
+    if (_shearDistribution.compare("basin")==0) {
+      v = 0.5*(_rhoOutMinus-_rhoInMinus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInMinus;
+
+      csIn = sqrt(_muInMinus/_rhoInMinus);
+      csOut = sqrt(_muOutMinus/_rhoOutMinus);
+      v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
+      _csArrMinus[Ii] = v;
+
+      v = 0.5*(_muOutMinus-_muInMinus)*(tanh((double)(r-rbar)/rw)+1) + _muInMinus;
+    }
+    else if (_shearDistribution.compare("constant")==0) {
+      _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
+      v = _muValMinus;
+    }
+    else if (_shearDistribution.compare("gradient")==0) {
+       _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
+      v = Ii+2;
+    }
+    else if (_shearDistribution.compare("mms")==0) {
+       _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
+      v = sin(y+z) + 2.0;
+    }
+    else {
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
+      assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    }
+    _muArrMinus[Ii] = v;
+    muInds[Ii] = Ii;
+  }
+  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrMinus,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
+
+  ierr = MatSetSizes(_muMinus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_muMinus);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_muMinus,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_muMinus,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_muMinus);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muMinus,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);

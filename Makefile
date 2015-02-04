@@ -31,16 +31,16 @@ include ${PETSC_DIR}/conf/test
 # Dependencies
 #=========================================================
 
-spmat.o: spmat.cpp spmat.hpp
-rootFinder.o: rootFinder.cpp rootFinder.hpp fault.hpp
-fault.o: fault.cpp fault.hpp domain.hpp rootFinder.hpp
-debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
-lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp fault.hpp userContext.hpp
-asthenosphere.o: asthenosphere.cpp asthenosphere.hpp domain.hpp lithosphere.hpp
-main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.o
-odeSolver.o: odeSolver.cpp odeSolver.hpp
-rootFindingScalar.o: rootFindingScalar.cpp rootFindingScalar.h
-sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
+
 domain.o: domain.cpp domain.hpp
+sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
+fault.o: fault.cpp fault.hpp domain.hpp rootFinderContext.hpp rootFinder.hpp
+lithosphere.o: lithosphere.cpp lithosphere.hpp domain.hpp sbpOps.hpp \
+ debuggingFuncs.hpp fault.hpp integratorContext.hpp
+asthenosphere.o: asthenosphere.cpp asthenosphere.hpp domain.hpp lithosphere.hpp
+main.o: main.cpp lithosphere.hpp domain.hpp spmat.hpp sbpOps.hpp
+debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp
+odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp
+rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
+spmat.o: spmat.cpp spmat.hpp
 

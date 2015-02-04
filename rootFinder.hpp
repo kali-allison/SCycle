@@ -5,8 +5,7 @@
 #include <petscts.h>
 #include <string>
 #include <assert.h>
-//~#include "userContext.h"
-#include "fault.hpp"
+#include "rootFinderContext.hpp"
 
 
 class RootFinder
@@ -22,16 +21,12 @@ class RootFinder
 
   public:
 
-    //~typedef fault model;
-
     RootFinder(const PetscInt maxNumIts,const PetscScalar atol);
-    virtual ~RootFinder();
 
-    virtual PetscErrorCode findRoot(Fault *obj,const PetscInt ind,PetscScalar *out) = 0;
+    virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out) = 0;
     virtual PetscErrorCode setBounds(PetscScalar left,PetscScalar right) = 0;
 
     PetscInt getNumIts() const;
-
 };
 
 
@@ -39,25 +34,17 @@ class RootFinder
 class Bisect : public RootFinder
 {
   private:
-    PetscScalar _atol;
 
     PetscScalar _left,_fLeft;
     PetscScalar _right,_fRight;
     PetscScalar _mid,_fMid;
 
-    // disable default copy constructor and assignment operator
-    //~Bisect(const Bisect & that);
-    //~Bisect& operator=(const Bisect& rhs);
-
   public:
-
-    //~typedef fault<Bisect> model;
 
     Bisect(const PetscInt maxNumIts,const PetscScalar atol);
     ~Bisect();
 
-    PetscErrorCode findRoot(Fault *obj,const PetscInt ind,PetscScalar *out);
-
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
 };
 

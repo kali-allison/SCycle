@@ -1,5 +1,7 @@
 #include "rootFinder.hpp"
 
+using namespace std;
+
 
 //================= RootFinder member functions ========================
 
@@ -10,8 +12,7 @@ RootFinder::RootFinder(const PetscInt maxNumIts,const PetscScalar atol)
   assert(_atol >= 0);
 }
 
-RootFinder::~RootFinder(){}
-
+//~RootFinder::~RootFinder(){};
 
 PetscInt RootFinder::getNumIts() const
 {
@@ -22,17 +23,25 @@ PetscInt RootFinder::getNumIts() const
 //=============== Bisect member functions ==============================
 
 Bisect::Bisect(const PetscInt maxNumIts,const PetscScalar atol)
-: RootFinder(maxNumIts,atol),//_numIts(0),_maxNumIts(maxNumIts),
-  _atol(atol),
+: RootFinder(maxNumIts,atol),
   _left(0),_fLeft(0),_right(0),_fRight(0),_mid(0),_fMid(2*atol)
 {}
 
-Bisect::~Bisect(){}
+Bisect::~Bisect()
+{
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"\n Starting Bisect::~Bisect in rootFinder.cpp.\n");
+#endif
+
+
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"\n Ending Bisect::~Bisect in rootFinder.cpp.\n");
+#endif
+};
 
 
 
-
-PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
+PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
@@ -42,8 +51,6 @@ PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
 
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
-  //~ierr = func(ind,_left,&_fLeft,ctx);CHKERRQ(ierr);
-  //~ierr = func(ind,_right,&_fRight,ctx);CHKERRQ(ierr);
 
   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
@@ -51,13 +58,13 @@ PetscErrorCode Bisect::findRoot(Fault *obj,const PetscInt ind,PetscScalar *out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
 #endif
 
-  //~if (sqrt(fLeft*fLeft) <= atol) { *out = left; return 0; }
-  //~else if (sqrt(fRight*fRight) <= atol) { *out = right; return 0; }
+  if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
+  else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
+
   PetscInt numIts = 0;
   while ( (numIts <= _maxNumIts) & (sqrt(_fMid*_fMid) >= _atol) ) {
     _mid = (_left + _right)*0.5;
     ierr = obj->getResid(ind,_mid,&_fMid);CHKERRQ(ierr);
-    //~ierr = func(ind,mid,&fMid,ctx);CHKERRQ(ierr);
 #if VERBOSE > 4
     ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
                        ind,numIts,_left,_right,_mid,_fMid);CHKERRQ(ierr);

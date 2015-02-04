@@ -16,12 +16,12 @@ vp = 1e-4
 
 shearDistribution = constant
 {
-mu = 36
-rho = 2.8
+problem = symmetric
+muPlus = 30
+rhoPlus = 2.8
 }
 
-alpha = -13.0
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32

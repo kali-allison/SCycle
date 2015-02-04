@@ -5,12 +5,12 @@
 #include <string>
 #include <cmath>
 #include <vector>
-#include "userContext.hpp"
+#include "integratorContext.hpp"
 #include "domain.hpp"
 #include "lithosphere.hpp"
 
 // for models consisting of coupled spring sliders, no damping
-class OnlyAsthenosphere: public Lithosphere
+class OnlyAsthenosphere: public FullLithosphere
 {
   protected:
     PetscScalar _visc; // viscosity

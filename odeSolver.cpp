@@ -81,7 +81,7 @@ PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
   //~return 0;
 //~}
 
-//~PetscErrorCode OdeSolver::setUserContext(void * userContext)
+//~PetscErrorCode OdeSolver::setIntegratorContext(void * userContext)
 //~{
   //~double startTime = MPI_Wtime();
   //~_userContext = userContext;
@@ -151,7 +151,7 @@ PetscErrorCode FEuler::setInitialConds(vector<Vec>& var, const int lenVar)
   return ierr;
 }
 
-PetscErrorCode FEuler::integrate(UserContext *obj)
+PetscErrorCode FEuler::integrate(IntegratorContext *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::integrate in odeSolver.cpp.\n");
@@ -440,7 +440,7 @@ PetscReal RK32::computeError()
 }
 
 
-PetscErrorCode RK32::integrate(UserContext *obj)
+PetscErrorCode RK32::integrate(IntegratorContext *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");

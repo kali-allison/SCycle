@@ -115,7 +115,7 @@ class SbpOps
     Mat _A;
     Mat _Dy_Iz;
 
-    SbpOps(Domain&D);
+    SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps();
 
     // create the vector rhs out of the boundary conditions (_bc*)

@@ -1,6 +1,6 @@
 order = 2
-Ny = 101
-Nz = 101
+Ny = 15
+Nz = 21
 Ly = 24
 Lz = 24
 
@@ -16,11 +16,14 @@ vp = 1e-9
 
 shearDistribution = constant
 {
-mu = 36
-rho = 2.8
+problem = full
+muPlus = 36
+rhoPlus = 2.8
+
+muMinus = 36
+rhoMinus = 2.8
 }
 
-alpha = -96.0/17.0
 linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
@@ -37,6 +40,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/full_
 
 
