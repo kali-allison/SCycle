@@ -18,6 +18,6 @@ class RootFinderContext
     virtual PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
 };
 
-#include "rootfinder.hpp"
+#include "rootFinder.hpp"
 
 #endif

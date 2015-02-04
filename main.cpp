@@ -394,13 +394,18 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  //~FullLithosphere lith(domain);
-  SymmLithosphere lith(domain);
   //~OnlyAsthenosphere lith(domain);
 
-  ierr = lith.writeStep();CHKERRQ(ierr);
-  //~ierr = lith.integrate();CHKERRQ(ierr);
-  //~ierr = lith.view();CHKERRQ(ierr);
+  Lithosphere *lith;
+  if (domain._problemType.compare("symmetric")==0) {
+    lith = new SymmLithosphere(domain);
+  }
+  else {
+    lith = new FullLithosphere(domain);
+  }
+  ierr = lith->writeStep();CHKERRQ(ierr);
+  ierr = lith->integrate();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -415,7 +420,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -423,7 +428,7 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  runTests(inputFile);
+  //~runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
   /*
