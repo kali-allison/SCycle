@@ -47,7 +47,7 @@ Fault::Fault(Domain&D)
   setFrictionFields();
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::SymmFault in fault.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
 #endif
 }
 
@@ -90,7 +90,7 @@ PetscErrorCode Fault::setFrictionFields()
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullFault::setFields in fault.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
@@ -120,7 +120,7 @@ PetscErrorCode Fault::setFrictionFields()
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFields in fault.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -134,13 +134,9 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscSca
 
 
   ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
-  if ( (ind>=Istart) & (ind<Iend) ) {
-    ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-    ierr = VecGetValues(_velPlus,1,&ind,&vel);CHKERRQ(ierr);
-  }
-  else {
-    SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in agingLaw\n");
-  }
+  assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_velPlus,1,&ind,&vel);CHKERRQ(ierr);
 
   //~if (b==0) { *dPsi = 0; }
   if ( isinf(exp(1/b)) ) { *dPsi = 0; }
@@ -233,7 +229,6 @@ SymmFault::~SymmFault()
 }
 
 
-//==================== protected member functions ======================
 PetscErrorCode SymmFault::computeVel()
 {
   PetscErrorCode ierr = 0;
@@ -350,7 +345,7 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xy)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setTau in lithosphere.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setTauQS in lithosphere.cpp.\n");CHKERRQ(ierr);
 #endif
 
   PetscInt       Ii,Istart,Iend;
@@ -368,7 +363,7 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xy)
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setTau in lithosphere.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setTauQS in lithosphere.c\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -386,16 +381,12 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
 #endif
 
   ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
-  if ( (ind>=Istart) & (ind<Iend) ) {
-    ierr = VecGetValues(_tempPsi,1,&ind,&psi);CHKERRQ(ierr);
-    ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
-    ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
-    ierr = VecGetValues(_zPlus,1,&ind,&zPlus);CHKERRQ(ierr);
-    ierr = VecGetValues(_tauQSplus,1,&ind,&tauQS);CHKERRQ(ierr);
-  }
-  else {
-    SETERRQ(PETSC_COMM_WORLD,1,"Attempting to access nonlocal array values in stressMstrength\n");
-  }
+  assert(ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_tempPsi,1,&ind,&psi);CHKERRQ(ierr);
+  ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_zPlus,1,&ind,&zPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_tauQSplus,1,&ind,&tauQS);CHKERRQ(ierr);
 
    if (a==0) { *out = zPlus*vel - tauQS; }
    else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
@@ -805,13 +796,6 @@ ierr = VecAssemblyEnd(_tauQSminus);CHKERRQ(ierr);
 #endif
   return ierr;
 }
-
-
-//~const Vec& FullFault::getBcRShift() const
-//~{
-  //~return _bcRShift;
-//~}
-
 
 
 PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out)

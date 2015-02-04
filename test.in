@@ -16,7 +16,7 @@ vp = 1e-9
 
 shearDistribution = constant
 {
-problem = full
+problem = symmetric
 muPlus = 36
 rhoPlus = 2.8
 

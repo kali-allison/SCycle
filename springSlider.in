@@ -16,20 +16,23 @@ vp = 1e-4
 
 shearDistribution = constant
 {
-problem = symmetric
+problem = full
 muPlus = 30
 rhoPlus = 2.8
+
+muMinus = 30
+rhoMinus = 2.8
 }
 
 alpha = -13.0
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e4
-initTime = 1e4
+maxStepCount = 10
+initTime = 0
 maxTime = 4.3e6
 minDeltaT = 1e-3
 maxDeltaT = 1e7
@@ -37,6 +40,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/symm_
+outputDir = data/full_
 
 
