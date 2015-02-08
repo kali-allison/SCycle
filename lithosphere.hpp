@@ -171,7 +171,6 @@ class FullLithosphere: public Lithosphere
     PetscViewer          _surfDispMinusViewer;
 
     // linear system data
-    std::string          _linSolver;
     KSP                  _kspMinus;
     PC                   _pcMinus;
 

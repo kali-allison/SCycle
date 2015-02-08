@@ -1,6 +1,6 @@
 order = 2
-Ny = 15
-Nz = 21
+Ny = 417
+Nz = 417
 Ly = 24
 Lz = 24
 
@@ -14,17 +14,24 @@ sigma_N = 50.0
 
 vp = 1e-9
 
-shearDistribution = constant
+shearDistribution = basin
 {
-problem = symmetric
-muPlus = 36
-rhoPlus = 2.8
+problem = full
+muInPlus = 12
+muOutPlus = 36
+rhoInPlus = 2.8
+rhoOutPlus = 2.8
 
-muMinus = 36
-rhoMinus = 2.8
+muInMinus = 12
+muOutMinus = 36
+rhoInMinus = 2.8
+rhoOutMinus = 2.8
+
+width = 12
+depth = 4
 }
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -40,6 +47,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/full_
+outputDir = data/
 
 

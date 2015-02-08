@@ -85,6 +85,9 @@ class Domain
     PetscErrorCode loadData(const char *file);
     PetscErrorCode loadMaterialSettings(std::ifstream& infile,char* problemType);
 
+    // check input from file
+    PetscErrorCode checkInput();
+
 };
 
 #endif

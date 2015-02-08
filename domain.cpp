@@ -4,12 +4,21 @@ using namespace std;
 
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
- _shearDistribution("basin"),_problemType("full"),
- _muArrPlus(NULL),_csArrPlus(NULL),_muPlus(NULL),
- _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
- _visc(nan("")),
- _linSolver("AMG"),
- _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _seisDepth(-1),_aVal(-1),_bAbove(-1),_bBelow(-1),_sigma_N_val(-1),
+  _shearDistribution("unspecified"),_problemType("unspecificed"),
+  _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
+  _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
+  _muArrPlus(NULL),_csArrPlus(NULL),_muPlus(NULL),
+  _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
+  _rhoInMinus(-1),_rhoOutMinus(-1),
+  _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
+  _visc(nan("")),
+  _linSolver("unspecified"),_kspTol(-1),
+  _timeControlType("unspecified"),_timeIntegrator("unspecified"),
+  _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
+  _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
@@ -24,9 +33,6 @@ Domain::Domain(const char *file)
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
   //~PetscPrintf(PETSC_COMM_WORLD,"\n\n minDeltaT=%g\n\n");
-  _f0=0.6;
-  _v0=1e-6;
-
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -36,6 +42,7 @@ Domain::Domain(const char *file)
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
 
+  checkInput(); // perform some basic value checking to prevent NaNs
 
   MatCreate(PETSC_COMM_WORLD,&_muPlus);
   setFieldsPlus();
@@ -55,8 +62,8 @@ Domain::Domain(const char *file)
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
  _shearDistribution("basin"),_problemType("full"),
- _muArrPlus(NULL),_csArrPlus(NULL),
- _muArrMinus(NULL),_csArrMinus(NULL),
+  _muArrPlus(NULL),_csArrPlus(NULL),_muPlus(NULL),
+ _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
  _visc(nan("")),
  _linSolver("AMG"),
  _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
@@ -479,6 +486,96 @@ ierr = PetscPrintf(PETSC_COMM_SELF,"Ending view in domain.cpp.\n");CHKERRQ(ierr)
   }
   return ierr;
 }
+
+
+// Check that required fields have been set by the input file
+
+PetscErrorCode Domain::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_SELF,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  assert( _order==2 || _order==4 );
+  assert( _Ny > 3 && _Nz > 0 );
+  assert( _Ly > 0 && _Lz > 0);
+  assert( _dy > 0 && !isnan(_dy) );
+  assert( _dz > 0 && !isnan(_dz) );
+
+  assert(_Dc > 0 );
+  assert(_seisDepth > 0);
+  assert(_aVal > 0);
+  assert(_bAbove >= 0);
+  assert(_bBelow >= 0);
+  assert(_sigma_N_val > 0);
+
+  assert(_vp > 0);
+
+
+
+  assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
+  assert(_timeControlType.compare("P")==0 ||
+         _timeControlType.compare("PI")==0 ||
+         _timeControlType.compare("PID")==0 );
+  assert(_maxStepCount >= 0);
+  assert(_initTime >= 0);
+  assert(_maxTime >= 0 && _maxTime>=_initTime);
+  assert(_strideLength >= 1);
+  assert(_atol >= 1e-14);
+  assert(_minDeltaT >= 1e-14);
+  assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
+  assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
+
+  assert(_rootTol >= 1e-14);
+
+  assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
+         _linSolver.compare("MUMPSLU") == 0 ||
+         _linSolver.compare("AMG") == 0 );
+  assert(_kspTol >= 1e-14);
+
+
+    assert(_problemType.compare("full")==0 || _problemType.compare("symmetric")==0);
+    assert(_shearDistribution.compare("basin")==0 ||
+         _shearDistribution.compare("constant")==0 ||
+         _shearDistribution.compare("gradient")==0 ||
+         _shearDistribution.compare("mms")==0 );
+
+  if (_shearDistribution.compare("constant")==0 ||
+      _shearDistribution.compare("gradient")==0 ||
+      _shearDistribution.compare("mms")==0 )
+  {
+    assert(_muValPlus>=1e-14);
+    assert(_rhoValPlus>=1e-14);
+    if (_problemType.compare("full")==0) {
+      assert(_muValMinus>=1e-14);
+      assert(_rhoValMinus>=1e-14);
+    }
+  }
+  else if (_shearDistribution.compare("basin")==0) {
+    assert(_muInPlus>=1e-14);
+    assert(_muOutPlus>=1e-14);
+    assert(_rhoInPlus>=1e-14);
+    assert(_rhoOutPlus>=1e-14);
+    if (_problemType.compare("full")==0) {
+      assert(_muInMinus>=1e-14);
+    assert(_muOutMinus>=1e-14);
+    assert(_rhoInMinus>=1e-14);
+    assert(_rhoOutMinus>=1e-14);
+    }
+    assert(_depth>=1e-14);
+    assert(_width>=1e-14);
+  }
+
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_SELF,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+  //~}
+  return ierr;
+}
+
+
+
 
 // Save all scalar fields to text file named domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.

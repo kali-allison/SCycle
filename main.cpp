@@ -63,12 +63,11 @@ int runTests(const char * inputFile)
   //~SbpOps sbpMinus(domain,*domain._muArrMinus,domain._muMinus);
   //~sbpMinus.writeOps("data/minus_");
 
-  //~Fault fault(domain);
+  //~FullFault fault(domain);
   //~fault.writeContext(domain._outputDir);
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  //~FullLithosphere lith(domain);
   Lithosphere *lith;
   if (domain._problemType.compare("symmetric")==0) {
     lith = new SymmLithosphere(domain);
@@ -289,13 +288,13 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
 
   // without multiplying rhs by source
-  ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
+  //~ierr = VecAXPY(rhs,-1.0,source);CHKERRQ(ierr); // rhs = rhs - source
 
   // with multiplying rhs by source
-  //~Vec temp;
-  //~ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
-  //~ierr = MatMult(tempFactors._H,source,temp);CHKERRQ(ierr);
-  //~ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
+  Vec temp;
+  ierr = VecDuplicate(rhs,&temp);CHKERRQ(ierr);
+  ierr = MatMult(tempFactors._H,source,temp);CHKERRQ(ierr);
+  ierr = VecAXPY(rhs,-1.0,temp);CHKERRQ(ierr); // rhs = rhs - source
 
 
 
@@ -328,7 +327,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   ierr = writeVec(bcR,"data/bcR");CHKERRQ(ierr);
   ierr = writeVec(bcS,"data/bcS");CHKERRQ(ierr);
   ierr = writeVec(bcD,"data/bcD");CHKERRQ(ierr);
- //~sbp.writeOps("data/");
+ sbp.writeOps("data/");
 
 
   // MMS for shear stress on fault
@@ -409,6 +408,148 @@ int runEqCycle(const char * inputFile)
   return ierr;
 }
 
+/*
+ * Determine the critical grid spacing by imposing slip on the fault
+ * similar to just prior to an eq and then measuring how shear stress
+ * on the fault changes as a function of grid spacing.
+ */
+int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Ii = 0;
+  PetscScalar    y,z,v=0;
+
+  Domain domain(inputFile,Ny,Nz);
+
+  // boundary conditions
+  Vec bcF,bcR,bcS,bcD,rhs;
+  VecCreate(PETSC_COMM_WORLD,&bcF);
+  VecSetSizes(bcF,PETSC_DECIDE,Nz);
+  VecSetFromOptions(bcF);
+  VecDuplicate(bcF,&bcR);
+  VecCreate(PETSC_COMM_WORLD,&bcS);
+  VecSetSizes(bcS,PETSC_DECIDE,Ny);
+  VecSetFromOptions(bcS);
+  VecDuplicate(bcS,&bcD);
+
+  // set values for boundaries, source, and analytic solution
+  PetscInt indx = 0;
+  for (Ii=0;Ii<Ny*Nz;Ii++)
+  {
+    y = domain._dy*(Ii/Nz);
+    z = domain._dz*(Ii-Nz*(Ii/Nz));
+
+    // BCs
+    if (y==0) {
+      v = atan((z-domain._seisDepth)/2.0) - atan(-domain._seisDepth/2.0);
+      //~v = 2;
+      ierr = VecSetValue(bcF,Ii,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (y==domain._Ly) {
+      indx = z/domain._dz;
+      v = 0;
+      ierr = VecSetValue(bcR,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (z==0) {
+      indx = (int) (y/domain._dy);
+      v = 0.0;
+      ierr = VecSetValue(bcS,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    if (z==domain._Lz) {
+      indx = (int) (y/domain._dy);
+      v = 0.0;
+      ierr = VecSetValue(bcD,indx,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  VecAssemblyBegin(bcF); VecAssemblyEnd(bcF);
+  VecAssemblyBegin(bcR); VecAssemblyEnd(bcR);
+  VecAssemblyBegin(bcS); VecAssemblyEnd(bcS);
+  VecAssemblyBegin(bcD); VecAssemblyEnd(bcD);
+
+
+
+  // set up linear system
+  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+
+  VecCreate(PETSC_COMM_WORLD,&rhs);
+  VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
+  VecSetFromOptions(rhs);
+  VecSet(rhs,0.0);
+  ierr = sbp.setRhs(rhs,bcF,bcR,bcS,bcD);CHKERRQ(ierr);
+
+  KSP ksp;
+  PC  pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+  //~ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  //~ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  //~ierr = PCSetType(pc,PCLU);CHKERRQ(ierr);
+  //~PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
+  //~PCFactorSetUpMatSolverPackage(pc);
+
+
+  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(ksp,domain._kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+
+
+
+  Vec uhat;
+  ierr = VecDuplicate(rhs,&uhat);CHKERRQ(ierr);
+  ierr = KSPSolve(ksp,rhs,uhat);CHKERRQ(ierr);
+
+
+  // output vectors for visualization with matlab
+  ierr = domain.write();
+  ierr = writeVec(bcF,"data/bcF");CHKERRQ(ierr);
+  ierr = writeVec(bcR,"data/bcR");CHKERRQ(ierr);
+  ierr = writeVec(bcS,"data/bcS");CHKERRQ(ierr);
+  ierr = writeVec(bcD,"data/bcD");CHKERRQ(ierr);
+  ierr = writeVec(uhat,"data/uhat");CHKERRQ(ierr);
+
+
+  // MMS for shear stress on fault
+  Vec tau, sigma_xy;
+  ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
+  ierr = MatMult(sbp._Dy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
+
+  ierr = VecDuplicate(bcF,&tau);CHKERRQ(ierr);
+  PetscInt Istart,Iend;
+  v = 0.0;
+  ierr = VecGetOwnershipRange(sigma_xy,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    if (Ii<Nz) {
+      ierr = VecGetValues(sigma_xy,1,&Ii,&v);CHKERRQ(ierr);
+      ierr = VecSetValues(tau,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(tau);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(tau);CHKERRQ(ierr);
+
+
+  stringstream ss;
+  ss << "data/tau_order" << domain._order << "_Ny" << Ny << "_Nz" << Nz;
+  std::string _debugFolder = ss.str();
+  ierr = writeVec(tau,_debugFolder.c_str());CHKERRQ(ierr);
+
+  // clean up
+  VecDestroy(&bcF);
+  VecDestroy(&bcR);
+  VecDestroy(&bcS);
+  VecDestroy(&bcD);
+  VecDestroy(&tau);
+  VecDestroy(&sigma_xy);
+//~*/
+  return ierr;
+}
+
 
 int main(int argc,char **args)
 {
@@ -420,7 +561,8 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
+  //~critSpacing(inputFile,416,416);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -428,18 +570,18 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
-  /*
-  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
-             "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  PetscInt Ny=21;
-  for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  {
-    mmsSpace(inputFile,Ny,Ny); // perform MMS
-  }
-  */
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
+             //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
+  //~PetscInt Ny=21;
+  //~for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
+  //~{
+    //~mmsSpace(inputFile,Ny,Ny); // perform MMS
+  //~}
+
 
 
 

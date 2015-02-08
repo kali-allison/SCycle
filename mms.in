@@ -15,11 +15,11 @@ vp = 1e-9
 
 shearDistribution = mms
 {
-mu = 16
-rho = 2.8
+problem = symmetric
+muPlus = 16
+rhoPlus = 2.8
 }
 
-alpha = -13.0
 linSolver = AMG
 kspTol = 1e-7
 
@@ -35,4 +35,4 @@ atol = 1e-5
 
 rootTol = 1e-9
 
-outputDir = data/mms_
+outputDir = data/

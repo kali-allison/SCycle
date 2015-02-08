@@ -747,8 +747,6 @@ PetscErrorCode FullFault::setFaultDisp(Vec const &bcLplus,Vec const &bcLminus)
     ierr = VecCopy(bcLplus,_uPlus);CHKERRQ(ierr);
     ierr = VecCopy(bcLminus,_uMinus);CHKERRQ(ierr);
 
-  if (_problemType.compare("full")==0) { ierr = VecCopy(bcLminus,_uMinus);CHKERRQ(ierr); }
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::setFullFaultDisp in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -778,12 +776,10 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
   ierr = VecAssemblyEnd(_tauQSplus);CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(sigma_xyMinus,&Istart,&Iend);CHKERRQ(ierr);
-  //~ierr = VecGetSize(sigma_xyMinus,&size);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
-    //~if (Ii>size-_N && Ii<size) {
-      //~ind = Ii - (size - _N) - 1;
       ierr = VecGetValues(sigma_xyMinus,1,&Ii,&v);CHKERRQ(ierr);
+      v = -v;
       ierr = VecSetValues(_tauQSminus,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }

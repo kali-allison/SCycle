@@ -142,10 +142,9 @@ Spmat kron(const Spmat& left,const Spmat& right)
 
   Spmat result(leftRowSize*rightRowSize,leftColSize*rightColSize);
 
-
+  // naive implementation loops over all possible entries ( very slow)
   //~double val = 0.0;
   //~size_t Ii,Jj;
-  //~// naive implementation loops over all possible entries ( very slow)
   //~for (Ii=0;Ii<leftRowSize*rightRowSize;Ii++)
   //~{
     //~for (Jj=0;Jj<leftColSize*rightColSize;Jj++)

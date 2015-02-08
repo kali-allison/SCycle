@@ -524,7 +524,7 @@ FullLithosphere::FullLithosphere(Domain&D)
 
   // remote displacement on - side
   VecDuplicate(_bcFplus,&_bcRminus); PetscObjectSetName((PetscObject) _bcRminus, "bcRminus");
-  VecSet(_bcRminus,_vp*_initTime/2.0);
+  VecSet(_bcRminus,-_vp*_initTime/2.0);
   VecAXPY(_bcRminus,1.0,_bcRminusShift);
 
   VecDuplicate(_bcTplus,&_bcTminus); PetscObjectSetName((PetscObject) _bcTminus, "bcTminus");
@@ -673,7 +673,7 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcRminusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    bcRshift = v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRminusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
