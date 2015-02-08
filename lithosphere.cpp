@@ -787,7 +787,7 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
 
   // update boundaries: - side
   ierr = VecCopy(*(varBegin+2),_bcFminus);CHKERRQ(ierr);
-  ierr = VecSet(_bcRminus,_vp*time/2.0);CHKERRQ(ierr);
+  ierr = VecSet(_bcRminus,-_vp*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRminus,1.0,_bcRminusShift);CHKERRQ(ierr);
 
    // solve for displacement: + side

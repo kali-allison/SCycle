@@ -243,6 +243,7 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
   ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
+  ierr = VecScale(right,2.0);CHKERRQ(ierr);
   ierr = VecAbs(right);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -614,7 +615,6 @@ PetscErrorCode FullFault::computeVel()
   // compute vel (vel = velPlus - velMinus)
   ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
 
-
   // right = [zMinus*tauQSplus + zPlus*tauQSminus]/(zPlus * zMinus)
   ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
   ierr = VecPointwiseMult(right,_zMinus,right);CHKERRQ(ierr);
@@ -624,6 +624,7 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecAXPY(right,1.0,temp);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_zMinus);CHKERRQ(ierr);
+
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
@@ -643,14 +644,13 @@ PetscErrorCode FullFault::computeVel()
       ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
       ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
-      //~outVal = 1.0;
     }
     ierr = VecSetValue(_vel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
 
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
+  //~ierr = VecDestroy(&temp);CHKERRQ(ierr);
   ierr = VecDestroy(&left);CHKERRQ(ierr);
   ierr = VecDestroy(&right);CHKERRQ(ierr);
   ierr = VecDestroy(&out);CHKERRQ(ierr);
@@ -671,6 +671,7 @@ PetscErrorCode FullFault::computeVel()
   // compute velMinus
   ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   ierr = VecAXPY(_velMinus,-1.0,_vel);CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
@@ -828,6 +829,7 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
            - zPlus/(zPlus+zMinus)*tauQSminus
            + zPlus*zMinus/(zPlus+zMinus)*vel;
   }
+
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,zPlus=%g,tau=%g,vel=%g,out=%g\n",psi,a,sigma_N,zPlus,tauQSplus,vel,out);
