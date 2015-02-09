@@ -570,17 +570,17 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  runTests(inputFile);
+  //~runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
-             //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  //~PetscInt Ny=21;
-  //~for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  //~{
-    //~mmsSpace(inputFile,Ny,Ny); // perform MMS
-  //~}
+  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
+             "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
+  PetscInt Ny=21;
+  for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
+  {
+    mmsSpace(inputFile,Ny,Ny); // perform MMS
+  }
 
 
 

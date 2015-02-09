@@ -37,6 +37,7 @@ public:
   void convert(Mat& petscMat, PetscInt N) const;
 
   friend Spmat kron(const Spmat& left,const Spmat& right);
+  friend void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag);
 
 
   // inline functions are defined in the header file

@@ -17,23 +17,22 @@ vp = 1e-4
 shearDistribution = constant
 {
 problem = full
-muPlus = 30
+muPlus = 36
 rhoPlus = 2.8
 
-muMinus = 30
+muMinus = 36
 rhoMinus = 2.8
 }
 
-alpha = -13.0
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 10
-initTime = 0
-maxTime = 4.3e6
+maxStepCount = 1e5
+initTime = 4e5
+maxTime = 6e5
 minDeltaT = 1e-3
 maxDeltaT = 1e7
 atol = 1e-7

@@ -111,9 +111,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat E0y(_Ny,_Ny);
     E0y(0,0,1.0);
-    Spmat E0y_IzS(_Ny*_Nz,_Ny*_Nz);
-    E0y_IzS = kron(E0y,tempMats._Iz);
-    E0y_IzS.convert(E0y_Iz,1);
+    kronConvert(E0y,tempMats._Iz,E0y_Iz,1,1);
     ierr = PetscObjectSetName((PetscObject) E0y_Iz, "E0y_Iz");CHKERRQ(ierr);
   }
 
@@ -123,9 +121,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat e0y(_Ny,1);
     e0y(0,0,1.0);
-    Spmat e0y_IzS(_Ny*_Nz,_Nz);
-    e0y_IzS = kron(e0y,tempMats._Iz);
-    e0y_IzS.convert(e0y_Iz,1);
+    kronConvert(e0y,tempMats._Iz,e0y_Iz,1,1);
     ierr = PetscObjectSetName((PetscObject) e0y_Iz, "e0y_Iz");CHKERRQ(ierr);
   }
 
@@ -134,11 +130,8 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat ENy(_Ny,_Ny);
     ENy(_Ny-1,_Ny-1,1.0);
-    Spmat ENy_IzS(_Ny*_Nz,_Ny*_Nz);
-    ENy_IzS = kron(ENy,tempMats._Iz);
-    ENy_IzS.convert(ENy_Iz,1);
+    kronConvert(ENy,tempMats._Iz,ENy_Iz,1,1);
     ierr = PetscObjectSetName((PetscObject) ENy_Iz, "ENy_Iz");CHKERRQ(ierr);
-    //~//MatView(ENy_Iz,PETSC_VIEWER_STDOUT_WORLD);
   }
 
   // kron(eNy,Iz)
@@ -146,9 +139,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat eNy(_Ny,1);
     eNy(_Ny-1,0,1.0);
-    Spmat eNy_IzS(_Ny*_Nz,_Nz);
-    eNy_IzS = kron(eNy,tempMats._Iz);
-    eNy_IzS.convert(eNy_Iz,1);
+    kronConvert(eNy,tempMats._Iz,eNy_Iz,1,1);
     ierr = PetscObjectSetName((PetscObject) eNy_Iz, "eNy_Iz");CHKERRQ(ierr);
   }
 
@@ -236,9 +227,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat E0z(_Nz,_Nz);
     E0z(0,0,1.0);
-    Spmat Iy_E0zS(_Ny*_Nz,_Ny*_Nz);
-    Iy_E0zS = kron(tempMats._Iy,E0z);
-    Iy_E0zS.convert(Iy_E0z,1);
+    kronConvert(tempMats._Iy,E0z,Iy_E0z,1,1);
     ierr = PetscObjectSetName((PetscObject) Iy_E0z, "Iy_E0z");CHKERRQ(ierr);
   }
 
@@ -247,9 +236,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat e0z(_Nz,1);
     e0z(0,0,1.0);
-    Spmat Iy_e0zS(_Ny*_Nz,_Nz);
-    Iy_e0zS = kron(tempMats._Iy,e0z);
-    Iy_e0zS.convert(Iy_e0z,1);
+    kronConvert(tempMats._Iy,e0z,Iy_e0z,1,1);
     ierr = PetscObjectSetName((PetscObject) Iy_e0z, "Iy_e0z");CHKERRQ(ierr);
   }
 
@@ -258,9 +245,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat ENz(_Nz,_Nz);
     ENz(_Nz-1,_Nz-1,1.0);
-    Spmat Iy_ENzS(_Ny*_Nz,_Ny*_Nz);
-    Iy_ENzS = kron(tempMats._Iy,ENz);
-    Iy_ENzS.convert(Iy_ENz,1);
+    kronConvert(tempMats._Iy,ENz,Iy_ENz,1,1);
     ierr = PetscObjectSetName((PetscObject) Iy_ENz, "Iy_ENz");CHKERRQ(ierr);
   }
 
@@ -269,9 +254,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   {
     Spmat eNz(_Nz,1);
     eNz(_Nz-1,0,1.0);
-    Spmat Iy_eNzS(_Ny*_Nz,_Nz);
-    Iy_eNzS = kron(tempMats._Iy,eNz);
-    Iy_eNzS.convert(Iy_eNz,1);
+    kronConvert(tempMats._Iy,eNz,Iy_eNz,1,1);
     ierr = PetscObjectSetName((PetscObject) Iy_eNz, "Iy_eNz");CHKERRQ(ierr);
   }
 
@@ -342,10 +325,8 @@ PetscErrorCode SbpOps::computeD2ymu(const TempMats& tempMats, Mat &D2ymu)
   // kron(Dy,Iz) (interior stencil)
   Mat Dy_Iz;
   {
-    Spmat Dy_IzS(_Ny*_Nz,_Ny*_Nz);
-    Dy_IzS = kron(tempMats._D1yint,tempMats._Iz);
-    if (_order==2) { Dy_IzS.convert(Dy_Iz,2); }
-    else if (_order==4) { Dy_IzS.convert(Dy_Iz,5); }
+    if (_order==2) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,2,2); }
+    else if (_order==4) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
     #if DEBUG > 0
       ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
@@ -359,10 +340,9 @@ PetscErrorCode SbpOps::computeD2ymu(const TempMats& tempMats, Mat &D2ymu)
   // mu*kron(Hy,Iz)
   Mat muxHy_Iz;
   {
-    Spmat muxHy_IzS(_Ny*_Nz,_Ny*_Nz);
-    muxHy_IzS = kron(tempMats._Hy,tempMats._Iz);
-    muxHy_IzS.convert(muxHy_Iz,1);
-    ierr = MatMatMult(*_mu,muxHy_Iz,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
+    Mat temp;
+    kronConvert(tempMats._Hy,tempMats._Iz,temp,1,0);
+    ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) muxHy_Iz, "muxHy_Iz");CHKERRQ(ierr);
     #if DEBUG > 0
       ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
@@ -370,6 +350,7 @@ PetscErrorCode SbpOps::computeD2ymu(const TempMats& tempMats, Mat &D2ymu)
     #if VERBOSE > 2
       ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     #endif
+    MatDestroy(&temp);
   }
 
   Mat temp1,temp2;
@@ -425,9 +406,7 @@ switch ( _order ) {
       // kron(Iy,C2z)
       Mat Iy_C2z;
       {
-        Spmat Iy_C2zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_C2zS = kron(tempMats._Iy,C2z);
-        Iy_C2zS.convert(Iy_C2z,1);
+        kronConvert(tempMats._Iy,C2z,Iy_C2z,1,0);
         ierr = PetscObjectSetName((PetscObject) Iy_C2z, "Iy_C2zz");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = checkMatrix(&Iy_C2z,_debugFolder,"Iy_Cz");CHKERRQ(ierr);
@@ -440,9 +419,7 @@ switch ( _order ) {
       // kron(Iy,D2z)
       Mat Iy_D2z;
       {
-        Spmat Iy_D2zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_D2zS = kron(tempMats._Iy,D2z);
-        Iy_D2zS.convert(Iy_D2z,5);
+        kronConvert(tempMats._Iy,D2z,Iy_D2z,5,5);
         ierr = PetscObjectSetName((PetscObject) Iy_D2z, "Iy_D2z");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z");CHKERRQ(ierr);
@@ -485,27 +462,13 @@ switch ( _order ) {
         //~Spmat B3(_Ny,_Ny);
         //~B3.eye();
         B3.convert(mu3,1);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\nB3:\n");
-        //~B3.printPetsc();
       }
 
       Mat Iy_D3z;
-      {
-        Spmat Iy_D3zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_D3zS = kron(tempMats._Iy,D3z);
-        Iy_D3zS.convert(Iy_D3z,6);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\n Iy_D3zS:\n");
-        //~Iy_D3zS.printPetsc();
-      }
+      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6);
 
       Mat Iy_C3z;
-      {
-        Spmat Iy_C3zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_C3zS = kron(tempMats._Iy,C3z);
-        Iy_C3zS.convert(Iy_C3z,1);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\n Iy_C3zS:\n");
-        //~Iy_C3zS.printPetsc();
-      }
+      kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
 
       // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
       //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
@@ -520,19 +483,10 @@ switch ( _order ) {
 
 
       Mat Iy_D4z;
-      {
-        Spmat Iy_D4zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_D4zS = kron(tempMats._Iy,D4z);
-        Iy_D4zS.convert(Iy_D4z,5);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\n Iy_D4zS:\n");
-        //~Iy_D4zS.printPetsc();
-      }
+        kronConvert(tempMats._Iy,D4z,Iy_D4z,5,5);
+
       Mat Iy_C4z;
-      {
-        Spmat Iy_C4zS(_Ny*_Nz,_Ny*_Nz);
-        Iy_C4zS = kron(tempMats._Iy,C4z);
-        Iy_C4zS.convert(Iy_C4z,1);
-      }
+      kronConvert(tempMats._Iy,C4z,Iy_C4z,1,1);
 
 
       // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
@@ -591,9 +545,7 @@ switch ( _order ) {
       // kron(D2y,Iz)
       Mat D2y_Iz;
       {
-        Spmat D2y_IzS(_Ny*_Nz,_Ny*_Nz);
-        D2y_IzS = kron(D2y,tempMats._Iz);
-        D2y_IzS.convert(D2y_Iz,5);
+        kronConvert(D2y,tempMats._Iz,D2y_Iz,5,5);
         ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
@@ -606,9 +558,7 @@ switch ( _order ) {
       // kron(C2y,Iz)
       Mat C2y_Iz;
       {
-        Spmat C2y_IzS(_Ny*_Nz,_Ny*_Nz);
-        C2y_IzS = kron(C2y,tempMats._Iz);
-        C2y_IzS.convert(C2y_Iz,5);
+        kronConvert(C2y,tempMats._Iz,C2y_Iz,5,5);
         ierr = PetscObjectSetName((PetscObject) C2y_Iz, "C2y_Iz");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = MatView(C2y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -655,27 +605,10 @@ switch ( _order ) {
       }
 
       Mat D3y_Iz;
-      {
-        Spmat D3y_IzS(_Ny*_Nz,_Ny*_Nz);
-        D3y_IzS = kron(D3y,tempMats._Iz);
-        //~Spmat D3y_IzS(_Ny,_Ny);
-        //~D3y_IzS = D3y;
-        D3y_IzS.convert(D3y_Iz,6);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\nD3y_IzS:\n");
-        //~D3y_IzS.printPetsc();
-      }
+      kronConvert(D3y,tempMats._Iz,D3y_Iz,6,6);
 
       Mat C3y_Iz;
-      {
-        Spmat C3y_IzS(_Ny*_Nz,_Ny*_Nz);
-        C3y_IzS = kron(C3y,tempMats._Iz);
-        //~Spmat C3y_IzS(_Ny,_Ny);
-        //~C3y_IzS = C3y;
-        C3y_IzS.convert(C3y_Iz,1);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\nC3y_IzS:\n");
-        //~C3y_IzS.printPetsc();
-      }
-
+      kronConvert(C3y,tempMats._Iz,C3y_Iz,1,1);
 
 
       // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy
@@ -691,25 +624,10 @@ switch ( _order ) {
 
 
       Mat D4y_Iz;
-      {
-        Spmat D4y_IzS(_Ny*_Nz,_Ny*_Nz);
-        D4y_IzS = kron(D4y,tempMats._Iz);
-        //~Spmat D4y_IzS(_Ny,_Ny);
-        //~D4y_IzS = D4y;
-        D4y_IzS.convert(D4y_Iz,5);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\nD4y_IzS:\n");
-        //~D4y_IzS.printPetsc();
-      }
+      kronConvert(D4y,tempMats._Iz,D4y_Iz,5,5);
+
       Mat C4y_Iz;
-      {
-        Spmat C4y_IzS(_Ny*_Nz,_Ny*_Nz);
-        C4y_IzS = kron(C4y,tempMats._Iz);
-        //~Spmat C4y_IzS(_Ny,_Ny);
-        //~C4y_IzS = C4y;
-        C4y_IzS.convert(C4y_Iz,1);
-        //~PetscPrintf(PETSC_COMM_WORLD,"\n\nC4y_IzS:\n");
-        //~C4y_IzS.printPetsc();
-      }
+      kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
 
       ierr = MatTransposeMatMult(D4y_Iz,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
       ierr = MatMatMatMult(temp1,*_mu,D4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
@@ -755,10 +673,8 @@ PetscErrorCode SbpOps::computeD2zmu(const TempMats& tempMats,Mat &D2zmu)
   // kron(Iy,Dz)
   Mat Iy_Dz;
   {
-    Spmat Iy_DzS(_Ny*_Nz,_Ny*_Nz);
-    Iy_DzS = kron(tempMats._Iy,tempMats._D1zint);
-    if (_order==2) { Iy_DzS.convert(Iy_Dz,2); }
-    else if (_order==4) { Iy_DzS.convert(Iy_Dz,5); }
+    if (_order==2) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,2,2); }
+    else if (_order==4) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
     #if DEBUG > 0
       ierr = checkMatrix(&Iy_Dz,_debugFolder,"Iy_Dz");CHKERRQ(ierr);
@@ -829,11 +745,7 @@ PetscErrorCode SbpOps::computeDy_Iz(const TempMats& tempMats)
 #endif
 
   Mat temp;
-  {
-    Spmat Sy_Iz(_Ny*_Nz,_Ny*_Nz);
-    Sy_Iz = kron(tempMats._D1y,tempMats._Iz);
-    Sy_Iz.convert(temp,5);
-  }
+  kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
 
   MatDestroy(&_Dy_Iz);
   ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
@@ -1448,11 +1360,9 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
 
     // mu*kron(BySy,Iz)
     {
-      Spmat muxBySy_Iz(_Ny*_Nz,_Ny*_Nz);
-      muxBySy_Iz = kron(Sy,_Iz);
       Mat temp;
-      if (_order==2) { muxBySy_Iz.convert(temp,3); }
-      if (_order==4) { muxBySy_Iz.convert(temp,5); }
+      if (_order==2) { kronConvert(Sy,_Iz,temp,3,3); }
+      if (_order==4) { kronConvert(Sy,_Iz,temp,5,5); }
       MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxBySy_Iz);
       PetscObjectSetName((PetscObject) _muxBySy_Iz, "muxBySy_Iz");
       MatDestroy(&temp);
@@ -1469,19 +1379,15 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
 
     // kron(Iy,Hzinv)
     {
-      Spmat Iy_Hzinv(_Ny*_Nz,_Ny*_Nz);
-      Iy_Hzinv = kron(_Iy,Hzinv);
-      Iy_Hzinv.convert(_Iy_Hzinv,1);
+      kronConvert(_Iy,Hzinv,_Iy_Hzinv,1,0);
       PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
     }
 
     // mu*kron(Iy,BzSz)
     {
-      Spmat muxIy_BzSz(_Ny*_Nz,_Ny*_Nz);
-      muxIy_BzSz = kron(_Iy,Sz);
       Mat temp;
-      if (_order==2) { muxIy_BzSz.convert(temp,3); }
-      if (_order==4) { muxIy_BzSz.convert(temp,5); }
+      if (_order==2) { kronConvert(_Iy,Sz,temp,3,3); }
+      if (_order==4) { kronConvert(_Iy,Sz,temp,5,5); }
       MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxIy_BzSz);
       PetscObjectSetName((PetscObject) _muxIy_BzSz, "muxIy_BzSz");
       MatDestroy(&temp);
@@ -1492,9 +1398,7 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
   // H matrix
   {
     // kron(Hy,Hz)
-    Spmat Hy_Hz(_Ny*_Nz,_Ny*_Nz);
-    Hy_Hz = kron(_Hy,_Hz);
-    Hy_Hz.convert(_H,1);
+    kronConvert(_Hy,_Hz,_H,1,0);
   }
   PetscObjectSetName((PetscObject) _H, "H");
 
