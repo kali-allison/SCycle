@@ -58,8 +58,11 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n finished\n\n");CHKERRQ(ierr);
+  //~while(1){};// infinite loop
   //~sbp.writeOps("data/plus_");
+
   //~SbpOps sbpMinus(domain,*domain._muArrMinus,domain._muMinus);
   //~sbpMinus.writeOps("data/minus_");
 
@@ -68,16 +71,16 @@ int runTests(const char * inputFile)
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  Lithosphere *lith;
-  if (domain._problemType.compare("symmetric")==0) {
-    lith = new SymmLithosphere(domain);
-  }
-  else {
-    lith = new FullLithosphere(domain);
-  }
-  ierr = lith->writeStep();CHKERRQ(ierr);
-  ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~Lithosphere *lith;
+  //~if (domain._problemType.compare("symmetric")==0) {
+    //~lith = new SymmLithosphere(domain);
+  //~}
+  //~else {
+    //~lith = new FullLithosphere(domain);
+  //~}
+  //~ierr = lith->writeStep();CHKERRQ(ierr);
+  //~ierr = lith->integrate();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -570,17 +573,17 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
 
-  PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
-             "order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
-  PetscInt Ny=21;
-  for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
-  {
-    mmsSpace(inputFile,Ny,Ny); // perform MMS
-  }
+  //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
+             //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
+  //~PetscInt Ny=21;
+  //~for (Ny=21;Ny<82;Ny=(Ny-1)*2+1)
+  //~{
+    //~mmsSpace(inputFile,Ny,Ny); // perform MMS
+  //~}
 
 
 

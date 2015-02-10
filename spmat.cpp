@@ -217,7 +217,6 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
   Spmat::const_col_iter JjL,JjR;
   double valL=0.0,valR=0.0,val=0.0;
   PetscInt row,col;
-  //~size_t rowL,colL,rowR,colR,row,col;
   size_t rowL,colL,rowR,colR;
   for(IiL=left._mat.begin(); IiL!=left._mat.end(); IiL++) // loop over all values in left
   {
@@ -242,7 +241,6 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
           row = rowL*rightRowSize + rowR;
           col = colL*rightColSize + colR;
           if (val!=0 && row>=Istart && row<Iend) { // if entry is nnz and belongs to processor
-            //~result(row,col,val);
             MatSetValues(mat,1,&row,1,&col,&val,INSERT_VALUES);
           }
         }
