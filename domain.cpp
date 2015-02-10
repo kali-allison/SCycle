@@ -494,7 +494,7 @@ PetscErrorCode Domain::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_SELF,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
   assert( _order==2 || _order==4 );
@@ -568,7 +568,7 @@ PetscErrorCode Domain::checkInput()
   }
 
 #if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_SELF,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
   //~}
   return ierr;

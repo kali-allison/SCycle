@@ -58,8 +58,8 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n finished\n\n");CHKERRQ(ierr);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n finished\n\n");CHKERRQ(ierr);
   //~while(1){};// infinite loop
   //~sbp.writeOps("data/plus_");
 
@@ -71,16 +71,16 @@ int runTests(const char * inputFile)
   //~fault.writeStep(domain._outputDir,0);
 
   //~OnlyAsthenosphere lith(domain);
-  //~Lithosphere *lith;
-  //~if (domain._problemType.compare("symmetric")==0) {
-    //~lith = new SymmLithosphere(domain);
-  //~}
-  //~else {
-    //~lith = new FullLithosphere(domain);
-  //~}
-  //~ierr = lith->writeStep();CHKERRQ(ierr);
-  //~ierr = lith->integrate();CHKERRQ(ierr);
-  //~ierr = lith->view();CHKERRQ(ierr);
+  Lithosphere *lith;
+  if (domain._problemType.compare("symmetric")==0) {
+    lith = new SymmLithosphere(domain);
+  }
+  else {
+    lith = new FullLithosphere(domain);
+  }
+  ierr = lith->writeStep();CHKERRQ(ierr);
+  ierr = lith->integrate();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
 
   return ierr;
 }
