@@ -408,7 +408,7 @@ int runEqCycle(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  //~ierr = lith->view();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -539,7 +539,8 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
 
 
   stringstream ss;
-  ss << "data/tau_order" << domain._order << "_Ny" << Ny << "_Nz" << Nz;
+  ss << "data/tau_"<< domain._shearDistribution << "_order"
+     << domain._order << "_Ny" << Ny << "_Nz" << Nz;
   std::string _debugFolder = ss.str();
   ierr = writeVec(tau,_debugFolder.c_str());CHKERRQ(ierr);
 
@@ -565,8 +566,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
-  //~critSpacing(inputFile,416,416);
+  //~runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -585,6 +585,16 @@ int main(int argc,char **args)
   //~{
     //~mmsSpace(inputFile,Ny,Ny); // perform MMS
   //~}
+
+  // check for critical grid point spacing
+  PetscInt Ny=51; // crit for order=2 is 417
+  for (Ny=51;Ny<1002;Ny+=50)
+  {
+    PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
+    critSpacing(inputFile,Ny,Ny);
+  }
+
+
 
 
 

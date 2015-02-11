@@ -17,15 +17,13 @@ vp = 1e-9
 shearDistribution = basin
 {
 problem = symmetric
-muInPlus = 30
+#muPlus = 36
+#rhoPlus = 2.8
+
+muInPlus = 18
 muOutPlus = 36
 rhoInPlus = 2.8
 rhoOutPlus = 2.8
-
-muInMinus = 30
-muOutMinus = 36
-rhoInMinus = 2.8
-rhoOutMinus = 2.8
 
 depth = 4
 width = 12
@@ -47,6 +45,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/memTest_
+outputDir = data/
 
 

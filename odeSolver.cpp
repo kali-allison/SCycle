@@ -418,9 +418,9 @@ PetscReal RK32::computeError()
   for (int ind=0;ind<_lenVar;ind++) {
     ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
 
-    // error based on max norm
-    //~ierr = VecNorm(_errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
-    //~if (err[ind]>totErr) { totErr=err[ind]; }
+    //~// error based on max norm
+    //~//ierr = VecNorm(_errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
+    //~//if (err[ind]>totErr) { totErr=err[ind]; }
 
     // error based on weighted 2 norm
     VecDot(_errVec[ind],_errVec[ind],&err[ind]);
@@ -428,6 +428,25 @@ PetscReal RK32::computeError()
     totErr += err[ind]/size;
   }
   totErr = sqrt(totErr);
+
+  //~// for full, use this error calculation instead
+  //~int ind = 0; // psi
+  //~ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+  //~VecDot(_errVec[ind],_errVec[ind],&err[ind]);
+  //~VecGetSize(_errVec[ind],&size);
+  //~totErr += err[ind]/size;
+//~
+  //~// displacements
+  //~Vec temp2,temp3;
+  //~ierr = VecDuplicate(_errVec[1],&temp2);
+  //~ierr = VecDuplicate(_errVec[1],&temp3);
+  //~ierr = VecWAXPY(temp2,-1.0,_var2nd[1],_var2nd[2]);CHKERRQ(ierr);
+  //~ierr = VecWAXPY(temp3,-1.0,_var3rd[1],_var3rd[2]);CHKERRQ(ierr);
+  //~ierr = VecWAXPY(_errVec[1],-1.0,temp2,temp3);
+  //~VecDot(_errVec[1],_errVec[1],&err[1]);
+  //~VecGetSize(_errVec[1],&size);
+  //~totErr += err[1]/size;
+  //~totErr += err[1]/size;
 
 
   // abs error of slip
