@@ -72,6 +72,9 @@ class Lithosphere: public IntegratorContext
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
+    PetscViewer          _bcRplusV,_bcRminusV,_bcRminusShiftV,_bcRplusShiftV,_bcFplusV,_bcFminusV,
+                         _uPlusV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
+
 
     PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
 
@@ -81,13 +84,14 @@ class Lithosphere: public IntegratorContext
     Vec                  _bcTplus,_bcRplus,_bcBplus,_bcFplus;
 
     OdeSolver           *_quadrature;
+    Fault               *_fault;
 
     Lithosphere(Domain&D);
     ~Lithosphere();
 
 
 
-    PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode debug(const PetscReal time,const PetscInt steps,
                      const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
 
@@ -129,13 +133,12 @@ class SymmLithosphere: public Lithosphere
 
   public:
 
-    SymmFault       _fault;
+    //~SymmFault       _fault;
 
 
     SymmLithosphere(Domain&D);
     ~SymmLithosphere();
 
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 
@@ -187,14 +190,13 @@ class FullLithosphere: public Lithosphere
     // boundary conditions
     Vec                  _bcTminus,_bcRminus,_bcBminus,_bcFminus;
 
-    FullFault            _fault;
+    //~FullFault            _fault;
 
 
     FullLithosphere(Domain&D);
     ~FullLithosphere();
 
 
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 

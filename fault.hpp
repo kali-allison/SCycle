@@ -54,7 +54,6 @@ class Fault: public RootFinderContext
 
 
     PetscErrorCode setFrictionFields();
-    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
 
     // disable default copy constructor and assignment operator
     Fault(const Fault & that);
@@ -72,14 +71,19 @@ class Fault: public RootFinderContext
     Fault(Domain&D);
     ~Fault();
 
+    PetscErrorCode virtual agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi) = 0;
+    PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,const_it_vec varEnd,
                                 it_vec dvarBegin,it_vec dvarEnd) = 0;
 
+    PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
+    PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
 
     PetscScalar getTauInf(PetscInt& ind);
 
     PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
+    PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
 };
 
 
@@ -105,13 +109,13 @@ class SymmFault: public Fault
     ~SymmFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
+    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
     PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 
-
-
-    PetscErrorCode setTauQS(const Vec& sigma_xyPlus);
-    PetscErrorCode setFaultDisp(Vec const &uhatPlus);
+    // don't technically need the 2nd argument
+    PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
+    PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
 
     PetscErrorCode writeStep(const std::string outputDir,const PetscInt step);
     PetscErrorCode writeContext(const std::string outputDir);
@@ -157,13 +161,13 @@ class FullFault: public Fault
     ~FullFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
+    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
     PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 
 
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
-    PetscErrorCode setFaultDisp(Vec const &uhatPlus,Vec const &uhatMinus);
-
+    PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
 
     PetscErrorCode writeStep(const std::string outputDir,const PetscInt step);
     PetscErrorCode writeContext(const std::string outputDir);

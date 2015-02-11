@@ -405,9 +405,10 @@ int runEqCycle(const char * inputFile)
   else {
     lith = new FullLithosphere(domain);
   }
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -564,7 +565,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
   //~critSpacing(inputFile,416,416);
 
   //~const char* inputFile2;
@@ -573,7 +574,7 @@ int main(int argc,char **args)
   //~coupledSpringSliders(inputFile, inputFile2);
 
 
-  runTests(inputFile);
+  //~runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
 

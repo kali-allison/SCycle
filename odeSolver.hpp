@@ -79,7 +79,7 @@ class OdeSolver
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(std::vector<Vec>& var, const int lenVar) = 0;
+    virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContext *obj) = 0;
 
@@ -108,7 +108,7 @@ class FEuler : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
+    PetscErrorCode setInitialConds(vector<Vec>& var);
     PetscErrorCode integrate(IntegratorContext *obj);
 };
 
@@ -137,7 +137,7 @@ class RK32 : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(vector<Vec>& var, const int lenVar);
+    PetscErrorCode setInitialConds(vector<Vec>& var);
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContext *obj);

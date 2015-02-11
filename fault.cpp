@@ -126,50 +126,6 @@ PetscErrorCode Fault::setFrictionFields()
 }
 
 
-PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    b,vel;
-
-
-  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
-  assert( ind>=Istart && ind<Iend);
-  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-  ierr = VecGetValues(_velPlus,1,&ind,&vel);CHKERRQ(ierr);
-
-  //~if (b==0) { *dPsi = 0; }
-  if ( isinf(exp(1/b)) ) { *dPsi = 0; }
-  else if ( b <= 1e-3 ) { *dPsi = 0; }
-  else {
-    *dPsi = (PetscScalar) (b*_v0/_Dc)*( exp((double) ( (_f0-psi)/b) ) - (vel/_v0) );
-  }
-
-
-  if (isnan(*dPsi)) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*dPsi) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
-    CHKERRQ(ierr);
-  }
-  else if (isinf(*dPsi)) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*dPsi) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
-    CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
-  }
-
-  assert(!isnan(*dPsi));
-  assert(!isinf(*dPsi));
-
-  return ierr;
-}
-
-
 
 PetscScalar Fault::getTauInf(PetscInt& ind)
 {
@@ -325,7 +281,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   return ierr;
 }
 
-PetscErrorCode SymmFault::setFaultDisp(Vec const &bcF)
+PetscErrorCode SymmFault::setFaultDisp(Vec const &bcF, Vec const &bcFminus)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -341,8 +297,7 @@ PetscErrorCode SymmFault::setFaultDisp(Vec const &bcF)
   return ierr;
 }
 
-
-PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xy)
+PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xy,const Vec& sigma_xyMinus)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -389,8 +344,8 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
   ierr = VecGetValues(_zPlus,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSplus,1,&ind,&tauQS);CHKERRQ(ierr);
 
-   if (a==0) { *out = zPlus*vel - tauQS; }
-   else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
+  if (a==0) { *out = 0.5*zPlus*vel - tauQS; }
+  else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,vel);
 #endif
@@ -415,8 +370,55 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::getResid in fault.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
-
 }
+
+
+PetscErrorCode SymmFault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    b,vel;
+
+
+  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
+  assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_velPlus,1,&ind,&vel);CHKERRQ(ierr);
+
+  //~if (b==0) { *dPsi = 0; }
+  if ( isinf(exp(1/b)) ) { *dPsi = 0; }
+  else if ( b <= 1e-3 ) { *dPsi = 0; }
+  else {
+    *dPsi = (PetscScalar) (b*_v0/_Dc)*( exp((double) ( (_f0-psi)/b) ) - (vel/_v0) );
+  }
+
+
+  if (isnan(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*dPsi) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
+    CHKERRQ(ierr);
+  }
+  else if (isinf(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*dPsi) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
+    CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
+  }
+
+  assert(!isnan(*dPsi));
+  assert(!isinf(*dPsi));
+
+  return ierr;
+}
+
+
+
+
 
 PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
                         it_vec dvarBegin,it_vec dvarEnd)
@@ -600,7 +602,7 @@ FullFault::~FullFault()
 
 
 //==================== protected member functions ======================
-// assumes right-lateral fault
+// compute vel (vel = velPlus - velMinus), assuming right-lateral fault
 PetscErrorCode FullFault::computeVel()
 {
   PetscErrorCode ierr = 0;
@@ -612,10 +614,9 @@ PetscErrorCode FullFault::computeVel()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-  // compute vel (vel = velPlus - velMinus)
-  ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
 
   // right = [zMinus*tauQSplus + zPlus*tauQSminus]/(zPlus * zMinus)
+  ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
   ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
   ierr = VecPointwiseMult(right,_zMinus,right);CHKERRQ(ierr);
   ierr = VecDuplicate(_tauQSminus,&temp);CHKERRQ(ierr);
@@ -624,6 +625,14 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecAXPY(right,1.0,temp);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,_zMinus);CHKERRQ(ierr);
+
+
+  //~// from symmetric fault
+  //~ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
+  //~ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
+  //~ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
+  //~ierr = VecScale(right,2.0);CHKERRQ(ierr);
+  //~ierr = VecAbs(right);CHKERRQ(ierr);
 
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -647,10 +656,20 @@ PetscErrorCode FullFault::computeVel()
     }
     ierr = VecSetValue(_vel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
+
+  //~// from symmetric fault
+  //~ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
+  //~ierr = VecCopy(_vel,_velPlus);CHKERRQ(ierr);
+  //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
+  //~ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
+  //~ierr = VecScale(_velMinus,-1.0);CHKERRQ(ierr);
+
+
   ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
 
-  //~ierr = VecDestroy(&temp);CHKERRQ(ierr);
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
   ierr = VecDestroy(&left);CHKERRQ(ierr);
   ierr = VecDestroy(&right);CHKERRQ(ierr);
   ierr = VecDestroy(&out);CHKERRQ(ierr);
@@ -780,7 +799,7 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
       ierr = VecGetValues(sigma_xyMinus,1,&Ii,&v);CHKERRQ(ierr);
-      v = -v;
+      v = -v; // sign convention
       ierr = VecSetValues(_tauQSminus,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -830,6 +849,9 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
            + zPlus*zMinus/(zPlus+zMinus)*vel;
   }
 
+  //~if (a==0) { *out = 0.5*zPlus*vel - tauQSplus; }
+  //~else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQSplus; }
+
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,zPlus=%g,tau=%g,vel=%g,out=%g\n",psi,a,sigma_N,zPlus,tauQSplus,vel,out);
@@ -853,6 +875,53 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
 #endif
   return ierr;
 }
+
+
+
+PetscErrorCode FullFault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    b,vel;
+
+
+  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
+  assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_vel,1,&ind,&vel);CHKERRQ(ierr);
+
+  //~if (b==0) { *dPsi = 0; }
+  if ( isinf(exp(1/b)) ) { *dPsi = 0; }
+  else if ( b <= 1e-3 ) { *dPsi = 0; }
+  else {
+    *dPsi = (PetscScalar) (b*_v0/_Dc)*( exp((double) ( (_f0-psi)/b) ) - (vel/_v0) );
+  }
+
+
+  if (isnan(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*dPsi) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
+    CHKERRQ(ierr);
+  }
+  else if (isinf(*dPsi)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*dPsi) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,vel);
+    CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(vel/_v0));
+  }
+
+  assert(!isnan(*dPsi));
+  assert(!isinf(*dPsi));
+
+  return ierr;
+}
+
+
 
 PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
                         it_vec dvarBegin,it_vec dvarEnd)
@@ -884,11 +953,10 @@ PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   }
   ierr = VecAssemblyBegin(*dvarBegin);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(*(dvarBegin+2));CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
-
-  ierr = VecAssemblyBegin(*(dvarBegin+2));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+2));CHKERRQ(ierr);
 
   return ierr;

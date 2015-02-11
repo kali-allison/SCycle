@@ -127,7 +127,7 @@ PetscErrorCode FEuler::view()
 #endif
 }
 
-PetscErrorCode FEuler::setInitialConds(vector<Vec>& var, const int lenVar)
+PetscErrorCode FEuler::setInitialConds(vector<Vec>& var)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -282,7 +282,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32::setInitialConds(vector<Vec>& var, const int lenVar)
+PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
