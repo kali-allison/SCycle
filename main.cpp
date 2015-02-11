@@ -78,9 +78,9 @@ int runTests(const char * inputFile)
   else {
     lith = new FullLithosphere(domain);
   }
-  ierr = lith->writeStep();CHKERRQ(ierr);
-  ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~ierr = lith->writeStep();CHKERRQ(ierr);
+  //~ierr = lith->integrate();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -566,7 +566,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -577,7 +577,6 @@ int main(int argc,char **args)
   //~runTests(inputFile);
 
   // MMS test (compare with answers produced by Matlab file by same name)
-
   //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   //~PetscInt Ny=21;
@@ -586,13 +585,13 @@ int main(int argc,char **args)
     //~mmsSpace(inputFile,Ny,Ny); // perform MMS
   //~}
 
-  // check for critical grid point spacing
-  PetscInt Ny=51; // crit for order=2 is 417
-  for (Ny=51;Ny<1002;Ny+=50)
-  {
-    PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
-    critSpacing(inputFile,Ny,Ny);
-  }
+  //~// check for critical grid point spacing
+  //~PetscInt Ny=51; // crit for order=2 is 417
+  //~for (Ny=51;Ny<1002;Ny+=50)
+  //~{
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
+    //~critSpacing(inputFile,Ny,Ny);
+  //~}
 
 
 
