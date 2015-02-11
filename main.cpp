@@ -78,9 +78,9 @@ int runTests(const char * inputFile)
   else {
     lith = new FullLithosphere(domain);
   }
-  //~ierr = lith->writeStep();CHKERRQ(ierr);
-  //~ierr = lith->integrate();CHKERRQ(ierr);
-  //~ierr = lith->view();CHKERRQ(ierr);
+  ierr = lith->writeStep();CHKERRQ(ierr);
+  ierr = lith->integrate();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -592,12 +592,6 @@ int main(int argc,char **args)
     //~PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
     //~critSpacing(inputFile,Ny,Ny);
   //~}
-
-
-
-
-
-
 
 
 

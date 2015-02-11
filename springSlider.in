@@ -30,15 +30,15 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e4
+maxStepCount = 3
 initTime = 4.3e5
-maxTime = 6e5
-minDeltaT = 1e-3
+maxTime = 5e5
+minDeltaT = 1e-5
 maxDeltaT = 1e7
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/symm_
+outputDir = data/SSsymm_
 
 

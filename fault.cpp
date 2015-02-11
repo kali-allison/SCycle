@@ -627,12 +627,12 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecPointwiseDivide(right,right,_zMinus);CHKERRQ(ierr);
 
 
-  //~// from symmetric fault
-  //~ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
-  //~ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
-  //~ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
-  //~ierr = VecScale(right,2.0);CHKERRQ(ierr);
-  //~ierr = VecAbs(right);CHKERRQ(ierr);
+  // from symmetric fault
+  ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
+  ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
+  ierr = VecScale(right,2.0);CHKERRQ(ierr);
+  ierr = VecAbs(right);CHKERRQ(ierr);
 
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -657,7 +657,7 @@ PetscErrorCode FullFault::computeVel()
     ierr = VecSetValue(_vel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
 
-  //~// from symmetric fault
+  // from symmetric fault
   //~ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
   //~ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
   //~ierr = VecCopy(_vel,_velPlus);CHKERRQ(ierr);
