@@ -1,6 +1,6 @@
 order = 2
-Ny = 5
-Nz = 6
+Ny = 417
+Nz = 417
 Ly = 24
 Lz = 24
 
@@ -17,10 +17,12 @@ vp = 1e-9
 shearDistribution = basin
 {
 problem = symmetric
+
 muInPlus = 30
 muOutPlus = 36
 rhoInPlus = 2.8
 rhoOutPlus = 2.8
+
 width = 12
 depth = 4
 }
@@ -41,6 +43,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = domainSizeTests/muIn36_
 
 
