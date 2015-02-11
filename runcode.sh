@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N muIn36_Ly24
-#PBS -l nodes=1:ppn=1
+#PBS -N symm_constant
+#PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e domainSizeTests/muIn36_Ly24.err
-#PBS -o domainSizeTests/muIn36_Ly24.out
+#PBS -e domainSizeTests/symm_constant.err
+#PBS -o domainSizeTests/symm_constant.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

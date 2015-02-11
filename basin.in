@@ -43,6 +43,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = domainSizeTests/muIn36_
+outputDir = domainSizeTests/muIn36_Ly24
 
 
