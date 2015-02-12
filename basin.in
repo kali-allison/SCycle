@@ -1,6 +1,6 @@
-order = 2
-Ny = 417
-Nz = 417
+order = 4
+Ny = 51
+Nz = 51
 Ly = 24
 Lz = 24
 
@@ -32,8 +32,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 5
+strideLength = 10
+maxStepCount = 1e5
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3

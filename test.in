@@ -14,27 +14,27 @@ sigma_N = 50.0
 
 vp = 1e-9
 
-shearDistribution = basin
+shearDistribution = constant
 {
 problem = symmetric
 
-#muPlus = 36
-#rhoPlus = 2.8
-#muMinus = 36
-#rhoMinus = 2.8
+muPlus = 36
+rhoPlus = 2.8
+muMinus = 36
+rhoMinus = 2.8
 
-muInPlus = 18
-muOutPlus = 36
-rhoInPlus = 2.8
-rhoOutPlus = 2.8
+#muInPlus = 12
+#muOutPlus = 36
+#rhoInPlus = 2.8
+#rhoOutPlus = 2.8
 
-muInMinus = 18
-muOutMinus = 36
-rhoInMinus = 2.8
-rhoOutMinus = 2.8
+#muInMinus = 12
+#muOutMinus = 36
+#rhoInMinus = 2.8
+#rhoOutMinus = 2.8
 
-depth = 4
-width = 12
+#depth = 4
+#width = 12
 }
 
 linSolver = AMG
@@ -53,6 +53,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/symm_
+outputDir = critGridSpacing/
 
 

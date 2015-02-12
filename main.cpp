@@ -444,14 +444,17 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
     z = domain._dz*(Ii-Nz*(Ii/Nz));
 
     // BCs
-    if (y==0) {
-      v = atan((z-domain._seisDepth)/2.0) - atan(-domain._seisDepth/2.0);
-      //~v = 2;
+    //~if (y==0) {
+    if (Ii < domain._Nz ) {
+      //~v = atan((z-domain._seisDepth)/2.0) - atan(-domain._seisDepth/2.0);
+      v = atan((z-domain._seisDepth)/0.5) - atan(-domain._seisDepth/2.0);
+      //~v = 0.0;
       ierr = VecSetValue(bcF,Ii,v,INSERT_VALUES);CHKERRQ(ierr);
     }
-    if (y==domain._Ly) {
+    //~if (y==domain._Ly) {
+    if (Ii >= domain._Ny*domain._Nz - domain._Nz) {
       indx = z/domain._dz;
-      v = 0;
+      v = 5;
       ierr = VecSetValue(bcR,indx,v,INSERT_VALUES);CHKERRQ(ierr);
     }
     if (z==0) {
@@ -464,11 +467,15 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
       v = 0.0;
       ierr = VecSetValue(bcD,indx,v,INSERT_VALUES);CHKERRQ(ierr);
     }
+
   }
+  VecSet(bcD,0.0);
+  VecSet(bcS,0.0);
+  VecSet(bcR,50.0);
   VecAssemblyBegin(bcF); VecAssemblyEnd(bcF);
-  VecAssemblyBegin(bcR); VecAssemblyEnd(bcR);
-  VecAssemblyBegin(bcS); VecAssemblyEnd(bcS);
-  VecAssemblyBegin(bcD); VecAssemblyEnd(bcD);
+  //~VecAssemblyBegin(bcR); VecAssemblyEnd(bcR);
+  //~VecAssemblyBegin(bcS); VecAssemblyEnd(bcS);
+  //~VecAssemblyBegin(bcD); VecAssemblyEnd(bcD);
 
 
 
@@ -512,11 +519,11 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
 
   // output vectors for visualization with matlab
   ierr = domain.write();
-  ierr = writeVec(bcF,"data/bcF");CHKERRQ(ierr);
-  ierr = writeVec(bcR,"data/bcR");CHKERRQ(ierr);
-  ierr = writeVec(bcS,"data/bcS");CHKERRQ(ierr);
-  ierr = writeVec(bcD,"data/bcD");CHKERRQ(ierr);
-  ierr = writeVec(uhat,"data/uhat");CHKERRQ(ierr);
+  ierr = writeVec(bcF,"critGridSpacing/bcF");CHKERRQ(ierr);
+  ierr = writeVec(bcR,"critGridSpacing/bcR");CHKERRQ(ierr);
+  ierr = writeVec(bcS,"critGridSpacing/bcS");CHKERRQ(ierr);
+  ierr = writeVec(bcD,"critGridSpacing/bcD");CHKERRQ(ierr);
+  ierr = writeVec(uhat,"critGridSpacing/uhat");CHKERRQ(ierr);
 
 
   // MMS for shear stress on fault
@@ -539,7 +546,7 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
 
 
   stringstream ss;
-  ss << "data/tau_"<< domain._shearDistribution << "_order"
+  ss << "critGridSpacing/tau_"<< domain._shearDistribution << "_order"
      << domain._order << "_Ny" << Ny << "_Nz" << Nz;
   std::string _debugFolder = ss.str();
   ierr = writeVec(tau,_debugFolder.c_str());CHKERRQ(ierr);
@@ -585,8 +592,8 @@ int main(int argc,char **args)
     //~mmsSpace(inputFile,Ny,Ny); // perform MMS
   //~}
 
-  //~// check for critical grid point spacing
-  //~PetscInt Ny=51; // crit for order=2 is 417
+  // check for critical grid point spacing
+  //~PetscInt Ny=251; // crit for order=2 is 417
   //~for (Ny=51;Ny<1002;Ny+=50)
   //~{
     //~PetscPrintf(PETSC_COMM_WORLD,"Ny=%i\n",Ny);
