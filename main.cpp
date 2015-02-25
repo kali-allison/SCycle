@@ -22,65 +22,26 @@ int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  /* Proof Vec is actually a pointer
-  PetscScalar    v = 0.0;
-  PetscInt       Ii,Istart,Iend;
-  Vec trial;
-  ierr = VecCreate(PETSC_COMM_WORLD,&trial);CHKERRQ(ierr);
-  ierr = VecSetSizes(trial,PETSC_DECIDE,3);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(trial);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) trial, "trial");CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(trial,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    v = Ii;
-    ierr = VecSetValues(trial,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(trial);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(trial);CHKERRQ(ierr);
-
-  ierr = VecView(trial,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
-
-  vector<Vec>  newVec(1);
-  newVec[0] = trial;
-  ierr = VecView(newVec[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
-  Ii = 1;
-  v = 5.0;
-  ierr = VecSetValues(newVec[0],1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(trial);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(trial);CHKERRQ(ierr);
-  ierr = VecView(newVec[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = VecView(trial,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  */
-
-  //~spmatTests();
-  Domain domain(inputFile);
+  //~Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
-  domain.write();
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n finished\n\n");CHKERRQ(ierr);
-  //~while(1){};// infinite loop
-  //~sbp.writeOps("data/plus_");
+  //~domain.write();
 
-  //~SbpOps sbpMinus(domain,*domain._muArrMinus,domain._muMinus);
-  //~sbpMinus.writeOps("data/minus_");
+  //~Lithosphere *lith;
+  //~if (domain._problemType.compare("symmetric")==0) {
+    //~lith = new SymmLithosphere(domain);
+  //~}
+  //~else {
+    //~lith = new FullLithosphere(domain);
+  //~}
 
-  //~FullFault fault(domain);
-  //~fault.writeContext(domain._outputDir);
-  //~fault.writeStep(domain._outputDir,0);
+  PetscScalar outVal;
+  TestRoots test;
+  test.getResid(1,2,&outVal);
+  Bisect rootAlg(1e4,1e-12);
+  ierr = rootAlg.setBounds(-5,5);CHKERRQ(ierr);
+  ierr = rootAlg.findRoot(&test,1,&outVal);CHKERRQ(ierr);
 
-  //~OnlyAsthenosphere lith(domain);
-  Lithosphere *lith;
-  if (domain._problemType.compare("symmetric")==0) {
-    lith = new SymmLithosphere(domain);
-  }
-  else {
-    lith = new FullLithosphere(domain);
-  }
-  ierr = lith->writeStep();CHKERRQ(ierr);
-  ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"\noutVal=%.15e\n\n",outVal);
 
   return ierr;
 }
@@ -408,7 +369,7 @@ int runEqCycle(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 

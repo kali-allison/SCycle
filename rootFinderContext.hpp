@@ -15,9 +15,12 @@ class RootFinderContext
 {
   public:
 
-    virtual PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
+    //~virtual PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
+    virtual PetscErrorCode getResid(const PetscInt,const PetscScalar,PetscScalar*) = 0;
 };
 
 #include "rootFinder.hpp"
 
 #endif
+
+

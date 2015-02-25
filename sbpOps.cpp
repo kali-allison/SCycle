@@ -989,7 +989,7 @@ switch ( order ) {
       for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
-        //~Hinv.printPetsc();
+        Hinv.printPetsc();
       #endif
 
 

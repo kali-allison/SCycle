@@ -82,17 +82,6 @@ class OdeSolver
     virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContext *obj) = 0;
-
-    // from Effective STL
-    struct DeleteVecObject // used in destructor
-    {
-      void operator()(Vec& ptr) const
-      {
-        VecDestroy(&ptr);
-      }
-    };
-
-
 };
 
 PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);

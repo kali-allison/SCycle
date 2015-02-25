@@ -207,47 +207,6 @@ PetscErrorCode Lithosphere::integrate()
 
 
 
-// Outputs data at each time step.
-PetscErrorCode Lithosphere::debug(const PetscReal time,const PetscInt steps,
-                 const vector<Vec>& var,const vector<Vec>& dvar,const char *stage)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
-
-  //~PetscScalar k = _muOut/2/_Ly;
-
-  ierr= VecGetOwnershipRange(var[0],&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(var[0],1,&Istart,&psiVal);CHKERRQ(ierr);
-
-  ierr = VecGetValues(var[1],1,&Istart,&uVal);CHKERRQ(ierr);
-
-  ierr= VecGetOwnershipRange(dvar[0],&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(dvar[0],1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(dvar[1],1,&Istart,&velVal);CHKERRQ(ierr);
-
-  ierr= VecGetOwnershipRange(_bcTplus,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(_bcTplus,1,&Istart,&gRval);CHKERRQ(ierr);
-
-  //~PetscScalar tauVal;
-  //~ierr = VecGetValues(_fault._tauQS,1,&Istart,&tauVal);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"tau = %e\n",tauVal);CHKERRQ(ierr);
-
-  if (steps == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-15s | %-9s\n",
-                       "Step","Stage","gR","D","Q","VL","V","dQ","time");
-    CHKERRQ(ierr);
-  }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",steps,stage);CHKERRQ(ierr);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",2*gRval*k,uVal,psiVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velVal,dQVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
-
-  return ierr;
-}
-
-
-
 PetscErrorCode Lithosphere::timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd)
@@ -326,6 +285,7 @@ SymmLithosphere::SymmLithosphere(Domain&D)
   _fault->setTauQS(_sigma_xyPlus,_sigma_xyPlus);
   _fault->setFaultDisp(_bcFplus,_bcFplus);
   _fault->computeVel();
+
   setSurfDisp();
 
 #if VERBOSE > 1
@@ -503,7 +463,7 @@ PetscErrorCode SymmLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcFplus);CHKERRQ(ierr);
   ierr = VecScale(_bcFplus,0.5);CHKERRQ(ierr);
-  ierr = VecSet(_bcRplus,_vp*time/2.0);CHKERRQ(ierr); // for if I'm only integrating 1 spring-slider
+  ierr = VecSet(_bcRplus,_vp*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRplus,1.0,_bcRplusShift);CHKERRQ(ierr);
 
   // solve for displacement
@@ -517,7 +477,6 @@ PetscErrorCode SymmLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   // solve for shear stress
   ierr = MatMult(_sbpPlus._Dy_Iz,_uhatPlus,_sigma_xyPlus);CHKERRQ(ierr);
   ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
-
   ierr = _fault->d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
 #if VERBOSE > 1
@@ -528,12 +487,41 @@ PetscErrorCode SymmLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
 
 
 
+// Outputs data at each time step.
+PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCount,
+                     const_it_vec varBegin,const_it_vec varEnd,
+                     const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
+{
+  PetscErrorCode ierr = 0;
+  /*PetscInt       Istart,Iend;
+  PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
 
+  PetscScalar k = _muArrPlus[0]/2/_Ly;
 
+  ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
 
+  ierr = VecGetValues(*(varBegin+1),1,&Istart,&uVal);CHKERRQ(ierr);
 
+  ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+1),1,&Istart,&velVal);CHKERRQ(ierr);
 
+  ierr= VecGetOwnershipRange(_bcRplus,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRplus,1,&Istart,&gRval);CHKERRQ(ierr);
 
+  if (stepCount == 0) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
+                       "Step","Stage","gR","D","Q","VL","V","dQ","time");
+    CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",gRval,uVal,psiVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velVal,dQVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
+*/
+  return ierr;
+}
 
 
 
@@ -929,6 +917,46 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
+  return ierr;
+}
+
+
+
+// Outputs data at each time step.
+PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCount,
+                     const_it_vec varBegin,const_it_vec varEnd,
+                     const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
+{
+  PetscErrorCode ierr = 0;
+  /*PetscInt       Istart,Iend;
+  PetscScalar    gRval,uValMinus,uValPlus,psiVal,velValMinus,velValPlus,dQVal;
+
+  PetscScalar k = _muArrPlus[0]/2/_Ly;
+
+  ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
+
+  ierr = VecGetValues(*(varBegin+1),1,&Istart,&uValPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(*(varBegin+2),1,&Istart,&uValMinus);CHKERRQ(ierr);
+
+  ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+1),1,&Istart,&velValPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&velValMinus);CHKERRQ(ierr);
+
+  ierr= VecGetOwnershipRange(_bcRplus,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRplus,1,&Istart,&gRval);CHKERRQ(ierr);
+
+  if (stepCount == 0) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
+                       "Step","Stage","gR","D","Q","VL","V","dQ","time");
+    CHKERRQ(ierr);
+  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",gRval,uValPlus-uValMinus,psiVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velValPlus-velValMinus,dQVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
+*/
   return ierr;
 }
 

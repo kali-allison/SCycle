@@ -8,6 +8,13 @@
 #include "rootFinderContext.hpp"
 
 
+class TestRoots : public RootFinderContext
+{
+  public:
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar val,PetscScalar *out);
+};
+
+
 class RootFinder
 {
   protected:

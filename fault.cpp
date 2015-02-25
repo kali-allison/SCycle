@@ -141,7 +141,6 @@ PetscScalar Fault::getTauInf(PetscInt& ind)
   ierr = VecGetOwnershipRange(_tauQSplus,&Istart,&Iend);CHKERRQ(ierr);
   assert(ind>=Istart && ind<Iend);
 
-
   ierr =  VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr =  VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
 
@@ -275,6 +274,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecAssemblyEnd(_zPlus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
 
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -318,6 +318,7 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xy,const Vec& sigma_xyMinus)
   ierr = VecAssemblyEnd(_tauQSplus);CHKERRQ(ierr);
 
 
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setTauQS in lithosphere.c\n");CHKERRQ(ierr);
 #endif
@@ -347,7 +348,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
   if (a==0) { *out = 0.5*zPlus*vel - tauQS; }
   else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
 #if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,vel);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,vel);
 #endif
   if (isnan(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
@@ -745,6 +746,7 @@ PetscErrorCode FullFault::setSplitNodeFields()
   ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
 
 
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -924,7 +926,7 @@ PetscErrorCode FullFault::agingLaw(const PetscInt ind,const PetscScalar psi,Pets
 
 
 PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
-                        it_vec dvarBegin,it_vec dvarEnd)
+                               it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3

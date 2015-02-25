@@ -18,13 +18,15 @@ class IntegratorContext
     typedef typename std::vector<Vec>::iterator it_vec;
     typedef typename std::vector<Vec>::const_iterator const_it_vec;
 
-    //~virtual PetscErrorCode d_dt(const PetscScalar time,const std::vector<Vec>& var,std::vector<Vec>& dvar) = 0;
     virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
               it_vec dvarBegin,it_vec dvarEnd) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd) = 0;
+    virtual PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd, const char *stage) = 0;
 };
 
 #include "odeSolver.hpp"

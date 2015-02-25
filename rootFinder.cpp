@@ -3,6 +3,36 @@
 using namespace std;
 
 
+/*======================================================================
+ *
+ * Test functions for RootFinder.
+ *
+ *====================================================================*/
+
+PetscErrorCode TestRoots::getResid(const PetscInt ind,const PetscScalar val,PetscScalar *out)
+{
+  PetscErrorCode ierr = 0;
+
+
+
+  //~double temp = val-2;
+  //~*out = temp*temp*temp;
+
+  //~*out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2./_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS;
+  PetscScalar tauQS = 0.75*(3.000075e+01 - 9.999920e-06);
+  *out = (PetscScalar) 0.015*50*asinh( (double) (val/2./1e-6)*exp(0.6/0.015) ) + 0.5*12*val - tauQS;
+
+
+  return ierr;
+}
+
+
+
+
+
+
+
+
 //================= RootFinder member functions ========================
 
 RootFinder::RootFinder(const PetscInt maxNumIts,const PetscScalar atol)
@@ -25,17 +55,25 @@ PetscInt RootFinder::getNumIts() const
 Bisect::Bisect(const PetscInt maxNumIts,const PetscScalar atol)
 : RootFinder(maxNumIts,atol),
   _left(0),_fLeft(0),_right(0),_fRight(0),_mid(0),_fMid(2*atol)
-{}
+{
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Bisect::Bisect in rootFinder.cpp.\n");
+#endif
+
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Bisect::Bisect in rootFinder.cpp.\n");
+#endif
+}
 
 Bisect::~Bisect()
 {
 #if VERBOSE > 3
-  PetscPrintf(PETSC_COMM_WORLD,"\n Starting Bisect::~Bisect in rootFinder.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Bisect::~Bisect in rootFinder.cpp.\n");
 #endif
 
 
 #if VERBOSE > 3
-  PetscPrintf(PETSC_COMM_WORLD,"\n Ending Bisect::~Bisect in rootFinder.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Bisect::~Bisect in rootFinder.cpp.\n");
 #endif
 };
 

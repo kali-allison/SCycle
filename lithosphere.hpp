@@ -92,12 +92,12 @@ class Lithosphere: public IntegratorContext
 
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode debug(const PetscReal time,const PetscInt steps,
-                     const std::vector<Vec>& var,const std::vector<Vec>& dvar,const char *stage);
-
 
     PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd) = 0;
+    PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
+                         const_it_vec varBegin,const_it_vec varEnd,
+                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage) = 0;
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd);
@@ -141,6 +141,9 @@ class SymmLithosphere: public Lithosphere
 
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                         const_it_vec varBegin,const_it_vec varEnd,
+                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
 
     // IO commands
     PetscErrorCode writeStep();
@@ -199,7 +202,9 @@ class FullLithosphere: public Lithosphere
 
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
-
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                         const_it_vec varBegin,const_it_vec varEnd,
+                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
     // IO commands
     PetscErrorCode writeStep();
 };
