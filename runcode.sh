@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N symm_constant
+#PBS -N full_basin
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e domainSizeTests/symm_constant.err
-#PBS -o domainSizeTests/symm_constant.out
+#PBS -e data/full_basin.err
+#PBS -o data/full_basin.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

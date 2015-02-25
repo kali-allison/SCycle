@@ -1,6 +1,6 @@
-order = 2
-Ny = 417
-Nz = 417
+order = 4
+Ny = 501
+Nz = 501
 Ly = 24
 Lz = 24
 
@@ -14,36 +14,36 @@ sigma_N = 50.0
 
 vp = 1e-9
 
-shearDistribution = constant
+shearDistribution = basin
 {
-problem = symmetric
+problem = full
 
-muPlus = 36
-rhoPlus = 2.8
-muMinus = 36
-rhoMinus = 2.8
+#muPlus = 36
+#rhoPlus = 2.8
+#muMinus = 36
+#rhoMinus = 2.8
 
-#muInPlus = 12
-#muOutPlus = 36
-#rhoInPlus = 2.8
-#rhoOutPlus = 2.8
+muInPlus = 12
+muOutPlus = 36
+rhoInPlus = 2.8
+rhoOutPlus = 2.8
 
-#muInMinus = 12
-#muOutMinus = 36
-#rhoInMinus = 2.8
-#rhoOutMinus = 2.8
+muInMinus = 12
+muOutMinus = 36
+rhoInMinus = 2.8
+rhoOutMinus = 2.8
 
-#depth = 4
-#width = 12
+depth = 8
+width = 12
 }
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 3
+maxStepCount = 1e7
 initTime = 6.3e9
 maxTime = 5e10
 minDeltaT = 1e-3
@@ -53,6 +53,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = critGridSpacing/
+outputDir = data/full_
 
 

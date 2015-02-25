@@ -493,10 +493,10 @@ PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCo
                      const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
 {
   PetscErrorCode ierr = 0;
-  /*PetscInt       Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    gRval,uVal,psiVal,velVal,dQVal;
 
-  PetscScalar k = _muArrPlus[0]/2/_Ly;
+  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
@@ -519,7 +519,7 @@ PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCo
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",gRval,uVal,psiVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velVal,dQVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
-*/
+
   return ierr;
 }
 
@@ -928,10 +928,10 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
                      const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
 {
   PetscErrorCode ierr = 0;
-  /*PetscInt       Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    gRval,uValMinus,uValPlus,psiVal,velValMinus,velValPlus,dQVal;
 
-  PetscScalar k = _muArrPlus[0]/2/_Ly;
+  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
@@ -956,7 +956,7 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",gRval,uValPlus-uValMinus,psiVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e %.9e %.9e ",_vp/2.,velValPlus-velValMinus,dQVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%| %.9e\n",time);CHKERRQ(ierr);
-*/
+
   return ierr;
 }
 
