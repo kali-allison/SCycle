@@ -4,7 +4,7 @@
 #include <petscts.h>
 #include <cmath>
 #include <string>
-//~#include "userContext.h"
+#include "genFuncs.hpp"
 
 using namespace std;
 

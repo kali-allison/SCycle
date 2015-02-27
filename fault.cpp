@@ -183,11 +183,12 @@ SymmFault::~SymmFault()
 #endif
 }
 
-
+// assumes right-lateral fault
 PetscErrorCode SymmFault::computeVel()
 {
   PetscErrorCode ierr = 0;
   Vec            left,right,out;
+  Vec            tauQS,eta;
   PetscScalar    outVal,leftVal,rightVal;
   PetscInt       Ii,Istart,Iend;
 
@@ -195,14 +196,30 @@ PetscErrorCode SymmFault::computeVel()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
+  //~ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
+  //~ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
+  //~ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
+  //~ierr = VecScale(right,2.0);CHKERRQ(ierr);
+  //~ierr = VecAbs(right);CHKERRQ(ierr);
+
+  // constructing right boundary: right = tauQS/eta
+  //   tauQS = tauQSPlus
+  //   eta = zPlus/2
+  //   -> right = 2*tauQS/zPlus
+  ierr = VecDuplicate(_tauQSplus,&tauQS);CHKERRQ(ierr);
+  ierr = VecDuplicate(_tauQSplus,&eta);CHKERRQ(ierr);
+
+  ierr = VecCopy(_tauQSplus,tauQS);CHKERRQ(ierr);
+  ierr = VecCopy(_zPlus,eta);
+  ierr = VecScale(eta,0.5);CHKERRQ(ierr);
+
+  // set up boundaries and output for rootfinder algorithm
   ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
-  ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
-  ierr = VecScale(right,2.0);CHKERRQ(ierr);
-  ierr = VecAbs(right);CHKERRQ(ierr);
+  ierr = VecCopy(tauQS,right);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
-  ierr = VecSet(left,0.0);CHKERRQ(ierr); // assumes right-lateral fault
+  ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
 
@@ -222,6 +239,8 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecAssemblyBegin(_velPlus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_velPlus);CHKERRQ(ierr);
 
+  ierr = VecDestroy(&tauQS);CHKERRQ(ierr);
+  ierr = VecDestroy(&eta);CHKERRQ(ierr);
   ierr = VecDestroy(&left);CHKERRQ(ierr);
   ierr = VecDestroy(&right);CHKERRQ(ierr);
   ierr = VecDestroy(&out);CHKERRQ(ierr);
@@ -607,7 +626,8 @@ FullFault::~FullFault()
 PetscErrorCode FullFault::computeVel()
 {
   PetscErrorCode ierr = 0;
-  Vec            temp,left,right,out;
+  Vec            left=NULL,right=NULL,out=NULL;
+  Vec            zSum=NULL,temp=NULL,tauQS=NULL,eta=NULL;
   PetscScalar    outVal=0,leftVal=0,rightVal=0;
   PetscInt       Ii,Istart,Iend;
 
@@ -615,33 +635,50 @@ PetscErrorCode FullFault::computeVel()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
+  // constructing right boundary: right = tauQS/eta
+  // for full fault:
+  //   tauQS = [zMinus*tauQSplus + zPlus*tauQSminus]/(zPlus + zMinus)
+  //   eta = zPlus*zMinus/(zPlus+zMinus)
+  ierr = VecDuplicate(_tauQSplus,&tauQS);CHKERRQ(ierr);
+  ierr = VecDuplicate(_tauQSplus,&eta);CHKERRQ(ierr);
 
-  // right = [zMinus*tauQSplus + zPlus*tauQSminus]/(zPlus * zMinus)
+  // temp = zPlus + zMinus
+  ierr = VecDuplicate(_zPlus,&zSum);CHKERRQ(ierr);
+  ierr = VecCopy(_zPlus,zSum);CHKERRQ(ierr);
+  ierr = VecAXPY(zSum,1.0,_zMinus);CHKERRQ(ierr);
+
+  // construct eta
+  ierr = VecPointwiseMult(eta,_zPlus,_zMinus);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(eta,eta,zSum);CHKERRQ(ierr);
+
+  // construct tauQS
+  ierr = VecPointwiseDivide(tauQS,_zMinus,zSum);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(tauQS,tauQS,_tauQSplus);CHKERRQ(ierr);
+  ierr = VecDuplicate(_tauQSplus,&temp);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(temp,_zPlus,zSum);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(temp,temp,_tauQSminus);CHKERRQ(ierr);
+  ierr = VecAXPY(tauQS,1.0,temp);CHKERRQ(ierr); // tauQS = tauQS + temp2
+  ierr = VecDestroy(&temp);CHKERRQ(ierr);
+
+  // for symmetric material properties: (here for debugging purposes)
+  //   tauQS = tauQSPlus
+  //   eta = zPlus/2
+  //   -> right = 2*tauQS/zPlus
+  //~ierr = VecCopy(_tauQSplus,tauQS);CHKERRQ(ierr);
+  //~ierr = VecCopy(_zPlus,eta);
+  //~ierr = VecScale(eta,0.5);CHKERRQ(ierr);
+
+
+  // set up boundaries and output for rootfinder algorithm
   ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
-  ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(right,_zMinus,right);CHKERRQ(ierr);
-  ierr = VecDuplicate(_tauQSminus,&temp);CHKERRQ(ierr);
-  ierr = VecCopy(_tauQSminus,temp);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(temp,_zPlus,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(right,1.0,temp);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(right,right,_zMinus);CHKERRQ(ierr);
-
-
-  // from symmetric fault
-  ierr = VecDuplicate(_tauQSplus,&right);CHKERRQ(ierr);
-  ierr = VecCopy(_tauQSplus,right);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(right,right,_zPlus);CHKERRQ(ierr);
-  ierr = VecScale(right,2.0);CHKERRQ(ierr);
-  ierr = VecAbs(right);CHKERRQ(ierr);
-
+  ierr = VecCopy(tauQS,right);CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
   ierr = VecSet(out,0.0);CHKERRQ(ierr);
-
 
   ierr = VecGetOwnershipRange(left,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -657,41 +694,42 @@ PetscErrorCode FullFault::computeVel()
     }
     ierr = VecSetValue(_vel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
   }
-
-  // from symmetric fault
-  //~ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
-  //~ierr = VecCopy(_vel,_velPlus);CHKERRQ(ierr);
-  //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
-  //~ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
-  //~ierr = VecScale(_velMinus,-1.0);CHKERRQ(ierr);
-
-
   ierr = VecAssemblyBegin(_vel);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_vel);CHKERRQ(ierr);
 
-  ierr = VecDestroy(&temp);CHKERRQ(ierr);
-  ierr = VecDestroy(&left);CHKERRQ(ierr);
-  ierr = VecDestroy(&right);CHKERRQ(ierr);
-  ierr = VecDestroy(&out);CHKERRQ(ierr);
+
 
   // compute velPlus
-  // temp = (zPlus + zMinus)^-1
-  ierr = VecDuplicate(_zPlus,&temp);CHKERRQ(ierr);
-  ierr = VecCopy(_zPlus,temp);CHKERRQ(ierr);
-  ierr = VecAXPY(temp,1.0,_zMinus);CHKERRQ(ierr);
+  // velPlus = (+tauQSplus - tauQSminus + zMinus*vel)/(zPlus + zMinus)
+  Vec tauSum=NULL, velCorr=NULL;
+  VecDuplicate(_vel,&tauSum);
+  VecCopy(_tauQSplus,tauSum);
+  VecAXPY(tauSum,-1.0,_tauQSminus);
+  VecPointwiseDivide(tauSum,tauSum,zSum);
+  VecDuplicate(_vel,&velCorr);
+  VecPointwiseDivide(velCorr,_zMinus,zSum);
+  VecPointwiseMult(velCorr,velCorr,_vel);
+  VecCopy(tauSum,_velPlus);
+  VecAXPY(_velPlus,1.0,velCorr);
 
-  // velPlus = (tauQSplus - tauQSminus + zMinus*vel)/(zPlus + zMinus)
-  ierr = VecCopy(_vel,_velPlus);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(_velPlus,_zMinus,_velPlus);CHKERRQ(ierr);
-  ierr = VecAXPY(_velPlus,-1.0,_tauQSminus);CHKERRQ(ierr);
-  ierr = VecAXPY(_velPlus,1.0,_tauQSplus);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(_velPlus,_velPlus,temp);CHKERRQ(ierr);
+  // from symmetric fault (here for debugging purposes)
+  //~ierr = VecCopy(_vel,_velPlus);CHKERRQ(ierr);
+  //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
 
   // compute velMinus
   ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   ierr = VecAXPY(_velMinus,-1.0,_vel);CHKERRQ(ierr);
 
+
+  // clean up memory (this step is a common source of memory leaks)
+  ierr = VecDestroy(&tauSum);CHKERRQ(ierr);
+  ierr = VecDestroy(&velCorr);CHKERRQ(ierr);
+  ierr = VecDestroy(&zSum);CHKERRQ(ierr);
+  ierr = VecDestroy(&tauQS);CHKERRQ(ierr);
+  ierr = VecDestroy(&eta);CHKERRQ(ierr);
+  ierr = VecDestroy(&left);CHKERRQ(ierr);
+  ierr = VecDestroy(&right);CHKERRQ(ierr);
+  ierr = VecDestroy(&out);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
@@ -727,7 +765,7 @@ PetscErrorCode FullFault::setSplitNodeFields()
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
 
     ierr = VecSetValue(_tauQSplus,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(_tauQSminus,Ii,-1.0*tau_inf,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(_tauQSminus,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zPlus,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zMinus,Ii,zMinus,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_sigma_N,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
@@ -762,10 +800,6 @@ PetscErrorCode FullFault::setFaultDisp(Vec const &bcLplus,Vec const &bcLminus)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullFault::setFullFaultDisp in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-  // original:
-  //~ierr = VecCopy(bcF,_faultDisp);CHKERRQ(ierr);
-  //~ierr = VecScale(_faultDisp,2.0);CHKERRQ(ierr);
-
     ierr = VecCopy(bcLplus,_uPlus);CHKERRQ(ierr);
     ierr = VecCopy(bcLminus,_uMinus);CHKERRQ(ierr);
 
@@ -784,7 +818,6 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
 #endif
 
   PetscInt       Ii,Istart,Iend;
-  //~PetscInt       ind,size;
   PetscScalar    v;
 
   ierr = VecGetOwnershipRange(sigma_xyPlus,&Istart,&Iend);CHKERRQ(ierr);
@@ -801,7 +834,6 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
       ierr = VecGetValues(sigma_xyMinus,1,&Ii,&v);CHKERRQ(ierr);
-      v = -v; // sign convention
       ierr = VecSetValues(_tauQSminus,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -839,20 +871,14 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
   ierr = VecGetValues(_tauQSminus,1,&ind,&tauQSminus);CHKERRQ(ierr);
   ierr = VecGetValues(_zMinus,1,&ind,&zMinus);CHKERRQ(ierr);
 
-  if (a==0) {
-    *out = - zMinus/(zPlus+zMinus)*tauQSplus
-           - zPlus/(zPlus+zMinus)*tauQSminus
-           + zPlus*zMinus/(zPlus+zMinus)*vel;
-  }
-  else {
-    *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) )
-           - zMinus/(zPlus+zMinus)*tauQSplus
-           - zPlus/(zPlus+zMinus)*tauQSminus
-           + zPlus*zMinus/(zPlus+zMinus)*vel;
-  }
 
-  //~if (a==0) { *out = 0.5*zPlus*vel - tauQSplus; }
-  //~else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQSplus; }
+  *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) )
+         - zMinus/(zPlus+zMinus)*tauQSplus
+         - zPlus/(zPlus+zMinus)*tauQSminus
+         + zPlus*zMinus/(zPlus+zMinus)*vel;
+
+  // from symmetric fault (here for debugging purposes)
+  //~*out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQSplus;
 
 
 #if VERBOSE > 3

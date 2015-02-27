@@ -467,7 +467,9 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
 
       // calculate error
       totErr = computeError();
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
+      #if ODEPRINT > 0
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
+      #endif
       if (totErr<_atol) { break; }
       _deltaT = computeStepSize(totErr);
       if (_minDeltaT == _deltaT) { break; }

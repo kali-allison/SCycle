@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include "integratorContext.hpp"
+#include "genFuncs.hpp"
 #include "domain.hpp"
 #include "lithosphere.hpp"
 

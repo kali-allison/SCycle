@@ -5,6 +5,7 @@
 #include <cmath>
 #include <assert.h>
 #include <vector>
+#include "genFuncs.hpp"
 #include "domain.hpp"
 #include "rootFinderContext.hpp"
 

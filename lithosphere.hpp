@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <vector>
 #include "integratorContext.hpp"
+#include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
