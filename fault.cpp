@@ -8,6 +8,7 @@ using namespace std;
 Fault::Fault(Domain&D)
 : _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
   _problemType(D._problemType),
+  _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
   _aVal(D._aVal),_bAbove(D._bAbove),_bBelow(D._bBelow),
@@ -97,8 +98,38 @@ PetscErrorCode Fault::setFrictionFields()
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
   ierr = VecSet(_a,_aVal);CHKERRQ(ierr);
 
+
   // Set b
-  PetscScalar L2 = 1.5*_seisDepth;  //This is depth at which increase stops and fault is purely velocity strengthening
+  // if vel-strengthening in basin
+  PetscScalar r = 0,z = 0;
+  PetscScalar rbar = 0.25*_width*_width;
+  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
+  PetscScalar L2 = 1.5*_seisDepth;  // depth at which increase stops and fault is purely velocity strengthening
+  PetscInt    N1 = _seisDepth/_h;
+  PetscInt    N2 = L2/_h;
+  ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    z = _h*(Ii-_N*(Ii/_N));
+    r=(0.25*_width*_width/_depth/_depth)*z*z;
+    if (Ii < N1+1) {
+      v = 0.5*(_bAbove-_bBelow)*(tanh((double)(r-rbar)/rw)+1) + _bBelow;
+      ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    else if (Ii>N1 && Ii<=N2) {
+      v = (double) (Ii*_h-_seisDepth)*(_bAbove-_bBelow)/(_seisDepth-L2) + _bAbove;
+      ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    else {
+      //~v = 0.0;
+      ierr = VecSetValues(_b,1,&Ii,&_bBelow,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
+
+
+  // if vel-weaking in basin
+  /*PetscScalar L2 = 1.5*_seisDepth;  //This is depth at which increase stops and fault is purely velocity strengthening
   PetscInt    N1 = _seisDepth/_h;
   PetscInt    N2 = L2/_h;
   ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
@@ -116,8 +147,7 @@ PetscErrorCode Fault::setFrictionFields()
     }
   }
   ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
-
+  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr); */
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
@@ -265,14 +295,35 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
   // tau, eta, bcRShift, sigma_N
   PetscScalar a,b,zPlus,tau_inf,sigma_N;
+
+  PetscScalar z = 0, sigmaMin=0.10135, g=9.8;
+  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
+  PetscScalar rhoIn = 2.0;//_muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
+  PetscScalar rhoOut = 2.8;//_muArrPlus[_N]/(_csArrPlus[_N]*_csArrPlus[_N]);
+  PetscScalar trans1=_depth-rw/2., trans2=_depth+rw/2.; // depths marking inside/outside edges of basin
   ierr = VecGetOwnershipRange(_tauQSplus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
 
-    //~PetscScalar z = ((double) Ii)*_h;
+    //~if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; } // constant
+    // gradient following lithostatic - hydrostatic + 1 atm
+    z = ((double) Ii)*_h;
+    if (z<=trans1) {
+      sigma_N = rhoIn*g*z + sigmaMin - g*z;
+    }
+    else if (z<trans2 && z>trans1) {
+      PetscScalar zTemp = (z - trans1);
+      sigma_N = (zTemp*zTemp/2.0)*(rhoIn-rhoOut)/(trans1-trans2)*g;
+      sigma_N += rhoIn*z*g;
+      sigma_N += sigmaMin - g*z;
+    }
+    else if (z>=trans2) {
+      sigma_N = rhoOut*g*(z-trans2);
+      sigma_N += ((trans2-_h)*(trans2-_h)/2.0)*(rhoIn-rhoOut)/(trans1-trans2)*g + rhoIn*(trans2-_h)*g;
+      sigma_N += sigmaMin - g*z;
+    }
 
-    if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; }
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     //eta = 0.5*_muArr[Ii]/_csArr[Ii];
@@ -642,7 +693,7 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecDuplicate(_tauQSplus,&tauQS);CHKERRQ(ierr);
   ierr = VecDuplicate(_tauQSplus,&eta);CHKERRQ(ierr);
 
-  // temp = zPlus + zMinus
+  // zSum = zPlus + zMinus
   ierr = VecDuplicate(_zPlus,&zSum);CHKERRQ(ierr);
   ierr = VecCopy(_zPlus,zSum);CHKERRQ(ierr);
   ierr = VecAXPY(zSum,1.0,_zMinus);CHKERRQ(ierr);

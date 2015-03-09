@@ -16,22 +16,22 @@ vp = 2e-4
 
 shearDistribution = constant
 {
-problem = symmetric
+problem = full
 muPlus = 36
 rhoPlus = 4.0
 
-muMinus = 36
+muMinus = 18
 rhoMinus = 4.0
 }
 
 linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
 strideLength = 1
 maxStepCount = 3
-initTime = 400
+initTime = 0
 maxTime = 5e5
 minDeltaT = 1e-5
 maxDeltaT = 1e7
@@ -40,6 +40,6 @@ atol = 1e-7
 
 rootTol = 1e-12
 
-outputDir = data/
+outputDir = data/SS_full_
 
 

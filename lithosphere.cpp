@@ -933,7 +933,7 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
   PetscErrorCode ierr = 0;
 #if ODEPRINT > 0
   PetscInt       Istart,Iend;
-  PetscScalar    gRval,uValMinus,uValPlus,psiVal,velValMinus,velValPlus,dQVal;
+  PetscScalar    gRvalPlus,gRvalMinus,uValMinus,uValPlus,psiVal,velValMinus,velValPlus,dQVal;
 
   //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
@@ -949,17 +949,25 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
   ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&velValMinus);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(_bcRplus,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(_bcRplus,1,&Istart,&gRval);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRplus,1,&Istart,&gRvalPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRminus,1,&Istart,&gRvalMinus);CHKERRQ(ierr);
 
   if (stepCount == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
-                       "Step","Stage","gR","D","Q","VL","V","dQ","time");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s|| %-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
+                       "Side","Step","Stage","gR","D","Q","VL","V","dQ","time");
     CHKERRQ(ierr);
   }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",gRval,uValPlus-uValMinus,psiVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",_vp/2.,velValPlus-velValMinus,dQVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
+  // plus side
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s|| %4i %-6s ","+",stepCount,stage);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e %.9e %.9e",gRvalPlus,uValMinus,psiVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e %.9e %.9e",_vp/2.,velValPlus,dQVal);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e\n",time);CHKERRQ(ierr);
+
+  // minus side
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ","-",stepCount,stage);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e %.9e %.9e ",gRvalMinus,uValMinus,psiVal);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e %.9e %.9e ",-_vp/2.,velValMinus,dQVal);CHKERRQ(ierr);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"| %.9e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <assert.h>
 #include <vector>
+#include <cmath>
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "rootFinderContext.hpp"
@@ -32,6 +33,7 @@ class Fault: public RootFinderContext
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
     const PetscScalar  _Dc;
     const std::string  _problemType; // symmetric (only y>0) or full
+    const PetscScalar  _depth,_width; // basin dimensions needed for fault properties (sigma_N, b)
 
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
