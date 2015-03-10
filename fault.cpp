@@ -10,10 +10,11 @@ Fault::Fault(Domain&D)
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
-  _seisDepth(D._seisDepth),_cs(0),_f0(D._f0),_v0(D._v0),_vp(D._vp),
-  _aVal(D._aVal),_bAbove(D._bAbove),_bBelow(D._bBelow),
-  _sigma_N(NULL),_a(NULL),_b(NULL),
-  _psi(NULL),_tempPsi(NULL),_dPsi(NULL),_sigma_N_val(D._sigma_N_val),
+  _seisDepth(D._seisDepth),_f0(D._f0),_v0(D._v0),_vp(D._vp),
+  _aVal(D._aVal),_bBasin(D._bBasin),_bAbove(D._bAbove),_bBelow(D._bBelow),
+  _a(NULL),_b(NULL),
+  _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
+  _sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(NULL),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_uPlus(NULL),_velPlus(NULL),
   _uPlusViewer(NULL),_velPlusViewer(NULL),_tauQSplusViewer(NULL),
   _psiViewer(NULL),
@@ -94,17 +95,18 @@ PetscErrorCode Fault::setFrictionFields()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
+  // set depth-independent fields
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
   ierr = VecSet(_a,_aVal);CHKERRQ(ierr);
 
 
   // Set b
-  // if vel-strengthening in basin
+
   PetscScalar r = 0,z = 0;
   PetscScalar rbar = 0.25*_width*_width;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
-  PetscScalar L2 = 1.5*_seisDepth;  // depth at which increase stops and fault is purely velocity strengthening
+  PetscScalar L2 = 1.5*_seisDepth;  // depth below which fault is purely velocity-strengthening
   PetscInt    N1 = _seisDepth/_h;
   PetscInt    N2 = L2/_h;
   ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
@@ -112,7 +114,7 @@ PetscErrorCode Fault::setFrictionFields()
     z = _h*(Ii-_N*(Ii/_N));
     r=(0.25*_width*_width/_depth/_depth)*z*z;
     if (Ii < N1+1) {
-      v = 0.5*(_bAbove-_bBelow)*(tanh((double)(r-rbar)/rw)+1) + _bBelow;
+      v = 0.5*(_bAbove-_bBasin)*(tanh((double)(r-rbar)/rw)+1) + _bBasin;
       ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
     else if (Ii>N1 && Ii<=N2) {
@@ -120,34 +122,11 @@ PetscErrorCode Fault::setFrictionFields()
       ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
-      //~v = 0.0;
       ierr = VecSetValues(_b,1,&Ii,&_bBelow,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
-
-
-  // if vel-weaking in basin
-  /*PetscScalar L2 = 1.5*_seisDepth;  //This is depth at which increase stops and fault is purely velocity strengthening
-  PetscInt    N1 = _seisDepth/_h;
-  PetscInt    N2 = L2/_h;
-  ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii < N1+1) {
-      ierr = VecSetValues(_b,1,&Ii,&_bAbove,INSERT_VALUES);CHKERRQ(ierr);
-    }
-    else if (Ii>N1 && Ii<=N2) {
-      v = (double) (Ii*_h-_seisDepth)*(_bAbove-_bBelow)/(_seisDepth-L2) + _bAbove;
-      ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-    else {
-      //~v = 0.0;
-      ierr = VecSetValues(_b,1,&Ii,&_bBelow,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr); */
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
@@ -296,37 +275,46 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   // tau, eta, bcRShift, sigma_N
   PetscScalar a,b,zPlus,tau_inf,sigma_N;
 
-  PetscScalar z = 0, sigmaMin=0.10135, g=9.8;
-  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
-  PetscScalar rhoIn = 2.0;//_muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
-  PetscScalar rhoOut = 2.8;//_muArrPlus[_N]/(_csArrPlus[_N]*_csArrPlus[_N]);
-  PetscScalar trans1=_depth-rw/2., trans2=_depth+rw/2.; // depths marking inside/outside edges of basin
+  // set normal stress
+  PetscScalar z = 0, g=9.8;
+  PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
+  PetscScalar rhoOut = _muArrPlus[_N-1]/(_csArrPlus[_N-1]*_csArrPlus[_N-1]);
+  PetscScalar *sigmaArr;
+  PetscInt    *sigmaInds;
+  ierr = PetscMalloc(_N*sizeof(PetscScalar),&sigmaArr);CHKERRQ(ierr);
+  ierr = PetscMalloc(_N*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
+  for (Ii=0;Ii<_N;Ii++) {
+    sigmaInds[Ii] = Ii;
+
+    z = ((double) Ii)*_h;
+    //~// gradient following lithostatic - hydrostatic
+    if (Ii<=_depth/_h) {
+      sigmaArr[Ii] = rhoIn*g*z - g*z;
+    }
+    else if (Ii>_depth/_h) {
+      sigmaArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
+    }
+
+    // normal stress is > 0 at Earth's surface
+    sigmaArr[Ii] += _sigma_N_min;
+
+    // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
+    // (in the paper, the max is 50 MPa)
+    sigmaArr[Ii] =(PetscScalar) min((double) sigmaArr[Ii],_sigma_N_max);
+  }
+  ierr = VecSetValues(_sigma_N,_N,sigmaInds,sigmaArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+
+
   ierr = VecGetOwnershipRange(_tauQSplus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
 
-    //~if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; } // constant
-    // gradient following lithostatic - hydrostatic + 1 atm
-    z = ((double) Ii)*_h;
-    if (z<=trans1) {
-      sigma_N = rhoIn*g*z + sigmaMin - g*z;
-    }
-    else if (z<trans2 && z>trans1) {
-      PetscScalar zTemp = (z - trans1);
-      sigma_N = (zTemp*zTemp/2.0)*(rhoIn-rhoOut)/(trans1-trans2)*g;
-      sigma_N += rhoIn*z*g;
-      sigma_N += sigmaMin - g*z;
-    }
-    else if (z>=trans2) {
-      sigma_N = rhoOut*g*(z-trans2);
-      sigma_N += ((trans2-_h)*(trans2-_h)/2.0)*(rhoIn-rhoOut)/(trans1-trans2)*g + rhoIn*(trans2-_h)*g;
-      sigma_N += sigmaMin - g*z;
-    }
-
+    sigma_N = sigmaArr[Ii];
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
-    //eta = 0.5*_muArr[Ii]/_csArr[Ii];
     zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vp*exp(_f0/a)/_v0 );
@@ -334,15 +322,15 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
     ierr = VecSetValue(_tauQSplus,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zPlus,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(_sigma_N,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_tauQSplus);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_zPlus);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tauQSplus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zPlus);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+
+  PetscFree(sigmaInds);
+  PetscFree(sigmaArr);
 
 
 #if VERBOSE > 1
@@ -416,7 +404,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar vel,Pets
   ierr = VecGetValues(_tauQSplus,1,&ind,&tauQS);CHKERRQ(ierr);
 
   if (a==0) { *out = 0.5*zPlus*vel - tauQS; }
-  else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
+  else { *out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2./_v0)*exp(psi/a) ) + 0.5*zPlus*vel - tauQS; }
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,vel);
 #endif
@@ -806,7 +794,7 @@ PetscErrorCode FullFault::setSplitNodeFields()
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
     //~z = ((double) Ii)*_h;
 
-    if (_sigma_N_val!=0){ sigma_N = _sigma_N_val; }
+    if (_sigma_N_min!=0){ sigma_N = _sigma_N_min; }
     //~else if (0>1) { sigma_N = 9.8*_rhoArrPlus[Ii]*z; } // later support stress gradient
 
     //~eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);

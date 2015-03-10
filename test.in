@@ -8,25 +8,27 @@ Dc = 8e-3
 
 seisDepth = 12
 a = 0.015
+bBasin = 0.02
 bAbove = 0.02
 bBelow = 0.0
-sigma_N = 50.0
+sigma_N_min = 0.10135
+#sigma_N_min = 50
+sigma_N_max = 50
 
 vp = 1e-9
 
 shearDistribution = basin
 {
 problem = symmetric
-#problem = full
 
 #muPlus = 36
 #rhoPlus = 2.8
 #muMinus = 36
 #rhoMinus = 2.8
 
-muInPlus = 30
+muInPlus = 36
 muOutPlus = 36
-rhoInPlus = 2.0
+rhoInPlus = 2.8
 rhoOutPlus = 2.8
 
 #muInMinus = 12
@@ -38,14 +40,14 @@ depth = 4
 width = 12
 }
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
 maxStepCount = 5
-initTime = 6.3e9
+initTime = 0
 maxTime = 3.8e10
 minDeltaT = 1e-3
 maxDeltaT = 1e7
@@ -54,7 +56,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
-#outputDir = data/full_
+outputDir = data/test_
 
 

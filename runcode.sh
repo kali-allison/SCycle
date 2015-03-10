@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N gradNormal
-#PBS -l nodes=4:ppn=16
+#PBS -N mu36_Dc8_b2_sConst
+#PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e data/gradNormal.err
-#PBS -o data/gradNormal.out
+#PBS -e data/mu36_Dc8_b2_sConst.err
+#PBS -o data/mu36_Dc8_b2_sConst.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

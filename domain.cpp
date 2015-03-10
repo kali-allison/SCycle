@@ -5,7 +5,8 @@ using namespace std;
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
-  _seisDepth(-1),_aVal(-1),_bAbove(-1),_bBelow(-1),_sigma_N_val(-1),
+  _seisDepth(-1),_aVal(-1),_bBasin(-1),_bAbove(-1),_bBelow(-1),
+  _sigma_N_min(-1),_sigma_N_max(-1),
   _shearDistribution("unspecified"),_problemType("unspecificed"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -21,7 +22,7 @@ Domain::Domain(const char *file)
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
 #endif
 
   loadData(_file);
@@ -53,7 +54,7 @@ Domain::Domain(const char *file)
   }
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
 #endif
 
 }
@@ -61,15 +62,25 @@ Domain::Domain(const char *file)
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
- _shearDistribution("basin"),_problemType("full"),
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _seisDepth(-1),_aVal(-1),_bBasin(-1),_bAbove(-1),_bBelow(-1),
+  _sigma_N_min(-1),_sigma_N_max(-1),
+  _shearDistribution("unspecified"),_problemType("unspecificed"),
+  _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
+  _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
   _muArrPlus(NULL),_csArrPlus(NULL),_muPlus(NULL),
- _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
- _visc(nan("")),
- _linSolver("AMG"),
- _timeControlType("P"),_timeIntegrator("FEuler"),_outputDir("data/")
+  _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
+  _rhoInMinus(-1),_rhoOutMinus(-1),
+  _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
+  _visc(nan("")),
+  _linSolver("unspecified"),_kspTol(-1),
+  _timeControlType("unspecified"),_timeIntegrator("unspecified"),
+  _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
+  _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor:Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
 #endif
 
   loadData(_file);
@@ -105,7 +116,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor:Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
 #endif
 }
 
@@ -114,7 +125,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 Domain::~Domain()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
   PetscFree(_muArrPlus);
@@ -127,7 +138,7 @@ Domain::~Domain()
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
 #endif
 }
 
@@ -175,9 +186,11 @@ PetscErrorCode Domain::loadData(const char *file)
       //fault properties
       else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("a")==0) { _aVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("bBasin")==0) { _bBasin = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("sigma_N")==0) { _sigma_N_val = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
       else if (var.compare("vp")==0) { _vp = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
@@ -238,9 +251,11 @@ PetscErrorCode Domain::loadData(const char *file)
 
   MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_aVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_bBasin,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_sigma_N_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_sigma_N_min,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_sigma_N_max,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_vp,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
@@ -402,9 +417,11 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
 
     // fault properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"seisDepth = %f\n",_seisDepth);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bBasin = %f\n",_bBasin);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bAbove = %f\n",_bAbove);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bBelow = %f\n",_bBelow);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_val = %f\n",_sigma_N_val);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %f\n",_vp);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -508,10 +525,12 @@ PetscErrorCode Domain::checkInput()
   assert(_aVal > 0);
   assert(_bAbove >= 0);
   assert(_bBelow >= 0);
-  assert(_sigma_N_val > 0);
+  if(_bBasin<0) { _bBasin=_bAbove; } // accept older input files
+  assert(_sigma_N_min > 0);
+  assert(_sigma_N_max > 0);
+  assert(_sigma_N_max >= _sigma_N_min);
 
   assert(_vp > 0);
-
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -611,9 +630,11 @@ PetscErrorCode Domain::write()
 
   // fault properties
   ierr = PetscViewerASCIIPrintf(viewer,"seisDepth = %.15e\n",_seisDepth);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bBasin = %.15e\n",_bBasin);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bAbove = %.15e\n",_bAbove);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bBelow = %.15e\n",_bBelow);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_val = %.15e\n",_sigma_N_val);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vp);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
@@ -793,6 +814,7 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = MatSeqAIJSetPreallocation(_muPlus,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
 
   VecDestroy(&muVec);
   PetscFree(muInds);

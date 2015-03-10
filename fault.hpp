@@ -39,14 +39,16 @@ class Fault: public RootFinderContext
     PetscScalar    _rootTol;
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
-    // elastic coefficients and frictional parameters:
-    PetscScalar    _seisDepth,_cs,_f0,_v0,_vp;
-    PetscScalar    _aVal,_bAbove,_bBelow;
-    Vec            _sigma_N,_a,_b;
+   // fields that are identical on split nodes
+   PetscScalar    _seisDepth,_f0,_v0,_vp;
+   PetscScalar    _aVal,_bBasin,_bAbove,_bBelow;
+   Vec            _a,_b;
+   Vec            _psi,_tempPsi,_dPsi;
 
-    // fields that exist on fault
-    Vec            _psi,_tempPsi,_dPsi;
-    PetscScalar    _sigma_N_val;
+
+    // fields that differ on the split nodes
+    PetscScalar    _sigma_N_min,_sigma_N_max;
+    Vec            _sigma_N;
 
     Vec            _zPlus;
     PetscScalar   *_muArrPlus,*_csArrPlus;

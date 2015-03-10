@@ -21,8 +21,8 @@ class Domain
 
     // fault properties
     PetscScalar  _seisDepth;
-    PetscScalar  _aVal,_bAbove,_bBelow;
-    PetscScalar  _sigma_N_val;
+    PetscScalar  _aVal,_bBasin,_bAbove,_bBelow;
+    PetscScalar  _sigma_N_min,_sigma_N_max;
 
     // material distribution properties
     std::string  _shearDistribution, // options: mms, constant, gradient, basin

@@ -329,8 +329,9 @@ PetscErrorCode SymmLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcRplusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault->getTauInf(Ii);
-    bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
-
+    //~bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
+    //~bcRshift = 0.;
     ierr = VecSetValue(_bcRplusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRplusShift);CHKERRQ(ierr);
@@ -395,12 +396,12 @@ PetscErrorCode SymmLithosphere::writeStep()
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
     //~// boundary conditions
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),FILE_MODE_WRITE,
-                                 //~&_bcRplusV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcRplus,_bcRplusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_bcRplusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),
-                                   //~FILE_MODE_APPEND,&_bcRplusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),FILE_MODE_WRITE,
+                                 &_bcRplusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRplus,_bcRplusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcRplusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),
+                                   FILE_MODE_APPEND,&_bcRplusV);CHKERRQ(ierr);
 //~
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplusShift").c_str(),FILE_MODE_WRITE,
                                  //~&_bcRplusShiftV);CHKERRQ(ierr);
@@ -434,7 +435,7 @@ PetscErrorCode SymmLithosphere::writeStep()
   else {
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
 
-    //~ierr = VecView(_bcRplus,_bcRplusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRplus,_bcRplusV);CHKERRQ(ierr);
     //~ierr = VecView(_bcRplusShift,_bcRplusShiftV);CHKERRQ(ierr);
     //~ierr = VecView(_bcFplus,_bcFplusV);CHKERRQ(ierr);
 
