@@ -14,7 +14,7 @@ Fault::Fault(Domain&D)
   _aVal(D._aVal),_bBasin(D._bBasin),_bAbove(D._bAbove),_bBelow(D._bBelow),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
-  _sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(NULL),
+  _sigma_N(D._sigma_N),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_uPlus(NULL),_velPlus(NULL),
   _uPlusViewer(NULL),_velPlusViewer(NULL),_tauQSplusViewer(NULL),
   _psiViewer(NULL),
@@ -275,7 +275,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   // tau, eta, bcRShift, sigma_N
   PetscScalar a,b,zPlus,tau_inf,sigma_N;
 
-  // set normal stress
+/*  // set normal stress
   PetscScalar z = 0, g=9.8;
   PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
   PetscScalar rhoOut = _muArrPlus[_N-1]/(_csArrPlus[_N-1]*_csArrPlus[_N-1]);
@@ -305,14 +305,14 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecSetValues(_sigma_N,_N,sigmaInds,sigmaArr,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+*/
 
 
   ierr = VecGetOwnershipRange(_tauQSplus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
-
-    sigma_N = sigmaArr[Ii];
+    ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
@@ -329,8 +329,8 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecAssemblyEnd(_tauQSplus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zPlus);CHKERRQ(ierr);
 
-  PetscFree(sigmaInds);
-  PetscFree(sigmaArr);
+  //~PetscFree(sigmaInds);
+  //~PetscFree(sigmaArr);
 
 
 #if VERBOSE > 1
@@ -538,10 +538,10 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   ierr = VecView(_zPlus,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  str = outputDir + "sigma_N";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~str = outputDir + "sigma_N";
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
@@ -792,10 +792,7 @@ PetscErrorCode FullFault::setSplitNodeFields()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
-    //~z = ((double) Ii)*_h;
-
-    if (_sigma_N_min!=0){ sigma_N = _sigma_N_min; }
-    //~else if (0>1) { sigma_N = 9.8*_rhoArrPlus[Ii]*z; } // later support stress gradient
+    ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //~eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
@@ -1073,10 +1070,10 @@ PetscErrorCode FullFault::writeContext(const string outputDir)
     ierr = VecView(_zMinus,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  str = outputDir + "sigma_N";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~str = outputDir + "sigma_N";
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::writeContext in fault.cpp\n");CHKERRQ(ierr);

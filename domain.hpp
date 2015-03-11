@@ -23,15 +23,18 @@ class Domain
     PetscScalar  _seisDepth;
     PetscScalar  _aVal,_bBasin,_bAbove,_bBelow;
     PetscScalar  _sigma_N_min,_sigma_N_max;
+    Vec          _sigma_N;
 
     // material distribution properties
-    std::string  _shearDistribution, // options: mms, constant, gradient, basin
+
+    std::string  _shearDistribution, // options: mms, constant, gradient, basin,   CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)
+    std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)
     // + side fields (always initiated)
     PetscScalar  _muValPlus,_rhoValPlus; // if constant
     PetscScalar  _muInPlus,_muOutPlus,_rhoInPlus,_rhoOutPlus; // if basin
     PetscScalar  _depth,_width;
-    PetscScalar *_muArrPlus,*_csArrPlus; // general data containers
+    PetscScalar *_muArrPlus,*_csArrPlus,*_sigmaNArr; // general data containers
     Mat          _muPlus;
     // - side fields (sometimes initiated)
     PetscScalar  _muValMinus,_rhoValMinus; // if constant
@@ -78,6 +81,8 @@ class Domain
     Domain& operator=(const Domain &rhs);
 
 
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode setNormalStress();
     PetscErrorCode setFieldsPlus();
     PetscErrorCode setFieldsMinus();
 

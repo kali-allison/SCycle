@@ -47,7 +47,6 @@ class Fault: public RootFinderContext
 
 
     // fields that differ on the split nodes
-    PetscScalar    _sigma_N_min,_sigma_N_max;
     Vec            _sigma_N;
 
     Vec            _zPlus;

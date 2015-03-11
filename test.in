@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 401
+Nz = 401
 Ly = 24
 Lz = 24
 
@@ -8,7 +8,7 @@ Dc = 8e-3
 
 seisDepth = 12
 a = 0.015
-bBasin = 0.02
+bBasin = 0.0
 bAbove = 0.02
 bBelow = 0.0
 sigma_N_min = 0.10135
@@ -17,7 +17,8 @@ sigma_N_max = 50
 
 vp = 1e-9
 
-shearDistribution = basin
+inputDir = inputData/
+shearDistribution = CVM
 {
 problem = symmetric
 
@@ -26,24 +27,24 @@ problem = symmetric
 #muMinus = 36
 #rhoMinus = 2.8
 
-muInPlus = 36
-muOutPlus = 36
-rhoInPlus = 2.8
-rhoOutPlus = 2.8
+#muInPlus = 36
+#muOutPlus = 36
+#rhoInPlus = 2.8
+#rhoOutPlus = 2.8
 
 #muInMinus = 12
 #muOutMinus = 36
 #rhoInMinus = 2.0
 #rhoOutMinus = 2.8
 
-depth = 4
+depth = 6
 width = 12
 }
 
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
 strideLength = 1
 maxStepCount = 5
