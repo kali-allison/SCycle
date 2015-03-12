@@ -25,9 +25,9 @@ int runTests(const char * inputFile)
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
   domain.write();
-
-  SymmFault fault(domain);
-  fault.writeContext("data/");
+//~
+  //~SymmFault fault(domain);
+  //~fault.writeContext("data/");
 
   //~Lithosphere *lith;
   //~if (domain._problemType.compare("symmetric")==0) {

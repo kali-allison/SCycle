@@ -26,7 +26,6 @@ class Domain
     Vec          _sigma_N;
 
     // material distribution properties
-
     std::string  _shearDistribution, // options: mms, constant, gradient, basin,   CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)
     std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)

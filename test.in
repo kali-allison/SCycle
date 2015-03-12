@@ -1,18 +1,18 @@
 order = 4
-Ny = 401
-Nz = 401
-Ly = 24
-Lz = 24
+Ny = 801
+Nz = 801
+Ly = 22
+Lz = 22
 
 Dc = 8e-3
 
 seisDepth = 12
 a = 0.015
-bBasin = 0.0
+bBasin = 0.02
 bAbove = 0.02
 bBelow = 0.0
-sigma_N_min = 0.10135
-#sigma_N_min = 50
+#sigma_N_min = 0.10135
+sigma_N_min = 50
 sigma_N_max = 50
 
 vp = 1e-9
@@ -22,10 +22,10 @@ shearDistribution = CVM
 {
 problem = symmetric
 
-#muPlus = 36
-#rhoPlus = 2.8
-#muMinus = 36
-#rhoMinus = 2.8
+muPlus = 36
+rhoPlus = 2.8
+muMinus = 36
+rhoMinus = 2.8
 
 #muInPlus = 36
 #muOutPlus = 36
@@ -37,17 +37,17 @@ problem = symmetric
 #rhoInMinus = 2.0
 #rhoOutMinus = 2.8
 
-depth = 6
+depth = 4
 width = 12
 }
 
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 5
+maxStepCount = 1e8
 initTime = 0
 maxTime = 3.8e10
 minDeltaT = 1e-3
@@ -57,6 +57,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/test_
+outputDir = cvmData/
 
 

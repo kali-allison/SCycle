@@ -77,7 +77,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
   _seisDepth(-1),_aVal(-1),_bBasin(-1),_bAbove(-1),_bBelow(-1),
-  _sigma_N_min(-1),_sigma_N_max(-1),
+  _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -97,7 +97,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 #endif
 
   loadData(_file);
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n shearDistribution = %s \n\n",_shearDistribution.c_str());
 
   _Ny = Ny;
   _Nz = Nz;
@@ -125,7 +124,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   // if loading fields from source vecs
   if (_shearDistribution.compare("CVM")==0 ) {
     loadFieldsFromFiles();
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n here \n\n");
   }
 
   // if setting fields from input values
@@ -156,8 +154,11 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
+  VecDestroy(&_sigma_N);
+
   PetscFree(_muArrPlus);
   PetscFree(_csArrPlus);
+  PetscFree(_sigmaNArr);
   PetscFree(_muArrMinus);
   PetscFree(_csArrMinus);
 
@@ -407,12 +408,18 @@ PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
 
       else if (var.compare("muMinus")==0) { _muValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("rhoMinus")==0) { _rhoValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("width")==0) { _width = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
       // look for rho, mu will be prescribed
       if (var.compare("rhoPlus")==0) { _rhoValPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("rhoMinus")==0) { _rhoValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+      else if (var.compare("depth")==0) { _depth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("width")==0) { _width = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     }
     else if (_shearDistribution.compare("CVM")==0 )
     {
@@ -465,10 +472,11 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %f\n",_vp);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vp);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // sedimentary basin properties
+    ierr = PetscPrintf(PETSC_COMM_SELF,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
     // y>0 properties
@@ -478,9 +486,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
       ierr = PetscPrintf(PETSC_COMM_SELF,"muOutPlus = %f\n",_muOutPlus);CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_SELF,"rhoInPlus = %f\n",_rhoInPlus);CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOutPlus = %f\n",_rhoOutPlus);CHKERRQ(ierr);
-
-      ierr = PetscPrintf(PETSC_COMM_SELF,"depthPlus = %f\n",_depth);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"widthPlus = %f\n",_width);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
@@ -514,6 +519,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
         ierr = PetscPrintf(PETSC_COMM_SELF,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
       }
     }
+    ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     ierr = PetscPrintf(PETSC_COMM_SELF,"visc = %.15e\n",_visc);CHKERRQ(ierr);
@@ -629,12 +636,12 @@ PetscErrorCode Domain::checkInput()
     assert(_rhoInMinus>=1e-14);
     assert(_rhoOutMinus>=1e-14);
     }
-    assert(_depth>=1e-14);
-    assert(_width>=1e-14);
   }
   else if (_shearDistribution.compare("CVM")==0) {
     assert(_inputDir.compare("unspecified") != 0); // input dir must be specified
   }
+  assert(_depth>=1e-14);
+  assert(_width>=1e-14);
 
   assert(_shearDistribution.compare("CVM")!=0 || _problemType.compare("full")!=0 );
 
@@ -734,10 +741,10 @@ PetscErrorCode Domain::write()
     {
       ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
     }
-    else if (_shearDistribution.compare("CVM")==0 )
-    {
-      ierr = PetscViewerASCIIPrintf(viewer,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
-    }
+  }
+  if (_shearDistribution.compare("CVM")==0 )
+  {
+    ierr = PetscViewerASCIIPrintf(viewer,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -820,7 +827,6 @@ PetscErrorCode Domain::setFieldsPlus()
   Vec muVec;
   PetscInt *muInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
@@ -866,6 +872,7 @@ PetscErrorCode Domain::setFieldsPlus()
     _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
   }
+
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
@@ -877,59 +884,11 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
-
   VecDestroy(&muVec);
   PetscFree(muInds);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-return ierr;
-}
-
-
-
-PetscErrorCode Domain::setNormalStress()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  PetscInt       Ii;
-  PetscScalar z = 0, g=9.8;
-  PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
-  PetscScalar rhoOut = _muArrPlus[_Nz-1]/(_csArrPlus[_Nz-1]*_csArrPlus[_Nz-1]);
-  PetscScalar *sigmaArr;
-  PetscInt    *sigmaInds;
-  ierr = PetscMalloc(_Nz*sizeof(PetscScalar),&sigmaArr);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Nz*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
-  for (Ii=0;Ii<_Nz;Ii++)
-  {
-    sigmaInds[Ii] = Ii;
-
-    z = ((double) Ii)*_dz;
-    // gradient following lithostatic - hydrostatic
-    if (Ii<=_depth/_dz) {
-      sigmaArr[Ii] = rhoIn*g*z - g*z;
-    }
-    else if (Ii>_depth/_dz) {
-      sigmaArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
-    }
-
-    // normal stress is > 0 at Earth's surface
-    sigmaArr[Ii] += _sigma_N_min;
-
-    // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
-    // (in the paper, the max is 50 MPa)
-    sigmaArr[Ii] =(PetscScalar) min((double) sigmaArr[Ii],_sigma_N_max);
-  }
-  ierr = VecSetValues(_sigma_N,_Nz,sigmaInds,sigmaArr,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 return ierr;
 }
@@ -1018,6 +977,55 @@ return ierr;
 
 
 
+PetscErrorCode Domain::setNormalStress()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt       Ii;
+  PetscScalar z = 0, g=9.8;
+  PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
+  PetscScalar rhoOut = _muArrPlus[_Nz-1]/(_csArrPlus[_Nz-1]*_csArrPlus[_Nz-1]);
+  PetscInt    *sigmaInds;
+  ierr = PetscMalloc(_Nz*sizeof(PetscScalar),&_sigmaNArr);CHKERRQ(ierr);
+  ierr = PetscMalloc(_Nz*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
+  for (Ii=0;Ii<_Nz;Ii++)
+  {
+    sigmaInds[Ii] = Ii;
+
+    z = ((double) Ii)*_dz;
+    // gradient following lithostatic - hydrostatic
+    if (Ii<=_depth/_dz) {
+      _sigmaNArr[Ii] = rhoIn*g*z - g*z;
+    }
+    else if (Ii>_depth/_dz) {
+      _sigmaNArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
+    }
+
+    // normal stress is > 0 at Earth's surface
+    _sigmaNArr[Ii] += _sigma_N_min;
+
+    // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
+    // (in the paper, the max is 50 MPa)
+    _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sigma_N_max);
+  }
+  VecCreate(PETSC_COMM_WORLD,&_sigma_N);
+  VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);
+  VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
+  ierr = VecSetValues(_sigma_N,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+return ierr;
+}
+
+
+
 PetscErrorCode Domain::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
@@ -1025,6 +1033,8 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadFieldsFromFiles in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
+  PetscInt *muInds;
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
@@ -1075,14 +1085,24 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(localMu,1,&Ii,&mu);CHKERRQ(ierr);
     _muArrPlus[Ii] = mu;
+    muInds[Ii] = Ii;
   }
+
+  Vec muVec;
+  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
+  ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
   ierr = MatSetSizes(_muPlus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(_muPlus);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(_muPlus,1,NULL,1,NULL);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(_muPlus,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muPlus,localMu,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
 
 
 
@@ -1091,16 +1111,4 @@ PetscErrorCode Domain::loadFieldsFromFiles()
 #endif
   return ierr;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 

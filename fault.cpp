@@ -14,7 +14,7 @@ Fault::Fault(Domain&D)
   _aVal(D._aVal),_bBasin(D._bBasin),_bAbove(D._bAbove),_bBelow(D._bBelow),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
-  _sigma_N(D._sigma_N),
+  _sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(D._sigma_N),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_uPlus(NULL),_velPlus(NULL),
   _uPlusViewer(NULL),_velPlusViewer(NULL),_tauQSplusViewer(NULL),
   _psiViewer(NULL),
@@ -41,7 +41,7 @@ Fault::Fault(Domain&D)
 
   // frictional fields
   VecDuplicate(_tauQSplus,&_zPlus); PetscObjectSetName((PetscObject) _zPlus, "_zPlus");
-  VecDuplicate(_tauQSplus,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "sigma_N");
+  //~VecDuplicate(_tauQSplus,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "sigma_N");
   VecDuplicate(_tauQSplus,&_a); PetscObjectSetName((PetscObject) _a, "_a");
   VecDuplicate(_tauQSplus,&_b); PetscObjectSetName((PetscObject) _b, "_b");
 
@@ -114,7 +114,7 @@ PetscErrorCode Fault::setFrictionFields()
     z = _h*(Ii-_N*(Ii/_N));
     r=(0.25*_width*_width/_depth/_depth)*z*z;
     if (Ii < N1+1) {
-      v = 0.5*(_bAbove-_bBasin)*(tanh((double)(r-rbar)/rw)+1) + _bBasin;
+      v = 0.5*(_bAbove-_bBasin)*(tanh((double)(r-rbar)/rw)+1.0) + _bBasin;
       ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
     else if (Ii>N1 && Ii<=N2) {
@@ -236,6 +236,16 @@ PetscErrorCode SymmFault::computeVel()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
+    if (leftVal>rightVal) {
+      PetscScalar tauVal = 0,etaVal = 0;
+      ierr = VecGetValues(_tauQSplus,1,&Ii,&tauVal);CHKERRQ(ierr);
+      ierr = VecGetValues(eta,1,&Ii,&etaVal);CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,"\n\n\n %i:left>right\n",Ii);
+      PetscPrintf(PETSC_COMM_WORLD,"    left=%.15e\n",leftVal);
+      PetscPrintf(PETSC_COMM_WORLD,"    right=%.15e\n",rightVal);
+      PetscPrintf(PETSC_COMM_WORLD,"    tauVal=%.15e\n",tauVal);
+      PetscPrintf(PETSC_COMM_WORLD,"    eta=%.15e\n\n\n",etaVal);
+    }
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
       Bisect rootAlg(_maxNumIts,_rootTol);
@@ -306,7 +316,6 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
 */
-
 
   ierr = VecGetOwnershipRange(_tauQSplus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {

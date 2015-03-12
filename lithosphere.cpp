@@ -329,8 +329,8 @@ PetscErrorCode SymmLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcRplusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault->getTauInf(Ii);
-    //~bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
-    bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
+    bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
     //~bcRshift = 0.;
     ierr = VecSetValue(_bcRplusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
