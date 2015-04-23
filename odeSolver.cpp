@@ -438,6 +438,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
+
       // stage 1: integrate fields to _currT + 0.5*deltaT
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
@@ -464,6 +465,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
       }
       ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd.begin(),_var2nd.end(),_dvardT.begin(),_dvardT.end(),"2nd");CHKERRQ(ierr);
       ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd.begin(),_var3rd.end(),_dvardT.begin(),_dvardT.end(),"3rd");CHKERRQ(ierr);
+
 
       // calculate error
       totErr = computeError();

@@ -10,13 +10,13 @@ OnlyAsthenosphere::OnlyAsthenosphere(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting OnlyAsthenosphere::OnlyAsthenosphere in asthenosphere.cpp\n");
   #endif
 
-  VecDuplicate(_uhatPlus,&_strainDamper); PetscObjectSetName((PetscObject) _strainDamper, "_strainDamper");
+  VecDuplicate(_uPlus,&_strainDamper); PetscObjectSetName((PetscObject) _strainDamper, "_strainDamper");
   VecSet(_strainDamper,0.0);
 
-  VecDuplicate(_uhatPlus,&_strainDamperRate); PetscObjectSetName((PetscObject) _strainDamperRate, "_strainDamperRate");
+  VecDuplicate(_uPlus,&_strainDamperRate); PetscObjectSetName((PetscObject) _strainDamperRate, "_strainDamperRate");
   VecSet(_strainDamperRate,0.0);
 
-  VecDuplicate(_uhatPlus,&_rhsCorrection); PetscObjectSetName((PetscObject) _rhsCorrection, "_rhsCorrection");
+  VecDuplicate(_uPlus,&_rhsCorrection); PetscObjectSetName((PetscObject) _rhsCorrection, "_rhsCorrection");
   VecSet(_rhsCorrection,0.0);
 
 
@@ -56,13 +56,13 @@ PetscErrorCode OnlyAsthenosphere::resetInitialConds()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting OnlyAsthenosphere::resetInitialConds in asthenosphere.cpp\n");CHKERRQ(ierr);
   #endif
 
-  ierr = _sbpPlus.setRhs(_rhsPlus,_bcFplus,_bcRplus,_bcTplus,_bcBplus);CHKERRQ(ierr);
+  ierr = _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);CHKERRQ(ierr);
 
-  ierr = KSPSolve(_kspPlus,_rhsPlus,_uhatPlus);CHKERRQ(ierr);
+  ierr = KSPSolve(_kspPlus,_rhsPlus,_uPlus);CHKERRQ(ierr);
 
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uhatPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
   ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = _fault->setFaultDisp(_bcFplus,_bcFplus);CHKERRQ(ierr);
+  ierr = _fault->setFaultDisp(_bcLPlus,_bcLPlus);CHKERRQ(ierr);
   ierr = _fault->computeVel();CHKERRQ(ierr);
 
   setSurfDisp();
@@ -83,15 +83,15 @@ PetscErrorCode OnlyAsthenosphere::d_dt(const PetscScalar time,const_it_vec varBe
 #endif
 
   // update boundaries
-  ierr = VecCopy(*varBegin,_bcFplus);CHKERRQ(ierr);
-  ierr = VecScale(_bcFplus,0.5);CHKERRQ(ierr);
-  ierr = VecSet(_bcRplus,_vp*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcRplus,1.0,_bcRplusShift);CHKERRQ(ierr);
+  ierr = VecCopy(*varBegin,_bcLPlus);CHKERRQ(ierr);
+  ierr = VecScale(_bcLPlus,0.5);CHKERRQ(ierr);
+  ierr = VecSet(_bcRPlus,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcRPlus,1.0,_bcRPlusShift);CHKERRQ(ierr);
 
   // solve for displacement
-  ierr = _sbpPlus.setRhs(_rhsPlus,_bcFplus,_bcRplus,_bcTplus,_bcBplus);CHKERRQ(ierr); // update rhs from BCs
+  ierr = _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);CHKERRQ(ierr); // update rhs from BCs
   double startTime = MPI_Wtime();
-  ierr = KSPSolve(_kspPlus,_rhsPlus,_uhatPlus);CHKERRQ(ierr);
+  ierr = KSPSolve(_kspPlus,_rhsPlus,_uPlus);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
@@ -99,7 +99,7 @@ PetscErrorCode OnlyAsthenosphere::d_dt(const PetscScalar time,const_it_vec varBe
   // solve for tauSpring = 2*mu*strainSpring
   //                     = mu*d/dy(uhat) - 2*mu*strainDamper
   //                     = -2[ -0.5*mu*d/dy(uhat) + mu*strainDamper ]
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uhatPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
   ierr = VecScale(_sigma_xyPlus,-0.5);CHKERRQ(ierr); // rather than making a temporary vector to handle subtraction
   ierr = MatMultAdd(_muPlus,*(varBegin+2),_sigma_xyPlus,_sigma_xyPlus);
   ierr = VecScale(_sigma_xyPlus,-2.0);CHKERRQ(ierr);

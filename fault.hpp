@@ -40,7 +40,7 @@ class Fault: public RootFinderContext
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
    // fields that are identical on split nodes
-   PetscScalar    _seisDepth,_f0,_v0,_vp;
+   PetscScalar    _seisDepth,_f0,_v0,_vL;
    PetscScalar    _aVal,_bBasin,_bAbove,_bBelow;
    Vec            _a,_b;
    Vec            _psi,_tempPsi,_dPsi;
@@ -52,10 +52,10 @@ class Fault: public RootFinderContext
 
     Vec            _zPlus;
     PetscScalar   *_muArrPlus,*_csArrPlus;
-    Vec            _uPlus,_velPlus;
+    Vec            _slip,_slipVel;
 
     // viewers
-    PetscViewer    _uPlusViewer,_velPlusViewer,_tauQSplusViewer,_psiViewer;
+    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer;
 
 
     PetscErrorCode setFrictionFields();
@@ -65,9 +65,8 @@ class Fault: public RootFinderContext
     Fault& operator=( const Fault& rhs);
 
   //~public:
-
-    std::vector<Vec>    _var;
-    Vec            _tauQSplus;
+  std::vector<Vec>    _var;
+    Vec            _tauQSPlus;
 
     // iterators for _var
     typedef typename std::vector<Vec>::iterator it_vec;
@@ -76,7 +75,7 @@ class Fault: public RootFinderContext
     Fault(Domain&D);
     ~Fault();
 
-    PetscErrorCode virtual agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi) = 0;
+    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,const_it_vec varEnd,
@@ -110,11 +109,12 @@ class SymmFault: public Fault
 
   //~public:
 
+
+
     SymmFault(Domain&D);
     ~SymmFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
-    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
     PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 
@@ -140,11 +140,16 @@ class FullFault: public Fault
     // fields that exist on left split nodes
     Vec            _zMinus;
     PetscScalar   *_muArrMinus,*_csArrMinus;
-    Vec            _uMinus,_velMinus,_vel;
+    PetscInt       _arrSize; // size of _muArrMinus
+    Vec            _uPlus,_uMinus,_velPlus,_velMinus;
 
+
+    // time-integrated variables
+    //~std::vector<Vec>    _var;
 
     // viewers
-    PetscViewer    _uMinusViewer,_velMinusViewer,_tauQSminusViewer,_psiViewer;
+    PetscViewer    _uPlusViewer,_uMinusViewer,_velPlusViewer,_velMinusViewer,
+                   _tauQSMinusViewer,_psiViewer;
 
 
     PetscErrorCode setSplitNodeFields();
@@ -156,7 +161,7 @@ class FullFault: public Fault
 
   //~public:
 
-    Vec            _tauQSminus;
+    Vec            _tauQSMinus;
 
     // iterators for _var
     typedef typename std::vector<Vec>::iterator it_vec;
@@ -166,7 +171,7 @@ class FullFault: public Fault
     ~FullFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
-    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
+
     PetscErrorCode d_dt(const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
 

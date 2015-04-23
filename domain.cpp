@@ -27,7 +27,6 @@ Domain::Domain(const char *file)
 
   loadData(_file);
 
-  assert(_Ny>1);
   _dy = _Ly/(_Ny-1.0);
   if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   else (_dz = 1);
@@ -568,7 +567,7 @@ PetscErrorCode Domain::checkInput()
   #endif
 
   assert( _order==2 || _order==4 );
-  assert( _Ny > 3 && _Nz > 0 );
+  //~assert( _Ny > 3 && _Nz > 0 );
   assert( _Ly > 0 && _Lz > 0);
   assert( _dy > 0 && !isnan(_dy) );
   assert( _dz > 0 && !isnan(_dz) );
@@ -922,8 +921,8 @@ PetscErrorCode Domain::setFieldsMinus()
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~y = _Ly - _dy*(Ii/_Nz);
-    y = - _dy*(Ii/_Nz);
+    y = -_Ly + _dy*(Ii/_Nz);
+    //~y = - _dy*(Ii/_Nz);
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 
     if (_shearDistribution.compare("basin")==0) {

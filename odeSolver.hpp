@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <assert.h>
 #include "integratorContext.hpp"
+#include "genFuncs.hpp"
 
 using namespace std;
 

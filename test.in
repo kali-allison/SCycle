@@ -1,8 +1,8 @@
-order = 4
-Ny = 801
-Nz = 801
-Ly = 22
-Lz = 22
+order = 2
+Ny = 21
+Nz = 1
+Ly = 24
+Lz = 24
 
 Dc = 8e-3
 
@@ -10,26 +10,25 @@ seisDepth = 12
 a = 0.015
 bBasin = 0.02
 bAbove = 0.02
-bBelow = 0.0
-#sigma_N_min = 0.10135
+bBelow = 0.02
 sigma_N_min = 50
 sigma_N_max = 50
 
-vp = 1e-9
+vp = 1e-4
 
 inputDir = inputData/
-shearDistribution = CVM
+shearDistribution = constant
 {
-problem = symmetric
+problem = full
 
-muPlus = 36
+muPlus = 30
 rhoPlus = 2.8
-muMinus = 36
+muMinus = 40
 rhoMinus = 2.8
 
-#muInPlus = 36
+#muInPlus = 1
 #muOutPlus = 36
-#rhoInPlus = 2.8
+#rhoInPlus = 2.0
 #rhoOutPlus = 2.8
 
 #muInMinus = 12
@@ -38,25 +37,24 @@ rhoMinus = 2.8
 #rhoOutMinus = 2.8
 
 depth = 4
-width = 12
+width = 24
 }
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 1e8
-initTime = 0
-maxTime = 3.8e10
+strideLength = 10
+maxStepCount = 8e4
+initTime = 4e5
+maxTime = 5.3e5
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-initDeltaT = 1e-3
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = cvmData/
+outputDir = data/test_
 
 

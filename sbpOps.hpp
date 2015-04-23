@@ -70,7 +70,8 @@ struct TempMats
 class SbpOps
 {
 
-  protected:
+  public:
+  //~protected:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -110,7 +111,7 @@ class SbpOps
     SbpOps(const SbpOps & that);
     SbpOps& operator=( const SbpOps& rhs );
 
-  public:
+  //~public:
 
     Mat _A;
     Mat _Dy_Iz;

@@ -24,27 +24,17 @@ int runTests(const char * inputFile)
 
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
-  domain.write();
-//~
+  //~domain.write();
+
+
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  //~MatView(domain._muPlus,PETSC_VIEWER_STDOUT_WORLD);
+  //~MatView(sbp._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+
   //~SymmFault fault(domain);
-  //~fault.writeContext("data/");
+  SymmLithosphere lith(domain);
 
-  //~Lithosphere *lith;
-  //~if (domain._problemType.compare("symmetric")==0) {
-    //~lith = new SymmLithosphere(domain);
-  //~}
-  //~else {
-    //~lith = new FullLithosphere(domain);
-  //~}
 
-  //~PetscScalar outVal;
-  //~TestRoots test;
-  //~test.getResid(1,2,&outVal);
-  //~Bisect rootAlg(1e4,1e-12);
-  //~ierr = rootAlg.setBounds(-5,5);CHKERRQ(ierr);
-  //~ierr = rootAlg.findRoot(&test,1,&outVal);CHKERRQ(ierr);
-//~
-  //~PetscPrintf(PETSC_COMM_WORLD,"\noutVal=%.15e\n\n",outVal);
 
   return ierr;
 }

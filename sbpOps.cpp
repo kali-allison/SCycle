@@ -18,6 +18,8 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
 #endif
 
+  if (_Ny == 1) { return;}
+
   if(_muArr) { // ensure that _muArr is not NULL
     stringstream ss;
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
@@ -51,7 +53,18 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
       computeDy_Iz(tempFactors);
       satBoundaries(tempFactors);
       computeA(tempFactors);
+
     }
+
+    //~MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+    //~PetscPrintf(PETSC_COMM_WORLD,"alphaF = %.15e, alphaR = %.15e\n",_alphaF,_alphaR);
+
+
+
 }
 
 #if VERBOSE > 1
@@ -802,8 +815,8 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
 
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
-  //ierr = MatView(_A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
+
 
   // clean up
   ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
@@ -817,6 +830,10 @@ PetscErrorCode SbpOps::computeA(const TempMats& tempMats)
   ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
 
   ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+
+#if VERBOSE > 2
+  MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+#endif
 
   _runTime = MPI_Wtime() - startTime;
 
@@ -983,7 +1000,7 @@ switch ( order ) {
       H.eye(); H(0,0,0.5); H(N-1,N-1,0.5); H.scale(1/scale);
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-        Hinv.printPetsc();
+        H.printPetsc();
       #endif
 
       for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
@@ -1136,7 +1153,7 @@ switch ( order ) {
 //======================== public member functions =====================
 
 // map the boundary condition vectors to rhs
-PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
+PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -1145,18 +1162,11 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  // rhs =  _alphaF*mu*_Hinvy_Izxe0y_Iz*_bcF +...
-  // + _beta*_Hinvy_IzxBySy_IzTxe0y_Iz*_bcF + ...
-  // + _alphaR*mu*_Hinvy_IzxeNy_Iz*_bcR + ...
-  // + _beta*_Hinvy_IzxBySy_IzTxeNy_Iz*_bcR + ...
-  // - _alphaS*M.Iy_HinvzxIy_e0z*_bcS + ...
-  // + _alphaD*M.Iy_HinvzxIy_eNz*_bcD
-
   ierr = VecSet(rhs,0.0);
-  ierr = MatMult(_rhsL,_bcF,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcF
-  ierr = MatMultAdd(_rhsR,_bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,_bcS,rhs,rhs);
-  ierr = MatMultAdd(_rhsB,_bcD,rhs,rhs);
+  ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+  ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  ierr = MatMultAdd(_rhsT,bcS,rhs,rhs);
+  ierr = MatMultAdd(_rhsB,bcD,rhs,rhs);
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -1199,42 +1209,6 @@ PetscErrorCode SbpOps::loadOps(const std::string inputDir)
   ierr = MatLoad(_Dy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_Izxe0y_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Hinvy_Izxe0y_Iz);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Hinvy_Izxe0y_Iz,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Hinvy_Izxe0y_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxe0y_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxe0y_Iz);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Hinvy_IzxBySy_IzTxe0y_Iz,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Hinvy_IzxBySy_IzTxe0y_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxeNy_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxeNy_Iz);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Hinvy_IzxeNy_Iz,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Hinvy_IzxeNy_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Hinvy_IzxBySy_IzTxeNy_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Hinvy_IzxBySy_IzTxeNy_Iz);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Hinvy_IzxBySy_IzTxeNy_Iz,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Hinvy_IzxBySy_IzTxeNy_Iz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Iy_HinvzxIy_e0z",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Iy_HinvzxIy_e0z);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Iy_HinvzxIy_e0z,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Iy_HinvzxIy_e0z,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Iy_HinvzxIy_eNz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&_Iy_HinvzxIy_eNz);CHKERRQ(ierr);
-  //~ierr = MatSetType(_Iy_HinvzxIy_eNz,matType);CHKERRQ(ierr);
-  //~ierr = MatLoad(_Iy_HinvzxIy_eNz,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function loadOps in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -1252,6 +1226,8 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
 #endif
   double startTime = MPI_Wtime();
   PetscViewer    viewer;
+
+  if (_Ny == 1) { return 0;}
 
   std::string str =  outputDir + "matA";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);

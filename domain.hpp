@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <assert.h>
+#include "genFuncs.hpp"
 
 class Domain
 {

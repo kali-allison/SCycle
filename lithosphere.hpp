@@ -14,14 +14,6 @@
 
 
 
-/* TO DO:
- *   - Change dependence on fault so that integrate doesn't have to be
- *     defined separately for Full and Symm versions???
- *      -> will need to have check that it's been set to prevent seg faults
- *
- */
-
-
 /* Base class for an elastic lithosphere
  */
 class Lithosphere: public IntegratorContext
@@ -41,13 +33,13 @@ class Lithosphere: public IntegratorContext
     // output data
     std::string          _outputDir;
 
-    const PetscScalar    _v0,_vp;
+    const PetscScalar    _v0,_vL;
 
     // off-fault material fields: + side
     PetscScalar         *_muArrPlus;
     Mat                  _muPlus;
-    Vec                  _bcRplusShift,_surfDispPlus;
-    Vec                  _rhsPlus,_uhatPlus,_sigma_xyPlus;
+    Vec                  _bcRPlusShift,_surfDispPlus;
+    Vec                  _rhsPlus,_uPlus,_sigma_xyPlus;
 
     // linear system data
     std::string          _linSolver;
@@ -73,7 +65,7 @@ class Lithosphere: public IntegratorContext
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
-    PetscViewer          _bcRplusV,_bcRminusV,_bcRminusShiftV,_bcRplusShiftV,_bcFplusV,_bcFminusV,
+    PetscViewer          _bcRPlusV,_bcRMinusV,_bcRMinusShiftV,_bcRMlusShiftV,_bcLPlusV,_bcLMinusV,
                          _uPlusV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
 
 
@@ -82,7 +74,7 @@ class Lithosphere: public IntegratorContext
   public:
 
     // boundary conditions
-    Vec                  _bcTplus,_bcRplus,_bcBplus,_bcFplus;
+    Vec                  _bcTPlus,_bcRPlus,_bcBPlus,_bcLPlus;
 
     OdeSolver           *_quadrature;
     Fault               *_fault;
@@ -172,8 +164,8 @@ class FullLithosphere: public Lithosphere
     // off-fault material fields: - side
     PetscScalar         *_muArrMinus;
     Mat                  _muMinus;
-    Vec                  _bcRminusShift,_surfDispMinus;
-    Vec                  _rhsMinus,_uhatMinus,_sigma_xyMinus;
+    Vec                  _bcLMinusShift,_surfDispMinus;
+    Vec                  _rhsMinus,_uMinus,_sigma_xyMinus;
 
     PetscViewer          _surfDispMinusViewer;
 
@@ -192,7 +184,7 @@ class FullLithosphere: public Lithosphere
   public:
 
     // boundary conditions
-    Vec                  _bcTminus,_bcRminus,_bcBminus,_bcFminus;
+    Vec                  _bcTMinus,_bcRMinus,_bcBMinus,_bcLMinus;
 
     //~FullFault            _fault;
 
