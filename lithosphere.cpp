@@ -339,7 +339,7 @@ PetscErrorCode SymmLithosphere::setShifts()
     v = _fault->getTauInf(Ii);
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    bcRshift = 0.;
+    //~bcRshift = 0.;
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPlusShift);CHKERRQ(ierr);
@@ -695,7 +695,7 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcRPlusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault->getTauInf(Ii);
-    v = 0;
+    //~v = 0;
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
@@ -707,7 +707,7 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcLMinusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault->getTauInf(Ii);
-     v= 0;
+     //~v= 0;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     ierr = VecSetValue(_bcLMinusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
