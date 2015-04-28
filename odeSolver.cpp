@@ -404,6 +404,7 @@ PetscReal RK32::computeError()
     totSize += size;
   }
   totErr = sqrt(totErr/totSize);
+  totErr = sqrt(totErr/size);
 
 
   // abs error of slip

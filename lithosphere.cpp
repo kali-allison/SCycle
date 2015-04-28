@@ -899,14 +899,16 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
                        //~"Side","Step","Stage","gR","D","Q","VL","V","dQ","time");
     //~CHKERRQ(ierr);
   }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %s | %.9e %.9e | %.9e %.9e | %.9e\n",stepCount,stage,
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %-6s | %.9e %.9e | %.9e %.9e | %.9e\n",stepCount,stage,
               uPlus-uMinus,psi,velPlus-velMinus,dPsi,time);CHKERRQ(ierr);
 
+#if ODEPRINT > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    y>0 | %.9e %.9e| %.9e %.9e \n",
               bcRPlus,uPlus,tauQSPlus,velPlus);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    y<0 | %.9e %.9e| %.9e %.9e \n",
               bcLMinus,uMinus,tauQSPlus,velMinus);CHKERRQ(ierr);
+#endif
 #endif
   return ierr;
 }
