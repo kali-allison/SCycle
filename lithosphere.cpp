@@ -623,6 +623,16 @@ FullLithosphere::FullLithosphere(Domain&D)
   VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
   setSurfDisp();
 
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlusShift\n");
+  //~printVec(_bcRPlusShift);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinusShift\n");
+  //~printVec(_bcLMinusShift);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus\n");
+  //~printVec(_bcRPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus\n");
+  //~printVec(_bcLMinus);
+  //~assert(0>1);
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::FullLithosphere in lithosphere.cpp.\n");
 #endif
@@ -821,7 +831,7 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   // update boundaries: - side
   ierr = VecCopy(*(varBegin+2),_bcRMinus);CHKERRQ(ierr);
   ierr = VecSet(_bcLMinus,-_vL*time/2.0);CHKERRQ(ierr);
-  //~ierr = VecAXPY(_bcLMinus,1.0,_bcLMinusShift);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcLMinus,1.0,_bcLMinusShift);CHKERRQ(ierr);
 
    // solve for displacement: + side
   ierr = _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);CHKERRQ(ierr);

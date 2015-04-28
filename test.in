@@ -23,7 +23,7 @@ problem = full
 
 muPlus = 30
 rhoPlus = 2.8
-muMinus = 40
+muMinus = 30
 rhoMinus = 2.8
 
 #muInPlus = 1
@@ -40,13 +40,13 @@ depth = 4
 width = 24
 }
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 8e4
+strideLength = 1
+maxStepCount = 5
 initTime = 4e5
 maxTime = 5.3e5
 minDeltaT = 1e-3

@@ -385,10 +385,11 @@ PetscReal RK32::computeError()
 #endif
   PetscErrorCode ierr = 0;
   PetscReal      err[_lenVar],totErr=0.0;
-  PetscInt       size;
+  PetscInt       size,totSize=0;
 
 
-  for (int ind=0;ind<_lenVar;ind++) {
+  //~for (int ind=0;ind<_lenVar;ind++) {
+  for (int ind=0;ind<1;ind++) {
     ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
 
     //~// error based on max norm
@@ -398,8 +399,12 @@ PetscReal RK32::computeError()
     // error based on weighted 2 norm
     VecDot(_errVec[ind],_errVec[ind],&err[ind]);
     VecGetSize(_errVec[ind],&size);
-    totErr += sqrt(err[ind]/size);
+    //~totErr += sqrt(err[ind]/size);
+    totErr += err[ind];
+    totSize += size;
   }
+  totErr = sqrt(totErr/totSize);
+
 
   // abs error of slip
   //~ierr = VecNorm(_errVec[0],NORM_INFINITY,&totErr);CHKERRQ(ierr);
