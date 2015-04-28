@@ -1,0 +1,60 @@
+order = 4
+Ny = 201
+Nz = 201
+Ly = 24
+Lz = 24
+
+Dc = 8e-3
+
+seisDepth = 12
+a = 0.015
+bBasin = 0.02
+bAbove = 0.02
+bBelow = 0.0
+sigma_N_min = 50
+sigma_N_max = 50
+
+vp = 1e-4
+
+inputDir = inputData/
+shearDistribution = constant
+{
+problem = full
+
+muPlus = 30
+rhoPlus = 2.8
+muMinus = 30
+rhoMinus = 2.8
+
+#muInPlus = 1
+#muOutPlus = 36
+#rhoInPlus = 2.0
+#rhoOutPlus = 2.8
+
+#muInMinus = 12
+#muOutMinus = 36
+#rhoInMinus = 2.0
+#rhoOutMinus = 2.8
+
+depth = 4
+width = 24
+}
+
+linSolver = AMG
+kspTol = 1e-7
+
+timeIntegrator = RK32
+timeControlType = P
+strideLength = 1
+maxStepCount = 10
+initTime = 4e5
+maxTime = 5.3e5
+minDeltaT = 1e-3
+maxDeltaT = 1e7
+atol = 1e-7
+
+rootTol = 1e-9
+
+outputDir = data/test_
+
+
