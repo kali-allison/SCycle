@@ -692,6 +692,14 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecCopy(tauQS,right);CHKERRQ(ierr);
   ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
+
+  //~// from SymmFault, here for debugging purposes
+  //~ierr = VecDuplicate(_tauQSPlus,&tauQS);CHKERRQ(ierr);
+  //~ierr = VecDuplicate(_tauQSPlus,&eta);CHKERRQ(ierr);
+  //~ierr = VecCopy(_tauQSPlus,tauQS);CHKERRQ(ierr);
+  //~ierr = VecCopy(_zPlus,eta);
+  //~ierr = VecScale(eta,0.5);CHKERRQ(ierr);
+
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
@@ -731,6 +739,13 @@ PetscErrorCode FullFault::computeVel()
   // compute velMinus
   ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   ierr = VecAXPY(_velMinus,-1.0,_slipVel);CHKERRQ(ierr);
+
+  //~// from SymmFault, here for debugging purposes
+  //~ierr = VecCopy(_slipVel,_velPlus);CHKERRQ(ierr);
+  //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
+  //~ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
+  //~ierr = VecScale(_velMinus,-1.0);CHKERRQ(ierr);
+
 
 
   // clean up memory (this step is a common source of memory leaks)
@@ -840,18 +855,19 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
   ierr = VecAssemblyBegin(_tauQSPlus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_tauQSPlus);CHKERRQ(ierr);
 
+
   ierr = VecGetOwnershipRange(sigma_xyMinus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii>_arrSize - _N - 1){ // pull local values
+    if (Ii>_arrSize - _N - 1){ // get local values
       Jj = Ii - (_arrSize - _N);
       ierr = VecGetValues(sigma_xyMinus,1,&Ii,&v);CHKERRQ(ierr);
       ierr = VecSetValues(_tauQSMinus,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-ierr = VecAssemblyBegin(_tauQSMinus);CHKERRQ(ierr);
-ierr = VecAssemblyEnd(_tauQSMinus);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_tauQSMinus);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_tauQSMinus);CHKERRQ(ierr);
 
-
+  //~ierr = VecCopy(_tauQSPlus,_tauQSMinus);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
@@ -888,21 +904,14 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2/_v0)*exp(psi/a) );
 
   // stress on fault
-  PetscScalar stress = zMinus/(zPlus+zMinus)*tauQSplus
-                       + zPlus/(zPlus+zMinus)*tauQSminus
+  PetscScalar stress = (zMinus/(zPlus+zMinus)*tauQSplus
+                       + zPlus/(zPlus+zMinus)*tauQSminus)
                        - zPlus*zMinus/(zPlus+zMinus)*slipVel;
 
-  *out = strength - stress;
-
-
-  //~*out = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2/_v0)*exp(psi/a) )
-         //~- zMinus/(zPlus+zMinus)*tauQSplus
-         //~- zPlus/(zPlus+zMinus)*tauQSminus
-         //~+ zPlus*zMinus/(zPlus+zMinus)*slipVel;
-
   // from symmetric fault (here for debugging purposes)
-  //~*out = (PetscScalar) a*sigma_N*asinh( (double) (vel/2/_v0)*exp(psi/a) ) + 0.5*zPlus*slipVel - tauQSplus;
+  //~stress = tauQSplus - 0.5*zPlus*slipVel; // stress on fault
 
+  *out = strength - stress;
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,zPlus=%g,tau=%g,vel=%g,out=%g\n",psi,a,sigma_N,zPlus,tauQSplus,vel,out);

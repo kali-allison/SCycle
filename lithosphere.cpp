@@ -568,10 +568,9 @@ FullLithosphere::FullLithosphere(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLithosphere::FullLithosphere in lithosphere.cpp.\n");
 #endif
 
-  // sign convention resulting from the fact that I'm indexing from y=0 to y=-Ly
   _fault = new FullFault(D);
 
-
+  // initialize y<0 boundary conditions
   VecDuplicate(_bcLPlus,&_bcLMinusShift);
   PetscObjectSetName((PetscObject) _bcLMinusShift, "_bcLMinusShift");
   setShifts(); // set position of boundary from steady sliding
@@ -592,46 +591,78 @@ FullLithosphere::FullLithosphere(Domain&D)
   VecDuplicate(_bcBPlus,&_bcBMinus); PetscObjectSetName((PetscObject) _bcBMinus, "bcBMinus");
   VecSet(_bcBMinus,0.0);
 
-  _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);
+  // initialize and allocate memory for body fields
+  double startTime;
 
   VecDuplicate(_rhsPlus,&_uPlus);
-  double startTime = MPI_Wtime();
-  KSPSolve(_kspPlus,_rhsPlus,_uPlus);
-  _factorTime += MPI_Wtime() - startTime;
   VecDuplicate(_rhsPlus,&_sigma_xyPlus);
-  MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);
+
+  VecCreate(PETSC_COMM_WORLD,&_rhsMinus);
+  VecSetSizes(_rhsMinus,PETSC_DECIDE,_Ny*_Nz);
+  VecSetFromOptions(_rhsMinus);
+  VecDuplicate(_rhsMinus,&_uMinus);
+  VecDuplicate(_rhsMinus,&_sigma_xyMinus);
 
 
+  // initialize KSP for y<0
   KSPCreate(PETSC_COMM_WORLD,&_kspMinus);
   startTime = MPI_Wtime();
   setupKSP(_sbpMinus,_kspMinus,_pcMinus);
   _factorTime += MPI_Wtime() - startTime;
 
-  VecCreate(PETSC_COMM_WORLD,&_rhsMinus);
-  VecSetSizes(_rhsMinus,PETSC_DECIDE,_Ny*_Nz);
-  VecSetFromOptions(_rhsMinus);
+
+  // solve for displacement and shear stress in y<0
   _sbpMinus.setRhs(_rhsMinus,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
-
-  VecDuplicate(_rhsMinus,&_uMinus);
   KSPSolve(_kspMinus,_rhsMinus,_uMinus);
-  VecDuplicate(_rhsPlus,&_sigma_xyMinus);
   MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);
+  //~MatMult(_sbpMinus._Dy_Iz,_uPlus,_sigma_xyMinus); // this version works
 
+  // solve for displacement and shear stress in y>0
+  _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);
+  startTime = MPI_Wtime();
+  KSPSolve(_kspPlus,_rhsPlus,_uPlus);
+  _factorTime += MPI_Wtime() - startTime;
+  MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);
+
+
+
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus = \n");
+  //~printVec(_bcLMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRMinus = \n");
+  //~printVec(_bcRMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLPlus = \n");
+  //~printVec(_bcLPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus = \n");
+  //~printVec(_bcRPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsPlus = \n");
+  //~printVec(_rhsPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsMinus = \n");
+  //~printVec(_rhsMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uPlus = \n");
+  //~printVec(_uPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uMinus = \n");
+  //~printVec(_uMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyMinus = \n");
+  //~printVec(_sigma_xyMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyPlus = \n");
+  //~printVec(_sigma_xyPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
+  //~printVecsDiff(_sigma_xyPlus,_sigma_xyMinus);
+  //~MatView(_sbpPlus._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+  //~MatView(_sbpMinus._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+//~
+  //~assert(0>1);
+
+
+  // set up fault
   _fault->setTauQS(_sigma_xyPlus,_sigma_xyMinus);
   _fault->setFaultDisp(_bcLPlus,_bcRMinus);
   _fault->computeVel();
-  VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
-  setSurfDisp();
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlusShift\n");
-  //~printVec(_bcRPlusShift);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinusShift\n");
-  //~printVec(_bcLMinusShift);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus\n");
-  //~printVec(_bcRPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus\n");
-  //~printVec(_bcLMinus);
-  //~assert(0>1);
+
+  VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
+  setSurfDisp(); // extract surface displacement from displacement fields
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::FullLithosphere in lithosphere.cpp.\n");
@@ -717,7 +748,7 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcLMinusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault->getTauInf(Ii);
-     //~v= 0;
+     //~v = 0;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     ierr = VecSetValue(_bcLMinusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -839,7 +870,7 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   ierr = KSPSolve(_kspPlus,_rhsPlus,_uPlus);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
-  ierr = setSurfDisp();
+
 
   // solve for displacement: - side
   ierr = _sbpMinus.setRhs(_rhsMinus,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);CHKERRQ(ierr);
@@ -848,12 +879,17 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
+
   // solve for shear stress
   ierr = MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
+  //~MatMult(_sbpMinus._Dy_Iz,_uPlus,_sigma_xyMinus); // this version works
   ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpPlus._Dy_Iz,_uMinus,_sigma_xyPlus);CHKERRQ(ierr);
   ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyMinus);CHKERRQ(ierr);
 
   ierr = _fault->d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+
+  ierr = setSurfDisp();
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
@@ -903,10 +939,10 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
               uPlus-uMinus,psi,velPlus-velMinus,dPsi,time);CHKERRQ(ierr);
 
 #if ODEPRINT > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"    y>0 | %.9e %.9e| %.9e %.9e \n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    y>0 |  %.9e  %.9e %.9e  %.9e \n",
               bcRPlus,uPlus,tauQSPlus,velPlus);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"    y<0 | %.9e %.9e| %.9e %.9e \n",
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    y<0 | %.9e %.9e %.9e %.9e \n",
               bcLMinus,uMinus,tauQSPlus,velMinus);CHKERRQ(ierr);
 #endif
 #endif
