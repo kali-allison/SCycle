@@ -740,6 +740,15 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   ierr = VecAXPY(_velMinus,-1.0,_slipVel);CHKERRQ(ierr);
 
+  // velMinus = (+tauQSplus - tauQSminus - zPlus*vel)/(zPlus + zMinus)
+  VecCopy(_tauQSPlus,tauSum);
+  VecAXPY(tauSum,-1.0,_tauQSMinus);
+  VecPointwiseDivide(tauSum,tauSum,zSum);
+  VecPointwiseDivide(velCorr,_zPlus,zSum);
+  VecPointwiseMult(velCorr,velCorr,_slipVel);
+  VecCopy(tauSum,_velPlus);
+  VecAXPY(_velMinus,-1.0,velCorr);
+
   //~// from SymmFault, here for debugging purposes
   //~ierr = VecCopy(_slipVel,_velPlus);CHKERRQ(ierr);
   //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
@@ -855,19 +864,15 @@ PetscErrorCode FullFault::setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMi
   ierr = VecAssemblyBegin(_tauQSPlus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_tauQSPlus);CHKERRQ(ierr);
 
-
+  // get last _N values in array
   ierr = VecGetOwnershipRange(sigma_xyMinus,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii>_arrSize - _N - 1){ // get local values
+    if (Ii>_arrSize - _N - 1) {
       Jj = Ii - (_arrSize - _N);
       ierr = VecGetValues(sigma_xyMinus,1,&Ii,&v);CHKERRQ(ierr);
       ierr = VecSetValues(_tauQSMinus,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = VecAssemblyBegin(_tauQSMinus);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_tauQSMinus);CHKERRQ(ierr);
-
-  //~ierr = VecCopy(_tauQSPlus,_tauQSMinus);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1

@@ -21,8 +21,8 @@ Lithosphere::Lithosphere(Domain&D)
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
   _timeViewer(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
-  _bcTPlus(NULL),_bcRPlus(NULL),_bcBPlus(NULL),_bcLPlus(NULL),
-  _fault(NULL)
+  _bcTPlus(NULL),_bcRPlus(NULL),_bcBPlus(NULL),_bcLPlus(NULL)
+  //_fault(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Lithosphere::Lithosphere in lithosphere.cpp.\n");
@@ -181,7 +181,7 @@ PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
   return ierr;
 }
 
-
+/*
 PetscErrorCode Lithosphere::integrate()
 {
   PetscErrorCode ierr = 0;
@@ -194,7 +194,7 @@ PetscErrorCode Lithosphere::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_fault->_var);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
@@ -202,7 +202,7 @@ PetscErrorCode Lithosphere::integrate()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Lithosphere::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
-}
+}*/
 
 
 
@@ -256,13 +256,13 @@ PetscErrorCode Lithosphere::view()
 //================= Symmetric Lithosphere Functions ========================
 
 SymmLithosphere::SymmLithosphere(Domain&D)
-: Lithosphere(D)
+: Lithosphere(D),_fault(D)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLithosphere::SymmLithosphere in lithosphere.cpp.\n");
 #endif
 
-  _fault = new SymmFault(D);
+  //~_fault = new SymmFault(D);
 
   // almost everything is covered by base class' constructor, except the
   // construction of _fault, and populating bcRshift
@@ -290,9 +290,9 @@ SymmLithosphere::SymmLithosphere(Domain&D)
   //~VecAXPY(_sigma_xyPlus,-1,_bcLPlus);
   //~VecScale(_sigma_xyPlus,_muArrPlus[1]/_Ly);
 
-  _fault->setTauQS(_sigma_xyPlus,NULL);
-  _fault->setFaultDisp(_bcLPlus,NULL);
-  _fault->computeVel();
+  _fault.setTauQS(_sigma_xyPlus,NULL);
+  _fault.setFaultDisp(_bcLPlus,NULL);
+  _fault.computeVel();
 
   //~setSurfDisp();
 
@@ -336,7 +336,7 @@ PetscErrorCode SymmLithosphere::setShifts()
   PetscScalar v,bcRshift;
   ierr = VecGetOwnershipRange(_bcRPlusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault->getTauInf(Ii);
+    v = _fault.getTauInf(Ii);
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
     //~bcRshift = 0.;
@@ -393,7 +393,7 @@ PetscErrorCode SymmLithosphere::writeStep()
 
   if (_stepCount==0) {
     ierr = _sbpPlus.writeOps(_outputDir);CHKERRQ(ierr);
-    ierr = _fault->writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
@@ -450,7 +450,7 @@ PetscErrorCode SymmLithosphere::writeStep()
     //~ierr = VecView(_uPlus,_uPlusV);CHKERRQ(ierr);
     //~ierr = VecView(_sigma_xyPlus,_sigma_xyPlusV);CHKERRQ(ierr);
   }
-  ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
   _writeTime += MPI_Wtime() - startTime;
@@ -459,6 +459,30 @@ PetscErrorCode SymmLithosphere::writeStep()
 #endif
   return ierr;
 }
+
+
+PetscErrorCode SymmLithosphere::integrate()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Lithosphere::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+#endif
+  double startTime = MPI_Wtime();
+
+  // call odeSolver routine integrate here
+  _quadrature->setTolerance(_atol);CHKERRQ(ierr);
+  _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  ierr = _quadrature->setTimeRange(_initTime,_maxTime);
+  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
+
+  ierr = _quadrature->integrate(this);CHKERRQ(ierr);
+  _integrateTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Lithosphere::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 
 
 PetscErrorCode SymmLithosphere::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
@@ -493,8 +517,8 @@ PetscErrorCode SymmLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
 
 
   // update fields on fault
-  ierr = _fault->setTauQS(_sigma_xyPlus,NULL);CHKERRQ(ierr);
-  ierr = _fault->d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+  ierr = _fault.setTauQS(_sigma_xyPlus,NULL);CHKERRQ(ierr);
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLithosphere::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
@@ -529,7 +553,7 @@ PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCo
   ierr= VecGetOwnershipRange(_bcRPlus,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRPlus,1,&Istart,&bcRval);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault->_tauQSPlus,1,&Istart,&tauQS);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault._tauQSPlus,1,&Istart,&tauQS);CHKERRQ(ierr);
 
   if (stepCount == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
@@ -543,7 +567,7 @@ PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCo
 
 
 
-  //~VecView(_fault->_tauQSPlus,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_fault._tauQSPlus,PETSC_VIEWER_STDOUT_WORLD);
 #endif
   return ierr;
 }
@@ -562,13 +586,14 @@ FullLithosphere::FullLithosphere(Domain&D)
   _surfDispMinusViewer(NULL),
   _kspMinus(NULL),_pcMinus(NULL),
   _sbpMinus(D,*D._muArrMinus,D._muMinus),
-  _bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL)
+  _bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
+  _fault(D)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLithosphere::FullLithosphere in lithosphere.cpp.\n");
 #endif
 
-  _fault = new FullFault(D);
+  //~_fault = new FullFault(D);
 
   // initialize y<0 boundary conditions
   VecDuplicate(_bcLPlus,&_bcLMinusShift);
@@ -615,7 +640,6 @@ FullLithosphere::FullLithosphere(Domain&D)
   _sbpMinus.setRhs(_rhsMinus,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
   KSPSolve(_kspMinus,_rhsMinus,_uMinus);
   MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);
-  //~MatMult(_sbpMinus._Dy_Iz,_uPlus,_sigma_xyMinus); // this version works
 
   // solve for displacement and shear stress in y>0
   _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);
@@ -649,16 +673,14 @@ FullLithosphere::FullLithosphere(Domain&D)
   //~printVec(_sigma_xyPlus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
   //~printVecsDiff(_sigma_xyPlus,_sigma_xyMinus);
-  //~MatView(_sbpPlus._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
-  //~MatView(_sbpMinus._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
-//~
+
   //~assert(0>1);
 
 
   // set up fault
-  _fault->setTauQS(_sigma_xyPlus,_sigma_xyMinus);
-  _fault->setFaultDisp(_bcLPlus,_bcRMinus);
-  _fault->computeVel();
+  _fault.setTauQS(_sigma_xyPlus,_sigma_xyMinus);
+  _fault.setFaultDisp(_bcLPlus,_bcRMinus);
+  _fault.computeVel();
 
 
   VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
@@ -735,8 +757,8 @@ PetscErrorCode FullLithosphere::setShifts()
   PetscScalar v,bcRshift;
   ierr = VecGetOwnershipRange(_bcRPlusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault->getTauInf(Ii);
-    //~v = 0;
+    v = _fault.getTauInf(Ii);
+    v = 0;
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
@@ -747,8 +769,8 @@ PetscErrorCode FullLithosphere::setShifts()
 
   ierr = VecGetOwnershipRange(_bcLMinusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault->getTauInf(Ii);
-     //~v = 0;
+    v = _fault.getTauInf(Ii);
+     v = 0;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     ierr = VecSetValue(_bcLMinusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -814,7 +836,7 @@ PetscErrorCode FullLithosphere::writeStep()
   if (_stepCount==0) {
     ierr = _sbpPlus.writeOps(_outputDir+"plus_");CHKERRQ(ierr);
     if (_problemType.compare("full")==0) { ierr = _sbpMinus.writeOps(_outputDir+"minus_");CHKERRQ(ierr); }
-    ierr = _fault->writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
@@ -835,12 +857,34 @@ PetscErrorCode FullLithosphere::writeStep()
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_surfDispMinus,_surfDispMinusViewer);CHKERRQ(ierr);
   }
-  ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+PetscErrorCode FullLithosphere::integrate()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Lithosphere::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+#endif
+  double startTime = MPI_Wtime();
+
+  // call odeSolver routine integrate here
+  _quadrature->setTolerance(_atol);CHKERRQ(ierr);
+  _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  ierr = _quadrature->setTimeRange(_initTime,_maxTime);
+  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
+
+  ierr = _quadrature->integrate(this);CHKERRQ(ierr);
+  _integrateTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Lithosphere::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -882,12 +926,35 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
 
   // solve for shear stress
   ierr = MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
-  //~MatMult(_sbpMinus._Dy_Iz,_uPlus,_sigma_xyMinus); // this version works
   ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  //~ierr = MatMult(_sbpPlus._Dy_Iz,_uMinus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyMinus);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sigma_xyPlus,_sigma_xyMinus);CHKERRQ(ierr);
 
-  ierr = _fault->d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus = \n");
+  //~printVec(_bcLMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRMinus = \n");
+  //~printVec(_bcRMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLPlus = \n");
+  //~printVec(_bcLPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus = \n");
+  //~printVec(_bcRPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsPlus = \n");
+  //~printVec(_rhsPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsMinus = \n");
+  //~printVec(_rhsMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uPlus = \n");
+  //~printVec(_uPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uMinus = \n");
+  //~printVec(_uMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyMinus = \n");
+  //~printVec(_sigma_xyMinus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyPlus = \n");
+  //~printVec(_sigma_xyPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
+  //~printVecsDiff(_sigma_xyPlus,_sigma_xyMinus);
+
+  //~assert(0>1);
+
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
   ierr = setSurfDisp();
 
@@ -927,8 +994,8 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
   ierr = VecGetValues(_bcRPlus,1,&Istart,&bcRPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_bcLMinus,1,&Istart,&bcLMinus);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault->_tauQSPlus,1,&Istart,&tauQSPlus);CHKERRQ(ierr);
-  //~ierr = VecGetValues(_fault->_tauQSMinus,1,&Istart,&tauQSMinus);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault._tauQSPlus,1,&Istart,&tauQSPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault._tauQSMinus,1,&Istart,&tauQSMinus);CHKERRQ(ierr);
 
   if (stepCount == 0) {
     //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s|| %-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
@@ -943,7 +1010,7 @@ PetscErrorCode FullLithosphere::debug(const PetscReal time,const PetscInt stepCo
               bcRPlus,uPlus,tauQSPlus,velPlus);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    y<0 | %.9e %.9e %.9e %.9e \n",
-              bcLMinus,uMinus,tauQSPlus,velMinus);CHKERRQ(ierr);
+              bcLMinus,uMinus,tauQSMinus,velMinus);CHKERRQ(ierr);
 #endif
 #endif
   return ierr;

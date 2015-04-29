@@ -21,8 +21,8 @@ OnlyAsthenosphere::OnlyAsthenosphere(Domain& D)
 
 
   // set up initial conditions for integration (shallow copy)
-  _var.push_back(_fault->_var[0]);
-  _var.push_back(_fault->_var[1]);
+  _var.push_back(_fault._var[0]);
+  _var.push_back(_fault._var[1]);
   _var.push_back(_strainDamper);
 
   #if VERBOSE > 1
@@ -61,9 +61,9 @@ PetscErrorCode OnlyAsthenosphere::resetInitialConds()
   ierr = KSPSolve(_kspPlus,_rhsPlus,_uPlus);CHKERRQ(ierr);
 
   ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = _fault->setFaultDisp(_bcLPlus,_bcLPlus);CHKERRQ(ierr);
-  ierr = _fault->computeVel();CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = _fault.setFaultDisp(_bcLPlus,_bcLPlus);CHKERRQ(ierr);
+  ierr = _fault.computeVel();CHKERRQ(ierr);
 
   setSurfDisp();
 
@@ -104,10 +104,10 @@ PetscErrorCode OnlyAsthenosphere::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = MatMultAdd(_muPlus,*(varBegin+2),_sigma_xyPlus,_sigma_xyPlus);
   ierr = VecScale(_sigma_xyPlus,-2.0);CHKERRQ(ierr);
 
-  ierr = _fault->setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sigma_xyPlus,_sigma_xyPlus);CHKERRQ(ierr);
 
   // set rates for faultDisp and state
-  ierr = _fault->d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
 
   // set rate for strainDamper
@@ -176,7 +176,7 @@ PetscErrorCode OnlyAsthenosphere::writeStep()
 
   if (_stepCount==0) {
     ierr = _sbpPlus.writeOps(_outputDir);CHKERRQ(ierr);
-    ierr = _fault->writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
@@ -205,7 +205,7 @@ PetscErrorCode OnlyAsthenosphere::writeStep()
     ierr = VecView(_strainDamper,_strainDamperViewer);CHKERRQ(ierr);
     ierr = VecView(_strainDamperRate,_strainDamperRateViewer);CHKERRQ(ierr);
   }
-  ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
 

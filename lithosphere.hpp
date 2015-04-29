@@ -77,14 +77,15 @@ class Lithosphere: public IntegratorContext
     Vec                  _bcTPlus,_bcRPlus,_bcBPlus,_bcLPlus;
 
     OdeSolver           *_quadrature;
-    Fault               *_fault;
+    //~Fault               *_fault;
 
     Lithosphere(Domain&D);
     ~Lithosphere();
 
 
 
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
+    //~PetscErrorCode integrate(); // will call OdeSolver method by same name
+    PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
 
     PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd) = 0;
@@ -126,12 +127,13 @@ class SymmLithosphere: public Lithosphere
 
   public:
 
-    //~SymmFault       _fault;
+    SymmFault       _fault;
 
 
     SymmLithosphere(Domain&D);
     ~SymmLithosphere();
 
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
@@ -186,13 +188,13 @@ class FullLithosphere: public Lithosphere
     // boundary conditions
     Vec                  _bcTMinus,_bcRMinus,_bcBMinus,_bcLMinus;
 
-    //~FullFault            _fault;
+    FullFault            _fault;
 
 
     FullLithosphere(Domain&D);
     ~FullLithosphere();
 
-
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
