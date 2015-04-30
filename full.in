@@ -23,7 +23,7 @@ problem = full
 
 muPlus = 30
 rhoPlus = 2.8
-muMinus = 40
+muMinus = 30
 rhoMinus = 2.8
 
 #muInPlus = 1
@@ -46,12 +46,12 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e5
+maxStepCount = 5e6
 initTime = 0
 maxTime = 5e10
 minDeltaT = 1e-3
 maxDeltaT = 1e7
-atol = 1e-9
+atol = 1e-7
 
 rootTol = 1e-12
 

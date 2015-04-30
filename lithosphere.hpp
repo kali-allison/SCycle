@@ -202,6 +202,10 @@ class FullLithosphere: public Lithosphere
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
     // IO commands
     PetscErrorCode writeStep();
+
+    // for debugging
+    PetscErrorCode setU();
+    PetscErrorCode setSigmaxy();
 };
 
 #endif

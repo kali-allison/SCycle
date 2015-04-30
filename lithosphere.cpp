@@ -577,7 +577,6 @@ PetscErrorCode SymmLithosphere::debug(const PetscReal time,const PetscInt stepCo
 
 
 //================= Full Lithosphere (+ and - sides) Functions =========
-
 FullLithosphere::FullLithosphere(Domain&D)
 : Lithosphere(D),
   _muArrMinus(D._muArrMinus),_muMinus(D._muMinus),
@@ -649,6 +648,8 @@ FullLithosphere::FullLithosphere(Domain&D)
   MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);
 
 
+  //~setU(); // set _uPlus, _uMinus analytically
+  //~setSigmaxy(); // set shear stresses analytically
 
 
   //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus = \n");
@@ -659,10 +660,6 @@ FullLithosphere::FullLithosphere(Domain&D)
   //~printVec(_bcLPlus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus = \n");
   //~printVec(_bcRPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsPlus = \n");
-  //~printVec(_rhsPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsMinus = \n");
-  //~printVec(_rhsMinus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_uPlus = \n");
   //~printVec(_uPlus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_uMinus = \n");
@@ -673,7 +670,6 @@ FullLithosphere::FullLithosphere(Domain&D)
   //~printVec(_sigma_xyPlus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
   //~printVecsDiff(_sigma_xyPlus,_sigma_xyMinus);
-
   //~assert(0>1);
 
 
@@ -758,7 +754,8 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcRPlusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    v = 0;
+    //~v = 0;
+    v = 0.8*v;
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
@@ -770,7 +767,8 @@ PetscErrorCode FullLithosphere::setShifts()
   ierr = VecGetOwnershipRange(_bcLMinusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-     v = 0;
+     //~v = 0;
+     v = 0.8*v;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     ierr = VecSetValue(_bcLMinusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -889,6 +887,80 @@ PetscErrorCode FullLithosphere::integrate()
   return ierr;
 }
 
+PetscErrorCode FullLithosphere::setU()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLithosphere::setU in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar    bcLPlus,bcRPlus,bcLMinus,bcRMinus,v;
+
+  ierr = VecGetOwnershipRange(_bcRPlus,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcLPlus,1,&Istart,&bcLPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRPlus,1,&Istart,&bcRPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcLMinus,1,&Istart,&bcLMinus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRMinus,1,&Istart,&bcRMinus);CHKERRQ(ierr);
+
+
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    v = bcLPlus + Ii*(bcRPlus-bcLPlus)/_Ny;//bcL:(bcR-bcL)/(dom.Ny-1):bcR
+    ierr = VecSetValues(_uPlus,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    v = bcLMinus + Ii*(bcRMinus - bcLMinus)/_Ny;
+    ierr = VecSetValues(_uMinus,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_uPlus);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_uMinus);CHKERRQ(ierr);
+
+  ierr = VecAssemblyEnd(_uPlus);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_uMinus);CHKERRQ(ierr);
+
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uPlus = \n");
+  //~printVec(_uPlus);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_uMinus = \n");
+  //~printVec(_uMinus);
+  //~assert(0>1);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::setU in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+return ierr;
+}
+
+
+PetscErrorCode FullLithosphere::setSigmaxy()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLithosphere::setSigmaxy in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+
+  PetscInt       Istart,Iend;
+  PetscScalar    bcLPlus,bcRPlus,bcLMinus,bcRMinus;
+
+  ierr = VecGetOwnershipRange(_bcRPlus,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcLPlus,1,&Istart,&bcLPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRPlus,1,&Istart,&bcRPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcLMinus,1,&Istart,&bcLMinus);CHKERRQ(ierr);
+  ierr = VecGetValues(_bcRMinus,1,&Istart,&bcRMinus);CHKERRQ(ierr);
+
+  ierr = VecSet(_sigma_xyMinus,_muArrMinus[0]*(bcRMinus - bcLMinus)/_Ly);CHKERRQ(ierr);
+  ierr = VecSet(_sigma_xyPlus,_muArrPlus[0]*(bcRPlus - bcLPlus)/_Ly);CHKERRQ(ierr);
+
+  assert(_muArrPlus[0]*(bcRPlus - bcLPlus)/_Ly < 40);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLithosphere::setSigmaxy in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+return ierr;
+}
 
 PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                  it_vec dvarBegin,it_vec dvarEnd)
@@ -923,37 +995,26 @@ PetscErrorCode FullLithosphere::d_dt(const PetscScalar time,const_it_vec varBegi
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
+  // set _uPlus, _uMinus analytically
+  //~setU();
+
 
   // solve for shear stress
   ierr = MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
   ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_sigma_xyPlus,_sigma_xyMinus);CHKERRQ(ierr);
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus = \n");
-  //~printVec(_bcLMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRMinus = \n");
-  //~printVec(_bcRMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLPlus = \n");
-  //~printVec(_bcLPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRPlus = \n");
-  //~printVec(_bcRPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsPlus = \n");
-  //~printVec(_rhsPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_rhsMinus = \n");
-  //~printVec(_rhsMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_uPlus = \n");
-  //~printVec(_uPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_uMinus = \n");
-  //~printVec(_uMinus);
+
+
+  // set shear stresses analytically
+  //~setSigmaxy();
+
   //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyMinus = \n");
   //~printVec(_sigma_xyMinus);
   //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyPlus = \n");
   //~printVec(_sigma_xyPlus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
-  //~printVecsDiff(_sigma_xyPlus,_sigma_xyMinus);
-
   //~assert(0>1);
 
+  ierr = _fault.setTauQS(_sigma_xyPlus,_sigma_xyMinus);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
   ierr = setSurfDisp();

@@ -740,21 +740,12 @@ PetscErrorCode FullFault::computeVel()
   ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   ierr = VecAXPY(_velMinus,-1.0,_slipVel);CHKERRQ(ierr);
 
-  // velMinus = (+tauQSplus - tauQSminus - zPlus*vel)/(zPlus + zMinus)
-  VecCopy(_tauQSPlus,tauSum);
-  VecAXPY(tauSum,-1.0,_tauQSMinus);
-  VecPointwiseDivide(tauSum,tauSum,zSum);
-  VecPointwiseDivide(velCorr,_zPlus,zSum);
-  VecPointwiseMult(velCorr,velCorr,_slipVel);
-  VecCopy(tauSum,_velPlus);
-  VecAXPY(_velMinus,-1.0,velCorr);
 
   //~// from SymmFault, here for debugging purposes
   //~ierr = VecCopy(_slipVel,_velPlus);CHKERRQ(ierr);
   //~ierr = VecScale(_velPlus,0.5);CHKERRQ(ierr);
   //~ierr = VecCopy(_velPlus,_velMinus);CHKERRQ(ierr);
   //~ierr = VecScale(_velMinus,-1.0);CHKERRQ(ierr);
-
 
 
   // clean up memory (this step is a common source of memory leaks)
