@@ -602,6 +602,7 @@ PetscErrorCode Domain::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
+         _linSolver.compare("PCG") == 0 ||
          _linSolver.compare("AMG") == 0 );
   assert(_kspTol >= 1e-14);
 

@@ -1,6 +1,6 @@
 order = 2
-Ny = 21
-Nz = 1
+Ny = 101
+Nz = 101
 Ly = 24
 Lz = 24
 
@@ -17,19 +17,19 @@ sigma_N_max = 50
 vp = 1e-4
 
 inputDir = inputData/
-shearDistribution = constant
+shearDistribution = basin
 {
-problem = full
+problem = symmetric
 
 muPlus = 30
 rhoPlus = 2.8
 muMinus = 30
 rhoMinus = 2.8
 
-#muInPlus = 1
-#muOutPlus = 36
-#rhoInPlus = 2.0
-#rhoOutPlus = 2.8
+muInPlus = 1
+muOutPlus = 36
+rhoInPlus = 2.0
+rhoOutPlus = 2.8
 
 #muInMinus = 12
 #muOutMinus = 36
@@ -46,7 +46,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 5
+maxStepCount = 1
 initTime = 4e5
 maxTime = 5.3e5
 minDeltaT = 1e-3

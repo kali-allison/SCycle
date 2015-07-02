@@ -114,12 +114,18 @@ Lithosphere::~Lithosphere()
  *     Algorithm             Package           input file syntax
  * algebraic multigrid       HYPRE                AMG
  * direct LU                 MUMPS                MUMPSLU
- * direct Cholesky           MUMPS                MUMPSCHOLESKY         !!! TESTING NOW
+ * direct Cholesky           MUMPS                MUMPSCHOLESKY
  *
  * A list of options for each algorithm that can be set can be optained
  * by running the code with the argument main <input file> -help and
  * searching through the output for "Preconditioner (PC) options" and
  * "Krylov Method (KSP) options".
+ *
+ * To view convergence information, including number of iterations, use
+ * the command line argument: -ksp_converged_reason.
+ *
+ * For information regarding HYPRE's solver options, especially the
+ * preconditioner options, use the User manual online.
  */
 PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
 {
@@ -137,8 +143,8 @@ PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
-  if (_linSolver.compare("AMG")==0) {
-    // use HYPRE
+  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
+    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
@@ -146,9 +152,33 @@ PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);
   }
-//~
-  else if (_linSolver.compare("MUMPSLU")==0) {
+  else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
+    // use built in preconditioned conjugate gradient
+    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+
+    // preconditioned with PCGAMG
+    //~PCSetType(pc,PCGAMG); // default?
+
+
+    // preconditioned with HYPRE's AMG
+    //~PCSetType(pc,PCHYPRE);
+    //~ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+    //~ierr = PCFactorSetLevels(pc,3);CHKERRQ(ierr);
+
+    // preconditioned with HYPRE
+    PCSetType(pc,PCHYPRE);
+    ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
+    ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
+
+
+    ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);
+  }
+  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
     // use direct LU from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
@@ -158,7 +188,7 @@ PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     PCFactorSetUpMatSolverPackage(pc);
   }
 
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) {
+  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
@@ -172,8 +202,13 @@ PetscErrorCode Lithosphere::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     assert(0>1);
   }
 
-  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  // finish setting up KSP context using options defined above
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+
+  // perform computation of preconditioners now, rather than on first use
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Lithosphere::setupKSP in lithosphere.cpp\n");CHKERRQ(ierr);
