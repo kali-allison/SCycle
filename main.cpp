@@ -6,8 +6,8 @@
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
-#include "lithosphere.hpp"
-#include "asthenosphere.hpp"
+#include "linearElastic.hpp"
+#include "maxwellViscoelastic.hpp"
 
 
 
@@ -32,7 +32,7 @@ int runTests(const char * inputFile)
   //~MatView(sbp._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
-  SymmLithosphere lith(domain);
+  SymmLinearElastic lith(domain);
 
 
 
@@ -350,19 +350,20 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  //~OnlyAsthenosphere lith(domain);
-
-  Lithosphere *lith;
-  if (domain._problemType.compare("symmetric")==0) {
-    lith = new SymmLithosphere(domain);
-  }
-  else {
-    lith = new FullLithosphere(domain);
-  }
+  SymmMaxwellViscoelastic *lith;
+  lith = new SymmMaxwellViscoelastic(domain);
+//~
+  //~LinearElastic *lith;
+  //~if (domain._problemType.compare("symmetric")==0) {
+    //~lith = new SymmLinearElastic(domain);
+  //~}
+  //~else {
+    //~lith = new FullLinearElastic(domain);
+  //~}
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 

@@ -170,7 +170,7 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscSca
   assert( ind>=Istart && ind<Iend);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
-  _slipVel = abs(_slipVel); // aging law is not sensitive to direction of slip
+  slipVel = abs(slipVel); // aging law is not sensitive to direction of slip
 
 
   //~if (b==0) { *dPsi = 0; }

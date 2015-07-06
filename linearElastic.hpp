@@ -1,5 +1,5 @@
-#ifndef LITHOSPHERE_H_INCLUDED
-#define LITHOSPHERE_H_INCLUDED
+#ifndef LINEARELASTIC_H_INCLUDED
+#define LINEARELASTIC_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -14,14 +14,14 @@
 
 
 
-/* Base class for an elastic lithosphere
+/* Base class for a linear elastic material
  */
-class Lithosphere: public IntegratorContext
+class LinearElastic: public IntegratorContext
 {
   private:
     // disable default copy constructor and assignment operator
-    Lithosphere(const Lithosphere &that);
-    Lithosphere& operator=(const Lithosphere &rhs);
+    LinearElastic(const LinearElastic &that);
+    LinearElastic& operator=(const LinearElastic &rhs);
 
   protected:
 
@@ -79,8 +79,8 @@ class Lithosphere: public IntegratorContext
     OdeSolver           *_quadrature;
     //~Fault               *_fault;
 
-    Lithosphere(Domain&D);
-    ~Lithosphere();
+    LinearElastic(Domain&D);
+    ~LinearElastic();
 
 
 
@@ -110,12 +110,12 @@ class Lithosphere: public IntegratorContext
  * is described in Brittany Erickson's paper on the earthquake cycle in
  * sedimentary basins.
  */
-class SymmLithosphere: public Lithosphere
+class SymmLinearElastic: public LinearElastic
 {
   private:
     // disable default copy constructor and assignment operator
-    SymmLithosphere(const SymmLithosphere &that);
-    SymmLithosphere& operator=(const SymmLithosphere &rhs);
+    SymmLinearElastic(const SymmLinearElastic &that);
+    SymmLinearElastic& operator=(const SymmLinearElastic &rhs);
 
   protected:
 
@@ -130,8 +130,8 @@ class SymmLithosphere: public Lithosphere
     SymmFault       _fault;
 
 
-    SymmLithosphere(Domain&D);
-    ~SymmLithosphere();
+    SymmLinearElastic(Domain&D);
+    ~SymmLinearElastic();
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
@@ -159,7 +159,7 @@ class SymmLithosphere: public Lithosphere
  * the earthquake cycle in sedimentary basins, with modifications to the
  * boundary condition on the fault.
  */
-class FullLithosphere: public Lithosphere
+class FullLinearElastic: public LinearElastic
 {
   protected:
 
@@ -191,8 +191,8 @@ class FullLithosphere: public Lithosphere
     FullFault            _fault;
 
 
-    FullLithosphere(Domain&D);
-    ~FullLithosphere();
+    FullLinearElastic(Domain&D);
+    ~FullLinearElastic();
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
