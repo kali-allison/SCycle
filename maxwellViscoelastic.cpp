@@ -4,36 +4,24 @@
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 : SymmLinearElastic(D), _visc(D._visc),
-  _strainVisc(NULL),_dstrainVisc(NULL),_rhsCorrection(NULL),
-  _strainViscV(NULL),_dstrainViscV(NULL)
+  _strainViscPlus(NULL),_dstrainViscPlus(NULL),_rhsCorrection(NULL),
+  _strainViscPlusV(NULL),_dstrainViscPlusV(NULL)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting maxwellViscoelastic::maxwellViscoelastic in maxwellViscoelastic.cpp\n");
   #endif
 
-  VecDuplicate(_uPlus,&_strainVisc); PetscObjectSetName((PetscObject) _strainVisc, "_strainVisc");
-  VecSet(_strainVisc,0.0);
+  VecDuplicate(_uPlus,&_strainViscPlus); PetscObjectSetName((PetscObject) _strainViscPlus, "_strainViscPlus");
+  VecSet(_strainViscPlus,0.0);
 
-  VecDuplicate(_uPlus,&_dstrainVisc); PetscObjectSetName((PetscObject) _dstrainVisc, "_dstrainVisc");
-  VecSet(_dstrainVisc,0.0);
+  VecDuplicate(_uPlus,&_dstrainViscPlus); PetscObjectSetName((PetscObject) _dstrainViscPlus, "_dstrainViscPlus");
+  VecSet(_dstrainViscPlus,0.0);
 
   VecDuplicate(_uPlus,&_rhsCorrection); PetscObjectSetName((PetscObject) _rhsCorrection, "_rhsCorrection");
   VecSet(_rhsCorrection,0.0);
 
-
-  // set up initial conditions for integration (shallow copy)
-  //~_var.push_back(_fault._var[0]);
-  //~_var.push_back(_fault._var[1]);
-  //~_var.push_back(_strainVisc);
-
-  //~_var.push_back( *(_fault._var.begin()) );
-  //~_var.push_back(*(_fault._var.begin()+1) );
-
-  _fault._var.push_back(_strainVisc);
-
-
-  //~VecView(_strainVisc,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(*(_var.begin()+2),PETSC_VIEWER_STDOUT_WORLD);
+  // add viscous strain to integrated variables, stored in _fault._var
+  _fault._var.push_back(_strainViscPlus);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending maxwellViscoelastic::maxwellViscoelastic in maxwellViscoelastic.cpp\n");
@@ -47,10 +35,10 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
   #endif
 
   // from maxwellViscoelastic
-  VecDestroy(&_strainVisc);
-  VecDestroy(&_dstrainVisc);
+  VecDestroy(&_strainViscPlus);
+  VecDestroy(&_dstrainViscPlus);
   VecDestroy(&_rhsCorrection);
-  PetscViewerDestroy(&_strainViscV);
+  PetscViewerDestroy(&_strainViscPlusV);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending maxwellViscoelastic::~maxwellViscoelastic in maxwellViscoelastic.cpp\n");
@@ -125,7 +113,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec
   //~// d/dt(strainDamper) = tauSpring/(2*eta)
   //~ierr = VecCopy(_sigma_xyPlus,*(dvarBegin+2));CHKERRQ(ierr);
   //~ierr = VecScale(*(dvarBegin+2),0.5/_visc);CHKERRQ(ierr);
-  //~ierr = VecCopy(*(dvarBegin+2),_dstrainVisc);CHKERRQ(ierr);
+  //~ierr = VecCopy(*(dvarBegin+2),_dstrainViscPlus);CHKERRQ(ierr);
 
 
 
@@ -145,10 +133,10 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec
   // set rates for faultDisp and state
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
-  // set rate for viscoelastic strain: d/dt _strainVisc = tauStress/(2*eta)
+  // set rate for viscoelastic strain: d/dt _strainViscPlus = tauStress/(2*eta)
   ierr = VecCopy(_sigma_xyPlus,*(dvarBegin+2));CHKERRQ(ierr);
   ierr = VecScale(*(dvarBegin+2),0.5/_visc);CHKERRQ(ierr);
-  //~ierr = VecCopy(*(dvarBegin+2),_dstrainVisc);CHKERRQ(ierr); // I think dvar has a shallow copy of dStrainVisc
+  //~ierr = VecCopy(*(dvarBegin+2),_dstrainViscPlus);CHKERRQ(ierr); // I think dvar has a shallow copy of dStrainVisc
 
 
 
@@ -223,23 +211,23 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainVisc").c_str(),
-             FILE_MODE_WRITE,&_strainViscV);CHKERRQ(ierr);
-    ierr = VecView(_strainVisc,_strainViscV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_strainViscV);CHKERRQ(ierr);
+             FILE_MODE_WRITE,&_strainViscPlusV);CHKERRQ(ierr);
+    ierr = VecView(_strainViscPlus,_strainViscPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_strainViscPlusV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainVisc").c_str(),
-                                   FILE_MODE_APPEND,&_strainViscV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_strainViscPlusV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainVisc").c_str(),
-             FILE_MODE_WRITE,&_dstrainViscV);CHKERRQ(ierr);
-    ierr = VecView(_dstrainVisc,_dstrainViscV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_dstrainViscV);CHKERRQ(ierr);
+             FILE_MODE_WRITE,&_dstrainViscPlusV);CHKERRQ(ierr);
+    ierr = VecView(_dstrainViscPlus,_dstrainViscPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_dstrainViscPlusV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainVisc").c_str(),
-                                   FILE_MODE_APPEND,&_dstrainViscV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_dstrainViscPlusV);CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_strainVisc,_strainViscV);CHKERRQ(ierr);
-    ierr = VecView(_dstrainVisc,_dstrainViscV);CHKERRQ(ierr);
+    ierr = VecView(_strainViscPlus,_strainViscPlusV);CHKERRQ(ierr);
+    ierr = VecView(_dstrainViscPlus,_dstrainViscPlusV);CHKERRQ(ierr);
   }
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -265,3 +253,50 @@ PetscErrorCode SymmMaxwellViscoelastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
 }
+
+
+
+//======================================================================
+
+//~FullMaxwellViscoelastic::FullMaxwellViscoelastic(Domain& D)
+//~: FullLinearElastic(D), _visc(D._visc),
+  //~_strainViscPlus(NULL),_dstrainViscPlus(NULL),_rhsCorrection(NULL),
+  //~_strainViscPlusV(NULL),_dstrainViscPlusV(NULL)
+//~{
+  //~#if VERBOSE > 1
+    //~PetscPrintf(PETSC_COMM_WORLD,"Starting FullMaxwellViscoelastic::FullMaxwellViscoelastic in maxwellViscoelastic.cpp\n");
+  //~#endif
+//~
+  //~VecDuplicate(_uPlus,&_strainViscPlus); PetscObjectSetName((PetscObject) _strainViscPlus, "_strainViscPlus");
+  //~VecSet(_strainViscPlus,0.0);
+//~
+  //~VecDuplicate(_uPlus,&_dstrainViscPlus); PetscObjectSetName((PetscObject) _dstrainViscPlus, "_dstrainViscPlus");
+  //~VecSet(_dstrainViscPlus,0.0);
+//~
+  //~VecDuplicate(_uPlus,&_rhsCorrection); PetscObjectSetName((PetscObject) _rhsCorrection, "_rhsCorrection");
+  //~VecSet(_rhsCorrection,0.0);
+//~
+  //~// add viscous strain to integrated variables, stored in _fault._var
+  //~_fault._var.push_back(_strainViscPlus);
+//~
+  //~#if VERBOSE > 1
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ending FullMaxwellViscoelastic::FullMaxwellViscoelastic in maxwellViscoelastic.cpp\n");
+  //~#endif
+//~}
+//~
+//~FullMaxwellViscoelastic::~FullMaxwellViscoelastic()
+//~{
+  //~#if VERBOSE > 1
+    //~PetscPrintf(PETSC_COMM_WORLD,"Starting FullMaxwellViscoelastic::~maxwellViscoelastic in maxwellViscoelastic.cpp\n");
+  //~#endif
+//~
+  //~// from maxwellViscoelastic
+  //~VecDestroy(&_strainViscPlus);
+  //~VecDestroy(&_dstrainViscPlus);
+  //~VecDestroy(&_rhsCorrection);
+  //~PetscViewerDestroy(&_strainViscPlusV);
+//~
+  //~#if VERBOSE > 1
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ending FullMaxwellViscoelastic::~FullMaxwellViscoelastic in maxwellViscoelastic.cpp\n");
+  //~#endif
+//~}
