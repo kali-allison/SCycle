@@ -314,7 +314,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   _factorTime += MPI_Wtime() - startTime;
 
   VecDuplicate(_rhsPlus,&_sigma_xyPlus);
-  MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);
+  MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);
 
 
 
@@ -347,7 +347,7 @@ PetscErrorCode SymmLinearElastic::computeShearStress()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::computeShearStress in lithosphere.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::computeShearStress in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -372,9 +372,9 @@ PetscErrorCode SymmLinearElastic::setShifts()
   ierr = VecGetOwnershipRange(_bcRPlusShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    bcRshift = 0.;
+    //~bcRshift = 0.;
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPlusShift);CHKERRQ(ierr);
@@ -543,7 +543,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
 
   //~// for SS approximation
   //~VecCopy(_bcRPlus,_sigma_xyPlus);
@@ -673,14 +673,14 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   // solve for displacement and shear stress in y<0
   _sbpMinus.setRhs(_rhsMinus,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
   KSPSolve(_kspMinus,_rhsMinus,_uMinus);
-  MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);
+  MatMult(_sbpMinus._muxDy_Iz,_uMinus,_sigma_xyMinus);
 
   // solve for displacement and shear stress in y>0
   _sbpPlus.setRhs(_rhsPlus,_bcLPlus,_bcRPlus,_bcTPlus,_bcBPlus);
   startTime = MPI_Wtime();
   KSPSolve(_kspPlus,_rhsPlus,_uPlus);
   _factorTime += MPI_Wtime() - startTime;
-  MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);
+  MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);
 
 
   //~setU(); // set _uPlus, _uMinus analytically
@@ -763,8 +763,8 @@ PetscErrorCode FullLinearElastic::computeShearStress()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::computeShearStress in lithosphere.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
-  ierr = MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpMinus._muxDy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::computeShearStress in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -1035,8 +1035,8 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
 
   // solve for shear stress
-  ierr = MatMult(_sbpMinus._Dy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
-  ierr = MatMult(_sbpPlus._Dy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpMinus._muxDy_Iz,_uMinus,_sigma_xyMinus);CHKERRQ(ierr);
+  ierr = MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
 
 
 

@@ -29,7 +29,7 @@ int runTests(const char * inputFile)
 
   //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
   //~MatView(domain._muPlus,PETSC_VIEWER_STDOUT_WORLD);
-  //~MatView(sbp._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
+  //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
   SymmLinearElastic lith(domain);
@@ -290,7 +290,7 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   // MMS for shear stress on fault
   Vec tauHat, tauAnal, sigma_xy;
   ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
-  ierr = MatMult(sbp._Dy_Iz,uAnal,sigma_xy);CHKERRQ(ierr);
+  ierr = MatMult(sbp._muxDy_Iz,uAnal,sigma_xy);CHKERRQ(ierr);
 
   ierr = VecDuplicate(bcF,&tauHat);CHKERRQ(ierr);
   ierr = VecDuplicate(bcF,&tauAnal);CHKERRQ(ierr);
@@ -484,7 +484,7 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
   // MMS for shear stress on fault
   Vec tau, sigma_xy;
   ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
-  ierr = MatMult(sbp._Dy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
+  ierr = MatMult(sbp._muxDy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
 
   ierr = VecDuplicate(bcF,&tau);CHKERRQ(ierr);
   PetscInt Istart,Iend;

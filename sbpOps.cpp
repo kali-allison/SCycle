@@ -12,7 +12,8 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
   _muArr(&muArr),_mu(&mu),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
-  _debugFolder("./matlabAnswers/"),_A(NULL),_Dy_Iz(NULL)
+  _debugFolder("./matlabAnswers/"),_A(NULL),
+  _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -35,7 +36,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
     MatCreate(PETSC_COMM_WORLD,&_rhsT);
     MatCreate(PETSC_COMM_WORLD,&_rhsB);
 
-    MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
+    MatCreate(PETSC_COMM_WORLD,&_muxDy_Iz);
 
     {
       /* NOT a member of this class, contains stuff to be deleted before
@@ -49,22 +50,11 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
         _alphaR = tempFactors._Hy(0,0);
       }
 
-
       computeDy_Iz(tempFactors);
       satBoundaries(tempFactors);
       computeA(tempFactors);
 
     }
-
-    //~MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
-    //~PetscPrintf(PETSC_COMM_WORLD,"alphaF = %.15e, alphaR = %.15e\n",_alphaF,_alphaR);
-
-
-
 }
 
 #if VERBOSE > 1
@@ -88,7 +78,10 @@ SbpOps::~SbpOps()
   MatDestroy(&_rhsT);
   MatDestroy(&_rhsB);
 
-  MatDestroy(&_Dy_Iz);
+  MatDestroy(&_muxDy_Iz);
+  MatDestroy(&_Dy_Izx2mu);
+  MatDestroy(&_Iy_Dzx2mu);
+  MatDestroy(&_Iy_Dz);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps.cpp.\n");
@@ -96,7 +89,7 @@ SbpOps::~SbpOps()
 }
 
 
-//======================== meat ========================================
+//======================================================================
 
 /* Enforce boundary conditions using SAT penalty terms, computing both
  * matrices used to build the rhs vector from the boundary vectors and
@@ -760,17 +753,36 @@ PetscErrorCode SbpOps::computeDy_Iz(const TempMats& tempMats)
   Mat temp;
   kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
 
-  MatDestroy(&_Dy_Iz);
-  ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
+  MatDestroy(&_muxDy_Iz);
+  ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxDy_Iz);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _muxDy_Iz, "_muxDy_Iz");CHKERRQ(ierr);
+
+  // create _Dy_Izx2mu
+  MatDestroy(&temp);
+  kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
+  ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Dy_Izx2mu);CHKERRQ(ierr);
+  ierr = MatScale(_Dy_Izx2mu,2.0);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _Dy_Izx2mu, "_Dy_Izx2mu");CHKERRQ(ierr);
+
+  // create _Iy_Dzx2mu
+  MatDestroy(&temp);
+  kronConvert(tempMats._Iy,tempMats._D1zint,temp,5,5);
+  ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Iy_Dzx2mu);CHKERRQ(ierr);
+  ierr = MatScale(_Iy_Dzx2mu,2.0);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _Iy_Dzx2mu, "_Iy_Dzx2mu");CHKERRQ(ierr);
+
+  // create _Iy_Dz
+  MatDestroy(&temp);
+  kronConvert(tempMats._Iy,tempMats._D1zint,_Iy_Dz,5,5);
+  ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
   MatDestroy(&temp);
 
 #if DEBUG > 0
-ierr = checkMatrix(&_Dy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
+ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
 #if VERBOSE > 2
-  ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
@@ -1032,7 +1044,6 @@ switch ( order ) {
       D1(N-1,N-3,S(N-1,N-3)); // last row
       D1(N-1,N-2,S(N-1,N-2));
       D1(N-1,N-1,S(N-1,N-1));
-      // only want shear stress on fault, not interior
       D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
@@ -1204,9 +1215,9 @@ PetscErrorCode SbpOps::loadOps(const std::string inputDir)
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Dy_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(_Dy_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(_Dy_Iz,viewer);CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&_muxDy_Iz);CHKERRQ(ierr);
+  ierr = MatSetType(_muxDy_Iz,matType);CHKERRQ(ierr);
+  ierr = MatLoad(_muxDy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE >1
@@ -1236,7 +1247,7 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
 
   str = outputDir + "Dy_Iz";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
+  ierr = MatView(_muxDy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 
@@ -1296,7 +1307,7 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
 TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(mu),
   _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
+  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats::TempMats in sbpOps.cpp.\n");
@@ -1349,9 +1360,10 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
 
   // going from 1D in z to 2D:
   {
-    Spmat Hzinv(_Nz,_Nz),D1z(_Nz,_Nz),Sz(_Nz,_Nz);
-    if (Nz > 1) { sbpSpmat(order,Nz,1/dz,_Hz,Hzinv,D1z,_D1zint,Sz); }
+    Spmat Hzinv(_Nz,_Nz),Sz(_Nz,_Nz);
+    if (Nz > 1) { sbpSpmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,Sz); }
     else { _Hz.eye(); }
+
 
     // kron(Iy,Hzinv)
     {

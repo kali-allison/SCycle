@@ -24,7 +24,7 @@ struct TempMats
       Mat              *_mu;
 
       Spmat _Hy,_D1y,_D1yint,_Iy;
-      Spmat _Hz,_D1zint,_Iz;
+      Spmat _Hz,_D1z,_D1zint,_Iz;
 
       Mat _muxBySy_Iz;
       Mat _Hyinv_Iz;
@@ -114,8 +114,8 @@ class SbpOps
   //~public:
 
     Mat _A;
-    Mat _Dy_Iz;
-    Mat _Iy_Dz;
+    Mat _Dy_Izx2mu,_muxDy_Iz;
+    Mat _Iy_Dzx2mu, _Iy_Dz;
 
     SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps();

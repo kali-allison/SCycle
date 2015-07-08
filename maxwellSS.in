@@ -1,6 +1,6 @@
 order = 2
-Ny = 21
-Nz = 1
+Ny = 101
+Nz = 101
 Ly = 30 # km
 Lz = 30 # km
 
@@ -9,7 +9,7 @@ Dc = 1e-3 # m
 seisDepth = 12 # km
 a = 0.015
 bAbove = 0.02
-bBelow = 0.02
+bBelow = 0.0
 sigma_N_min = 50 # MPa
 sigma_N_max = 50 # MPa
 
@@ -25,7 +25,7 @@ depth = 4
 width = 24
 }
 
-visc = 3e12 # GPa s
+visc = 1e20 # GPa s
 
 linSolver = AMG
 kspTol = 1e-7
@@ -33,7 +33,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 5e3
+maxStepCount = 5e5
 initTime = 0       # s
 maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
