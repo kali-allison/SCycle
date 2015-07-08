@@ -37,8 +37,8 @@ sbpOps.o: sbpOps.cpp sbpOps.hpp genFuncs.hpp domain.hpp debuggingFuncs.hpp spmat
 fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp rootFinderContext.hpp rootFinder.hpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp fault.hpp integratorContext.hpp
-maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp genFuncs.hpp domain.hpp LinearElastic.hpp
-main.o: main.cpp LinearElastic.hpp domain.hpp spmat.hpp sbpOps.hpp
+maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp genFuncs.hpp domain.hpp linearElastic.hpp
+main.o: main.cpp linearElastic.hpp domain.hpp spmat.hpp sbpOps.hpp
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp genFuncs.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp genFuncs.hpp integratorContext.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
