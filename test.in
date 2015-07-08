@@ -1,6 +1,6 @@
 order = 2
-Ny = 101
-Nz = 101
+Ny = 201
+Nz = 201
 Ly = 24
 Lz = 24
 
@@ -10,7 +10,7 @@ seisDepth = 12
 a = 0.015
 bBasin = 0.02
 bAbove = 0.02
-bBelow = 0.02
+bBelow = 0.0
 sigma_N_min = 50
 sigma_N_max = 50
 
@@ -47,7 +47,7 @@ timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
 maxStepCount = 1
-initTime = 4e5
+initTime = 0
 maxTime = 5.3e5
 minDeltaT = 1e-3
 maxDeltaT = 1e7

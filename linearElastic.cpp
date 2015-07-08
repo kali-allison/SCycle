@@ -125,7 +125,7 @@ LinearElastic::~LinearElastic()
  * the command line argument: -ksp_converged_reason.
  *
  * For information regarding HYPRE's solver options, especially the
- * preconditioner options, use the User manual online.
+ * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
 PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
 {
@@ -152,7 +152,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
   }
   else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
     // use built in preconditioned conjugate gradient
@@ -176,7 +176,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
 
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
     // use direct LU from MUMPS
@@ -374,7 +374,7 @@ PetscErrorCode SymmLinearElastic::setShifts()
     v = _fault.getTauInf(Ii);
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    //~bcRshift = 0.;
+    bcRshift = 0.;
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPlusShift);CHKERRQ(ierr);

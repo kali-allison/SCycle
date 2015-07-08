@@ -18,7 +18,6 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscScalar _visc; // viscosity
 
     Vec         _strainViscPlus,_dstrainViscPlus; // viscoelastic strain, and strain rate
-    Vec         _rhsCorrection; // mu*_strainDamper for computation of uhat
     PetscViewer _strainViscPlusV, _dstrainViscPlusV;
 
   public:
@@ -39,35 +38,34 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
 };
 
 
-//~// models a 1D Maxwell slider
-//~class FullMaxwellViscoelastic: public FullLinearElastic
-//~{
-  //~protected:
-    //~PetscScalar _visc; // viscosity
-//~
-    //~Vec         _strainViscPlus,_dstrainViscPlus; // viscoelastic strain, and strain rate
-    //~Vec         _rhsCorrection; // mu*_strainDamper for computation of uhat
-    //~PetscViewer _strainViscPlusV, _dstrainViscPlusV;
-//~
-    //~// fields that _quadrature needs to know about
-    //~vector<Vec>         _var;
-//~
-  //~public:
-    //~FullMaxwellViscoelastic(Domain&D);
-    //~~FullMaxwellViscoelastic();
-//~
-    //~PetscErrorCode resetInitialConds();
-//~
-    PetscErrorCode integrate(); // don't need now that LinearElastic defines this
-    //~PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     //~it_vec dvarBegin,it_vec dvarEnd);
-    //~PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             //~const_it_vec varBegin,const_it_vec varEnd,
-                             //~const_it_vec dvarBegin,const_it_vec dvarEnd);
-//~
-    //~PetscErrorCode writeStep();
-    //~PetscErrorCode view();
-//~};
+// models a 1D Maxwell slider
+class TwoDMaxwellViscoelastic: public FullLinearElastic
+{
+  protected:
+    PetscScalar _visc; // viscosity
+
+    Vec         _strainViscPlus,_dstrainViscPlus; // viscoelastic strain, and strain rate for y>0
+    Vec         _strainViscMinus,_dstrainViscMinus; // viscoelastic strain, and strain rate for y<0
+    PetscViewer _strainViscPlusV, _dstrainViscPlusV;
+    PetscViewer _strainViscMinusV, _dstrainViscMinusV;
+
+
+  public:
+    TwoDMaxwellViscoelastic(Domain&D);
+    ~TwoDMaxwellViscoelastic();
+
+    PetscErrorCode resetInitialConds();
+
+    //~PetscErrorCode integrate(); // don't need now that LinearElastic defines this
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                     it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec varEnd,
+                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+
+    PetscErrorCode writeStep();
+    PetscErrorCode view();
+};
 
 
 #endif

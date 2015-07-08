@@ -25,7 +25,7 @@ depth = 4
 width = 24
 }
 
-visc = 1e14 # GPa s
+visc = 3e12 # GPa s
 
 linSolver = AMG
 kspTol = 1e-7
@@ -33,15 +33,15 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e7
+maxStepCount = 5e3
 initTime = 0       # s
-maxTime = 1e11      # s
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/visc1e14_
+outputDir = data/visc3e12_
 
 

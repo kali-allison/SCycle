@@ -115,6 +115,7 @@ class SbpOps
 
     Mat _A;
     Mat _Dy_Iz;
+    Mat _Iy_Dz;
 
     SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps();

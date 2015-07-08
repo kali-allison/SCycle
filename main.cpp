@@ -352,7 +352,7 @@ int runEqCycle(const char * inputFile)
   domain.write();
   SymmMaxwellViscoelastic *lith;
   lith = new SymmMaxwellViscoelastic(domain);
-//~
+
   //~LinearElastic *lith;
   //~if (domain._problemType.compare("symmetric")==0) {
     //~lith = new SymmLinearElastic(domain);
@@ -363,7 +363,7 @@ int runEqCycle(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  //~ierr = lith->view();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 
