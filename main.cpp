@@ -124,8 +124,6 @@ int testDMDA()
   VecSet(gf,0.0);
   PetscObjectSetName((PetscObject) gf, "global f");
   ierr = DMCreateLocalVector(da,&lf);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(da,gf,INSERT_VALUES,lf);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(da,gf,INSERT_VALUES,lf);CHKERRQ(ierr);
   DMDAVecGetArray(da,lf,&lfArr);
 
   ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
@@ -136,12 +134,10 @@ int testDMDA()
   DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
   for (j=nStart;j<nStart+n;j++) {
     for (i=mStart;i<mStart+m;i++) {
-      PetscPrintf(PETSC_COMM_SELF,"%i: lxArr[%i][%i]  = %g \n",rank,j,i,lxArr[j][i]);
-      //~PetscPrintf(PETSC_COMM_SELF,"    %i: lxArr[%i][%i] - lxArr[%i][%i]  = %g - %g \n",
-        //~rank,j,i,j,i-1,lxArr[j][i],lxArr[j][i-1]);
+      //~PetscPrintf(PETSC_COMM_SELF,"%i: lxArr[%i][%i]  = %g \n",rank,j,i,lxArr[j][i]);
 
       if (i>0 && i<M-1) { lfArr[j][i] = (lxArr[j][i+1] - lxArr[j][i-1])/(2*dx); }
-      else if (i==0) { lfArr[j][i] = -(1.5*lxArr[j][0] - 2.0*lxArr[j][1] + 0.5*lxArr[j][2])/dx; }
+      else if (i==0) { lfArr[j][i] = (-1.5*lxArr[j][0] + 2.0*lxArr[j][1] - 0.5*lxArr[j][2])/dx; }
       else if (i==M-1) { lfArr[j][i] = (0.5*lxArr[j][M-3] - 2.0*lxArr[j][M-2] + 1.5*lxArr[j][M-1])/dx; }
     }
   }
