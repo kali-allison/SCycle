@@ -14,7 +14,8 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
-  _visc(nan("")),
+  _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
+  _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -84,7 +85,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
-  _visc(nan("")),
+  _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
+  _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -164,6 +166,8 @@ Domain::~Domain()
   MatDestroy(&_muPlus);
   MatDestroy(&_muMinus);
 
+  VecDestroy(&_visc);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -235,7 +239,12 @@ PetscErrorCode Domain::loadData(const char *file)
       }
 
       // viscosity for asthenosphere
-      else if (var.compare("visc")==0) { _visc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("viscUpCrust")==0) { _viscUpCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("viscLowCrust")==0) { _viscLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("viscAsth")==0) { _viscAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("depthUpToLowCrust")==0) { _depthUpToLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("depthLowCrustToAsth")==0) { _depthLowCrustToAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
 
       // linear solver settings
       else if (var.compare("linSolver")==0) {
@@ -309,7 +318,11 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
-  MPI_Bcast(&_visc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_viscUpCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_viscLowCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_viscAsth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_depthUpToLowCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_depthLowCrustToAsth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
 
   MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
@@ -353,7 +366,7 @@ PetscErrorCode Domain::loadData(const char *file)
 }
 
 
-
+// load shear modulus structure from input file
 PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
 {
   PetscErrorCode ierr = 0;
@@ -748,6 +761,12 @@ PetscErrorCode Domain::write()
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"viscUpCrust = %f\n",_viscUpCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscLowCrust = %f\n",_viscLowCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscAsth = %f\n",_viscAsth);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"depthUpToLowCrust = %f\n",_depthUpToLowCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"depthLowCrustToAsth = %f\n",_depthLowCrustToAsth);CHKERRQ(ierr);
+
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %g\n",_kspTol);CHKERRQ(ierr);
@@ -790,6 +809,12 @@ PetscErrorCode Domain::write()
   ierr = MatView(_muPlus,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  // output viscosity vector
+  str =  _outputDir + "visc";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_visc,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
   // output normal stress vector
   str =  _outputDir + "sigma_N";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -822,7 +847,7 @@ PetscErrorCode Domain::setFieldsPlus()
 #endif
 
   PetscInt       Ii;
-  PetscScalar    v,y,z,csIn,csOut;
+  PetscScalar    v,y,z,csIn,csOut,visc;
 
   Vec muVec;
   PetscInt *muInds;
@@ -835,6 +860,30 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
 
+  // set viscosity
+  ierr = VecDuplicate(muVec,&_visc);CHKERRQ(ierr);
+  // control on transition of viscosity (somewhat arbitrary choice)
+  PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
+  PetscInt Istart,Iend;
+  ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
+    else if (z <= transToLowCrust){
+      visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
+             + _viscUpCrust;
+    }
+    else { visc = _viscLowCrust; }
+    //~visc = _viscLowCrust;
+    ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
+  }
+    ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+
+
+  // set shear modulus, shear wave speed, and density
+  // controls on transition in shear modulus
   PetscScalar r = 0;
   PetscScalar rbar = 0.25*_width*_width;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
@@ -871,6 +920,7 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
+
   }
 
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
@@ -1025,7 +1075,7 @@ return ierr;
 }
 
 
-
+// parse input file and load values into data members
 PetscErrorCode Domain::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;

@@ -1,6 +1,7 @@
 #include <petscts.h>
 #include <petscviewerhdf5.h>
 #include <string>
+#include <petscdmda.h>
 
 #include "spmat.hpp"
 #include "domain.hpp"
@@ -14,6 +15,18 @@
 
 
 using namespace std;
+
+// Note that due to a memory problem in PETSc, looping over this many
+// times will result in an error.
+PetscErrorCode writeVec(Vec vec,const char * loc)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer);
+  ierr = VecView(vec,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
 
 
 
@@ -38,6 +51,176 @@ int runTests(const char * inputFile)
 
   return ierr;
 }
+
+
+
+
+// main test DMDA file
+int testDMDA()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting main::testDMDA in fault.cpp.\n");
+#endif
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt M=11,N=11;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=3.0;
+  PetscScalar dx=(xMax-xMin)/(M-1), dy=(yMax-yMin)/(N-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,M,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+  // set up uniform coordinate grid (DA)
+  // print to see distribution, organization on multiple processors
+  DM cda;
+  Vec lcoords; // local vector containing coordinates
+  DMDACoor2d **coords; // 2D array containing x and y data members
+  DMDASetUniformCoordinates(da,xMin,xMax,yMin,yMax,0.0,1.0);
+  DMGetCoordinateDM(da,&cda);
+  DMGetCoordinatesLocal(da,&lcoords);
+  DMDAVecGetArray(cda,lcoords,&coords);
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  PetscInt mEnd = mStart+m,nEnd=nStart+n; // 1 past last entry
+  for (j=nStart;j<nEnd;j++) {
+    for (i=mStart;i<mEnd;i++) {
+      //~PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
+        //~rank,j,i,coords[j][i].x,coords[j][i].y);
+    }
+  }
+
+  // set the values for x based on the (x,y) coordinates for each vertex
+  // since this uses only local values, there is no need to use the
+  // pair DMGlobalToLocalBegin/End to communicate the ghost values
+  Vec gx=NULL,lx=NULL; // gx = global x, lx = local x
+  PetscScalar **lxArr;
+  DMCreateGlobalVector(da,&gx); PetscObjectSetName((PetscObject) gx, "global x");
+  ierr = DMCreateLocalVector(da,&lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lx,&lxArr);
+  for (j=nStart;j<nEnd;j++) {
+    for (i=mStart;i<mEnd;i++) {
+      lxArr[j][i] = coords[j][i].x;
+    }
+  }
+  DMDAVecRestoreArray(da,lx,&lxArr);
+  ierr = DMLocalToGlobalBegin(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
+  //~VecView(gx,PETSC_VIEWER_STDOUT_WORLD);
+
+  // compute 1st derivative in x-direction, store as f
+  // this uses the ghost points in x, so it is necessary to use
+  // DMGlobalToLocalBegin/End for gx -> lx
+  Vec gf=NULL,lf=NULL; // gf = global f, lf = local f
+  PetscScalar **lfArr;
+  VecDuplicate(gx,&gf);
+  VecSet(gf,0.0);
+  PetscObjectSetName((PetscObject) gf, "global f");
+  ierr = DMCreateLocalVector(da,&lf);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,gf,INSERT_VALUES,lf);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,gf,INSERT_VALUES,lf);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lf,&lfArr);
+
+  ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lx,&lxArr);
+
+  // only iterate over the local entries in f
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      PetscPrintf(PETSC_COMM_SELF,"%i: lxArr[%i][%i]  = %g \n",rank,j,i,lxArr[j][i]);
+      //~PetscPrintf(PETSC_COMM_SELF,"    %i: lxArr[%i][%i] - lxArr[%i][%i]  = %g - %g \n",
+        //~rank,j,i,j,i-1,lxArr[j][i],lxArr[j][i-1]);
+
+      if (i>0 && i<M-1) { lfArr[j][i] = (lxArr[j][i+1] - lxArr[j][i-1])/(2*dx); }
+      else if (i==0) { lfArr[j][i] = -(1.5*lxArr[j][0] - 2.0*lxArr[j][1] + 0.5*lxArr[j][2])/dx; }
+      else if (i==M-1) { lfArr[j][i] = (0.5*lxArr[j][M-3] - 2.0*lxArr[j][M-2] + 1.5*lxArr[j][M-1])/dx; }
+    }
+  }
+  DMDAVecRestoreArray(da,lf,&lfArr);
+  DMDAVecRestoreArray(da,lf,&lxArr);
+  DMLocalToGlobalBegin(da,lf,INSERT_VALUES,gf);
+  DMLocalToGlobalEnd(da,lf,INSERT_VALUES,gf);
+  VecAssemblyBegin(gf);
+  VecAssemblyEnd(gf);
+  VecView(gf,PETSC_VIEWER_STDOUT_WORLD);
+
+  // output the global vectors so they can be loaded into MATLAB
+  writeVec(gx,"gx");
+  writeVec(gf,"gf");
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDA in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+// test MatCreateShell stuff
+// NOTE: appears to work as expected right out of the box. Doesn't
+// handle memory management for nonlocal memory for me :(
+PetscErrorCode mult(Mat A, Vec x, Vec f)
+{
+  PetscErrorCode ierr = 0;
+
+  ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+  VecSet(f,1.0);
+
+  return ierr;
+}
+
+PetscErrorCode testMatShell()
+{
+  PetscErrorCode ierr = 0;
+  PetscInt   M=6,N=4;
+  Vec x=NULL,f=NULL;
+
+  // declare and initialize x and f (f = Dx(x) )
+  VecCreate(PETSC_COMM_WORLD,&x);
+  VecSetSizes(x,PETSC_DECIDE,M*N);
+  VecSetFromOptions(x); PetscObjectSetName((PetscObject) x, "x");
+  PetscInt Ii,Istart,Iend;
+  PetscScalar v=0;
+  ierr = VecGetOwnershipRange(x,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    v = (double) Ii;
+    ierr = VecSetValues(x,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(x);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(x);CHKERRQ(ierr);
+  VecDuplicate(x,&f); PetscObjectSetName((PetscObject) f, "f");
+  VecSet(f,0.0);
+
+  ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+
+  // play around with MatCreateShell stuff
+  PetscInt m,n;
+  VecGetLocalSize(x,&m);
+  Mat A;
+  ierr = MatCreateShell(PETSC_COMM_WORLD,m,m,M*N,M*N,NULL,&A);
+  MatShellSetOperation(A,MATOP_MULT,(void(*)(void))mult);
+
+  MatMult(A,x,f);
+
+  ierr = VecView(f,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+
+  return ierr;
+}
+
+
 
 /* This has not been rewritten since the post-quals refactoring
 int screwDislocation(PetscInt Ny,PetscInt Nz)
@@ -134,17 +317,7 @@ int screwDislocation(PetscInt Ny,PetscInt Nz)
 */
 
 
-// Note that due to a memory problem in PETSc, looping over this many
-// times will result in an error.
-PetscErrorCode writeVec(Vec vec,const char * loc)
-{
-  PetscErrorCode ierr = 0;
-  PetscViewer    viewer;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer);
-  ierr = VecView(vec,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  return ierr;
-}
+
 
 /* Perform MMS in space:
  *  In order to test only the interior stencils and operators
@@ -352,7 +525,7 @@ int runEqCycle(const char * inputFile)
   domain.write();
   SymmMaxwellViscoelastic *lith;
   lith = new SymmMaxwellViscoelastic(domain);
-
+//~
   //~LinearElastic *lith;
   //~if (domain._problemType.compare("symmetric")==0) {
     //~lith = new SymmLinearElastic(domain);
@@ -528,7 +701,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -537,8 +710,10 @@ int main(int argc,char **args)
 
 
   //~runTests(inputFile);
+  testDMDA();
+  //~testMatShell();
 
-  // MMS test (compare with answers produced by Matlab file by same name)
+  //~// MMS test (compare with answers produced by Matlab file by same name)
   //~PetscPrintf(PETSC_COMM_WORLD,"MMS:\n%5s %5s %5s %20s %20s\n",
              //~"order","Ny","Nz","log2(||u-u^||)","log2(||tau-tau^||)");
   //~PetscInt Ny=21;
@@ -546,7 +721,7 @@ int main(int argc,char **args)
   //~{
     //~mmsSpace(inputFile,Ny,Ny); // perform MMS
   //~}
-
+//~
   // check for critical grid point spacing
   //~PetscInt Ny=251; // crit for order=2 is 417
   //~for (Ny=51;Ny<1002;Ny+=50)

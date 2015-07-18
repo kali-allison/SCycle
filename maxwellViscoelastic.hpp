@@ -15,7 +15,8 @@
 class SymmMaxwellViscoelastic: public SymmLinearElastic
 {
   protected:
-    PetscScalar _visc; // viscosity
+    //~PetscScalar _visc; // viscosity
+    Vec         _visc;
 
     Vec         _strainV_xyPlus,_dstrainV_xyPlus; // viscoelastic strain, and strain rate
     Vec         _strainV_xzPlus,_dstrainV_xzPlus; // viscoelastic strain, and strain rate

@@ -43,7 +43,11 @@ class Domain
     Mat          _muMinus;
 
     // viscosity for asthenosphere
-    PetscScalar  _visc;
+    PetscScalar  _viscUpCrust; // viscosity in upper crust
+    PetscScalar  _viscLowCrust; // viscosity in lower crust
+    PetscScalar  _viscAsth; // viscosity in uppermost asthenosphere
+    Vec          _visc; // contains full viscosity field
+    PetscScalar _depthUpToLowCrust, _depthLowCrustToAsth; // transition depths
 
 
     // linear solver settings

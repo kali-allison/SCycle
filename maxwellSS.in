@@ -1,13 +1,14 @@
 order = 2
-Ny = 101
-Nz = 101
-Ly = 30 # km
-Lz = 30 # km
+Ny = 41
+Nz = 1
+Ly = 24 # km
+Lz = 24 # km
 
-Dc = 1e-3 # m
+Dc = 8e-3 # m
 
 seisDepth = 12 # km
 a = 0.015
+bBasin = 0.02
 bAbove = 0.02
 bBelow = 0.0
 sigma_N_min = 50 # MPa
@@ -25,7 +26,11 @@ depth = 4
 width = 24
 }
 
-visc = 1e20 # GPa s
+viscUpCrust = 1e12 # GPa s
+viscLowCrust = 150 # GPa s
+viscAsth = 150 # GPa s
+depthUpToLowCrust = 12 # km
+depthLowCrustToAsth = 25 # km
 
 linSolver = AMG
 kspTol = 1e-7
@@ -42,6 +47,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/visc3e12_
+outputDir = testMaxwell/test_1D_
 
 

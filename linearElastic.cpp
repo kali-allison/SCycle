@@ -160,7 +160,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
 
     // preconditioned with PCGAMG
-    //~PCSetType(pc,PCGAMG); // default?
+    PCSetType(pc,PCGAMG); // default?
 
 
     // preconditioned with HYPRE's AMG
@@ -169,9 +169,9 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     //~ierr = PCFactorSetLevels(pc,3);CHKERRQ(ierr);
 
     // preconditioned with HYPRE
-    PCSetType(pc,PCHYPRE);
-    ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
-    ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
+    //~PCSetType(pc,PCHYPRE);
+    //~ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
+    //~ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
 
 
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
