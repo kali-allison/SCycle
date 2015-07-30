@@ -7,7 +7,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _strainV_xyPlus(NULL),_dstrainV_xyPlus(NULL),
   _strainV_xzPlus(NULL),_dstrainV_xzPlus(NULL),
   _strainV_xyPlusV(NULL),_dstrainV_xyPlusV(NULL),
-  _strainV_xzPlusV(NULL),_dstrainV_xzPlusV(NULL)
+  _strainV_xzPlusV(NULL),_dstrainV_xzPlusV(NULL),
+  _sigma_xyPlusV(NULL)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting maxwellViscoelastic::maxwellViscoelastic in maxwellViscoelastic.cpp\n");
@@ -141,31 +142,65 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec
   // set rates for slip and state
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
-  // set rate for viscoelastic strain_xy: d/dt _strainVPlus = tauStress/(2*eta)
-  ierr = VecCopy(_sigma_xyPlus,*(dvarBegin+2));CHKERRQ(ierr);
-  //~ierr = VecScale(*(dvarBegin+2),0.5/_visc);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);CHKERRQ(ierr);
-  ierr = VecScale(*(dvarBegin+2),0.5);CHKERRQ(ierr);
-
+  //~// set rate for viscoelastic strain_xy: d/dt _strainVPlus = tauStress/(2*eta)
+  //~ierr = VecCopy(_sigma_xyPlus,*(dvarBegin+2));CHKERRQ(ierr);
+  //~ierr = VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);CHKERRQ(ierr);
+  //~ierr = VecScale(*(dvarBegin+2),0.5);CHKERRQ(ierr);
 
   /* solve for sigma_xzPlus = 2*mu*strain_xzElastic
    *                        = mu*d/dz(uhat) - 2*mu*strainVisc_xz
-   *                        = -2[ -0.5*mu*d/dz(uhat) + mu*strainVisc_xz ]
    */
-  if (_Nz > 1) {
-  Vec strainTot_xz=NULL,temp=NULL;
-  ierr = VecDuplicate(_sigma_xyPlus,&strainTot_xz);CHKERRQ(ierr);
-  ierr = VecDuplicate(_sigma_xyPlus,&temp);CHKERRQ(ierr);
-  ierr = MatMult(_sbpPlus._Iy_Dz,_uPlus,strainTot_xz);CHKERRQ(ierr);
-  ierr = VecScale(strainTot_xz,0.5);CHKERRQ(ierr);
-  ierr = VecWAXPY(temp,-1.0,_strainV_xzPlus,strainTot_xz);CHKERRQ(ierr);
-  ierr = MatMult(_muPlus,temp,*(dvarBegin+3));CHKERRQ(ierr);
-  //~ierr = VecScale(*(dvarBegin+3),1.0/_visc);CHKERRQ(ierr);
-  ierr = VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);CHKERRQ(ierr);
+  //~if (_Nz > 1) {
+    //~Vec strainTot_xz=NULL,temp=NULL;
+    //~ierr = VecDuplicate(_sigma_xyPlus,&strainTot_xz);CHKERRQ(ierr);
+    //~ierr = VecDuplicate(_sigma_xyPlus,&temp);CHKERRQ(ierr);
+    //~ierr = MatMult(_sbpPlus._Iy_Dz,_uPlus,strainTot_xz);CHKERRQ(ierr);
+    //~ierr = VecScale(strainTot_xz,0.5);CHKERRQ(ierr);
+    //~ierr = VecWAXPY(temp,-1.0,_strainV_xzPlus,strainTot_xz);CHKERRQ(ierr);
+    //~ierr = MatMult(_muPlus,temp,*(dvarBegin+3));CHKERRQ(ierr);
+    //~ierr = VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);CHKERRQ(ierr);
+//~
+    //~VecDestroy(&temp);
+    //~VecDestroy(&strainTot_xz);
+  //~}
 
-  VecDestroy(&temp);
-  VecDestroy(&strainTot_xz);
-}
+
+  // compute strains and rates more cleanly by iterating over vectors
+  // (this may be slower, depending how it's parallelized)
+  Vec epsTotxy,epsTotxz;
+  VecDuplicate(_sigma_xyPlus,&epsTotxy);
+  VecDuplicate(_sigma_xyPlus,&epsTotxz);
+  MatMult(_sbpPlus._Dy_Iz,_uPlus,epsTotxy);
+  VecScale(epsTotxy,0.5);
+  MatMult(_sbpPlus._Iy_Dz,_uPlus,epsTotxz);
+  VecScale(epsTotxz,0.5);
+
+  PetscInt Ii,Istart,Iend;
+  PetscScalar deps,visc,epsTot,epsVisc;
+  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    VecGetValues(_visc,1,&Ii,&visc);
+
+    // d/dt epsxy
+    VecGetValues(epsTotxy,1,&Ii,&epsTot);
+    VecGetValues(_strainV_xyPlus,1,&Ii,&epsVisc);
+    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc);
+    VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
+
+    // d/dt epsxz
+    VecGetValues(epsTotxz,1,&Ii,&epsTot);
+    VecGetValues(_strainV_xzPlus,1,&Ii,&epsVisc);
+    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc);
+    VecSetValues(*(dvarBegin+3),1,&Ii,&deps,INSERT_VALUES);
+  }
+  VecAssemblyBegin(*(dvarBegin+2);
+  VecAssemblyBegin(*(dvarBegin+3);
+  VecAssemblyEnd(*(dvarBegin+2);
+  VecAssemblyEnd(*(dvarBegin+3);
+
+  VecDestroy(&epsTotxy);
+  VecDestroy(&epsTotxz);
+
 
 
 #if VERBOSE > 1
@@ -204,10 +239,12 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
   PetscErrorCode ierr = 0;
 
   if ( stepCount % _strideLength == 0) {
-    _stepCount++;
+    //~_stepCount++;
     _currTime = time;
+    _stepCount = stepCount;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep();CHKERRQ(ierr);
+
   }
 
 #if VERBOSE > 0
@@ -237,6 +274,20 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dispPlus").c_str(),
+             FILE_MODE_WRITE,&_uPlusV);CHKERRQ(ierr);
+    ierr = VecView(_uPlus,_uPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_uPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dispPlus").c_str(),
+                                   FILE_MODE_APPEND,&_uPlusV);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
+             FILE_MODE_WRITE,&_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRPlus,_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
+                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
              FILE_MODE_WRITE,&_strainV_xyPlusV);CHKERRQ(ierr);
     ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
@@ -244,25 +295,42 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
                                    FILE_MODE_APPEND,&_strainV_xyPlusV);CHKERRQ(ierr);
 
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xzPlus").c_str(),
-             //~FILE_MODE_WRITE,&_strainV_xzPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_strainV_xzPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xzPlus").c_str(),
-                                   //~FILE_MODE_APPEND,&_strainV_xzPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sigma_xyPlus").c_str(),
+             FILE_MODE_WRITE,&_sigma_xyPlusV);CHKERRQ(ierr);
+    ierr = VecView(_sigma_xyPlus,_sigma_xyPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_sigma_xyPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sigma_xyPlus").c_str(),
+                                   FILE_MODE_APPEND,&_sigma_xyPlusV);CHKERRQ(ierr);
+
+    if (_Nz>1)
+    {
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xzPlus").c_str(),
+               FILE_MODE_WRITE,&_strainV_xzPlusV);CHKERRQ(ierr);
+      ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_strainV_xzPlusV);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xzPlus").c_str(),
+                                     FILE_MODE_APPEND,&_strainV_xzPlusV);CHKERRQ(ierr);
 //~
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainViscPlus").c_str(),
-             //~FILE_MODE_WRITE,&_dstrainV_xyPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_dstrainV_xyPlus,_dstrainV_xyPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_dstrainV_xyPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainViscPlus").c_str(),
-                                   //~FILE_MODE_APPEND,&_dstrainV_xyPlusV);CHKERRQ(ierr);
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainViscPlus").c_str(),
+               //~FILE_MODE_WRITE,&_dstrainV_xyPlusV);CHKERRQ(ierr);
+      //~ierr = VecView(_dstrainV_xyPlus,_dstrainV_xyPlusV);CHKERRQ(ierr);
+      //~ierr = PetscViewerDestroy(&_dstrainV_xyPlusV);CHKERRQ(ierr);
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dstrainViscPlus").c_str(),
+                                     //~FILE_MODE_APPEND,&_dstrainV_xyPlusV);CHKERRQ(ierr);
+    }
   }
   else {
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_dstrainV_xyPlus,_dstrainV_xyPlusV);CHKERRQ(ierr);
+    ierr = VecView(_sigma_xyPlus,_sigma_xyPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRPlus,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_uPlus,_uPlusV);CHKERRQ(ierr);
+
+    if (_Nz>1)
+    {
+      ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);
+      //~ierr = VecView(_dstrainV_xyPlus,_dstrainV_xyPlusV);CHKERRQ(ierr);
+    }
   }
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);

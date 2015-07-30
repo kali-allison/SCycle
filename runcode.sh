@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N visc1e12_2D
+#PBS -N linEl_2D
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e testMaxwell/visc1e12_2D.err
-#PBS -o testMaxwell/visc1e12_2D.out
+#PBS -e testMaxwell/linEl_2D.err
+#PBS -o testMaxwell/linEl_2D.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

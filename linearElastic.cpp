@@ -439,11 +439,11 @@ PetscErrorCode SymmLinearElastic::writeStep()
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
     //~// boundary conditions
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),FILE_MODE_WRITE,
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),FILE_MODE_WRITE,
                                  &_bcRPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcRPlus,_bcRPlusV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplus").c_str(),
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 //~
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplusShift").c_str(),FILE_MODE_WRITE,
@@ -480,7 +480,6 @@ PetscErrorCode SymmLinearElastic::writeStep()
 
     ierr = VecView(_bcRPlus,_bcRPlusV);CHKERRQ(ierr);
     //~ierr = VecView(_bcRPlusShift,_bcRPlusShiftV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcLPlus,_bcLPlusV);CHKERRQ(ierr);
 
     //~ierr = VecView(_uPlus,_uPlusV);CHKERRQ(ierr);
     //~ierr = VecView(_sigma_xyPlus,_sigma_xyPlusV);CHKERRQ(ierr);

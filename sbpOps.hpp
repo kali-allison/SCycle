@@ -91,7 +91,7 @@ class SbpOps
     string _debugFolder;
 
 
-    PetscErrorCode computeDy_Iz(const TempMats& tempMats);
+    PetscErrorCode compute1stDerivs(const TempMats& tempMats);
     PetscErrorCode computeA(const TempMats& tempMats);
     PetscErrorCode satBoundaries(TempMats& tempMats);
 
@@ -114,7 +114,7 @@ class SbpOps
   //~public:
 
     Mat _A;
-    Mat _Dy_Izx2mu,_muxDy_Iz;
+    Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
     Mat _Iy_Dzx2mu, _Iy_Dz;
 
     SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);

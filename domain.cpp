@@ -719,40 +719,40 @@ PetscErrorCode Domain::write()
   // y>0 properties
   if (_shearDistribution.compare("basin")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %f\n",_muInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %f\n",_muOutPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %f\n",_rhoInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %f\n",_rhoOutPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %.15e\n",_muInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %.15e\n",_muOutPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %.15e\n",_rhoInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %.15e\n",_rhoOutPlus);CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIPrintf(viewer,"depth = %f\n",_depth);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"width = %f\n",_width);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
   }
   else if (_shearDistribution.compare("constant")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %f\n",_muValPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %.15e\n",_muValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e\n",_rhoValPlus);CHKERRQ(ierr);
   }
   else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e\n",_rhoValPlus);CHKERRQ(ierr);
   }
   if (_problemType.compare("full")==0)
   {
     if (_shearDistribution.compare("basin")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %f\n",_muInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %f\n",_muOutMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %f\n",_rhoInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %f\n",_rhoOutMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %.15e\n",_muInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %.15e\n",_muOutMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %.15e\n",_rhoInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %.15e\n",_rhoOutMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %f\n",_muValMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %.15e\n",_muValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e\n",_rhoValMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e\n",_rhoValMinus);CHKERRQ(ierr);
     }
   }
   if (_shearDistribution.compare("CVM")==0 )
@@ -761,15 +761,15 @@ PetscErrorCode Domain::write()
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"viscUpCrust = %f\n",_viscUpCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"viscLowCrust = %f\n",_viscLowCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"viscAsth = %f\n",_viscAsth);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"depthUpToLowCrust = %f\n",_depthUpToLowCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"depthLowCrustToAsth = %f\n",_depthLowCrustToAsth);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscUpCrust = %.15e\n",_viscUpCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscLowCrust = %.15e\n",_viscLowCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscAsth = %.15e\n",_viscAsth);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"depthUpToLowCrust = %.15e\n",_depthUpToLowCrust);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"depthLowCrustToAsth = %.15e\n",_depthLowCrustToAsth);CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %g\n",_kspTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // time integration settings
@@ -786,13 +786,13 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // tolerance for nonlinear solve (for vel)
-  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %g\n",_rootTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %e\n",_rootTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %g\n",_f0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %e\n",_f0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"v0 = %e\n",_v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 

@@ -247,7 +247,7 @@ PetscErrorCode SymmFault::computeVel()
   PetscErrorCode ierr = 0;
   Vec            left,right,out;
   Vec            tauQS,eta;
-  PetscScalar    outVal,leftVal,rightVal;
+  PetscScalar    outVal,leftVal,rightVal,temp;
   PetscInt       Ii,Istart,Iend;
 
 #if VERBOSE > 1
@@ -286,6 +286,14 @@ PetscErrorCode SymmFault::computeVel()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
+
+    // correct for left-lateral fault motion
+    if (leftVal>rightVal) {
+      temp = leftVal;
+      rightVal = leftVal;
+      leftVal = temp;
+    }
+
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
       Bisect rootAlg(_maxNumIts,_rootTol);
@@ -490,6 +498,11 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
 
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
+
+  //~// force fault to remain locked
+  //~ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
+  //~ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::d_dt in fault.cpp\n");CHKERRQ(ierr);

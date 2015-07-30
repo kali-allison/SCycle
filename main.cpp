@@ -55,7 +55,13 @@ int runTests(const char * inputFile)
 
 
 
-// main test DMDA file
+/* Demonstrates the use of PETSc's distributed memory distributed array
+ * objects (DMDAs). This function demonstrates how to initialize values
+ * in a global vector using built-in functions for creating a uniform
+ * coordinate mesh, then demonstrated the use of the functions for
+ * natural indexing and memory communication to compute the first
+ * derivative of a 2D array.
+ */
 int testDMDA()
 {
   PetscErrorCode ierr = 0;
@@ -66,8 +72,8 @@ int testDMDA()
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   // initialize size and range of grid
-  PetscInt M=11,N=11;
-  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=3.0;
+  PetscInt M=6,N=6;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=5.0;
   PetscScalar dx=(xMax-xMin)/(M-1), dy=(yMax-yMin)/(N-1); // grid spacing
   PetscInt i,j,mStart,m,nStart,n; // for for loops below
 
@@ -77,8 +83,8 @@ int testDMDA()
   ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
     DMDA_STENCIL_BOX,M,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
 
-  // set up uniform coordinate grid (DA)
-  // print to see distribution, organization on multiple processors
+  // Set up uniform coordinate mesh.
+  // Print to see distribution, organization on multiple processors.
   DM cda;
   Vec lcoords; // local vector containing coordinates
   DMDACoor2d **coords; // 2D array containing x and y data members
@@ -87,17 +93,17 @@ int testDMDA()
   DMGetCoordinatesLocal(da,&lcoords);
   DMDAVecGetArray(cda,lcoords,&coords);
   DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
-  PetscInt mEnd = mStart+m,nEnd=nStart+n; // 1 past last entry
-  for (j=nStart;j<nEnd;j++) {
-    for (i=mStart;i<mEnd;i++) {
+  //~for (j=nStart;j<nStart+n;j++) {
+    //~for (i=mStart;i<mStart+m;i++) {
       //~PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
         //~rank,j,i,coords[j][i].x,coords[j][i].y);
-    }
-  }
+    //~}
+  //~}
 
-  // set the values for x based on the (x,y) coordinates for each vertex
-  // since this uses only local values, there is no need to use the
-  // pair DMGlobalToLocalBegin/End to communicate the ghost values
+  // Set the values for the global vector x based on the (x,y)
+  // coordinates for each vertex. Since this uses only local values, there
+  // is no need to use the pair DMGlobalToLocalBegin/End to communicate
+  // the ghost values.
   Vec gx=NULL,lx=NULL; // gx = global x, lx = local x
   PetscScalar **lxArr;
   DMCreateGlobalVector(da,&gx); PetscObjectSetName((PetscObject) gx, "global x");
@@ -105,9 +111,9 @@ int testDMDA()
   ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
   DMDAVecGetArray(da,lx,&lxArr);
-  for (j=nStart;j<nEnd;j++) {
-    for (i=mStart;i<mEnd;i++) {
-      lxArr[j][i] = coords[j][i].x;
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      lxArr[j][i] = (coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y);
     }
   }
   DMDAVecRestoreArray(da,lx,&lxArr);
@@ -115,9 +121,20 @@ int testDMDA()
   ierr = DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
   //~VecView(gx,PETSC_VIEWER_STDOUT_WORLD);
 
-  // compute 1st derivative in x-direction, store as f
-  // this uses the ghost points in x, so it is necessary to use
-  // DMGlobalToLocalBegin/End for gx -> lx
+  //~PetscInt Ii,Istart,Iend;
+  //~PetscScalar v;
+  //~VecGetOwnershipRange(gx,&Istart,&Iend);
+  //~for (Ii=Istart;Ii<Iend;Ii++) {
+    //~v = (PetscScalar) Ii;
+    //~VecSetValues(gx,1,&Ii,&v,INSERT_VALUES);
+  //~}
+  //~VecAssemblyBegin(gx);
+  //~VecAssemblyEnd(gx);
+
+
+  // Compute 1st derivative in x-direction, store as f.
+  // This uses the ghost points in x, so it is necessary to use
+  // DMGlobalToLocalBegin/End for gx -> lx.
   Vec gf=NULL,lf=NULL; // gf = global f, lf = local f
   PetscScalar **lfArr;
   VecDuplicate(gx,&gf);
@@ -135,23 +152,27 @@ int testDMDA()
   for (j=nStart;j<nStart+n;j++) {
     for (i=mStart;i<mStart+m;i++) {
       //~PetscPrintf(PETSC_COMM_SELF,"%i: lxArr[%i][%i]  = %g \n",rank,j,i,lxArr[j][i]);
+      //~if (i>0 && i<M-1) { lfArr[j][i] = (lxArr[j][i+1] - lxArr[j][i-1])/(2*dx); }
+      //~else if (i==0) { lfArr[j][i] = (-1.5*lxArr[j][0] + 2.0*lxArr[j][1] - 0.5*lxArr[j][2])/dx; }
+      //~else if (i==M-1) { lfArr[j][i] = (0.5*lxArr[j][M-3] - 2.0*lxArr[j][M-2] + 1.5*lxArr[j][M-1])/dx; }
 
-      if (i>0 && i<M-1) { lfArr[j][i] = (lxArr[j][i+1] - lxArr[j][i-1])/(2*dx); }
-      else if (i==0) { lfArr[j][i] = (-1.5*lxArr[j][0] + 2.0*lxArr[j][1] - 0.5*lxArr[j][2])/dx; }
-      else if (i==M-1) { lfArr[j][i] = (0.5*lxArr[j][M-3] - 2.0*lxArr[j][M-2] + 1.5*lxArr[j][M-1])/dx; }
+      if (j>0 && j<N-1) { lfArr[j][i] = (lxArr[j+1][i] - lxArr[j-1][i])/(2*dy); }
+      else if (j==0) { lfArr[j][i] = (-1.5*lxArr[0][i] + 2.0*lxArr[1][i] - 0.5*lxArr[2][i])/dy; }
+      else if (j==N-1) { lfArr[j][i] = (0.5*lxArr[N-3][i] - 2.0*lxArr[N-2][i] + 1.5*lxArr[N-1][i])/dy; }
     }
   }
   DMDAVecRestoreArray(da,lf,&lfArr);
   DMDAVecRestoreArray(da,lf,&lxArr);
   DMLocalToGlobalBegin(da,lf,INSERT_VALUES,gf);
   DMLocalToGlobalEnd(da,lf,INSERT_VALUES,gf);
-  VecAssemblyBegin(gf);
-  VecAssemblyEnd(gf);
   VecView(gf,PETSC_VIEWER_STDOUT_WORLD);
 
   // output the global vectors so they can be loaded into MATLAB
   writeVec(gx,"gx");
   writeVec(gf,"gf");
+
+  VecDestroy(&gx);
+  VecDestroy(&gf);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDA in fault.cpp.\n");
@@ -521,7 +542,7 @@ int runEqCycle(const char * inputFile)
   domain.write();
   SymmMaxwellViscoelastic *lith;
   lith = new SymmMaxwellViscoelastic(domain);
-//~
+
   //~LinearElastic *lith;
   //~if (domain._problemType.compare("symmetric")==0) {
     //~lith = new SymmLinearElastic(domain);
@@ -697,7 +718,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -706,7 +727,7 @@ int main(int argc,char **args)
 
 
   //~runTests(inputFile);
-  testDMDA();
+  //~testDMDA();
   //~testMatShell();
 
   //~// MMS test (compare with answers produced by Matlab file by same name)

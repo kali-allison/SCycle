@@ -13,7 +13,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_A(NULL),
-  _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
+  _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -37,6 +37,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
     MatCreate(PETSC_COMM_WORLD,&_rhsB);
 
     MatCreate(PETSC_COMM_WORLD,&_muxDy_Iz);
+    MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
 
     {
       /* NOT a member of this class, contains stuff to be deleted before
@@ -50,7 +51,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
         _alphaR = tempFactors._Hy(0,0);
       }
 
-      computeDy_Iz(tempFactors);
+      compute1stDerivs(tempFactors);
       satBoundaries(tempFactors);
       computeA(tempFactors);
 
@@ -80,6 +81,7 @@ SbpOps::~SbpOps()
 
   MatDestroy(&_muxDy_Iz);
   MatDestroy(&_Dy_Izx2mu);
+  MatDestroy(&_Dy_Iz);
   MatDestroy(&_Iy_Dzx2mu);
   MatDestroy(&_Iy_Dz);
 
@@ -741,8 +743,8 @@ PetscErrorCode SbpOps::computeD2zmu(const TempMats& tempMats,Mat &D2zmu)
 
 
 
-// compute matrix for shear stress (scaled by mu!!): kron(Dy,Iz)
-PetscErrorCode SbpOps::computeDy_Iz(const TempMats& tempMats)
+// compute matrices for 1st derivatives
+PetscErrorCode SbpOps::compute1stDerivs(const TempMats& tempMats)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -750,30 +752,37 @@ PetscErrorCode SbpOps::computeDy_Iz(const TempMats& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
+PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
+tempMats._D1y.printPetsc();
+PetscPrintf(PETSC_COMM_WORLD,"\n");
+PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
+tempMats._D1y.printPetsc();
+PetscPrintf(PETSC_COMM_WORLD,"\n");
+
+  kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
+  ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
+
   Mat temp;
   kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
-
   MatDestroy(&_muxDy_Iz);
   ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxDy_Iz);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _muxDy_Iz, "_muxDy_Iz");CHKERRQ(ierr);
 
   // create _Dy_Izx2mu
-  MatDestroy(&temp);
-  kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
   ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Dy_Izx2mu);CHKERRQ(ierr);
   ierr = MatScale(_Dy_Izx2mu,2.0);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _Dy_Izx2mu, "_Dy_Izx2mu");CHKERRQ(ierr);
 
   // create _Iy_Dzx2mu
   MatDestroy(&temp);
-  kronConvert(tempMats._Iy,tempMats._D1zint,temp,5,5);
+  kronConvert(tempMats._Iy,tempMats._D1z,temp,5,5);
   ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Iy_Dzx2mu);CHKERRQ(ierr);
   ierr = MatScale(_Iy_Dzx2mu,2.0);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dzx2mu, "_Iy_Dzx2mu");CHKERRQ(ierr);
 
   // create _Iy_Dz
   MatDestroy(&temp);
-  kronConvert(tempMats._Iy,tempMats._D1zint,_Iy_Dz,5,5);
+  kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
   MatDestroy(&temp);
@@ -783,6 +792,9 @@ ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
 #if VERBOSE > 2
   ierr = MatView(_muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_Dy_Izx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_Iy_Dzx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
@@ -1131,12 +1143,18 @@ switch ( order ) {
         D1int.printPetsc();
       #endif
 
+     // for simulations with only linear elasticity, only need 1st
+     // deriv on boundaries, not interior
+     //~D1 = S;
 
-      // 1st derivative, same interior stencil but transition at boundaries
-      //~D1 = D1int;
-      //~D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
-      D1 = S; // only need 1st derivative on boundaries, not interior
-      D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
+     // for simulations with viscoelasticity, need
+     // 1st deriv on interior as well
+     D1 = D1int;
+     D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
+
+     // first row is same regardless
+     D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
+
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
         D1.printPetsc();
@@ -1245,7 +1263,18 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
   ierr = MatView(_A,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  // first derivative operators
   str = outputDir + "Dy_Iz";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "Iy_Dz";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_Iy_Dz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "muxDy_Iz";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_muxDy_Iz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
