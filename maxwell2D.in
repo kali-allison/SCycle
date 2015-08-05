@@ -38,7 +38,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e7
+maxStepCount = 1e3
 initTime = 0       # s
 maxTime = 4e10      # s
 minDeltaT = 1e-3     # s
@@ -47,6 +47,6 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = testMaxwell/lockedFault_nnzepsxz_visc1e9_
+outputDir = testMaxwell/lockedFault_visc1e9_
 
 
