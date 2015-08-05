@@ -23,6 +23,9 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscViewer _strainV_xyPlusV, _dstrainV_xyPlusV;
     PetscViewer _strainV_xzPlusV, _dstrainV_xzPlusV;
 
+    Vec _epsTotxy;
+    PetscViewer _epsTotxyV;
+
     // extra viewers for debugging
     PetscViewer _sigma_xyPlusV;
 

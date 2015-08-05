@@ -12,7 +12,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
   _muArr(&muArr),_mu(&mu),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
-  _debugFolder("./matlabAnswers/"),_A(NULL),
+  _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
   _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
 {
 #if VERBOSE > 1
@@ -26,6 +26,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
     _debugFolder += ss.str();
 
+    MatCreate(PETSC_COMM_WORLD,&_H); PetscObjectSetName((PetscObject) _H, "_H");
 
     // create final operator A
     MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
@@ -51,10 +52,10 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
         _alphaR = tempFactors._Hy(0,0);
       }
 
+      computeH(tempFactors);
       compute1stDerivs(tempFactors);
       satBoundaries(tempFactors);
       computeA(tempFactors);
-
     }
 }
 
@@ -69,6 +70,7 @@ SbpOps::~SbpOps()
   PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps.cpp.\n");
 #endif
 
+  MatDestroy(&_H);
 
   // final operator A
   MatDestroy(&_A);
@@ -742,6 +744,27 @@ PetscErrorCode SbpOps::computeD2zmu(const TempMats& tempMats,Mat &D2zmu)
 }
 
 
+// compute H matrix (Hy kron Hz)
+PetscErrorCode SbpOps::computeH(const TempMats& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  {
+    // kron(Hy,Hz)
+    kronConvert(tempMats._Hy,tempMats._Hz,_H,1,0);
+  }
+  PetscObjectSetName((PetscObject) _H, "H");
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+_runTime = MPI_Wtime() - startTime;
+  return ierr;
+}
 
 // compute matrices for 1st derivatives
 PetscErrorCode SbpOps::compute1stDerivs(const TempMats& tempMats)
@@ -749,15 +772,15 @@ PetscErrorCode SbpOps::compute1stDerivs(const TempMats& tempMats)
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function compute1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
-tempMats._D1y.printPetsc();
-PetscPrintf(PETSC_COMM_WORLD,"\n");
-PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
-tempMats._D1y.printPetsc();
-PetscPrintf(PETSC_COMM_WORLD,"\n");
+//~PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
+//~tempMats._D1y.printPetsc();
+//~PetscPrintf(PETSC_COMM_WORLD,"\n");
+//~PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
+//~tempMats._D1y.printPetsc();
+//~PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
@@ -767,18 +790,6 @@ PetscPrintf(PETSC_COMM_WORLD,"\n");
   MatDestroy(&_muxDy_Iz);
   ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxDy_Iz);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _muxDy_Iz, "_muxDy_Iz");CHKERRQ(ierr);
-
-  // create _Dy_Izx2mu
-  ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Dy_Izx2mu);CHKERRQ(ierr);
-  ierr = MatScale(_Dy_Izx2mu,2.0);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) _Dy_Izx2mu, "_Dy_Izx2mu");CHKERRQ(ierr);
-
-  // create _Iy_Dzx2mu
-  MatDestroy(&temp);
-  kronConvert(tempMats._Iy,tempMats._D1z,temp,5,5);
-  ierr = MatMatMult(temp,*_mu,MAT_INITIAL_MATRIX,1.0,&_Iy_Dzx2mu);CHKERRQ(ierr);
-  ierr = MatScale(_Iy_Dzx2mu,2.0);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) _Iy_Dzx2mu, "_Iy_Dzx2mu");CHKERRQ(ierr);
 
   // create _Iy_Dz
   MatDestroy(&temp);
@@ -798,7 +809,7 @@ ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeDy_Iz in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function compute1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;

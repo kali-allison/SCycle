@@ -863,7 +863,7 @@ PetscErrorCode Domain::setFieldsPlus()
   // set viscosity
   ierr = VecDuplicate(muVec,&_visc);CHKERRQ(ierr);
   // control on transition of viscosity (somewhat arbitrary choice)
-  PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
+  PetscScalar transToLowCrust = 2.5 + _depthUpToLowCrust; // km
   PetscInt Istart,Iend;
   ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++)
