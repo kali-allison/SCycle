@@ -8,8 +8,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _strainV_xzPlus(NULL),_dstrainV_xzPlus(NULL),
   _strainV_xyPlusV(NULL),_dstrainV_xyPlusV(NULL),
   _strainV_xzPlusV(NULL),_dstrainV_xzPlusV(NULL),
-  _sigma_xyPlusV(NULL),
-  _epsTotxy(NULL),_epsTotxyV(NULL)
+  _epsTotxy(NULL),_epsTotxyV(NULL),
+    _sigma_xyPlusV(NULL)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting maxwellViscoelastic::maxwellViscoelastic in maxwellViscoelastic.cpp\n");
