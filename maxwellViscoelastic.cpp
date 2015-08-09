@@ -210,9 +210,6 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec
   // set rates for slip and state
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
-  //~// set velocity to zero, keeping fault locked!!!!!!!!
-  //~VecSet(*(dvarBegin+0),0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
 
 
 

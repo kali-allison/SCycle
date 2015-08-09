@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 51
+Nz = 51
 Ly = 24 # km
 Lz = 24 # km
 
@@ -35,15 +35,15 @@ depthLowCrustToAsth = 25 # km
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
 strideLength = 1
 maxStepCount = 1e3
 initTime = 0       # s
-maxTime = 4e10      # s
-minDeltaT = 1e-3     # s
-maxDeltaT = 1e7      # s
-atol = 1e-7
+maxTime = 4e8      # s
+minDeltaT = 100     # s
+maxDeltaT = 1e4      # s
+atol = 1e-9
 
 rootTol = 1e-9
 
