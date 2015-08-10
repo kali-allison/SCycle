@@ -65,7 +65,7 @@ class Fault: public RootFinderContext
     Fault& operator=( const Fault& rhs);
 
   //~public:
-  std::vector<Vec>    _var;
+    std::vector<Vec>    _var;
     Vec            _tauQSPlus;
 
     // iterators for _var

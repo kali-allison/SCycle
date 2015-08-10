@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -12,6 +12,10 @@ main:  main.o genFuncs.o debuggingFuncs.o odeSolver.o sbpOps.o linearElastic.o f
  domain.o rootFinder.o debuggingFuncs.o spmat.o maxwellViscoelastic.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
+
+testMain: testMain.o testOdeSolver.o odeSolver.o
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm testMain.o
 
 helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -32,6 +36,7 @@ include ${PETSC_DIR}/conf/test
 #=========================================================
 
 genFuncs.o: genFuncs.cpp genFuncs.hpp
+testOdeSolver.o: testOdeSolver.cpp integratorContext.hpp odeSolver.hpp testOdeSolver.hpp
 domain.o: domain.cpp domain.hpp
 sbpOps.o: sbpOps.cpp sbpOps.hpp genFuncs.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
 fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp rootFinderContext.hpp rootFinder.hpp
