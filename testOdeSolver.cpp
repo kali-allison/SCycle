@@ -8,9 +8,9 @@
 TestOdeSolver::TestOdeSolver()
 : _f(NULL),_quadrature(NULL),
   _timeViewer(NULL), _fViewer(NULL),
-  _strideLength(1),_maxStepCount(3),
-  _initTime(0.0),_currTime(_initTime),_maxTime(10),
-  _minDeltaT(10),_maxDeltaT(1e4),
+  _strideLength(1),_maxStepCount(100),
+  _initTime(0.0),_currTime(_initTime),_maxTime(100),
+  _minDeltaT(1e-3),_maxDeltaT(1.0),
   _stepCount(0),_atol(1e-7),_initDeltaT(1)
 {
   PetscPrintf(PETSC_COMM_WORLD,"Starting TestOdeSolver::TestOdeSolver in testOdeSolver.cpp\n");
@@ -67,7 +67,20 @@ PetscErrorCode TestOdeSolver::d_dt(const PetscScalar time,const_it_vec varBegin,
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting TestOdeSolver::d_dt in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  VecSet(*dvarBegin,0.0);
+  // df/dt = 1 -> f(t) = t
+  //~VecSet(*dvarBegin,1.0); // checked: 8/9/2015 7:30 pm
+
+  // df/dt = time -> f(t) = 0.5 t^2
+  //~VecSet(*dvarBegin,time); // checked: 8/9/2015 7:35 pm
+
+  // df/dt = 5*time -> f(t) = 0.5 * 5 * t^2
+  //~VecSet(*dvarBegin,5.0 * time); // checked: 8/9/2015 7:36 pm
+
+  // df/dt = 5*(time - f) -> t + 1/5 * [exp(-5*t) -1]
+  // checked: 8/9/2015 7:45 pm
+  VecSet(*dvarBegin,time);
+  VecAXPY(*dvarBegin,-1.0,*varBegin);
+  VecScale(*dvarBegin,5.0);
 
 
 #if VERBOSE > 1

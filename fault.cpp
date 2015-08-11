@@ -535,6 +535,7 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   ierr = VecView(_zPlus,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -554,7 +555,6 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uPlus").c_str(),FILE_MODE_WRITE,&_slipViewer);
       ierr = VecView(_slip,_slipViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_slipViewer);CHKERRQ(ierr);
-
 
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"velPlus").c_str(),FILE_MODE_WRITE,&_slipVelViewer);
       ierr = VecView(_slipVel,_slipVelViewer);CHKERRQ(ierr);

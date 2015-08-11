@@ -389,7 +389,9 @@ PetscReal RK32::computeError()
   PetscInt       size,totSize=0;
 
 
-  for (int ind=0;ind<_lenVar;ind++) {
+  //~int ind = 1;
+  for (int ind=0;ind<_lenVar;ind++)
+  {
     ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
 
     // error based on max norm
@@ -431,6 +433,9 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"_lenVar = %i\n",_lenVar);
+  //~assert(0>1);
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);

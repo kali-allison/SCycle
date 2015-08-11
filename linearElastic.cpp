@@ -374,7 +374,7 @@ PetscErrorCode SymmLinearElastic::setShifts()
     v = _fault.getTauInf(Ii);
     bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    //~bcRshift = 0.;
+    bcRshift = 0.;
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPlusShift);CHKERRQ(ierr);
@@ -430,6 +430,7 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = _sbpPlus.writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
                                  &_surfDispPlusViewer);CHKERRQ(ierr);
@@ -474,18 +475,15 @@ PetscErrorCode SymmLinearElastic::writeStep()
     //~ierr = PetscViewerDestroy(&_sigma_xyPlusV);CHKERRQ(ierr);
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sigmaXYplus").c_str(),
                                    //~FILE_MODE_APPEND,&_sigma_xyPlusV);CHKERRQ(ierr);
+  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  _stepCount++;
   }
   else {
+    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-
-    ierr = VecView(_bcRPlus,_bcRPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcRPlusShift,_bcRPlusShiftV);CHKERRQ(ierr);
-
-    //~ierr = VecView(_uPlus,_uPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_sigma_xyPlus,_sigma_xyPlusV);CHKERRQ(ierr);
+    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
-  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -527,6 +525,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
+
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLPlus);CHKERRQ(ierr);
   ierr = VecScale(_bcLPlus,0.5);CHKERRQ(ierr); // var holds slip velocity, bcL is displacement at y=0+
@@ -544,15 +543,31 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   // solve for shear stress
   ierr = MatMult(_sbpPlus._muxDy_Iz,_uPlus,_sigma_xyPlus);CHKERRQ(ierr);
 
-  //~// for SS approximation
-  //~VecCopy(_bcRPlus,_sigma_xyPlus);
-  //~VecAXPY(_sigma_xyPlus,-1,_bcLPlus);
-  //~VecScale(_sigma_xyPlus,_muArrPlus[0]/_Ly);
-
 
   // update fields on fault
   ierr = _fault.setTauQS(_sigma_xyPlus,NULL);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+
+/*
+  // Set dvar values to test integration function.
+  // To use these tests, comment out all the above code.
+  VecSet(*dvarBegin,0.0);
+
+  // df/dt = 1 -> f(t) = t
+  //~VecSet(*(dvarBegin+1),1.0); // checked: 8/10/2015 5:40 pm
+
+  // df/dt = time -> f(t) = 0.5 t^2
+  //~VecSet(*(dvarBegin+1),time); // checked: 8/10/2015 5:41 pm
+
+  // df/dt = 5*time -> f(t) = 0.5 * 5 * t^2
+  //~VecSet(*(dvarBegin+1),5.0 * time); // checked: 8/10/2015 5:42 pm
+
+  // df/dt = 5*(time - f) -> t + 1/5 * [exp(-5*t) -1]
+  // checked: 8/10/2015 6:00 pm
+  //~VecSet(*(dvarBegin+1),5.0*time);
+  //~VecAXPY(*(dvarBegin+1),-5.0,*(varBegin+1));
+*/
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
