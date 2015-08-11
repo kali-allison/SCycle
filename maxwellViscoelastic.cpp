@@ -317,10 +317,6 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
     _stepCount = stepCount;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
 
-     // set strains
-    ierr = VecCopy(*(varBegin+2),_strainV_xyPlus);CHKERRQ(ierr);
-    ierr = VecCopy(*(varBegin+3),_strainV_xzPlus);CHKERRQ(ierr);
-
     ierr = writeStep();CHKERRQ(ierr);
 
   }
@@ -354,15 +350,15 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = PetscViewerDestroy(&_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
-/*
- *  // output body fields
+
+   // output body fields
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
              FILE_MODE_WRITE,&_strainV_xyPlusV);CHKERRQ(ierr);
     ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_strainV_xyPlusV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
                                    FILE_MODE_APPEND,&_strainV_xyPlusV);CHKERRQ(ierr);
-
+/*
     if (_Nz>1)
     {
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xzPlus").c_str(),
@@ -382,7 +378,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    //~ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
+    ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
     //~if (_Nz>1)
     //~{
       //~ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);
