@@ -5,15 +5,17 @@ CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
+OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
+ maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps.o spmat.o testOdeSolver.o
+
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
 
-main:  main.o genFuncs.o debuggingFuncs.o odeSolver.o sbpOps.o linearElastic.o fault.o\
- domain.o rootFinder.o debuggingFuncs.o spmat.o maxwellViscoelastic.o
+main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
-testMain: testMain.o testOdeSolver.o odeSolver.o
+testMain: testMain.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm testMain.o
 
@@ -35,17 +37,39 @@ include ${PETSC_DIR}/conf/test
 # Dependencies
 #=========================================================
 
+fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp \
+ rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
-testOdeSolver.o: testOdeSolver.cpp integratorContext.hpp odeSolver.hpp testOdeSolver.hpp
-domain.o: domain.cpp domain.hpp
-sbpOps.o: sbpOps.cpp sbpOps.hpp genFuncs.hpp domain.hpp debuggingFuncs.hpp spmat.hpp
-fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp rootFinderContext.hpp rootFinder.hpp
-linearElastic.o: linearElastic.cpp linearElastic.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp fault.hpp integratorContext.hpp
-maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp genFuncs.hpp domain.hpp linearElastic.hpp
-main.o: main.cpp linearElastic.hpp domain.hpp spmat.hpp sbpOps.hpp
-debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp genFuncs.hpp
-odeSolver.o: odeSolver.cpp odeSolver.hpp genFuncs.hpp integratorContext.hpp
+helloWorld.o: helloWorld.cpp
+linearElastic.o: linearElastic.cpp linearElastic.hpp \
+ integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
+ debuggingFuncs.hpp spmat.hpp fault.hpp rootFinderContext.hpp \
+ rootFinder.hpp
+main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp \
+ debuggingFuncs.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
+ linearElastic.hpp integratorContext.hpp odeSolver.hpp \
+ maxwellViscoelastic.hpp
+maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
+ integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
+ linearElastic.hpp sbpOps.hpp debuggingFuncs.hpp spmat.hpp fault.hpp \
+ rootFinderContext.hpp rootFinder.hpp
+odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
+ genFuncs.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
+sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
+ debuggingFuncs.hpp spmat.hpp
+sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
+ debuggingFuncs.hpp spmat.hpp
 spmat.o: spmat.cpp spmat.hpp
+#~testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
+#~ debuggingFuncs.hpp spmat.hpp testOdeSolver.hpp integratorContext.hpp \
+#~ odeSolver.hpp
+testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
+ testOdeSolver.hpp odeSolver.hpp
+testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
+ integratorContext.hpp odeSolver.hpp genFuncs.hpp
+
+
+
+
 
