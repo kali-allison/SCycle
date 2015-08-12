@@ -28,8 +28,36 @@ PetscErrorCode writeVec(Vec vec,const char * loc)
   return ierr;
 }
 
+// Prints a global vector from a 2D DM to stdout, including information
+// about partitioning accross processors.
+PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm)
+{
+    PetscErrorCode ierr = 0;
+#if VERBOSE > 2
+  PetscPrintf(PETSC_COMM_WORLD,"Starting main::printf_DM_2d in fault.cpp.\n");
+#endif
 
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+  DMDAGetCorners(dm,&mStart,&nStart,0,&m,&n,0);
+
+  PetscScalar **gxArr;
+  DMDAVecGetArray(dm,gvec,&gxArr);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      PetscPrintf(PETSC_COMM_SELF,"%i: gxArr[%i][%i] = %g\n",
+        rank,j,i,gxArr[j][i]);
+    }
+  }
+  DMDAVecRestoreArray(dm,gvec,&gxArr);
+
+#if VERBOSE > 2
+  PetscPrintf(PETSC_COMM_WORLD,"Ending main::printf_DM_2d in fault.cpp.\n");
+#endif
+  return ierr;
+}
 
 int runTests(const char * inputFile)
 {
@@ -53,6 +81,104 @@ int runTests(const char * inputFile)
 }
 
 
+// Test use of VecAXPY etc functions with global vectors from DMDA objects.
+int testDMDAMemory()
+{
+    PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting main::testDMDAMemory in fault.cpp.\n");
+#endif
+
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt Nx=6,Ny=7;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=6.0;
+  PetscScalar dx=(xMax-xMin)/(Nx-1), dy=(yMax-yMin)/(Ny-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+
+  DM cda;
+  Vec lcoords; // local vector containing coordinates
+  DMDACoor2d **coords; // 2D array containing x and y data members
+  DMDASetUniformCoordinates(da,xMin,xMax,yMin,yMax,0.0,1.0);
+  DMGetCoordinateDM(da,&cda);
+  DMGetCoordinatesLocal(da,&lcoords);
+  DMDAVecGetArray(cda,lcoords,&coords);
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+
+
+  Vec gx=NULL; // gx = global x
+  DMCreateGlobalVector(da,&gx);  PetscObjectSetName((PetscObject) gx, "global x");
+
+
+  Vec lx=NULL; // lx = local x
+  PetscScalar **lxArr;
+  ierr = DMCreateLocalVector(da,&lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lx,&lxArr);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      lxArr[j][i] = 10*coords[j][i].y + coords[j][i].x;
+    }
+  }
+  DMDAVecRestoreArray(da,lx,&lxArr);
+  ierr = DMLocalToGlobalBegin(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
+
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"gx:\n");CHKERRQ(ierr);
+  printf_DM_2d(gx,da);
+
+
+  // create vectors that represent only values on the fault
+  Vec gy;
+  VecCreate(PETSC_COMM_WORLD,&gy);
+  VecSetSizes(gy,PETSC_DECIDE,Nx);
+  VecSetFromOptions(gy);     PetscObjectSetName((PetscObject) gy, "gy");
+  VecSet(gy,0.0);
+
+  VecScatter scatter; // scatter context
+  IS from,to; // index sets that define the scatter
+  int idx_from[] = {0,7,14}, idx_to[]={0,1,2};
+
+  ISCreateGeneral(PETSC_COMM_SELF,3,idx_from,PETSC_COPY_VALUES,&from);
+  ISCreateGeneral(PETSC_COMM_SELF,3,idx_to,PETSC_COPY_VALUES,&to);
+
+  // gx = source vector, gy = destination vector
+  VecScatterCreate(gx,from,gy,to,&scatter);
+
+  VecScatterBegin(scatter,gx,gy,INSERT_VALUES,SCATTER_FORWARD);
+  VecScatterEnd(scatter,gx,gy,INSERT_VALUES,SCATTER_FORWARD);
+
+  VecView(gy,PETSC_VIEWER_STDOUT_WORLD);
+
+  ISDestroy(&from);
+  ISDestroy(&to);
+  VecScatterDestroy(&scatter);
+
+  VecDestroy(&lx);
+  VecDestroy(&gx);
+  VecDestroy(&gy);
+
+
+  DMDestroy(&da);
+  DMDestroy(&cda);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDAMemory in fault.cpp.\n");
+#endif
+  return ierr;
+}
 
 
 /* Demonstrates the use of PETSc's distributed memory distributed array
@@ -718,7 +844,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  runEqCycle(inputFile);
+  //~runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }
@@ -727,6 +853,7 @@ int main(int argc,char **args)
 
 
   //~runTests(inputFile);
+  testDMDAMemory();
   //~testDMDA();
   //~testMatShell();
 
