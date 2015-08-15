@@ -247,10 +247,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec
   ierr = _fault.setTauQS(_sigma_xyPlus,NULL);CHKERRQ(ierr);
 
   // set rates for slip and state
-  //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
-
-  VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
 /*
   // Set dvar values to test integration function.
@@ -352,12 +349,12 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
    // output body fields
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
-             FILE_MODE_WRITE,&_strainV_xyPlusV);CHKERRQ(ierr);
-    ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_strainV_xyPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
-                                   FILE_MODE_APPEND,&_strainV_xyPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
+             //~FILE_MODE_WRITE,&_strainV_xyPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerDestroy(&_strainV_xyPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"strainV_xyPlus").c_str(),
+                                   //~FILE_MODE_APPEND,&_strainV_xyPlusV);CHKERRQ(ierr);
 /*
     if (_Nz>1)
     {
@@ -378,7 +375,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_strainV_xyPlus,_strainV_xyPlusV);CHKERRQ(ierr);
     //~if (_Nz>1)
     //~{
       //~ierr = VecView(_strainV_xzPlus,_strainV_xzPlusV);CHKERRQ(ierr);

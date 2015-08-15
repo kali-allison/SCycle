@@ -1,6 +1,6 @@
 order = 4
-Ny = 51
-Nz = 51
+Ny = 201
+Nz = 201
 Ly = 24 # km
 Lz = 24 # km
 
@@ -20,33 +20,33 @@ shearDistribution = constant
 {
 problem = symmetric
 muPlus = 30 # GPa
-rhoPlus = 3.333 # g/cm^3
+rhoPlus = 2.8 # g/cm^3
 
 depth = 4
 width = 24
 }
 
-viscUpCrust = 1e9 # GPa s
+viscUpCrust = 1e20 # GPa s
 viscLowCrust = 1e9 # GPa s
 viscAsth = 1e9 # GPa s
 depthUpToLowCrust = 15 # km
-depthLowCrustToAsth = 25 # km
+depthLowCrustToAsth = 30 # km
 
 linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 1e3
+strideLength = 10
+maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 4e8      # s
+maxTime = 5e10      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e4      # s
-atol = 1e-12
+maxDeltaT = 1e7      # s
+atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/maxVisc_d_dt_
+outputDir = ../maxwellVisc/layered/lowV1e9D15_Lz24_
 
 

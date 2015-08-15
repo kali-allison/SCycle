@@ -119,6 +119,50 @@ int testDMDA_ScatterToVec()
 }
 
 
+int testDMDA_memory()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting main::testDMDA in fault.cpp.\n");
+#endif
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt M=6,N=6;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=5.0;
+  PetscScalar dx=(xMax-xMin)/(M-1), dy=(yMax-yMin)/(N-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,M,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+
+  Vec gx=NULL,lx=NULL; // gx = global x, lx = local x
+  PetscScalar **lxArr;
+  DMCreateGlobalVector(da,&gx); PetscObjectSetName((PetscObject) gx, "global x");
+  VecSet(gx,1.0);
+  ierr = DMCreateLocalVector(da,&lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,gx,INSERT_VALUES,lx);CHKERRQ(ierr);
+
+
+
+  VecDestroy(&lx);
+  VecDestroy(&gx);
+  DMDestroy(&da);
+
+
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDA in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
 /* Demonstrates the use of PETSc's distributed memory distributed array
  * objects (DMDAs). This function demonstrates how to initialize values
  * in a global vector using built-in functions for creating a uniform
@@ -185,6 +229,7 @@ int testDMDA()
   ierr = DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);CHKERRQ(ierr);
   //~VecView(gx,PETSC_VIEWER_STDOUT_WORLD);
 
+  // Careful: this way of initializing values does NOT work!!!
   //~PetscInt Ii,Istart,Iend;
   //~PetscScalar v;
   //~VecGetOwnershipRange(gx,&Istart,&Iend);
@@ -235,8 +280,12 @@ int testDMDA()
   writeVec(gx,"gx");
   writeVec(gf,"gf");
 
+  VecDestroy(&lx);
   VecDestroy(&gx);
+  VecDestroy(&lf);
   VecDestroy(&gf);
+  DMDestroy(&da);
+  DMDestroy(&cda);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDA in fault.cpp.\n");
@@ -666,7 +715,9 @@ int main(int argc,char **args)
   //~trial->integrate();
 
   // test DMDA stuff
-  testDMDA_ScatterToVec();
+  testDMDA();
+  //~testDMDA_ScatterToVec();
+  //~testDMDA_memory();
 
 
   PetscFinalize();

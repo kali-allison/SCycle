@@ -154,7 +154,7 @@ int runEqCycle(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);
-  //~ierr = lith->view();CHKERRQ(ierr);
+  ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -169,7 +169,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~runEqCycle(inputFile);
+  runEqCycle(inputFile);
 
   //~const char* inputFile2;
   //~if (argc > 2) {inputFile2 = args[2]; }

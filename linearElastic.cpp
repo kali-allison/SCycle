@@ -374,7 +374,7 @@ PetscErrorCode SymmLinearElastic::setShifts()
     v = _fault.getTauInf(Ii);
     bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    bcRshift = 0.;
+    //~bcRshift = 0.;
     ierr = VecSetValue(_bcRPlusShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPlusShift);CHKERRQ(ierr);
