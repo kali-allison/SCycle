@@ -4,6 +4,8 @@
  * as it is pretty much an MMS test of our methods at the moment)
  * Finite-Difference in Parallel
  * -----------------------------
+ *
+ * -----------------------------
  * This program allows users to calculate
  * the derivatives of every point on a one-dimensional vector or
  * two-dimensional grid (stored in a Vec) by using central
