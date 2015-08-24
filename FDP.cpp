@@ -4,7 +4,7 @@
  * as it is pretty much an MMS test of our methods at the moment)
  * Finite-Difference in Parallel
  * -----------------------------
- *
+ * Working on matrix-free linear solve as well.
  * -----------------------------
  * This program allows users to calculate
  * the derivatives of every point on a one-dimensional vector or
