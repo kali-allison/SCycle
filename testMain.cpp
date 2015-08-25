@@ -163,6 +163,55 @@ int testDMDA_memory()
   return ierr;
 }
 
+
+int testDMDA_changeCoords()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting main::testDMDA in fault.cpp.\n");
+#endif
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt M=11,N=11;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=5.0;
+  PetscScalar dx=(xMax-xMin)/(M-1), dy=(yMax-yMin)/(N-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,M,N,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+  // Set up uniform coordinate mesh.
+  // Print to see distribution, organization on multiple processors.
+  DM cda;
+  Vec lcoords; // local vector containing coordinates
+  DMDACoor2d **coords; // 2D array containing x and y data members
+  DMDASetUniformCoordinates(da,xMin,xMax,yMin,yMax,0.0,1.0);
+  DMGetCoordinateDM(da,&cda);
+  DMGetCoordinatesLocal(da,&lcoords);
+  DMDAVecGetArray(cda,lcoords,&coords);
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
+        rank,j,i,j,i,coords[j][i].x,coords[j][i].y);
+    }
+  }
+
+
+  DMDestroy(&da);
+  DMDestroy(&cda);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending main::testDMDA in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
 /* Demonstrates the use of PETSc's distributed memory distributed array
  * objects (DMDAs). This function demonstrates how to initialize values
  * in a global vector using built-in functions for creating a uniform
@@ -201,12 +250,12 @@ int testDMDA()
   DMGetCoordinatesLocal(da,&lcoords);
   DMDAVecGetArray(cda,lcoords,&coords);
   DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
-  //~for (j=nStart;j<nStart+n;j++) {
-    //~for (i=mStart;i<mStart+m;i++) {
-      //~PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
-        //~rank,j,i,coords[j][i].x,coords[j][i].y);
-    //~}
-  //~}
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
+        rank,j,i,coords[j][i].x,coords[j][i].y);
+    }
+  }
 
   // Set the values for the global vector x based on the (x,y)
   // coordinates for each vertex. Since this uses only local values, there
@@ -715,7 +764,8 @@ int main(int argc,char **args)
   //~trial->integrate();
 
   // test DMDA stuff
-  testDMDA();
+  //~testDMDA();
+  testDMDA_changeCoords();
   //~testDMDA_ScatterToVec();
   //~testDMDA_memory();
 
