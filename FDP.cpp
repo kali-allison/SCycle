@@ -1,16 +1,24 @@
 /* FDP.cpp
  * -------
- * (currently in the process of adding actual functionality
- * as it is pretty much an MMS test of our methods at the moment)
+ * -----------------------------
  * Finite-Difference in Parallel
  * -----------------------------
  *
- * -----------------------------
- * This program allows users to calculate
- * the derivatives of every point on a one-dimensional vector or
- * two-dimensional grid (stored in a Vec) by using central
- * difference approximations on interior points. Boundary points
- * use second-order accurate approximations.
+ * Adding Linear Solve Functionality in the Solve_Linear_Equation function.
+ * - It currently needs to be able to wrap MatMult in MyMatMult, using my Finite-Difference
+ *   Stencils to calculate the matrix-vector product between the vector and the 2nd derivative
+ *   matrix.
+ *
+ * The other main part of this program is the MMS Test.
+ * - The first section of Globals allows the user to change the parameters of the MMS test.
+ * - There are two sections of Globals for the MMS Test.
+ *      - The first section allows the user to define parameters for the 1-D MMS Test.
+ *      - The second allows the user to define parameters for the 2-D MMS Test.
+ *      - These parameters include a beginning point, and an end point (in each direction for 2-D)
+ *      - There is also another parameter for the number of grid points in each direction.
+ *      - Lastly, there is a parameter that dictates how many times the user wants the program to solve
+ *        each derivative. For example, changing the NUM_GRID_SPACE_CALCULATIONS will change the number of times
+ *        the program will solve the 1st derivative using finite-difference stencils in 1-D.
  */
 
 #include <petscvec.h>
@@ -20,23 +28,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-//MMS Test Globals
+// 1-D MMS Test Globals
 #define MIN_GRID_POINT 0
 #define MAX_GRID_POINT 3
 #define STARTING_GRID_SPACING 201
-#define NUM_GRID_SPACE_CALCULATIONS 0 // 8 // 14 FIXME what's the limit here?
-//2-D
-#define NUM_2D_GRID_SPACE_CALCULATIONS 9 //12  // FIXME is there a limit here? SLOWS DOWN A LOT ON 20k+ values in each direction?
-#define NUM_2D_2ND_GRID_SPACE_CALCULATIONS 0
-#define COEFFICIENT_SOLVE 1 // 0 for no coefficient solve (w mu), 1 (or any other numeric value) to solve w/ coefficient
+#define NUM_GRID_SPACE_CALCULATIONS 8 // 14 FIXME what's the limit here?
+#define NUM_2ND_GRID_SPACE_CALCULATIONS 8
+// 2-D MMS Test Globals
+#define NUM_2D_GRID_SPACE_CALCULATIONS 8 //12  // FIXME is there a limit here? SLOWS DOWN A LOT ON 20k+ values in each direction?
+#define NUM_2D_2ND_GRID_SPACE_CALCULATIONS 8
+#define COEFFICIENT_SOLVE 1 // IMPORTANT: 0 for NO coefficient solve (w mu), 1 (or any other numeric value) to solve WITH coefficient
 #define NUM_X_PTS 11
 #define NUM_Y_PTS 5
-#define X_MIN 0.0
-#define Y_MIN 0.0
-#define X_MAX 0.05  //0.00000000000000000000000000000000000000000000000000005
-#define Y_MAX 0.10 //0.00000000000000000000000000000000000000000000000000010
+#define X_MIN 0
+#define Y_MIN 0
+#define X_MAX 5
+#define Y_MAX 10
 
-//Actual Globals
+
+//--------------------------------------------------------------------------------------------------------------------------------
+//Globals for the Linear Solve Program
 #define PTS_IN_X 6
 #define PTS_IN_Y 5
 #define X_MINIMUM 0.0
@@ -185,7 +196,94 @@ PetscErrorCode Dx_1d(Vec &u, Vec &z, PetscScalar spacing, DM &da) {
   return ierr;
 }
 
-/* Function: calculate_with_size
+/* Function: Dxx_1d
+ * ------------------------------------
+ * This function takes in a derivative matrix (in the form of a vector)
+ * that it will fill. It also takes in a grid spacing interval (PetscScalar)
+ * and the values at each interval (which is a matrix placed in the form
+ * of a vector). The vectors are passed in by reference. One
+ * also needs to pass in the DMDA associated with the given Vecs.
+ *
+ * Vecs:
+ * - u is the vector that one passes in to hold the calculated derivative.
+ * - z is the vector that holds the sampled values of the function
+ */
+PetscErrorCode Dxx_1d(Vec &u, Vec &z, PetscScalar spacing, DM &da) {
+  PetscErrorCode ierr = 0;
+  // Creating local Vecs y (function values) and calc_diff (derivative)
+  Vec y, calc_diff;
+  // Values that hold specific indices for iteration
+  PetscInt yistart, yiend, fistart, fiend, yi_extra;
+  // Creates local vectors using the DMDA to ensure correct partitioning
+  DMCreateLocalVector(da,&y);
+  DMCreateLocalVector(da,&calc_diff);
+  // Make it such that the DMDA splits the global Vecs into local Vecs
+  ierr = DMGlobalToLocalBegin(da,z,INSERT_VALUES,y);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,z,INSERT_VALUES,y);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,u,INSERT_VALUES,calc_diff);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,u,INSERT_VALUES,calc_diff);CHKERRQ(ierr);
+  // Obtains the ownership range of both the function-value Vec and the derivative Vec
+  ierr = VecGetOwnershipRange(y,&yistart,&yiend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(calc_diff,&fistart,&fiend);CHKERRQ(ierr);
+  // Here we set the current to the beginning and the previous to the beginning
+  // We set the next to the one directly after the start.
+  PetscInt yi_current = yistart;
+  PetscInt yi_prev = yistart;
+  PetscInt yi_next = yistart + 1;
+  PetscScalar slope = 0; // This will contain the derivative on each calculation
+  PetscScalar y_1, y_2, y_3; // These are used to keep the derivative values we pull from the function Vec
+  PetscInt fi = fistart; // We start the current iteration on the first value in the function Vec
+  while(yi_current < yiend) {
+     yi_next = yi_current + 1;
+     // If the current index is between the start and the end of the Vec
+     // simply calculate the derivative using the central difference method
+     if (yi_current > yistart && yi_current < yiend - 1) {
+        yi_prev = yi_current - 1;
+        ierr = VecGetValues(y,1,&yi_prev,&y_1);CHKERRQ(ierr);
+        ierr = VecGetValues(y,1,&yi_current,&y_2);CHKERRQ(ierr);
+        ierr = VecGetValues(y,1,&yi_next,&y_3);CHKERRQ(ierr);
+        slope = ((y_1 - (2 * y_2) + y_3) / (spacing * spacing));
+     // This is where I calculate the derivative at the beginning
+     // of the Vec. I use coefficients and 3 points to obtain
+     // second-order accuracy.
+     } else if (yi_current == yistart) {
+        ierr = VecGetValues(y,1,&yi_current,&y_1);CHKERRQ(ierr);
+        ierr = VecGetValues(y,1,&yi_next,&y_2);CHKERRQ(ierr);
+        yi_extra = yi_next + 1;
+        ierr = VecGetValues(y,1,&yi_extra,&y_3);CHKERRQ(ierr);
+        slope = (y_1 - (2 * y_2) + y_3) / (spacing * spacing);
+     // This is where I calculate the derivative at the end of the
+     // Vec. I use coefficients and 3 points at the end of the Vec
+     // to obtain second-order accuracy.
+     } else if (yi_current == yiend - 1) {
+        yi_prev = yi_current - 1;
+        ierr = VecGetValues(y,1,&yi_prev,&y_1);CHKERRQ(ierr);
+        ierr = VecGetValues(y,1,&yi_current,&y_2);CHKERRQ(ierr);
+        yi_extra = yi_prev - 1;
+        ierr = VecGetValues(y,1,&yi_extra,&y_3);CHKERRQ(ierr);
+        slope = (y_2 - (2 * (y_1)) + y_3) / (spacing * spacing);
+     }
+     // This sets the Vec value to the calculated derivative
+     ierr = VecSetValues(calc_diff,1,&fi,&slope,INSERT_VALUES);CHKERRQ(ierr);
+     // Increment here
+     fi++;
+     yi_current++;
+  }
+  // Assemble the Vec - do we need this here? Not sure.
+  ierr = VecAssemblyBegin(calc_diff);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(calc_diff);CHKERRQ(ierr);
+  // Take the Vec values from the local Vecs and put them back in their respective global Vecs.
+  ierr = DMLocalToGlobalBegin(da,y,INSERT_VALUES,z);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,y,INSERT_VALUES,z);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(da,calc_diff,INSERT_VALUES,u);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,calc_diff,INSERT_VALUES,u);CHKERRQ(ierr);
+  // Dispose of the local Vecs
+  VecDestroy(&y);
+  VecDestroy(&calc_diff);
+  return ierr;
+}
+
+/* Function: calculate_Dx_1d
  * -----------------------------
  * This function calculates the first
  * derivative of a Vec using only
@@ -193,7 +291,7 @@ PetscErrorCode Dx_1d(Vec &u, Vec &z, PetscScalar spacing, DM &da) {
  * and the maximum value (x_max). It calculates
  * all other need values.
  */
-PetscErrorCode calculate_with_size(PetscInt n, PetscInt x_min, PetscInt x_max)
+PetscErrorCode calculate_Dx_1d(PetscInt n, PetscInt x_min, PetscInt x_max)
 {
   PetscErrorCode    ierr = 0;
   PetscInt          i = 0, xistart, xiend, yistart, yiend, diff_start, diff_end; /* iteration values */
@@ -294,9 +392,118 @@ PetscErrorCode calculate_with_size(PetscInt n, PetscInt x_min, PetscInt x_max)
   return ierr;
 }
 
+/* Function: calculate_Dxx_1d
+ * -----------------------------
+ * This function calculates the second
+ * derivative of a Vec using only
+ * the number of entries (n), the minimum value (x_min),
+ * and the maximum value (x_max). It calculates
+ * all other need values.
+ */
+PetscErrorCode calculate_Dxx_1d(PetscInt n, PetscInt x_min, PetscInt x_max)
+{
+  PetscErrorCode    ierr = 0;
+  PetscInt          i = 0, xistart, xiend, yistart, yiend, diff_start, diff_end; /* iteration values */
+  PetscScalar       v = 0, mult = 0; /* v is my temp value I use to fill Vecs, mult is the spacing between each value of the Vec (h, dx) */
+  Vec               w = NULL, x = NULL, y = NULL, calc_diff = NULL, diff = NULL; /* vectors */
+  mult = ((PetscReal)(x_max - x_min))/(n - 1); // evenly partitioning the Vec to have equally sized spacing between values
+  // MUST CREATE DMDA - STENCIL WIDTH 1 FOR BOUNDARIES
+  // IMPORTANT: SINCE STENCIL WIDTH IS 1, BE SURE THAT THERE ARE AT LEAST 3 END VALUES ON THE END OF A PARTITIONED VEC
+  DM            da;
+  DMDACreate1d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,n,1,1,NULL,&da);
+  // Create first Vec, this one holds the values at specific points (at every spacing)
+  ierr = DMCreateGlobalVector(da,&x); // Holds spacing values
+  // Same Vec format, duplicated.
+  ierr = VecDuplicate(x,&w);CHKERRQ(ierr); // Will eventually be used to hold the difference between the actual derivative and the calculated one.
+  ierr = VecDuplicate(x,&y);CHKERRQ(ierr); // Holds function values
+  ierr = VecDuplicate(x,&calc_diff);CHKERRQ(ierr); // Holds calculated derivative
+  ierr = VecDuplicate(x,&diff);CHKERRQ(ierr); // Holds actual derivative
+
+  ierr = PetscObjectSetName((PetscObject) x, "x (spacing values)");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) w, "w");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) y, "y (func. values)");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) calc_diff, "calculated derivative");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) diff, "actual derivative");CHKERRQ(ierr);
+
+/* This is where I fill in the x vector.
+ * I put in multiples defined by the grid
+ * spacing from the minimum value to the maximum.
+ */
+  VecGetOwnershipRange(x,&xistart,&xiend);
+  for(i = xistart; i < xiend; i++) {
+    v = (i*mult);
+    VecSetValues(x,1,&i,&v,INSERT_VALUES);
+  }
+  ierr = VecAssemblyBegin(x);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(x);CHKERRQ(ierr);
+
+/* This is where I fill in the y vector.
+ * Its values can be defined by a hard-coded
+ * function below. Comment out a single
+ * function to dictate what will be in the y Vec.
+ */
+  ierr = VecGetOwnershipRange(y,&yistart,&yiend);CHKERRQ(ierr);
+  for(i = yistart; i < yiend; i++) {
+    ierr = VecGetValues(x,1,&i,&v);CHKERRQ(ierr);
+//    v *= v; // x^2
+//    v = (v*v*v); // x^3
+    v = sin(v); // sine function
+//    v = cos(v); // cosine function
+    ierr = VecSetValues(y,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(y);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(y);CHKERRQ(ierr);
+
+/* This is where I fill in the true
+ * analytical derivative. It's hard-coded
+ * as well.
+ */
+  ierr = VecGetOwnershipRange(diff,&diff_start,&diff_end);CHKERRQ(ierr);
+  for(i = diff_start; i < diff_end; i++) {
+    ierr = VecGetValues(x,1,&i,&v);CHKERRQ(ierr);
+//    v = 2*v; // 2x
+//    v = (3)*(v*v); //3x^2
+//    v = cos(v); // cosine function
+    v = -sin(v); // -sine function
+    ierr = VecSetValues(diff,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(diff);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(diff);CHKERRQ(ierr);
+
+/* Here we pass in the calculated derivative Vec (to be filled),
+ * our spacing, our Vec with function values (y), and the DMDA.
+ * It will fill the calc_diff Vec with our calculated derivative.
+ */
+  ierr = Dxx_1d(calc_diff, y, mult, da);CHKERRQ(ierr);
+
+/* This is where we calculate norm using the difference between
+ * the analytical (true) derivative and the calculated derivative and print
+ * out the error. Below here, we print out information (number of entries,
+ * the current spacing).
+ */
+  PetscPrintf(PETSC_COMM_WORLD, "Nx: %15i   Spacing: % .15e   ", n, mult);
+  ierr = calculate_two_norm(w, calc_diff, diff, n);CHKERRQ(ierr);
+
+/* To print out any of the Vecs, uncomment one of the lines below */
+//  ierr = VecView(x,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//  ierr = VecView(y,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//  ierr = VecView(calc_diff,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+//  ierr = VecView(diff,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+// BE SURE TO DISPOSE OF ALL VECS AND DMDAS!
+  ierr = VecDestroy(&w);CHKERRQ(ierr);
+  ierr = VecDestroy(&x);CHKERRQ(ierr);
+  ierr = VecDestroy(&y);CHKERRQ(ierr);
+  ierr = VecDestroy(&calc_diff);CHKERRQ(ierr);
+  ierr = VecDestroy(&diff);CHKERRQ(ierr);
+  ierr = DMDestroy(&da);CHKERRQ(ierr);
+
+  return ierr;
+}
+
 /* Function: truncation_error
  * --------------------------
- *
+ * This function serves as a test function to see where the convergence fails.
  */
 PetscErrorCode truncation_error(Vec &diff_x, PetscScalar &mult_x, DM &da) {
     PetscErrorCode ierr = 0;
@@ -320,7 +527,12 @@ PetscErrorCode truncation_error(Vec &diff_x, PetscScalar &mult_x, DM &da) {
 
 /* Function: Dy_2d
  * ----------------------------------
+ * 1st derivative solve in the y-direction for 2-D.
  *
+ * diff_y - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dy - the spacing between each point in the y-direction
+ * da - DMDA object
  */
 PetscErrorCode Dy_2d(Vec &diff_y, Vec &grid, PetscScalar dy, DM &da) {
   PetscErrorCode ierr = 0;
@@ -362,6 +574,10 @@ PetscErrorCode Dy_2d(Vec &diff_y, Vec &grid, PetscScalar dy, DM &da) {
 /* Function: Dx_2d
  * ----------------------------------
  *
+ * diff_x - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dx - the spacing between each point in the x-direction
+ * da - DMDA object
  */
 PetscErrorCode Dx_2d(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
   PetscErrorCode ierr = 0;
@@ -401,7 +617,10 @@ PetscErrorCode Dx_2d(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
 
 /* Function: Dyy_2d
  * ----------------------------------
- *
+ * diff_y - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dy - the spacing between each point in the y-direction
+ * da - DMDA object
  */
 PetscErrorCode Dyy_2d(Vec &diff_y, const Vec &grid, const PetscScalar dy, const DM &da) {
   PetscErrorCode ierr = 0;
@@ -441,7 +660,10 @@ PetscErrorCode Dyy_2d(Vec &diff_y, const Vec &grid, const PetscScalar dy, const 
 
 /* Function: Dxx_2d
  * --------------------------------------
- *
+ * diff_x - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dx - the spacing between each point in the x-direction
+ * da - DMDA object
  */
 PetscErrorCode Dxx_2d(Vec &diff_x, const Vec &grid, const PetscScalar dx, const DM &da) {
   PetscErrorCode ierr = 0;
@@ -482,7 +704,11 @@ PetscErrorCode Dxx_2d(Vec &diff_x, const Vec &grid, const PetscScalar dx, const 
 
 /* Function: Dmuyy_2d
  * ------------------
- *
+ * diff_y - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * mu - the Vec that holds the values of mu
+ * dy - the spacing between each point in the y-direction
+ * da - DMDA object
  */
 PetscErrorCode Dmuyy_2d(Vec &diff_y, const Vec &grid, const Vec &mu, const PetscScalar dy, const DM &da) {
   PetscErrorCode ierr = 0;
@@ -539,7 +765,11 @@ PetscErrorCode Dmuyy_2d(Vec &diff_y, const Vec &grid, const Vec &mu, const Petsc
 
 /* Function: Dmuxx_2d
  * --------------------------------------
- *
+ * diff_x - the output Vec (it will hold the calculated derivative)
+ * grid - the input Vec (it holds the function values to draw from)
+ * mu - the Vec that holds the values of mu
+ * dx - the spacing between each point in the x-direction
+ * da - DMDA object
  */
 PetscErrorCode Dmuxx_2d(Vec &diff_x, const Vec &grid, const Vec &mu, const PetscScalar dx, const DM &da) {
   PetscErrorCode ierr = 0;
@@ -594,11 +824,17 @@ PetscErrorCode Dmuxx_2d(Vec &diff_x, const Vec &grid, const Vec &mu, const Petsc
   return ierr;
 }
 
-/* Function: calculate_2D_grid_derivatives
+/* Function: calculate_Dx_Dy_2D
  * ---------------------------------------
- *
+ * Calculates both the first derivative in x and y for a 2-D grid.
+ * x_len - number of points in the x direction
+ * y_len - number of points in the y direction
+ * x_max - maximum value in the x direction
+ * x_min - minimum value in the x_direction
+ * y_max - maximum value in the y direction
+ * y_min - minimum value in the y direction
  */
-PetscErrorCode calculate_2D_grid_derivatives(PetscInt x_len, PetscInt y_len, PetscScalar x_max, PetscScalar x_min, PetscScalar y_max, PetscScalar y_min) {
+PetscErrorCode calculate_Dx_Dy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_max, PetscScalar x_min, PetscScalar y_max, PetscScalar y_min) {
   PetscErrorCode ierr = 0;
   double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0;
   t1 = MPI_Wtime();
@@ -720,8 +956,8 @@ PetscErrorCode calculate_2D_grid_derivatives(PetscInt x_len, PetscInt y_len, Pet
   ierr = Dx_2d(diff_x, grid, mult_x, da);CHKERRQ(ierr);
   t4 = MPI_Wtime();
 
-//  PetscPrintf(PETSC_COMM_WORLD, "Ny: %5i   Spacing: % .5e   Log of Spacing: % .5e   ", y_len, mult_y, log2(mult_y)); // I used to have %15!
-//  calculate_two_norm(grid_error_diff, diff_y, act_diff_y, num_grid_entries);
+  PetscPrintf(PETSC_COMM_WORLD, "Ny: %5i   Spacing: % .5e   Log of Spacing: % .5e   ", y_len, mult_y, log2(mult_y)); // I used to have %15!
+  calculate_two_norm(grid_error_diff, diff_y, act_diff_y, num_grid_entries);
   PetscPrintf(PETSC_COMM_WORLD, "                              Nx: %5i   Spacing: % .5e   Log of Spacing: % .5e   ", x_len, mult_x, log2(mult_x));
   calculate_two_norm(grid_error_diff, diff_x, act_diff_x, num_grid_entries);
 
@@ -760,11 +996,20 @@ PetscErrorCode calculate_2D_grid_derivatives(PetscInt x_len, PetscInt y_len, Pet
   return ierr;
 }
 
-/* Function: calculate_2D_2nd_grid_derivatives
+/* Function: calculate_Dxx_Dyy_2D
  * -------------------------------------------
+ * Calculates both second derivatives in x and y for a 2-D grid.
+ * IMPORTANT: Depending on the global set at the top of this program,
+ * the function will either solve the second derivative WITH coefficient or WITHOUT.
  *
+ * x_len - number of points in the x direction
+ * y_len - number of points in the y direction
+ * x_max - maximum value in the x direction
+ * x_min - minimum value in the x_direction
+ * y_max - maximum value in the y direction
+ * y_min - minimum value in the y direction
  */
-PetscErrorCode calculate_2D_2nd_grid_derivatives(PetscInt x_len, PetscInt y_len, PetscScalar x_max, PetscScalar x_min, PetscScalar y_max, PetscScalar y_min) {
+PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_max, PetscScalar x_min, PetscScalar y_max, PetscScalar y_min) {
   PetscErrorCode ierr = 0;
   double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0;
   t1 = MPI_Wtime();
@@ -1002,12 +1247,19 @@ PetscErrorCode MMSTest() {
   PetscErrorCode ierr = 0;
   PetscInt n = STARTING_GRID_SPACING, min = MIN_GRID_POINT, max = MAX_GRID_POINT, x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
   PetscScalar x_min = X_MIN, x_max = X_MAX, y_max = Y_MAX, y_min = Y_MIN;
-  assert(n > 2);
 
-  PetscPrintf(PETSC_COMM_WORLD, "1-D 1ST DERIVATIVES (2ND DERIVATIVES TO BE IMPLEMENTED)\n");
+  assert(n > 2);
+  PetscPrintf(PETSC_COMM_WORLD, "1-D 1ST DERIVATIVES\n");
   for(int i = 0; i < NUM_GRID_SPACE_CALCULATIONS; i++) {
     PetscPrintf(PETSC_COMM_WORLD, "Iteration: %15i    ", i+1);
-    ierr = calculate_with_size(n, min, max);CHKERRQ(ierr);
+    ierr = calculate_Dx_1d(n, min, max);CHKERRQ(ierr);
+    n = ((n - 1) * 2) + 1;
+  }
+
+  PetscPrintf(PETSC_COMM_WORLD, "1-D 2ND DERIVATIVES\n");
+  for(int i = 0; i < NUM_2ND_GRID_SPACE_CALCULATIONS; i++) {
+    PetscPrintf(PETSC_COMM_WORLD, "Iteration: %15i    ", i+1);
+    ierr = calculate_Dxx_1d(n, min, max);CHKERRQ(ierr);
     n = ((n - 1) * 2) + 1;
   }
 
@@ -1016,7 +1268,7 @@ PetscErrorCode MMSTest() {
   assert(y_len > 3);
   for(int i = 0; i < NUM_2D_GRID_SPACE_CALCULATIONS; i++) {
     PetscPrintf(PETSC_COMM_WORLD, "Iteration: %15i    ", i+1);
-    calculate_2D_grid_derivatives(x_len, y_len, x_max, x_min, y_max, y_min);
+    calculate_Dx_Dy_2D(x_len, y_len, x_max, x_min, y_max, y_min);
     x_len = ((x_len - 1) * 2) + 1;
     y_len = ((y_len - 1) * 2) + 1;
   }
@@ -1032,7 +1284,7 @@ PetscErrorCode MMSTest() {
   assert(y_len > 3);
   for(int i = 0; i < NUM_2D_2ND_GRID_SPACE_CALCULATIONS; i++) {
     PetscPrintf(PETSC_COMM_WORLD, "Iteration: %15i    ", i+1);
-    calculate_2D_2nd_grid_derivatives(x_len, y_len, x_max, x_min, y_max, y_min);
+    calculate_Dxx_Dyy_2D(x_len, y_len, x_max, x_min, y_max, y_min);
     x_len = ((x_len - 1) * 2) + 1;
     y_len = ((y_len - 1) * 2) + 1;
   }
@@ -1247,8 +1499,6 @@ PetscErrorCode setRHS_B(Vec &RHS, const Vec &b, const PetscScalar &h_11,
     VecScatter scatter; // scatter context
     IS from,to; // index sets that define the scatter
 
-    //int idx_from[] = {0,1,2,3,4}, idx_to[] = {0,11,22,33,44};
-
     int idx_from[N], idx_to[N];
     for(i = 0; i < N; i++) {
         idx_from[i] = i;
@@ -1396,9 +1646,15 @@ PetscErrorCode setRHS_T(Vec &RHS, const Vec &g, const PetscScalar &h_11,
  *
  *
  */
-PetscErrorCode MyMatMult() {
+PetscErrorCode MyMatMult(Mat A, Vec x, Vec b) {
     PetscErrorCode ierr = 0;
-    
+    void           *ptr;
+    AppCtx         *user;
+    MatShellGetContext(A,&ptr);
+    user = (AppCtx*)ptr;
+    // Insert what the multiplication operation should do!
+
+
 
     return ierr;
 }
@@ -1509,7 +1765,7 @@ PetscErrorCode Solve_Linear_Equation() {
     ierr = setRHS_L(RHS, l, h_11, alpha_L, da);CHKERRQ(ierr);
     ierr = setRHS_R(RHS, r, h_11, alpha_R, da);CHKERRQ(ierr);
 
-    //PRINT RHS
+    // PRINT RHS
     /*
     Vec local_RHS_print;
     ierr = DMCreateLocalVector(da, &local_RHS_print);CHKERRQ(ierr);
@@ -1554,8 +1810,8 @@ int main(int argc,char **argv)
 {
   PetscErrorCode ierr = 0;
   PetscInitialize(&argc,&argv,(char*)0,NULL);
-  //ierr = MMSTest();CHKERRQ(ierr);
-  ierr = Solve_Linear_Equation();CHKERRQ(ierr);
+  ierr = MMSTest();CHKERRQ(ierr);
+  //ierr = Solve_Linear_Equation();CHKERRQ(ierr);
   PetscFinalize();
   return ierr;
 }
