@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N lowV1e9D15_Lz24
-#PBS -l nodes=1:ppn=16
+#PBS -N Ly60_gradient/lcD20_Ly60_bcR0
+#PBS -l nodes=2:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e ../maxwellVisc/layered/lowV1e9D15_Lz24.err
-#PBS -o ../maxwellVisc/layered/lowV1e9D15_Lz24.out
+#PBS -e /data/dunham/kallison/maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60.err
+#PBS -o /data/dunham/kallison/maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqCycle

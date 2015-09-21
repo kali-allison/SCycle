@@ -50,7 +50,7 @@ class Fault: public RootFinderContext
     PetscScalar    _sigma_N_min,_sigma_N_max;
     Vec            _sigma_N;
 
-    Vec            _zPlus;
+    Vec            _zP;
     PetscScalar   *_muArrPlus,*_csArrPlus;
     Vec            _slip,_slipVel;
 
@@ -66,7 +66,7 @@ class Fault: public RootFinderContext
 
   //~public:
     std::vector<Vec>    _var;
-    Vec            _tauQSPlus;
+    Vec            _tauQSP;
 
     // iterators for _var
     typedef typename std::vector<Vec>::iterator it_vec;
@@ -138,10 +138,10 @@ class FullFault: public Fault
   public:
 
     // fields that exist on left split nodes
-    Vec            _zMinus;
+    Vec            _zM;
     PetscScalar   *_muArrMinus,*_csArrMinus;
     PetscInt       _arrSize; // size of _muArrMinus
-    Vec            _uPlus,_uMinus,_velPlus,_velMinus;
+    Vec            _uP,_uM,_velPlus,_velMinus;
 
 
     // time-integrated variables

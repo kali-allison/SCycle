@@ -10,10 +10,10 @@ Domain::Domain(const char *file)
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muPlus(NULL),
+  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muP(NULL),
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
+  _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
   _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
   _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
   _linSolver("unspecified"),_kspTol(-1),
@@ -45,7 +45,7 @@ Domain::Domain(const char *file)
 
   checkInput(); // perform some basic value checking to prevent NaNs
 
-  MatCreate(PETSC_COMM_WORLD,&_muPlus);
+  MatCreate(PETSC_COMM_WORLD,&_muP);
 
   // if loading fields from source vecs
   if (_shearDistribution.compare("CVM")==0 ) {
@@ -61,7 +61,7 @@ Domain::Domain(const char *file)
     setFieldsPlus();
     setNormalStress();
     if (_problemType.compare("full")==0) {
-      MatCreate(PETSC_COMM_WORLD,&_muMinus);
+      MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
     }
   }
@@ -81,10 +81,10 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muPlus(NULL),
+  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muP(NULL),
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),_muMinus(NULL),
+  _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
   _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
   _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
   _linSolver("unspecified"),_kspTol(-1),
@@ -120,7 +120,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
 
-  MatCreate(PETSC_COMM_WORLD,&_muPlus);
+  MatCreate(PETSC_COMM_WORLD,&_muP);
 
   // if loading fields from source vecs
   if (_shearDistribution.compare("CVM")==0 ) {
@@ -136,7 +136,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
     setFieldsPlus();
     setNormalStress();
     if (_problemType.compare("full")==0) {
-      MatCreate(PETSC_COMM_WORLD,&_muMinus);
+      MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
     }
   }
@@ -163,8 +163,8 @@ Domain::~Domain()
   PetscFree(_muArrMinus);
   PetscFree(_csArrMinus);
 
-  MatDestroy(&_muPlus);
-  MatDestroy(&_muMinus);
+  MatDestroy(&_muP);
+  MatDestroy(&_muM);
 
   VecDestroy(&_visc);
 
@@ -806,7 +806,7 @@ PetscErrorCode Domain::write()
   // output shear modulus matrix
   str =  _outputDir + "muPlus";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_muPlus,viewer);CHKERRQ(ierr);
+  ierr = MatView(_muP,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output viscosity vector
@@ -825,7 +825,7 @@ PetscErrorCode Domain::write()
   {
     str =  _outputDir + "muMinus";
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-    ierr = MatView(_muMinus,viewer);CHKERRQ(ierr);
+    ierr = MatView(_muM,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
 
@@ -862,24 +862,43 @@ PetscErrorCode Domain::setFieldsPlus()
 
   // set viscosity
   ierr = VecDuplicate(muVec,&_visc);CHKERRQ(ierr);
-  // control on transition of viscosity (somewhat arbitrary choice)
-  PetscScalar transToLowCrust = 2.5 + _depthUpToLowCrust; // km
   PetscInt Istart,Iend;
   ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
+
+  // layered viscosity
+  // control on transition of viscosity (somewhat arbitrary choice)
+  //~PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
+  //~for (Ii=Istart;Ii<Iend;Ii++)
+  //~{
+    //~z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
+    //~else if (z <= transToLowCrust){
+      //visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
+             //+ _viscUpCrust;
+      //~visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-transToLowCrust)
+             //~+ log10(_viscUpCrust);
+      //~visc = pow(10,visc);
+    //~}
+    //~else { visc = _viscLowCrust; }
+    //~ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+
+  // gradient starting at lower crust
   for (Ii=Istart;Ii<Iend;Ii++)
   {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
     if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
-    else if (z <= transToLowCrust){
-      visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
-             + _viscUpCrust;
+    else {
+      visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-_Lz)
+             + log10(_viscUpCrust);
+      visc = pow(10,visc);
     }
-    else { visc = _viscLowCrust; }
-    //~visc = _viscLowCrust;
     ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
   }
-    ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+
+
+  ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
 
 
   // set shear modulus, shear wave speed, and density
@@ -927,12 +946,12 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_muPlus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muPlus);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muPlus,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muPlus,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);
@@ -1009,12 +1028,12 @@ PetscErrorCode Domain::setFieldsMinus()
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_muMinus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muMinus);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muMinus,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muMinus,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muMinus);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muMinus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetSizes(_muM,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_muM);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_muM,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_muM,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_muM);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muM,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
   PetscFree(muInds);
@@ -1121,7 +1140,7 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   }
 
 
-  // load shear modulus distribution from file, put into _muArrPlus AND _muPlus
+  // load shear modulus distribution from file, put into _muArrPlus AND _muP
   Vec  localMu;
   PetscScalar mu;
   vecSourceFile = _inputDir + "shear";
@@ -1146,12 +1165,25 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_muPlus,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muPlus);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muPlus,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muPlus,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muPlus);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muPlus,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
+  ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
+
+
+  // load viscosity from input file
+  vecSourceFile = _inputDir + "visc";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_visc);     PetscObjectSetName((PetscObject) _visc, "_visc");
+  ierr = VecLoad(_visc,inv);CHKERRQ(ierr);
 
 
 

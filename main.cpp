@@ -17,6 +17,54 @@
 
 using namespace std;
 
+
+int rewriteMatlabIO()
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar v = 0;
+  Vec            vec;
+
+  VecCreate(PETSC_COMM_WORLD,&vec);
+  VecSetSizes(vec,PETSC_DECIDE,6);
+  VecSetFromOptions(vec);
+  PetscObjectSetName((PetscObject) vec, "vec");
+  VecSet(vec,1.0);
+
+  PetscInt Ii,Istart,Iend;
+
+  VecGetOwnershipRange(vec,&Istart,&Iend);
+  for(Ii=Istart;Ii<Iend;Ii++)
+  {
+    v = Ii + 1;
+    VecSetValue(vec,Ii,v,INSERT_VALUES);
+  }
+  VecAssemblyBegin(vec);
+  VecAssemblyEnd(vec);
+
+  // set up viewer
+  PetscViewer vw;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,"vec",FILE_MODE_WRITE,&vw);
+  VecView(vec,vw);
+  PetscViewerDestroy(&vw);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,"vec",FILE_MODE_APPEND,&vw);
+
+  for (int i=2;i<8;i++)
+  {
+    //~v = (double) i;
+    VecScale(vec,2.0);
+    VecView(vec,vw);
+  }
+
+
+  VecDestroy(&vec);
+  PetscViewerDestroy(&vw);
+
+
+  return ierr;
+}
+
+
+
 int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
@@ -26,8 +74,8 @@ int runTests(const char * inputFile)
   //~domain.write();
 
 
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
-  //~MatView(domain._muPlus,PETSC_VIEWER_STDOUT_WORLD);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+  //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
   //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
@@ -151,6 +199,7 @@ int runEqCycle(const char * inputFile)
   //~else {
     //~lith = new FullLinearElastic(domain);
   //~}
+
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);

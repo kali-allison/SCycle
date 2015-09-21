@@ -15,19 +15,20 @@
 class SymmMaxwellViscoelastic: public SymmLinearElastic
 {
   protected:
-    //~PetscScalar _visc; // viscosity
     Vec         _visc;
 
-    Vec         _strainV_xyPlus,_dstrainV_xyPlus; // viscoelastic strain, and strain rate
-    Vec         _strainV_xzPlus,_dstrainV_xzPlus; // viscoelastic strain, and strain rate
-    PetscViewer _strainV_xyPlusV, _dstrainV_xyPlusV;
-    PetscViewer _strainV_xzPlusV, _dstrainV_xzPlusV;
+    Vec         _epsVxyP,_depsVxyP; // viscoelastic strain, and strain rate
+    Vec         _epsVxzP,_depsVxzP; // viscoelastic strain, and strain rate
 
-    Vec _epsTotxy;
-    PetscViewer _epsTotxyV;
+    PetscViewer _epsVxyPV,_depsVxyPV;
+    PetscViewer _epsVxzPV,_depsVxzPV;
 
-    // extra viewers for debugging
-    PetscViewer _sigma_xyPlusV;
+    // additional body fields for visualization
+    Vec         _epsTotxyP,_epsTotxzP; // total strain
+    PetscViewer _epsTotxyPV,_epsTotxzPV;
+    Vec         _stressxzP;
+    PetscViewer _stressxyPV,_stressxzPV;
+
 
   public:
     SymmMaxwellViscoelastic(Domain&D);
