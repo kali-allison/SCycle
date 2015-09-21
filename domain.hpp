@@ -35,12 +35,12 @@ class Domain
     PetscScalar  _muInPlus,_muOutPlus,_rhoInPlus,_rhoOutPlus; // if basin
     PetscScalar  _depth,_width;
     PetscScalar *_muArrPlus,*_csArrPlus,*_sigmaNArr; // general data containers
-    Mat          _muPlus;
+    Mat          _muP;
     // - side fields (sometimes initiated)
     PetscScalar  _muValMinus,_rhoValMinus; // if constant
     PetscScalar  _muInMinus,_muOutMinus,_rhoInMinus,_rhoOutMinus; // if basin
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
-    Mat          _muMinus;
+    Mat          _muM;
 
     // viscosity for asthenosphere
     PetscScalar  _viscUpCrust; // viscosity in upper crust

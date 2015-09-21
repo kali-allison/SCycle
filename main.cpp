@@ -26,8 +26,8 @@ int runTests(const char * inputFile)
   //~domain.write();
 
 
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
-  //~MatView(domain._muPlus,PETSC_VIEWER_STDOUT_WORLD);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+  //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
   //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
@@ -151,6 +151,7 @@ int runEqCycle(const char * inputFile)
   //~else {
     //~lith = new FullLinearElastic(domain);
   //~}
+
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
   ierr = lith->integrate();CHKERRQ(ierr);

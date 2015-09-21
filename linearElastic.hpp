@@ -37,17 +37,17 @@ class LinearElastic: public IntegratorContext
 
     // off-fault material fields: + side
     PetscScalar         *_muArrPlus;
-    Mat                  _muPlus;
-    Vec                  _bcRPlusShift,_surfDispPlus;
-    Vec                  _rhsPlus,_uPlus,_sigma_xyPlus;
+    Mat                  _muP;
+    Vec                  _bcRPShift,_surfDispPlus;
+    Vec                  _rhsP,_uP,_stressxyP;
 
     // linear system data
     std::string          _linSolver;
-    KSP                  _kspPlus;
-    PC                   _pcPlus;
+    KSP                  _kspP;
+    PC                   _pcP;
     PetscScalar          _kspTol;
 
-    SbpOps               _sbpPlus;
+    SbpOps               _sbpP;
 
     // time stepping data
     std::string          _timeIntegrator;
@@ -59,14 +59,14 @@ class LinearElastic: public IntegratorContext
     PetscScalar          _initDeltaT;
 
     // viewers
-    PetscViewer          _timeViewer,_surfDispPlusViewer;//,_uhatViewer;
+    PetscViewer          _timeViewer,_surfDispPlusViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
     PetscViewer          _bcRPlusV,_bcRMinusV,_bcRMinusShiftV,_bcRMlusShiftV,_bcLPlusV,_bcLMinusV,
-                         _uPlusV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
+                         _uPV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
 
 
     PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
@@ -74,7 +74,7 @@ class LinearElastic: public IntegratorContext
   public:
 
     // boundary conditions
-    Vec                  _bcTPlus,_bcRPlus,_bcBPlus,_bcLPlus;
+    Vec                  _bcTP,_bcRP,_bcBP,_bcLP;
 
     OdeSolver           *_quadrature;
     //~Fault               *_fault;
@@ -165,14 +165,14 @@ class FullLinearElastic: public LinearElastic
 
     // off-fault material fields: - side
     PetscScalar         *_muArrMinus;
-    Mat                  _muMinus;
-    Vec                  _bcLMinusShift,_surfDispMinus;
-    Vec                  _rhsMinus,_uMinus,_sigma_xyMinus;
+    Mat                  _muM;
+    Vec                  _bcLMShift,_surfDispMinus;
+    Vec                  _rhsM,_uM,_sigma_xyMinus;
 
     PetscViewer          _surfDispMinusViewer;
 
     // linear system data
-    KSP                  _kspMinus;
+    KSP                  _kspM;
     PC                   _pcMinus;
 
     SbpOps               _sbpMinus;

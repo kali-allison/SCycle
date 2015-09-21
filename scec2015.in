@@ -1,6 +1,6 @@
 order = 4
-Ny = 501
-Nz = 401
+Ny = 1251
+Nz = 1001
 Ly = 60 # km
 Lz = 48 # km
 
@@ -16,7 +16,8 @@ sigma_N_max = 50 # MPa
 
 vp = 1e-9    # m/s
 
-shearDistribution = constant
+inputDir = inputData/
+shearDistribution = CVM
 {
 problem = symmetric
 muPlus = 30 # GPa
@@ -31,9 +32,9 @@ depth = 5
 width = 24
 }
 
-viscUpCrust = 1e20 # GPa s
-viscLowCrust = 1e8 # GPa s
-viscAsth = 1e8 # GPa s
+viscUpCrust = 4e12 # GPa s
+viscLowCrust = 4e12 # GPa s
+viscAsth = 4e12 # GPa s
 depthUpToLowCrust = 20 # km
 depthLowCrustToAsth = 60 # km
 
@@ -45,11 +46,13 @@ timeControlType = P
 strideLength = 10
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1e12      # s recommended: 1e11
+maxTime = 1e11      # s recommended: 1e11
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = ../maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60_
+#outputDir = ../maxwellVisc/1D/v1e17_Ly24_
+#outputDir = ../maxwellVisc/2D_uniformVisc/v4e12_Ly72_
+outputDir = /data/dunham/kallison/scec2015/bcRNz_
