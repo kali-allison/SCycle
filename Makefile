@@ -1,15 +1,21 @@
 all: main
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
-CFLAGS          = $(DEBUG_MODULES)
+CFLAGS          = $(DEBUG_MODULES) -std=c++0x
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps.o spmat.o testOdeSolver.o
 
-include ${PETSC_DIR}/conf/variables
-include ${PETSC_DIR}/conf/rules
+ifeq (${PETSC_VERSION_NUM},4)
+	include ${PETSC_DIR}/conf/variables
+	include ${PETSC_DIR}/conf/rules
+else
+	include ${PETSC_DIR}/lib/petsc/conf/variables
+	include ${PETSC_DIR}/lib/petsc/conf/rules
+endif
+
 
 trial:
 	@echo ${PETSC_VERSION_NUM}
