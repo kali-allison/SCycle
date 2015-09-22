@@ -22,11 +22,6 @@ problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 
-#muInPlus = 12
-#muOutPlus = 36
-#rhoInPlus = 2.2
-#rhoOutPlus = 2.8
-
 depth = 5
 width = 24
 }

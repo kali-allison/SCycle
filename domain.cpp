@@ -33,7 +33,6 @@ Domain::Domain(const char *file)
   else (_dz = 1);
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
-  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n minDeltaT=%g\n\n");
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
