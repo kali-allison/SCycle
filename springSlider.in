@@ -1,49 +1,50 @@
-order = 2
+order = 4
 Ny = 21
 Nz = 1
-Ly = 24
-Lz = 24
+Ly = 24 # km
+Lz = 24 # km
 
-Dc = 8e-3
+Dc = 8e-3 # m
 
-seisDepth = 12
+seisDepth = 12 # km
 a = 0.015
+bBasin = 0.02
 bAbove = 0.02
-bBelow = 0.02
-sigma_N_min = 50.0
-sigma_N_max = 50.0
+bBelow = 0.0
+sigma_N_min = 50 # MPa
+sigma_N_max = 50 # MPa
 
-vp = 2e-4
+vp = 1e-9    # m/s
 
 shearDistribution = constant
 {
 problem = symmetric
-muPlus = 36
-rhoPlus = 3.0
+muPlus = 30 # GPa
+rhoPlus = 2.8 # g/cm^3
 
-muMinus = 18
-rhoMinus = 3.0
-
-depth = 4
+depth = 5
 width = 24
 }
 
-linSolver = MUMPSCHOLESKY
+viscUpCrust = 1e20 # GPa s
+viscLowCrust = 1e8 # GPa s
+viscAsth = 1e8 # GPa s
+depthUpToLowCrust = 20 # km
+depthLowCrustToAsth = 60 # km
+
+linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 3e5
-initTime = 0
-maxTime = 5e5
-minDeltaT = 1e-5
-maxDeltaT = 1e7
-initDeltaT = 10
+maxStepCount = 10
+initTime = 0       # s
+maxTime = 1e12      # s
+minDeltaT = 1e-3     # s
+maxDeltaT = 1e7      # s
 atol = 1e-7
 
-rootTol = 1e-12
+rootTol = 1e-9
 
-outputDir = data/SS_full_
-
-
+outputDir = data/

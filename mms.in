@@ -4,34 +4,46 @@ Nz = 21
 Ly = 6.283185307179586
 Lz = 6.283185307179586
 
-Dc = 8e-3
+Dc = 8e-3 # m
 
-seisDepth = 12
+seisDepth = 12 # km
 a = 0.015
+bBasin = 0.02
 bAbove = 0.02
 bBelow = 0.0
-sigma_N = 50.0
-vp = 1e-9
+sigma_N_min = 50 # MPa
+sigma_N_max = 50 # MPa
 
-shearDistribution = mms
+vp = 1e-9    # m/s
+
+shearDistribution = constant
 {
 problem = symmetric
-muPlus = 16
-rhoPlus = 2.8
+muPlus = 30 # GPa
+rhoPlus = 2.8 # g/cm^3
+
+depth = 5
+width = 24
 }
+
+viscUpCrust = 1e20 # GPa s
+viscLowCrust = 1e8 # GPa s
+viscAsth = 1e8 # GPa s
+depthUpToLowCrust = 20 # km
+depthLowCrustToAsth = 60 # km
 
 linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
-initTime = 6.3e9
-maxTime = 5e11
-minDeltaT = 1e-3
-maxDeltaT = 1e7
-atol = 1e-5
+strideLength = 1
+maxStepCount = 10
+initTime = 0       # s
+maxTime = 1e12      # s
+minDeltaT = 1e-3     # s
+maxDeltaT = 1e7      # s
+atol = 1e-7
 
 rootTol = 1e-9
 
