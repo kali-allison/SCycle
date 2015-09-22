@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -10,6 +10,9 @@ OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
 
 include ${PETSC_DIR}/conf/variables
 include ${PETSC_DIR}/conf/rules
+
+trial:
+	@echo ${PETSC_VERSION_NUM}
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}

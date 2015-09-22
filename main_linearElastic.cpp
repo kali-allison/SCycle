@@ -25,7 +25,6 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~runEqCycle(inputFile);
   {
     Domain domain(inputFile);
     domain.write();
