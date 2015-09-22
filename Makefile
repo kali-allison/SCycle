@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -25,7 +25,6 @@ testMain: testMain.o $(OBJECTS)
 helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm helloWorld.o
-
 
 #.PHONY : clean
 clean::

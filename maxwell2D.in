@@ -1,6 +1,6 @@
 order = 4
-Ny = 501
-Nz = 401
+Ny = 21
+Nz = 21
 Ly = 60 # km
 Lz = 48 # km
 
@@ -42,8 +42,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
+strideLength = 1
+maxStepCount = 10
 initTime = 0       # s
 maxTime = 1e12      # s recommended: 1e11
 minDeltaT = 1e-3     # s
@@ -52,4 +52,5 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = ../maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60_
+#outputDir = ../maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60_
+outputDir = data/

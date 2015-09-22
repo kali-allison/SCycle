@@ -7,6 +7,7 @@ int main(int argc,char **args)
 
   PetscErrorCode ierr = 0;
 
+  PetscPrintf(PETSC_COMM_WORLD,"Hello\n");
 
   PetscFinalize();
   return ierr;
