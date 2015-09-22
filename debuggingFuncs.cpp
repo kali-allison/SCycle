@@ -147,7 +147,7 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending printMyArray in debuggingFuncs.c\n")
 // prints 1d array representing 2d matrix
 PetscErrorCode printMy2DArray(PetscScalar *myArray, PetscInt Nrow, PetscInt Ncol)
 {
-  PetscErrorCode ierr;
+  PetscErrorCode ierr = 0;
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting printMy2DArray in debuggingFuncs.c\n\n\n");CHKERRQ(ierr);
 #endif
