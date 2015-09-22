@@ -12,8 +12,8 @@ ifeq (${PETSC_VERSION_NUM},4)
 	include ${PETSC_DIR}/conf/variables
 	include ${PETSC_DIR}/conf/rules
 else
-	include ${PETSC_DIR}/lib/petsc/conf/variables
-	include ${PETSC_DIR}/lib/petsc/conf/rules
+	include ${PETSC_DIR}/real/lib/petsc/conf/variables
+	include ${PETSC_DIR}/real/lib/petsc/conf/rules
 endif
 
 
@@ -46,8 +46,11 @@ clean::
 depend:
 	-g++ -MM *.c*
 
-include ${PETSC_DIR}/conf/test
-
+ifeq (${PETSC_VERSION_NUM},4)
+	include ${PETSC_DIR}/conf/test
+else
+        include ${PETSC_DIR}/real/lib/petsc/conf/test
+endif
 #=========================================================
 # Dependencies
 #=========================================================
