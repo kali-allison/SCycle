@@ -22,15 +22,16 @@ int runTests(const char * inputFile)
 
   Domain domain(inputFile);
   //~Domain domain(inputFile,5,4);
-  //~domain.write();
+  domain.write();
 
 
   //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
   //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
   //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
-  //~SymmFault fault(domain);
-  SymmLinearElastic lith(domain);
+  SymmFault fault(domain);
+  fault.writeContext(domain._outputDir);
+  //~SymmLinearElastic lith(domain);
 
 
 

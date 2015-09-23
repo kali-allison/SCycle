@@ -5,7 +5,6 @@ using namespace std;
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
-  _seisDepth(-1),_aVal(-1),_bBasin(-1),_bAbove(-1),_bBelow(-1),
   _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
@@ -20,7 +19,7 @@ Domain::Domain(const char *file)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -75,7 +74,6 @@ Domain::Domain(const char *file)
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
-  _seisDepth(-1),_aVal(-1),_bBasin(-1),_bAbove(-1),_bBelow(-1),
   _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
@@ -90,7 +88,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
@@ -185,178 +183,96 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  // temporary char arrays used to set std::string data members
-  int charSize = 200;
-  char *outputDir = (char *) malloc(sizeof(char)*charSize+1);
-  char *linSolver = (char *) malloc(sizeof(char)*charSize+1);
-  char *problemType = (char *) malloc(sizeof(char)*charSize+1);
-  char *shearDistribution = (char *) malloc(sizeof(char)*charSize+1);
-  char *inputDir = (char *) malloc(sizeof(char)*charSize+1);
-  char *timeIntegrator = (char *) malloc(sizeof(char)*charSize+1);
-  char *timeControlType = (char *) malloc(sizeof(char)*charSize+1);
 
-  // 1 processor loads settings from file, communicates variables to all other processors
-  if (rank==0) {
-    ifstream infile( file );
-    string line,var;
-    //~string delim = " = ";
-    size_t pos = 0;
-    while (getline(infile, line))
-    {
-      istringstream iss(line);
-      pos = line.find(_delim); // find position of delimiter
-      var = line.substr(0,pos);
+  ifstream infile( file );
+  string line,var;
+  //~string delim = " = ";
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
 
-      if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      //fault properties
-      else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("a")==0) { _aVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("bBasin")==0) { _bBasin = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("bAbove")==0) { _bAbove = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("bBelow")==0) { _bBelow = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    //fault properties
+    else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      else if (var.compare("vp")==0) { _vp = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("aVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_aVals);
+      _aLen = _aVals.size();
+    }
+    else if (var.compare("aDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_aDepths);
+    }
+    else if (var.compare("bVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_bVals);
+    }
+    else if (var.compare("bDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_bDepths);
+    }
 
-      // material properties
-      else if (var.compare("shearDistribution")==0) {
-        _shearDistribution = line.substr(pos+_delim.length(),line.npos);
-        strcpy(shearDistribution,_shearDistribution.c_str());
-        loadMaterialSettings(infile,problemType);
-      }
-      else if (var.compare("inputDir")==0) {
-        _inputDir = line.substr(pos+_delim.length(),line.npos);
-        strcpy(inputDir,_inputDir.c_str());
-      }
+    // material properties
+    else if (var.compare("shearDistribution")==0) {
+      _shearDistribution = line.substr(pos+_delim.length(),line.npos);
+      loadShearModSettings(infile);
+    }
+    else if (var.compare("inputDir")==0) {
+      _inputDir = line.substr(pos+_delim.length(),line.npos);
+    }
 
-      // viscosity for asthenosphere
-      else if (var.compare("viscUpCrust")==0) { _viscUpCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("viscLowCrust")==0) { _viscLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("viscAsth")==0) { _viscAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("depthUpToLowCrust")==0) { _depthUpToLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("depthLowCrustToAsth")==0) { _depthLowCrustToAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // viscosity for asthenosphere
+    else if (var.compare("viscUpCrust")==0) { _viscUpCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("viscLowCrust")==0) { _viscLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("viscAsth")==0) { _viscAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("depthUpToLowCrust")==0) { _depthUpToLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("depthLowCrustToAsth")==0) { _depthLowCrustToAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
 
-      // linear solver settings
-      else if (var.compare("linSolver")==0) {
-        _linSolver = line.substr(pos+_delim.length(),line.npos);
-        strcpy(linSolver,_linSolver.c_str());
-      }
-      else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // linear solver settings
+    else if (var.compare("linSolver")==0) {
+      _linSolver = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      // time integration properties
-      else if (var.compare("timeIntegrator")==0) {
-        _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
-        strcpy(timeIntegrator,_timeIntegrator.c_str());
-      }
-      else if (var.compare("timeControlType")==0) {
-        _timeControlType = line.substr(pos+_delim.length(),line.npos);
-        strcpy(timeControlType,_timeControlType.c_str());
-      }
-      else if (var.compare("strideLength")==0){ _strideLength = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-      else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // time integration properties
+    else if (var.compare("timeIntegrator")==0) {
+      _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("timeControlType")==0) {
+      _timeControlType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("strideLength")==0){ _strideLength = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      // other tolerances
-      else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // other tolerances
+    else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      // output directory
-      else if (var.compare("outputDir")==0) {
-        _outputDir =  line.substr(pos+_delim.length(),line.npos);
-        strcpy(outputDir,_outputDir.c_str());
-      }
+    // output directory
+    else if (var.compare("outputDir")==0) {
+      _outputDir =  line.substr(pos+_delim.length(),line.npos);
     }
   }
-
-  // send loaded values to all other processors
-  MPI_Bcast(&_order,1,MPI_INT,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_Ny,1,MPI_INT,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_Nz,1,MPI_INT,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_Ly,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_Lz,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&_Dc,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&_seisDepth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_aVal,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_bBasin,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_bAbove,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_sigma_N_min,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_sigma_N_max,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_vp,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&inputDir[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&problemType[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muValPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoValPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muInPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muOutPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoInPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoOutPlus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muValMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoValMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muInMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_muOutMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoInMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_rhoOutMinus,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_depth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_width,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&_viscUpCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_viscLowCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_viscAsth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_depthUpToLowCrust,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_depthLowCrustToAsth,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&linSolver[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_kspTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&timeIntegrator[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&timeControlType[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_strideLength,1,MPI_INT,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_maxStepCount,1,MPI_INT,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_initTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_maxTime,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_minDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_maxDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_initDeltaT,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_atol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&_rootTol,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-
-  MPI_Bcast(&outputDir[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
-
-  _outputDir = outputDir;
-  _linSolver = linSolver;
-  _shearDistribution = shearDistribution;
-  _inputDir = inputDir;
-  _problemType = problemType;
-  _timeIntegrator = timeIntegrator;
-  _timeControlType = timeControlType;
-
-
-  free(outputDir);
-  free(linSolver);
-  free(shearDistribution);
-  free(inputDir);
-  free(problemType);
-  free(timeIntegrator);
-  free(timeControlType);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
@@ -364,13 +280,50 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
-
-// load shear modulus structure from input file
-PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
+PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  size_t pos = 0; // position of delimiter in string
+  string delim = " "; // delimiter between values in list (whitespace sensitive)
+  string remstr; // holds remaining string as str is parsed through
+  double val; // holds values
+
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"About to start loading aVals:\n");
+  //~PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
+
+  // holds remainder as str is parsed through (with beginning and ending brackets removed)
+  pos = str.find("]");
+  remstr = str.substr(1,pos-1);
+  //~PetscPrintf(PETSC_COMM_WORLD,"remstr = %s\n",remstr.c_str());
+
+  pos = remstr.find(delim);
+  while (pos != remstr.npos) {
+    pos = remstr.find(delim);
+    val = atof( remstr.substr(0,pos).c_str() );
+    remstr = remstr.substr(pos + delim.length());
+    //~PetscPrintf(PETSC_COMM_WORLD,"val = %g  |  remstr = %s\n",val,remstr.c_str());
+    vec.push_back(val);
+  }
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// load shear modulus structure from input file
+PetscErrorCode Domain::loadShearModSettings(ifstream& infile)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadShearModSettings in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
 
@@ -392,8 +345,7 @@ PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
 
     else if (var.compare("problem")==0)
     {
-      std::string problemTypeString = line.substr(pos+_delim.length(),line.npos); // symmetric or full
-      strcpy(problemType,problemTypeString.c_str());
+      _problemType = line.substr(pos+_delim.length(),line.npos); // symmetric or full
     }
 
     else if (_shearDistribution.compare("basin")==0)
@@ -445,11 +397,23 @@ PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadShearModSettings in domain.cpp.\n");CHKERRQ(ierr);
   #endif
   return ierr;
 }
 
+// creates a string containing the contents of C++ std library vector
+string Domain::vector2str(const vector<double> vec)
+{
+  ostringstream ss;
+  for (vector<double>::const_iterator Ii=vec.begin(); Ii != vec.end(); Ii++) {
+    ss << " " << *Ii;
+  }
+  string str = "[" + ss.str() + "]";
+  //~PetscPrintf(PETSC_COMM_WORLD,"%s\n",str.c_str());
+
+  return str;
+}
 
 // Specified processor prints scalar/string data members to stdout.
 PetscErrorCode Domain::view(PetscMPIInt rank)
@@ -477,13 +441,10 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
 
     // fault properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"seisDepth = %f\n",_seisDepth);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bBasin = %f\n",_bBasin);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bAbove = %f\n",_bAbove);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bBelow = %f\n",_bBelow);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vp);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // sedimentary basin properties
@@ -586,15 +547,13 @@ PetscErrorCode Domain::checkInput()
 
   assert(_Dc > 0 );
   assert(_seisDepth > 0);
-  assert(_aVal > 0);
-  assert(_bAbove >= 0);
-  assert(_bBelow >= 0);
-  if(_bBasin<0) { _bBasin=_bAbove; } // accept older input files
+  assert(_aVals.size() == _aDepths.size() );
+  assert(_bVals.size() == _bDepths.size() );
   assert(_sigma_N_min > 0);
   assert(_sigma_N_max > 0);
   assert(_sigma_N_max >= _sigma_N_min);
 
-  assert(_vp > 0);
+  assert(_vL > 0);
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -701,13 +660,14 @@ PetscErrorCode Domain::write()
 
   // fault properties
   ierr = PetscViewerASCIIPrintf(viewer,"seisDepth = %.15e\n",_seisDepth);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bBasin = %.15e\n",_bBasin);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bAbove = %.15e\n",_bAbove);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bBelow = %.15e\n",_bBelow);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_aVals = %s\n",vector2str(_aVals).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_aDepths = %s\n",vector2str(_aDepths).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_bVals = %s\n",vector2str(_bVals).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_bDepths = %s\n",vector2str(_bDepths).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vp);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"visc = %.15e\n",_visc);CHKERRQ(ierr);

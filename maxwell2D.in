@@ -14,7 +14,7 @@ bBelow = 0.0
 sigma_N_min = 50 # MPa
 sigma_N_max = 50 # MPa
 
-vp = 1e-9    # m/s
+vL = 1e-9    # m/s
 
 shearDistribution = constant
 {

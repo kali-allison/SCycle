@@ -41,7 +41,7 @@ class Fault: public RootFinderContext
 
    // fields that are identical on split nodes
    PetscScalar    _seisDepth,_f0,_v0,_vL;
-   PetscScalar    _aVal,_bBasin,_bAbove,_bBelow;
+   std::vector<double> _aVals,_aDepths,_bVals,_bDepths;
    Vec            _a,_b;
    Vec            _psi,_tempPsi,_dPsi;
 
@@ -63,6 +63,8 @@ class Fault: public RootFinderContext
     // disable default copy constructor and assignment operator
     Fault(const Fault & that);
     Fault& operator=( const Fault& rhs);
+
+    PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
 
   //~public:
     std::vector<Vec>    _var;

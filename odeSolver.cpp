@@ -83,7 +83,7 @@ PetscErrorCode FEuler::view()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::view in odeSolver.cpp.\n");
 #endif
-  PetscErrorCode ierr;
+  PetscErrorCode ierr = 0;
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTimeSolver summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: forward euler\n");CHKERRQ(ierr);
@@ -200,7 +200,7 @@ RK32::~RK32()
 
 PetscErrorCode RK32::view()
 {
-  PetscErrorCode ierr;
+  PetscErrorCode ierr = 0;
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
