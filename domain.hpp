@@ -26,7 +26,6 @@ class Domain
     PetscScalar  _Ly,_Lz,_dy,_dz,_Dc;
 
     // fault properties
-    PetscScalar  _seisDepth;
     PetscScalar  _sigma_N_min,_sigma_N_max;
     Vec          _sigma_N;
     vector<double> _aVals,_aDepths,_bVals,_bDepths;
@@ -48,12 +47,10 @@ class Domain
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
     Mat          _muM;
 
-    // viscosity for asthenosphere
-    PetscScalar  _viscUpCrust; // viscosity in upper crust
-    PetscScalar  _viscLowCrust; // viscosity in lower crust
-    PetscScalar  _viscAsth; // viscosity in uppermost asthenosphere
+    // viscosity distribution properties
+    std::string  _viscDistribution; // options: mms, layered
+    std::vector<double> _viscVals,_viscDepths;
     Vec          _visc; // contains full viscosity field
-    PetscScalar _depthUpToLowCrust, _depthLowCrustToAsth; // transition depths
 
 
     // linear solver settings

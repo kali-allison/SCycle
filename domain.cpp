@@ -13,8 +13,7 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
-  _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
+  _viscDistribution("unspecified"),_visc(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -82,8 +81,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  _viscUpCrust(nan("")),_viscLowCrust(nan("")),_viscAsth(nan("")),_visc(NULL),
-  _depthUpToLowCrust(nan("")), _depthLowCrustToAsth(nan("")),
+  _viscDistribution("unspecified"),_visc(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -203,7 +201,6 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     //fault properties
-    else if (var.compare("seisDepth")==0) { _seisDepth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
@@ -236,11 +233,15 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
     // viscosity for asthenosphere
-    else if (var.compare("viscUpCrust")==0) { _viscUpCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("viscLowCrust")==0) { _viscLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("viscAsth")==0) { _viscAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("depthUpToLowCrust")==0) { _depthUpToLowCrust = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("depthLowCrustToAsth")==0) { _depthLowCrustToAsth = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("viscDistribution")==0) { _viscDistribution = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("viscVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_viscVals);
+      }
+    else if (var.compare("viscDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_viscDepths);
+      }
 
 
     // linear solver settings
@@ -440,7 +441,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // fault properties
-    ierr = PetscPrintf(PETSC_COMM_SELF,"seisDepth = %f\n",_seisDepth);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -546,7 +546,6 @@ PetscErrorCode Domain::checkInput()
   assert( _dz > 0 && !isnan(_dz) );
 
   assert(_Dc > 0 );
-  assert(_seisDepth > 0);
   assert(_aVals.size() == _aDepths.size() );
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigma_N_min > 0);
@@ -554,6 +553,8 @@ PetscErrorCode Domain::checkInput()
   assert(_sigma_N_max >= _sigma_N_min);
 
   assert(_vL > 0);
+
+  assert(_viscVals.size() == _viscDepths.size() );
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -601,18 +602,19 @@ PetscErrorCode Domain::checkInput()
     assert(_muOutPlus>=1e-14);
     assert(_rhoInPlus>=1e-14);
     assert(_rhoOutPlus>=1e-14);
+    assert(_depth>=1e-14);
+    assert(_width>=1e-14);
     if (_problemType.compare("full")==0) {
       assert(_muInMinus>=1e-14);
-    assert(_muOutMinus>=1e-14);
-    assert(_rhoInMinus>=1e-14);
-    assert(_rhoOutMinus>=1e-14);
+      assert(_muOutMinus>=1e-14);
+      assert(_rhoInMinus>=1e-14);
+      assert(_rhoOutMinus>=1e-14);
     }
   }
   else if (_shearDistribution.compare("CVM")==0) {
     assert(_inputDir.compare("unspecified") != 0); // input dir must be specified
   }
-  assert(_depth>=1e-14);
-  assert(_width>=1e-14);
+
 
   assert(_shearDistribution.compare("CVM")!=0 || _problemType.compare("full")!=0 );
 
@@ -659,7 +661,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // fault properties
-  ierr = PetscViewerASCIIPrintf(viewer,"seisDepth = %.15e\n",_seisDepth);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"_aVals = %s\n",vector2str(_aVals).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"_aDepths = %s\n",vector2str(_aDepths).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"_bVals = %s\n",vector2str(_bVals).c_str());CHKERRQ(ierr);
@@ -720,11 +721,8 @@ PetscErrorCode Domain::write()
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"viscUpCrust = %.15e\n",_viscUpCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"viscLowCrust = %.15e\n",_viscLowCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"viscAsth = %.15e\n",_viscAsth);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"depthUpToLowCrust = %.15e\n",_depthUpToLowCrust);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"depthLowCrustToAsth = %.15e\n",_depthLowCrustToAsth);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_viscVals = %s\n",vector2str(_viscVals).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"_viscDepths = %s\n",vector2str(_viscDepths).c_str());CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
@@ -806,7 +804,7 @@ PetscErrorCode Domain::setFieldsPlus()
 #endif
 
   PetscInt       Ii;
-  PetscScalar    v,y,z,csIn,csOut,visc;
+  PetscScalar    v,y,z,csIn,csOut;
 
   Vec muVec;
   PetscInt *muInds;
@@ -825,39 +823,64 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
 
   // layered viscosity
-  // control on transition of viscosity (somewhat arbitrary choice)
-  //~PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
-  //~for (Ii=Istart;Ii<Iend;Ii++)
-  //~{
-    //~z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
-    //~else if (z <= transToLowCrust){
-      //visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
-             //+ _viscUpCrust;
-      //~visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-transToLowCrust)
-             //~+ log10(_viscUpCrust);
-      //~visc = pow(10,visc);
-    //~}
-    //~else { visc = _viscLowCrust; }
-    //~ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-
-  // gradient starting at lower crust
+  //~// control on transition of viscosity (somewhat arbitrary choice)
+  /*PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
   for (Ii=Istart;Ii<Iend;Ii++)
   {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
     if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
-    else {
-      visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-_Lz)
+    else if (z <= transToLowCrust){
+      //~//visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
+             //~//+ _viscUpCrust;
+      visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-transToLowCrust)
              + log10(_viscUpCrust);
       visc = pow(10,visc);
     }
+    else { visc = _viscLowCrust; }
     ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
+  }*/
+
+  //~// gradient starting at lower crust
+  //~for (Ii=Istart;Ii<Iend;Ii++)
+  //~{
+    //~z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
+    //~else {
+      //~visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-_Lz)
+             //~+ log10(_viscUpCrust);
+      //~visc = pow(10,visc);
+    //~}
+    //~ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+
+  //~VecView(_visc,PETSC_VIEWER_STDOUT_WORLD);
+
+  // build viscosity structure for generalized input
+  size_t vecLen = _viscDepths.size();
+  PetscScalar z0,z1,v0,v1;
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = _viscDepths[0+ind];
+        z1 = _viscDepths[0+ind+1];
+        v0 = log10(_viscVals[0+ind]);
+        v1 = log10(_viscVals[0+ind+1]);
+        //~PetscPrintf(PETSC_COMM_WORLD,"  ind=%i: z0 = %g | z1 = %g | v0 = %g  | v1 = %g\n",ind,z0,z1,v0,v1);
+        if (z>=z0 && z<=z1) {
+          v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
+          v = pow(10,v);
+          }
+        ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
-
-
   ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+
+
 
 
   // set shear modulus, shear wave speed, and density
@@ -890,7 +913,7 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     else if (_shearDistribution.compare("mms")==0) {
        _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
-      v = sin(y+z) + 2.0;
+      v = sin(y)*sin(z) + 2.0;
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
@@ -898,7 +921,6 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
-
   }
 
   ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);

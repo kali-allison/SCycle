@@ -40,7 +40,7 @@ class Fault: public RootFinderContext
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
    // fields that are identical on split nodes
-   PetscScalar    _seisDepth,_f0,_v0,_vL;
+   PetscScalar    _f0,_v0,_vL;
    std::vector<double> _aVals,_aDepths,_bVals,_bDepths;
    Vec            _a,_b;
    Vec            _psi,_tempPsi,_dPsi;

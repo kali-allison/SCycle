@@ -10,7 +10,7 @@ Fault::Fault(Domain&D)
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
-  _seisDepth(D._seisDepth),_f0(D._f0),_v0(D._v0),_vL(D._vL),
+  _f0(D._f0),_v0(D._v0),_vL(D._vL),
   _aVals(D._aVals),_aDepths(D._aDepths),_bVals(D._bVals),_bDepths(D._bDepths),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
@@ -142,8 +142,6 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
 PetscErrorCode Fault::setFrictionFields()
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ii,Istart,Iend;
-  PetscScalar    v,z0,z1;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -153,7 +151,6 @@ PetscErrorCode Fault::setFrictionFields()
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
 
   // set a using a vals
-  PetscScalar a0,a1,z;
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);

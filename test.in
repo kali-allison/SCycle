@@ -1,5 +1,5 @@
 order = 4
-Ny = 101
+Ny = 41
 Nz = 41
 Ly = 24 # km
 Lz = 24 # km
@@ -21,15 +21,15 @@ shearDistribution = constant
 problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
-
-depth = 5
-width = 24
 }
 
+viscDistribution = layered
+viscVals = [1e20 1e20 1e8 1e8 1e9]
+viscDepths = [0 5 10 15 24]
 viscUpCrust = 1e20 # GPa s
 viscLowCrust = 1e8 # GPa s
 viscAsth = 1e8 # GPa s
-depthUpToLowCrust = 20 # km
+depthUpToLowCrust = 10 # km
 depthLowCrustToAsth = 60 # km
 
 linSolver = AMG
