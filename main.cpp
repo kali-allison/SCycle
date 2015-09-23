@@ -44,13 +44,13 @@ int runEqCycle(const char * inputFile)
 
   Domain domain(inputFile);
   domain.write();
-  SymmMaxwellViscoelastic *lith;
-  lith = new SymmMaxwellViscoelastic(domain);
+  //~SymmMaxwellViscoelastic *lith;
+  //~lith = new SymmMaxwellViscoelastic(domain);
 
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = lith->writeStep();CHKERRQ(ierr);
-  ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ierr = lith->writeStep();CHKERRQ(ierr);
+  //~ierr = lith->integrate();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 

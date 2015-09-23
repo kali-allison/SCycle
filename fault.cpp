@@ -10,7 +10,7 @@ Fault::Fault(Domain&D)
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
-  _seisDepth(D._seisDepth),_f0(D._f0),_v0(D._v0),_vL(D._vp),
+  _seisDepth(D._seisDepth),_f0(D._f0),_v0(D._v0),_vL(D._vL),
   _aVal(D._aVal),_bBasin(D._bBasin),_bAbove(D._bAbove),_bBelow(D._bBelow),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),

@@ -6,7 +6,12 @@
 #include <sstream>
 #include <fstream>
 #include <assert.h>
+#include <vector>
+#include <iostream>
 #include "genFuncs.hpp"
+
+
+using namespace std;
 
 class Domain
 {
@@ -25,6 +30,8 @@ class Domain
     PetscScalar  _aVal,_bBasin,_bAbove,_bBelow;
     PetscScalar  _sigma_N_min,_sigma_N_max;
     Vec          _sigma_N;
+    vector<double> _aVals,_aDepths,_bVals,_bDepths;
+    size_t  _aLen,_bLen; // length of each vector
 
     // material distribution properties
     std::string  _shearDistribution, // options: mms, constant, gradient, basin,   CVM
@@ -68,7 +75,7 @@ class Domain
     std::string  _outputDir;
 
     // values not loaded in input file
-    PetscScalar  _f0,_v0,_vp;
+    PetscScalar  _f0,_v0,_vL;
 
     Domain(const char * file);
     Domain(const char *file,PetscInt Ny, PetscInt Nz);
@@ -92,7 +99,9 @@ class Domain
 
     // load settings from input file
     PetscErrorCode loadData(const char *file);
-    PetscErrorCode loadMaterialSettings(std::ifstream& infile,char* problemType);
+    PetscErrorCode loadShearModSettings(ifstream& infile,char* problemType);
+    PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>&);
+    PetscErrorCode communicateVectorWithMPI(const vector<double>&, const size_t);
 
     // check input from file
     PetscErrorCode checkInput();

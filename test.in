@@ -11,10 +11,14 @@ a = 0.015
 bBasin = 0.02
 bAbove = 0.02
 bBelow = 0.0
+aVals = [0.1 0.2 0.3] # comment
+aDepths = [0 10 20]
+bVals = [0.01 0.01 0.015]
+bDepths = [0 10 20]
 sigma_N_min = 50 # MPa
 sigma_N_max = 50 # MPa
 
-vp = 1e-9    # m/s
+vL = 1e-9    # m/s
 
 shearDistribution = constant
 {

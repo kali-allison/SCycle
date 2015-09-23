@@ -8,7 +8,7 @@ LinearElastic::LinearElastic(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(_Ly/(_Ny-1.)),_dz(_Lz/(_Nz-1.)),
   _problemType(D._problemType),_outputDir(D._outputDir),
-  _v0(D._v0),_vL(D._vp),
+  _v0(D._v0),_vL(D._vL),
   _muArrPlus(D._muArrPlus),_muP(D._muP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
@@ -177,7 +177,6 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     //~PCSetType(pc,PCHYPRE);
     //~ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
     //~ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
-
 #if VERSION < 6
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6

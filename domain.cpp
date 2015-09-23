@@ -20,7 +20,7 @@ Domain::Domain(const char *file)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -90,7 +90,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vp(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
@@ -224,13 +224,30 @@ PetscErrorCode Domain::loadData(const char *file)
       else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-      else if (var.compare("vp")==0) { _vp = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+      else if (var.compare("aVals")==0) {
+        string str = line.substr(pos+_delim.length(),line.npos);
+        loadVectorFromInputFile(str,_aVals);
+        _aLen = _aVals.size();
+      }
+      else if (var.compare("aDepths")==0) {
+        string str = line.substr(pos+_delim.length(),line.npos);
+        loadVectorFromInputFile(str,_aDepths);
+      }
+      else if (var.compare("bVals")==0) {
+        string str = line.substr(pos+_delim.length(),line.npos);
+        loadVectorFromInputFile(str,_bVals);
+      }
+      else if (var.compare("bDepths")==0) {
+        string str = line.substr(pos+_delim.length(),line.npos);
+        loadVectorFromInputFile(str,_bDepths);
+      }
 
       // material properties
       else if (var.compare("shearDistribution")==0) {
         _shearDistribution = line.substr(pos+_delim.length(),line.npos);
         strcpy(shearDistribution,_shearDistribution.c_str());
-        loadMaterialSettings(infile,problemType);
+        loadShearModSettings(infile,problemType);
       }
       else if (var.compare("inputDir")==0) {
         _inputDir = line.substr(pos+_delim.length(),line.npos);
@@ -297,7 +314,9 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Bcast(&_bBelow,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_sigma_N_min,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
   MPI_Bcast(&_sigma_N_max,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
-  MPI_Bcast(&_vp,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+  MPI_Bcast(&_vL,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  communicateVectorWithMPI(_aVals,_aVals.size());
 
   MPI_Bcast(&shearDistribution[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
   MPI_Bcast(&inputDir[0],sizeof(char)*charSize,MPI_CHAR,0,PETSC_COMM_WORLD);
@@ -364,13 +383,84 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
-
-// load shear modulus structure from input file
-PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
+PetscErrorCode Domain::communicateVectorWithMPI(const vector<double>& vec, const size_t len)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::communicateVectorWithMPI in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  size_t vecLen = vec.size();
+  MPI_Bcast(&vecLen,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+
+  PetscMPIInt localRank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  PetscPrintf(PETSC_COMM_SELF,"%i: len = %i\n",localRank,len);
+
+  //~double val = 0.0;
+  //~for (vector<double>::const_iterator Ii = vec.begin(); Ii != vec.end(); Ii++)
+  //~{
+    //~val = *Ii;
+    //~MPI_Bcast(&_val,1,MPI_DOUBLE,0,PETSC_COMM_WORLD);
+    //~cout << ' ' << *Ii;
+  //~}
+  //~cout << "\n";
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::communicateVectorWithMPI in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>& vec)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  size_t pos = 0; // position of delimiter in string
+  string delim = " "; // delimiter between values in list (whitespace sensitive)
+  string remstr; // holds remaining string as str is parsed through
+  double val; // holds values
+
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"About to start loading aVals:\n");
+  //~PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
+
+  // holds remainder as str is parsed through (with beginning and ending brackets removed)
+  pos = str.find("]");
+  remstr = str.substr(1,pos-1);
+  //~PetscPrintf(PETSC_COMM_WORLD,"remstr = %s\n",remstr.c_str());
+
+  pos = remstr.find(delim);
+  while (pos < remstr.length() ) {
+    pos = remstr.find(delim);
+    //~PetscPrintf(PETSC_COMM_WORLD,"pos = %i\n",pos);
+    val = atof( remstr.substr(0,pos).c_str() );
+    remstr = remstr.substr(pos + delim.length());
+    //~PetscPrintf(PETSC_COMM_WORLD,"val = %g  |  remstr = %s\n",val,remstr.c_str());
+    vec.push_back(val);
+  }
+  val = atof( remstr.substr(0,pos).c_str() );
+  //~PetscPrintf(PETSC_COMM_WORLD,"val = %g \n",val);
+  vec.push_back(val);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// load shear modulus structure from input file
+PetscErrorCode Domain::loadShearModSettings(ifstream& infile,char* problemType)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadShearModSettings in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
 
@@ -445,7 +535,7 @@ PetscErrorCode Domain::loadMaterialSettings(ifstream& infile,char* problemType)
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadShearModulusSettings in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadShearModSettings in domain.cpp.\n");CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -483,7 +573,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vp);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // sedimentary basin properties
@@ -594,7 +684,7 @@ PetscErrorCode Domain::checkInput()
   assert(_sigma_N_max > 0);
   assert(_sigma_N_max >= _sigma_N_min);
 
-  assert(_vp > 0);
+  assert(_vL > 0);
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -707,7 +797,7 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vp);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"visc = %.15e\n",_visc);CHKERRQ(ierr);
