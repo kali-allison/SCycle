@@ -11,7 +11,7 @@ Fault::Fault(Domain&D)
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _seisDepth(D._seisDepth),_f0(D._f0),_v0(D._v0),_vL(D._vL),
-  _aVal(D._aVal),_bBasin(D._bBasin),_bAbove(D._bAbove),_bBelow(D._bBelow),
+  _aVals(D._aVals),_aDepths(D._aDepths),_bVals(D._bVals),_bDepths(D._bDepths),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
   _sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(D._sigma_N),
@@ -81,12 +81,69 @@ Fault::~Fault()
 #endif
 }
 
+// Fills vec with the linear interpolation between the pairs of points (vals,depths).
+PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
+#endif
+
+  // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
+  z1 = depths.back();
+  depths.pop_back();
+  z0 = depths.back();
+  v1 = vals.back();
+  vals.pop_back();
+  v0 = vals.back();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  z = _h*(Iend-1);
+  while (z<z0) {
+    z1 = depths.back();
+    depths.pop_back();
+    z0 = depths.back();
+    v1 = vals.back();
+    vals.pop_back();
+    v0 = vals.back();
+    //~PetscPrintf(PETSC_COMM_WORLD,"2: z = %g: z0 = %g   z1 = %g   v0 = %g  v1 = %g\n",z,z0,z1,v0,v1);
+  }
+
+
+  for (Ii=Iend-1; Ii>=Istart; Ii--) {
+    z = _h*Ii;
+    if (z==z1) { v = v1; }
+    else if (z==z0) { v = v0; }
+    else if (z>z0 && z<z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+
+    // if z is no longer bracketed by (z0,z1), move on to the next pair of points
+    if (z<=z0) {
+      z1 = depths.back();
+      depths.pop_back();
+      z0 = depths.back();
+      v1 = vals.back();
+      vals.pop_back();
+      v0 = vals.back();
+    }
+    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+  //~VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
 
 PetscErrorCode Fault::setFrictionFields()
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii,Istart,Iend;
-  PetscScalar    v;
+  PetscScalar    v,z0,z1;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -94,38 +151,18 @@ PetscErrorCode Fault::setFrictionFields()
   // set depth-independent fields
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   ierr = VecCopy(_psi,_tempPsi);CHKERRQ(ierr);
-  ierr = VecSet(_a,_aVal);CHKERRQ(ierr);
 
-  // Set b
+  // set a using a vals
+  PetscScalar a0,a1,z;
   if (_N == 1) {
-    ierr = VecSetValues(_b,1,&Ii,&_bAbove,INSERT_VALUES);CHKERRQ(ierr);
+    VecSet(_b,_bVals[0]);
+    VecSet(_a,_aVals[0]);
+
   }
   else {
-    PetscScalar r = 0,z = 0;
-    PetscScalar rbar = 0.25*_width*_width;
-    PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
-    PetscScalar L2 = 1.5*_seisDepth;  // depth below which fault is purely velocity-strengthening
-    PetscInt    N1 = _seisDepth/_h;
-    PetscInt    N2 = L2/_h;
-    ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      z = _h*(Ii-_N*(Ii/_N));
-      r=(0.25*_width*_width/_depth/_depth)*z*z;
-      if (Ii < N1+1) {
-        v = 0.5*(_bAbove-_bBasin)*(tanh((double)(r-rbar)/rw)+1.0) + _bBasin;
-        ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      else if (Ii>N1 && Ii<=N2) {
-        v = (double) (Ii*_h-_seisDepth)*(_bAbove-_bBelow)/(_seisDepth-L2) + _bAbove;
-        ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-      else {
-        ierr = VecSetValues(_b,1,&Ii,&_bBelow,INSERT_VALUES);CHKERRQ(ierr);
-      }
-    }
+    ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);

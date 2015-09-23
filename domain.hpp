@@ -27,7 +27,6 @@ class Domain
 
     // fault properties
     PetscScalar  _seisDepth;
-    PetscScalar  _aVal,_bBasin,_bAbove,_bBelow;
     PetscScalar  _sigma_N_min,_sigma_N_max;
     Vec          _sigma_N;
     vector<double> _aVals,_aDepths,_bVals,_bDepths;
@@ -82,6 +81,7 @@ class Domain
     ~Domain();
 
     PetscErrorCode view(PetscMPIInt rank);
+    string vector2str(const vector<double> vec);
     PetscErrorCode write();
 
 
@@ -99,9 +99,8 @@ class Domain
 
     // load settings from input file
     PetscErrorCode loadData(const char *file);
-    PetscErrorCode loadShearModSettings(ifstream& infile,char* problemType);
+    PetscErrorCode loadShearModSettings(ifstream& infile);
     PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>&);
-    PetscErrorCode communicateVectorWithMPI(const vector<double>&, const size_t);
 
     // check input from file
     PetscErrorCode checkInput();
