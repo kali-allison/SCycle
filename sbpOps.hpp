@@ -81,6 +81,7 @@ class SbpOps
     double _runTime;
 
     // map boundary conditions to rhs vector
+    string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
 
     // boundary conditions

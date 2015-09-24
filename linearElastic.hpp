@@ -29,6 +29,7 @@ class LinearElastic: public IntegratorContext
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const std::string    _problemType; // symmetric (only y>0) or full
+    const bool _isMMS; // true if running mms test
 
     // output data
     std::string          _outputDir;
@@ -74,6 +75,7 @@ class LinearElastic: public IntegratorContext
   public:
 
     // boundary conditions
+    string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcTP,_bcRP,_bcBP,_bcLP;
 
     OdeSolver           *_quadrature;
@@ -135,7 +137,11 @@ class SymmLinearElastic: public LinearElastic
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd);
+                        it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                            it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
                          const_it_vec varBegin,const_it_vec varEnd,
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);

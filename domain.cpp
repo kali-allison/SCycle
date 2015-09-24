@@ -5,6 +5,8 @@ using namespace std;
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
+  _bcLType("unspecified"),
   _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
@@ -73,6 +75,8 @@ Domain::Domain(const char *file)
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
+  _bcLType("unspecified"),
   _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
@@ -199,6 +203,12 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+    // boundary condition types
+    else if (var.compare("bcT")==0) { _bcTType = line.substr(pos+_delim.length(),line.npos); }
+    else if (var.compare("bcR")==0) { _bcRType = line.substr(pos+_delim.length(),line.npos); }
+    else if (var.compare("bcB")==0) { _bcBType = line.substr(pos+_delim.length(),line.npos); }
+    else if (var.compare("bcL")==0) { _bcLType = line.substr(pos+_delim.length(),line.npos); }
 
     //fault properties
     else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -440,6 +450,13 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"Dc = %.15e\n",_Dc);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
+    // boundary conditions
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bcR = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
+
     // fault properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
@@ -658,6 +675,13 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"Dc = %15e\n",_Dc);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+
+  // boundary conditions
+  ierr = PetscViewerASCIIPrintf(viewer,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcR = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // fault properties

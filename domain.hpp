@@ -25,6 +25,9 @@ class Domain
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz,_dy,_dz,_Dc;
 
+    // boundary conditions
+    std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
+
     // fault properties
     PetscScalar  _sigma_N_min,_sigma_N_max;
     Vec          _sigma_N;

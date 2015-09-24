@@ -10,6 +10,7 @@
 SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(&muArr),_mu(&mu),
+  _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),

@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 21
 Nz = 21
 Ly = 6.283185307179586
@@ -6,11 +6,16 @@ Lz = 6.283185307179586
 
 Dc = 8e-3 # m
 
-seisDepth = 12 # km
-a = 0.015
-bBasin = 0.02
-bAbove = 0.02
-bBelow = 0.0
+bcT = traction
+bcR = displacement
+bcB = traction
+bcL = displacement
+
+
+aVals = [0.015 0.015] # comment
+aDepths = [0 24]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 18 24]
 sigma_N_min = 50 # MPa
 sigma_N_max = 50 # MPa
 
@@ -21,15 +26,15 @@ shearDistribution = constant
 problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
-
-depth = 5
-width = 24
 }
 
+viscDistribution = layered
+viscVals = [1e20 1e20 1e8 1e8 1e9]
+viscDepths = [0 5 10 15 24]
 viscUpCrust = 1e20 # GPa s
 viscLowCrust = 1e8 # GPa s
 viscAsth = 1e8 # GPa s
-depthUpToLowCrust = 20 # km
+depthUpToLowCrust = 10 # km
 depthLowCrustToAsth = 60 # km
 
 linSolver = AMG
@@ -38,7 +43,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 10
+maxStepCount = 2
 initTime = 0       # s
 maxTime = 1e12      # s
 minDeltaT = 1e-3     # s

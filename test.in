@@ -6,7 +6,12 @@ Lz = 24 # km
 
 Dc = 8e-3 # m
 
-seisDepth = 12 # km
+bcT = traction
+bcR = displacement
+bcB = traction
+bcL = displacement
+
+
 aVals = [0.015 0.015] # comment
 aDepths = [0 24]
 bVals = [0.02 0.02 0.0 0.0]
