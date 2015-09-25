@@ -93,7 +93,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
 #endif
 
   loadData(_file);
@@ -101,15 +101,11 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _Ny = Ny;
   _Nz = Nz;
 
-
-  assert(_Ny>1);
   _dy = _Ly/(_Ny-1.0);
   if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   else (_dz = 1);
 
-  if (_initDeltaT<_minDeltaT) {_initDeltaT = _minDeltaT; }
-  _f0=0.6;
-  _v0=1e-6;
+  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -118,6 +114,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   for (int Ii=0;Ii<size;Ii++) { view(Ii); }
 #endif
+
+  checkInput(); // perform some basic value checking to prevent NaNs
 
   MatCreate(PETSC_COMM_WORLD,&_muP);
 
@@ -140,10 +138,10 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
     }
   }
 
-
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz) in domain.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
 #endif
+
 }
 
 
@@ -604,8 +602,7 @@ PetscErrorCode Domain::checkInput()
          _shearDistribution.compare("CVM")==0 );
 
   if (_shearDistribution.compare("constant")==0 ||
-      _shearDistribution.compare("gradient")==0 ||
-      _shearDistribution.compare("mms")==0 )
+      _shearDistribution.compare("gradient")==0 )
   {
     assert(_muValPlus>=1e-14);
     assert(_rhoValPlus>=1e-14);
@@ -846,41 +843,6 @@ PetscErrorCode Domain::setFieldsPlus()
   PetscInt Istart,Iend;
   ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
 
-  // layered viscosity
-  //~// control on transition of viscosity (somewhat arbitrary choice)
-  /*PetscScalar transToLowCrust = 5 + _depthUpToLowCrust; // km
-  for (Ii=Istart;Ii<Iend;Ii++)
-  {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
-    else if (z <= transToLowCrust){
-      //~//visc = (z - _depthUpToLowCrust)*(_viscUpCrust-_viscLowCrust)/(_depthUpToLowCrust-transToLowCrust)
-             //~//+ _viscUpCrust;
-      visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-transToLowCrust)
-             + log10(_viscUpCrust);
-      visc = pow(10,visc);
-    }
-    else { visc = _viscLowCrust; }
-    ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
-  }*/
-
-  //~// gradient starting at lower crust
-  //~for (Ii=Istart;Ii<Iend;Ii++)
-  //~{
-    //~z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~if (z<_depthUpToLowCrust) { visc = _viscUpCrust; }
-    //~else {
-      //~visc = (z - _depthUpToLowCrust)*(log10(_viscUpCrust)-log10(_viscLowCrust))/(_depthUpToLowCrust-_Lz)
-             //~+ log10(_viscUpCrust);
-      //~visc = pow(10,visc);
-    //~}
-    //~ierr = VecSetValues(_visc,1,&Ii,&visc,INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
-
-  //~VecView(_visc,PETSC_VIEWER_STDOUT_WORLD);
-
   // build viscosity structure for generalized input
   size_t vecLen = _viscDepths.size();
   PetscScalar z0,z1,v0,v1;
@@ -936,8 +898,8 @@ PetscErrorCode Domain::setFieldsPlus()
       v = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
-       _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
       v = sin(y)*sin(z) + 2.0;
+       _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
@@ -1058,39 +1020,48 @@ PetscErrorCode Domain::setNormalStress()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt       Ii;
-  PetscScalar z = 0, g=9.8;
-  PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
-  PetscScalar rhoOut = _muArrPlus[_Nz-1]/(_csArrPlus[_Nz-1]*_csArrPlus[_Nz-1]);
-  PetscInt    *sigmaInds;
-  ierr = PetscMalloc(_Nz*sizeof(PetscScalar),&_sigmaNArr);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Nz*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
-  for (Ii=0;Ii<_Nz;Ii++)
-  {
-    sigmaInds[Ii] = Ii;
-
-    z = ((double) Ii)*_dz;
-    // gradient following lithostatic - hydrostatic
-    if (Ii<=_depth/_dz) {
-      _sigmaNArr[Ii] = rhoIn*g*z - g*z;
-    }
-    else if (Ii>_depth/_dz) {
-      _sigmaNArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
-    }
-
-    // normal stress is > 0 at Earth's surface
-    _sigmaNArr[Ii] += _sigma_N_min;
-
-    // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
-    // (in the paper, the max is 50 MPa)
-    _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sigma_N_max);
-  }
   VecCreate(PETSC_COMM_WORLD,&_sigma_N);
   VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);
   VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
-  ierr = VecSetValues(_sigma_N,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+
+  if (!_shearDistribution.compare("mms")) {
+    //~PetscPrintf(PETSC_COMM_WORLD,"sigma_N_max = %g\n",_sigma_N_max);
+    ierr = VecSet(_sigma_N,_sigma_N_max);CHKERRQ(ierr);
+    //~ierr = VecView(_sigma_N,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
+  else {
+
+    PetscInt       Ii;
+    PetscScalar z = 0, g=9.8;
+    PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
+    PetscScalar rhoOut = _muArrPlus[_Nz-1]/(_csArrPlus[_Nz-1]*_csArrPlus[_Nz-1]);
+    PetscInt    *sigmaInds;
+    ierr = PetscMalloc(_Nz*sizeof(PetscScalar),&_sigmaNArr);CHKERRQ(ierr);
+    ierr = PetscMalloc(_Nz*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
+    for (Ii=0;Ii<_Nz;Ii++)
+    {
+      sigmaInds[Ii] = Ii;
+
+      z = ((double) Ii)*_dz;
+      // gradient following lithostatic - hydrostatic
+      if (Ii<=_depth/_dz) {
+        _sigmaNArr[Ii] = rhoIn*g*z - g*z;
+      }
+      else if (Ii>_depth/_dz) {
+        _sigmaNArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
+      }
+
+      // normal stress is > 0 at Earth's surface
+      _sigmaNArr[Ii] += _sigma_N_min;
+
+      // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
+      // (in the paper, the max is 50 MPa)
+      _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sigma_N_max);
+    }
+    ierr = VecSetValues(_sigma_N,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+  }
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setNormalStress in domain.cpp.\n");CHKERRQ(ierr);

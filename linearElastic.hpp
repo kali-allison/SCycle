@@ -41,6 +41,7 @@ class LinearElastic: public IntegratorContext
     Mat                  _muP;
     Vec                  _bcRPShift,_surfDispPlus;
     Vec                  _rhsP,_uP,_stressxyP;
+    Vec                  _uAnal; // for MMS tests
 
     // linear system data
     std::string          _linSolver;
@@ -67,7 +68,7 @@ class LinearElastic: public IntegratorContext
     PetscInt             _linSolveCount;
 
     PetscViewer          _bcRPlusV,_bcRMinusV,_bcRMinusShiftV,_bcRMlusShiftV,_bcLPlusV,_bcLMinusV,
-                         _uPV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
+                         _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
 
 
     PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
@@ -101,6 +102,7 @@ class LinearElastic: public IntegratorContext
     // IO commands
     PetscErrorCode view();
     PetscErrorCode virtual writeStep() = 0;
+    PetscErrorCode measureMMSError();
 };
 
 
@@ -124,6 +126,7 @@ class SymmLinearElastic: public LinearElastic
 
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();
+    PetscErrorCode setMMSInitialConditions();
 
     PetscErrorCode computeShearStress();
 

@@ -278,6 +278,7 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
   ierr = MatScale(_rhsT,_alphaS);CHKERRQ(ierr);
   ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
   ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+  ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
   MatDestroy(&temp3); //!!!
   ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
   //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);

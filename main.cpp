@@ -50,8 +50,8 @@ int runEqCycle(const char * inputFile)
 
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = lith->writeStep();CHKERRQ(ierr);
-  ierr = lith->integrate();CHKERRQ(ierr);
-  ierr = lith->view();CHKERRQ(ierr);
+  //~ierr = lith->integrate();CHKERRQ(ierr);
+  //~ierr = lith->view();CHKERRQ(ierr);
   return ierr;
 }
 

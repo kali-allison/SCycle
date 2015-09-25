@@ -26,21 +26,26 @@ int main(int argc,char **args)
   else { inputFile = "test.in"; }
 
   {
-    Domain domain(inputFile);
-    domain.write();
+    for(PetscInt Ny=21;Ny<162;Ny=(Ny-1)*2+1) {
+      Domain domain(inputFile,Ny,Ny);
+      domain.write();
 
-    LinearElastic *lith;
-    if (domain._problemType.compare("symmetric")==0) {
-      lith = new SymmLinearElastic(domain);
-    }
-    else {
-      lith = new FullLinearElastic(domain);
-    }
+      LinearElastic *lith;
+      if (domain._problemType.compare("symmetric")==0) {
+        lith = new SymmLinearElastic(domain);
+      }
+      else {
+        lith = new FullLinearElastic(domain);
+      }
 
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = lith->writeStep();CHKERRQ(ierr);
-    ierr = lith->integrate();CHKERRQ(ierr);
-    ierr = lith->view();CHKERRQ(ierr);
+      //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+      ierr = lith->writeStep();CHKERRQ(ierr);
+      ierr = lith->integrate();CHKERRQ(ierr);
+      //~ierr = lith->view();CHKERRQ(ierr);
+
+      lith->measureMMSError();
+
+    }
   }
 
 

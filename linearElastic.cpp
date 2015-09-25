@@ -8,12 +8,12 @@ LinearElastic::LinearElastic(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(_Ly/(_Ny-1.)),_dz(_Lz/(_Nz-1.)),
   _problemType(D._problemType),
-  _isMMS(D._shearDistribution.compare("mms")),
+  _isMMS(!D._shearDistribution.compare("mms")),
   _outputDir(D._outputDir),
   _v0(D._v0),_vL(D._vL),
   _muArrPlus(D._muArrPlus),_muP(D._muP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
-  _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
+  _rhsP(NULL),_uP(NULL),_stressxyP(NULL),_uAnal(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),_sbpP(D,*D._muArrPlus,D._muP),
   _timeIntegrator(D._timeIntegrator),
@@ -23,11 +23,12 @@ LinearElastic::LinearElastic(Domain&D)
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
   _timeViewer(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
+  _uPV(NULL),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::LinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
 #endif
 
   // boundary conditions
@@ -57,6 +58,7 @@ LinearElastic::LinearElastic(Domain&D)
 
 
 
+
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
   if (_timeIntegrator.compare("FEuler")==0) {
@@ -71,7 +73,7 @@ LinearElastic::LinearElastic(Domain&D)
   }
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");
 #endif
 }
 
@@ -98,6 +100,7 @@ LinearElastic::~LinearElastic()
 
   PetscViewerDestroy(&_timeViewer);
   PetscViewerDestroy(&_surfDispPlusViewer);
+  PetscViewerDestroy(&_uPV);
 
 
 #if VERBOSE > 1
@@ -281,6 +284,23 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
   return ierr;
 }
 
+PetscErrorCode LinearElastic::measureMMSError()
+{
+  PetscErrorCode ierr = 0;
+
+  // measure error between uAnal and _uP (the numerical solution)
+  Vec diff;
+  ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
+  PetscScalar err;
+  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+  err = err/sqrt(_Ny*_Nz);
+  PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
+
+  return ierr;
+}
+
+
 PetscErrorCode LinearElastic::view()
 {
   PetscErrorCode ierr = 0;
@@ -314,7 +334,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 : LinearElastic(D),_fault(D)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
 #endif
 
   //~_fault = new SymmFault(D);
@@ -322,42 +342,184 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   // almost everything is covered by base class' constructor, except the
   // construction of _fault, and populating bcRshift
 
-  setShifts(); // set _bcRPShift
-  VecAXPY(_bcRP,1.0,_bcRPShift);
+  if (_isMMS) {
+     _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+
+    VecDuplicate(_rhsP,&_uP);
+    double startTime = MPI_Wtime();
+    KSPSolve(_kspP,_rhsP,_uP);
+    _factorTime += MPI_Wtime() - startTime;
+
+    VecDuplicate(_uP,&_uAnal);
+    PetscObjectSetName((PetscObject) _uAnal, "_uAnal");
 
 
-  _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+    VecDuplicate(_rhsP,&_stressxyP);
+    MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
 
-  VecDuplicate(_rhsP,&_uP);
-  double startTime = MPI_Wtime();
-  KSPSolve(_kspP,_rhsP,_uP);
-  _factorTime += MPI_Wtime() - startTime;
+    setMMSInitialConditions();
 
-  VecDuplicate(_rhsP,&_stressxyP);
-  MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
+    _fault.setTauQS(_stressxyP,NULL);
+    _fault.setFaultDisp(_bcLP,NULL);
+  }
+  else {
+    setShifts(); // set _bcRPShift
+    VecAXPY(_bcRP,1.0,_bcRPShift);
 
+    _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
 
+    VecDuplicate(_rhsP,&_uP);
+    double startTime = MPI_Wtime();
+    KSPSolve(_kspP,_rhsP,_uP);
+    _factorTime += MPI_Wtime() - startTime;
 
-  //~// for SS approximation
-  //~VecDuplicate(_rhsP,&_stressxyP);
-  //~VecSet(_stressxyP,0);
-  //~VecCopy(_bcRP,_stressxyP);
-  //~VecAXPY(_stressxyP,-1,_bcLP);
-  //~VecScale(_stressxyP,_muArrPlus[1]/_Ly);
+    VecDuplicate(_rhsP,&_stressxyP);
+    MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
 
-  _fault.setTauQS(_stressxyP,NULL);
-  _fault.setFaultDisp(_bcLP,NULL);
-  _fault.computeVel();
+    _fault.setTauQS(_stressxyP,NULL);
+    _fault.setFaultDisp(_bcLP,NULL);
+    _fault.computeVel();
+  }
 
   //~setSurfDisp();
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
 #endif
 }
 
 SymmLinearElastic::~SymmLinearElastic(){};
 
+
+PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
+{
+    PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setMMSInitialConditions in lithosphere.cpp\n");CHKERRQ(ierr);
+#endif
+
+  PetscScalar time = _initTime;
+
+  // set up source terms
+  Vec source,Hxsource;
+  ierr = VecDuplicate(_uP,&source);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&Hxsource);CHKERRQ(ierr);
+  PetscInt Ii,Istart,Iend;
+  PetscScalar y,z,uAnal,u_y,u_yy,u_z,u_zz,mu,mu_y,mu_z,vsource;
+  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy*(Ii/_Nz);
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+
+    uAnal = cos(y)*sin(z)*exp(-time);
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i: y = %g, z = %g, uAnal = %.15e\n",Ii,y,z,uAnal);
+    u_y = -sin(y)*sin(z)*exp(-time);  u_yy = -cos(y)*sin(z)*exp(-time);
+    u_z =  cos(y)*cos(z)*exp(-time);  u_zz = -cos(y)*sin(z)*exp(-time);
+
+    mu = sin(y)*sin(z) + 2;
+    mu_y = cos(y)*sin(z); mu_z = sin(y)*cos(z);
+
+
+    vsource = mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
+
+    ierr = VecSetValues(_uAnal,1,&Ii,&uAnal,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(source,1,&Ii,&vsource,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_uAnal);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_uAnal);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
+  ierr = MatMult(_sbpP._H,source,Hxsource);
+
+  // set up boundary conditions: L and R
+  PetscScalar v;
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    z = _dz * Ii;
+
+    y = 0;
+    if (!_bcLType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // mu * uAnal_y(y=0,z)
+    ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    y = _Ly;
+    if (!_bcRType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcRType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
+
+  // set up boundary conditions: T and B
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy * Ii;
+
+    z = 0;
+    if (!_bcTType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcTType.compare("traction")) { v = (sin(y)*sin(z) + 2) * cos(y)*cos(z)*exp(-time); } // uAnal_y(y=0,z)
+    ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    z = _Lz;
+    if (!_bcBType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcBType.compare("traction")) { v = (sin(y)*sin(z) + 2) * cos(y)*cos(z)*exp(-time); } // uAnal_y(y=0,z)
+    ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+
+
+  // solve for displacement
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + source
+
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+  ierr = setSurfDisp();
+
+
+    //~// measure error between uAnal and _uP (the numerical solution)
+    //~Vec diff;
+    //~ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
+    //~ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
+    //~PetscScalar err;
+    //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+    //~VecDestroy(&diff);
+    //~PetscPrintf(PETSC_COMM_WORLD,"  d_dt_mms: err = %e\n",err);
+
+  // solve for shear stress
+  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+
+
+  // update fields on fault
+  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+
+  // update rates
+  ierr = VecGetOwnershipRange(*(_fault._var.begin()+1),&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = 0;
+    z = _dz * Ii;
+    v = -cos(y)*sin(z)*exp(-time);
+    ierr = VecSetValues(*(_fault._var.begin()+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(*(_fault._var.begin()+1));CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
+
+  VecDestroy(&source);
+  VecDestroy(&Hxsource);
+
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setMMSInitialConditions in lithosphere.cpp.\n\n\n");
+  #endif
+  return ierr;
+}
 
 
 PetscErrorCode SymmLinearElastic::computeShearStress()
@@ -446,6 +608,7 @@ PetscErrorCode SymmLinearElastic::writeStep()
 #endif
   double startTime = MPI_Wtime();
 
+
   if (_stepCount==0) {
     ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
@@ -466,41 +629,32 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
-//~
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplusShift").c_str(),FILE_MODE_WRITE,
-                                 //~&_bcRPlusShiftV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcRPShift,_bcRPlusShiftV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_bcRPlusShiftV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRplusShift").c_str(),
-                                   //~FILE_MODE_APPEND,&_bcRPlusShiftV);CHKERRQ(ierr);
-//~
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcLPlus").c_str(),FILE_MODE_WRITE,
-                                 //~&_bcLPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_bcLPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcLPlus").c_str(),
-                                   //~FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
-//~
-    //~// body fields
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyPlus").c_str(),FILE_MODE_WRITE,
-                                 //~&_uPV);CHKERRQ(ierr);
-    //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyPlus").c_str(),
-                                   //~FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
-//~
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sigmaXYplus").c_str(),FILE_MODE_WRITE,
-                                 //~&_sigma_xyPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_stressxyP,_sigma_xyPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_sigma_xyPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sigmaXYplus").c_str(),
-                                   //~FILE_MODE_APPEND,&_sigma_xyPlusV);CHKERRQ(ierr);
+
+    // output body fields
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+              FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
+    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+                                   FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  if (_isMMS) {
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+              FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
+    ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                                   FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
+    }
+
+
   _stepCount++;
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
 
@@ -558,33 +712,36 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-
   // set up source terms
-  Vec uAnal,source;
-  ierr = VecDuplicate(_uP,&uAnal);CHKERRQ(ierr);
+  Vec source,Hxsource;
   ierr = VecDuplicate(_uP,&source);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&Hxsource);CHKERRQ(ierr);
   PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,vuAnal,u_y,u_yy,u_z,u_zz,mu,mu_y,mu_z,vsource;
+  PetscScalar y,z,uAnal,u_y,u_yy,u_z,u_zz,mu,mu_y,mu_z,vsource;
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy*(Ii/_Nz);
     z = _dz*(Ii-_Nz*(Ii/_Nz));
-    vuAnal = cos(y)*sin(z)*exp(-time);
+
+    uAnal = cos(y)*sin(z)*exp(-time);
+    //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i: y = %g, z = %g, uAnal = %.15e\n",Ii,y,z,uAnal);
     u_y = -sin(y)*sin(z)*exp(-time);  u_yy = -cos(y)*sin(z)*exp(-time);
     u_z =  cos(y)*cos(z)*exp(-time);  u_zz = -cos(y)*sin(z)*exp(-time);
 
     mu = sin(y)*sin(z) + 2;
     mu_y = cos(y)*sin(z); mu_z = sin(y)*cos(z);
 
+
     vsource = mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
 
-    ierr = VecSetValues(uAnal,1,&Ii,&vuAnal,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_uAnal,1,&Ii,&uAnal,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(source,1,&Ii,&vsource,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(uAnal);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_uAnal);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(uAnal);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_uAnal);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
+  ierr = MatMult(_sbpP._H,source,Hxsource);
 
   // set up boundary conditions: L and R
   PetscScalar v;
@@ -593,15 +750,19 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
     z = _dz * Ii;
 
     y = 0;
-    if (_bcLType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
-    else if (_bcLType.compare("traction")) { v = -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    if (!_bcLType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // mu * uAnal_y(y=0,z)
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (_bcRType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
-    else if (_bcRType.compare("traction")) { v = -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    if (!_bcRType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcRType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
+  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
@@ -609,24 +770,40 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
     y = _dy * Ii;
 
     z = 0;
-    if (_bcTType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
-    else if (_bcTType.compare("traction")) { v = -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    if (!_bcTType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcTType.compare("traction")) { v = (sin(y)*sin(z) + 2) * cos(y)*cos(z)*exp(-time); } // uAnal_y(y=0,z)
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
-    if (_bcBType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
-    else if (_bcBType.compare("traction")) { v = -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    if (!_bcBType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
+    else if (!_bcBType.compare("traction")) { v = (sin(y)*sin(z) + 2) * cos(y)*cos(z)*exp(-time); } // uAnal_y(y=0,z)
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
+  ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+
 
   // solve for displacement
   ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  ierr = VecAXPY(_rhsP,1.0,source);CHKERRQ(ierr); // rhs = rhs + source
+  ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + source
+
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
+
+
+    //~// measure error between uAnal and _uP (the numerical solution)
+    //~Vec diff;
+    //~ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
+    //~ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
+    //~PetscScalar err;
+    //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+    //~VecDestroy(&diff);
+    //~PetscPrintf(PETSC_COMM_WORLD,"  d_dt_mms: err = %e\n",err);
 
   // solve for shear stress
   ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
@@ -641,8 +818,8 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = 0;
     z = _dz * Ii;
-    v = cos(y)*sin(z)*exp(-time);
-    ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&vuAnal,INSERT_VALUES);CHKERRQ(ierr);
+    v = -cos(y)*sin(z)*exp(-time);
+    ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);

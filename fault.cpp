@@ -390,8 +390,6 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
 
-
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
