@@ -1,14 +1,14 @@
 order = 2
 Ny = 161
 Nz = 161
-Ly = 6
-Lz = 6
+Ly = 6.283185307179586
+Lz = 6.283185307179586
 
 Dc = 8e-3 # m
 
-bcT = traction
-bcR = displacement
-bcB = traction
+bcT = displacement
+bcR = traction
+bcB = displacement
 bcL = displacement
 
 

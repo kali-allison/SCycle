@@ -86,7 +86,7 @@ class SbpOps
 
     // boundary conditions
     //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
-    PetscScalar _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
+    PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // penalty terms for traction and displacement respectively
 
     // directory for matrix debugging
     string _debugFolder;

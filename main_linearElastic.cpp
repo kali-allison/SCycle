@@ -26,7 +26,7 @@ int main(int argc,char **args)
   else { inputFile = "test.in"; }
 
   {
-    for(PetscInt Ny=21;Ny<162;Ny=(Ny-1)*2+1) {
+    for(PetscInt Ny=21;Ny<322;Ny=(Ny-1)*2+1) {
       Domain domain(inputFile,Ny,Ny);
       domain.write();
 

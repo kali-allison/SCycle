@@ -4,7 +4,7 @@
 
 
 //================= constructor and destructor ========================
-/* SAT params _alphaF,_alphaR set to values that work for both 2nd and
+/* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
 SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
@@ -12,7 +12,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
   _muArr(&muArr),_mu(&mu),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
-  _alphaF(-4.0/_dy),_alphaR(-4.0/_dy),_alphaS(-1.0),_alphaD(-1.0),_beta(1.0),
+  _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
   _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
 {
@@ -49,8 +49,8 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaF = tempFactors._Hy(0,0);
-        _alphaR = tempFactors._Hy(0,0);
+        _alphaDy = tempFactors._Hy(0,0);
+        _alphaDz = tempFactors._Hz(0,0);
       }
 
       computeH(tempFactors);
@@ -157,69 +157,110 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
 
   // enforcement of left boundary _bcL =================================
   // map bcL to rhs
-  // if bcL = displacement: _alphaF*mu*_Hinvy_Izxe0y_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxe0y_Iz
-  MatDestroy(&_rhsL);
-  ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-  ierr = MatScale(_rhsL,_alphaF);CHKERRQ(ierr);
-  ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-  ierr = MatAYPX(_rhsL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-  ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-  MatDestroy(&temp3); //!!!
-  ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&temp2);
-  //ierr = MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
-  // if bcL = traction-free
-  // _rhsL is unneeded bc bcL = 0
 
-  // in computation of A
-  // if bcL = displacement: _alphaF*mu*_Hinvy_IzxE0y_Iz + _beta*mu*_Hinvy_IzxBySy_IzTxE0y_Iz
-  ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
-  ierr = MatScale(tempMats._AL,_alphaF);CHKERRQ(ierr);
+  // if bcL = displacement: _alphaD*mu*_Hinvy_Iz*e0y_Iz + _beta*_Hinvy_Iz*muxBySy_IzT*e0y_Iz
+  if (!_bcLType.compare("displacement")) {
+    MatDestroy(&_rhsL);
+    ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,_alphaDy);CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+    ierr = MatAYPX(_rhsL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
 
-  ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
-  ierr = MatAYPX(tempMats._AL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&temp2);
+    //ierr = MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
+    // if bcL = traction-free
+    // _rhsL is unneeded bc bcL = 0
+
+    // in computation of A
+    // if bcL = displacement: _alphaD*mu*_Hinvy_Iz*E0y_Iz + _beta*_Hinvy_Iz*muxBySy_IzT*E0y_Iz
+    ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AL,_alphaDy);CHKERRQ(ierr);
+
+    ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(tempMats._AL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+    }
+  else {
+    // For rhsL: if bcL = traction: alphaT * Hinvy_Iz * e0y_Iz
+    MatDestroy(&_rhsL);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,_alphaT);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    //~ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
+
+
+    // For A:if bcL = traction: alphaT * Hinvy_Iz * E0y_Iz * muxBySy_Iz
+    ierr = MatMatMatMult(tempMats._Hyinv_Iz,E0y_Iz,tempMats._muxBySy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AL,_alphaT);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
+    //~ierr = MatView(_AL,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
 
   // enforcement of right boundary bcR =================================
   // map bcR to rhs
-  // if bcR = displacement: _alphaR*mu*_Hinvy_IzxeNy_Iz + _beta*_Hinvy_IzxmuxBySy_IzTxeNy_Iz
-  MatDestroy(&_rhsR);
-  ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
-  ierr = MatScale(_rhsR,_alphaF);CHKERRQ(ierr);
+  if (!_bcRType.compare("displacement")) {
+    // if bcR = displacement: _alphaD*mu*_Hinvy_Iz*eNy_Iz + _beta*_Hinvy_Iz*muxBySy_IzT*eNy_Iz
+    MatDestroy(&_rhsR);
+    ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
+    ierr = MatScale(_rhsR,_alphaDy);CHKERRQ(ierr);
 
-  ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
-  ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+
+    // in computation of A
+    // if bcR = displacement: _alphaD*mu*Hinvy_Iz*ENy_Iz + _beta*Hinvy_Iz*(muxBySy_Iz)'*ENy_Iz
+    ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AR,_alphaDy);CHKERRQ(ierr);
+
+    ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(tempMats._AR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AR, "AR");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+  }
+  else {
+    // For rhsR: if bcR = traction: alphaT * Hinvy_Iz * eNy_Iz
+    MatDestroy(&_rhsR);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
+    ierr = MatScale(_rhsR,_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-  ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-  MatDestroy(&temp3); //!!!
-  ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&temp2);
-  //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  // else if bcR = traction-free
-  // _rhsR is unneeded because bcR = 0
+    ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
 
-  // in computation of A
-  // if bcR = displacement: _alphaR*mu*Hinvy_Iz*ENy_Iz + _beta*Hinvy_Iz*(muxBySy_Iz)'*ENy_Iz
-  ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
-  ierr = MatScale(tempMats._AR,_alphaR);CHKERRQ(ierr);
 
-  ierr = MatTransposeMatMult(tempMats._muxBySy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-  ierr = MatAYPX(tempMats._AR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) tempMats._AR, "AR");CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&temp2);
+    // For A:if bcR = traction: alphaT * Hinvy_Iz * ENy_Iz * muxBySy_Iz
+    ierr = MatMatMatMult(tempMats._Hyinv_Iz,ENy_Iz,tempMats._muxBySy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AR,_alphaT);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AR, "AR");CHKERRQ(ierr);
+    //~ierr = MatView(_AR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
 
 
    MatDestroy(&e0y_Iz);
@@ -272,41 +313,112 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
 
   // enforcement of top boundary bcT ===================================
   // map bcS to rhs
-  // if bcT = traction:
-  MatDestroy(&_rhsT);
-  ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-  ierr = MatScale(_rhsT,_alphaS);CHKERRQ(ierr);
-  ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-  ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-  ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
-  MatDestroy(&temp3); //!!!
-  ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
-  //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  if (!_bcTType.compare("displacement")) {
+    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_e0z + _beta*Iy_Hzinv*_muxIy_BzSzT*Iy_e0z
+    MatDestroy(&_rhsT);
+    ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsT,_alphaDz);CHKERRQ(ierr);
 
-  // in computation of A
-  // if bcT = traction-free: _alphaS*Iy_Hinvz*Iy_E0z*muxIy_BzSz
-  ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-  ierr = MatScale(tempMats._AT,_alphaS);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
-  //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(tempMats._muxIy_BzSz,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    // else if bcR = traction-free
+    // _rhsR is unneeded because bcR = 0
+
+    // in computation of A
+    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_E0z + _beta*Iy_Hzinv*(_muxIy_BzSz)'*Iy_E0z
+    ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AT,_alphaDz);CHKERRQ(ierr);
+
+    ierr = MatTransposeMatMult(tempMats._muxIy_BzSz,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(tempMats._AT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+  }
+  else {
+    // if bcT = traction:
+    MatDestroy(&_rhsT);
+    ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsT,_alphaT);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
+    //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    // in computation of A
+    // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
+    ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
+    //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  }
 
   // enforcement of bottom boundary bcB ================================
   // map bcB to rhs
-  // if bcB = traction:
-  MatDestroy(&_rhsB);
-  ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
-  ierr = MatScale(_rhsB,_alphaD);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-  ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-  MatDestroy(&temp3); //!!!
-  ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
-  //~ierr = MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  if (!_bcBType.compare("displacement")) {
+    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_eNz + _beta*Iy_Hzinv*_muxIy_BzSzT*Iy_eNz
+    MatDestroy(&_rhsB);
+    ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
+    ierr = MatScale(_rhsB,_alphaDz);CHKERRQ(ierr);
 
-  // in computation of A
-  // if bcB = traction-free: _alphaD*Iy_Hinvz*Iy_E0z*muxIy_BzSz
-  ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_ENz,tempMats._muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
-  ierr = MatScale(tempMats._AB,_alphaD);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) tempMats._AB, "AB");CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(tempMats._muxIy_BzSz,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    // else if bcR = traction-free
+    // _rhsR is unneeded because bcR = 0
+
+    // in computation of A
+    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_ENz + _beta*Iy_Hzinv*(_muxIy_BzSz)'*Iy_ENz
+    ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AB,_alphaDz);CHKERRQ(ierr);
+
+    ierr = MatTransposeMatMult(tempMats._muxIy_BzSz,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+
+    ierr = MatAYPX(tempMats._AB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AB, "AB");CHKERRQ(ierr);
+    MatDestroy(&temp1);
+    MatDestroy(&temp2);
+  }
+  else {
+    // if bcB = traction:
+    MatDestroy(&_rhsB);
+    ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
+    ierr = MatScale(_rhsB,_alphaT);CHKERRQ(ierr);
+      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
+    MatDestroy(&temp3); //!!!
+    ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
+    //~ierr = MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
+    // in computation of A
+    // if bcB = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
+    ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_ENz,tempMats._muxIy_BzSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AB,_alphaT);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) tempMats._AB, "AB");CHKERRQ(ierr);
+  }
 
 
    MatDestroy(&Iy_e0z);
@@ -315,6 +427,27 @@ PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
    MatDestroy(&Iy_ENz);
 
 }
+
+  //~PetscInt m,n;
+  //~ierr = MatGetSize(_rhsT,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"rhsT: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(_rhsR,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"rhsR: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(_rhsB,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"rhsB: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(_rhsL,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"rhsL: m = %i, n = %i\n",m,n);
+
+  //~ierr = MatGetSize(tempMats._AT,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"AT: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(tempMats._AR,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"AR: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(tempMats._AB,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"AB: m = %i, n = %i\n",m,n);
+  //~ierr = MatGetSize(tempMats._AL,&m,&n);
+  //~PetscPrintf(PETSC_COMM_WORLD,"AL: m = %i, n = %i\n",m,n);
+  //~assert(0);
+
   _runTime += MPI_Wtime() - startTime;
 
 #if VERBOSE >1

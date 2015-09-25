@@ -756,7 +756,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
     y = _Ly;
     if (!_bcRType.compare("displacement")) { v = cos(y)*sin(z)*exp(-time); } // uAnal(y=0,z)
-    else if (!_bcRType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // uAnal_y(y=0,z)
+    else if (!_bcRType.compare("traction")) { v = (sin(y)*sin(z) + 2) * -sin(y)*sin(z)*exp(-time); } // mu * uAnal_y(y=0,z)
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
@@ -765,7 +765,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy * Ii;
 

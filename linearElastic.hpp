@@ -76,7 +76,7 @@ class LinearElastic: public IntegratorContext
   public:
 
     // boundary conditions
-    string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
+    string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcTP,_bcRP,_bcBP,_bcLP;
 
     OdeSolver           *_quadrature;
