@@ -592,36 +592,17 @@ PetscErrorCode SymmMaxwellViscoelastic::addMMSViscStrainsAndRates(const PetscSca
   return ierr = 0;
 }
 
+
 PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
   // measure error between uAnal and _uP (the numerical solution)
-  Vec diff;
-  ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
-  ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
-  PetscScalar err;
-  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
-  err = err/sqrt(_Ny*_Nz);
-  PetscPrintf(PETSC_COMM_WORLD,"Ny = %3i, dy = %e u err = %e, log2(u err) = % e\n",_Ny,_dy,err,log2(err));
+  double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  double err2 = computeNormDiff_2(_uP,_uAnal);
 
-  Vec epsAnal;
-  VecDuplicate(_uP,&epsAnal);
-  MMS_epsVxy(epsAnal,_currTime);
-  VecSet(diff,0.0);
-  ierr = VecWAXPY(diff,-1.0,_epsVxyP,epsAnal);CHKERRQ(ierr);
-  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
-  err = err/sqrt(_Ny*_Nz);
-  PetscPrintf(PETSC_COMM_WORLD,"    epsVxy err = %e, log2(epsVxy err) = % e\n",err,log2(err));
-
-  VecSet(epsAnal,0.0);
-  MMS_epsVxz(epsAnal,_currTime);
-  VecSet(diff,0.0);
-  ierr = VecWAXPY(diff,-1.0,_epsVxzP,epsAnal);CHKERRQ(ierr);
-  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
-  err = err/sqrt(_Ny*_Nz);
-  PetscPrintf(PETSC_COMM_WORLD,"    epsVxz err = %e, log2(epsVxz err) = % e\n",err,log2(err));
-
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
+              _Ny,_dy,err2,log2(err2),errH,log2(errH));
 
   return ierr;
 }

@@ -103,7 +103,8 @@ class LinearElastic: public IntegratorContext
     // IO commands
     PetscErrorCode view();
     PetscErrorCode virtual writeStep() = 0;
-    PetscErrorCode measureMMSError();
+
+    PetscErrorCode virtual measureMMSError() = 0;
 };
 
 
@@ -132,6 +133,10 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSuSourceTerms(Vec& Hxsource,const PetscScalar time);
     PetscErrorCode setMMSBoundaryConditions(const double time);
+    PetscErrorCode measureMMSError();
+
+    double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2);
+    double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
 
     // MMS functions (acting on scalars)
     double MMS_uA(double y,double z, double t);
@@ -232,6 +237,8 @@ class FullLinearElastic: public LinearElastic
     // for debugging
     PetscErrorCode setU();
     PetscErrorCode setSigmaxy();
+
+    PetscErrorCode measureMMSError();
 };
 
 #endif

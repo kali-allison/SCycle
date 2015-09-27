@@ -52,6 +52,8 @@ int main(int argc,char **args)
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms"))
     {
+      PetscPrintf(PETSC_COMM_WORLD,"%-3s %-10s %-10s %-22s %-10s %-22s\n",
+                 "Ny","dy","err2","log2(err2)","errH","log2(errH)");
       for(PetscInt Ny=21;Ny<642;Ny=(Ny-1)*2+1)
       {
         Domain domain(inputFile,Ny,Ny);

@@ -279,20 +279,77 @@ PetscErrorCode LinearElastic::view()
 
 
 
-PetscErrorCode LinearElastic::measureMMSError()
+PetscErrorCode SymmLinearElastic::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
   // measure error between uAnal and _uP (the numerical solution)
-  Vec diff;
-  ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
-  ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
-  PetscScalar err;
-  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
-  err = err/sqrt(_Ny*_Nz);
-  PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
+  //~Vec diff;
+  //~ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
+  //~ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
+  //~PetscScalar err;
+  //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+  //~err = err/sqrt(_Ny*_Nz);
+
+  double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  double err2 = computeNormDiff_2(_uP,_uAnal);
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e H MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
+              _Ny,_dy,err2,log2(err2),errH,log2(errH));
 
   return ierr;
+}
+
+// measure H-norm error between vec1 and vec2
+double SymmLinearElastic::computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  Vec Matxdiff;
+  ierr = VecDuplicate(vec1,&Matxdiff);CHKERRQ(ierr);
+  ierr = MatMult(mat,diff,Matxdiff);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecDot(diff,Matxdiff,&err);CHKERRQ(ierr);
+
+  PetscInt len;
+  ierr = VecGetSize(vec1,&len);CHKERRQ(ierr);
+
+  err = err/sqrt(len);
+  //~PetscPrintf(PETSC_COMM_WORLD,"H err = %e, log2(err) = %e\n",err,log2(err));
+
+  VecDestroy(&diff);
+  VecDestroy(&Matxdiff);
+
+  return err;
+}
+
+// measure H-norm error between vec1 and vec2
+double SymmLinearElastic::computeNormDiff_2(const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+
+  PetscInt len;
+  ierr = VecGetSize(vec1,&len);CHKERRQ(ierr);
+
+  err = err/sqrt(len);
+  //~PetscPrintf(PETSC_COMM_WORLD,"2 err = %e, log2(err) = %e\n",err,log2(err));
+
+  VecDestroy(&diff);
+
+  return err;
 }
 
 
@@ -1415,6 +1472,27 @@ PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt step
               bcLMinus,uMinus,tauQSMinus,velMinus);CHKERRQ(ierr);
 #endif
 #endif
+  return ierr;
+}
+
+
+PetscErrorCode FullLinearElastic::measureMMSError()
+{
+  PetscErrorCode ierr = 0;
+
+  // measure error between uAnal and _uP (the numerical solution)
+  //~Vec diff;
+  //~ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
+  //~ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
+  //~PetscScalar err;
+  //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+  //~err = err/sqrt(_Ny*_Nz);
+
+  //~double err = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  double err = 1e8;
+
+  PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
+
   return ierr;
 }
 
