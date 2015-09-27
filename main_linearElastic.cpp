@@ -52,7 +52,7 @@ int main(int argc,char **args)
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms"))
     {
-      for(PetscInt Ny=21;Ny<322;Ny=(Ny-1)*2+1)
+      for(PetscInt Ny=21;Ny<642;Ny=(Ny-1)*2+1)
       {
         Domain domain(inputFile,Ny,Ny);
         domain.write();
