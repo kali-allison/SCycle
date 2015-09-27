@@ -29,6 +29,26 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
 
+   PetscErrorCode setViscStrainSourceTerms(Vec& source);
+   PetscErrorCode setViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                         it_vec dvarBegin,it_vec dvarEnd);
+   PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                         it_vec dvarBegin,it_vec dvarEnd);
+
+
+    double MMS_visc(const double y,const double z);
+    double MMS_epsVxy(const double y,const double z,const double t);
+    PetscErrorCode MMS_epsVxy(Vec& vec,const double time);
+    double MMS_epsVxy_y(const double y,const double z,const double t);
+    double MMS_epsVxy_t_source(const double y,const double z,const double t);
+    double MMS_epsVxz(const double y,const double z,const double t);
+    PetscErrorCode MMS_epsVxz(Vec& vec,const double time);
+    double MMS_epsVxz_z(const double y,const double z,const double t);
+    double MMS_epsVxz_t_source(const double y,const double z,const double t);
+    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMMSviscStrainSourceTerms(Vec& Hxsource,const PetscScalar time);
+
+
 
   public:
     SymmMaxwellViscoelastic(Domain&D);
@@ -39,12 +59,18 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode integrate(); // don't need now that LinearElastic defines this
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                      it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                            it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd);
 
     PetscErrorCode writeStep();
     PetscErrorCode view();
+
+    PetscErrorCode measureMMSError();
 };
 
 #endif

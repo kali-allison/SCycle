@@ -73,6 +73,7 @@ class LinearElastic: public IntegratorContext
 
     PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
 
+
   public:
 
     // boundary conditions
@@ -126,9 +127,25 @@ class SymmLinearElastic: public LinearElastic
 
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();
-    PetscErrorCode setMMSInitialConditions();
-
     PetscErrorCode computeShearStress();
+
+    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSuSourceTerms(Vec& Hxsource,const PetscScalar time);
+    PetscErrorCode setMMSBoundaryConditions(const double time);
+
+    // MMS functions (acting on scalars)
+    double MMS_uA(double y,double z, double t);
+    PetscErrorCode MMS_uA(Vec& vec,const double time);
+    double MMS_uA_y(double y,double z, double t);
+    double MMS_uA_yy(const double y,const double z,const double t);
+    double MMS_uA_z(const double y,const double z,const double t);
+    double MMS_uA_zz(const double y,const double z,const double t);
+    double MMS_uA_t(const double y,const double z,const double t);
+    double MMS_mu(const double y,const double z);
+    double MMS_mu_y(const double y,const double z);
+    double MMS_mu_z(const double y,const double z);
+    double MMS_uSource(const double y,const double z,const double t);
+
 
   public:
 

@@ -6,9 +6,9 @@ Lz = 6.283185307179586
 
 Dc = 8e-3 # m
 
-bcT = displacement
-bcR = traction
-bcB = displacement
+bcT = traction
+bcR = displacement
+bcB = traction
 bcL = displacement
 
 
@@ -38,7 +38,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e3
+maxStepCount = 1e5
 initTime = 0       # s
 maxTime = 1      # s
 minDeltaT = 1e-3     # s

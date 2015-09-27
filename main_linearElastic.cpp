@@ -14,6 +14,29 @@
 
 using namespace std;
 
+int runEqCycle(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain domain(inputFile);
+  domain.write();
+
+  LinearElastic *obj;
+  if (domain._problemType.compare("symmetric")==0) {
+    obj = new SymmLinearElastic(domain);
+  }
+  else {
+    obj = new FullLinearElastic(domain);
+  }
+
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = obj->writeStep();CHKERRQ(ierr);
+  ierr = obj->integrate();CHKERRQ(ierr);
+  ierr = obj->view();CHKERRQ(ierr);
+
+  return ierr;
+}
+
 
 int main(int argc,char **args)
 {
@@ -26,25 +49,31 @@ int main(int argc,char **args)
   else { inputFile = "test.in"; }
 
   {
-    for(PetscInt Ny=21;Ny<322;Ny=(Ny-1)*2+1) {
-      Domain domain(inputFile,Ny,Ny);
-      domain.write();
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms"))
+    {
+      for(PetscInt Ny=21;Ny<322;Ny=(Ny-1)*2+1)
+      {
+        Domain domain(inputFile,Ny,Ny);
+        domain.write();
 
-      LinearElastic *lith;
-      if (domain._problemType.compare("symmetric")==0) {
-        lith = new SymmLinearElastic(domain);
+        LinearElastic *obj;
+        if (domain._problemType.compare("symmetric")==0) {
+          obj = new SymmLinearElastic(domain);
+        }
+        else {
+          obj = new FullLinearElastic(domain);
+        }
+
+        ierr = obj->writeStep();CHKERRQ(ierr);
+        ierr = obj->integrate();CHKERRQ(ierr);
+
+        obj->measureMMSError();
       }
-      else {
-        lith = new FullLinearElastic(domain);
-      }
-
-      //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-      ierr = lith->writeStep();CHKERRQ(ierr);
-      ierr = lith->integrate();CHKERRQ(ierr);
-      //~ierr = lith->view();CHKERRQ(ierr);
-
-      lith->measureMMSError();
-
+    }
+    else
+    {
+      runEqCycle(inputFile);
     }
   }
 
