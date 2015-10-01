@@ -584,11 +584,11 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
 
   if (step==0) {
 
-      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uPlus").c_str(),FILE_MODE_WRITE,&_slipViewer);
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"slip").c_str(),FILE_MODE_WRITE,&_slipViewer);
       ierr = VecView(_slip,_slipViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_slipViewer);CHKERRQ(ierr);
 
-      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"velPlus").c_str(),FILE_MODE_WRITE,&_slipVelViewer);
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"slipVel").c_str(),FILE_MODE_WRITE,&_slipVelViewer);
       ierr = VecView(_slipVel,_slipVelViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_slipVelViewer);CHKERRQ(ierr);
 
@@ -600,10 +600,10 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
       ierr = VecView(_psi,_psiViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_psiViewer);CHKERRQ(ierr);
 
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uPlus").c_str(),
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"slip").c_str(),
                                    FILE_MODE_APPEND,&_slipViewer);CHKERRQ(ierr);
 
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"velPlus").c_str(),
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"slipVel").c_str(),
                                    FILE_MODE_APPEND,&_slipVelViewer);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"tauQSPlus").c_str(),

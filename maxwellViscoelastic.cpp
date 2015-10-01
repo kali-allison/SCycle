@@ -135,7 +135,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip velocity, bcL is displacement at y=0+
+  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
