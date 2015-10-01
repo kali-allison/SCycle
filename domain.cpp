@@ -16,6 +16,7 @@ Domain::Domain(const char *file)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
   _viscDistribution("unspecified"),_visc(NULL),
+  _A(NULL),_temp(NULL),_n(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -86,6 +87,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
   _viscDistribution("unspecified"),_visc(NULL),
+  _A(NULL),_temp(NULL),_n(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _strideLength(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -164,6 +166,11 @@ Domain::~Domain()
   MatDestroy(&_muM);
 
   VecDestroy(&_visc);
+
+  VecDestroy(&_A);
+  VecDestroy(&_temp);
+  VecDestroy(&_n);
+
 
 
 #if VERBOSE > 1
@@ -289,6 +296,7 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
+// loads a std library vector from a list in the input file
 PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
   PetscErrorCode ierr = 0;
@@ -1151,16 +1159,11 @@ PetscErrorCode Domain::loadFieldsFromFiles()
 
 
   // load viscosity from input file
-  vecSourceFile = _inputDir + "visc";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-
   ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
   ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_visc);     PetscObjectSetName((PetscObject) _visc, "_visc");
-  ierr = VecLoad(_visc,inv);CHKERRQ(ierr);
-
+  ierr = VecSetFromOptions(_visc);
+  PetscObjectSetName((PetscObject) _visc, "_visc");
+  ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
 
 
 

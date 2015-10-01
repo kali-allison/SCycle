@@ -21,6 +21,8 @@ sigma_N_max = 50 # MPa
 
 vL = 1e-9    # m/s
 
+inputDir = inputData/
+
 shearDistribution = constant
 {
 problem = symmetric
@@ -31,11 +33,6 @@ rhoPlus = 2.8 # g/cm^3
 viscDistribution = layered
 viscVals = [1e20 1e20 1e8 1e8 1e9]
 viscDepths = [0 5 10 15 24]
-viscUpCrust = 1e20 # GPa s
-viscLowCrust = 1e8 # GPa s
-viscAsth = 1e8 # GPa s
-depthUpToLowCrust = 10 # km
-depthLowCrustToAsth = 60 # km
 
 linSolver = AMG
 kspTol = 1e-7
@@ -43,7 +40,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1
+maxStepCount = 5
 initTime = 0       # s
 maxTime = 1e12      # s
 minDeltaT = 1e-3     # s

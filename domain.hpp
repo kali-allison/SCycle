@@ -35,7 +35,7 @@ class Domain
     size_t  _aLen,_bLen; // length of each vector
 
     // material distribution properties
-    std::string  _shearDistribution, // options: mms, constant, gradient, basin,   CVM
+    std::string  _shearDistribution, // options: mms, constant, gradient, basin, CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)
     std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)
     // + side fields (always initiated)
@@ -50,10 +50,13 @@ class Domain
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
     Mat          _muM;
 
-    // viscosity distribution properties
+    // viscosity distribution properties for Maxwell viscoelasticity
     std::string  _viscDistribution; // options: mms, layered
     std::vector<double> _viscVals,_viscDepths;
     Vec          _visc; // contains full viscosity field
+
+    // viscosity distribtion properties for power law rheology
+    Vec _A,_temp,_n;
 
 
     // linear solver settings

@@ -1,12 +1,13 @@
-all: main_linearElastic main
+all: main_linearElastic main main_iceSheet
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
- maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps.o spmat.o testOdeSolver.o
+ maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps.o spmat.o\
+ testOdeSolver.o iceSheet.o
 
 ifeq (${PETSC_VERSION_NUM},4)
 	include ${PETSC_DIR}/conf/variables
@@ -27,6 +28,10 @@ main:  main.o $(OBJECTS)
 main_linearElastic:  main_linearElastic.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main_linearElastic.o
+
+main_iceSheet:  main_iceSheet.o $(OBJECTS)
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm main_iceSheet.o
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -62,6 +67,10 @@ fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp \
  rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
 helloWorld.o: helloWorld.cpp
+iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContext.hpp odeSolver.hpp \
+ genFuncs.hpp domain.hpp maxwellViscoelastic.hpp linearElastic.hpp \
+ sbpOps.hpp debuggingFuncs.hpp spmat.hpp fault.hpp rootFinderContext.hpp \
+ rootFinder.hpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp spmat.hpp fault.hpp rootFinderContext.hpp \

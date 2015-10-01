@@ -3,6 +3,14 @@
 
 #include <petscts.h>
 #include <petscdmda.h>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <assert.h>
+#include <vector>
+#include <iostream>
+
+using namespace std;
 
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec);
@@ -20,6 +28,14 @@ PetscErrorCode writeVec(Vec vec,const char * loc);
 // processor each entry lives on, and the corresponding subscripting
 // indices.
 PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm);
+
+// vector norms
+double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2);
+double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
+double computeNorm_Mat(const Mat& mat,const Vec& vec);
+
+
+PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
 
 
 

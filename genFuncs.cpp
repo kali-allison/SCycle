@@ -92,3 +92,89 @@ PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm)
 
 
 
+// computes || vec1 - vec2||_mat
+double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  PetscScalar diffErr = computeNorm_Mat(mat,diff);
+  PetscScalar vecErr = computeNorm_Mat(mat,vec1);
+
+  PetscScalar err = diffErr/vecErr;
+
+  VecDestroy(&diff);
+
+  return err;
+}
+
+// computes || vec ||_mat
+double computeNorm_Mat(const Mat& mat,const Vec& vec)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec Matxvec;
+  ierr = VecDuplicate(vec,&Matxvec);CHKERRQ(ierr);
+  ierr = MatMult(mat,vec,Matxvec);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecDot(vec,Matxvec,&err);CHKERRQ(ierr);
+
+  return err;
+}
+
+
+// computes || vec1 - vec2 ||_2
+double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+
+  PetscInt len;
+  ierr = VecGetSize(vec1,&len);CHKERRQ(ierr);
+
+  err = err/sqrt(len);
+
+  VecDestroy(&diff);
+
+  return err;
+}
+
+
+
+// loads a PETSc Vec from a binary file
+// Note: memory for out MUST be allocated before calling this function
+PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "loadFieldsFromFiles";
+  string fileName = "genFuncs.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  string vecSourceFile = inputDir + fieldName;
+  PetscViewer inv;
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+
+  ierr = VecLoad(out,inv);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+

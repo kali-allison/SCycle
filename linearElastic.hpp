@@ -135,8 +135,6 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError();
 
-    double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2);
-    double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
 
     // MMS functions (acting on scalars)
     double MMS_uA(double y,double z, double t);
