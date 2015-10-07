@@ -1653,10 +1653,33 @@ PetscErrorCode MyMatMult(Mat A, Vec x, Vec b) {
     MatShellGetContext(A,&ptr);
     user = (AppCtx*)ptr;
     // Insert what the multiplication operation should do!
-
+    
 
 
     return ierr;
+}
+
+PetscErrorCode testMyMatMult() {
+    PetscErrorCode ierr = 0;
+    AppCtx ctx;
+    PetscInt x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
+    PetscScalar x_min = X_MIN, x_max = X_MAX, y_max = Y_MAX, y_min = Y_MIN;
+    
+    PetscPrintf(PETSC_COMM_WORLD, "Test for MyMatMult\n");
+    x_len = NUM_X_PTS;
+    y_len = NUM_Y_PTS;
+    x_min = X_MIN;
+    x_max = X_MAX;
+    y_max = Y_MAX;
+    y_min = Y_MIN;
+    assert(x_len > 3);
+    assert(y_len > 3);
+    for(int i = 0; i < NUM_2D_2ND_GRID_SPACE_CALCULATIONS; i++) {
+        x_len = ((x_len - 1) * 2) + 1;
+        y_len = ((y_len - 1) * 2) + 1;
+    }
+
+    PetscPrintf(PETSC_COMM_WORLD, "\n");
 }
 
 /* Function: Solve_Linear_Equation
@@ -1810,8 +1833,10 @@ int main(int argc,char **argv)
 {
   PetscErrorCode ierr = 0;
   PetscInitialize(&argc,&argv,(char*)0,NULL);
-  ierr = MMSTest();CHKERRQ(ierr);
+  //ierr = MMSTest();CHKERRQ(ierr);
   //ierr = Solve_Linear_Equation();CHKERRQ(ierr);
+  testMyMatMult(); 
+  
   PetscFinalize();
   return ierr;
 }
