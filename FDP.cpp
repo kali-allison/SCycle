@@ -59,10 +59,12 @@ typedef struct {
 /* problem parameters */
     PetscInt       n_x, n_y;
     Vec            Bottom, Top, Left, Right; /* boundary values */
-
+    Vec            mu;
+    PetscScalar    dx_spacing, dy_spacing;
 /* Working space */
     Vec         localX, localV;           /* ghosted local vector */
-    DM          dm;                       /* distributed array data structure */
+    DM          da;                       /* distributed array data structure */
+    DM          cda;
     Mat         H;
 } AppCtx;
 
@@ -1646,14 +1648,14 @@ PetscErrorCode setRHS_T(Vec &RHS, const Vec &g, const PetscScalar &h_11,
  *
  *
  */
-PetscErrorCode MyMatMult(Mat A, Vec x, Vec b) {
+PetscErrorCode MyMatMult(Mat A, Vec fx, Vec dx) {
     PetscErrorCode ierr = 0;
     void           *ptr;
-    AppCtx         *user;
+    AppCtx         *ctx;
     MatShellGetContext(A,&ptr);
-    user = (AppCtx*)ptr;
+    ctx = (AppCtx*)ptr;
     // Insert what the multiplication operation should do!
-    
+    ierr = Dmuxx_2d(dx, fx, ctx->mu, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
 
 
     return ierr;
@@ -1662,24 +1664,182 @@ PetscErrorCode MyMatMult(Mat A, Vec x, Vec b) {
 PetscErrorCode testMyMatMult() {
     PetscErrorCode ierr = 0;
     AppCtx ctx;
-    PetscInt x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
+    PetscScalar x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
     PetscScalar x_min = X_MIN, x_max = X_MAX, y_max = Y_MAX, y_min = Y_MIN;
-    
+
     PetscPrintf(PETSC_COMM_WORLD, "Test for MyMatMult\n");
-    x_len = NUM_X_PTS;
-    y_len = NUM_Y_PTS;
-    x_min = X_MIN;
-    x_max = X_MAX;
-    y_max = Y_MAX;
-    y_min = Y_MIN;
-    assert(x_len > 3);
-    assert(y_len > 3);
-    for(int i = 0; i < NUM_2D_2ND_GRID_SPACE_CALCULATIONS; i++) {
-        x_len = ((x_len - 1) * 2) + 1;
-        y_len = ((y_len - 1) * 2) + 1;
+    PetscInt i = 0, j = 0, mStart = 0, m = 0, nStart = 0, n = 0,
+             fx_istart, fx_iend, dx_start, dx_end, dy_start, dy_end;
+    PetscScalar v = 0;
+    Vec fx = NULL, dx = NULL, dy = NULL, a_dx = NULL, a_dy = NULL, fx_err = NULL, /* vectors */
+        local_coords = NULL, local_fx = NULL, local_a_dx = NULL, local_a_dy = NULL,
+        /* mu = NULL, */ local_mu = NULL, dxxmu = NULL, local_dxxmu = NULL, dyymu = NULL, local_dyymu = NULL;
+        // first row, global vecs, second row, local vecs, third row, mu and 2nd derivatives
+
+    PetscInt num_entries = (x_len) * (y_len); //total number of entries on the grid
+    ctx.dx_spacing = ((PetscReal)(x_max - x_min))/(x_len - 1); // spacing in the x direction
+    ctx.dy_spacing = ((PetscReal)(y_max - y_min))/(y_len - 1); // spacing in the y direction
+
+    ctx.n_x = NUM_X_PTS;
+    ctx.n_y = NUM_Y_PTS;
+
+    DMDACoor2d **coords;
+    DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,
+            DMDA_STENCIL_BOX, ctx.n_x, ctx.n_y, PETSC_DECIDE, PETSC_DECIDE, 1, 2, NULL, NULL, &ctx.da);
+    DMDASetUniformCoordinates(ctx.da, x_min, x_max, y_min, y_max, 0.0, 0.0);
+    DMGetCoordinateDM(ctx.da, &ctx.cda);
+    DMGetCoordinatesLocal(ctx.da, &local_coords);
+    DMDAVecGetArray(ctx.cda, local_coords, &coords);
+    DMDAGetCorners(ctx.cda, &mStart, &nStart, 0, &m, &n, 0);
+    // allows us to have information about the DMDA
+    DMDALocalInfo info;
+    ierr = DMDAGetLocalInfo(ctx.da, &info);
+
+    ierr = DMCreateGlobalVector(ctx.da, &fx);
+    ierr = VecDuplicate(fx, &dx);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &dy);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &a_dx);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &a_dy);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &fx_err);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &ctx.mu);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &dxxmu);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &dyymu);CHKERRQ(ierr);
+
+    //FIXME name Vecs above and also do we need this rank stuff?
+    PetscMPIInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    // Set up fx to pull values from
+    ierr = DMCreateLocalVector(ctx.da, &local_fx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, fx, INSERT_VALUES, local_fx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, fx, INSERT_VALUES, local_fx);CHKERRQ(ierr);
+
+    PetscScalar **local_fx_arr;
+    DMDAVecGetArray(ctx.da, local_fx, &local_fx_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+    //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
+    //        local_fx_arr[j][i] = coords[j][i].y;
+    //         local_fx_arr[j][i] = (coords[j][i].x * coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y * coords[j][i].y);
+          local_fx_arr[j][i] = sin(coords[j][i].x) + cos(coords[j][i].y);
+    //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_grid_arr[j][i]);
+      }
     }
+    DMDAVecRestoreArray(ctx.da, local_fx, &local_fx_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_fx, INSERT_VALUES, fx);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_fx, INSERT_VALUES, fx);CHKERRQ(ierr);
+
+    //set up a_dx
+    ierr = DMCreateLocalVector(ctx.da, &local_a_dx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, a_dx, INSERT_VALUES, local_a_dx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, a_dx, INSERT_VALUES, local_a_dx);CHKERRQ(ierr);
+
+    PetscScalar **local_a_dx_arr;
+    DMDAVecGetArray(ctx.da, local_a_dx, &local_a_dx_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+  //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
+  //        local_act_diff_x_arr[j][i] = coords[j][i].x;
+          local_a_dx_arr[j][i] = -sin(coords[j][i].x);
+  //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_act_diff_x_arr[j][i]);
+  //        local_act_diff_x_arr[j][i] = (6 * coords[j][i].x);
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_a_dx, &local_a_dx_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_a_dx, INSERT_VALUES, a_dx);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_a_dx, INSERT_VALUES, a_dx);CHKERRQ(ierr);
+
+    // SET UP ACT_DIFF_Y
+    ierr = DMCreateLocalVector(ctx.da, &local_a_dy);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, a_dy, INSERT_VALUES, local_a_dy);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, a_dy, INSERT_VALUES, local_a_dy);CHKERRQ(ierr);
+
+    PetscScalar **local_a_dy_arr;
+    DMDAVecGetArray(ctx.da, local_a_dy, &local_a_dy_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+  //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
+  //        local_act_diff_y_arr[j][i] = (6 * coords[j][i].y);
+          local_a_dy_arr[j][i] = -cos(coords[j][i].y);
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_a_dy, &local_a_dy_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_a_dy, INSERT_VALUES, a_dy);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_a_dy, INSERT_VALUES, a_dy);CHKERRQ(ierr);
+
+    // SET UP MU
+    ierr = DMCreateLocalVector(ctx.da, &local_mu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, ctx.mu, INSERT_VALUES, local_mu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, ctx.mu, INSERT_VALUES, local_mu);CHKERRQ(ierr);
+
+    PetscScalar **local_mu_arr;
+    DMDAVecGetArray(ctx.da, local_mu, &local_mu_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          local_mu_arr[j][i] = cos(coords[j][i].x + coords[j][i].y) + 4;
+  //        local_mu_arr[j][i] = 1;
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_mu, &local_mu_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_mu, INSERT_VALUES, ctx.mu);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_mu, INSERT_VALUES, ctx.mu);CHKERRQ(ierr);
+
+    // SET UP DxxMU
+    ierr = DMCreateLocalVector(ctx.da, &local_dxxmu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, dxxmu, INSERT_VALUES, local_dxxmu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, dxxmu, INSERT_VALUES, local_dxxmu);CHKERRQ(ierr);
+
+    PetscScalar **local_dxxmu_arr;
+    DMDAVecGetArray(ctx.da, local_dxxmu, &local_dxxmu_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          local_dxxmu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * cos(coords[j][i].x)) +
+                  ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-sin(coords[j][i].x)));
+  //        local_dxxmu_arr[j][i] = -sin(coords[j][i].x);
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_dxxmu, &local_dxxmu_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_dxxmu, INSERT_VALUES, dxxmu);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_dxxmu, INSERT_VALUES, dxxmu);CHKERRQ(ierr);
+
+    // SET UP DyyMU
+    ierr = DMCreateLocalVector(ctx.da, &local_dyymu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, dyymu, INSERT_VALUES, local_dyymu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, dyymu, INSERT_VALUES, local_dyymu);CHKERRQ(ierr);
+
+    PetscScalar **local_dyymu_arr;
+    DMDAVecGetArray(ctx.da, local_dyymu, &local_dyymu_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          local_dyymu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
+                  ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
+  //        local_dyymu_arr[j][i] = -cos(coords[j][i].y);
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_dyymu, &local_dyymu_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_dyymu, INSERT_VALUES, dyymu);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_dyymu, INSERT_VALUES, dyymu);CHKERRQ(ierr);
+
+    PetscInt vec_size = NULL;
+    VecGetLocalSize(fx, &vec_size);
+    // set up linear solve context (matrices, etc.)
+    Mat H_Shell;
+    //MatCreateAIJ(MPI_COMM_WORLD,info.xm,info.ym,info.mx,info.my,7,NULL,3,NULL,&(user.H));
+    MatCreateShell(PETSC_COMM_WORLD, vec_size, vec_size, num_entries, num_entries,(void*)&ctx,&H_Shell);
+    MatShellSetOperation(H_Shell,MATOP_MULT,
+                            (void(*)(void))MyMatMult);
+    MatMult(H_Shell, fx, dx);
+
+
 
     PetscPrintf(PETSC_COMM_WORLD, "\n");
+    return ierr;
 }
 
 /* Function: Solve_Linear_Equation
@@ -1835,8 +1995,8 @@ int main(int argc,char **argv)
   PetscInitialize(&argc,&argv,(char*)0,NULL);
   //ierr = MMSTest();CHKERRQ(ierr);
   //ierr = Solve_Linear_Equation();CHKERRQ(ierr);
-  testMyMatMult(); 
-  
+  testMyMatMult();
+
   PetscFinalize();
   return ierr;
 }
