@@ -59,6 +59,7 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_rhsP,&_uP);
 
 
+
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
   if (_timeIntegrator.compare("FEuler")==0) {
@@ -347,6 +348,8 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   setSurfDisp();
 
+
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
 #endif
@@ -380,7 +383,6 @@ PetscErrorCode SymmLinearElastic::setShifts()
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setShifts in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
-
 
   PetscInt Ii,Istart,Iend;
   PetscScalar v,bcRshift;
@@ -435,7 +437,7 @@ PetscErrorCode SymmLinearElastic::writeStep()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -453,21 +455,21 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
-    //~// boundary conditions
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),FILE_MODE_WRITE,
-                                 &_bcRPlusV);CHKERRQ(ierr);
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
-                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+    // boundary conditions
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),FILE_MODE_WRITE,
+                                 //~&_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
+                                   //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-    // output body fields
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
-              FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
-    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
-                                   FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
+    //~// output body fields
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+              //~FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
+    //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    //~ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+                                   //~FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   if (_isMMS) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
@@ -484,7 +486,10 @@ PetscErrorCode SymmLinearElastic::writeStep()
   else {
     ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+
+    //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
@@ -492,7 +497,7 @@ PetscErrorCode SymmLinearElastic::writeStep()
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   return ierr;
 }
