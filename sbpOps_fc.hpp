@@ -23,13 +23,13 @@ struct TempMats_fc
       const PetscReal   _dy,_dz;
       Mat              *_mu;
 
-      Spmat _Hy,_D1y,_D1yint,_Iy;
-      Spmat _Hz,_D1z,_D1zint,_Iz;
+      Spmat _Hy,_D1y,_Iy;
+      Spmat _Hz,_D1z,_Iz;
 
-      Mat _muxBySy_Iz;
+      Mat _muxByDy_Iz;
       Mat _Hyinv_Iz;
 
-      Mat _muxIy_BzSz;
+      Mat _muxIy_BzDz;
       Mat _Iy_Hzinv;
 
       Mat _AL;
@@ -117,14 +117,20 @@ class SbpOps_fc
 
     Mat _H;
     Mat _A;
-    Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
-    Mat _Iy_Dzx2mu, _Iy_Dz;
+    //~Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
+    //~Mat _Iy_Dzx2mu, _Iy_Dz;
+    Mat _Dy_Iz,_Iy_Dz;
 
     SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps_fc();
 
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
+
+    PetscErrorCode muxDy(const Vec& in, Vec& out);
+    PetscErrorCode Dyxmu(const Vec& in, Vec& out);
+    PetscErrorCode muxDz(const Vec& in, Vec& out);
+    PetscErrorCode Dzxmu(const Vec& in, Vec& out);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);

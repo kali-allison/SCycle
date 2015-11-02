@@ -155,7 +155,8 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = setSurfDisp();
 
   // set shear traction on fault
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates for slip and state
@@ -209,7 +210,8 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   ierr = setSurfDisp();
 
   // update fields on fault
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // update rates
@@ -424,7 +426,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);

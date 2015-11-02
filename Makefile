@@ -1,13 +1,13 @@
 all: main_linearElastic
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps.o sbpOps_fc.o spmat.o\
- testOdeSolver.o iceSheet.o
+ testOdeSolver.o
 
 ifeq (${PETSC_VERSION_NUM},4)
 	include ${PETSC_DIR}/conf/variables
