@@ -133,7 +133,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 

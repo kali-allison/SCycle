@@ -7,6 +7,7 @@
 #include "spmat.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
+#include "sbpOps_fc.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
 
