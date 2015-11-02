@@ -258,6 +258,39 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
 
 
 // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
+  Vec sourcexy_y,Hxsourcexy_y;
+  VecDuplicate(_epsVxyP,&sourcexy_y);
+  ierr = _sbpP.Dyxmu(_epsVxyP,sourcexy_y);CHKERRQ(ierr);
+  ierr = VecScale(sourcexy_y,2.0);CHKERRQ(ierr);
+  VecDuplicate(sourcexy_y,&Hxsourcexy_y);
+  ierr = MatMult(_sbpP._H,sourcexy_y,Hxsourcexy_y);
+  ierr = VecCopy(Hxsourcexy_y,source);CHKERRQ(ierr); // Hxsourcexy_y -> source
+  VecDestroy(&sourcexy_y);
+  VecDestroy(&Hxsourcexy_y);
+
+  if (_Nz > 1)
+  {
+    Vec sourcexz_z,Hxsourcexz_z;
+    VecDuplicate(_epsVxzP,&sourcexz_z);
+    ierr = _sbpP.Dzxmu(_epsVxzP,sourcexz_z);CHKERRQ(ierr);
+    ierr = VecScale(sourcexz_z,2.0);CHKERRQ(ierr);
+    VecDuplicate(sourcexz_z,&Hxsourcexz_z);
+    ierr = MatMult(_sbpP._H,sourcexz_z,Hxsourcexz_z); CHKERRQ(ierr);
+
+    ierr = VecAXPY(source,1.0,Hxsourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
+
+    // clean up memory
+    VecDestroy(&sourcexz_z);
+    VecDestroy(&Hxsourcexz_z);
+
+    Vec sourceSAT;
+    VecDuplicate(_epsVxzP,&sourceSAT);
+    ierr = _sbpP.HBzx2mu(_epsVxzP,sourceSAT); CHKERRQ(ierr);
+    ierr = VecAXPY(source,-1.0,sourceSAT);CHKERRQ(ierr); // source += sourceSAT
+    VecDestroy(&sourceSAT);
+
+  }
+/*
   Vec sourcexy,sourcexy_y;
   PetscScalar epsxy,epsxy_y;
   VecDuplicate(_epsVxyP,&sourcexy);
@@ -283,6 +316,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
   VecDestroy(&sourcexy);
   VecDestroy(&sourcexy_y);
   VecDestroy(&Hxsourcexy_y);
+
 
   if (_Nz > 1)
   {
@@ -311,6 +345,41 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
     VecDestroy(&sourcexz_z);
     VecDestroy(&Hxsourcexz_z);
   }
+*/
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr = 0;
+}
+
+
+
+PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out)
+{
+    PetscErrorCode ierr = 0;
+    string funcName = "SymmMaxwellViscoelastic::viscousStrainRateSAT";
+    string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    CHKERRQ(ierr);
+  #endif
+
+  VecDuplicate(u,&out);
+  ierr = MatMult(_sbpP._By_Iz,u,out);CHKERRQ(ierr);
+  ierr = VecScale(out,_sbpP._alphav);CHKERRQ(ierr);
+
+  Vec GL, GR;
+  VecDuplicate(u,&GL);
+  VecDuplicate(u,&GR);
+  ierr = MatMult(_sbpP._e0y_Iz,gL,GL);CHKERRQ(ierr);
+  ierr = MatMult(_sbpP._eNy_Iz,gR,GR);CHKERRQ(ierr);
+  VecAXPY(out,_sbpP._alphav,GL);
+  VecAXPY(out,-_sbpP._alphav,GR);
+
+  VecDestroy(&GL);
+  VecDestroy(&GR);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -318,6 +387,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
   #endif
   return ierr = 0;
 }
+
+
 
 PetscErrorCode SymmMaxwellViscoelastic::setViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                  it_vec dvarBegin,it_vec dvarEnd)
@@ -337,21 +408,26 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainsAndRates(const PetscScalar
   MatMult(_sbpP._Iy_Dz,_uP,_epsTotxzP);
   VecScale(_epsTotxzP,0.5);
 
-  PetscScalar deps,visc,epsTot,epsVisc,sigmaxy,sigmaxz;
+  // add SAT terms to strain rate for epsxy
+  Vec SAT;
+  ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
+
+  PetscScalar deps,visc,epsTot,epsVisc,sigmaxy,sigmaxz,sat;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_visc,1,&Ii,&visc);
     VecGetValues(_epsTotxyP,1,&Ii,&epsTot);
     VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
+    VecGetValues(SAT,1,&Ii,&sat);
 
     // solve for stressxyP = 2*mu*epsExy (elastic strain)
     //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
     sigmaxy = 2.0 * _muArrPlus[Ii] * (epsTot - epsVisc);
     VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
 
-    // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy)
-    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc);
+    // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
+    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc) + 0*0.5*_muArrPlus[Ii]/visc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -373,6 +449,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainsAndRates(const PetscScalar
 
   VecAssemblyEnd(_stressxyP);
   VecAssemblyEnd(*(dvarBegin+2));
+
+  VecDestroy(&SAT);
+
+
 
   if (_Nz > 1) {
     VecAssemblyBegin(_stressxzP);

@@ -1,5 +1,5 @@
-order = 4
-Ny = 11
+order = 2
+Ny = 21
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -31,8 +31,8 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20 1e8 1e8 1e9]
-viscDepths = [0 5 10 15 24]
+viscVals = [1e7 1e7]
+viscDepths = [0 24]
 
 linSolver = AMG
 kspTol = 1e-7
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/el4_
+outputDir = data/noSAT_

@@ -13,9 +13,12 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
-  _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
+  _debugFolder("./matlabAnswers/"),
+  _alphav(-2.0/_dy),
+  _H(NULL),_A(NULL),
   //~_Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
-  _Dy_Iz(NULL),_Iy_Dz(NULL)
+  _Dy_Iz(NULL),_Iy_Dz(NULL),_Iy_Bz(NULL),
+  _By_Iz(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -42,6 +45,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
     //~MatCreate(PETSC_COMM_WORLD,&_muxDy_Iz);
     MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);
     MatCreate(PETSC_COMM_WORLD,&_Iy_Dz);
+    MatCreate(PETSC_COMM_WORLD,&_Iy_Bz);
 
     {
       /* NOT a member of this class, contains stuff to be deleted before
@@ -53,6 +57,21 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
       if (_order==4) {
         _alphaDy = tempFactors._Hy(0,0);
         _alphaDz = tempFactors._Hz(0,0);
+        _alphav = -tempFactors._Hy(0,0);
+      }
+
+      {
+        Spmat Bz(_Nz,_Nz); Bz(0,0,-1); Bz(_Nz-1,_Nz-1,1);
+        kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,1);
+
+        Spmat By(_Ny,_Ny); By(0,0,-1); By(_Ny-1,_Ny-1,1);
+        kronConvert(By,tempFactors._Iz,_By_Iz,1,1);
+
+        Spmat e0y(_Ny,1); e0y(0,0,1.0);
+        kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
+
+        Spmat eNy(_Ny,1); eNy(0,0,1.0);
+        kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
       }
 
       computeH(tempFactors);
@@ -1524,6 +1543,29 @@ PetscErrorCode SbpOps_fc::Dzxmu(const Vec& in, Vec& out)
 
   VecDestroy(&temp);
 
+
+  return ierr;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+}
+
+PetscErrorCode SbpOps_fc::HBzx2mu(const Vec& in, Vec& out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "sbpOps_fc::Bzx2mu";
+  string fileName = "sbpOps_fc.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+
+  Vec temp;
+  VecDuplicate(in,&temp);
+  ierr = MatMult(*_mu,in,temp); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Bz,temp,out); CHKERRQ(ierr);
+  ierr = VecScale(out,2.0); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
 
   return ierr;
 #if VERBOSE > 1

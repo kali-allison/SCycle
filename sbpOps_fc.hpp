@@ -115,11 +115,15 @@ class SbpOps_fc
 
   //~public:
 
+    PetscScalar _alphav; // penalty coefficient for viscous strain rate
+
     Mat _H;
     Mat _A;
     //~Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
     //~Mat _Iy_Dzx2mu, _Iy_Dz;
     Mat _Dy_Iz,_Iy_Dz;
+    Mat _Iy_Bz;
+    Mat _By_Iz,_e0y_Iz,_eNy_Iz; // for SAT on viscous strain rate
 
     SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps_fc();
@@ -131,6 +135,7 @@ class SbpOps_fc
     PetscErrorCode Dyxmu(const Vec& in, Vec& out);
     PetscErrorCode muxDz(const Vec& in, Vec& out);
     PetscErrorCode Dzxmu(const Vec& in, Vec& out);
+    PetscErrorCode HBzx2mu(const Vec& in, Vec& out);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
