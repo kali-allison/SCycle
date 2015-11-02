@@ -1,5 +1,5 @@
-#ifndef SBPOPS_H_INCLUDED
-#define SBPOPS_H_INCLUDED
+#ifndef SBPOPS_FC_H_INCLUDED
+#define SBPOPS_FC_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -17,14 +17,14 @@ using namespace std;
  * to 2D, and the 2D factors that are used to enforce boundaries in the
  * A matrix.
  */
-struct TempMats
+struct TempMats_fc
     {
       const PetscInt    _order,_Ny,_Nz;
       const PetscReal   _dy,_dz;
       Mat              *_mu;
 
-      Spmat _Hy,_D1y,_D1yint,_Iy;
-      Spmat _Hz,_D1z,_D1zint,_Iz;
+      Spmat _Hy,_D1y,_Iy;
+      Spmat _Hz,_D1z,_Iz;
 
       Mat _muxBySy_Iz;
       Mat _Hyinv_Iz;
@@ -39,8 +39,8 @@ struct TempMats
 
       Mat _H;
 
-      TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
-      ~TempMats();
+      TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
+      ~TempMats_fc();
 
 
 
@@ -48,8 +48,8 @@ struct TempMats
       PetscErrorCode constructH();
 
       // disable default copy constructor and assignment operator
-      TempMats(const TempMats & that);
-      TempMats& operator=( const TempMats& rhs );
+      TempMats_fc(const TempMats_fc & that);
+      TempMats_fc& operator=( const TempMats_fc& rhs );
   };
 
 
@@ -67,7 +67,7 @@ struct TempMats
  * be off by 4.
  */
 
-class SbpOps
+class SbpOps_fc
 {
 
   public:
@@ -92,10 +92,10 @@ class SbpOps
     string _debugFolder;
 
 
-    PetscErrorCode constructH(const TempMats& tempMats);
-    PetscErrorCode costruct1stDerivs(const TempMats& tempMats);
-    PetscErrorCode constructA(const TempMats& tempMats);
-    PetscErrorCode satBoundaries(TempMats& tempMats);
+    PetscErrorCode constructH(const TempMats_fc& tempMats);
+    PetscErrorCode costruct1stDerivs(const TempMats_fc& tempMats);
+    PetscErrorCode constructA(const TempMats_fc& tempMats);
+    PetscErrorCode satBoundaries(TempMats_fc& tempMats);
 
     /*
      * Functions to compute intermediate matrices that comprise A:
@@ -103,15 +103,15 @@ class SbpOps
      *     (second derivative in z) D2z = D2zmu + R2zmu
      * where R2ymu and R2zmu vanish as the grid spacing approaches 0.
      */
-    PetscErrorCode constructD2ymu(const TempMats& tempMats, Mat &D2ymu);
-    PetscErrorCode constructD2zmu(const TempMats& tempMats, Mat &D2zmu);
-    PetscErrorCode constructRymu(const TempMats& tempMats,Mat &Rymu);
-    PetscErrorCode constructRzmu(const TempMats& tempMats,Mat &Rzmu);
+    PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
+    PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
+    PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
+    PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
 
 
     // disable default copy constructor and assignment operator
-    SbpOps(const SbpOps & that);
-    SbpOps& operator=( const SbpOps& rhs );
+    SbpOps_fc(const SbpOps_fc & that);
+    SbpOps_fc& operator=( const SbpOps_fc& rhs );
 
   //~public:
 
@@ -119,12 +119,15 @@ class SbpOps
     Mat _A;
     Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
     Mat _Iy_Dzx2mu, _Iy_Dz;
+    Mat _Iy_BzxIy_Hinvz;
 
-    SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
-    ~SbpOps();
+    SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
+    ~SbpOps_fc();
 
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
+
+    PetscErrorCode muxDy(const Vec& in, Vec& out);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
@@ -139,7 +142,7 @@ class SbpOps
 
 // functions to construct 1D sbp operators
 PetscErrorCode sbpSpmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
-                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
+                        Spmat& H,Spmat& Hinv,Spmat& D1, Spmat& BD1);
 PetscErrorCode sbpSpmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
 PetscErrorCode sbpSpmat4(const PetscInt N,const PetscScalar scale,
                          Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);

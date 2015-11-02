@@ -133,7 +133,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 
@@ -621,7 +621,8 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  ierr = _sbpP.muxDy(_uP,_stressxyP);CHKERRQ(ierr);
 
 
   // update fields on fault

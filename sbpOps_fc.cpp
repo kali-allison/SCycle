@@ -1,4 +1,4 @@
-#include "sbpOps.hpp"
+#include "sbpOps_fc.hpp"
 
 
 
@@ -7,14 +7,15 @@
 /* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
+SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(&muArr),_mu(&mu),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
-  _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
+  _Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL),
+  _Iy_BzxIy_Hinvz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -45,7 +46,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
       /* NOT a member of this class, contains stuff to be deleted before
        * end of constructor to save on memory usage.
        */
-      TempMats tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+      TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
       // reset SAT params
       if (_order==4) {
@@ -65,7 +66,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 #endif
 }
 
-SbpOps::~SbpOps()
+SbpOps_fc::~SbpOps_fc()
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps.cpp.\n");
@@ -88,6 +89,8 @@ SbpOps::~SbpOps()
   MatDestroy(&_Iy_Dzx2mu);
   MatDestroy(&_Iy_Dz);
 
+  MatDestroy(&_Iy_BzxIy_Hinvz);
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps.cpp.\n");
 #endif
@@ -101,7 +104,7 @@ SbpOps::~SbpOps()
  * the matrices that are added to the spatial derivative matrices to
  * form the A matrix.
  */
-PetscErrorCode SbpOps::satBoundaries(TempMats& tempMats)
+PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
 {
   PetscErrorCode  ierr = 0;
 
@@ -459,7 +462,7 @@ return ierr;
 
 
 // compute D2ymu using my class Spmat
-PetscErrorCode SbpOps::constructD2ymu(const TempMats& tempMats, Mat &D2ymu)
+PetscErrorCode SbpOps_fc::constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
@@ -470,8 +473,8 @@ PetscErrorCode SbpOps::constructD2ymu(const TempMats& tempMats, Mat &D2ymu)
   // kron(Dy,Iz) (interior stencil)
   Mat Dy_Iz;
   {
-    if (_order==2) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,2,2); }
-    else if (_order==4) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,5,5); }
+    if (_order==2) { kronConvert(tempMats._D1y,tempMats._Iz,Dy_Iz,2,2); }
+    else if (_order==4) { kronConvert(tempMats._D1y,tempMats._Iz,Dy_Iz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
     #if DEBUG > 0
       ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
@@ -532,7 +535,7 @@ PetscErrorCode SbpOps::constructD2ymu(const TempMats& tempMats, Mat &D2ymu)
 }
 
 
-PetscErrorCode SbpOps::constructRzmu(const TempMats& tempMats,Mat &Rzmu)
+PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
@@ -671,7 +674,7 @@ switch ( _order ) {
 
 
 
-PetscErrorCode SbpOps::constructRymu(const TempMats& tempMats,Mat &Rymu)
+PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
@@ -807,7 +810,7 @@ switch ( _order ) {
 
 
 // compute D2zmu using my class Spmat
-PetscErrorCode SbpOps::constructD2zmu(const TempMats& tempMats,Mat &D2zmu)
+PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE > 1
@@ -818,8 +821,8 @@ PetscErrorCode SbpOps::constructD2zmu(const TempMats& tempMats,Mat &D2zmu)
   // kron(Iy,Dz)
   Mat Iy_Dz;
   {
-    if (_order==2) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,2,2); }
-    else if (_order==4) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,5,5); }
+    if (_order==2) { kronConvert(tempMats._Iy,tempMats._D1z,Iy_Dz,2,2); }
+    else if (_order==4) { kronConvert(tempMats._Iy,tempMats._D1z,Iy_Dz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
     #if DEBUG > 0
       ierr = checkMatrix(&Iy_Dz,_debugFolder,"Iy_Dz");CHKERRQ(ierr);
@@ -880,7 +883,7 @@ PetscErrorCode SbpOps::constructD2zmu(const TempMats& tempMats,Mat &D2zmu)
 
 
 // compute H matrix (Hy kron Hz)
-PetscErrorCode SbpOps::constructH(const TempMats& tempMats)
+PetscErrorCode SbpOps_fc::constructH(const TempMats_fc& tempMats)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -902,7 +905,7 @@ _runTime = MPI_Wtime() - startTime;
 }
 
 // compute matrices for 1st derivatives
-PetscErrorCode SbpOps::costruct1stDerivs(const TempMats& tempMats)
+PetscErrorCode SbpOps_fc::costruct1stDerivs(const TempMats_fc& tempMats)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -910,12 +913,12 @@ PetscErrorCode SbpOps::costruct1stDerivs(const TempMats& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function costruct1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-//~PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
-//~tempMats._D1y.printPetsc();
-//~PetscPrintf(PETSC_COMM_WORLD,"\n");
-//~PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
-//~tempMats._D1y.printPetsc();
-//~PetscPrintf(PETSC_COMM_WORLD,"\n");
+  PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
+  tempMats._D1y.printPetsc();
+  PetscPrintf(PETSC_COMM_WORLD,"\n");
+  PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
+  tempMats._D1y.printPetsc();
+  PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
@@ -952,7 +955,7 @@ ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 
 
 // compute matrix relating displacement to vector b containing boundary conditions
-PetscErrorCode SbpOps::constructA(const TempMats& tempMats)
+PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
 {
   PetscErrorCode  ierr = 0;
   double startTime = MPI_Wtime();
@@ -1152,9 +1155,9 @@ PetscErrorCode ierr = 0;
   return ierr;
 }
 
-
-PetscErrorCode sbpSpmat(const PetscInt order, const PetscInt N,const PetscScalar scale,Spmat& H,Spmat& Hinv,Spmat& D1,
-                 Spmat& D1int, Spmat& S)
+// memory for matrices is allocated before this is run
+PetscErrorCode sbpSpmat(const PetscInt order, const PetscInt N,const PetscScalar scale,
+                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& BD1)
 {
 PetscErrorCode ierr = 0;
 //~double startTime = MPI_Wtime();
@@ -1180,33 +1183,41 @@ switch ( order ) {
       #endif
 
 
-      S(0,0,1.5*scale);     S(0,1,-2.0*scale);      S(0,2,0.5*scale); // -1* p666 of Mattsson 2010
-      S(N-1,N-3,0.5*scale); S(N-1,N-2,-2.0*scale);  S(N-1,N-1,1.5*scale);
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nS:\n");CHKERRQ(ierr);
-        S.printPetsc();
-      #endif
+      //~S(0,0,1.5*scale);     S(0,1,-2.0*scale);      S(0,2,0.5*scale); // -1* p666 of Mattsson 2010
+      //~S(N-1,N-3,0.5*scale); S(N-1,N-2,-2.0*scale);  S(N-1,N-1,1.5*scale);
+      //~#if VERBOSE > 2
+        //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nS:\n");CHKERRQ(ierr);
+        //~S.printPetsc();
+      //~#endif
 
-      D1int(0,0,-1.0*scale);D1int(0,1,scale); // first row
+      D1(0,0,-1.0*scale);D1(0,1,scale); // first row
       for (Ii=1;Ii<N-1;Ii++) {
-        D1int(Ii,Ii-1,-0.5*scale);
-        D1int(Ii,Ii+1,0.5*scale);
+        D1(Ii,Ii-1,-0.5*scale);
+        D1(Ii,Ii+1,0.5*scale);
       }
-      D1int(N-1,N-1,scale);D1int(N-1,N-2,-1*scale); // last row
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
-        D1int.printPetsc();
-      #endif
-
-      D1 = D1int; // copy D1int's interior
-      D1(N-1,N-3,S(N-1,N-3)); // last row
-      D1(N-1,N-2,S(N-1,N-2));
-      D1(N-1,N-1,S(N-1,N-1));
-      D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
+      D1(N-1,N-1,scale);D1(N-1,N-2,-1*scale); // last row
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
         D1.printPetsc();
       #endif
+
+      //~BD1 = D1;
+      BD1(0,0,-D1(0,0)); BD1(0,1,-D1(0,1));
+      BD1(N-1,N-2,D1(N-1,N-2)); BD1(N-1,N-1,D1(N-1,N-1));
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nBD1:\n");CHKERRQ(ierr);
+        BD1.printPetsc();
+      #endif
+
+      //~// if using 1st and last row from S:
+      //~D1(N-1,N-3,S(N-1,N-3)); // last row
+      //~D1(N-1,N-2,S(N-1,N-2));
+      //~D1(N-1,N-1,S(N-1,N-1));
+      //~D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); // first row
+      //~#if VERBOSE > 2
+        //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
+        //~D1.printPetsc();
+      //~#endif
 
       break;
     }
@@ -1236,57 +1247,57 @@ switch ( order ) {
         Hinv.printPetsc();
       #endif
 
-      // row 1: -1* p666 of Mattsson 2010
-      S(0,0,11.0/6.0); S(0,1,-3.0); S(0,2,1.5); S(0,3,-1.0/3.0);
-      S(N-1,N-1,11.0/6.0); S(N-1,N-2,-3.0); S(N-1,N-3,1.5); S(N-1,N-4,-1.0/3.0);
-      S.scale(scale);
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nS:\n");CHKERRQ(ierr);
-        S.printPetsc();
-      #endif
+      //~// row 1: -1* p666 of Mattsson 2010
+      //~S(0,0,11.0/6.0); S(0,1,-3.0); S(0,2,1.5); S(0,3,-1.0/3.0);
+      //~S(N-1,N-1,11.0/6.0); S(N-1,N-2,-3.0); S(N-1,N-3,1.5); S(N-1,N-4,-1.0/3.0);
+      //~S.scale(scale);
+      //~#if VERBOSE > 2
+        //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nS:\n");CHKERRQ(ierr);
+        //~S.printPetsc();
+      //~#endif
 
       // interior stencil for 1st derivative, scaled by multiplication with Hinv's values
       for (Ii=4;Ii<N-4;Ii++)
       {
-        D1int(Ii,Ii-2,1.0/12.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii-1,-2.0/3.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii+1,2.0/3.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii+2,-1.0/12.0*Hinv(Ii,Ii));
+        D1(Ii,Ii-2,1.0/12.0*Hinv(Ii,Ii));
+        D1(Ii,Ii-1,-2.0/3.0*Hinv(Ii,Ii));
+        D1(Ii,Ii+1,2.0/3.0*Hinv(Ii,Ii));
+        D1(Ii,Ii+2,-1.0/12.0*Hinv(Ii,Ii));
       }
 
       // closures
-      D1int(0,0,-1.0/2.0*Hinv(0,0)); // row 0
-      D1int(0,1,59.0/96.0*Hinv(0,0));
-      D1int(0,2,-1.0/12.0*Hinv(0,0));
-      D1int(0,3,-1.0/32.0*Hinv(0,0));
-      D1int(1,0,-59.0/96.0*Hinv(1,1)); // row 1
-      D1int(1,2,59.0/96.0*Hinv(1,1));
-      D1int(2,0,1.0/12.0*Hinv(2,2)); // row 2
-      D1int(2,1,-59.0/96.0*Hinv(2,2));
-      D1int(2,3,59.0/96.0*Hinv(2,2));
-      D1int(2,4,-1.0/12.0*Hinv(2,2));
-      D1int(3,0,1.0/32.0*Hinv(3,3)); // row 3
-      D1int(3,2,-59.0/96.0*Hinv(3,3));
-      D1int(3,4,2.0/3.0*Hinv(3,3));
-      D1int(3,5,-1.0/12.0*Hinv(3,3));
+      D1(0,0,-1.0/2.0*Hinv(0,0)); // row 0
+      D1(0,1,59.0/96.0*Hinv(0,0));
+      D1(0,2,-1.0/12.0*Hinv(0,0));
+      D1(0,3,-1.0/32.0*Hinv(0,0));
+      D1(1,0,-59.0/96.0*Hinv(1,1)); // row 1
+      D1(1,2,59.0/96.0*Hinv(1,1));
+      D1(2,0,1.0/12.0*Hinv(2,2)); // row 2
+      D1(2,1,-59.0/96.0*Hinv(2,2));
+      D1(2,3,59.0/96.0*Hinv(2,2));
+      D1(2,4,-1.0/12.0*Hinv(2,2));
+      D1(3,0,1.0/32.0*Hinv(3,3)); // row 3
+      D1(3,2,-59.0/96.0*Hinv(3,3));
+      D1(3,4,2.0/3.0*Hinv(3,3));
+      D1(3,5,-1.0/12.0*Hinv(3,3));
 
-      D1int(N-1,N-1,1.0/2.0*Hinv(N-1,N-1)); // row N-1
-      D1int(N-1,N-2,-59.0/96.0*Hinv(N-1,N-1));
-      D1int(N-1,N-3,1.0/12.0*Hinv(N-1,N-1));
-      D1int(N-1,N-4,1.0/32.0*Hinv(N-1,N-1));
-      D1int(N-2,N-1,59.0/96.0*Hinv(N-2,N-2)); // row N-2
-      D1int(N-2,N-3,-59.0/96.0*Hinv(N-2,N-2));
-      D1int(N-3,N-1,-1.0/12.0*Hinv(N-3,N-3)); // row N-3
-      D1int(N-3,N-2,59.0/96.0*Hinv(N-3,N-3));
-      D1int(N-3,N-4,-59.0/96.0*Hinv(N-3,N-3));
-      D1int(N-3,N-5,1.0/12.0*Hinv(N-3,N-3));
-      D1int(N-4,N-1,-1.0/32.0*Hinv(N-4,N-4)); // row N-4
-      D1int(N-4,N-3,59.0/96.0*Hinv(N-4,N-4));
-      D1int(N-4,N-5,-2.0/3.0*Hinv(N-4,N-4));
-      D1int(N-4,N-6,1.0/12.0*Hinv(N-4,N-4));
+      D1(N-1,N-1,1.0/2.0*Hinv(N-1,N-1)); // row N-1
+      D1(N-1,N-2,-59.0/96.0*Hinv(N-1,N-1));
+      D1(N-1,N-3,1.0/12.0*Hinv(N-1,N-1));
+      D1(N-1,N-4,1.0/32.0*Hinv(N-1,N-1));
+      D1(N-2,N-1,59.0/96.0*Hinv(N-2,N-2)); // row N-2
+      D1(N-2,N-3,-59.0/96.0*Hinv(N-2,N-2));
+      D1(N-3,N-1,-1.0/12.0*Hinv(N-3,N-3)); // row N-3
+      D1(N-3,N-2,59.0/96.0*Hinv(N-3,N-3));
+      D1(N-3,N-4,-59.0/96.0*Hinv(N-3,N-3));
+      D1(N-3,N-5,1.0/12.0*Hinv(N-3,N-3));
+      D1(N-4,N-1,-1.0/32.0*Hinv(N-4,N-4)); // row N-4
+      D1(N-4,N-3,59.0/96.0*Hinv(N-4,N-4));
+      D1(N-4,N-5,-2.0/3.0*Hinv(N-4,N-4));
+      D1(N-4,N-6,1.0/12.0*Hinv(N-4,N-4));
       #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1int:\n");CHKERRQ(ierr);
-        D1int.printPetsc();
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
+        D1.printPetsc();
       #endif
 
      // for simulations with only linear elasticity, only need 1st
@@ -1295,16 +1306,20 @@ switch ( order ) {
 
      // for simulations with viscoelasticity, need
      // 1st deriv on interior as well
-     D1 = D1int;
-     D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
+     //~D1 = D1int;
+     //~D1(N-1,N-1,S(N-1,N-1)); D1(N-1,N-2,S(N-1,N-2)); D1(N-1,N-3,S(N-1,N-3)); D1(N-1,N-4,S(N-1,N-4)); // last row
 
      // first row is same regardless
-     D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
+     //~D1(0,0,-S(0,0)); D1(0,1,-S(0,1)); D1(0,2,-S(0,2)); D1(0,3,-S(0,3));
 
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
-        D1.printPetsc();
-      #endif
+
+
+     BD1(0,0,-D1(0,0)); BD1(0,1,-D1(0,1)); BD1(0,2,-D1(0,2)); BD1(0,3,-D1(0,3));
+     BD1(N-1,N-4,D1(N-1,N-4)); BD1(N-1,N-3,D1(N-1,N-3)); BD1(N-1,N-2,D1(N-1,N-2)); BD1(N-1,N-1,D1(N-1,N-1));
+    #if VERBOSE > 2
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nBD1:\n");CHKERRQ(ierr);
+      BD1.printPetsc();
+    #endif
 
       break;
     }
@@ -1328,7 +1343,7 @@ switch ( order ) {
 //======================== public member functions =====================
 
 // map the boundary condition vectors to rhs
-PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
+PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -1355,7 +1370,7 @@ PetscErrorCode SbpOps::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
 
 //======================= I/O functions ================================
 
-PetscErrorCode SbpOps::loadOps(const std::string inputDir)
+PetscErrorCode SbpOps_fc::loadOps(const std::string inputDir)
 {
   PetscErrorCode  ierr = 0;
   PetscViewer     viewer;
@@ -1392,7 +1407,7 @@ PetscErrorCode SbpOps::loadOps(const std::string inputDir)
 }
 
 
-PetscErrorCode SbpOps::writeOps(const std::string outputDir)
+PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -1479,13 +1494,13 @@ PetscErrorCode SbpOps::writeOps(const std::string outputDir)
 
 //=================== functions for struct =============================
 
-TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu)
+TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(mu),
-  _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
+  _Hy(Ny,Ny),_D1y(Ny,Ny),_Iy(Ny,Ny),
+  _Hz(Nz,Nz),_D1z(Nz,Nz),_Iz(Nz,Nz)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats::TempMats in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fullyCompatible::TempMats_fullyCompatible in sbpOps.cpp.\n");
 #endif
 
   // so the destructor can run happily
@@ -1508,8 +1523,8 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
 
   // going from 1D in y to 2D:
   {
-    Spmat Hyinv(_Ny,_Ny),Sy(_Ny,_Ny);
-    sbpSpmat(order,Ny,1.0/dy,_Hy,Hyinv,_D1y,_D1yint,Sy);
+    Spmat Hyinv(_Ny,_Ny),BD1y(_Ny,_Ny);
+    sbpSpmat(order,Ny,1.0/dy,_Hy,Hyinv,_D1y,BD1y);
 
     // kron(Hyinv,Iz)
     {
@@ -1520,11 +1535,20 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
     }
 
 
-    // mu*kron(BySy,Iz)
+    //~// mu*kron(BySy,Iz)
+    //~{
+      //~Mat temp;
+      //~if (_order==2) { kronConvert(Sy,_Iz,temp,3,3); }
+      //~if (_order==4) { kronConvert(Sy,_Iz,temp,5,5); }
+      //~MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxBySy_Iz);
+      //~PetscObjectSetName((PetscObject) _muxBySy_Iz, "muxBySy_Iz");
+      //~MatDestroy(&temp);
+    //~}
+    // mu*kron(ByDy,Iz)
     {
       Mat temp;
-      if (_order==2) { kronConvert(Sy,_Iz,temp,3,3); }
-      if (_order==4) { kronConvert(Sy,_Iz,temp,5,5); }
+      if (_order==2) { kronConvert(BD1y,_Iz,temp,3,3); }
+      if (_order==4) { kronConvert(BD1y,_Iz,temp,5,5); }
       MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxBySy_Iz);
       PetscObjectSetName((PetscObject) _muxBySy_Iz, "muxBySy_Iz");
       MatDestroy(&temp);
@@ -1535,8 +1559,8 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
 
   // going from 1D in z to 2D:
   {
-    Spmat Hzinv(_Nz,_Nz),Sz(_Nz,_Nz);
-    if (Nz > 1) { sbpSpmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,Sz); }
+    Spmat Hzinv(_Nz,_Nz),BD1z(_Nz,_Nz);
+    if (Nz > 1) { sbpSpmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,BD1z); }
     else { _Hz.eye(); }
 
 
@@ -1546,11 +1570,20 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
       PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
     }
 
-    // mu*kron(Iy,BzSz)
+    //~// mu*kron(Iy,BzSz)
+    //~{
+      //~Mat temp;
+      //~if (_order==2) { kronConvert(_Iy,Sz,temp,3,3); }
+      //~if (_order==4) { kronConvert(_Iy,Sz,temp,5,5); }
+      //~MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxIy_BzSz);
+      //~PetscObjectSetName((PetscObject) _muxIy_BzSz, "muxIy_BzSz");
+      //~MatDestroy(&temp);
+    //~}
+    // mu*kron(Iy,BzDz)
     {
       Mat temp;
-      if (_order==2) { kronConvert(_Iy,Sz,temp,3,3); }
-      if (_order==4) { kronConvert(_Iy,Sz,temp,5,5); }
+      if (_order==2) { kronConvert(_Iy,BD1z,temp,3,3); }
+      if (_order==4) { kronConvert(_Iy,BD1z,temp,5,5); }
       MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxIy_BzSz);
       PetscObjectSetName((PetscObject) _muxIy_BzSz, "muxIy_BzSz");
       MatDestroy(&temp);
@@ -1566,14 +1599,14 @@ TempMats::TempMats(const PetscInt order,const PetscInt Ny,const PetscScalar dy,c
   PetscObjectSetName((PetscObject) _H, "H");
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats::TempMats in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fullyCompatible::TempMats_fullyCompatible in sbpOps.cpp.\n");
 #endif
 };
 
-TempMats::~TempMats()
+TempMats_fc::~TempMats_fc()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats::~TempMats in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fullyCompatible::~TempMats_fullyCompatible in sbpOps.cpp.\n");
 #endif
 
   MatDestroy(&_muxBySy_Iz);
@@ -1590,7 +1623,7 @@ TempMats::~TempMats()
   MatDestroy(&_H);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats::~TempMats in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fullyCompatible::~TempMats_fullyCompatible in sbpOps.cpp.\n");
 #endif
 };
 

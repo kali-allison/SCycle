@@ -1,6 +1,6 @@
 all: main_linearElastic
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -46,7 +46,7 @@ helloWorld: helloWorld.o
 
 #.PHONY : clean
 clean::
-	-rm -f *.o main helloWorld main_linearElastic
+	-rm -f *.o main helloWorld main_linearElastic main_iceSheet
 
 depend:
 	-g++ -MM *.c*
@@ -75,12 +75,12 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp spmat.hpp fault.hpp rootFinderContext.hpp \
  rootFinder.hpp
-main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp \
+main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps_fc.hpp \
  debuggingFuncs.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
  linearElastic.hpp integratorContext.hpp odeSolver.hpp \
  maxwellViscoelastic.hpp
 main_linearElastic.o: main_linearElastic.cpp genFuncs.hpp spmat.hpp \
- domain.hpp sbpOps.hpp debuggingFuncs.hpp fault.hpp rootFinderContext.hpp \
+ domain.hpp sbpOps_fc.hpp debuggingFuncs.hpp fault.hpp rootFinderContext.hpp \
  rootFinder.hpp linearElastic.hpp integratorContext.hpp odeSolver.hpp
 maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
@@ -90,6 +90,8 @@ odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
  genFuncs.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
 sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
+ debuggingFuncs.hpp spmat.hpp
+sbpOps_fc.o: sbpOps_fc.cpp sbpOps_fc.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp

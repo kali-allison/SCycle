@@ -25,7 +25,7 @@ int runTests(const char * inputFile)
   domain.write();
 
 
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+  //~SbpOps_fc sbp(domain,*domain._muArrPlus,domain._muP);
   //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
   //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
