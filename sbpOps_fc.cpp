@@ -55,8 +55,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = tempFactors._Hy(0,0);
-        _alphaDz = tempFactors._Hz(0,0);
+        _alphaDy = -tempFactors._Hy(0,0); // !!
+        _alphaDz = -tempFactors._Hz(0,0); // !!
         _alphav = -tempFactors._Hy(0,0);
       }
 
@@ -70,8 +70,14 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
         Spmat e0y(_Ny,1); e0y(0,0,1.0);
         kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
 
-        Spmat eNy(_Ny,1); eNy(0,0,1.0);
+        Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
         kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
+
+        //~Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
+        //~kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
+
+        //~Spmat ENy(_Ny,_Ny); ENy(0,0,1.0);
+        //~kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
       }
 
       computeH(tempFactors);
@@ -1456,6 +1462,24 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
 
 
 
+PetscErrorCode SbpOps_fc::Dy(const Vec& in, Vec& out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "sbpOps_fc::Dy";
+  string fileName = "sbpOps_fc.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+
+  ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
+
+  return ierr;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+}
+
+
 PetscErrorCode SbpOps_fc::muxDy(const Vec& in, Vec& out)
 {
   PetscErrorCode ierr = 0;
@@ -1497,6 +1521,23 @@ PetscErrorCode SbpOps_fc::Dyxmu(const Vec& in, Vec& out)
 
   VecDestroy(&temp);
 
+
+  return ierr;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+}
+
+PetscErrorCode SbpOps_fc::Dz(const Vec& in, Vec& out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "sbpOps_fc::Dz";
+  string fileName = "sbpOps_fc.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+#endif
+
+  ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
 
   return ierr;
 #if VERBOSE > 1

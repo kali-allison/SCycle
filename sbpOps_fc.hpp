@@ -131,8 +131,10 @@ class SbpOps_fc
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
 
+    PetscErrorCode Dy(const Vec& in, Vec& out);
     PetscErrorCode muxDy(const Vec& in, Vec& out);
     PetscErrorCode Dyxmu(const Vec& in, Vec& out);
+    PetscErrorCode Dz(const Vec& in, Vec& out);
     PetscErrorCode muxDz(const Vec& in, Vec& out);
     PetscErrorCode Dzxmu(const Vec& in, Vec& out);
     PetscErrorCode HBzx2mu(const Vec& in, Vec& out);

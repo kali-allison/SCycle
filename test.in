@@ -14,8 +14,8 @@ bcL = displacement
 
 aVals = [0.015 0.015] # comment
 aDepths = [0 24]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 18 24]
+bVals = [0.02 0.02]
+bDepths = [0 24]
 sigma_N_min = 50 # MPa
 sigma_N_max = 50 # MPa
 
@@ -31,7 +31,7 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e7 1e7]
+viscVals = [1e13 1e13]
 viscDepths = [0 24]
 
 linSolver = AMG
@@ -39,7 +39,7 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
+strideLength = 100
 maxStepCount = 1e8
 initTime = 0       # s
 maxTime = 1e11      # s
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/noSAT_
+outputDir = data/visc1e13_SAT_
