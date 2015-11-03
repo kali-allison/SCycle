@@ -16,7 +16,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
   _debugFolder("./matlabAnswers/"),
   _alphav(-2.0/_dy),
   _H(NULL),_A(NULL),
-  //~_Dy_Izx2mu(NULL),_muxDy_Iz(NULL),_Dy_Iz(NULL),_Iy_Dzx2mu(NULL),_Iy_Dz(NULL)
   _Dy_Iz(NULL),_Iy_Dz(NULL),_Iy_Bz(NULL),
   _By_Iz(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL)
 {
@@ -55,8 +54,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -tempFactors._Hy(0,0); // !!
-        _alphaDz = -tempFactors._Hz(0,0); // !!
+        _alphaDy = -tempFactors._Hy(0,0);
+        _alphaDz = -tempFactors._Hz(0,0);
         _alphav = -tempFactors._Hy(0,0);
       }
 
@@ -72,12 +71,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 
         Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
         kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
-
-        //~Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
-        //~kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
-
-        //~Spmat ENy(_Ny,_Ny); ENy(0,0,1.0);
-        //~kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
       }
 
       computeH(tempFactors);
@@ -937,30 +930,20 @@ PetscErrorCode SbpOps_fc::compute1stDerivs(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function compute1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
+  // create _Dy_Iz
   kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
 
-  //~Mat temp;
-  //~kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
-  //~MatDestroy(&_muxDy_Iz);
-  //~ierr = MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxDy_Iz);CHKERRQ(ierr);
-  //~ierr = PetscObjectSetName((PetscObject) _muxDy_Iz, "_muxDy_Iz");CHKERRQ(ierr);
-
   // create _Iy_Dz
-  //~MatDestroy(&temp);
   kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
-
-  //~MatDestroy(&temp);
 
 #if DEBUG > 0
 ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
 #if VERBOSE > 2
-  ierr = MatView(_muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(_Dy_Izx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Dzx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
@@ -1213,6 +1196,14 @@ switch ( order ) {
       BD1(0,0,-D1(0,0)); BD1(0,1,-D1(0,1));
       BD1(N-1,N-2,D1(N-1,N-2)); BD1(N-1,N-1,D1(N-1,N-1));
 
+      //~// not fully compatible, here for debugging!!
+      //~BD1(0,0,1.5*scale); BD1(0,1,-2.0*scale);  BD1(0,2,0.5*scale); // -1* p666 of Mattsson 2010
+      //~BD1(N-1,N-3,0.5*scale); BD1(N-1,N-2,-2.0*scale); BD1(N-1,N-1,1.5*scale);
+      #if VERBOSE > 2
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nBD1:\n");CHKERRQ(ierr);
+        BD1.printPetsc();
+      #endif
+
       break;
     }
     case 4:
@@ -1288,8 +1279,14 @@ switch ( order ) {
       BD1(0,0,-D1(0,0)); BD1(0,1,-D1(0,1)); BD1(0,2,-D1(0,2)); BD1(0,3,-D1(0,3));
       BD1(N-1,N-4,D1(N-1,N-4)); BD1(N-1,N-3,D1(N-1,N-3));
       BD1(N-1,N-2,D1(N-1,N-2)); BD1(N-1,N-1,D1(N-1,N-1));
+
+      // not fully compatible!!
+      // row 1: -1* p666 of Mattsson 2010
+      //~BD1(0,0,11.0/6.0); BD1(0,1,-3.0); BD1(0,2,1.5); BD1(0,3,-1.0/3.0);
+      //~BD1(N-1,N-1,11.0/6.0); BD1(N-1,N-2,-3.0); BD1(N-1,N-3,1.5); BD1(N-1,N-4,-1.0/3.0);
+      //~BD1.scale(scale);
       #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\BD1:\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nBD1:\n");CHKERRQ(ierr);
         BD1.printPetsc();
       #endif
 
@@ -1468,14 +1465,14 @@ PetscErrorCode SbpOps_fc::Dy(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::Dy";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1486,7 +1483,7 @@ PetscErrorCode SbpOps_fc::muxDy(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::muxDy";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   Vec temp;
@@ -1499,7 +1496,7 @@ PetscErrorCode SbpOps_fc::muxDy(const Vec& in, Vec& out)
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1511,7 +1508,7 @@ PetscErrorCode SbpOps_fc::Dyxmu(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::Dyxmu";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   Vec temp;
@@ -1524,7 +1521,7 @@ PetscErrorCode SbpOps_fc::Dyxmu(const Vec& in, Vec& out)
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1534,14 +1531,14 @@ PetscErrorCode SbpOps_fc::Dz(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::Dz";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1551,7 +1548,7 @@ PetscErrorCode SbpOps_fc::muxDz(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::muxDz";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   Vec temp;
@@ -1564,7 +1561,7 @@ PetscErrorCode SbpOps_fc::muxDz(const Vec& in, Vec& out)
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1574,7 +1571,7 @@ PetscErrorCode SbpOps_fc::Dzxmu(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::Dzxmu";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   Vec temp;
@@ -1587,7 +1584,7 @@ PetscErrorCode SbpOps_fc::Dzxmu(const Vec& in, Vec& out)
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1597,7 +1594,7 @@ PetscErrorCode SbpOps_fc::HBzx2mu(const Vec& in, Vec& out)
 #if VERBOSE > 1
   string funcName = "sbpOps_fc::Bzx2mu";
   string fileName = "sbpOps_fc.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   Vec temp;
@@ -1610,7 +1607,7 @@ PetscErrorCode SbpOps_fc::HBzx2mu(const Vec& in, Vec& out)
 
   return ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName,fileName);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -1691,7 +1688,7 @@ TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScala
       if (_order==2) { kronConvert(_Iy,BD1z,temp,3,3); }
       if (_order==4) { kronConvert(_Iy,BD1z,temp,5,5); }
       MatMatMult(*_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxIy_BzDz);
-      PetscObjectSetName((PetscObject) _muxIy_BzDz, "muxIy_BzSz");
+      PetscObjectSetName((PetscObject) _muxIy_BzDz, "muxIy_BzDz");
       MatDestroy(&temp);
     }
   }
