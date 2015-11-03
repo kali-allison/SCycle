@@ -321,12 +321,22 @@ PetscErrorCode SymmFault::computeVel()
     ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
 
+    if (isnan(leftVal) || isnan(rightVal)) {
+      PetscScalar v = 0;
+      PetscPrintf(PETSC_COMM_WORLD,"Error: bound evaluated to nan in Fault::computeVel: (%i) leftVal = %.15e, rightVal = %.15e\n",Ii,leftVal,rightVal);
+      VecGetValues(_tauQSP,1,&Ii,&v); PetscPrintf(PETSC_COMM_WORLD,"_tauQSP = %.15e\n",v);
+      VecGetValues(_zP,1,&Ii,&v); PetscPrintf(PETSC_COMM_WORLD,"_zP = %.15e\n",v);
+
+      assert(0>1);
+    }
+
     // correct for left-lateral fault motion
     if (leftVal>rightVal) {
       temp = leftVal;
       rightVal = leftVal;
       leftVal = temp;
     }
+    //~ierr = PetscPrintf(PETSC_COMM_WORLD,"    computeVel %i: [%.4e,%.4e]\n",Ii,leftVal,rightVal);CHKERRQ(ierr);
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {

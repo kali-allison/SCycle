@@ -26,10 +26,12 @@ struct TempMats_fc
       Spmat _Hy,_D1y,_Iy;
       Spmat _Hz,_D1z,_Iz;
 
-      Mat _muxBySy_Iz;
+
+      Mat _muxByDy_Iz;
       Mat _Hyinv_Iz;
 
-      Mat _muxIy_BzSz;
+      Mat _muxIy_BzDz;
+
       Mat _Iy_Hzinv;
 
       Mat _AL;
@@ -45,7 +47,9 @@ struct TempMats_fc
 
 
     private:
-      PetscErrorCode constructH();
+
+      PetscErrorCode computeH();
+
 
       // disable default copy constructor and assignment operator
       TempMats_fc(const TempMats_fc & that);
@@ -92,9 +96,10 @@ class SbpOps_fc
     string _debugFolder;
 
 
-    PetscErrorCode constructH(const TempMats_fc& tempMats);
-    PetscErrorCode costruct1stDerivs(const TempMats_fc& tempMats);
-    PetscErrorCode constructA(const TempMats_fc& tempMats);
+
+    PetscErrorCode computeH(const TempMats_fc& tempMats);
+    PetscErrorCode compute1stDerivs(const TempMats_fc& tempMats);
+    PetscErrorCode computeA(const TempMats_fc& tempMats);
     PetscErrorCode satBoundaries(TempMats_fc& tempMats);
 
     /*
@@ -103,10 +108,11 @@ class SbpOps_fc
      *     (second derivative in z) D2z = D2zmu + R2zmu
      * where R2ymu and R2zmu vanish as the grid spacing approaches 0.
      */
-    PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
-    PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
-    PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
-    PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
+    PetscErrorCode computeD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
+    PetscErrorCode computeD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
+    PetscErrorCode computeRymu(const TempMats_fc& tempMats,Mat &Rymu);
+    PetscErrorCode computeRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
+
 
 
     // disable default copy constructor and assignment operator
@@ -115,11 +121,16 @@ class SbpOps_fc
 
   //~public:
 
+
+    PetscScalar _alphav; // penalty coefficient for viscous strain rate
+
     Mat _H;
     Mat _A;
-    Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
-    Mat _Iy_Dzx2mu, _Iy_Dz;
-    Mat _Iy_BzxIy_Hinvz;
+    //~Mat _Dy_Izx2mu,_muxDy_Iz,_Dy_Iz;
+    //~Mat _Iy_Dzx2mu, _Iy_Dz;
+    Mat _Dy_Iz,_Iy_Dz;
+    Mat _Iy_Bz;
+    Mat _By_Iz,_e0y_Iz,_eNy_Iz; // for SAT on viscous strain rate
 
     SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
     ~SbpOps_fc();
@@ -127,7 +138,14 @@ class SbpOps_fc
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
 
+
+    PetscErrorCode Dy(const Vec& in, Vec& out);
     PetscErrorCode muxDy(const Vec& in, Vec& out);
+    PetscErrorCode Dyxmu(const Vec& in, Vec& out);
+    PetscErrorCode Dz(const Vec& in, Vec& out);
+    PetscErrorCode muxDz(const Vec& in, Vec& out);
+    PetscErrorCode Dzxmu(const Vec& in, Vec& out);
+    PetscErrorCode HBzx2mu(const Vec& in, Vec& out);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
@@ -141,10 +159,11 @@ class SbpOps_fc
 };
 
 // functions to construct 1D sbp operators
-PetscErrorCode sbpSpmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
-                        Spmat& H,Spmat& Hinv,Spmat& D1, Spmat& BD1);
-PetscErrorCode sbpSpmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
-PetscErrorCode sbpSpmat4(const PetscInt N,const PetscScalar scale,
+
+PetscErrorCode sbpSpmat_fc(const PetscInt order,const PetscInt N,const PetscScalar scale,
+                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
+PetscErrorCode sbpSpmat_fc2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
+PetscErrorCode sbpSpmat_fc4(const PetscInt N,const PetscScalar scale,
                          Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif
