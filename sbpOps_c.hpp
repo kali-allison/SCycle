@@ -48,7 +48,7 @@ struct TempMats_c
       Mat _muxBSy_Iz;
       Mat _Hyinv_Iz;
 
-      Mat _muxIy_BzSz;
+      Mat _muxIy_BSz;
       Mat _Iy_Hzinv;
 
       Mat _AL;
