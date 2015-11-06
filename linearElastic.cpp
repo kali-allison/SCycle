@@ -133,7 +133,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps_c& sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 
@@ -338,7 +338,8 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   KSPSolve(_kspP,_rhsP,_uP);
   _factorTime += MPI_Wtime() - startTime;
 
-  MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
+  //~MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
+  _sbpP.muxDy(_uP,_stressxyP);
   _fault.setTauQS(_stressxyP,NULL);
   _fault.setFaultDisp(_bcLP,NULL);
 
@@ -357,22 +358,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
 SymmLinearElastic::~SymmLinearElastic(){};
 
-
-
-PetscErrorCode SymmLinearElastic::computeShearStress()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::computeShearStress in lithosphere.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::computeShearStress in lithosphere.cpp\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-}
 
 // destructor is covered by base class
 
@@ -569,7 +554,8 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
   // update fields on fault
@@ -621,7 +607,8 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
   // update fields on fault
@@ -814,7 +801,8 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
@@ -990,14 +978,16 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   // solve for displacement and shear stress in y<0
   _sbpMinus.setRhs(_rhsM,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
   KSPSolve(_kspM,_rhsM,_uM);
-  MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);
+  //~MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);
+  _sbpMinus.muxDy(_uM,_sigma_xyMinus);
 
   // solve for displacement and shear stress in y>0
   _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
   startTime = MPI_Wtime();
   KSPSolve(_kspP,_rhsP,_uP);
   _factorTime += MPI_Wtime() - startTime;
-  MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
+  //~MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
   //~setU(); // set _uP, _uM analytically
@@ -1072,22 +1062,6 @@ FullLinearElastic::~FullLinearElastic()
 
 //===================== private member functions =======================
 
-
-PetscErrorCode FullLinearElastic::computeShearStress()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::computeShearStress in lithosphere.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-  ierr = MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::computeShearStress in lithosphere.cpp\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-}
 
 
 /* Set displacement at sides equal to steady-sliding values:
@@ -1352,8 +1326,10 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
 
   // solve for shear stress
-  ierr = MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
-  ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpMinus.muxDy(_uM,_sigma_xyMinus);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
 
