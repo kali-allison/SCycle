@@ -47,8 +47,8 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = tempFactors._Hy(0,0);
-        _alphaDz = tempFactors._Hz(0,0);
+        _alphaDy = -5.0/tempFactors._Hy(0,0);
+        _alphaDz = -5.0/tempFactors._Hz(0,0);
       }
 
       constructH(tempFactors);
@@ -320,7 +320,6 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
     MatDestroy(&temp1);
@@ -346,10 +345,9 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // if bcT = traction:
     MatDestroy(&_rhsT);
     ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-    ierr = MatScale(_rhsT,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsT,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
     //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -357,7 +355,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // in computation of A
     // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
     ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AT,-_alphaT);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
     //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
@@ -1470,7 +1468,6 @@ PetscErrorCode SbpOps_c::Dy(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
@@ -1491,7 +1488,6 @@ PetscErrorCode SbpOps_c::muxDy(const Vec &in, Vec &out)
 
   Vec temp;
   ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(_Dy_Iz,in,temp); CHKERRQ(ierr);
   ierr = MatMult(*_mu,temp,out); CHKERRQ(ierr);
 
@@ -1515,7 +1511,6 @@ PetscErrorCode SbpOps_c::Dyxmu(const Vec &in, Vec &out)
 
   Vec temp;
   ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(*_mu,in,temp); CHKERRQ(ierr);
   ierr = MatMult(_Dy_Iz,temp,out); CHKERRQ(ierr);
 
@@ -1538,7 +1533,6 @@ PetscErrorCode SbpOps_c::Dz(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
@@ -1560,7 +1554,6 @@ PetscErrorCode SbpOps_c::muxDz(const Vec &in, Vec &out)
 
   Vec temp;
   ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(_Iy_Dz,in,temp); CHKERRQ(ierr);
   ierr = MatMult(*_mu,temp,out); CHKERRQ(ierr);
 
@@ -1584,7 +1577,6 @@ PetscErrorCode SbpOps_c::Dzxmu(const Vec &in, Vec &out)
 
   Vec temp;
   ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = VecDuplicate(in,&out); CHKERRQ(ierr);
   ierr = MatMult(*_mu,in,temp); CHKERRQ(ierr);
   ierr = MatMult(_Iy_Dz,temp,out); CHKERRQ(ierr);
 

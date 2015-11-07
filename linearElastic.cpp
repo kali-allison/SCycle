@@ -133,7 +133,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps_c& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 
@@ -356,7 +356,13 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 #endif
 }
 
-SymmLinearElastic::~SymmLinearElastic(){};
+SymmLinearElastic::~SymmLinearElastic()
+{
+
+  VecDestroy(&_uAnal);
+
+  VecDestroy(&_bcRPShift);
+};
 
 
 // destructor is covered by base class
@@ -448,13 +454,14 @@ PetscErrorCode SymmLinearElastic::writeStep()
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
                                    //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-    //~// output body fields
+    // output body fields
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
               //~FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
     //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     //~ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
                                    //~FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
+
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   if (_isMMS) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),

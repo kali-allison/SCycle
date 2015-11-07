@@ -6,7 +6,6 @@
 #include "genFuncs.hpp"
 #include "spmat.hpp"
 #include "domain.hpp"
-#include "sbpOps.hpp"
 #include "sbpOps_c.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"

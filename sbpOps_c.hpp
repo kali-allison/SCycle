@@ -89,8 +89,13 @@ struct TempMats_c
 class SbpOps_c
 {
 
+  private:
+
+    // disable default copy constructor and assignment operator
+    SbpOps_c(const SbpOps_c & that);
+    SbpOps_c& operator=( const SbpOps_c& rhs );
+
   public:
-  //~protected:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -125,12 +130,8 @@ class SbpOps_c
     PetscErrorCode constructD2ymu(const TempMats_c& tempMats, Mat &D2ymu);
     PetscErrorCode constructD2zmu(const TempMats_c& tempMats, Mat &D2zmu);
     PetscErrorCode constructRymu(const TempMats_c& tempMats,Mat &Rymu);
-    PetscErrorCode  constructRzmu(const TempMats_c& tempMats,Mat &Rzmu);
+    PetscErrorCode constructRzmu(const TempMats_c& tempMats,Mat &Rzmu);
 
-
-    // disable default copy constructor and assignment operator
-    SbpOps_c(const SbpOps_c & that);
-    SbpOps_c& operator=( const SbpOps_c& rhs );
 
   //~public:
 
@@ -158,13 +159,6 @@ class SbpOps_c
     PetscErrorCode Dz(const Vec &in, Vec &out); // out = Dz * in
     PetscErrorCode muxDz(const Vec &in, Vec &out); // out = mu * Dz * in
     PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
-
-
-    // visualization
-    //~PetscErrorCode printMyArray(PetscScalar *myArray, PetscInt N);
-    //~PetscErrorCode viewSBP();
-
-
 };
 
 // functions to construct 1D sbp operators

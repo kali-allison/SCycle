@@ -1,6 +1,6 @@
 order = 4
-Ny = 21
-Nz = 1
+Ny = 201
+Nz = 201
 Ly = 24 # km
 Lz = 24 # km
 
@@ -26,15 +26,15 @@ inputDir = inputData/
 shearDistribution = constant
 {
 problem = symmetric
-muPlus = 30 # GPa
+muPlus = 40 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20 1e8 1e8 1e9]
-viscDepths = [0 5 10 15 24]
+viscVals = [1e20 1e20]
+viscDepths = [0 24]
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/test_
+outputDir = data/el4_SAT-i_c_

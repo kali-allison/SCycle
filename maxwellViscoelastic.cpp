@@ -273,7 +273,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
   VecAssemblyBegin(sourcexy);
   VecAssemblyEnd(sourcexy);
 
-  ierr = MatMult(_sbpP._Dy_Iz,sourcexy,sourcexy_y);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._Dy_Iz,sourcexy,sourcexy_y);CHKERRQ(ierr);
+  _sbpP.Dy(sourcexy,sourcexy_y);
   Vec Hxsourcexy_y;
   VecDuplicate(sourcexy_y,&Hxsourcexy_y);
   ierr = MatMult(_sbpP._H,sourcexy_y,Hxsourcexy_y);
@@ -299,7 +300,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
     VecAssemblyBegin(sourcexz);
     VecAssemblyEnd(sourcexz);
 
-    ierr = MatMult(_sbpP._Iy_Dz,sourcexz,sourcexz_z);CHKERRQ(ierr);
+    //~ierr = MatMult(_sbpP._Iy_Dz,sourcexz,sourcexz_z);CHKERRQ(ierr);
+    _sbpP.Dz(sourcexz,sourcexz_z);
     Vec Hxsourcexz_z;
     VecDuplicate(sourcexz_z,&Hxsourcexz_z);
     ierr = MatMult(_sbpP._H,sourcexz_z,Hxsourcexz_z);
@@ -331,10 +333,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainsAndRates(const PetscScalar
   #endif
 
   // compute strains and rates
-  MatMult(_sbpP._Dy_Iz,_uP,_epsTotxyP);
+  //~MatMult(_sbpP._Dy_Iz,_uP,_epsTotxyP);
+  _sbpP.Dy(_uP,_epsTotxyP);
   VecScale(_epsTotxyP,0.5);
 
-  MatMult(_sbpP._Iy_Dz,_uP,_epsTotxzP);
+  //~MatMult(_sbpP._Iy_Dz,_uP,_epsTotxzP);
+  _sbpP.Dz(_uP,_epsTotxzP);
   VecScale(_epsTotxzP,0.5);
 
   PetscScalar deps,visc,epsTot,epsVisc,sigmaxy,sigmaxz;

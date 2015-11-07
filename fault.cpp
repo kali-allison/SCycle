@@ -321,6 +321,9 @@ PetscErrorCode SymmFault::computeVel()
     ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
 
+    if (isnan(leftVal) || isnan(rightVal)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError:left or right evaluated to nan.\n");
+    }
     // correct for left-lateral fault motion
     if (leftVal>rightVal) {
       temp = leftVal;
