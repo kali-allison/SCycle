@@ -211,8 +211,6 @@ class FullLinearElastic: public LinearElastic
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();
 
-    PetscErrorCode computeShearStress();
-
   public:
 
     // boundary conditions

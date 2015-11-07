@@ -133,7 +133,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 
@@ -152,7 +152,12 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc)
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+#if VERSION < 6
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+#elif VERSION == 6
+    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+#endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
@@ -205,7 +210,12 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc)
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
+#if VERSION < 6
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+#elif VERSION == 6
+    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+#endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCCHOLESKY);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
@@ -330,8 +340,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   //~MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
   _sbpP.muxDy(_uP,_stressxyP);
-  //~MatView(_sbpP._Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_stressxyP,PETSC_VIEWER_STDOUT_WORLD);
   _fault.setTauQS(_stressxyP,NULL);
   _fault.setFaultDisp(_bcLP,NULL);
 
@@ -341,18 +349,20 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   setSurfDisp();
 
-  //~VecView(_stressxyP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(*_fault._var.begin(),PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(*(_fault._var.begin()+1),PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
 #endif
 }
 
-SymmLinearElastic::~SymmLinearElastic(){};
+SymmLinearElastic::~SymmLinearElastic()
+{
 
+  VecDestroy(&_uAnal);
+
+  VecDestroy(&_bcRPShift);
+};
 
 
 // destructor is covered by base class
@@ -444,20 +454,14 @@ PetscErrorCode SymmLinearElastic::writeStep()
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
                                    //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhsP").c_str(),FILE_MODE_WRITE,
-                                 &_bcRPlusV);CHKERRQ(ierr);
-    ierr = VecView(_rhsP,_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"rhsP").c_str(),
-                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
-
-    //~// output body fields
+    // output body fields
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
               //~FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
     //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     //~ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
                                    //~FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
+
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   if (_isMMS) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
@@ -477,7 +481,6 @@ PetscErrorCode SymmLinearElastic::writeStep()
 
     //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
-    ierr = VecView(_rhsP,_bcRPlusV);CHKERRQ(ierr);
 
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
@@ -559,7 +562,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
   // solve for shear stress
   //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
   // update fields on fault
@@ -611,27 +614,13 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
+
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-
-
-  //~VecView(*(dvarBegin),PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(*(dvarBegin+1),PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_rhsP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_bcLP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_bcRP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_bcTP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_bcBP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_fault._tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
-
-  //~// lock fault:
-  //~VecSet(*(dvarBegin),0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
@@ -820,7 +809,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
   // solve for shear stress
   //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  _sbpP.muxDy(_uP,_stressxyP);
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
@@ -1346,9 +1335,8 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   // solve for shear stress
   //~ierr = MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
   //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-  ierr = _sbpMinus.muxDy(_uM,_sigma_xyMinus); CHKERRQ(ierr);
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
-
+  _sbpMinus.muxDy(_uM,_sigma_xyMinus);
+  _sbpP.muxDy(_uP,_stressxyP);
 
 
 

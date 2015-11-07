@@ -6,8 +6,12 @@
 #include "genFuncs.hpp"
 #include "spmat.hpp"
 #include "domain.hpp"
+<<<<<<< HEAD
 #include "sbpOps.hpp"
 #include "sbpOps_fc.hpp"
+=======
+#include "sbpOps_c.hpp"
+>>>>>>> 983554d6b9e7b48e8a95b9b1ca0fbe1e1d380896
 #include "fault.hpp"
 #include "linearElastic.hpp"
 
