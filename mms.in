@@ -1,4 +1,4 @@
-order = 4
+order = 2
 Ny = 161
 Nz = 161
 Ly = 6.283185307179586
@@ -32,13 +32,13 @@ viscDistribution = mms
 viscVals = [1e20 1e20]
 viscDepths = [0 6.283185307179586]
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 1
-maxStepCount = 1e5
+maxStepCount = 1
 initTime = 0       # s
 maxTime = 1      # s
 minDeltaT = 1e-3     # s

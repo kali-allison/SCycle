@@ -6,12 +6,9 @@
 #include "genFuncs.hpp"
 #include "spmat.hpp"
 #include "domain.hpp"
-<<<<<<< HEAD
 #include "sbpOps.hpp"
 #include "sbpOps_fc.hpp"
-=======
 #include "sbpOps_c.hpp"
->>>>>>> 983554d6b9e7b48e8a95b9b1ca0fbe1e1d380896
 #include "fault.hpp"
 #include "linearElastic.hpp"
 
@@ -59,7 +56,7 @@ int main(int argc,char **args)
     {
       PetscPrintf(PETSC_COMM_WORLD,"%-3s %-10s %-10s %-22s %-10s %-22s\n",
                  "Ny","dy","err2","log2(err2)","errH","log2(errH)");
-      for(PetscInt Ny=21;Ny<642;Ny=(Ny-1)*2+1)
+      for(PetscInt Ny=11;Ny<162;Ny=(Ny-1)*2+1)
       {
         Domain domain(inputFile,Ny,Ny);
         domain.write();

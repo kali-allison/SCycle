@@ -47,8 +47,8 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -5.0/tempFactors._Hy(0,0);
-        _alphaDz = -5.0/tempFactors._Hz(0,0);
+        _alphaDy = -0.4567e4/0.14400e5/_dy;//tempFactors._Hy(0,0);
+        _alphaDz = -0.4567e4/0.14400e5/_dz;//tempFactors._Hz(0,0);
       }
 
       constructH(tempFactors);
@@ -187,10 +187,10 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     MatDestroy(&temp2);
     }
   else {
-    // For rhsL: if bcL = traction: alphaT * Hinvy_Iz * e0y_Iz
+    // For rhsL: if bcL = traction: - alphaT * Hinvy_Iz * e0y_Iz
     MatDestroy(&_rhsL);
     ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     //~ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
@@ -355,7 +355,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // in computation of A
     // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
     ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AT,-_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
     //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }

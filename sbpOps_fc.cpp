@@ -47,8 +47,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -2.0/tempFactors._Hy(0,0);
-        _alphaDz = -2.0/tempFactors._Hz(0,0);
+        _alphaDy = -0.4567e4/0.14400e5/_dy;//-2.0/tempFactors._Hy(0,0);
+        _alphaDz = -0.4567e4/0.14400e5/_dz;//-2.0/tempFactors._Hz(0,0);
       }
 
       constructH(tempFactors);
@@ -190,10 +190,9 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     // For rhsL: if bcL = traction: alphaT * Hinvy_Iz * e0y_Iz
     MatDestroy(&_rhsL);
     ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    //~ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
 
@@ -356,7 +355,7 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     // in computation of A
     // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
     ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AT,-_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
     //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
@@ -949,6 +948,10 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
   ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
+  //~MatView(D2ymu,PETSC_VIEWER_STDOUT_WORLD);
+  //~MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);
+  //~MatView(tempMats._AB,PETSC_VIEWER_STDOUT_WORLD);
+
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
 #endif
@@ -966,6 +969,9 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
   ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
 
   ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+
+
+  //~MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
 
 #if VERBOSE > 2
   MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
@@ -1169,10 +1175,10 @@ switch ( order ) {
       #endif
 
       D1 = D1int; // copy D1int's interior
-      D1(N-1,N-3,BS(N-1,N-3)); // last row
+      // last row
       D1(N-1,N-2,BS(N-1,N-2));
       D1(N-1,N-1,BS(N-1,N-1));
-      D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); D1(0,2,-BS(0,2)); // first row
+      D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); // first row
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
         D1.printPetsc();
