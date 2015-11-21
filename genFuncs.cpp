@@ -57,6 +57,16 @@ PetscErrorCode writeVec(Vec vec,const char * loc)
   return ierr;
 }
 
+PetscErrorCode writeMat(Mat mat,const char * loc)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer);
+  ierr = MatView(mat,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
+
 
 // Print all entries of 2D DMDA global vector to stdout, including which
 // processor each entry lives on, and the corresponding subscripting

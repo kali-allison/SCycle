@@ -24,6 +24,9 @@ void printVecsSum(Vec vec1,Vec vec2);
 // Write vec to the file loc in binary format.
 PetscErrorCode writeVec(Vec vec,const char * loc);
 
+// Write mat to the file loc in binary format.
+PetscErrorCode writeMat(Mat mat,const char * loc);
+
 // Print all entries of 2D DMDA global vector out, including which
 // processor each entry lives on, and the corresponding subscripting
 // indices.
