@@ -45,10 +45,11 @@ class SbpOps
     PetscScalar      *_muArr;
     Mat              *_mu;
 
+    SbpOps_fc   _internalSBP;
 
-    SbpOps_c   _internalSBP;
+    PetscScalar _alphaDy;
 
-    Mat _H;
+    //~Mat _H;
     Mat _A;
 
     SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
@@ -71,6 +72,14 @@ class SbpOps
     PetscErrorCode Dz(const Vec &in, Vec &out); // out = Dz * in
     PetscErrorCode muxDz(const Vec &in, Vec &out); // out = mu * Dz * in
     PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
+
+
+    PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
+    PetscErrorCode HBzx2mu(const Vec &in, Vec &out); // out = H * Iy_Bz * 2 * mu * in
+    PetscErrorCode By(const Vec &in, Vec &out); // out = By_Iz * in
+    PetscErrorCode e0y(const Vec &in, Vec &out); // out = eNy_Iz * in
+    PetscErrorCode eNy(const Vec &in, Vec &out); // out = eNy_Iz * in
+
 };
 
 

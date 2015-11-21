@@ -66,7 +66,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  /*{
+  {
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms"))
     {
@@ -86,10 +86,10 @@ int main(int argc,char **args)
     {
       runEqCycle(inputFile);
     }
-  }*/
+  }
 
 
-  runTests(inputFile);
+  //~runTests(inputFile);
 
   PetscFinalize();
   return ierr;

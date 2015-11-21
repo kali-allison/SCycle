@@ -100,6 +100,8 @@ class SbpOps_fc
     string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
 
+    Mat _By_Iz,_Iy_Bz,_e0y_Iz,_eNy_Iz;
+
     // boundary conditions
     //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // penalty terms for traction and displacement respectively
@@ -155,6 +157,12 @@ class SbpOps_fc
     PetscErrorCode Dz(const Vec &in, Vec &out); // out = Dz * in
     PetscErrorCode muxDz(const Vec &in, Vec &out); // out = mu * Dz * in
     PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
+
+    PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
+    PetscErrorCode HBzx2mu(const Vec &in, Vec &out); // out = H * Iy_Bz * 2 * mu * in
+    PetscErrorCode By(const Vec &in, Vec &out); // out = By_Iz * in
+    PetscErrorCode e0y(const Vec &in, Vec &out); // out = eNy_Iz * in
+    PetscErrorCode eNy(const Vec &in, Vec &out); // out = eNy_Iz * in
 };
 
 // functions to construct 1D sbp operators

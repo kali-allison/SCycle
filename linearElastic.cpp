@@ -292,7 +292,8 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
   //~err = err/sqrt(_Ny*_Nz);
 
-  double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  //~double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  double errH = 11111111;
   double err2 = computeNormDiff_2(_uP,_uAnal);
 
   //~PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e H MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
@@ -864,7 +865,8 @@ PetscErrorCode SymmLinearElastic::setMMSuSourceTerms(Vec& Hxsource,const PetscSc
   ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
 
-  ierr = MatMult(_sbpP._H,source,Hxsource);
+  //~ierr = MatMult(_sbpP._H,source,Hxsource);
+  ierr = _sbpP.H(source,Hxsource);
 
   VecDestroy(&source);
 

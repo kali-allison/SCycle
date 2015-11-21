@@ -9,7 +9,8 @@
  */
 SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
-  _muArr(&muArr),_mu(&mu),_internalSBP(D,*D._muArrPlus,D._muP)
+  _muArr(&muArr),_mu(&mu),_internalSBP(D,*D._muArrPlus,D._muP),
+  _alphaDy(_internalSBP._alphaDy)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -17,7 +18,7 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 
   if (_Ny == 1) { return;}
 
-  _H = _internalSBP._H; // shallow copy to avoid memory cost
+  //~_H = _internalSBP._H; // shallow copy to avoid memory cost
   _A = _internalSBP._A;
 
 #if VERBOSE > 1
@@ -94,4 +95,33 @@ PetscErrorCode SbpOps::Dzxmu(const Vec &in, Vec &out)
 }
 
 
+// out = H * in
+PetscErrorCode SbpOps::H(const Vec &in, Vec &out)
+{
+  return _internalSBP.H(in,out);
+}
+
+// out = H * Iy_Bz * 2 * mu * in
+PetscErrorCode SbpOps::HBzx2mu(const Vec &in, Vec &out)
+{
+  return _internalSBP.HBzx2mu(in,out);
+}
+
+// out = By_Iz * in
+PetscErrorCode SbpOps::By(const Vec &in, Vec &out)
+{
+  return _internalSBP.By(in,out);
+}
+
+// out = e0y_Iz * in
+PetscErrorCode SbpOps::e0y(const Vec &in, Vec &out)
+{
+  return _internalSBP.e0y(in,out);
+}
+
+// out = eNy_Iz * in
+PetscErrorCode SbpOps::eNy(const Vec &in, Vec &out)
+{
+  return _internalSBP.eNy(in,out);
+}
 

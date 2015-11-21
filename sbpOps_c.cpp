@@ -12,6 +12,7 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
   _muArr(&muArr),_mu(&mu),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
+  _By_Iz(NULL),_Iy_Bz(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
   _Dy_Iz(NULL),_Iy_Dz(NULL)
@@ -47,14 +48,29 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -0.4567e4/0.14400e5/_dy;//tempFactors._Hy(0,0);
-        _alphaDz = -0.4567e4/0.14400e5/_dz;//tempFactors._Hz(0,0);
+        _alphaDy = -48.0/17.0 /_dy;
+        _alphaDz = -48.0/17.0 /_dz;
       }
 
       constructH(tempFactors);
       construct1stDerivs(tempFactors);
       satBoundaries(tempFactors);
       constructA(tempFactors);
+
+      {
+        Spmat Bz(_Nz,_Nz); Bz(0,0,-1); Bz(_Nz-1,_Nz-1,1);
+        kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,1);
+
+        Spmat By(_Ny,_Ny); By(0,0,-1); By(_Ny-1,_Ny-1,1);
+        kronConvert(By,tempFactors._Iz,_By_Iz,1,1);
+
+        Spmat e0y(_Ny,1); e0y(0,0,1.0);
+        kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
+
+        Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
+        kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
+      }
+
     }
 }
 
@@ -82,6 +98,11 @@ SbpOps_c::~SbpOps_c()
 
   MatDestroy(&_Dy_Iz);
   MatDestroy(&_Iy_Dz);
+
+  MatDestroy(&_By_Iz);
+  MatDestroy(&_Iy_Bz);
+  MatDestroy(&_e0y_Iz);
+  MatDestroy(&_eNy_Iz);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps.cpp.\n");
@@ -1465,13 +1486,13 @@ PetscErrorCode SbpOps_c::Dy(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "Dy";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1483,7 +1504,7 @@ PetscErrorCode SbpOps_c::muxDy(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "muxDy";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1494,7 +1515,7 @@ PetscErrorCode SbpOps_c::muxDy(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1506,7 +1527,7 @@ PetscErrorCode SbpOps_c::Dyxmu(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "Dyxmu";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1517,7 +1538,7 @@ PetscErrorCode SbpOps_c::Dyxmu(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1530,13 +1551,13 @@ PetscErrorCode SbpOps_c::Dz(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "Dz";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1549,7 +1570,7 @@ PetscErrorCode SbpOps_c::muxDz(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "muxDy";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1560,7 +1581,7 @@ PetscErrorCode SbpOps_c::muxDz(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1572,7 +1593,7 @@ PetscErrorCode SbpOps_c::Dzxmu(const Vec &in, Vec &out)
 #if VERBOSE > 1
   string funcName = "Dzxmu";
   string fileName = "sbpOps_c.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1583,11 +1604,108 @@ PetscErrorCode SbpOps_c::Dzxmu(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending funcName in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
+// out = H * in
+PetscErrorCode SbpOps_c::H(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "H";
+  string fileName = "sbpOps_c.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_H,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = H * Iy_Bz * 2 * mu * in
+PetscErrorCode SbpOps_c::HBzx2mu(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HBzx2mu";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1,temp2;
+  ierr = VecDuplicate(in,&temp1); CHKERRQ(ierr);
+  ierr = VecDuplicate(in,&temp2); CHKERRQ(ierr);
+  ierr = MatMult(*_mu,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Bz,temp1,temp2); CHKERRQ(ierr);
+  ierr = MatMult(_H,temp2,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+  VecDestroy(&temp2);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = By_Iz * in
+PetscErrorCode SbpOps_c::By(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "By";
+  string fileName = "sbpOps_c.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_By_Iz,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = e0y_Iz * in
+PetscErrorCode SbpOps_c::e0y(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "e0y";
+  string fileName = "sbpOps_c.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_e0y_Iz,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = eNy_Iz * in
+PetscErrorCode SbpOps_c::eNy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "eNy";
+  string fileName = "sbpOps_c.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_eNy_Iz,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
 
 
 
