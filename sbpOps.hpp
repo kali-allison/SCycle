@@ -46,7 +46,7 @@ class SbpOps
     Mat              *_mu;
 
 
-    SbpOps_c   _internalSBP;
+    SbpOps_fc   _internalSBP;
 
     Mat _H;
     Mat _A;

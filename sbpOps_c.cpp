@@ -47,8 +47,8 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -0.4567e4/0.14400e5/_dy;//tempFactors._Hy(0,0);
-        _alphaDz = -0.4567e4/0.14400e5/_dz;//tempFactors._Hz(0,0);
+        _alphaDy = -48.0/17.0 /_dy;
+        _alphaDz = -48.0/17.0 /_dz;
       }
 
       constructH(tempFactors);
