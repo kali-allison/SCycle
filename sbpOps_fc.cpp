@@ -47,8 +47,10 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
 
       // reset SAT params
       if (_order==4) {
-        _alphaDy = -0.4567e4/0.14400e5/_dy;//-2.0/tempFactors._Hy(0,0);
-        _alphaDz = -0.4567e4/0.14400e5/_dz;//-2.0/tempFactors._Hz(0,0);
+        //~_alphaDy = -0.4567e4/0.14400e5/_dy;//-2.0/tempFactors._Hy(0,0);
+        //~_alphaDz = -0.4567e4/0.14400e5/_dz;//-2.0/tempFactors._Hz(0,0);
+        _alphaDy = -48.0/17.0 /_dy;
+        _alphaDz = -48.0/17.0 /_dz;
       }
 
       constructH(tempFactors);
@@ -898,6 +900,9 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
   kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
+  //~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+
 #if DEBUG > 0
 ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
 #endif
@@ -1203,7 +1208,7 @@ switch ( order ) {
       H.scale(1/scale);
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-        Hinv.printPetsc();
+        H.printPetsc();
       #endif
 
       for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
@@ -1258,26 +1263,23 @@ switch ( order ) {
 
       // not fully compatible
       // row 1: -1* p666 of Mattsson 2010
-      //~BS(0,0,11.0/6.0); BS(0,1,-3.0); BS(0,2,1.5); BS(0,3,-1.0/3.0);
+      //~BS(0,0,11.0/6.0*scale); BS(0,1,-3.0*scale); BS(0,2,1.5*scale); BS(0,3,-1.0/3.0*scale);
       //~BS(N-1,N-1,11.0/6.0); BS(N-1,N-2,-3.0); BS(N-1,N-3,1.5); BS(N-1,N-4,-1.0/3.0);
 
       // fully compatible
-      BS(0,0,-D1int(0,0)); BS(0,1,-D1int(0,1)); BS(0,2,-D1int(0,2)); BS(0,3,-D1int(0,3));
-      BS(N-1,N-4,D1int(N-1,N-4)); BS(N-1,N-3,D1int(N-1,N-3));
-      BS(N-1,N-2,D1int(N-1,N-2)); BS(N-1,N-1,D1int(N-1,N-1));
+      BS(0,0,24.0/17.0*scale); BS(0,1,-59.0/34.0*scale);
+      BS(0,2,4.0/17.0*scale); BS(0,3,3.0/34.0*scale);
+      BS(N-1,N-1,24.0/17.0*scale); BS(N-1,N-2,-59.0/34.0*scale);
+      BS(N-1,N-3,4.0/17.0*scale); BS(N-1,N-4,3.0/34.0*scale);
 
-      BS.scale(scale);
       #if VERBOBSE > 2
-        ierr = PetscPrintf(PETBSC_COMM_WORLD,"\n\nBS:\n");CHKERRQ(ierr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nBS:\n");CHKERRQ(ierr);
         BS.printPetsc();
       #endif
 
      // for simulations with viscoelasticity, need
      // 1st deriv on interior as well
      D1 = D1int;
-     //~D1(0,0,-D1int(0,0)); D1(0,1,-D1int(0,1)); D1(0,2,-D1int(0,2)); D1(0,3,-D1int(0,3)); // test case
-     //~D1(N-1,N-1,BS(N-1,N-1)); D1(N-1,N-2,BS(N-1,N-2)); D1(N-1,N-3,BS(N-1,N-3)); D1(N-1,N-4,BS(N-1,N-4)); // last row
-     //~D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); D1(0,2,-BS(0,2)); D1(0,3,-BS(0,3));
 
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);

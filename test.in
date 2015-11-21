@@ -34,13 +34,13 @@ viscDistribution = layered
 viscVals = [1e20 1e20]
 viscDepths = [0 24]
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 10
-maxStepCount = 1e8
+maxStepCount = 2e3
 initTime = 0       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/fc_
+outputDir = data/c4_
