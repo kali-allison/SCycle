@@ -9,8 +9,7 @@
 #include "integratorContext.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
-//~#include "sbpOps.hpp"
-#include "sbpOps_fc.hpp"
+#include "sbpOps.hpp"
 #include "fault.hpp"
 
 
@@ -50,7 +49,7 @@ class LinearElastic: public IntegratorContext
     PC                   _pcP;
     PetscScalar          _kspTol;
 
-    SbpOps_fc               _sbpP;
+    SbpOps               _sbpP;
 
     // time stepping data
     std::string          _timeIntegrator;
@@ -72,7 +71,7 @@ class LinearElastic: public IntegratorContext
                          _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
 
 
-    PetscErrorCode setupKSP(SbpOps_fc& sbp,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);
 
 
   public:
@@ -205,13 +204,11 @@ class FullLinearElastic: public LinearElastic
     KSP                  _kspM;
     PC                   _pcMinus;
 
-    SbpOps_fc               _sbpMinus;
+    SbpOps               _sbpMinus;
 
 
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();
-
-    PetscErrorCode computeShearStress();
 
   public:
 

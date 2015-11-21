@@ -25,13 +25,16 @@ int runTests(const char * inputFile)
   domain.write();
 
 
+<<<<<<< HEAD
   //~SbpOps_fc sbp(domain,*domain._muArrPlus,domain._muP);
+=======
+  SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+>>>>>>> 816ee3f87465b824e5f4551c8888c0d955df8424
   //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
-  //~MatView(sbp._muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);
 
-  SymmFault fault(domain);
-  fault.writeContext(domain._outputDir);
-  //~SymmLinearElastic lith(domain);
+  //~SymmFault fault(domain);
+  //~fault.writeContext(domain._outputDir);
+  SymmLinearElastic lith(domain);
 
 
 
@@ -67,7 +70,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  {
+  /*{
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms"))
     {
@@ -87,10 +90,10 @@ int main(int argc,char **args)
     {
       runEqCycle(inputFile);
     }
-  }
+  }*/
 
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   PetscFinalize();
   return ierr;
