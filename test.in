@@ -1,6 +1,6 @@
 order = 4
-Ny = 151
-Nz = 151
+Ny = 251
+Nz = 251
 Ly = 24 # km
 Lz = 24 # km
 
@@ -31,8 +31,8 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20]
-viscDepths = [0 24]
+viscVals = [1e20 1e20 1e19 1e19]
+viscDepths = [0 20 21 24]
 
 linSolver = AMG
 kspTol = 1e-7
@@ -40,7 +40,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 10
-maxStepCount = 1e8
+maxStepCount = 1e9
 initTime = 0       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/mvfc4_
+outputDir = data/mvfc4_N251_
