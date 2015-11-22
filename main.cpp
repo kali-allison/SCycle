@@ -47,10 +47,10 @@ int runEqCycle(const char * inputFile)
   SymmMaxwellViscoelastic *obj;
   obj = new SymmMaxwellViscoelastic(domain);
 
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->writeStep();CHKERRQ(ierr);
-  ierr = obj->integrate();CHKERRQ(ierr);
-  ierr = obj->view();CHKERRQ(ierr);
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ierr = obj->writeStep();CHKERRQ(ierr);
+  //~ierr = obj->integrate();CHKERRQ(ierr);
+  //~ierr = obj->view();CHKERRQ(ierr);
 
   return ierr;
 }

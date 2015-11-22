@@ -66,13 +66,16 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
   VecDestroy(&_epsVxzP);
   VecDestroy(&_depsVxyP);
   VecDestroy(&_depsVxzP);
+
   VecDestroy(&_stressxzP);
+
   PetscViewerDestroy(&_epsTotxyPV);
   PetscViewerDestroy(&_epsTotxzPV);
   PetscViewerDestroy(&_epsVxyPV);
   PetscViewerDestroy(&_epsVxzPV);
   PetscViewerDestroy(&_depsVxyPV);
   PetscViewerDestroy(&_depsVxzPV);
+  PetscViewerDestroy(&_stressxyPV);
   PetscViewerDestroy(&_stressxzPV);
 
   #if VERBOSE > 1
