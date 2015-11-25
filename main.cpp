@@ -25,13 +25,15 @@ int runTests(const char * inputFile)
   domain.write();
 
 
-  SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
   //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
   //~fault.writeContext(domain._outputDir);
   SymmLinearElastic lith(domain);
-
+  lith.writeStep();
+  lith.integrate();
+  lith.view();
 
 
   return ierr;
@@ -47,10 +49,10 @@ int runEqCycle(const char * inputFile)
   SymmMaxwellViscoelastic *obj;
   obj = new SymmMaxwellViscoelastic(domain);
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ierr = obj->writeStep();CHKERRQ(ierr);
-  //~ierr = obj->integrate();CHKERRQ(ierr);
-  //~ierr = obj->view();CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = obj->writeStep();CHKERRQ(ierr);
+  ierr = obj->integrate();CHKERRQ(ierr);
+  ierr = obj->view();CHKERRQ(ierr);
 
   return ierr;
 }

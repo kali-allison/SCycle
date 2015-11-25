@@ -45,9 +45,8 @@ class SbpOps
     PetscScalar      *_muArr;
     Mat              *_mu;
 
-    SbpOps_c   _internalSBP;
+    SbpOps_fc   _internalSBP;
     PetscScalar _alphaDy;
-
 
     Mat _A;
 
