@@ -28,17 +28,6 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
     ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
     _debugFolder += ss.str();
 
-    MatCreate(PETSC_COMM_WORLD,&_H); PetscObjectSetName((PetscObject) _H, "_H");
-
-    // create final operator A
-    MatCreate(PETSC_COMM_WORLD,&_A); PetscObjectSetName((PetscObject) _A, "_A");
-
-    // map boundary conditions to rhs vector
-    MatCreate(PETSC_COMM_WORLD,&_rhsL);
-    MatCreate(PETSC_COMM_WORLD,&_rhsR);
-    MatCreate(PETSC_COMM_WORLD,&_rhsT);
-    MatCreate(PETSC_COMM_WORLD,&_rhsB);
-
 
     {
       /* NOT a member of this class, contains stuff to be deleted before
