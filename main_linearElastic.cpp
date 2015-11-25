@@ -31,10 +31,14 @@ int runEqCycle(const char * inputFile)
     obj = new FullLinearElastic(domain);
   }
 
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->writeStep();CHKERRQ(ierr);
-  ierr = obj->integrate();CHKERRQ(ierr);
-  ierr = obj->view();CHKERRQ(ierr);
+  //~SymmFault fault(domain);
+  //~SbpOps_c sbp(domain,*domain._muArrPlus,domain._muP);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ierr = obj->writeStep();CHKERRQ(ierr);
+  //~ierr = obj->integrate();CHKERRQ(ierr);
+  //~ierr = obj->view();CHKERRQ(ierr);
 
   return ierr;
 }

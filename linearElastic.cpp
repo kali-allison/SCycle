@@ -103,6 +103,9 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_surfDispPlusViewer);
   PetscViewerDestroy(&_uPV);
 
+  VecDestroy(&_bcRPShift);
+  VecDestroy(&_uAnal);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::~LinearElastic in lithosphere.cpp.\n");
@@ -361,7 +364,6 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_uAnal);
-
   VecDestroy(&_bcRPShift);
 };
 
