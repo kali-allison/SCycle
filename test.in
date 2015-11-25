@@ -1,6 +1,6 @@
 order = 4
-Ny = 51
-Nz = 51
+Ny = 151
+Nz = 151
 Ly = 24 # km
 Lz = 24 # km
 
@@ -49,4 +49,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/mvfc4_1_
+outputDir = data/test_
