@@ -25,13 +25,15 @@ int runTests(const char * inputFile)
   domain.write();
 
 
-  SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
+  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
   //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
 
   //~SymmFault fault(domain);
   //~fault.writeContext(domain._outputDir);
   SymmLinearElastic lith(domain);
-
+  lith.writeStep();
+  lith.integrate();
+  lith.view();
 
 
   return ierr;
@@ -66,7 +68,7 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  {
+  /*{
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms"))
     {
@@ -86,10 +88,10 @@ int main(int argc,char **args)
     {
       runEqCycle(inputFile);
     }
-  }
+  }*/
 
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   PetscFinalize();
   return ierr;

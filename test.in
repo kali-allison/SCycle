@@ -1,6 +1,6 @@
 order = 4
-Ny = 251
-Nz = 251
+Ny = 51
+Nz = 51
 Ly = 24 # km
 Lz = 24 # km
 
