@@ -108,7 +108,7 @@ class SbpOps_c
     string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
 
-    Mat _By_Iz,_Iy_Bz,_e0y_Iz,_eNy_Iz;
+    Mat _Hyinv_Iz,_Iy_Hzinv,_e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
 
     // boundary conditions
     //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
@@ -163,10 +163,12 @@ class SbpOps_c
     PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
 
     PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
-    PetscErrorCode HBzx2mu(const Vec &in, Vec &out); // out = H * in
-    PetscErrorCode By(const Vec &in, Vec &out); // out = By_Iz * in
-    PetscErrorCode e0y(const Vec &in, Vec &out); // out = eNy_Iz * in
-    PetscErrorCode eNy(const Vec &in, Vec &out); // out = eNy_Iz * in
+    PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out); // out = Hy^-1 * e0y * in
+    PetscErrorCode HyinvxeNy(const Vec &in, Vec &out); // out = Hy^-1 * eNy * in
+    PetscErrorCode HyinvxE0y(const Vec &in, Vec &out); // out = Hy^-1 * E0y * in
+    PetscErrorCode HyinvxENy(const Vec &in, Vec &out); // out = Hy^-1 * ENy * in
+    PetscErrorCode HzinvxE0z(const Vec &in, Vec &out); // out = Hz^-1 * e0z * in
+    PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
 
 };
 

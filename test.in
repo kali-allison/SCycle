@@ -1,10 +1,10 @@
 order = 4
-Ny = 51
-Nz = 51
+Ny = 151
+Nz = 151
 Ly = 24 # km
 Lz = 24 # km
 
-Dc = 8e-3 # m
+Dc = 16e-3 # m 8e-3
 
 bcT = traction
 bcR = displacement
@@ -31,23 +31,23 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20 1e19 1e19]
-viscDepths = [0 20 21 24]
+viscVals = [1e20 1e20]
+viscDepths = [0 24]
 
 linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-<<<<<<< HEAD
 strideLength = 10
-maxStepCount = 2e3
+maxStepCount = 1e5
 initTime = 0       # s
-maxTime = 1e11      # s
+maxTime = 1e15      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/test_
+#outputDir = data/mvfc_v1e20_rate_bc_
+outputDir = data/lefc_

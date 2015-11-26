@@ -73,10 +73,12 @@ class SbpOps
 
 
     PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
-    PetscErrorCode HBzx2mu(const Vec &in, Vec &out); // out = H * Iy_Bz * 2 * mu * in
-    PetscErrorCode By(const Vec &in, Vec &out); // out = By_Iz * in
-    PetscErrorCode e0y(const Vec &in, Vec &out); // out = eNy_Iz * in
-    PetscErrorCode eNy(const Vec &in, Vec &out); // out = eNy_Iz * in
+    PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out); // out = Hy^-1 * e0y * in
+    PetscErrorCode HyinvxeNy(const Vec &in, Vec &out); // out = Hy^-1 * eNy * in
+    PetscErrorCode HyinvxE0y(const Vec &in, Vec &out); // out = Hy^-1 * E0y * in
+    PetscErrorCode HyinvxENy(const Vec &in, Vec &out); // out = Hy^-1 * ENy * in
+    PetscErrorCode HzinvxE0z(const Vec &in, Vec &out); // out = Hz^-1 * e0z * in
+    PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
 
 };
 

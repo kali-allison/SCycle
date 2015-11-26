@@ -251,7 +251,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 }
 
 
-PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
+PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::setViscStrainSourceTerms";
@@ -261,39 +261,50 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& source)
     CHKERRQ(ierr);
   #endif
 
+  Vec source;
+  VecDuplicate(_epsVxyP,&source);
 
-// add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
-  Vec sourcexy_y,Hxsourcexy_y;
+
+  // add source terms to rhs: d/dy( 2*mu*epsV_xy) + d/dz( 2*mu*epsV_xz)
+  // + Hz^-1 E0z mu epsV_xz + Hz^-1 ENz mu epsV_xz
+  Vec sourcexy_y;
   VecDuplicate(_epsVxyP,&sourcexy_y);
   ierr = _sbpP.Dyxmu(_epsVxyP,sourcexy_y);CHKERRQ(ierr);
   ierr = VecScale(sourcexy_y,2.0);CHKERRQ(ierr);
-  VecDuplicate(sourcexy_y,&Hxsourcexy_y);
-  ierr = _sbpP.H(sourcexy_y,Hxsourcexy_y);
-  ierr = VecCopy(Hxsourcexy_y,source);CHKERRQ(ierr); // Hxsourcexy_y -> source
+  ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
-  VecDestroy(&Hxsourcexy_y);
 
   if (_Nz > 1)
   {
-    Vec sourcexz_z,Hxsourcexz_z;
+    Vec sourcexz_z;
     VecDuplicate(_epsVxzP,&sourcexz_z);
     ierr = _sbpP.Dzxmu(_epsVxzP,sourcexz_z);CHKERRQ(ierr);
     ierr = VecScale(sourcexz_z,2.0);CHKERRQ(ierr);
-    VecDuplicate(sourcexz_z,&Hxsourcexz_z);
-    ierr = _sbpP.H(sourcexz_z,Hxsourcexz_z); CHKERRQ(ierr);
 
-    ierr = VecAXPY(source,1.0,Hxsourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
-
-    // clean up memory
+    ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
-    VecDestroy(&Hxsourcexz_z);
 
-    Vec sourceSAT;
-    VecDuplicate(_epsVxzP,&sourceSAT);
-    ierr = _sbpP.HBzx2mu(_epsVxzP,sourceSAT); CHKERRQ(ierr);
-    //~ierr = VecAXPY(source,1.0,sourceSAT);CHKERRQ(ierr); // source += sourceSAT
-    VecDestroy(&sourceSAT);
+    Vec temp1,bcT,bcB;
+    VecDuplicate(_epsVxzP,&temp1);
+    VecDuplicate(_epsVxzP,&bcT);
+    VecDuplicate(_epsVxzP,&bcB);
+
+    _sbpP.HzinvxE0z(_epsVxzP,temp1);
+    ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
+
+    _sbpP.HzinvxENz(_epsVxzP,temp1);
+    ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
+
+    ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
+    ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
+
+    VecDestroy(&temp1);
+    VecDestroy(&bcT);
+    VecDestroy(&bcB);
   }
+
+  ierr = _sbpP.H(source,out); CHKERRQ(ierr);
+  VecDestroy(&source);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -314,19 +325,29 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
     CHKERRQ(ierr);
   #endif
 
-  ierr = _sbpP.By(u,out);CHKERRQ(ierr);
-  ierr = VecScale(out,_sbpP._alphaDy);CHKERRQ(ierr);
+  VecSet(out,0.0);
 
-  Vec GL, GR;
+  Vec GL, GR,temp1;
   VecDuplicate(u,&GL);
   VecDuplicate(u,&GR);
-  ierr = _sbpP.e0y(gL,GL);CHKERRQ(ierr);
-  ierr = _sbpP.eNy(gR,GR);CHKERRQ(ierr);
+  VecDuplicate(u,&temp1);
+
+  ierr = _sbpP.HyinvxE0y(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP.Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+  VecAXPY(out,-_sbpP._alphaDy,temp1);
   VecAXPY(out,_sbpP._alphaDy,GL);
-  VecAXPY(out,-_sbpP._alphaDy,GR);
+
+  ierr = _sbpP.HyinvxENy(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP.HyinvxeNy(gR,GR);CHKERRQ(ierr);
+  VecAXPY(out,_sbpP._alphaDy,temp1);
+  VecAXPY(out,-_sbpP._alphaDy,GL);
 
   VecDestroy(&GL);
   VecDestroy(&GR);
+  VecDestroy(&temp1);
+
+
+  //~VecSet(out,0.0);
 
 
   #if VERBOSE > 1
@@ -376,7 +397,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
 
     // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc) + _muArrPlus[Ii]/visc * sat*0;
+    deps = _muArrPlus[Ii]/visc * (epsTot - epsVisc) + _muArrPlus[Ii]/visc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {

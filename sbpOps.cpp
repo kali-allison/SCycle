@@ -101,27 +101,39 @@ PetscErrorCode SbpOps::H(const Vec &in, Vec &out)
   return _internalSBP.H(in,out);
 }
 
-// out = H * Iy_Bz * 2 * mu * in
-PetscErrorCode SbpOps::HBzx2mu(const Vec &in, Vec &out)
+// out = Hy^-1 * e0y * in
+PetscErrorCode SbpOps::Hyinvxe0y(const Vec &in, Vec &out)
 {
-  return _internalSBP.HBzx2mu(in,out);
+  return _internalSBP.Hyinvxe0y(in,out);
 }
 
-// out = By_Iz * in
-PetscErrorCode SbpOps::By(const Vec &in, Vec &out)
+// out = Hy^-1 * eNy * in
+PetscErrorCode SbpOps::HyinvxeNy(const Vec &in, Vec &out)
 {
-  return _internalSBP.By(in,out);
+  return _internalSBP.HyinvxeNy(in,out);
 }
 
-// out = e0y_Iz * in
-PetscErrorCode SbpOps::e0y(const Vec &in, Vec &out)
+// out = Hy^-1 * E0y * in
+PetscErrorCode SbpOps::HyinvxE0y(const Vec &in, Vec &out)
 {
-  return _internalSBP.e0y(in,out);
+  return _internalSBP.HyinvxE0y(in,out);
 }
 
-// out = eNy_Iz * in
-PetscErrorCode SbpOps::eNy(const Vec &in, Vec &out)
+// out = Hy^-1 * ENy * in
+PetscErrorCode SbpOps::HyinvxENy(const Vec &in, Vec &out)
 {
-  return _internalSBP.eNy(in,out);
+  return _internalSBP.HyinvxENy(in,out);
+}
+
+// out = Hy^-1 * E0z * in
+PetscErrorCode SbpOps::HzinvxE0z(const Vec &in, Vec &out)
+{
+  return _internalSBP.HzinvxE0z(in,out);
+}
+
+// out = Hy^-1 * ENz * in
+PetscErrorCode SbpOps::HzinvxENz(const Vec &in, Vec &out)
+{
+  return _internalSBP.HzinvxENz(in,out);
 }
 

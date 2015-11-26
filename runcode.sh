@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N mvfc4_N251
+#PBS -N mvfc_v1e20_rate_bc
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/newEqCycle/data/mvfc4_N251.err
-#PBS -o /data/dunham/kallison/newEqCycle/data/mvfc4_N251.out
+#PBS -e /data/dunham/kallison/newEqCycle/data/mvfc_v1e20_rate_bc.err
+#PBS -o /data/dunham/kallison/newEqCycle/data/mvfc_v1e20__rate_bc.out
 #
 
 EXEC_DIR=/data/dunham/kallison/newEqCycle
