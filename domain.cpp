@@ -15,7 +15,7 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  _viscDistribution("unspecified"),_visc(NULL),
+  //~_viscDistribution("unspecified"),_visc(NULL),
   _A(NULL),_temp(NULL),_n(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
@@ -86,7 +86,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  _viscDistribution("unspecified"),_visc(NULL),
+  //~_viscDistribution("unspecified"),_visc(NULL),
   _A(NULL),_temp(NULL),_n(NULL),
   _linSolver("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
@@ -296,6 +296,7 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
+/*
 // loads a std library vector from a list in the input file
 PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
@@ -332,7 +333,7 @@ PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>&
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
   #endif
   return ierr;
-}
+}*/
 
 
 // load shear modulus structure from input file
@@ -554,7 +555,6 @@ ierr = PetscPrintf(PETSC_COMM_SELF,"Ending view in domain.cpp.\n");CHKERRQ(ierr)
 
 
 // Check that required fields have been set by the input file
-
 PetscErrorCode Domain::checkInput()
 {
   PetscErrorCode ierr = 0;
@@ -577,7 +577,7 @@ PetscErrorCode Domain::checkInput()
 
   assert(_vL > 0);
 
-  assert(_viscVals.size() == _viscDepths.size() );
+  //~assert(_viscVals.size() == _viscDepths.size() );
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -846,7 +846,7 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
 
-  // set viscosity
+  /*// set viscosity
   ierr = VecDuplicate(muVec,&_visc);CHKERRQ(ierr);
   PetscInt Istart,Iend;
   ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
@@ -872,7 +872,7 @@ PetscErrorCode Domain::setFieldsPlus()
     }
   }
   ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);*/
 
 
 
@@ -1158,12 +1158,12 @@ PetscErrorCode Domain::loadFieldsFromFiles()
 
 
 
-  // load viscosity from input file
-  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
-  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_visc);
-  PetscObjectSetName((PetscObject) _visc, "_visc");
-  ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
+  //~// load viscosity from input file
+  //~ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  //~ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  //~ierr = VecSetFromOptions(_visc);
+  //~PetscObjectSetName((PetscObject) _visc, "_visc");
+  //~ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
 
 
 

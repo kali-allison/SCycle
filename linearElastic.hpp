@@ -31,6 +31,7 @@ class LinearElastic: public IntegratorContext
     const std::string    _problemType; // symmetric (only y>0) or full
     const bool _isMMS; // true if running mms test
 
+
     // output data
     std::string          _outputDir;
 

@@ -15,6 +15,11 @@
 class SymmMaxwellViscoelastic: public SymmLinearElastic
 {
   protected:
+    const char       *_file;
+    std::string       _delim; // format is: var delim value (without the white space)
+
+    std::string  _viscDistribution; // options: mms, layered
+    std::vector<double> _viscVals,_viscDepths;
     Vec         _visc;
 
     Vec         _epsVxyP,_depsVxyP; // viscoelastic strain, and strain rate
@@ -72,6 +77,13 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode view();
 
     PetscErrorCode measureMMSError();
+
+    // load settings from input file
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode setVisc();
+
+    // check input from file
+    PetscErrorCode checkInput();
 };
 
 #endif

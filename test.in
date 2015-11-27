@@ -50,4 +50,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 #outputDir = data/mvfc_v1e20_rate_bc_
-outputDir = data/lefc_
+#outputDir = data/lefc_
+outputDir = data/test_

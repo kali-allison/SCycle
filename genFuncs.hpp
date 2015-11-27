@@ -39,7 +39,7 @@ double computeNorm_Mat(const Mat& mat,const Vec& vec);
 
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
-
+PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 
 
 #endif

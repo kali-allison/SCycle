@@ -50,10 +50,10 @@ class Domain
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
     Mat          _muM;
 
-    // viscosity distribution properties for Maxwell viscoelasticity
-    std::string  _viscDistribution; // options: mms, layered
-    std::vector<double> _viscVals,_viscDepths;
-    Vec          _visc; // contains full viscosity field
+    //~// viscosity distribution properties for Maxwell viscoelasticity
+    //~std::string  _viscDistribution; // options: mms, layered
+    //~std::vector<double> _viscVals,_viscDepths;
+    //~Vec          _visc; // contains full viscosity field
 
     // viscosity distribtion properties for power law rheology
     Vec _A,_temp,_n;
@@ -103,7 +103,7 @@ class Domain
     // load settings from input file
     PetscErrorCode loadData(const char *file);
     PetscErrorCode loadShearModSettings(ifstream& infile);
-    PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>&);
+    //~PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>&);
 
     // check input from file
     PetscErrorCode checkInput();
