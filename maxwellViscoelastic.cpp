@@ -2,7 +2,7 @@
 
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
-: SymmLinearElastic(D), _file(D._file),_delim(D._delim),
+: SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
   _visc(NULL),
   //~_visc(D._visc),
   _epsVxyP(NULL),_depsVxyP(NULL),
@@ -21,6 +21,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 
   // set viscosity
   loadSettings(_file);
+  //~if (_viscDistribution.compare("loadFromFile")==0) {
+
   setVisc();
   checkInput();
 
@@ -709,6 +711,13 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 
+    // output viscosity vector
+    string str =  _outputDir + "visc";
+    PetscViewer viewer;
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    ierr = VecView(_visc,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
@@ -928,13 +937,34 @@ PetscErrorCode SymmMaxwellViscoelastic::setVisc()
 return ierr;
 }
 
+ //parse input file and load values into data members
+PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  // load viscosity from input file
+  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_visc);
+  PetscObjectSetName((PetscObject) _visc, "_visc");
+  ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 
 // Check that required fields have been set by the input file
 PetscErrorCode SymmMaxwellViscoelastic::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
   #endif
 
   assert(_viscVals.size() == _viscDepths.size() );
@@ -944,7 +974,7 @@ PetscErrorCode SymmMaxwellViscoelastic::checkInput()
       _viscDistribution.compare("loadFromFile")==0 );
 
 #if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
 #endif
   //~}
   return ierr;

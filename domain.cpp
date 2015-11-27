@@ -165,8 +165,6 @@ Domain::~Domain()
   MatDestroy(&_muP);
   MatDestroy(&_muM);
 
-  VecDestroy(&_visc);
-
   VecDestroy(&_A);
   VecDestroy(&_temp);
   VecDestroy(&_n);
@@ -246,18 +244,6 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("inputDir")==0) {
       _inputDir = line.substr(pos+_delim.length(),line.npos);
     }
-
-    // viscosity for asthenosphere
-    else if (var.compare("viscDistribution")==0) { _viscDistribution = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("viscVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_viscVals);
-      }
-    else if (var.compare("viscDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_viscDepths);
-      }
-
 
     // linear solver settings
     else if (var.compare("linSolver")==0) {
@@ -519,8 +505,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    ierr = PetscPrintf(PETSC_COMM_SELF,"visc = %.15e\n",_visc);CHKERRQ(ierr);
-
     // linear solve settings
     ierr = PetscPrintf(PETSC_COMM_SELF,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
@@ -576,8 +560,6 @@ PetscErrorCode Domain::checkInput()
   assert(_sigma_N_max >= _sigma_N_min);
 
   assert(_vL > 0);
-
-  //~assert(_viscVals.size() == _viscDepths.size() );
 
 
   assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
@@ -700,8 +682,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"visc = %.15e\n",_visc);CHKERRQ(ierr);
-
   // material properties
   ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
@@ -750,8 +730,6 @@ PetscErrorCode Domain::write()
   }
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"_viscVals = %s\n",vector2str(_viscVals).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"_viscDepths = %s\n",vector2str(_viscDepths).c_str());CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
@@ -793,12 +771,6 @@ PetscErrorCode Domain::write()
   str =  _outputDir + "muPlus";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_muP,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // output viscosity vector
-  str =  _outputDir + "visc";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_visc,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output normal stress vector
