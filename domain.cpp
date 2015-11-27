@@ -7,7 +7,7 @@ Domain::Domain(const char *file)
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
-  _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
+  //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -59,7 +59,6 @@ Domain::Domain(const char *file)
          _shearDistribution.compare("mms")==0 )
   {
     setFieldsPlus();
-    setNormalStress();
     if (_problemType.compare("full")==0) {
       MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
@@ -78,7 +77,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
-  _sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
+  //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -133,7 +132,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
          _shearDistribution.compare("mms")==0 )
   {
     setFieldsPlus();
-    setNormalStress();
     if (_problemType.compare("full")==0) {
       MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
@@ -154,7 +152,7 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-  VecDestroy(&_sigma_N);
+  //~VecDestroy(&_sigma_N);
 
   PetscFree(_muArrPlus);
   PetscFree(_csArrPlus);
@@ -214,11 +212,11 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("bcL")==0) { _bcLType = line.substr(pos+_delim.length(),line.npos); }
 
     //fault properties
-    else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    //~else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    //~else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("aVals")==0) {
+    /*else if (var.compare("aVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_aVals);
       _aLen = _aVals.size();
@@ -234,7 +232,7 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("bDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_bDepths);
-    }
+    }*/
 
     // material properties
     else if (var.compare("shearDistribution")==0) {
@@ -440,8 +438,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"dz = %.15e\n",_dz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    ierr = PetscPrintf(PETSC_COMM_SELF,"Dc = %.15e\n",_Dc);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_SELF,"Dc = %.15e\n",_Dc);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // boundary conditions
     ierr = PetscPrintf(PETSC_COMM_SELF,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
@@ -451,8 +449,8 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // fault properties
-    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
+    //~ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -552,12 +550,12 @@ PetscErrorCode Domain::checkInput()
   assert( _dy > 0 && !isnan(_dy) );
   assert( _dz > 0 && !isnan(_dz) );
 
-  assert(_Dc > 0 );
-  assert(_aVals.size() == _aDepths.size() );
-  assert(_bVals.size() == _bDepths.size() );
-  assert(_sigma_N_min > 0);
-  assert(_sigma_N_max > 0);
-  assert(_sigma_N_max >= _sigma_N_min);
+  //~assert(_Dc > 0 );
+  //~assert(_aVals.size() == _aDepths.size() );
+  //~assert(_bVals.size() == _bDepths.size() );
+  //~assert(_sigma_N_min > 0);
+  //~assert(_sigma_N_max > 0);
+  //~assert(_sigma_N_max >= _sigma_N_min);
 
   assert(_vL > 0);
 
@@ -672,13 +670,13 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // fault properties
-  ierr = PetscViewerASCIIPrintf(viewer,"_aVals = %s\n",vector2str(_aVals).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"_aDepths = %s\n",vector2str(_aDepths).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"_bVals = %s\n",vector2str(_bVals).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"_bDepths = %s\n",vector2str(_bDepths).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"_aVals = %s\n",vector2str(_aVals).c_str());CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"_aDepths = %s\n",vector2str(_aDepths).c_str());CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"_bVals = %s\n",vector2str(_bVals).c_str());CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"_bDepths = %s\n",vector2str(_bDepths).c_str());CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
+  //~ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -773,11 +771,11 @@ PetscErrorCode Domain::write()
   ierr = MatView(_muP,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  // output normal stress vector
-  str =  _outputDir + "sigma_N";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~// output normal stress vector
+  //~str =  _outputDir + "sigma_N";
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   if (_problemType.compare("full")==0)
   {
@@ -992,7 +990,7 @@ return ierr;
 }
 
 
-
+/*
 PetscErrorCode Domain::setNormalStress()
 {
   PetscErrorCode ierr = 0;
@@ -1048,7 +1046,7 @@ PetscErrorCode Domain::setNormalStress()
 #endif
 return ierr;
 }
-
+*/
 
 // parse input file and load values into data members
 PetscErrorCode Domain::loadFieldsFromFiles()
@@ -1064,24 +1062,24 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
 
-  // load normal stress: _sigma_N
-  string vecSourceFile = _inputDir + "sigma_N";
+  //~// load normal stress: _sigma_N
+  //~string vecSourceFile = _inputDir + "sigma_N";
   PetscViewer inv;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
 
-  ierr = VecCreate(PETSC_COMM_WORLD,&_sigma_N);CHKERRQ(ierr);
-  ierr = VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
-  ierr = VecLoad(_sigma_N,inv);CHKERRQ(ierr);
+  //~ierr = VecCreate(PETSC_COMM_WORLD,&_sigma_N);CHKERRQ(ierr);
+  //~ierr = VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);CHKERRQ(ierr);
+  //~ierr = VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
+  //~ierr = VecLoad(_sigma_N,inv);CHKERRQ(ierr);
 
 
   // Create a local vector containing cs on each processor (may not work in parallel!!)
   // and put resulting data into array.
   Vec  localCs;
   PetscScalar cs;
-  vecSourceFile = _inputDir + "cs";
+  string vecSourceFile = _inputDir + "cs";
   ierr = VecCreateSeq(PETSC_COMM_SELF,_Ny*_Nz,&localCs);CHKERRQ(ierr);
   ierr = PetscViewerCreate(PETSC_COMM_SELF,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_SELF,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);

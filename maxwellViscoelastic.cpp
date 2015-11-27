@@ -3,8 +3,7 @@
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 : SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
-  _visc(NULL),
-  //~_visc(D._visc),
+  _viscDistribution("unspecified"),_visc(NULL),//~_visc(D._visc),
   _epsVxyP(NULL),_depsVxyP(NULL),
   _epsVxzP(NULL),_depsVxzP(NULL),
   _epsVxyPV(NULL),_depsVxyPV(NULL),
@@ -21,10 +20,10 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 
   // set viscosity
   loadSettings(_file);
-  //~if (_viscDistribution.compare("loadFromFile")==0) {
-
-  setVisc();
   checkInput();
+  //~if (_viscDistribution.compare("loadFromFile")==0) {
+  setVisc();
+
 
   VecDuplicate(_uP,&_epsVxyP);
   PetscObjectSetName((PetscObject) _epsVxyP, "_epsVxyP");

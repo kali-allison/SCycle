@@ -17,7 +17,7 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
   protected:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
-    std::string  _inputDir; // directory to load viscosity from
+    std::string       _inputDir; // directory to load viscosity from
 
     std::string  _viscDistribution; // options: mms, layered
     std::vector<double> _viscVals,_viscDepths;

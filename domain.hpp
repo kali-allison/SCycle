@@ -29,10 +29,10 @@ class Domain
     std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
 
     // fault properties
-    PetscScalar  _sigma_N_min,_sigma_N_max;
-    Vec          _sigma_N;
-    vector<double> _aVals,_aDepths,_bVals,_bDepths;
-    size_t  _aLen,_bLen; // length of each vector
+    //~PetscScalar  _sigma_N_min,_sigma_N_max;
+    //~Vec          _sigma_N;
+    //~vector<double> _aVals,_aDepths,_bVals,_bDepths;
+    //~size_t  _aLen,_bLen; // length of each vector
 
     // material distribution properties
     std::string  _shearDistribution, // options: mms, constant, gradient, basin, CVM
@@ -50,10 +50,6 @@ class Domain
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
     Mat          _muM;
 
-    //~// viscosity distribution properties for Maxwell viscoelasticity
-    //~std::string  _viscDistribution; // options: mms, layered
-    //~std::vector<double> _viscVals,_viscDepths;
-    //~Vec          _visc; // contains full viscosity field
 
     // viscosity distribtion properties for power law rheology
     Vec _A,_temp,_n;
