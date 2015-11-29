@@ -28,12 +28,6 @@ class Domain
     // boundary conditions
     std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
 
-    // fault properties
-    //~PetscScalar  _sigma_N_min,_sigma_N_max;
-    //~Vec          _sigma_N;
-    //~vector<double> _aVals,_aDepths,_bVals,_bDepths;
-    //~size_t  _aLen,_bLen; // length of each vector
-
     // material distribution properties
     std::string  _shearDistribution, // options: mms, constant, gradient, basin, CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)

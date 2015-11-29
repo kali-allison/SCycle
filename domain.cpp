@@ -212,27 +212,8 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("bcL")==0) { _bcLType = line.substr(pos+_delim.length(),line.npos); }
 
     //fault properties
-    //~else if (var.compare("sigma_N_min")==0) { _sigma_N_min = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    //~else if (var.compare("sigma_N_max")==0) { _sigma_N_max = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    /*else if (var.compare("aVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_aVals);
-      _aLen = _aVals.size();
-    }
-    else if (var.compare("aDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_aDepths);
-    }
-    else if (var.compare("bVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_bVals);
-    }
-    else if (var.compare("bDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_bDepths);
-    }*/
 
     // material properties
     else if (var.compare("shearDistribution")==0) {
