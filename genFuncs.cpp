@@ -187,4 +187,41 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
 }
 
 
+// loads a std library vector from a list in the input file
+PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  size_t pos = 0; // position of delimiter in string
+  string delim = " "; // delimiter between values in list (whitespace sensitive)
+  string remstr; // holds remaining string as str is parsed through
+  double val; // holds values
+
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"About to start loading aVals:\n");
+  //~PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
+
+  // holds remainder as str is parsed through (with beginning and ending brackets removed)
+  pos = str.find("]");
+  remstr = str.substr(1,pos-1);
+  //~PetscPrintf(PETSC_COMM_WORLD,"remstr = %s\n",remstr.c_str());
+
+  pos = remstr.find(delim);
+  while (pos != remstr.npos) {
+    pos = remstr.find(delim);
+    val = atof( remstr.substr(0,pos).c_str() );
+    remstr = remstr.substr(pos + delim.length());
+    //~PetscPrintf(PETSC_COMM_WORLD,"val = %g  |  remstr = %s\n",val,remstr.c_str());
+    vec.push_back(val);
+  }
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 

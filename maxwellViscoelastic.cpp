@@ -2,7 +2,8 @@
 
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
-: SymmLinearElastic(D), _visc(D._visc),
+: SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
+  _viscDistribution("unspecified"),_visc(NULL),//~_visc(D._visc),
   _epsVxyP(NULL),_depsVxyP(NULL),
   _epsVxzP(NULL),_depsVxzP(NULL),
   _epsVxyPV(NULL),_depsVxyPV(NULL),
@@ -16,6 +17,13 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     string fileName = "maxwellViscoelastic.cpp";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
   #endif
+
+  // set viscosity
+  loadSettings(_file);
+  checkInput();
+  //~if (_viscDistribution.compare("loadFromFile")==0) {
+  setVisc();
+
 
   VecDuplicate(_uP,&_epsVxyP);
   PetscObjectSetName((PetscObject) _epsVxyP, "_epsVxyP");
@@ -702,6 +710,13 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 
+    // output viscosity vector
+    string str =  _outputDir + "visc";
+    PetscViewer viewer;
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    ierr = VecView(_visc,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
 
@@ -825,5 +840,141 @@ PetscErrorCode SymmMaxwellViscoelastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+  return ierr;
+}
+
+
+
+// loads settings from the input text file
+PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
+#endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( file );
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+
+    // viscosity for asthenosphere
+    if (var.compare("viscDistribution")==0) {
+      _viscDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("viscVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_viscVals);
+    }
+    else if (var.compare("viscDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_viscDepths);
+    }
+
+  }
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// set viscosity
+PetscErrorCode SymmMaxwellViscoelastic::setVisc()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in maxwellVisc.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt       Ii;
+  PetscScalar    v,z;
+  PetscScalar z0,z1,v0,v1;
+
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_visc);CHKERRQ(ierr);
+
+
+  PetscInt Istart,Iend;
+  ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
+
+  // build viscosity structure from generalized input
+  size_t vecLen = _viscDepths.size();
+  for (Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = _viscDepths[0+ind];
+        z1 = _viscDepths[0+ind+1];
+        v0 = log10(_viscVals[0+ind]);
+        v1 = log10(_viscVals[0+ind+1]);
+        //~PetscPrintf(PETSC_COMM_WORLD,"  ind=%i: z0 = %g | z1 = %g | v0 = %g  | v1 = %g\n",ind,z0,z1,v0,v1);
+        if (z>=z0 && z<=z1) {
+          v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
+          v = pow(10,v);
+          }
+        ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+return ierr;
+}
+
+ //parse input file and load values into data members
+PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  // load viscosity from input file
+  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_visc);
+  PetscObjectSetName((PetscObject) _visc, "_visc");
+  ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+// Check that required fields have been set by the input file
+PetscErrorCode SymmMaxwellViscoelastic::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  assert(_viscVals.size() == _viscDepths.size() );
+
+  assert(_viscDistribution.compare("layered")==0 ||
+      _viscDistribution.compare("mms")==0 ||
+      _viscDistribution.compare("loadFromFile")==0 );
+
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+#endif
+  //~}
   return ierr;
 }

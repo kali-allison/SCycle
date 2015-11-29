@@ -12,13 +12,6 @@
 
 class RootFinder;
 
-/* TO DO:
- *   - Split setFields into setFrictionalFields, which can be defined
- *     in Fault, and setSplitNodeFields, which will be defined separately
- *     in SymmFault and FullFault.
- *
- */
-
 
 // base class
 class Fault: public RootFinderContext
@@ -26,12 +19,14 @@ class Fault: public RootFinderContext
 
   //~protected:
   public:
+    const char       *_file;
+    std::string       _delim; // format is: var delim value (without the white space)
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
     const PetscInt     _sizeMuArr;
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
-    const PetscScalar  _Dc;
+    PetscScalar  _Dc;
     const std::string  _problemType; // symmetric (only y>0) or full
     const PetscScalar  _depth,_width; // basin dimensions needed for fault properties (sigma_N, b)
 
@@ -47,7 +42,7 @@ class Fault: public RootFinderContext
 
 
     // fields that differ on the split nodes
-    PetscScalar    _sigma_N_min,_sigma_N_max;
+    std::vector<double> _sigmaNVals,_sigmaNDepths;
     Vec            _sigma_N;
 
     Vec            _zP;
@@ -90,6 +85,13 @@ class Fault: public RootFinderContext
 
     PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
     PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
+
+    // load settings from input file
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode loadFieldsFromFiles();
+
+    // check input from file
+    PetscErrorCode checkInput();
 };
 
 

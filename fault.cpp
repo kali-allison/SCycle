@@ -6,15 +6,17 @@ using namespace std;
 
 
 Fault::Fault(Domain&D)
-: _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
+: _file(D._file),_delim(D._delim),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _f0(D._f0),_v0(D._v0),_vL(D._vL),
-  _aVals(D._aVals),_aDepths(D._aDepths),_bVals(D._bVals),_bDepths(D._bDepths),
+  //~_aVals(D._aVals),_aDepths(D._aDepths),_bVals(D._bVals),_bDepths(D._bDepths),
   _a(NULL),_b(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
-  _sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(D._sigma_N),
+  //~_sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(D._sigma_N),
+  _sigma_N(NULL),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
   _psiViewer(NULL),
@@ -23,6 +25,10 @@ Fault::Fault(Domain&D)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::Fault in fault.cpp.\n");
 #endif
+
+// set viscosity
+  loadSettings(_file);
+  checkInput();
 
   // fields that exist on the fault
   VecCreate(PETSC_COMM_WORLD,&_tauQSP);
@@ -38,6 +44,7 @@ Fault::Fault(Domain&D)
 
 
   // frictional fields
+  VecDuplicate(_tauQSP,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "_zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "_a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "_b");
@@ -49,6 +56,30 @@ Fault::Fault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
 #endif
 }
+
+
+
+// Check that required fields have been set by the input file
+PetscErrorCode Fault::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  assert(_Dc > 0 );
+  assert(_aVals.size() == _aDepths.size() );
+  assert(_bVals.size() == _bDepths.size() );
+  assert(_sigmaNVals.size() == _sigmaNDepths.size() );
+
+
+#if VERBOSE > 1
+ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+  //~}
+  return ierr;
+}
+
 
 Fault::~Fault()
 {
@@ -154,11 +185,11 @@ PetscErrorCode Fault::setFrictionFields()
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
-
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
   }
 
 #if VERBOSE > 1
@@ -570,6 +601,12 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   ierr = VecView(_zP,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  // output normal stress vector
+  str =  outputDir + "sigma_N";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
@@ -663,6 +700,70 @@ FullFault::FullFault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::FullFault in fault.cpp.\n");
 #endif
 }
+
+
+
+
+PetscErrorCode Fault::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
+#endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( file );
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+
+    if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+    //fault properties
+    else if (var.compare("sigmaNVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_sigmaNVals);
+      //~_aLen = _aVals.size();
+    }
+    else if (var.compare("sigmaNDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_sigmaNDepths);
+    }
+
+    else if (var.compare("aVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_aVals);
+      //~_aLen = _aVals.size();
+    }
+    else if (var.compare("aDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_aDepths);
+    }
+    else if (var.compare("bVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_bVals);
+    }
+    else if (var.compare("bDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_bDepths);
+    }
+  }
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+
 
 FullFault::~FullFault()
 {
@@ -1061,15 +1162,16 @@ PetscErrorCode FullFault::writeContext(const string outputDir)
   ierr = VecView(_zP,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-    str = outputDir + "zMinus";
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-    ierr = VecView(_zM,viewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  str = outputDir + "zMinus";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_zM,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  //~str = outputDir + "sigma_N";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  // output normal stress vector
+  str =  outputDir + "sigma_N";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
