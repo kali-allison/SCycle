@@ -4,7 +4,7 @@ using namespace std;
 
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
   //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
@@ -74,7 +74,7 @@ Domain::Domain(const char *file)
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),_Dc(-1),
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
   //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
@@ -203,8 +203,6 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-    else if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-
     // boundary condition types
     else if (var.compare("bcT")==0) { _bcTType = line.substr(pos+_delim.length(),line.npos); }
     else if (var.compare("bcR")==0) { _bcRType = line.substr(pos+_delim.length(),line.npos); }
@@ -261,44 +259,6 @@ PetscErrorCode Domain::loadData(const char *file)
   return ierr;
 }
 
-/*
-// loads a std library vector from a list in the input file
-PetscErrorCode Domain::loadVectorFromInputFile(const string& str,vector<double>& vec)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
-  #endif
-
-  size_t pos = 0; // position of delimiter in string
-  string delim = " "; // delimiter between values in list (whitespace sensitive)
-  string remstr; // holds remaining string as str is parsed through
-  double val; // holds values
-
-
-  //~PetscPrintf(PETSC_COMM_WORLD,"About to start loading aVals:\n");
-  //~PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
-
-  // holds remainder as str is parsed through (with beginning and ending brackets removed)
-  pos = str.find("]");
-  remstr = str.substr(1,pos-1);
-  //~PetscPrintf(PETSC_COMM_WORLD,"remstr = %s\n",remstr.c_str());
-
-  pos = remstr.find(delim);
-  while (pos != remstr.npos) {
-    pos = remstr.find(delim);
-    val = atof( remstr.substr(0,pos).c_str() );
-    remstr = remstr.substr(pos + delim.length());
-    //~PetscPrintf(PETSC_COMM_WORLD,"val = %g  |  remstr = %s\n",val,remstr.c_str());
-    vec.push_back(val);
-  }
-
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
-  #endif
-  return ierr;
-}*/
 
 
 // load shear modulus structure from input file
@@ -419,8 +379,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"dz = %.15e\n",_dz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    //~ierr = PetscPrintf(PETSC_COMM_SELF,"Dc = %.15e\n",_Dc);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // boundary conditions
     ierr = PetscPrintf(PETSC_COMM_SELF,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
@@ -430,9 +388,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // fault properties
-    //~ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_min = %f\n",_sigma_N_min);CHKERRQ(ierr);
-    //~ierr = PetscPrintf(PETSC_COMM_SELF,"sigma_N_max = %f\n",_sigma_N_max);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
@@ -531,12 +486,6 @@ PetscErrorCode Domain::checkInput()
   assert( _dy > 0 && !isnan(_dy) );
   assert( _dz > 0 && !isnan(_dz) );
 
-  //~assert(_Dc > 0 );
-  //~assert(_aVals.size() == _aDepths.size() );
-  //~assert(_bVals.size() == _bDepths.size() );
-  //~assert(_sigma_N_min > 0);
-  //~assert(_sigma_N_max > 0);
-  //~assert(_sigma_N_max >= _sigma_N_min);
 
   assert(_vL > 0);
 
@@ -640,8 +589,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"dz = %.15e\n",_dz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"Dc = %15e\n",_Dc);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // boundary conditions
   ierr = PetscViewerASCIIPrintf(viewer,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
@@ -651,13 +598,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // fault properties
-  //~ierr = PetscViewerASCIIPrintf(viewer,"_aVals = %s\n",vector2str(_aVals).c_str());CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"_aDepths = %s\n",vector2str(_aDepths).c_str());CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"_bVals = %s\n",vector2str(_bVals).c_str());CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"_bDepths = %s\n",vector2str(_bDepths).c_str());CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_min = %.15e\n",_sigma_N_min);CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"sigma_N_max = %.15e\n",_sigma_N_max);CHKERRQ(ierr);
-  //~ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 

@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D)
 : _file(D._file),_delim(D._delim),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(D._Dc),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(NULL),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
@@ -26,7 +26,7 @@ Fault::Fault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::Fault in fault.cpp.\n");
 #endif
 
-// set viscosity
+  // set a, b, normal stress, and Dc
   loadSettings(_file);
   checkInput();
 
@@ -44,6 +44,7 @@ Fault::Fault(Domain&D)
 
 
   // frictional fields
+  VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "_Dc");
   VecDuplicate(_tauQSP,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "_zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "_a");
@@ -67,7 +68,7 @@ PetscErrorCode Fault::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
-  assert(_Dc > 0 );
+  assert(_DcVals.size() == _DcDepths.size() );
   assert(_aVals.size() == _aDepths.size() );
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
@@ -97,6 +98,7 @@ Fault::~Fault()
 
 
   // frictional fields
+  VecDestroy(&_Dc);
   VecDestroy(&_zP);
   VecDestroy(&_a);
   VecDestroy(&_b);
@@ -185,11 +187,13 @@ PetscErrorCode Fault::setFrictionFields()
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
+    VecSet(_sigma_N,_sigmaNVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
   }
 
 #if VERBOSE > 1
@@ -228,11 +232,12 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscSca
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
-  PetscScalar    b,slipVel;
+  PetscScalar    b,slipVel,Dc;
 
 
   ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
   assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // aging law is not sensitive to direction of slip
@@ -242,23 +247,23 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar psi,PetscSca
   if ( isinf(exp(1/b)) ) { *dPsi = 0; }
   else if ( b <= 1e-3 ) { *dPsi = 0; }
   else {
-    *dPsi = (PetscScalar) (b*_v0/_Dc)*( exp((double) ( (_f0-psi)/b) ) - (slipVel/_v0) );
+    *dPsi = (PetscScalar) (b*_v0/Dc)*( exp((double) ( (_f0-psi)/b) ) - (slipVel/_v0) );
   }
 
 
   if (isnan(*dPsi)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*dPsi) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,slipVel);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,Dc,_v0,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/Dc));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(slipVel/_v0));
     CHKERRQ(ierr);
   }
   else if (isinf(*dPsi)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*dPsi) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,_Dc,_v0,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%.9e,b=%.9e,f0=%.9e,D_c=%.9e,v0=%.9e,vel=%.9e\n",psi,b,_f0,Dc,_v0,slipVel);
     CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/_Dc));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(b*D->v0/D->D_c)=%.9e\n",(b*_v0/Dc));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp((double) ( (D->f0-psi)/b) )=%.9e\n",exp((double) ( (_f0-psi)/b) ));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/D->v0)=%.9e\n",(slipVel/_v0));
   }
@@ -607,6 +612,12 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  // output critical distance
+  str =  outputDir + "Dc";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_Dc,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
@@ -724,13 +735,21 @@ PetscErrorCode Fault::loadSettings(const char *file)
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
 
-    if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    //~if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-    //fault properties
+
+    if (var.compare("DcVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_DcVals);
+    }
+    else if (var.compare("DcDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_DcDepths);
+    }
+
     else if (var.compare("sigmaNVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNVals);
-      //~_aLen = _aVals.size();
     }
     else if (var.compare("sigmaNDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
@@ -740,7 +759,6 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("aVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_aVals);
-      //~_aLen = _aVals.size();
     }
     else if (var.compare("aDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);

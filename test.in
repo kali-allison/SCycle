@@ -1,10 +1,11 @@
 order = 4
-Ny = 151
-Nz = 151
+Ny = 201
+Nz = 201
 Ly = 24 # km
 Lz = 24 # km
 
-Dc = 16e-3 # m 8e-3
+DcVals = [8e-3 8e-3] # m
+DcDepths = [0 24] # m
 
 bcT = traction
 bcR = displacement
@@ -16,8 +17,8 @@ aVals = [0.015 0.015] # comment
 aDepths = [0 24]
 bVals = [0.02 0.02 0.0 0.0]
 bDepths = [0 12 18 24]
-sigma_N_min = 50 # MPa
-sigma_N_max = 50 # MPa
+sigmaNVals = [0.1 50] # MPa
+sigmaNDepths = [0 24]
 
 vL = 1e-9    # m/s
 
@@ -31,8 +32,8 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20]
-viscDepths = [0 24]
+viscVals = [1e20 1e20 1e11 1e11]
+viscDepths = [0 15 15.12 24]
 
 linSolver = AMG
 kspTol = 1e-7
@@ -49,5 +50,7 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-#outputDir = data/mvfc_v1e20_rate_bc_
-outputDir = data/lefc_Dc16e-3_
+#outputDir = data/lefc_Dc8e-3_N251_
+#outputDir = data/mvfc_Dc8e-3_N251_
+#outputDir = data/mvfc_l_Dc8e-3_N201_
+outputDir = data/test_

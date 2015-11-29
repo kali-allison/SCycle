@@ -1,23 +1,24 @@
 order = 4
-Ny = 151
-Nz = 151
+Ny = 251
+Nz = 251
 Ly = 24 # km
 Lz = 24 # km
 
-Dc = 8e-3 # m
 
 bcT = traction
 bcR = displacement
 bcB = traction
 bcL = displacement
 
+DcVals = [8e-3 8e-3] # m
+DcDepths = [0 24] # m
 
 aVals = [0.015 0.015 0.024] # comment
 aDepths = [0 15 24]
 bVals = [0.000 0.019 0.019 0.0 0.0]
 bDepths = [0 4 12 15 24]
-sigma_N_min = 0.1 # MPa
-sigma_N_max = 50 # MPa 70.66
+sigmaNVals = [0.1 50 50] # MPa
+sigmaNDepths = [0 5 24]
 
 vL = 1e-9    # m/s
 
@@ -31,16 +32,16 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20 1e8 1e8 1e9]
-viscDepths = [0 5 10 15 24]
+viscVals = [1e20 1e20 1e11 1e11]
+viscDepths = [0 15 15.001 24]
 
 linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
-maxStepCount = 1e8
+strideLength = 1
+maxStepCount = 10
 initTime = 0       # s
 maxTime = 6e10     # s
 minDeltaT = 1e-3     # s
@@ -49,4 +50,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = shallowFricProps/b0.000_sNMin0.1_sNMax50_
+outputDir = data/mvfc_rf_

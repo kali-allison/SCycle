@@ -26,7 +26,7 @@ class Fault: public RootFinderContext
     const PetscInt     _N;  //number of nodes on fault
     const PetscInt     _sizeMuArr;
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
-    PetscScalar  _Dc;
+    //~PetscScalar  _Dc;
     const std::string  _problemType; // symmetric (only y>0) or full
     const PetscScalar  _depth,_width; // basin dimensions needed for fault properties (sigma_N, b)
 
@@ -36,8 +36,8 @@ class Fault: public RootFinderContext
 
    // fields that are identical on split nodes
    PetscScalar    _f0,_v0,_vL;
-   std::vector<double> _aVals,_aDepths,_bVals,_bDepths;
-   Vec            _a,_b;
+   std::vector<double> _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
+   Vec            _a,_b,_Dc;
    Vec            _psi,_tempPsi,_dPsi;
 
 

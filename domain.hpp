@@ -23,7 +23,7 @@ class Domain
 
     // domain properties
     PetscInt     _order,_Ny,_Nz;
-    PetscScalar  _Ly,_Lz,_dy,_dz,_Dc;
+    PetscScalar  _Ly,_Lz,_dy,_dz;
 
     // boundary conditions
     std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
