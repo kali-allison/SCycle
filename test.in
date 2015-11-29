@@ -40,7 +40,7 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 10
-maxStepCount = 1e5
+maxStepCount = 1e6
 initTime = 0       # s
 maxTime = 1e15      # s
 minDeltaT = 1e-3     # s
@@ -50,4 +50,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 #outputDir = data/mvfc_v1e20_rate_bc_
-outputDir = data/lefc_
+outputDir = data/lefc_Dc16e-3_
