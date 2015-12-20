@@ -303,8 +303,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out)
     _sbpP.HzinvxENz(_epsVxzP,temp1);
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
-    ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
-    ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
+    //~ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
+    //~ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
 
     VecDestroy(&temp1);
     VecDestroy(&bcT);
@@ -355,7 +355,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDestroy(&temp1);
 
 
-  //~VecSet(out,0.0);
+  VecSet(out,0.0);
 
 
   #if VERBOSE > 1

@@ -106,7 +106,7 @@ sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 spmat.o: spmat.cpp spmat.hpp
 testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp testOdeSolver.hpp \
+ debuggingFuncs.hpp spmat.hpp sbpOps.hpp sbpOps_c.hpp sbpOps_fc.hpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp
 testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp

@@ -1,14 +1,784 @@
 #include <petscts.h>
 #include <petscdmda.h>
+#include <petscdm.h>
 #include <petscviewerhdf5.h>
 #include <string>
 
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
+#include "sbpOps_c.hpp"
+#include "sbpOps_fc.hpp"
 #include "testOdeSolver.hpp"
 #include "odeSolver.hpp"
 #include "testOdeSolver.hpp"
+
+
+
+/*
+ * Compare computation of d/dx with stencils, a matrix operators on DMDAs, and regular matrices.
+ * Note that d/dx corresponds to z in my usual coordinate system.
+ */
+int timeDx()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting testMain::timeDx in fault.cpp.\n");
+#endif
+
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt Nx=500,Ny=600;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=6.0;
+  PetscScalar dx=(xMax-xMin)/(Nx-1), dy=(yMax-yMin)/(Ny-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+  PetscScalar x,y;
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+
+  // Set the values for the global vector x based on the (x,y)
+  // coordinates for each vertex
+  Vec g=NULL,l=NULL; // g = global x, l = local x
+  PetscScalar **lArr;
+  DMCreateGlobalVector(da,&g); PetscObjectSetName((PetscObject) g, "global g");
+  ierr = DMCreateLocalVector(da,&l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      x = i * dx;
+      y = j * dy;
+      lArr[j][i] = 2*x  + 3*y ;
+    }
+  }
+  DMDAVecRestoreArray(da,l,&lArr);
+  ierr = DMLocalToGlobalBegin(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+
+
+double startTime = MPI_Wtime();
+  // Compute 1st derivative in x-direction
+  Vec gx=NULL,lx=NULL; // gx = global, lx = local
+  PetscScalar **lxArr;
+  VecDuplicate(g,&gx);
+  VecSet(gx,0.0);
+  PetscObjectSetName((PetscObject) gx, "global gx");
+  ierr = DMCreateLocalVector(da,&lx);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lx,&lxArr);
+
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+
+  // only iterate over the local entries in f
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      if (i>0 && i<Nx-1) { lxArr[j][i] = (lArr[j][i+1] - lArr[j][i-1])/(2*dx); }
+      else if (i==0) { lxArr[j][i] = (-1.0*lArr[j][0] + 1.0*lArr[j][1] )/dx; }
+      else if (i==Nx-1) { lxArr[j][i] = (- 1.0*lArr[j][Nx-2] + 1.0*lArr[j][Nx-1])/dx; }
+    }
+  }
+  DMDAVecRestoreArray(da,lx,&lxArr);
+  DMDAVecRestoreArray(da,lx,&lArr);
+  DMLocalToGlobalBegin(da,lx,INSERT_VALUES,gx);
+  DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);
+double endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dx stencil: %.9e\n",endTime);
+
+
+
+  // Compute 1st derivative in y-direction, store as gy.
+  Vec gy=NULL,ly=NULL; // gx = global, lx = local
+  PetscScalar **lyArr;
+  VecDuplicate(g,&gy);
+  VecSet(gy,0.0);
+  PetscObjectSetName((PetscObject) gy, "global gy");
+  ierr = DMCreateLocalVector(da,&ly);CHKERRQ(ierr);
+  DMDAVecGetArray(da,ly,&lyArr);
+
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+
+  // only iterate over the local entries in f
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      if (j>0 && j<Ny-1) { lyArr[j][i] = (lArr[j+1][i] - lArr[j-1][i])/(2*dy); }
+      else if (j==0) { lyArr[j][i] = (-1.0*lArr[0][i] + 1.0*lArr[1][i] )/dy; }
+      else if (j==Ny-1) { lyArr[j][i] = (- 1.0*lArr[Ny-2][i] + 1.0*lArr[Ny-1][i])/dy; }
+    }
+  }
+  DMDAVecRestoreArray(da,ly,&lyArr);
+  DMDAVecRestoreArray(da,ly,&lArr);
+  DMLocalToGlobalBegin(da,ly,INSERT_VALUES,gy);
+  DMLocalToGlobalEnd(da,ly,INSERT_VALUES,gy);
+
+
+
+  // try another way of making the matrix, this time with MatStencil
+  ISLocalToGlobalMapping map,rmap;
+  DMGetLocalToGlobalMapping(da,&map);
+
+  PetscInt Istart,Iend;
+
+  // allocate space for mat
+  Mat mat;
+  DMDALocalInfo lI;
+  DMDAGetLocalInfo(da,&lI);
+
+
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  MatSetSizes(mat,lI.xm*lI.ym,lI.xm*lI.ym,PETSC_DECIDE,PETSC_DECIDE);
+  MatSetFromOptions(mat);
+  MatMPIAIJSetPreallocation(mat,3,NULL,3,NULL);
+  MatSeqAIJSetPreallocation(mat,3,NULL);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  PetscInt dims[3] = {lI.gxm, lI.gym, lI.gzm};
+  PetscInt starts[3] = {lI.gxs, lI.gys, lI.gzs};
+  MatSetStencil(mat,2,dims,starts,1);
+  MatSetUp(mat);
+
+
+  MatStencil row;
+  // closures
+  MatStencil colC[2];
+  colC[0].i = 0; colC[0].j = 0;
+  colC[1].i = 1; colC[1].j = 0;
+  PetscScalar vIC[2];
+  vIC[0] = -1.0/dx; vIC[1] = 1.0/dx;
+
+  PetscScalar vEC[2];
+  vEC[0] = -1.0/dx; vEC[1] = 1.0/dx;
+
+  // interior stencil
+  MatStencil rowI,col[2];
+  PetscScalar vI[2]; vI[0] = -0.5/dx; vI[1] = 0.5/dx;
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      row.i = i; row.j = j;
+      col[0].j = j;
+      col[1].j = j;
+      if (i>0 && i<Nx-1) {
+        col[0].i = i-1;
+        col[1].i = i+1;
+        ierr = MatSetValuesStencil(mat,1,&row,2,col,vI,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (i == 0) {
+        colC[0].i = 0;
+        colC[1].i = 1;
+        ierr = MatSetValuesStencil(mat,1,&row,2,colC,vIC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (i == Nx-1) {
+        colC[0].i = Nx-2;
+        colC[1].i = Nx-1;
+
+        ierr = MatSetValuesStencil(mat,1,&row,2,colC,vEC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+    }
+  }
+  ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+
+  Vec gx_ms;
+  VecDuplicate(g,&gx_ms);
+  PetscObjectSetName((PetscObject) gx_ms, "global gx_ms");
+
+  VecSet(gx_ms,0.0);
+startTime = MPI_Wtime();
+  MatMult(mat,g,gx_ms);
+endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dx stencil-matrix: %.9e\n",endTime);
+
+
+// traditional matrix derivative
+  Vec g_m;
+  PetscInt Ii;
+  PetscScalar v;
+  VecCreate(PETSC_COMM_WORLD,&g_m);
+  VecSetSizes(g_m,PETSC_DECIDE,Nx*Ny);
+  VecSetFromOptions(g_m);
+  PetscObjectSetName((PetscObject) g_m, "g_m");
+  VecGetOwnershipRange(g_m,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    x = dy*(Ii-Nx*(Ii/Nx));
+    y = dy*(Ii/Nx);
+    v = 2*x + 3*y;
+    VecSetValues(g_m,1,&Ii,&v,INSERT_VALUES);
+  }
+
+  Spmat Iy(Ny,Ny); Iy.eye();
+  Spmat Ix(Nx,Nx); Ix.eye();
+  Spmat Dx(Nx,Nx);
+  Dx(0,0,-1.0/dx);Dx(0,1,1.0/dx); // first row
+  for (Ii=1;Ii<Nx-1;Ii++) {
+    Dx(Ii,Ii-1,-0.5/dx);
+    Dx(Ii,Ii+1,0.5/dx);
+  }
+  Dx(Nx-1,Nx-1,1.0/dx);Dx(Nx-1,Nx-2,-1.0/dx); // last row
+
+  Spmat Dy(Ny,Ny);
+  Dy(0,0,-1.0/dy);Dy(0,1,1.0/dy); // first row
+  for (Ii=1;Ii<Ny-1;Ii++) {
+    Dy(Ii,Ii-1,-0.5/dy);
+    Dy(Ii,Ii+1,0.5/dy);
+  }
+  Dy(Ny-1,Ny-1,1.0/dy);Dy(Ny-1,Ny-2,-1.0/dy); // last row
+
+  Mat Dx_Iy;
+  //~kronConvert(Dy,Ix,Dx_Iy,3,3);
+  kronConvert(Iy,Dx,Dx_Iy,3,3);
+  //~MatView(Dx_Iy,PETSC_VIEWER_STDOUT_WORLD);
+
+  Vec gx_m;
+  VecDuplicate(g_m,&gx_m);
+startTime = MPI_Wtime();
+  MatMult(Dx_Iy,g_m,gx_m);
+endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dx matrix: %.9e\n",endTime);
+  //~VecView(gx_m,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
+  VecDestroy(&l);
+  VecDestroy(&g);
+  VecDestroy(&lx);
+  VecDestroy(&gx);
+  VecDestroy(&ly);
+  VecDestroy(&gy);
+  DMDestroy(&da);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending testMain::testDMDAWithMats in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+/*
+ * Compare computation of d/dy with stencils, a matrix operators on DMDAs, and regular matrices.
+ */
+int timeDy()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting testMain::timeDy in fault.cpp.\n");
+#endif
+
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt Nx=500,Ny=600;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=6.0;
+  PetscScalar dx=(xMax-xMin)/(Nx-1), dy=(yMax-yMin)/(Ny-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+  PetscScalar x,y;
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+
+  // Set the values for the global vector g
+  Vec g=NULL,l=NULL; // g = global, l = local
+  PetscScalar **lArr;
+  DMCreateGlobalVector(da,&g); PetscObjectSetName((PetscObject) g, "global g");
+  ierr = DMCreateLocalVector(da,&l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      x = i * dx;
+      y = j * dy;
+      lArr[j][i] = 2*x  + 3*y ;
+    }
+  }
+  DMDAVecRestoreArray(da,l,&lArr);
+  ierr = DMLocalToGlobalBegin(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+
+
+double startTime = MPI_Wtime();
+  // Compute 1st derivative in y-direction, store as gy.
+  Vec gy=NULL,ly=NULL; // gx = global, lx = local
+  PetscScalar **lyArr;
+  VecDuplicate(g,&gy);
+  VecSet(gy,0.0);
+  PetscObjectSetName((PetscObject) gy, "global gy");
+  ierr = DMCreateLocalVector(da,&ly);CHKERRQ(ierr);
+  DMDAVecGetArray(da,ly,&lyArr);
+
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+
+  // only iterate over the local entries in g
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      if (j>0 && j<Ny-1) { lyArr[j][i] = (lArr[j+1][i] - lArr[j-1][i])/(2*dy); }
+      else if (j==0) { lyArr[j][i] = (-1.0*lArr[0][i] + 1.0*lArr[1][i] )/dy; }
+      else if (j==Ny-1) { lyArr[j][i] = (- 1.0*lArr[Ny-2][i] + 1.0*lArr[Ny-1][i])/dy; }
+    }
+  }
+  DMDAVecRestoreArray(da,ly,&lyArr);
+  DMDAVecRestoreArray(da,ly,&lArr);
+  DMLocalToGlobalBegin(da,ly,INSERT_VALUES,gy);
+  DMLocalToGlobalEnd(da,ly,INSERT_VALUES,gy);
+
+double endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dy stencil: %.9e\n",endTime);
+
+//~VecView(gy,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
+  // try another way of making the matrix, this time with MatStencil
+  ISLocalToGlobalMapping map,rmap;
+  DMGetLocalToGlobalMapping(da,&map);
+
+  PetscInt Istart,Iend;
+
+  // allocate space for mat
+  Mat mat;
+  DMDALocalInfo lI;
+  DMDAGetLocalInfo(da,&lI);
+
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  MatSetSizes(mat,lI.xm*lI.ym,lI.xm*lI.ym,PETSC_DECIDE,PETSC_DECIDE);
+  MatSetFromOptions(mat);
+  MatMPIAIJSetPreallocation(mat,3,NULL,3,NULL);
+  MatSeqAIJSetPreallocation(mat,3,NULL);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  PetscInt dims[3] = {lI.gxm, lI.gym, lI.gzm};
+  PetscInt starts[3] = {lI.gxs, lI.gys, lI.gzs};
+  MatSetStencil(mat,2,dims,starts,1);
+  MatSetUp(mat);
+
+
+  MatStencil row;
+  // closures
+  PetscScalar vIC[2];
+  vIC[0] = -1.0/dx; vIC[1] = 1.0/dy;
+
+  PetscScalar vEC[2];
+  vEC[0] = -1.0/dx; vEC[1] = 1.0/dy;
+
+  // interior stencil
+  MatStencil rowI,col[2];
+  PetscScalar vI[2]; vI[0] = -0.5/dy; vI[1] = 0.5/dy;
+
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      row.i = i; row.j = j;
+      if (j>0 && j<Ny-1) {
+        col[0].i = i; col[0].j = j-1;
+        col[1].i = i; col[1].j = j+1;
+        ierr = MatSetValuesStencil(mat,1,&row,2,col,vI,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (j == 0) {
+        col[0].i = i; col[0].j = 0;
+        col[1].i = i; col[1].j = 1;
+        ierr = MatSetValuesStencil(mat,1,&row,2,col,vIC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (j == Ny-1) {
+        col[0].i = i; col[0].j = Ny-2;
+        col[1].i = i; col[1].j = Ny-1;
+        ierr = MatSetValuesStencil(mat,1,&row,2,col,vEC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+    }
+  }
+  ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+
+  Vec gy_ms;
+  VecDuplicate(g,&gy_ms);
+  PetscObjectSetName((PetscObject) gy_ms, "global gy_ms");
+
+  VecSet(gy_ms,0.0);
+startTime = MPI_Wtime();
+  MatMult(mat,g,gy_ms);
+endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dy stencil-matrix: %.9e\n",endTime);
+//~VecView(gy_ms,PETSC_VIEWER_STDOUT_WORLD);
+
+
+// traditional matrix derivative
+  Vec g_m;
+  PetscInt Ii;
+  PetscScalar v;
+  VecCreate(PETSC_COMM_WORLD,&g_m);
+  VecSetSizes(g_m,PETSC_DECIDE,Nx*Ny);
+  VecSetFromOptions(g_m);
+  PetscObjectSetName((PetscObject) g_m, "g_m");
+  VecGetOwnershipRange(g_m,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    x = dy*(Ii-Nx*(Ii/Nx));
+    y = dy*(Ii/Nx);
+    v = 2*x + 3*y;
+    VecSetValues(g_m,1,&Ii,&v,INSERT_VALUES);
+  }
+
+  Spmat Iy(Ny,Ny); Iy.eye();
+  Spmat Ix(Nx,Nx); Ix.eye();
+  Spmat Dx(Nx,Nx);
+  Dx(0,0,-1.0/dx);Dx(0,1,1.0/dx); // first row
+  for (Ii=1;Ii<Nx-1;Ii++) {
+    Dx(Ii,Ii-1,-0.5/dx);
+    Dx(Ii,Ii+1,0.5/dx);
+  }
+  Dx(Nx-1,Nx-1,1.0/dx);Dx(Nx-1,Nx-2,-1.0/dx); // last row
+
+  Spmat Dy(Ny,Ny);
+  Dy(0,0,-1.0/dy);Dy(0,1,1.0/dy); // first row
+  for (Ii=1;Ii<Ny-1;Ii++) {
+    Dy(Ii,Ii-1,-0.5/dy);
+    Dy(Ii,Ii+1,0.5/dy);
+  }
+  Dy(Ny-1,Ny-1,1.0/dy);Dy(Ny-1,Ny-2,-1.0/dy); // last row
+
+  Mat Dy_Ix;
+  kronConvert(Dy,Ix,Dy_Ix,3,3);
+  //~MatView(Dx_Iy,PETSC_VIEWER_STDOUT_WORLD);
+
+  Vec gy_m;
+  VecDuplicate(g_m,&gy_m);
+startTime = MPI_Wtime();
+  MatMult(Dy_Ix,g_m,gy_m);
+endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dy matrix: %.9e\n",endTime);
+//~VecView(gy_m,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
+  VecDestroy(&l);
+  VecDestroy(&g);
+  VecDestroy(&ly);
+  VecDestroy(&gy);
+  DMDestroy(&da);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending testMain::timeDy in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+
+
+/*
+ * Test how to create matrix to perform derivatives on a DMDA
+ */
+int testDMDAWithMats()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting testMain::testDMDAWithMats in fault.cpp.\n");
+#endif
+
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt Nx=500,Ny=600;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=6.0;
+  PetscScalar dx=(xMax-xMin)/(Nx-1), dy=(yMax-yMin)/(Ny-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+  PetscScalar x,y;
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+  // Set up uniform coordinate mesh.
+  // Print to see distribution, organization on multiple processors.
+  DM cda;
+  Vec lcoords; // local vector containing coordinates
+  DMDACoor2d **coords; // 2D array containing x and y data members
+  DMDASetUniformCoordinates(da,yMin,yMax,xMin,xMax,0.0,1.0);
+  DMGetCoordinateDM(da,&cda);
+  DMGetCoordinatesLocal(da,&lcoords);
+  DMDAVecGetArray(cda,lcoords,&coords);
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  //~for (j=nStart;j<nStart+n;j++) {
+    //~for (i=mStart;i<mStart+m;i++) {
+      //~PetscPrintf(PETSC_COMM_SELF,"%i: (coords[%i][%i].x,coords[%i][%i].y) = (%g,%g)\n",
+        //~rank,j,i,j,i,coords[j][i].x,coords[j][i].y);
+    //~}
+  //~}
+
+  // Set the values for the global vector x based on the (x,y)
+  // coordinates for each vertex. Since this uses only local values, there
+  // is no need to use the pair DMGlobalToLocalBegin/End to communicate
+  // the ghost values.
+  Vec g=NULL,l=NULL; // g = global x, l = local x
+  PetscScalar **lArr;
+  DMCreateGlobalVector(da,&g); PetscObjectSetName((PetscObject) g, "global g");
+  ierr = DMCreateLocalVector(da,&l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      x = i * dx;
+      y = j * dy;
+      //~lArr[j][i] = (coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y);
+      lArr[j][i] = 2*x  + 3*y ;
+    }
+  }
+  DMDAVecRestoreArray(da,l,&lArr);
+  ierr = DMLocalToGlobalBegin(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  //~printf_DM_2d(g,da);
+
+double startTime = MPI_Wtime();
+  // Compute 1st derivative in x-direction, store as gx.
+  // This uses the ghost points in x, so it is necessary to use
+  // DMGlobalToLocalBegin/End for g -> l.
+  Vec gx=NULL,lx=NULL; // gx = global, lx = local
+  PetscScalar **lxArr;
+  VecDuplicate(g,&gx);
+  VecSet(gx,0.0);
+  PetscObjectSetName((PetscObject) gx, "global gx");
+  ierr = DMCreateLocalVector(da,&lx);CHKERRQ(ierr);
+  DMDAVecGetArray(da,lx,&lxArr);
+
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+
+  // only iterate over the local entries in f
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      if (i>0 && i<Nx-1) { lxArr[j][i] = (lArr[j][i+1] - lArr[j][i-1])/(2*dx); }
+      else if (i==0) { lxArr[j][i] = (-1.0*lArr[j][0] + 1.0*lArr[j][1] )/dx; }
+      else if (i==Nx-1) { lxArr[j][i] = (- 1.0*lArr[j][Nx-2] + 1.0*lArr[j][Nx-1])/dx; }
+    }
+  }
+  DMDAVecRestoreArray(da,lx,&lxArr);
+  DMDAVecRestoreArray(da,lx,&lArr);
+  DMLocalToGlobalBegin(da,lx,INSERT_VALUES,gx);
+  DMLocalToGlobalEnd(da,lx,INSERT_VALUES,gx);
+  //~VecView(gx,PETSC_VIEWER_STDOUT_WORLD);
+double endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dx stencil: %.9e\n",endTime);
+
+
+
+  // Compute 1st derivative in y-direction, store as gy.
+  // This uses the ghost points in x, so it is necessary to use
+  // DMGlobalToLocalBegin/End for g -> l.
+  Vec gy=NULL,ly=NULL; // gx = global, lx = local
+  PetscScalar **lyArr;
+  VecDuplicate(g,&gy);
+  VecSet(gy,0.0);
+  PetscObjectSetName((PetscObject) gy, "global gy");
+  ierr = DMCreateLocalVector(da,&ly);CHKERRQ(ierr);
+  DMDAVecGetArray(da,ly,&lyArr);
+
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+
+  // only iterate over the local entries in f
+  DMDAGetCorners(cda,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      if (j>0 && j<Ny-1) { lyArr[j][i] = (lArr[j+1][i] - lArr[j-1][i])/(2*dy); }
+      else if (j==0) { lyArr[j][i] = (-1.0*lArr[0][i] + 1.0*lArr[1][i] )/dy; }
+      else if (j==Ny-1) { lyArr[j][i] = (- 1.0*lArr[Ny-2][i] + 1.0*lArr[Ny-1][i])/dy; }
+    }
+  }
+  DMDAVecRestoreArray(da,ly,&lyArr);
+  DMDAVecRestoreArray(da,ly,&lArr);
+  DMLocalToGlobalBegin(da,ly,INSERT_VALUES,gy);
+  DMLocalToGlobalEnd(da,ly,INSERT_VALUES,gy);
+  //~VecView(gy,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
+  // output the global vectors so they can be loaded into MATLAB
+  //~writeVec(g,"g");
+  //~writeVec(gx,"gx");
+  //~writeVec(gy,"gy");
+
+
+
+
+  // try another way of making the matrix, this time with MatStencil
+  ISLocalToGlobalMapping map,rmap;
+  DMGetLocalToGlobalMapping(da,&map);
+  AO ao;
+  DMDAGetAO(da,&ao);
+
+  PetscInt Istart,Iend;
+
+  // allocate space for mat
+  Mat mat;
+  DMDALocalInfo lI;
+  DMDAGetLocalInfo(da,&lI);
+
+  //~Mat temp;
+  //~DMSetMatType(da,MATAIJ);
+  //~DMCreateMatrix(da,MATAIJ,&temp);
+  //~PetscInt locM,locN;
+  //~MatGetLocalSize(temp,&locM,&locN);
+  //~PetscPrintf(PETSC_COMM_SELF,"[%i]: locM = %i, locN = %i | gxm = %i, gym = %i xm=%i, ym=%i\n",
+    //~rank, locM,locN,lI.gxm,lI.gym,lI.xm,lI.ym);
+
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  //~MatSetSizes(mat,locM,locN,PETSC_DECIDE,PETSC_DECIDE);
+  MatSetSizes(mat,lI.xm*lI.ym,lI.xm*lI.ym,PETSC_DECIDE,PETSC_DECIDE);
+  MatSetFromOptions(mat);
+  MatMPIAIJSetPreallocation(mat,3,NULL,3,NULL);
+  MatSeqAIJSetPreallocation(mat,3,NULL);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  PetscInt dims[3] = {lI.gxm, lI.gym, lI.gzm};
+  PetscInt starts[3] = {lI.gxs, lI.gys, lI.gzs};
+  MatSetStencil(mat,2,dims,starts,1);
+  MatSetUp(mat);
+
+
+  MatStencil row;
+  // closures
+  MatStencil colIC[2];
+  colIC[0].i = 0; colIC[0].j = 0;
+  colIC[1].i = 1; colIC[1].j = 0;
+  PetscScalar vIC[2];
+  vIC[0] = -1.0/dx; vIC[1] = 1.0/dx;
+
+  MatStencil colEC[2];
+  colEC[0].i = Nx-2; colEC[0].j = Nx-1;
+  colEC[1].i = Nx-1; colEC[1].j = Nx-1;
+  PetscScalar vEC[2];
+  vEC[0] = -1.0/dx; vEC[1] = 1.0/dx;
+
+  // interior stencil
+  MatStencil rowI,colI[2];
+  PetscScalar vI[2]; vI[0] = -0.5/dx; vI[1] = 0.5/dx;
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      row.i = i; row.j = j;
+      if (i>0 && i<Nx-1) {
+        colI[0].i = i-1; colI[0].j = j;
+        colI[1].i = i+1; colI[1].j = j;
+        ierr = MatSetValuesStencil(mat,1,&row,2,colI,vI,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (i == 0) {
+        colIC[0].i = 0; colIC[0].j = j;
+        colIC[1].i = 1; colIC[1].j = j;
+        ierr = MatSetValuesStencil(mat,1,&row,2,colIC,vIC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+      else if (i == Nx-1) {
+        colIC[0].i = Nx-2; colIC[0].j = j;
+        colIC[1].i = Nx-1; colIC[1].j = j;
+
+        ierr = MatSetValuesStencil(mat,1,&row,2,colIC,vEC,INSERT_VALUES); CHKERRQ(ierr);
+      }
+    }
+  }
+  ierr = MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+  //~MatView(mat,PETSC_VIEWER_STDOUT_WORLD);
+
+
+  Vec gx_ms;
+  VecDuplicate(g,&gx_ms);
+  PetscObjectSetName((PetscObject) gx_ms, "global gx_ms");
+
+  VecSet(gx_ms,0.0);
+startTime = MPI_Wtime();
+  MatMult(mat,g,gx_ms);
+endTime = MPI_Wtime() - startTime;
+//~VecView(gx_ms,PETSC_VIEWER_STDOUT_WORLD);
+PetscPrintf(PETSC_COMM_WORLD,"Dx stencil-matrix: %.9e\n",endTime);
+
+
+// traditional matrix derivative
+  Vec g_m;
+  PetscInt Ii;
+  PetscScalar v;
+  VecCreate(PETSC_COMM_WORLD,&g_m);
+  VecSetSizes(g_m,PETSC_DECIDE,Nx*Ny);
+  VecSetFromOptions(g_m);
+  PetscObjectSetName((PetscObject) g_m, "g_m");
+  VecGetOwnershipRange(g_m,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    x = dy*(Ii-Nx*(Ii/Nx));
+    y = dy*(Ii/Nx);
+    v = 2*x + 3*y;
+    VecSetValues(g_m,1,&Ii,&v,INSERT_VALUES);
+  }
+  //~VecView(g_m,PETSC_VIEWER_STDOUT_WORLD);
+
+  Spmat Iy(Ny,Ny); Iy.eye();
+  Spmat Ix(Nx,Nx); Ix.eye();
+  Spmat Dx(Nx,Nx);
+  Dx(0,0,-1.0/dx);Dx(0,1,1.0/dx); // first row
+  for (Ii=1;Ii<Nx-1;Ii++) {
+    Dx(Ii,Ii-1,-0.5/dx);
+    Dx(Ii,Ii+1,0.5/dx);
+  }
+  Dx(Nx-1,Nx-1,1.0/dx);Dx(Nx-1,Nx-2,-1.0/dx); // last row
+
+  Spmat Dy(Ny,Ny);
+  Dy(0,0,-1.0/dy);Dy(0,1,1.0/dy); // first row
+  for (Ii=1;Ii<Ny-1;Ii++) {
+    Dy(Ii,Ii-1,-0.5/dy);
+    Dy(Ii,Ii+1,0.5/dy);
+  }
+  Dy(Ny-1,Ny-1,1.0/dy);Dy(Ny-1,Ny-2,-1.0/dy); // last row
+
+  Mat Dx_Iy;
+  //~kronConvert(Dy,Ix,Dx_Iy,3,3);
+  kronConvert(Iy,Dx,Dx_Iy,3,3);
+  //~MatView(Dx_Iy,PETSC_VIEWER_STDOUT_WORLD);
+
+  Vec gx_m;
+  VecDuplicate(g_m,&gx_m);
+startTime = MPI_Wtime();
+  MatMult(Dx_Iy,g_m,gx_m);
+endTime = MPI_Wtime() - startTime;
+PetscPrintf(PETSC_COMM_WORLD,"Dx matrix: %.9e\n",endTime);
+  //~VecView(gx_m,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
+  VecDestroy(&l);
+  VecDestroy(&g);
+  VecDestroy(&lx);
+  VecDestroy(&gx);
+  VecDestroy(&ly);
+  VecDestroy(&gy);
+  DMDestroy(&da);
+  DMDestroy(&cda);
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending testMain::testDMDAWithMats in fault.cpp.\n");
+#endif
+  return ierr;
+}
 
 
 
@@ -101,8 +871,6 @@ int testDMDA_ScatterToVec()
   ISDestroy(&from);
   ISDestroy(&to);
   VecScatterDestroy(&scatter);
-
-
 
 
 
@@ -400,6 +1168,7 @@ PetscErrorCode testMatShell()
 }
 
 
+
 /* Perform MMS in space:
  *  In order to test only the interior stencils and operators
  * use y,z = [0,2*pi]. This will make all boundary vectors 0, and so will
@@ -408,7 +1177,7 @@ PetscErrorCode testMatShell()
  * To test that BC vectors are being mapped correctly, use y,z =[L0,L]
  * where neither L0 nor L are multiples of pi.
  */
-int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
+/*int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii = 0;
@@ -489,8 +1258,8 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
 
 
   // set up linear system
-  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
-  TempMats tempFactors(domain._order,domain._Ny,domain._dy,domain._Nz,domain._dz,&domain._muPlus);
+  SbpOps_c sbp(domain,*domain._muArrPlus,domain._muP);
+  TempMats tempFactors(domain._order,domain._Ny,domain._dy,domain._Nz,domain._dz,&domain._muP);
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
@@ -595,7 +1364,8 @@ int mmsSpace(const char* inputFile,PetscInt Ny,PetscInt Nz)
   VecDestroy(&bcD);
 
   return ierr;
-}
+}*/
+
 
 
 /*
@@ -608,6 +1378,7 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
   PetscErrorCode ierr = 0;
   PetscInt       Ii = 0;
   PetscScalar    y,z,v=0;
+  PetscScalar _seisDepth = 12.0;
 
   Domain domain(inputFile,Ny,Nz);
 
@@ -633,7 +1404,7 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
     //~if (y==0) {
     if (Ii < domain._Nz ) {
       //~v = atan((z-domain._seisDepth)/2.0) - atan(-domain._seisDepth/2.0);
-      v = atan((z-domain._seisDepth)/0.5) - atan(-domain._seisDepth/2.0);
+      v = atan((z-_seisDepth)/0.5) - atan(-_seisDepth/2.0);
       //~v = 0.0;
       ierr = VecSetValue(bcF,Ii,v,INSERT_VALUES);CHKERRQ(ierr);
     }
@@ -666,7 +1437,7 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
 
 
   // set up linear system
-  SbpOps sbp(domain,*domain._muArrPlus,domain._muPlus);
+  SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
 
   VecCreate(PETSC_COMM_WORLD,&rhs);
   VecSetSizes(rhs,PETSC_DECIDE,Ny*Nz);
@@ -715,7 +1486,8 @@ int critSpacing(const char * inputFile,PetscInt Ny, PetscInt Nz)
   // MMS for shear stress on fault
   Vec tau, sigma_xy;
   ierr = VecDuplicate(rhs,&sigma_xy);CHKERRQ(ierr);
-  ierr = MatMult(sbp._muxDy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
+  //~ierr = MatMult(sbp._muxDy_Iz,uhat,sigma_xy);CHKERRQ(ierr);
+  ierr = sbp.muxDy(uhat,sigma_xy);CHKERRQ(ierr);
 
   ierr = VecDuplicate(bcF,&tau);CHKERRQ(ierr);
   PetscInt Istart,Iend;
@@ -858,9 +1630,14 @@ int main(int argc,char **args)
 
   // test DMDA stuff
   //~testDMDA();
-  testDMDA_changeCoords();
+  //~testDMDA_changeCoords();
   //~testDMDA_ScatterToVec();
   //~testDMDA_memory();
+  //~testDMDAWithMats();
+
+  timeDx();
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n");
+  timeDy();
 
 
   PetscFinalize();

@@ -10,15 +10,15 @@ bcR = displacement
 bcB = traction
 bcL = displacement
 
-DcVals = [8e-3 8e-3] # m
+DcVals = [1.6e-5 0.0677] # m
 DcDepths = [0 24] # m
 
 aVals = [0.015 0.015 0.024] # comment
 aDepths = [0 15 24]
 bVals = [0.000 0.019 0.019 0.0 0.0]
 bDepths = [0 4 12 15 24]
-sigmaNVals = [0.1 50 50] # MPa
-sigmaNDepths = [0 5 24]
+sigmaNVals = [0.1 423.36] # MPa
+sigmaNDepths = [0 24]
 
 vL = 1e-9    # m/s
 
@@ -40,14 +40,15 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 10
+strideLength = 10
+maxStepCount = 1e9
 initTime = 0       # s
-maxTime = 6e10     # s
+maxTime = 6e12     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/mvfc_rf_
+#outputDir = data/lec_rf_N251_sN50_
+outputDir = data/lec_rf_N251_sNGrad_

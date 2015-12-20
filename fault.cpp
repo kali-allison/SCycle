@@ -188,6 +188,7 @@ PetscErrorCode Fault::setFrictionFields()
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
     VecSet(_sigma_N,_sigmaNVals[0]);
+    VecSet(_Dc,_DcVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
@@ -553,7 +554,7 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   assert(varBegin+1 != varEnd);
 
   ierr = VecCopy(*(varBegin),_tempPsi);CHKERRQ(ierr);
-  ierr = computeVel();CHKERRQ(ierr);
+  /*ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -568,11 +569,11 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);*/
 
-  //~// force fault to remain locked
-  //~ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
-  //~ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
+  // force fault to remain locked
+  ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
+  ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1

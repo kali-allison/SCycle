@@ -18,7 +18,6 @@ SbpOps::SbpOps(Domain&D,PetscScalar& muArr,Mat& mu)
 
   if (_Ny == 1) { return;}
 
-  //~_H = _internalSBP._H; // shallow copy to avoid memory cost
   _A = _internalSBP._A;
 
 #if VERBOSE > 1

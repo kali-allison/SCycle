@@ -16,7 +16,7 @@ using namespace std;
 /*
  * Contains linear SBP operators. Currently supported options:
  *   compatible
- *   fully compatible (untested)
+ *   fully compatible
  * Coming soon:
  *   matrix-free compatible operators!
  *

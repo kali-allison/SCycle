@@ -64,10 +64,10 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
         kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
 
         Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
-        kronConvert(tempFactors._Iz,E0z,_Iy_E0z,1,1);
+        kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
 
         Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
-        kronConvert(tempFactors._Iz,ENz,_Iy_ENz,1,1);
+        kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
       }
 
     }
@@ -1748,6 +1748,15 @@ PetscErrorCode SbpOps_fc::HzinvxENz(const Vec &in, Vec &out)
   string fileName = "sbpOps_fc.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
+
+  //~PetscInt ENzM,ENzN,HzinvM,HzinvN,vecN;
+  //~VecGetSize(in,&vecN);
+  //~MatGetSize(_Iy_ENz,&ENzM,&ENzN);
+  //~MatGetSize(_Iy_Hzinv,&HzinvM,&HzinvN);
+  //~PetscPrintf(PETSC_COMM_WORLD,"vecN = %i\n",vecN);
+  //~PetscPrintf(PETSC_COMM_WORLD,"ENzM = %i, ENzN = %i\n",ENzM,ENzN);
+  //~PetscPrintf(PETSC_COMM_WORLD,"HzinvM = %i, HzinvN = %i\n",HzinvM,HzinvN);
+  //~assert(0>1);
 
   Vec temp1;
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);

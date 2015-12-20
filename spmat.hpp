@@ -7,6 +7,7 @@
 #include <iostream>
 #include <assert.h>
 #include <petscts.h>
+#include <petscdmda.h>
 
 /* Small class for sparse matrices, supporting a very limited set of
  * operations.
@@ -38,6 +39,7 @@ public:
 
   friend Spmat kron(const Spmat& left,const Spmat& right);
   friend void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag);
+  friend void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag,DM dm);
 
 
   // inline functions are defined in the header file
