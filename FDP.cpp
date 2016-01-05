@@ -27,19 +27,21 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <iostream>
 
 // 1-D MMS Test Globals
 #define MIN_GRID_POINT 0
 #define MAX_GRID_POINT 3
-#define STARTING_GRID_SPACING 201
-#define NUM_GRID_SPACE_CALCULATIONS 8 // 14 FIXME what's the limit here?
-#define NUM_2ND_GRID_SPACE_CALCULATIONS 8
+#define STARTING_GRID_SPACING 1//201
+#define NUM_GRID_SPACE_CALCULATIONS 0 // 14 FIXME what's the limit here?
+#define NUM_2ND_GRID_SPACE_CALCULATIONS 0
 // 2-D MMS Test Globals
-#define NUM_2D_GRID_SPACE_CALCULATIONS 8 //12  // FIXME is there a limit here? SLOWS DOWN A LOT ON 20k+ values in each direction?
-#define NUM_2D_2ND_GRID_SPACE_CALCULATIONS 8
+#define NUM_2D_GRID_SPACE_CALCULATIONS 0 //12  // FIXME is there a limit here? SLOWS DOWN A LOT ON 20k+ values in each direction?
+#define NUM_2D_2ND_GRID_SPACE_CALCULATIONS 0
 #define COEFFICIENT_SOLVE 1 // IMPORTANT: 0 for NO coefficient solve (w mu), 1 (or any other numeric value) to solve WITH coefficient
-#define NUM_X_PTS 11
-#define NUM_Y_PTS 5
+#define NUM_X_PTS 5 //201
+#define NUM_Y_PTS 6 //201
 #define X_MIN 0
 #define Y_MIN 0
 #define X_MAX 5
@@ -57,8 +59,10 @@
 
 typedef struct {
 /* problem parameters */
+    PetscInt       order;
     PetscInt       n_x, n_y;
     Vec            Bottom, Top, Left, Right; /* boundary values */
+    PetscScalar    alphaDx, alphaDy, alphaT, beta;
     Vec            mu;
     PetscScalar    dx_spacing, dy_spacing;
 /* Working space */
@@ -67,6 +71,51 @@ typedef struct {
     DM          cda;
     Mat         H;
 } AppCtx;
+
+PetscScalar MMS_uA(PetscScalar x, PetscScalar y) {
+    return cos(x) * sin(y) + 2; 
+}
+
+PetscScalar MMS_uA_dx(PetscScalar x, PetscScalar y) {
+    return -sin(x) * sin(y); 
+}
+
+PetscScalar MMS_uA_dxx(PetscScalar x, PetscScalar y) {
+    return -cos(x) * sin(y); 
+}
+
+PetscScalar MMS_uA_dy(PetscScalar x, PetscScalar y) {
+    return cos(x) * cos(y); 
+}
+
+PetscScalar MMS_uA_dyy(PetscScalar x, PetscScalar y) {
+    return -cos(x) * sin(y); 
+}
+
+PetscScalar MMS_mu(PetscScalar x, PetscScalar y) {
+    return sin(x) * sin(y) + 2; 
+}
+
+PetscScalar MMS_mu_dx(PetscScalar x, PetscScalar y) {
+    return cos(x) * sin(y); 
+}
+
+PetscScalar MMS_mu_dy(PetscScalar x, PetscScalar y) {
+    return sin(x) * cos(y); 
+}
+
+PetscScalar MMS_uA_dmuxx(PetscScalar x, PetscScalar y) {
+    return MMS_mu(x,y) * MMS_uA_dxx(x,y) + MMS_mu_dx(x,y) * MMS_uA_dx(x,y);
+}
+
+PetscScalar MMS_uA_dmuyy(PetscScalar x, PetscScalar y) {
+    return MMS_mu(x,y) * MMS_uA_dyy(x,y) + MMS_mu_dy(x,y) * MMS_uA_dx(x,y);
+}
+
+PetscScalar MMS_uS(PetscScalar x, PetscScalar y) {
+    return MMS_mu(x,y) * (MMS_uA_dxx(x,y) + MMS_uA_dyy(x,y)) 
+        + MMS_mu_dx(x,y) * MMS_uA_dx(x,y) + MMS_mu_dy(x,y) * MMS_uA_dy(x,y);
+}
 
 /* Function: writeVec
  * ------------------
@@ -600,10 +649,12 @@ PetscErrorCode Dx_2d(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
   ierr = DMDAGetCorners(da, &mStart, &nStart, 0, &m, &n, 0);CHKERRQ(ierr);
   for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          if (i > 0 && i < M - 1) {local_diff_x_arr[j][i] = (local_grid_arr[j][i+1] - local_grid_arr[j][i-1])/(2.0 * dx); }
-          else if (i == 0) { local_diff_x_arr[j][i] = (-1.5 * local_grid_arr[j][0] + 2.0 * local_grid_arr[j][1] - 0.5 * local_grid_arr[j][2])/ dx; }
-          else if (i == M - 1) { local_diff_x_arr[j][i] = (0.5 * local_grid_arr[j][M-3] - 2.0 *
-                  local_grid_arr[j][M-2] + 1.5 * local_grid_arr[j][M-1]) / dx; }
+          if (i > 0 && i < M - 1) {local_diff_x_arr[j][i] = (local_grid_arr[j][i+1] -
+                                                                local_grid_arr[j][i-1])/(2.0 * dx); }
+          else if (i == 0) { local_diff_x_arr[j][i] = (-1.5 * local_grid_arr[j][0] +
+                                                                2.0 * local_grid_arr[j][1] - 0.5 * local_grid_arr[j][2])/ dx; }
+          else if (i == M - 1) { local_diff_x_arr[j][i] = (0.5 * local_grid_arr[j][M-3] -
+                                                                2.0 * local_grid_arr[j][M-2] + 1.5 * local_grid_arr[j][M-1]) / dx; }
       }
   }
 
@@ -687,9 +738,12 @@ PetscErrorCode Dxx_2d(Vec &diff_x, const Vec &grid, const PetscScalar dx, const 
   DMDAGetCorners(da, &mStart, &nStart, 0, &m, &n, 0);
   for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          if (i > 0 && i < M - 1) {local_diff_x_arr[j][i] = (local_grid_arr[j][i+1] - (2 * local_grid_arr[j][i]) + local_grid_arr[j][i-1])/(dx * dx); }
-          else if (i == 0) { local_diff_x_arr[j][i] = (local_grid_arr[j][0] - (2 * local_grid_arr[j][1]) + local_grid_arr[j][2])/(dx * dx); }
-          else if (i == M - 1) { local_diff_x_arr[j][i] = (local_grid_arr[j][M-1] - (2 * local_grid_arr[j][M-2]) + local_grid_arr[j][M-3])/(dx * dx); }
+          if (i > 0 && i < M - 1) {local_diff_x_arr[j][i] = (local_grid_arr[j][i+1] -
+                            (2 * local_grid_arr[j][i]) + local_grid_arr[j][i-1])/(dx * dx); }
+          else if (i == 0) { local_diff_x_arr[j][i] = (local_grid_arr[j][0] -
+                            (2 * local_grid_arr[j][1]) + local_grid_arr[j][2])/(dx * dx); }
+          else if (i == M - 1) { local_diff_x_arr[j][i] = (local_grid_arr[j][M-1] -
+                            (2 * local_grid_arr[j][M-2]) + local_grid_arr[j][M-3])/(dx * dx); }
           //PetscPrintf(PETSC_COMM_SELF, "[%i][%i] = %g\n", j, i, local_diff_x_arr[j][i]);
       }
   }
@@ -905,7 +959,7 @@ PetscErrorCode calculate_Dx_Dy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_
          //}
 
          //local_grid_arr[j][i] = (.01*(coords[j][i].x * coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y * coords[j][i].y));
-        local_grid_arr[j][i] = sin(coords[j][i].x) + cos(coords[j][i].y);
+        local_grid_arr[j][i] = cos(coords[j][i].x) * sin(coords[j][i].y);//sin(coords[j][i].x) + cos(coords[j][i].y);
     }
   }
   DMDAVecRestoreArray(da, local_grid, &local_grid_arr);
@@ -924,7 +978,7 @@ PetscErrorCode calculate_Dx_Dy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_
     for (i = mStart; i < mStart + m; i++) {
         // PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
 //        local_act_diff_x_arr[j][i] = coords[j][i].x;
-        local_act_diff_x_arr[j][i] = cos(coords[j][i].x);
+        local_act_diff_x_arr[j][i] = -sin(coords[j][i].x) * sin(coords[j][i].y);//cos(coords[j][i].x);
         //local_act_diff_x_arr[j][i] = .01*(3 * coords[j][i].x * coords[j][i].x);
     }
   }
@@ -944,7 +998,7 @@ PetscErrorCode calculate_Dx_Dy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_
     for (i = mStart; i < mStart + m; i++) {
         // PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
         //local_act_diff_y_arr[j][i] = .01*(3 * coords[j][i].y * coords[j][i].y);
-        local_act_diff_y_arr[j][i] = -sin(coords[j][i].y);
+        local_act_diff_y_arr[j][i] = cos(coords[j][i].y) * cos(coords[j][i].x);
     }
   }
   DMDAVecRestoreArray(da, local_act_diff_y, &local_act_diff_y_arr);
@@ -990,11 +1044,11 @@ PetscErrorCode calculate_Dx_Dy_2D(PetscInt x_len, PetscInt y_len, PetscScalar x_
   ierr = DMDestroy(&da);CHKERRQ(ierr);
 
   t6 = MPI_Wtime();
-//  PetscPrintf(PETSC_COMM_WORLD, "\nTime spent setting up and filling grid/actual derivative Vecs: % 8g\n", t2 - t1);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dy derivative: % 8g\n", t3 - t2);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dx derivative: % 8g\n", t4 - t3);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating norms: % 8g\n", t5 - t4);
-//  PetscPrintf(PETSC_COMM_WORLD, "Total time for this iteration: % 8g\n\n", t6 - t1);
+  PetscPrintf(PETSC_COMM_WORLD, "\nTime spent setting up and filling grid/actual derivative Vecs: % 8g\n", t2 - t1);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dy derivative: % 8g\n", t3 - t2);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dx derivative: % 8g\n", t4 - t3);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating norms: % 8g\n", t5 - t4);
+  PetscPrintf(PETSC_COMM_WORLD, "Total time for this iteration: % 8g\n\n", t6 - t1);
   return ierr;
 }
 
@@ -1075,7 +1129,7 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
 //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
 //        local_grid_arr[j][i] = coords[j][i].y;
 //         local_grid_arr[j][i] = (coords[j][i].x * coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y * coords[j][i].y);
-        local_grid_arr[j][i] = sin(coords[j][i].x) + cos(coords[j][i].y);
+        local_grid_arr[j][i] = cos(coords[j][i].x) + sin(coords[j][i].y);
 //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_grid_arr[j][i]);
     }
   }
@@ -1095,7 +1149,7 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
     for (i = mStart; i < mStart + m; i++) {
 //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
 //        local_act_diff_x_arr[j][i] = coords[j][i].x;
-        local_act_diff_x_arr[j][i] = -sin(coords[j][i].x);
+        local_act_diff_x_arr[j][i] = -cos(coords[j][i].x);
 //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_act_diff_x_arr[j][i]);
 //        local_act_diff_x_arr[j][i] = (6 * coords[j][i].x);
     }
@@ -1116,7 +1170,7 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
     for (i = mStart; i < mStart + m; i++) {
 //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
 //        local_act_diff_y_arr[j][i] = (6 * coords[j][i].y);
-        local_act_diff_y_arr[j][i] = -cos(coords[j][i].y);
+        local_act_diff_y_arr[j][i] = -sin(coords[j][i].y);
     }
   }
   DMDAVecRestoreArray(da, local_act_diff_y, &local_act_diff_y_arr);
@@ -1133,7 +1187,8 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
   DMDAVecGetArray(da, local_mu, &local_mu_arr);
   for (j = nStart; j < nStart + n; j++) {
     for (i = mStart; i < mStart + m; i++) {
-        local_mu_arr[j][i] = cos(coords[j][i].x + coords[j][i].y) + 4;
+        local_mu_arr[j][i] = sin(coords[j][i].x)*(sin(coords[j][i].y)) + 2;
+            //cos(coords[j][i].x + coords[j][i].y) + 4;
 //        local_mu_arr[j][i] = 1;
     }
   }
@@ -1151,8 +1206,9 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
   DMDAVecGetArray(da, local_dxxmu, &local_dxxmu_arr);
   for (j = nStart; j < nStart + n; j++) {
     for (i = mStart; i < mStart + m; i++) {
-        local_dxxmu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * cos(coords[j][i].x)) +
-                ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-sin(coords[j][i].x)));
+        local_dxxmu_arr[j][i] = 0;
+            //(-sin(coords[j][i].x + coords[j][i].y) * cos(coords[j][i].x)) +
+                //((cos(coords[j][i].x + coords[j][i].y) + 4) * (-sin(coords[j][i].x)));
 //        local_dxxmu_arr[j][i] = -sin(coords[j][i].x);
     }
   }
@@ -1170,8 +1226,9 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
   DMDAVecGetArray(da, local_dyymu, &local_dyymu_arr);
   for (j = nStart; j < nStart + n; j++) {
     for (i = mStart; i < mStart + m; i++) {
-        local_dyymu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
-                ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
+        local_dyymu_arr[j][i] = 0;
+            //(-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
+                //((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
 //        local_dyymu_arr[j][i] = -cos(coords[j][i].y);
     }
   }
@@ -1233,11 +1290,11 @@ PetscErrorCode calculate_Dxx_Dyy_2D(PetscInt x_len, PetscInt y_len, PetscScalar 
   ierr = DMDestroy(&da);CHKERRQ(ierr);
 
   t6 = MPI_Wtime();
-//  PetscPrintf(PETSC_COMM_WORLD, "\nTime spent setting up and filling grid/actual derivative Vecs: % 8g\n", t2 - t1);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dy derivative: % 8g\n", t3 - t2);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dx derivative: % 8g\n", t4 - t3);
-//  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating norms: % 8g\n", t5 - t4);
-//  PetscPrintf(PETSC_COMM_WORLD, "Total time for this iteration: % 8g\n\n", t6 - t1);
+  PetscPrintf(PETSC_COMM_WORLD, "\nTime spent setting up and filling grid/actual derivative Vecs: % 8g\n", t2 - t1);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dy derivative: % 8g\n", t3 - t2);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating 2Dx derivative: % 8g\n", t4 - t3);
+  PetscPrintf(PETSC_COMM_WORLD, "Time spent calculating norms: % 8g\n", t5 - t4);
+  PetscPrintf(PETSC_COMM_WORLD, "Total time for this iteration: % 8g\n\n", t6 - t1);
   return ierr;
 }
 
@@ -1326,8 +1383,6 @@ PetscErrorCode setRHS_R(Vec &RHS, const Vec &r, const PetscScalar &h_11,
     VecScatter scatter; // scatter context
     IS from,to; // index sets that define the scatter
 
-    //int idx_from[] = {0,1,2,3,4}, idx_to[] = {0,11,22,33,44};
-
     int idx_from[M], idx_to[M];
     for(i = 0; i < M; i++) {
         idx_from[i] = i;
@@ -1381,94 +1436,6 @@ PetscErrorCode setRHS_R(Vec &RHS, const Vec &r, const PetscScalar &h_11,
 
     return ierr;
 }
-
-
-/* Function: setRHS_L
- * ------------------
- *
- */
-PetscErrorCode setRHS_L(Vec &RHS, const Vec &l, const PetscScalar &h_11,
-        const PetscScalar alpha_L, const DM &da) {
-    PetscMPIInt rank;
-    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-
-    PetscErrorCode ierr = 0;
-    PetscInt m, n, mStart, nStart, j, i, M = NULL, N = NULL, listart, liend;
-    PetscScalar v;
-    DMDAGetInfo(da, NULL, &M, &N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
-    DMDAGetCorners(da, &mStart, &nStart, 0, &m, &n, 0);
-
-    ierr = VecGetOwnershipRange(l,&listart,&liend);CHKERRQ(ierr);
-    for(i = listart; i < liend; i++) {
-        ierr = VecGetValues(l,1,&i,&v);CHKERRQ(ierr);
-        v = v * h_11 * alpha_L;
-        ierr = VecSetValues(l,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-    ierr = VecAssemblyBegin(l);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(l);CHKERRQ(ierr);
-
-    //ierr = VecView(l,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
-    // VecScatter routine! IMPORTANT!
-
-    VecScatter scatter; // scatter context
-    IS from,to; // index sets that define the scatter
-
-    //int idx_from[] = {0,1,2,3,4}, idx_to[] = {0,11,22,33,44};
-
-    int idx_from[M], idx_to[M];
-    for(i = 0; i < M; i++) {
-        idx_from[i] = i;
-    }
-    for(i = 0; i < M; i++) {
-        idx_to[i] = i;
-    }
-
-
-    AO ao;
-    DMDAGetAO(da,&ao);
-    AOApplicationToPetsc(ao,M,idx_to);
-
-    ISCreateGeneral(PETSC_COMM_SELF,M,idx_from,PETSC_COPY_VALUES,&from);
-    ISCreateGeneral(PETSC_COMM_SELF,M,idx_to,PETSC_COPY_VALUES,&to);
-    VecScatterCreate(l,from,RHS,to,&scatter); // gx = source vector, gy = destination vector
-
-
-    VecScatterBegin(scatter,l,RHS,INSERT_VALUES,SCATTER_FORWARD);
-    VecScatterEnd(scatter,l,RHS,INSERT_VALUES,SCATTER_FORWARD);
-
-    //VecView(RHS,PETSC_VIEWER_STDOUT_WORLD);
-
-    ISDestroy(&from);
-    ISDestroy(&to);
-    VecScatterDestroy(&scatter);
-
-
-    // PRINT OUT RHS
-    /*
-    Vec local_RHS;
-    ierr = DMCreateLocalVector(da, &local_RHS);CHKERRQ(ierr);
-    ierr = DMGlobalToLocalBegin(da, RHS, INSERT_VALUES, local_RHS);CHKERRQ(ierr);
-    ierr = DMGlobalToLocalEnd(da, RHS, INSERT_VALUES, local_RHS);CHKERRQ(ierr);
-
-    PetscScalar **local_RHS_arr;
-    DMDAVecGetArray(da, local_RHS, &local_RHS_arr);
-    for (j = nStart; j < nStart + n; j++) {
-      for (i = mStart; i < mStart + m; i++) {
-          PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_RHS_arr[j][i]);
-      }
-    }
-    DMDAVecRestoreArray(da, local_RHS, &local_RHS_arr);
-
-    ierr = DMLocalToGlobalBegin(da, local_RHS, INSERT_VALUES, RHS);CHKERRQ(ierr);
-    ierr = DMLocalToGlobalEnd(da, local_RHS, INSERT_VALUES, RHS);CHKERRQ(ierr);
-
-    VecDestroy(&local_RHS);
-    */
-
-    return ierr;
-}
-
 
 /* Function: setRHS_B
  * ------------------
@@ -1643,21 +1610,345 @@ PetscErrorCode setRHS_T(Vec &RHS, const Vec &g, const PetscScalar &h_11,
     return ierr;
 }
 
+
+/* Function: Dy_2d_Boundary
+ * ----------------------------------
+ * 1st derivative solve in the y-direction for 2-D.
+ *
+ * diff_y - the output Vec (it will hold the calculated derivative on the boundary in y-direction)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dy - the spacing between each point in the y-direction
+ * da - DMDA object
+ */
+PetscErrorCode Dy_2d_Boundary(Vec &diff_y, Vec &grid, PetscScalar dy, DM &da) {
+  PetscErrorCode ierr = 0;
+
+  PetscInt m, n, mStart, nStart, j, i, M, N;
+  DMDAGetInfo(da,NULL,&M,&N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+  Vec local_diff_y, local_grid;
+  PetscScalar** local_diff_y_arr;
+  PetscScalar** local_grid_arr;
+  ierr = DMCreateLocalVector(da, &local_diff_y);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(da, &local_grid);CHKERRQ(ierr);
+
+  ierr = DMDAVecGetArray(da, local_diff_y, &local_diff_y_arr);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da, grid, INSERT_VALUES, local_grid);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da, grid, INSERT_VALUES, local_grid);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(da, local_grid, &local_grid_arr);CHKERRQ(ierr);
+
+  ierr = DMDAGetCorners(da, &mStart, &nStart, 0, &m, &n, 0);CHKERRQ(ierr);
+  for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          if (j > 0 && j < N - 1 && i > 0 && i < M - 1) { local_diff_y_arr[j][i] = 0; }
+          else if (j == 0) { local_diff_y_arr[j][i] = -(-1.5 * local_grid_arr[0][i] + 2.0 * local_grid_arr[1][i] - 0.5 * local_grid_arr[2][i])/ dy; }
+          else if (j == N - 1) { local_diff_y_arr[j][i] = (0.5 * local_grid_arr[N-3][i] - 2.0 *
+                  local_grid_arr[N-2][i] + 1.5 * local_grid_arr[N-1][i]) / dy; }
+      }
+  }
+
+  ierr = DMDAVecRestoreArray(da, local_diff_y, &local_diff_y_arr);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(da, local_grid, &local_grid_arr);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(da, local_diff_y, INSERT_VALUES, diff_y);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da, local_diff_y, INSERT_VALUES, diff_y);CHKERRQ(ierr);
+
+  VecDestroy(&local_diff_y);
+  VecDestroy(&local_grid);
+  return ierr;
+}
+
+/* Function: Dx_2d_Boundary
+ * ----------------------------------
+ *
+ * diff_x - the output Vec (it will hold the calculated derivative on the boundary in x-direction)
+ * grid - the input Vec (it holds the function values to draw from)
+ * dx - the spacing between each point in the x-direction
+ * da - DMDA object
+ */
+PetscErrorCode Dx_2d_Boundary(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
+  PetscErrorCode ierr = 0;
+  PetscInt m, n, mStart, nStart, j, i, M, N;
+  DMDAGetInfo(da,NULL,&M,&N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+  Vec local_diff_x, local_grid;
+  PetscScalar** local_diff_x_arr;
+  PetscScalar** local_grid_arr;
+  ierr = DMCreateLocalVector(da, &local_diff_x);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(da, &local_grid);CHKERRQ(ierr);
+
+  ierr = DMDAVecGetArray(da, local_diff_x, &local_diff_x_arr);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da, grid, INSERT_VALUES, local_grid);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da, grid, INSERT_VALUES, local_grid);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(da, local_grid, &local_grid_arr); CHKERRQ(ierr);
+
+  ierr = DMDAGetCorners(da, &mStart, &nStart, 0, &m, &n, 0);CHKERRQ(ierr);
+  for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          if (i > 0 && i < M - 1 && j > 0 && j < N - 1) {local_diff_x_arr[j][i] = 0; }
+          else if (i == 0) { local_diff_x_arr[j][i] = -(-1.5 * local_grid_arr[j][0] +
+                                                                2.0 * local_grid_arr[j][1] - 0.5 * local_grid_arr[j][2])/ dx; }
+          else if (i == M - 1) { local_diff_x_arr[j][i] = (0.5 * local_grid_arr[j][M-3] -
+                                                                2.0 * local_grid_arr[j][M-2] + 1.5 * local_grid_arr[j][M-1]) / dx; }
+      }
+  }
+
+  ierr = DMDAVecRestoreArray(da, local_diff_x, &local_diff_x_arr);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(da, local_grid, &local_grid_arr);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(da, local_diff_x, INSERT_VALUES, diff_x);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da, local_diff_x, INSERT_VALUES, diff_x);CHKERRQ(ierr);
+
+  VecDestroy(&local_diff_x);
+  VecDestroy(&local_grid);
+  return ierr;
+}
+
+PetscErrorCode multiplyByHinvx(Vec &out, Vec &in, PetscScalar h, PetscInt order, AppCtx* ctx) {
+    PetscErrorCode ierr = 0;
+    ierr = VecSet(out, 0);CHKERRQ(ierr);
+    
+    if(order == 2) {
+         
+        PetscInt m, n, mStart, nStart, j, i, M, N;
+        DMDAGetInfo(ctx->da,NULL,&M,&N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+        Vec local_out, local_in;
+        PetscScalar** local_out_arr;
+        PetscScalar** local_in_arr;
+        ierr = DMCreateLocalVector(ctx->da, &local_out);CHKERRQ(ierr);
+        ierr = DMCreateLocalVector(ctx->da, &local_in);CHKERRQ(ierr);
+
+        ierr = DMDAVecGetArray(ctx->da, local_out, &local_out_arr);CHKERRQ(ierr);
+        ierr = DMGlobalToLocalBegin(ctx->da, in, INSERT_VALUES, local_in);CHKERRQ(ierr);
+        ierr = DMGlobalToLocalEnd(ctx->da, in, INSERT_VALUES, local_in);CHKERRQ(ierr);
+        ierr = DMDAVecGetArray(ctx->da, local_in, &local_in_arr); CHKERRQ(ierr);
+
+        ierr = DMDAGetCorners(ctx->da, &mStart, &nStart, 0, &m, &n, 0);CHKERRQ(ierr);
+        for (j = nStart; j < nStart + n; j++) {
+            for (i = mStart; i < mStart + m; i++) {
+                if (j > 0 && j < N - 1) 
+                    local_out_arr[j][i] = 1/h * local_in_arr[j][i];
+                else
+                    local_out_arr[j][i] = 2/h * local_in_arr[j][i];
+                    /*
+                else if (i == 0) { 
+                                    //local_out_arr[j][i] = -(-1.5 * local_in_arr[j][0] +
+                                    //2.0 * local_in_arr[j][1] - 0.5 * local_in_arr[j][2])/ h; }
+                else if (i == M - 1) { local_out_arr[j][i] = (0.5 * local_in_arr[j][M-3] -
+                                    2.0 * local_in_arr[j][M-2] + 1.5 * local_in_arr[j][M-1]) / h; }*/
+            }
+        }
+
+        ierr = DMDAVecRestoreArray(ctx->da, local_out, &local_out_arr);CHKERRQ(ierr);
+        ierr = DMDAVecRestoreArray(ctx->da, local_in, &local_in_arr);CHKERRQ(ierr);
+        ierr = DMLocalToGlobalBegin(ctx->da, local_out, INSERT_VALUES, out);CHKERRQ(ierr);
+        ierr = DMLocalToGlobalEnd(ctx->da, local_out, INSERT_VALUES, out);CHKERRQ(ierr);
+
+        VecDestroy(&local_out);
+        VecDestroy(&local_in);
+        return ierr;
+    } else if (order == 4) {
+    }
+    return -1;
+}
+
+PetscErrorCode multiplyBy_BSx_IyT_s(Vec &ADisp2, Vec& mu, Vec &fx, PetscScalar h) {
+        //, string& Stype, string& Btype) {
+    PetscErrorCode ierr = 0;
+    
+    return ierr;
+}
+
+PetscErrorCode SetLeftToMult(Vec& ADisp1, Vec& mu, Vec& temp, AppCtx* ctx) {
+    PetscErrorCode ierr = 0;
+    PetscInt m, n, mStart, nStart, j, i, M, N;
+    DMDAGetInfo(ctx->da, NULL, &M, &N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+    Vec local_ADisp1, local_mu, local_temp;
+    PetscScalar **local_ADisp1_arr;
+    PetscScalar** local_mu_arr;
+    PetscScalar** local_temp_arr; 
+    ierr = DMCreateLocalVector(ctx->da, &local_ADisp1);CHKERRQ(ierr);
+    ierr = DMCreateLocalVector(ctx->da, &local_mu);CHKERRQ(ierr);
+    ierr = DMCreateLocalVector(ctx->da, &local_temp);CHKERRQ(ierr);
+    
+    DMDAGetCorners(ctx->da, &mStart, &nStart, 0, &m, &n, 0);
+    //rank
+    PetscMPIInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    ierr = DMGlobalToLocalBegin(ctx->da, ADisp1, INSERT_VALUES, local_ADisp1);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx->da, ADisp1, INSERT_VALUES, local_ADisp1);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(ctx->da, local_ADisp1, &local_ADisp1_arr);CHKERRQ(ierr);
+
+    ierr = DMGlobalToLocalBegin(ctx->da, temp, INSERT_VALUES, local_temp);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx->da, temp, INSERT_VALUES, local_temp);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(ctx->da, local_temp, &local_temp_arr); CHKERRQ(ierr);
+
+    ierr = DMGlobalToLocalBegin(ctx->da, mu, INSERT_VALUES, local_mu);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx->da, mu, INSERT_VALUES, local_mu);CHKERRQ(ierr);
+    ierr = DMDAVecGetArray(ctx->da, local_mu, &local_mu_arr); CHKERRQ(ierr);
+
+    j = nStart + n - 1;  
+    for (i = mStart; i < mStart + m; i++) {
+        local_ADisp1_arr[j][i] = local_mu_arr[j][i] * local_temp_arr[j][i]; 
+    }
+    DMDAVecRestoreArray(ctx->da, local_ADisp1, &local_ADisp1_arr);
+    ierr = DMLocalToGlobalBegin(ctx->da, local_ADisp1, INSERT_VALUES, ADisp1);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx->da, local_ADisp1, INSERT_VALUES, ADisp1);CHKERRQ(ierr);
+    VecDestroy(&local_ADisp1);
+    VecDestroy(&local_mu);
+    VecDestroy(&local_temp);
+
+    return ierr;
+}
+
+PetscErrorCode setRHS_L(Vec &RHS, const Vec &fx, const PetscScalar &h_11,
+        const PetscScalar alpha_L, const DM &da) {
+    PetscErrorCode ierr = 0;
+    /*
+    PetscMPIInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    
+    Vec temp;
+    Vec rhs_disp1;
+    ierr = VecDuplicate(fx, &rhs_disp1);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &temp);CHKERRQ(ierr);
+    ierr = VecSet(rhs_disp1, 0);CHKERRQ(ierr);
+    ierr = multiplyByHinvx(temp, fx, da, 2, ctx);CHKERRQ(ierr);
+    Vec rhs_disp2; 
+    ierr = VecDuplicate(fx, &rhs_disp2);CHKERRQ(ierr);
+    ierr = VecSet(rhs_disp2, 0);CHKERRQ(ierr);
+
+*/
+
+    return ierr;
+    
+}
+
 /* Function: MyMatMult
  * -------------------
  *
  *
  */
-PetscErrorCode MyMatMult(Mat A, Vec fx, Vec dx) {
+PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
     PetscErrorCode ierr = 0;
     void           *ptr;
     AppCtx         *ctx;
     MatShellGetContext(A,&ptr);
     ctx = (AppCtx*)ptr;
-    // Insert what the multiplication operation should do!
-    ierr = Dmuxx_2d(dx, fx, ctx->mu, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
+    // Below is what the multiplication operation should do!
+    Vec sum = NULL, dmuxx = NULL, dmuyy = NULL;
+    ierr = VecDuplicate(fx, &sum);
+    ierr = VecDuplicate(fx, &dmuxx);
+    ierr = VecDuplicate(fx, &dmuyy);
 
+    ierr = Dmuxx_2d(dmuxx, fx, ctx->mu, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
+    //writeVec(dmuxx, "Uxx");
+    ierr = Dmuyy_2d(dmuyy, fx, ctx->mu, ctx->dy_spacing, ctx->da);CHKERRQ(ierr);
+    //writeVec(dmuyy, "Uxx");
+    PetscScalar one = 1.0;
+    ierr = VecAXPY(dmuyy, one, dmuxx);CHKERRQ(ierr);
+    ierr = VecCopy(dmuyy, ans);CHKERRQ(ierr);
 
+    Vec Dx, Dy, DxDyBoundary;
+    ierr = VecDuplicate(fx, &Dx);
+    ierr = VecDuplicate(fx, &Dy);
+    ierr = VecDuplicate(fx, &DxDyBoundary);
+    ierr = Dx_2d_Boundary(Dx, fx, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
+    ierr = Dy_2d_Boundary(Dy, fx, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
+    
+    ierr = VecAXPY(Dy, one, Dx);CHKERRQ(ierr);
+    ierr = VecCopy(Dy, DxDyBoundary);CHKERRQ(ierr);
+
+    ierr = VecAXPY(dmuyy, one, DxDyBoundary);CHKERRQ(ierr);
+    ierr = VecCopy(dmuyy, ans);CHKERRQ(ierr);
+
+    // BOUNDARY CONDITIONS
+    Vec out;
+    ierr = VecDuplicate(fx, &out);CHKERRQ(ierr);
+    ierr = VecSet(out, 0);CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(fx, &temp);CHKERRQ(ierr);
+    ierr = VecSet(temp, 0);CHKERRQ(ierr);
+    // DISPLACEMENT
+    
+    // LEFT BOUNDARY
+    
+    Vec ADisp1;
+    ierr = VecDuplicate(fx, &ADisp1);CHKERRQ(ierr);
+    ierr = VecSet(ADisp1, 0);CHKERRQ(ierr);
+    ierr = multiplyByHinvx(temp, fx, ctx->dx_spacing, ctx->order, ctx);CHKERRQ(ierr);
+    ierr = SetLeftToMult(ADisp1, ctx->mu, temp, ctx);CHKERRQ(ierr);
+    Vec ADisp2; 
+    ierr = VecDuplicate(fx, &ADisp1);CHKERRQ(ierr);
+    ierr = VecSet(ADisp1, 0);CHKERRQ(ierr);
+   
+    //string Stype = ""; // = ctx.Stype
+    //string Btype = "";
+    ierr = multiplyBy_BSx_IyT_s(ADisp2, ctx->mu, fx, ctx->dx_spacing);//, Stype, Btype);
+    // RIGHT BOUNDARY
+     
+    // TRACTION
+    
+    // TOP BOUNDARY
+    // BOTTOM BOUNDARY
+
+    //print
+    /*
+    PetscInt m, n, mStart, nStart, j, i, M = NULL, N = NULL;
+    DMDAGetInfo(ctx->da, NULL, &M, &N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+    DMDAGetCorners(ctx->da, &mStart, &nStart, 0, &m, &n, 0);
+    PetscMPIInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    
+    Vec DxDyBoundary_print;
+    ierr = DMCreateLocalVector(ctx->da, &DxDyBoundary_print);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx->da, DxDyBoundary, INSERT_VALUES, DxDyBoundary_print);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx->da, DxDyBoundary, INSERT_VALUES, DxDyBoundary_print);CHKERRQ(ierr);
+
+    PetscScalar **DxDyBoundary_print_arr;
+    DMDAVecGetArray(ctx->da, DxDyBoundary_print, &DxDyBoundary_print_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+          PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, DxDyBoundary_print_arr[j][i]);
+      }
+    }
+    DMDAVecRestoreArray(ctx->da, DxDyBoundary_print, &DxDyBoundary_print_arr);
+    
+
+    ierr = DMLocalToGlobalBegin(ctx->da, DxDyBoundary_print, INSERT_VALUES, DxDyBoundary);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx->da, DxDyBoundary_print, INSERT_VALUES, DxDyBoundary);CHKERRQ(ierr);
+
+    VecDestroy(&DxDyBoundary_print);
+    */
+    //writeVec(DxDyBoundary, "DxDyBoundary");
+    
+
+    //endprint
+    //FIXME!!!! DO WE ADD THE BOUNDARY TO EXISTING VALUES FROM THE DERIVATIVE, OR DO WE ZERO
+    // THEM OUT BEFORE ADDING???
+
+    //calculate RHS with 1st derivative on borders
+    //Vec RHS = NULL;
+    //ierr = VecDuplicate(fx, &RHS);
+    //PetscScalar h_11 = 1;
+    //PetscScalar alpha_R = 2;
+    //setRHS_R(RHS, ans, h_11,
+    //    alpha_R, ctx->da);
+    //setRHS_L(RHS, ans, h_11,
+    //    alpha_R, ctx->da);
+    //setRHS_T(RHS, ans, h_11,
+    //    alpha_R, ctx->da);
+    //setRHS_B(RHS, ans, h_11,
+    //    alpha_R, ctx->da);
+
+    ierr = VecDestroy(&Dx);CHKERRQ(ierr);
+    ierr = VecDestroy(&Dy);CHKERRQ(ierr);
+    ierr = VecDestroy(&DxDyBoundary);CHKERRQ(ierr);
+    ierr = VecDestroy(&sum);CHKERRQ(ierr);
+    ierr = VecDestroy(&dmuxx);CHKERRQ(ierr);
+    ierr = VecDestroy(&dmuyy);CHKERRQ(ierr);
     return ierr;
 }
 
@@ -1667,21 +1958,33 @@ PetscErrorCode testMyMatMult() {
     PetscScalar x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
     PetscScalar x_min = X_MIN, x_max = X_MAX, y_max = Y_MAX, y_min = Y_MIN;
 
+    for(int i = 0; i < NUM_2D_2ND_GRID_SPACE_CALCULATIONS; i++) {
+      x_len = ((x_len - 1) * 2) + 1;
+      y_len = ((y_len - 1) * 2) + 1;
+    }
+
     PetscPrintf(PETSC_COMM_WORLD, "Test for MyMatMult\n");
     PetscInt i = 0, j = 0, mStart = 0, m = 0, nStart = 0, n = 0,
              fx_istart, fx_iend, dx_start, dx_end, dy_start, dy_end;
     PetscScalar v = 0;
     Vec fx = NULL, dx = NULL, dy = NULL, a_dx = NULL, a_dy = NULL, fx_err = NULL, /* vectors */
         local_coords = NULL, local_fx = NULL, local_a_dx = NULL, local_a_dy = NULL,
-        /* mu = NULL, */ local_mu = NULL, dxxmu = NULL, local_dxxmu = NULL, dyymu = NULL, local_dyymu = NULL;
+        /* mu = NULL, */ local_mu = NULL, dxxmu = NULL, local_dxxmu = NULL, dyymu = NULL, local_dyymu = NULL,
+        ans = NULL, a_ans = NULL;
         // first row, global vecs, second row, local vecs, third row, mu and 2nd derivatives
+        // last row, answer vector
 
     PetscInt num_entries = (x_len) * (y_len); //total number of entries on the grid
     ctx.dx_spacing = ((PetscReal)(x_max - x_min))/(x_len - 1); // spacing in the x direction
     ctx.dy_spacing = ((PetscReal)(y_max - y_min))/(y_len - 1); // spacing in the y direction
 
-    ctx.n_x = NUM_X_PTS;
-    ctx.n_y = NUM_Y_PTS;
+    ctx.n_x = x_len;
+    ctx.n_y = y_len;
+    ctx.alphaDx = -4/ctx.dx_spacing;
+    ctx.alphaDy = -4/ctx.dy_spacing;
+    ctx.alphaT = -1;
+    ctx.beta = 1;
+    ctx.order = 2;
 
     DMDACoor2d **coords;
     DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,
@@ -1704,8 +2007,9 @@ PetscErrorCode testMyMatMult() {
     ierr = VecDuplicate(fx, &ctx.mu);CHKERRQ(ierr);
     ierr = VecDuplicate(fx, &dxxmu);CHKERRQ(ierr);
     ierr = VecDuplicate(fx, &dyymu);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &ans);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &a_ans);CHKERRQ(ierr);
 
-    //FIXME name Vecs above and also do we need this rank stuff?
     PetscMPIInt rank;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
@@ -1718,10 +2022,12 @@ PetscErrorCode testMyMatMult() {
     DMDAVecGetArray(ctx.da, local_fx, &local_fx_arr);
     for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-    //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
+            //PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
     //        local_fx_arr[j][i] = coords[j][i].y;
     //         local_fx_arr[j][i] = (coords[j][i].x * coords[j][i].x * coords[j][i].x) + (coords[j][i].y * coords[j][i].y * coords[j][i].y);
-          local_fx_arr[j][i] = sin(coords[j][i].x) + cos(coords[j][i].y);
+         // local_fx_arr[j][i] = coords[j][i].x;
+            local_fx_arr[j][i] = MMS_uA(coords[j][i].x, coords[j][i].y);
+         // local_fx_arr[j][i] = cos(coords[j][i].x) * sin(coords[j][i].y);
     //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_grid_arr[j][i]);
       }
     }
@@ -1741,7 +2047,8 @@ PetscErrorCode testMyMatMult() {
       for (i = mStart; i < mStart + m; i++) {
   //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
   //        local_act_diff_x_arr[j][i] = coords[j][i].x;
-          local_a_dx_arr[j][i] = -sin(coords[j][i].x);
+            local_a_dx_arr[j][i] = MMS_uA_dx(coords[j][i].x, coords[j][i].y);
+          //local_a_dx_arr[j][i] = -sin(coords[j][i].x);
   //        PetscPrintf(PETSC_COMM_SELF, "%i: [%i][%i] = %g\n", rank, j, i, local_act_diff_x_arr[j][i]);
   //        local_act_diff_x_arr[j][i] = (6 * coords[j][i].x);
       }
@@ -1762,7 +2069,8 @@ PetscErrorCode testMyMatMult() {
       for (i = mStart; i < mStart + m; i++) {
   //        PetscPrintf(PETSC_COMM_SELF, "%i: (coords[%i][%i].x, coords[%i][%i].y) = (%g, %g)\n)", rank, j, i, j, i, coords[j][i].x, coords[j][i].y);
   //        local_act_diff_y_arr[j][i] = (6 * coords[j][i].y);
-          local_a_dy_arr[j][i] = -cos(coords[j][i].y);
+          //local_a_dy_arr[j][i] = -cos(coords[j][i].y);
+          local_a_dy_arr[j][i] = MMS_uA_dy(coords[j][i].x, coords[j][i].y);
       }
     }
     DMDAVecRestoreArray(ctx.da, local_a_dy, &local_a_dy_arr);
@@ -1779,7 +2087,8 @@ PetscErrorCode testMyMatMult() {
     DMDAVecGetArray(ctx.da, local_mu, &local_mu_arr);
     for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          local_mu_arr[j][i] = cos(coords[j][i].x + coords[j][i].y) + 4;
+          local_mu_arr[j][i] = MMS_mu(coords[j][i].x, coords[j][i].y);
+          //local_mu_arr[j][i] = sin(coords[j][i].x) * sin(coords[j][i].y) + 2;
   //        local_mu_arr[j][i] = 1;
       }
     }
@@ -1797,8 +2106,9 @@ PetscErrorCode testMyMatMult() {
     DMDAVecGetArray(ctx.da, local_dxxmu, &local_dxxmu_arr);
     for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          local_dxxmu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * cos(coords[j][i].x)) +
-                  ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-sin(coords[j][i].x)));
+          local_dxxmu_arr[j][i] = MMS_uA_dmuxx(coords[j][i].x, coords[j][i].y);
+          //local_dxxmu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * cos(coords[j][i].x)) +
+          //        ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-sin(coords[j][i].x)));
   //        local_dxxmu_arr[j][i] = -sin(coords[j][i].x);
       }
     }
@@ -1816,8 +2126,9 @@ PetscErrorCode testMyMatMult() {
     DMDAVecGetArray(ctx.da, local_dyymu, &local_dyymu_arr);
     for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          local_dyymu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
-                  ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
+          local_dyymu_arr[j][i] = MMS_uA_dmuyy(coords[j][i].x, coords[j][i].y); 
+          //local_dyymu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
+          //        ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
   //        local_dyymu_arr[j][i] = -cos(coords[j][i].y);
       }
     }
@@ -1826,18 +2137,54 @@ PetscErrorCode testMyMatMult() {
     ierr = DMLocalToGlobalBegin(ctx.da, local_dyymu, INSERT_VALUES, dyymu);CHKERRQ(ierr);
     ierr = DMLocalToGlobalEnd(ctx.da, local_dyymu, INSERT_VALUES, dyymu);CHKERRQ(ierr);
 
+    //writeVec(fx,"fx");
+    //Vec dfx;
+    //ierr = VecDuplicate(fx, &dfx);
+    //ierr = Dx_2d(dfx, fx, ctx.dx_spacing, ctx.da); 
+
+
+    //writeVec(dfx, "dfx");
+
     PetscInt vec_size = NULL;
     VecGetLocalSize(fx, &vec_size);
     // set up linear solve context (matrices, etc.)
     Mat H_Shell;
     //MatCreateAIJ(MPI_COMM_WORLD,info.xm,info.ym,info.mx,info.my,7,NULL,3,NULL,&(user.H));
-    MatCreateShell(PETSC_COMM_WORLD, vec_size, vec_size, num_entries, num_entries,(void*)&ctx,&H_Shell);
+    MatCreateShell(PETSC_COMM_WORLD, vec_size, vec_size, 
+            num_entries, num_entries,(void*)&ctx,&H_Shell);
     MatShellSetOperation(H_Shell,MATOP_MULT,
                             (void(*)(void))MyMatMult);
-    MatMult(H_Shell, fx, dx);
+    MatMult(H_Shell, fx, ans);
 
 
+    //writeVec(ans, "ans");
 
+    // calculate analytical answer
+    ierr = VecCopy(a_dy, a_ans);CHKERRQ(ierr);
+    PetscScalar one = 1.0;
+    ierr = VecAXPY(a_ans, one, a_dx);
+    calculate_two_norm(fx_err, ans, a_ans, num_entries);
+
+    MatDestroy(&H_Shell);
+    VecDestroy(&fx);
+    VecDestroy(&dx);
+    VecDestroy(&dy);
+    VecDestroy(&a_dx);
+    VecDestroy(&a_dy);
+    VecDestroy(&fx_err);
+    //VecDestroy(&local_coords);
+    VecDestroy(&local_fx);
+    VecDestroy(&local_a_dx);
+    VecDestroy(&local_a_dy);
+    VecDestroy(&local_mu);
+    VecDestroy(&dxxmu);
+    VecDestroy(&local_dxxmu);
+    VecDestroy(&dyymu);
+    VecDestroy(&local_dyymu);
+    VecDestroy(&ans);
+    VecDestroy(&a_ans);
+    VecDestroy(&ctx.mu);
+    DMDestroy(&ctx.da);
     PetscPrintf(PETSC_COMM_WORLD, "\n");
     return ierr;
 }
@@ -1850,6 +2197,7 @@ PetscErrorCode Solve_Linear_Equation() {
     PetscErrorCode ierr = 0;
 
     PetscInt num_x_pts = NUM_X_PTS, num_y_pts = NUM_Y_PTS;
+
     PetscScalar x_min = X_MINIMUM, x_max = X_MAXIMUM, y_max = Y_MAXIMUM, y_min = Y_MINIMUM;
     PetscInt i = 0, j = 0, mStart = 0, m = 0, nStart = 0, n = 0;
     PetscScalar v = 0, mult_x = 0, mult_y = 0, alpha_T = -1, alpha_B = -2, alpha_L = -3, alpha_R = -4, h_11 = 2;
@@ -1985,6 +2333,81 @@ PetscErrorCode Solve_Linear_Equation() {
     return ierr;
 }
 
+PetscErrorCode testMultiplyByHinvx() {
+    PetscErrorCode ierr = 0;
+    AppCtx ctx;
+    PetscScalar x_len = NUM_X_PTS, y_len = NUM_Y_PTS;
+    PetscScalar x_min = X_MIN, x_max = X_MAX, y_max = Y_MAX, y_min = Y_MIN;
+
+    Vec fx = NULL, dx = NULL, /* vectors */ temp,
+        local_coords = NULL, local_fx = NULL;
+
+    for(int i = 0; i < NUM_2D_2ND_GRID_SPACE_CALCULATIONS; i++) {
+      x_len = ((x_len - 1) * 2) + 1;
+      y_len = ((y_len - 1) * 2) + 1;
+    }
+
+    PetscInt num_entries = (x_len) * (y_len); //total number of entries on the grid
+    ctx.dx_spacing = ((PetscReal)(x_max - x_min))/(x_len - 1); // spacing in the x direction
+    ctx.dy_spacing = ((PetscReal)(y_max - y_min))/(y_len - 1); // spacing in the y direction
+
+    ctx.n_x = x_len;
+    ctx.n_y = y_len;
+    ctx.alphaDx = -4/ctx.dx_spacing;
+    ctx.alphaDy = -4/ctx.dy_spacing;
+    ctx.alphaT = -1;
+    ctx.beta = 1;
+    ctx.order = 2;
+
+    DMDACoor2d **coords;
+    DMDACreate2d(PETSC_COMM_WORLD, DMDA_BOUNDARY_NONE, DMDA_BOUNDARY_NONE,
+            DMDA_STENCIL_BOX, ctx.n_x, ctx.n_y, PETSC_DECIDE, PETSC_DECIDE, 1, 2, NULL, NULL, &ctx.da);
+
+    PetscInt i = 0, j = 0, mStart = 0, m = 0, nStart = 0, n = 0,
+             fx_istart, fx_iend, dx_start, dx_end, dy_start, dy_end;
+    PetscScalar v = 0;
+    ierr = DMCreateGlobalVector(ctx.da, &fx);CHKERRQ(ierr);
+    ierr = VecDuplicate(fx, &temp);CHKERRQ(ierr);
+
+    DMDASetUniformCoordinates(ctx.da, x_min, x_max, y_min, y_max, 0.0, 0.0);
+    DMGetCoordinateDM(ctx.da, &ctx.cda);
+    DMGetCoordinatesLocal(ctx.da, &local_coords);
+    DMDAVecGetArray(ctx.cda, local_coords, &coords);
+    DMDAGetCorners(ctx.cda, &mStart, &nStart, 0, &m, &n, 0);
+    // allows us to have information about the DMDA
+    DMDALocalInfo info;
+    ierr = DMDAGetLocalInfo(ctx.da, &info);
+
+
+
+    PetscMPIInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    // Set up fx to pull values from
+    ierr = DMCreateLocalVector(ctx.da, &local_fx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalBegin(ctx.da, fx, INSERT_VALUES, local_fx);CHKERRQ(ierr);
+    ierr = DMGlobalToLocalEnd(ctx.da, fx, INSERT_VALUES, local_fx);CHKERRQ(ierr);
+
+    PetscScalar **local_fx_arr;
+    DMDAVecGetArray(ctx.da, local_fx, &local_fx_arr);
+    for (j = nStart; j < nStart + n; j++) {
+      for (i = mStart; i < mStart + m; i++) {
+            local_fx_arr[j][i] = MMS_uA(coords[j][i].x, coords[j][i].y);
+      }
+    }
+    DMDAVecRestoreArray(ctx.da, local_fx, &local_fx_arr);
+
+    ierr = DMLocalToGlobalBegin(ctx.da, local_fx, INSERT_VALUES, fx);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(ctx.da, local_fx, INSERT_VALUES, fx);CHKERRQ(ierr);
+
+
+    ierr = multiplyByHinvx(temp, fx, ctx.dx_spacing, ctx.order, &ctx);CHKERRQ(ierr);
+
+    writeVec(temp, "Hinvx_C"); 
+
+    return ierr;
+}
+
 /* Function: main
  * --------------
  *
@@ -1995,8 +2418,8 @@ int main(int argc,char **argv)
   PetscInitialize(&argc,&argv,(char*)0,NULL);
   //ierr = MMSTest();CHKERRQ(ierr);
   //ierr = Solve_Linear_Equation();CHKERRQ(ierr);
-  testMyMatMult();
-
+  //testMyMatMult();
+  testMultiplyByHinvx();
   PetscFinalize();
   return ierr;
 }
