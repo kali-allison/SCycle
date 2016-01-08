@@ -6,7 +6,7 @@ using namespace std;
 
 LinearElastic::LinearElastic(Domain&D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(_Ly/(_Ny-1.)),_dz(_Lz/(_Nz-1.)),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),
   _problemType(D._problemType),
   _isMMS(!D._shearDistribution.compare("mms")),
   _outputDir(D._outputDir),
@@ -70,7 +70,7 @@ LinearElastic::LinearElastic(Domain&D)
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
-    assert(0>1); // automatically fail
+    assert(0); // automatically fail
   }
 
 #if VERBOSE > 1
@@ -383,9 +383,9 @@ PetscErrorCode SymmLinearElastic::setShifts()
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    //~bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    bcRshift = 0. * v;
+    //~bcRshift = 0. * v;
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
@@ -450,12 +450,12 @@ PetscErrorCode SymmLinearElastic::writeStep()
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
     // boundary conditions
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),FILE_MODE_WRITE,
-                                 //~&_bcRPlusV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcRPlus").c_str(),
-                                   //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_WRITE,
+                                 &_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
+                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
     // output body fields
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
@@ -483,7 +483,7 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
 
     //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
 
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
@@ -604,7 +604,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip velocity, bcL is displacement at y=0+
+  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
@@ -618,7 +618,6 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
   // solve for shear stress
   ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
-
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
@@ -1091,7 +1090,7 @@ PetscErrorCode FullLinearElastic::setShifts()
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
     //~v = 0;
-    v = 0.8*v;
+    //~v = 0.8*v;
     bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);

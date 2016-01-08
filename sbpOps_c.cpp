@@ -941,14 +941,10 @@ PetscErrorCode SbpOps_c::construct1stDerivs(const TempMats_c& tempMats)
   kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
-#if DEBUG > 0
-ierr = checkMatrix(&_muxDy_Iz,_debugFolder,"Dy_Iz");CHKERRQ(ierr);
-#endif
+
 #if VERBOSE > 2
-  ierr = MatView(_muxDy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(_Dy_Izx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Dzx2mu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
 
 #if VERBOSE >1
@@ -1336,7 +1332,7 @@ switch ( order ) {
 //======================== public member functions =====================
 
 // map the boundary condition vectors to rhs
-PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
+PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -1348,8 +1344,8 @@ PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
   ierr = VecSet(rhs,0.0);
   ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
   ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,bcS,rhs,rhs);
-  ierr = MatMultAdd(_rhsB,bcD,rhs,rhs);
+  ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
+  ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);

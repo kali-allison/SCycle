@@ -7,15 +7,13 @@ using namespace std;
 
 Fault::Fault(Domain&D)
 : _file(D._file),_delim(D._delim),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(_L/(_N-1.)),_Dc(NULL),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _f0(D._f0),_v0(D._v0),_vL(D._vL),
-  //~_aVals(D._aVals),_aDepths(D._aDepths),_bVals(D._bVals),_bDepths(D._bDepths),
-  _a(NULL),_b(NULL),
+  _a(NULL),_b(NULL),_Dc(NULL),
   _psi(NULL),_tempPsi(NULL),_dPsi(NULL),
-  //~_sigma_N_min(D._sigma_N_min),_sigma_N_max(D._sigma_N_max),_sigma_N(D._sigma_N),
   _sigma_N(NULL),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
@@ -52,6 +50,24 @@ Fault::Fault(Domain&D)
 
 
   setFrictionFields();
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"N = %i\n",_N);
+  //~PetscPrintf(PETSC_COMM_WORLD,"f0 = %e, v0 = %e, vL = %e\n",_f0,_v0,_vL);
+  //~PetscPrintf(PETSC_COMM_WORLD,"L = %e\n",_L);
+  //~PetscPrintf(PETSC_COMM_WORLD,"h = %e\n",_h);
+
+  //~VecView(_Dc,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_a,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_b,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_psi,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_tempPsi,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_dPsi,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_slip,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_slipVel,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_sigma_N,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_zP,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+  //~assert(0);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
@@ -515,15 +531,15 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 #endif
   if (isnan(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
     CHKERRQ(ierr);
   }
   else if (isinf(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*out) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"eta*vel=%.9e\n",zPlus*slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"z*vel=%.9e\n",zPlus*slipVel);
     CHKERRQ(ierr);
   }
 
@@ -554,7 +570,7 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   assert(varBegin+1 != varEnd);
 
   ierr = VecCopy(*(varBegin),_tempPsi);CHKERRQ(ierr);
-  /*ierr = computeVel();CHKERRQ(ierr);
+  ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -569,11 +585,11 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);*/
+  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   // force fault to remain locked
-  ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
-  ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
+  //~ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
+  //~ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
@@ -735,9 +751,6 @@ PetscErrorCode Fault::loadSettings(const char *file)
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
-
-    //~if (var.compare("Dc")==0) { _Dc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-
 
     if (var.compare("DcVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);

@@ -4,7 +4,8 @@ Nz = 161
 Ly = 6.283185307179586
 Lz = 6.283185307179586
 
-Dc = 8e-3 # m
+DcVals = [8e-3 8e-3] # m
+DcDepths = [0 48] # m
 
 bcT = traction
 bcR = displacement
@@ -16,8 +17,8 @@ aVals = [0.015 0.015] # comment
 aDepths = [0 6.283185307179586]
 bVals = [0.02 0.02]
 bDepths = [0 6.283185307179586]
-sigma_N_min = 50 # MPa
-sigma_N_max = 50 # MPa
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 48]
 
 vL = 1e-9    # m/s
 
@@ -32,7 +33,7 @@ viscDistribution = mms
 viscVals = [1e20 1e20]
 viscDepths = [0 6.283185307179586]
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -47,4 +48,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/
+outputDir = data/mms_

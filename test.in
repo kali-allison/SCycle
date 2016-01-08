@@ -1,8 +1,8 @@
-order = 4
-Ny = 201
-Nz = 401
+order = 2
+Ny = 11
+Nz = 1
 Ly = 24 # km
-Lz = 48 # km
+Lz = 24 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
@@ -15,8 +15,8 @@ bcL = displacement
 
 aVals = [0.015 0.015] # comment
 aDepths = [0 48]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 18 48]
+bVals = [0.02 0.02]
+bDepths = [0 48]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 48]
 
@@ -32,24 +32,23 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e11 1e11 1e11 1e11]
-viscDepths = [0 20 20.001 48]
+viscVals = [1e13 1e13]
+viscDepths = [0 48]
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 strideLength = 10
-maxStepCount = 1e8
+maxStepCount = 5e5
 initTime = 0       # s
-maxTime = 1e15      # s
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-#outputDir = data/mvfc_l_N251_
-#outputDir = data/mvfc_Lz48_
+
 outputDir = data/test_
