@@ -1,6 +1,6 @@
-order = 2
-Ny = 11
-Nz = 1
+order = 4
+Ny = 101
+Nz = 101
 Ly = 24 # km
 Lz = 24 # km
 
@@ -33,17 +33,17 @@ rhoPlus = 2.8 # g/cm^3
 
 viscDistribution = layered
 viscVals = [1e13 1e13]
-viscDepths = [0 48]
+viscDepths = [0 24]
 
 linSolver = MUMPSCHOLESKY
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 10
+strideLength = 1
 maxStepCount = 5e5
 initTime = 0       # s
-maxTime = 5e11      # s
+maxTime = 8e10      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
@@ -51,4 +51,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/test_
+outputDir = data/2D_

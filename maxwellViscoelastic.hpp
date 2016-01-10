@@ -35,12 +35,15 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
 
-   PetscErrorCode setViscStrainSourceTerms(Vec& source);
-   PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                         it_vec dvarBegin,it_vec dvarEnd);
+  PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
+  PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                        it_vec dvarBegin,it_vec dvarEnd);
    PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
-   PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                         it_vec dvarBegin,it_vec dvarEnd);
+  PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                        it_vec dvarBegin,it_vec dvarEnd);
+  PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                         const_it_vec varBegin,const_it_vec varEnd,
+                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
 
 
     double MMS_visc(const double y,const double z);

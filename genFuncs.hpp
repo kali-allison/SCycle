@@ -42,4 +42,5 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 
 
+PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 #endif

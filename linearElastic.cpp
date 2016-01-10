@@ -383,9 +383,9 @@ PetscErrorCode SymmLinearElastic::setShifts()
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    //~bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    //~bcRshift = 0. * v;
+    bcRshift = 0. * v;
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);

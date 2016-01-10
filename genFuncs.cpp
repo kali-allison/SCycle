@@ -225,3 +225,30 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
   return ierr;
 }
 
+
+
+// prints an array to a single line in std out
+PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "genFuncs::printArray";
+  string fileName = "genFuncs.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+
+  std::cout << "[";
+  for(int i=0; i<len; i++) {
+    std::cout << arr[i] << ",";
+  }
+  std::cout << "]" << std::endl;
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
