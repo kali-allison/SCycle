@@ -100,6 +100,7 @@ LinearElastic::~LinearElastic()
   KSPDestroy(&_kspP);
 
   PetscViewerDestroy(&_timeV1D);
+  PetscViewerDestroy(&_timeV2D);
   PetscViewerDestroy(&_surfDispPlusViewer);
   PetscViewerDestroy(&_uPV);
 
@@ -467,16 +468,14 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-
-  _stepCount++;
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
-    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+    //~ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
+    //~ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
 
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
 
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    //~ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -502,9 +501,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
 
 
   if (_stepCount==0) {
-    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
-    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     // output body fields
@@ -515,14 +512,14 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
                                    FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
 
-  if (_isMMS) {
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-              FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
-    ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-                                   FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
-    }
+    if (_isMMS) {
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
+      ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                                     FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
+      }
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -549,6 +546,8 @@ PetscErrorCode SymmLinearElastic::integrate()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
+
+  _stepCount++;
 
   // call odeSolver routine integrate here
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);

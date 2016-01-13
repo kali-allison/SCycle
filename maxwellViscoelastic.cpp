@@ -102,6 +102,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
   #endif
   double startTime = MPI_Wtime();
 
+  _stepCount++;
+
   // call odeSolver routine integrate here
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
@@ -821,7 +823,6 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-    _stepCount++;
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -854,9 +855,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
 
   if (_stepCount==0) {
     // write contextual fields
-    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
-
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
