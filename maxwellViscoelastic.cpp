@@ -292,28 +292,25 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
-    /*
     Vec temp1,bcT,bcB;
     VecDuplicate(_epsVxzP,&temp1);
     VecDuplicate(_epsVxzP,&bcT);
     VecDuplicate(_epsVxzP,&bcB);
 
 
-    _sbpP.HzinvxE0z(*(varBegin+3),temp1);assert(0);
-    ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
 
-    //~assert(0);
+    _sbpP.HzinvxE0z(*(varBegin+3),temp1);
+    ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
 
     _sbpP.HzinvxENz(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
-    //~ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
-    //~ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
+    ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
+    ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
 
     VecDestroy(&temp1);
     VecDestroy(&bcT);
     VecDestroy(&bcB);
-    */
   }
 
 
@@ -714,14 +711,18 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
 {
   PetscErrorCode ierr = 0;
 
-  if ( stepCount % _strideLength == 0) {
-    //~_stepCount++;
+  if ( stepCount % _stride1D == 0) {
+    _stepCount++;
     _currTime = time;
-    _stepCount = stepCount;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    ierr = writeStep1D();CHKERRQ(ierr);
+  }
 
-    ierr = writeStep();CHKERRQ(ierr);
-
+  if ( stepCount % _stride2D == 0) {
+    _stepCount++;
+    _currTime = time;
+    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    ierr = writeStep2D();CHKERRQ(ierr);
   }
 
 #if VERBOSE > 0
@@ -778,10 +779,10 @@ PetscErrorCode SymmMaxwellViscoelastic::debug(const PetscReal time,const PetscIn
 }
 
 
-PetscErrorCode SymmMaxwellViscoelastic::writeStep()
+PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmMaxwellViscoelastic::writeStep";
+  string funcName = "SymmMaxwellViscoelastic::writeStep1D";
   string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
@@ -802,8 +803,8 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = VecView(_visc,viewer);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                  FILE_MODE_WRITE,&_surfDispPlusViewer);CHKERRQ(ierr);
@@ -819,8 +820,45 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
+    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    _stepCount++;
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
-   // output body fields
+    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+  }
+
+  _writeTime += MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmMaxwellViscoelastic::writeStep2D";
+  string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
+
+  double startTime = MPI_Wtime();
+
+  if (_stepCount==0) {
+    // write contextual fields
+    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
+
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
+
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
               FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
@@ -884,11 +922,9 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
     _stepCount++;
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
-    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
@@ -901,10 +937,6 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep()
       ierr = VecView(_epsVxzP,_epsVxzPV);CHKERRQ(ierr);
     }
   }
-
-  //~ierr = VecView(_epsVxyP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = VecView(_epsVxyP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1

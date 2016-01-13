@@ -17,11 +17,11 @@ LinearElastic::LinearElastic(Domain&D)
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),_sbpP(D,*D._muArrPlus,D._muP),
   _timeIntegrator(D._timeIntegrator),
-  _strideLength(D._strideLength),_maxStepCount(D._maxStepCount),
+  _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
-  _timeViewer(NULL),_surfDispPlusViewer(NULL),
+  _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _uPV(NULL),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
@@ -99,7 +99,7 @@ LinearElastic::~LinearElastic()
 
   KSPDestroy(&_kspP);
 
-  PetscViewerDestroy(&_timeViewer);
+  PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_surfDispPlusViewer);
   PetscViewerDestroy(&_uPV);
 
@@ -251,11 +251,17 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
 {
   PetscErrorCode ierr = 0;
 
-  if ( stepCount % _strideLength == 0) {
+  if ( stepCount % _stride1D == 0) {
     _stepCount++;
     _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
-    ierr = writeStep();CHKERRQ(ierr);
+    //~ierr = writeStep1D();CHKERRQ(ierr);
+  }
+
+  if ( stepCount % _stride2D == 0) {
+    _currTime = time;
+    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    //~ierr = writeStep2D();CHKERRQ(ierr);
   }
 
 #if VERBOSE > 0
@@ -427,20 +433,23 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
 
 
 
-PetscErrorCode SymmLinearElastic::writeStep()
+PetscErrorCode SymmLinearElastic::writeStep1D()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
-#endif
+  string funcName = "SymmLinearElastic::writeStep1D";
+  string fileName = "linearElastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
   double startTime = MPI_Wtime();
 
 
   if (_stepCount==0) {
     ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
                                  &_surfDispPlusViewer);CHKERRQ(ierr);
@@ -457,15 +466,55 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-    // output body fields
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
-              //~FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
-    //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
-                                   //~FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
-
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+
+  _stepCount++;
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+
+    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  }
+
+  _writeTime += MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
+PetscErrorCode SymmLinearElastic::writeStep2D()
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmLinearElastic::writeStep2D";
+  string fileName = "linearElastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
+  double startTime = MPI_Wtime();
+
+
+  if (_stepCount==0) {
+    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
+    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
+
+    // output body fields
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+              FILE_MODE_WRITE,&_uPV);CHKERRQ(ierr);
+    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_uPV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
+                                   FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
+
   if (_isMMS) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
               FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -474,26 +523,21 @@ PetscErrorCode SymmLinearElastic::writeStep()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                                    FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
     }
-
-
-  _stepCount++;
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
-    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
-    //~ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
 
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
 
 
   _writeTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -1158,11 +1202,11 @@ PetscErrorCode FullLinearElastic::setSurfDisp()
 }
 
 
-PetscErrorCode FullLinearElastic::writeStep()
+PetscErrorCode FullLinearElastic::writeStep1D()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep1D in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -1170,7 +1214,7 @@ PetscErrorCode FullLinearElastic::writeStep()
     ierr = _sbpP.writeOps(_outputDir+"plus_");CHKERRQ(ierr);
     if (_problemType.compare("full")==0) { ierr = _sbpMinus.writeOps(_outputDir+"minus_");CHKERRQ(ierr); }
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeViewer);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
                                  &_surfDispPlusViewer);CHKERRQ(ierr);
@@ -1191,7 +1235,24 @@ PetscErrorCode FullLinearElastic::writeStep()
     ierr = VecView(_surfDispMinus,_surfDispMinusViewer);CHKERRQ(ierr);
   }
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(_timeViewer, "%.15e\n",_currTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
+
+  _writeTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+PetscErrorCode FullLinearElastic::writeStep2D()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep2D in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+#endif
+  double startTime = MPI_Wtime();
+
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1

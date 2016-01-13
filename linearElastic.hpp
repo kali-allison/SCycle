@@ -54,7 +54,7 @@ class LinearElastic: public IntegratorContext
 
     // time stepping data
     std::string          _timeIntegrator;
-    PetscInt             _strideLength; // stride
+    PetscInt             _stride1D,_stride2D; // stride
     PetscInt             _maxStepCount; // largest number of time steps
     PetscReal            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                  _stepCount;
@@ -62,7 +62,7 @@ class LinearElastic: public IntegratorContext
     PetscScalar          _initDeltaT;
 
     // viewers
-    PetscViewer          _timeViewer,_surfDispPlusViewer;
+    PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
@@ -103,7 +103,8 @@ class LinearElastic: public IntegratorContext
 
     // IO commands
     PetscErrorCode view();
-    PetscErrorCode virtual writeStep() = 0;
+    PetscErrorCode virtual writeStep1D() = 0;
+    PetscErrorCode virtual writeStep2D() = 0;
 
     PetscErrorCode virtual measureMMSError() = 0;
 };
@@ -171,7 +172,8 @@ class SymmLinearElastic: public LinearElastic
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
 
     // IO commands
-    PetscErrorCode writeStep();
+    PetscErrorCode writeStep1D(); // write out 1D fields
+    PetscErrorCode writeStep2D(); // write out 2D fields
 };
 
 
@@ -229,7 +231,8 @@ class FullLinearElastic: public LinearElastic
                          const_it_vec varBegin,const_it_vec varEnd,
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
     // IO commands
-    PetscErrorCode writeStep();
+    PetscErrorCode writeStep1D();
+    PetscErrorCode writeStep2D();
 
     // for debugging
     PetscErrorCode setU();

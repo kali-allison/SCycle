@@ -55,7 +55,7 @@ class Domain
 
     // time integration settings
     std::string  _timeControlType,_timeIntegrator;
-    PetscInt     _strideLength,_maxStepCount;
+    PetscInt     _stride1D,_stride2D,_maxStepCount;
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
     PetscScalar  _atol;

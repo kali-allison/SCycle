@@ -78,7 +78,8 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd);
 
-    PetscErrorCode writeStep();
+    PetscErrorCode writeStep1D();
+    PetscErrorCode writeStep2D();
     PetscErrorCode view();
 
     PetscErrorCode measureMMSError();

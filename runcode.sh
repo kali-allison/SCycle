@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N mvfc_Lz48
+#PBS -N lay_v1e9_source+T-B
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/newEqCycle/data/mvfc_Lz48.err
-#PBS -o /data/dunham/kallison/newEqCycle/data/mvfc_Lz48.out
+#PBS -e /data/dunham/kallison/newEqCycle/data/test.err
+#PBS -o /data/dunham/kallison/newEqCycle/data/test.out
 #
 
 EXEC_DIR=/data/dunham/kallison/newEqCycle

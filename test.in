@@ -1,6 +1,6 @@
-order = 4
-Ny = 101
-Nz = 101
+order = 2
+Ny = 51
+Nz = 51
 Ly = 24 # km
 Lz = 24 # km
 
@@ -15,8 +15,8 @@ bcL = displacement
 
 aVals = [0.015 0.015] # comment
 aDepths = [0 48]
-bVals = [0.02 0.02]
-bDepths = [0 48]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 25]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 48]
 
@@ -27,21 +27,22 @@ inputDir = inputData/
 shearDistribution = constant
 {
 problem = symmetric
-muPlus = 40 # GPa
+muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [1e13 1e13]
-viscDepths = [0 24]
+viscVals = [1e20 1e20 1e9 1e9]
+viscDepths = [0 15 15 24]
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 5e5
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 225
 initTime = 0       # s
 maxTime = 8e10      # s
 minDeltaT = 1e-3     # s
@@ -51,4 +52,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/2D_
+#outputDir = data/lay_v1e9_source+T-B_
+outputDir = data/test_

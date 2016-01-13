@@ -650,6 +650,8 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
    ierr = PetscPrintf(PETSC_COMM_WORLD,"starting SymmFault::writeStep in fault.cpp at step %i\n",step);CHKERRQ(ierr);
 #endif
 
+
+
   if (step==0) {
       PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"slip").c_str(),FILE_MODE_WRITE,&_slipViewer);
       ierr = VecView(_slip,_slipViewer);CHKERRQ(ierr);

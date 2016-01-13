@@ -32,9 +32,11 @@ int runEqCycle(const char * inputFile)
   }
 
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->writeStep();CHKERRQ(ierr);
+  ierr = obj->writeStep1D();CHKERRQ(ierr);
+  ierr = obj->writeStep2D();CHKERRQ(ierr);
   ierr = obj->integrate();CHKERRQ(ierr);
-  ierr = obj->writeStep();CHKERRQ(ierr);
+  ierr = obj->writeStep1D();CHKERRQ(ierr);
+  ierr = obj->writeStep2D();CHKERRQ(ierr);
   ierr = obj->view();CHKERRQ(ierr);
 
   return ierr;
@@ -70,7 +72,8 @@ int main(int argc,char **args)
           obj = new FullLinearElastic(domain);
         }
 
-        ierr = obj->writeStep();CHKERRQ(ierr);
+        ierr = obj->writeStep1D();CHKERRQ(ierr);
+        ierr = obj->writeStep2D();CHKERRQ(ierr);
         ierr = obj->integrate();CHKERRQ(ierr);
 
         obj->measureMMSError();
