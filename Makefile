@@ -59,55 +59,55 @@ endif
 #=========================================================
 # Dependencies
 #=========================================================
-
 debuggingFuncs.o: debuggingFuncs.cpp debuggingFuncs.hpp genFuncs.hpp
 domain.o: domain.cpp domain.hpp genFuncs.hpp
 fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp \
  rootFinderContext.hpp rootFinder.hpp
-FDP.o: FDP.cpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
 helloWorld.o: helloWorld.cpp
 iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContext.hpp odeSolver.hpp \
  genFuncs.hpp domain.hpp maxwellViscoelastic.hpp linearElastic.hpp \
- sbpOps.hpp debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp fault.hpp \
- rootFinderContext.hpp rootFinder.hpp
+ sbpOps.hpp debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp \
+ fault.hpp rootFinderContext.hpp rootFinder.hpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp fault.hpp \
+ debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp sbpOps_c.hpp fault.hpp rootFinderContext.hpp \
- rootFinder.hpp linearElastic.hpp integratorContext.hpp odeSolver.hpp \
- maxwellViscoelastic.hpp
+ debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
+ rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
+ integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp
 main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
- sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp fault.hpp \
+ sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp iceSheet.hpp
 main_linearElastic.o: main_linearElastic.cpp genFuncs.hpp spmat.hpp \
- domain.hpp sbpOps_c.hpp debuggingFuncs.hpp fault.hpp \
+ domain.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp sbpOps.hpp
 maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
  linearElastic.hpp sbpOps.hpp debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp \
- fault.hpp rootFinderContext.hpp rootFinder.hpp
+ sbpOps_fc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
  genFuncs.hpp
+powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContext.hpp odeSolver.hpp \
+ genFuncs.hpp domain.hpp linearElastic.hpp sbpOps.hpp debuggingFuncs.hpp \
+ spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp rootFinderContext.hpp \
+ rootFinder.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
+sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
+ debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp
 sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp
+ debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp
 sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
-sbpOps.o: sbpOps.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp
 sbpOps_fc.o: sbpOps_fc.cpp sbpOps_fc.hpp domain.hpp genFuncs.hpp \
- debuggingFuncs.hpp spmat.hpp
-sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 spmat.o: spmat.cpp spmat.hpp
 testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps.hpp sbpOps_c.hpp sbpOps_fc.hpp testOdeSolver.hpp \
- integratorContext.hpp odeSolver.hpp
+ debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp \
+ testOdeSolver.hpp integratorContext.hpp odeSolver.hpp
 testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp
 
