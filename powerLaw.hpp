@@ -21,8 +21,10 @@ class PowerLaw: public SymmLinearElastic
 
     // material properties
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
+    std::string  _AFile,_BFile,_nFile,_TFile; // names of each file within loadFromFile
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_TVals,_TDepths;
     Vec         _A,_n,_B;
+    Vec         _effVisc;
 
     Vec         _stressxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec         _epsVxyP,_depsVxyP; // viscoelastic strain, strain rate
@@ -36,6 +38,7 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _epsVxyPV,_depsVxyPV;
     PetscViewer _epsVxzPV,_depsVxzPV;
     PetscViewer _TV;
+    PetscViewer _effViscV;
 
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
@@ -80,6 +83,7 @@ class PowerLaw: public SymmLinearElastic
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd);
 
+    PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();
     PetscErrorCode view();
@@ -88,7 +92,8 @@ class PowerLaw: public SymmLinearElastic
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode setVisc();
+    PetscErrorCode setFields();
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
     PetscErrorCode loadFieldsFromFiles();
 
     // check input from file

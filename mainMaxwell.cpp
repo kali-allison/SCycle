@@ -71,8 +71,8 @@ int runEqCycle(const char * inputFile)
   Domain domain(inputFile);
   domain.write();
 
-  PowerLaw *obj;
-  obj = new PowerLaw(domain);
+  SymmMaxwellViscoelastic *obj;
+  obj = new SymmMaxwellViscoelastic(domain);
 
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = obj->writeStep1D();CHKERRQ(ierr);

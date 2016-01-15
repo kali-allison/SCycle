@@ -251,18 +251,16 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
                              const_it_vec dvarBegin,const_it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
-
+  _stepCount++;
+  _currTime = time;
   if ( stepCount % _stride1D == 0) {
-    _stepCount++;
-    _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
-    //~ierr = writeStep1D();CHKERRQ(ierr);
+    ierr = writeStep1D();CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
-    //~ierr = writeStep2D();CHKERRQ(ierr);
+    ierr = writeStep2D();CHKERRQ(ierr);
   }
 
 #if VERBOSE > 0
@@ -470,12 +468,12 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
   else {
-    //~ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
-    //~ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
+    ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
 
-    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
 
-    //~ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

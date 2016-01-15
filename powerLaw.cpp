@@ -1,9 +1,12 @@
 #include "powerLaw.hpp"
 
+#define FILENAME "powerLaw.cpp"
+
 
 PowerLaw::PowerLaw(Domain& D)
 : SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
-  _viscDistribution("unspecified"),_A(NULL),_n(NULL),_B(NULL),
+  _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
+  _A(NULL),_n(NULL),_B(NULL),_effVisc(NULL),
   _stressxzP(NULL),_sigmadev(NULL),
   _epsVxyP(NULL),_depsVxyP(NULL),
   _epsVxzP(NULL),_depsVxzP(NULL),
@@ -13,23 +16,23 @@ PowerLaw::PowerLaw(Domain& D)
   _epsTotxyPV(NULL),_epsTotxzPV(NULL),
   _epsVxyPV(NULL),_depsVxyPV(NULL),
   _epsVxzPV(NULL),_depsVxzPV(NULL),
-  _TV(NULL)
+  _TV(NULL),_effViscV(NULL)
 {
   #if VERBOSE > 1
-    string funcName = "PowerLaw::PowerLaw";
-    string fileName = "maxwellViscoelastic.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    std::string funcName = "PowerLaw::PowerLaw";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
 
   // set viscosity
   loadSettings(_file);
   checkInput();
-  if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles()};
-  setVisc();
-
+  if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
+  setFields();
 
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
   VecDuplicate(_uP,&_sigmadev); VecSet(_sigmadev,0.0);
+  VecDuplicate(_uP,&_effVisc); VecSet(_sigmadev,0.0);
 
 
   VecDuplicate(_uP,&_epsVxyP);
@@ -60,17 +63,17 @@ PowerLaw::PowerLaw(Domain& D)
     setMMSInitialConditions();
   }
 
+
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 }
 
 PowerLaw::~PowerLaw()
 {
   #if VERBOSE > 1
-    string funcName = "PowerLaw::~PowerLaw";
-    string fileName = "maxwellViscoelastic.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    std::string funcName = "PowerLaw::PowerLaw";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
 
@@ -102,7 +105,7 @@ PowerLaw::~PowerLaw()
 
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 }
 
@@ -110,10 +113,9 @@ PowerLaw::~PowerLaw()
 PetscErrorCode PowerLaw::integrate()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::integrate";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    std::string funcName = "PowerLaw::PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   double startTime = MPI_Wtime();
@@ -129,7 +131,7 @@ PetscErrorCode PowerLaw::integrate()
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   CHKERRQ(ierr);
 #endif
   return ierr;
@@ -154,10 +156,9 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
                  it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::d_dt_eqCycle";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    std::string funcName = "PowerLaw::PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -197,8 +198,9 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
 
+
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr;
@@ -208,10 +210,9 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
                  it_vec dvarBegin,it_vec dvarEnd)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::d_dt_mms";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    string funcName = "PowerLaw::d_dt_mms";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -269,7 +270,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   VecDestroy(&viscSource);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -279,10 +280,9 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
 PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin,const_it_vec varEnd)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::setViscStrainSourceTerms";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    string funcName = "PowerLaw::setViscStrainSourceTerms";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -336,7 +336,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   VecDestroy(&source);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr = 0;
@@ -347,10 +347,9 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
 PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out)
 {
     PetscErrorCode ierr = 0;
-    string funcName = "PowerLaw::viscousStrainRateSAT";
-    string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    string funcName = "PowerLaw::viscousStrainRateSAT";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -376,7 +375,7 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecDestroy(&temp1);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr = 0;
@@ -388,10 +387,9 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
                  it_vec dvarBegin,it_vec dvarEnd)
 {
     PetscErrorCode ierr = 0;
-    string funcName = "PowerLaw::setViscStrainRates";
-    string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    string funcName = "PowerLaw::setViscStrainRates";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -400,17 +398,27 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   VecDuplicate(_epsTotxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  PetscScalar deps,visc,epsVisc,sat,sigmaxy,sigmaxz;
+  PetscScalar deps,invVisc,epsVisc,sat,sigmaxy,sigmaxz,sigmadev,A,B,n,T,effVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_visc,1,&Ii,&visc);
     VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
     VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
     VecGetValues(SAT,1,&Ii,&sat);
 
+    VecGetValues(_sigmadev,1,&Ii,&sigmadev);
+    VecGetValues(_A,1,&Ii,&A);
+    VecGetValues(_B,1,&Ii,&B);
+    VecGetValues(_n,1,&Ii,&n);
+    VecGetValues(_T,1,&Ii,&T);
+    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T);
+    effVisc = 1.0/invVisc;
+    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+
+    //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
+
     // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = 0.5*sigmaxy/visc - _muArrPlus[Ii]/visc * sat;
+    deps = sigmaxy*invVisc - _muArrPlus[Ii]*invVisc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -419,12 +427,14 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
       VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
 
       // d/dt epsVxz = mu/visc * ( 0.5*d/dz u - epsxz)
-      deps = 0.5*sigmaxz/visc;
+      deps = sigmaxz*invVisc;
       VecSetValues(*(dvarBegin+3),1,&Ii,&deps,INSERT_VALUES);
     }
   }
   VecAssemblyBegin(*(dvarBegin+2));
   VecAssemblyEnd(*(dvarBegin+2));
+  VecAssemblyBegin(_effVisc);
+  VecAssemblyEnd(_effVisc);
 
   VecDestroy(&SAT);
 
@@ -435,20 +445,19 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr = 0;
 }
 
-
+// computes sigmaxy, sigmaxz, and sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
 PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd)
 {
     PetscErrorCode ierr = 0;
-    string funcName = "PowerLaw::setStresses";
-    string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+  string funcName = "PowerLaw::setStresses";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -459,11 +468,10 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   _sbpP.Dz(_uP,_epsTotxzP);
   VecScale(_epsTotxzP,0.5);
 
-  PetscScalar visc,epsTot,epsVisc,sigmaxy,sigmaxz;
+  PetscScalar epsTot,epsVisc,sigmaxy,sigmaxz,sigmadev=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_epsTotxyP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_visc,1,&Ii,&visc);
     VecGetValues(_epsTotxyP,1,&Ii,&epsTot);
     VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
 
@@ -471,6 +479,8 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
     //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
     sigmaxy = 2.0*_muArrPlus[Ii] * (epsTot - epsVisc);
     VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
+
+    sigmadev = sigmaxy*sigmaxy;
 
     if (_Nz > 1) {
       VecGetValues(_epsTotxzP,1,&Ii,&epsTot);
@@ -480,11 +490,14 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
       //                     = 2*mu*(0.5*d/dz(uhat) - epsVxz)
       sigmaxz = 2.0*_muArrPlus[Ii] * (epsTot - epsVisc);
       VecSetValues(_stressxzP,1,&Ii,&sigmaxz,INSERT_VALUES);
-    }
-  }
-  VecAssemblyBegin(_stressxyP);
-  VecAssemblyEnd(_stressxyP);
 
+      sigmadev += sigmaxz*sigmaxz;
+    }
+    sigmadev = sqrt(sigmadev);
+    VecSetValues(_sigmadev,1,&Ii,&sigmadev,INSERT_VALUES);
+  }
+  VecAssemblyBegin(_stressxyP);  VecAssemblyBegin(_sigmadev);
+  VecAssemblyEnd(_stressxyP);  VecAssemblyEnd(_sigmadev);
 
   if (_Nz > 1) {
     VecAssemblyBegin(_stressxzP);
@@ -492,7 +505,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr = 0;
@@ -502,10 +515,9 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
 PetscErrorCode PowerLaw::setMMSInitialConditions()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmLinearElastic::setMMSInitialConditions";
-  string fileName = "lithosphere.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  string funcName = "PowerLaw::setMMSInitialConditions()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
   PetscScalar time = _initTime;
@@ -556,11 +568,12 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_epsVxyP,&Istart,&Iend);CHKERRQ(ierr);
-  PetscScalar visc;
+  //~PetscScalar visc;
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy*(Ii/_Nz);
     z = _dz*(Ii-_Nz*(Ii/_Nz));
-    VecGetValues(_visc,1,&Ii,&visc);
+    //~VecGetValues(_visc,1,&Ii,&visc);
+    //~visc = 1;// !!! check
 
     v = MMS_epsVxy_t_source(y,z,time);
     ierr = VecSetValues(_depsVxyP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
@@ -580,7 +593,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -669,10 +682,9 @@ PetscErrorCode PowerLaw::addMMSViscStrainsAndRates(const PetscScalar time,const_
                  it_vec dvarBegin,it_vec dvarEnd)
 {
     PetscErrorCode ierr = 0;
-    string funcName = "PowerLaw::setMMSViscStrainsAndRates";
-    string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+  string funcName = "PowerLaw::setMMSViscStrainsAndRates";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
@@ -700,7 +712,7 @@ PetscErrorCode PowerLaw::addMMSViscStrainsAndRates(const PetscScalar time,const_
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
   #endif
   return ierr = 0;
@@ -729,15 +741,14 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
 {
   PetscErrorCode ierr = 0;
 
-  if ( stepCount % _stride1D == 0) {
     _stepCount++;
+  if ( stepCount % _stride1D == 0) {
     _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    _stepCount++;
     _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep2D();CHKERRQ(ierr);
@@ -800,10 +811,9 @@ PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
 PetscErrorCode PowerLaw::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::writeContext";
-  string fileName = "powerLaw.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    string funcName = "PowerLaw::writeContext";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -832,7 +842,7 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
 
 
 #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -842,10 +852,9 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
 PetscErrorCode PowerLaw::writeStep1D()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::writeStep1D";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    string funcName = "PowerLaw::writeStep1D";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,_stepCount);
     CHKERRQ(ierr);
   #endif
 
@@ -886,7 +895,7 @@ PetscErrorCode PowerLaw::writeStep1D()
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,_stepCount);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -896,10 +905,9 @@ PetscErrorCode PowerLaw::writeStep1D()
 PetscErrorCode PowerLaw::writeStep2D()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::writeStep2D";
-  string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    string funcName = "PowerLaw::writeStep2D";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,_stepCount);
     CHKERRQ(ierr);
   #endif
 
@@ -937,6 +945,13 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = PetscViewerDestroy(&_epsVxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxyP").c_str(),
                                    FILE_MODE_APPEND,&_epsVxyPV);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
+              FILE_MODE_WRITE,&_effViscV);CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_effViscV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
+                                   FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
     if (_isMMS) {
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                 FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -980,6 +995,7 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_epsVxyP,_epsVxyPV);CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
@@ -991,7 +1007,7 @@ PetscErrorCode PowerLaw::writeStep2D()
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),fileName.c_str(),_stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,_stepCount);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1018,8 +1034,10 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
-#endif
+    std::string funcName = "PowerLaw::loadSettings()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
@@ -1039,11 +1057,60 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
       _viscDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
+    // names of each field's source file
+    else if (var.compare("AFile")==0) {
+      _AFile = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("BFile")==0) {
+      _BFile = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("nFile")==0) {
+      _nFile = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("TFile")==0) {
+      _TFile = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+
+    // if values are set by a vector
+    else if (var.compare("AVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_AVals);
+    }
+    else if (var.compare("ADepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_ADepths);
+    }
+    else if (var.compare("BVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_BVals);
+    }
+    else if (var.compare("BDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_BDepths);
+    }
+    else if (var.compare("nVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_nVals);
+    }
+    else if (var.compare("nDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_nDepths);
+    }
+    else if (var.compare("TVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TVals);
+    }
+    else if (var.compare("TDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TDepths);
+    }
+
   }
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -1051,41 +1118,47 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
 PetscErrorCode PowerLaw::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::loadFieldsFromFiles()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
 
   // load A
   ierr = VecCreate(PETSC_COMM_WORLD,&_A);CHKERRQ(ierr);
   ierr = VecSetSizes(_A,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_A);
   PetscObjectSetName((PetscObject) _A, "_A");
-  ierr = loadVecFromInputFile(_A,_inputDir, "A");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,_AFile);CHKERRQ(ierr);
+
 
   // load n
   ierr = VecCreate(PETSC_COMM_WORLD,&_n);CHKERRQ(ierr);
   ierr = VecSetSizes(_n,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_n);
   PetscObjectSetName((PetscObject) _n, "_n");
-  ierr = loadVecFromInputFile(_n,_inputDir, "n");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,_nFile);CHKERRQ(ierr);
 
     // load B
   ierr = VecCreate(PETSC_COMM_WORLD,&_B);CHKERRQ(ierr);
   ierr = VecSetSizes(_B,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_B);
   PetscObjectSetName((PetscObject) _B, "_B");
-  ierr = loadVecFromInputFile(_B,_inputDir, "B");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_B,_inputDir,_BFile);CHKERRQ(ierr);
 
     // load T (initial condition)
   ierr = VecCreate(PETSC_COMM_WORLD,&_T);CHKERRQ(ierr);
   ierr = VecSetSizes(_T,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_T);
   PetscObjectSetName((PetscObject) _T, "_T");
-  ierr = loadVecFromInputFile(_T,_inputDir, "T");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_T,_inputDir,_TFile);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
-#endif
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -1095,18 +1168,120 @@ PetscErrorCode PowerLaw::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
+    std::string funcName = "PowerLaw::checkInput";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
 
-  assert(_viscVals.size() == _viscDepths.size() );
-
-  assert(_viscDistribution.compare("layered")==0 ||
-      _viscDistribution.compare("mms")==0 ||
+  assert(_viscDistribution.compare("mms")==0 ||
+      _viscDistribution.compare("layered")==0 ||
       _viscDistribution.compare("loadFromFile")==0 );
 
-#if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
-#endif
-  //~}
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// set off-fault material properties
+PetscErrorCode PowerLaw::setFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::setFields";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&_T);CHKERRQ(ierr);
+
+
+  // set each field using it's vals and depths std::vectors
+  if (_Nz == 1) {
+    VecSet(_A,_AVals[0]);
+    VecSet(_B,_BVals[0]);
+    VecSet(_n,_nVals[0]);
+    VecSet(_T,_TVals[0]);
+  }
+  else {
+    ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
+  }
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+return ierr;
+}
+
+
+
+// Fills vec with the linear interpolation between the pairs of points (vals,depths)
+// this probably won't work if the vector is 2D instead of 1D
+PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::setVecFromVectors";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
+  z1 = depths.back();
+  depths.pop_back();
+  z0 = depths.back();
+  v1 = vals.back();
+  vals.pop_back();
+  v0 = vals.back();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  z = _dz*(Iend-1);
+  while (z<z0) {
+    z1 = depths.back();
+    depths.pop_back();
+    z0 = depths.back();
+    v1 = vals.back();
+    vals.pop_back();
+    v0 = vals.back();
+    //~PetscPrintf(PETSC_COMM_WORLD,"2: z = %g: z0 = %g   z1 = %g   v0 = %g  v1 = %g\n",z,z0,z1,v0,v1);
+  }
+
+
+  for (Ii=Iend-1; Ii>=Istart; Ii--) {
+    z = _dz*Ii;
+    if (z==z1) { v = v1; }
+    else if (z==z0) { v = v0; }
+    else if (z>z0 && z<z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+
+    // if z is no longer bracketed by (z0,z1), move on to the next pair of points
+    if (z<=z0) {
+      z1 = depths.back();
+      depths.pop_back();
+      z0 = depths.back();
+      v1 = vals.back();
+      vals.pop_back();
+      v0 = vals.back();
+    }
+    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+  VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }

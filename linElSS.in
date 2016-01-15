@@ -1,11 +1,11 @@
-order = 4
-Ny = 201
-Nz = 201
+order = 2
+Ny = 11
+Nz = 1
 Ly = 24 # km
 Lz = 24 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 48] # m
+DcDepths = [0 24] # m
 
 bcT = traction
 bcR = displacement
@@ -14,11 +14,11 @@ bcL = displacement
 
 
 aVals = [0.015 0.015] # comment
-aDepths = [0 48]
+aDepths = [0 24]
 bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 25]
+bDepths = [0 12 15 24]
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 48]
+sigmaNDepths = [0 24]
 
 vL = 1e-9    # m/s
 
@@ -31,20 +31,27 @@ muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
-viscDistribution = loadFromFile
-viscVals = [1e20 1e20 1e9 1e9]
-viscDepths = [0 15 15 24]
+viscDistribution = layered
+AVals = [6.3e-12 6.3e-12]
+ADepths = [0 24]
+BVals = [1.62e4 1.62e4]
+BDepths = [0 24]
+nVals = [4.0 4.0]
+BDepths = [0 24]
+TVals = [773 773]
+TDepths = [0 24]
+
 
 linSolver = AMG
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 5 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 45
+stride1D = 100 # how many steps between writing out 1D fields
+stride2D = 100 # how many steps between writing out 2D fields
+maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 8e10      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
@@ -52,5 +59,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/lay_v1e9_source+T-B_
-outputDir = data/test_
+outputDir = data/lSS_

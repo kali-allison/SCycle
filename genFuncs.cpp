@@ -170,6 +170,8 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
   string funcName = "loadFieldsFromFiles";
   string fileName = "genFuncs.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"  Attempting to load: %s%s\n",inputDir.c_str(),fieldName.c_str());CHKERRQ(ierr);
 #endif
 
   string vecSourceFile = inputDir + fieldName;

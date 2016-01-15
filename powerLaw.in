@@ -1,11 +1,11 @@
-order = 2
-Ny = 6
-Nz = 6
+order = 4
+Ny = 11
+Nz = 11
 Ly = 24 # km
 Lz = 24 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 48] # m
+DcDepths = [0 24] # m
 
 bcT = traction
 bcR = displacement
@@ -14,11 +14,11 @@ bcL = displacement
 
 
 aVals = [0.015 0.015] # comment
-aDepths = [0 48]
+aDepths = [0 24]
 bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 25]
+bDepths = [0 12 15 24]
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 48]
+sigmaNDepths = [0 24]
 
 vL = 1e-9    # m/s
 
@@ -31,16 +31,20 @@ muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
-viscDistribution = fromFile
+viscDistribution = loadFromFile
+AFile = A11
+BFile = B11
+nFile = n11
+TFile = T11
 
 linSolver = AMG
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = FEuler
 timeControlType = P
-stride1D = 5 # how many steps between writing out 1D fields
+stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 45
+maxStepCount = 3
 initTime = 0       # s
 maxTime = 8e10      # s
 minDeltaT = 1e-3     # s

@@ -7,7 +7,7 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o sbpOps.o\
- spmat.o testOdeSolver.o
+ spmat.o testOdeSolver.o powerLaw.o
 
 ifeq (${PETSC_VERSION_NUM},4)
 	include ${PETSC_DIR}/conf/variables
@@ -24,6 +24,10 @@ trial:
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
+
+main_maxwell:  mainMaxwell.o $(OBJECTS)
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm main_maxwell.o
 
 main_linearElastic:  main_linearElastic.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -76,7 +80,11 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp \
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp
+ integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp powerLaw.hpp
+mainMaxwell.o: mainMaxwell.cpp genFuncs.hpp spmat.hpp domain.hpp \
+ sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
+ rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
+ integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp powerLaw.hpp
 main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
@@ -110,9 +118,4 @@ testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
  testOdeSolver.hpp integratorContext.hpp odeSolver.hpp
 testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp
-
-
-
-
-
 
