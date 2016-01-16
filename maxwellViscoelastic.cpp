@@ -176,8 +176,10 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
-  VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
+
+  // lock the fault to test viscous strain alone
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
 
@@ -379,12 +381,13 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     CHKERRQ(ierr);
   #endif
 
+
   // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_epsTotxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  PetscScalar deps,visc,epsVisc,sat,sigmaxy,sigmaxz;
+  PetscScalar deps,visc,epsVisc,sat,sigmaxy,sigmaxz=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -394,7 +397,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecGetValues(SAT,1,&Ii,&sat);
 
     // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = 0.5*sigmaxy/visc - _muArrPlus[Ii]/visc * sat;
+    deps = 0.5*sigmaxy/visc - _muArrPlus[Ii]/visc * sat*0;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -720,7 +723,7 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
   }
 
   if ( stepCount % _stride2D == 0) {
-    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    //ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep2D();CHKERRQ(ierr);
   }
 
@@ -913,13 +916,9 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxzP").c_str(),
                                    FILE_MODE_APPEND,&_epsVxzPV);CHKERRQ(ierr);
     }
-
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-    _stepCount++;
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);

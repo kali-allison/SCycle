@@ -510,6 +510,13 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uBodyP").c_str(),
                                    FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
 
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
+              FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
+                                   FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
+
     if (_isMMS) {
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                 FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -523,6 +530,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
+    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
 
     if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
   }
@@ -663,6 +671,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);

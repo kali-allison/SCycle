@@ -69,7 +69,7 @@ class LinearElastic: public IntegratorContext
     PetscInt             _linSolveCount;
 
     PetscViewer          _bcRPlusV,_bcRMinusV,_bcRMinusShiftV,_bcRMlusShiftV,_bcLPlusV,_bcLMinusV,
-                         _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_sigma_xyPlusV,_sigma_xyMinusV;
+                         _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_stressxyPV,_sigma_xyMinusV;
 
 
     PetscErrorCode setupKSP(SbpOps& sbp,KSP& ksp,PC& pc);

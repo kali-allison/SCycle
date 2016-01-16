@@ -1,4 +1,4 @@
-all: main
+all: main mainLinearElastic mainMaxwell
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
@@ -25,13 +25,13 @@ main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
-main_maxwell:  mainMaxwell.o $(OBJECTS)
+mainMaxwell:  mainMaxwell.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm main_maxwell.o
+	-rm mainMaxwell.o
 
-main_linearElastic:  main_linearElastic.o $(OBJECTS)
+mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm main_linearElastic.o
+	-rm mainLinearElastic.o
 
 main_iceSheet:  main_iceSheet.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -50,7 +50,7 @@ helloWorld: helloWorld.o
 
 #.PHONY : clean
 clean::
-	-rm -f *.o main helloWorld main_linearElastic main_iceSheet
+	-rm -f *.o main helloWorld mainLinearElastic mainMaxwell
 
 depend:
 	-g++ -MM *.c*
@@ -89,7 +89,7 @@ main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp iceSheet.hpp
-main_linearElastic.o: main_linearElastic.cpp genFuncs.hpp spmat.hpp \
+mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp sbpOps.hpp
