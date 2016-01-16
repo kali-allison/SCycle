@@ -31,8 +31,8 @@ muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
-viscDistribution = loadFromFile
-viscVals = [1e20 1e20]
+viscDistribution = layered
+viscVals = [1e13 1e13]
 viscDepths = [0 24]
 
 linSolver = AMG
@@ -40,8 +40,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1e4 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
 maxTime = 2e11      # s
@@ -52,5 +52,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/lay_v1e9_source+T-B_
-outputDir = data/mSS_
+#outputDir = data/mSS_
+outputDir = data/test_
