@@ -741,15 +741,14 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
 {
   PetscErrorCode ierr = 0;
 
-    _stepCount++;
+  _stepCount++;
+  _currTime = time;
   if ( stepCount % _stride1D == 0) {
-    _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    _currTime = time;
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep2D();CHKERRQ(ierr);
   }
@@ -983,13 +982,9 @@ PetscErrorCode PowerLaw::writeStep2D()
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxzP").c_str(),
                                    FILE_MODE_APPEND,&_epsVxzPV);CHKERRQ(ierr);
     }
-
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
-    _stepCount++;
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
