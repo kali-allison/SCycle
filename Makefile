@@ -1,4 +1,5 @@
-all: main mainLinearElastic mainMaxwell
+all: main
+#mainLinearElastic mainMaxwell
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
@@ -9,20 +10,18 @@ OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o sbpOps.o\
  spmat.o testOdeSolver.o powerLaw.o
 
-ifeq (${PETSC_VERSION_NUM},4)
-	include ${PETSC_DIR}/conf/variables
-	include ${PETSC_DIR}/conf/rules
-else
-	include ${PETSC_DIR}/real/lib/petsc/conf/variables
-	include ${PETSC_DIR}/real/lib/petsc/conf/rules
-endif
+
+
+include ${PETSC_DIR}/conf/variables
+include ${PETSC_DIR}/conf/rules
 
 
 trial:
-	@echo ${PETSC_VERSION_NUM}
+	@echo ${PETSC_DIR}/conf/variables
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	echo ${PETSC_DIR}
 	-rm main.o
 
 mainMaxwell:  mainMaxwell.o $(OBJECTS)
@@ -55,11 +54,8 @@ clean::
 depend:
 	-g++ -MM *.c*
 
-ifeq (${PETSC_VERSION_NUM},4)
-	include ${PETSC_DIR}/conf/test
-else
-	include ${PETSC_DIR}/real/lib/petsc/conf/test
-endif
+include ${PETSC_DIR}/conf/test
+
 #=========================================================
 # Dependencies
 #=========================================================

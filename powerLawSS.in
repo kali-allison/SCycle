@@ -32,13 +32,13 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-AVals = [6.3e-12 6.3e-12]
+AVals = [2.2e-6 2.2e-6]
 ADepths = [0 24]
-BVals = [1.62e4 1.62e4]
+BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
-nVals = [4.0 4.0]
+nVals = [2.7 2.7]
 BDepths = [0 24]
-TVals = [773 773]
+TVals = [950 950]
 TDepths = [0 24]
 
 
@@ -51,7 +51,7 @@ stride1D = 100 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1e11      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
@@ -59,4 +59,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/pSS_
+#outputDir = data/pSS_
+outputDir = data/pSS_1_

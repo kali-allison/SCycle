@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 11
 Nz = 1
 Ly = 24 # km
@@ -32,7 +32,7 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
-viscVals = [5e12 5e12]
+viscVals = [1e13 1e13]
 viscDepths = [0 24]
 
 linSolver = AMG
@@ -52,5 +52,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/mSS_v1e13_
+outputDir = data/mSS_fc_
 #outputDir = data/test_

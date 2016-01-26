@@ -411,7 +411,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecGetValues(_B,1,&Ii,&B);
     VecGetValues(_n,1,&Ii,&n);
     VecGetValues(_T,1,&Ii,&T);
-    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T);
+    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T) * 1e-3; // *1e-3 to get resulting eff visc in GPa s
     effVisc = 1.0/invVisc;
     VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
 

@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 11
 Nz = 1
 Ly = 24 # km
@@ -59,4 +59,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/lSS_
+outputDir = data/lSS_fc_

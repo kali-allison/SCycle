@@ -32,6 +32,7 @@ LinearElastic::LinearElastic(Domain&D)
 #endif
 
   // boundary conditions
+  Vec _bcLP;
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
   VecSetSizes(_bcLP,PETSC_DECIDE,_Nz);
   VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
@@ -203,7 +204,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6
     ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
-    ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 #endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCLU);
@@ -917,7 +918,6 @@ PetscErrorCode SymmLinearElastic::setMMSuSourceTerms(Vec& Hxsource,const PetscSc
   ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
 
-  //~ierr = MatMult(_sbpP._H,source,Hxsource);
   ierr = _sbpP.H(source,Hxsource);
 
   VecDestroy(&source);

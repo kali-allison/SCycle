@@ -204,7 +204,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   PetscInt Ii,Istart,Iend; // d/dt u
   PetscScalar y,z,v;
 
-  MMS_uA(_uAnal,time);
+  //~MMS_uA(_uAnal,time);
   //~MMS_epsVxy(_epsVxyP,time);
   //~MMS_epsVxz(_epsVxzP,time);
 
@@ -234,23 +234,24 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
+  VecSet(*(dvarBegin+1),0.0); // slip vel
 
-  ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    // set slip velocity on the fault
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
+  //~ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
+  //~for(Ii=Istart;Ii<Iend;Ii++) {
+    //~y = 0;
+    //~z = _dz * Ii;
+    //~// set slip velocity on the fault
+    //~v = MMS_uA_t(y,z,time);
+    //~ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   // d/dt viscous strains
-  VecSet(*(dvarBegin+2),0.0);
-  VecSet(*(dvarBegin+3),0.0);
+  //~VecSet(*(dvarBegin+2),0.0);
+  //~VecSet(*(dvarBegin+3),0.0);
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
-  ierr = addMMSViscStrainsAndRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+  //~ierr = addMMSViscStrainsAndRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
 
   VecDestroy(&viscSource);
 
@@ -347,15 +348,17 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDuplicate(u,&GR);
   VecDuplicate(u,&temp1);
 
+  // left displacement boundary
   ierr = _sbpP.HyinvxE0y(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP.Hyinvxe0y(gL,GL);CHKERRQ(ierr);
-  VecAXPY(out,-_sbpP._alphaDy,temp1);
-  VecAXPY(out,_sbpP._alphaDy,GL);
+  VecAXPY(out,1.0,temp1);
+  VecAXPY(out,-1.0,GL);
 
+  // right displacement boundary
   ierr = _sbpP.HyinvxENy(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP.HyinvxeNy(gR,GR);CHKERRQ(ierr);
-  VecAXPY(out,_sbpP._alphaDy,temp1);
-  VecAXPY(out,-_sbpP._alphaDy,GR);
+  VecAXPY(out,-1.0,temp1);
+  VecAXPY(out,1.0,GR);
 
   VecDestroy(&GL);
   VecDestroy(&GR);
@@ -396,8 +399,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
     VecGetValues(SAT,1,&Ii,&sat);
 
-    // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = 0.5*sigmaxy/visc - _muArrPlus[Ii]/visc * sat*0;
+    // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) + SAT
+    deps = 0.5*sigmaxy/visc + 0.5*_muArrPlus[Ii]/visc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -501,8 +504,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   PetscScalar y,z,v;
 
   MMS_uA(_uAnal,time);
-  MMS_epsVxy(_epsVxyP,time);
-  MMS_epsVxz(_epsVxzP,time);
+  //~MMS_epsVxy(_epsVxyP,time);
+  //~MMS_epsVxz(_epsVxzP,time);
+  VecSet(_epsVxyP,0.0);
+  VecSet(_epsVxzP,0.0);
 
 
   // set up boundary conditions and add source term
