@@ -49,7 +49,6 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
 
 
     PetscErrorCode setMMSInitialConditions();
-    PetscErrorCode setMMMSviscStrainSourceTerms(Vec& Hxsource,const PetscScalar time);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
 
 

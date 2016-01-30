@@ -133,12 +133,8 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode computeShearStress();
 
     PetscErrorCode setMMSInitialConditions();
-    PetscErrorCode setMMSuSourceTerms(Vec& Hxsource,const PetscScalar time);
     PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError();
-
-
-
 
 
   public:

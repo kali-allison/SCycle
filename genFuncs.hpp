@@ -62,6 +62,8 @@ double MMS_mu_z(const double y,const double z);
 
 double MMS_visc(const double y,const double z);
 double MMS_inVisc(const double y,const double z);
+double MMS_invVisc_y(const double y,const double z);
+double MMS_invVisc_z(const double y,const double z);
 
 double MMS_epsVxy(const double y,const double z,const double t);
 double MMS_epsVxy_y(const double y,const double z,const double t);
@@ -75,11 +77,14 @@ double MMS_epsVxz_t(const double y,const double z,const double t);
 double MMS_uSource(const double y,const double z,const double t);
 double MMS_gamSource(const double y,const double z,const double t);
 
-PetscErrorCode MMS_uA(Vec& vec,const double time);
-PetscErrorCode MMS_epsVxy(Vec& vec,const double time);
-PetscErrorCode MMS_epsVxy_t(Vec& vec,const double time);
-PetscErrorCode MMS_epsVxz(Vec& vec,const double time);
-PetscErrorCode MMS_epsVxz_t(Vec& vec,const double time);
+//~PetscErrorCode MMS_uA(Vec& vec,double dy, double dz,const double time);
+//~PetscErrorCode MMS_epsVxy(Vec& vec,double dy, double dz,const double time);
+//~PetscErrorCode MMS_epsVxy_t(Vec& vec,double dy, double dz,const double time);
+//~PetscErrorCode MMS_epsVxz(Vec& vec,double dy, double dz,const double time);
+//~PetscErrorCode MMS_epsVxz_t(Vec& vec,double dy, double dz,const double time);
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
+  const double N, const double dy, const double dz, const double time);
 
 
 

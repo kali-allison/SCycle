@@ -216,25 +216,28 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
     CHKERRQ(ierr);
   #endif
 
-  PetscInt Ii,Istart,Iend; // d/dt u
-  PetscScalar y,z,v;
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
 
-  MMS_uA(_uAnal,time);
-  //~MMS_epsVxy(_epsVxyP,time);
-  //~MMS_epsVxz(_epsVxzP,time);
+  // create rhs: set boundary conditions, set rhs, add source terms
+  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  Vec viscSource,HxviscSource,uSource,HxuSource;
+  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  // set viscous source terms: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
-  Vec viscSource;
-  VecDuplicate(_uAnal,&viscSource);
-  ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
-  //~ierr = setMMSuSourceTerms(viscSource,time);CHKERRQ(ierr);
+  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(viscSource,HxviscSource);
+  VecDestroy(&viscSource);
+  mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(uSource,HxuSource);
+  VecDestroy(&uSource);
 
-  // set up rhs vector
-  setMMSBoundaryConditions(time);
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
-
-  // add source terms
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // rhs = rhs + source
+  ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
+  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // rhs = rhs + H*usource
+  VecDestroy(&HxviscSource);
+  VecDestroy(&HxuSource);
 
 
   double startTime = MPI_Wtime();
@@ -245,29 +248,16 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
 
   // update fields on fault
   ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  //~ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
+  VecSet(*(dvarBegin+1),0.0); // slip vel
+  //~VecSet(*(dvarBegin+2),0.0); // slip vel
+  //~VecSet(*(dvarBegin+3),0.0); // slip vel
 
-  ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    // set slip velocity on the fault
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
-
-  // d/dt viscous strains
-  VecSet(*(dvarBegin+2),0.0);
-  VecSet(*(dvarBegin+3),0.0);
-  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
-  ierr = addMMSViscStrainsAndRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
-
-  VecDestroy(&viscSource);
+  mapToVec(*(dvarBegin+2),MMS_epsVxy_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+3),MMS_epsVxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -522,22 +512,31 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,v;
-
-  MMS_uA(_uAnal,time);
-  MMS_epsVxy(_epsVxyP,time);
-  MMS_epsVxz(_epsVxzP,time);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
+  mapToVec(_epsVxyP,MMS_epsVxy,_Nz,_dy,_dz,time);
+  mapToVec(_epsVxyP,MMS_epsVxz,_Nz,_dy,_dz,time);
 
 
-  // set up boundary conditions and add source term
-  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr);
-  Vec viscSource;
-  ierr = VecDuplicate(_epsVxyP,&viscSource);CHKERRQ(ierr);
-  ierr = setViscStrainSourceTerms(viscSource,_fault._var.begin(),_fault._var.end());CHKERRQ(ierr);
-  ierr = setMMSuSourceTerms(viscSource,time);CHKERRQ(ierr);
+  // create rhs: set boundary conditions, set rhs, add source terms
+  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  Vec viscSource,HxviscSource,uSource,HxuSource;
+  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // rhs = rhs + source
+  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(viscSource,HxviscSource);
+  VecDestroy(&viscSource);
+  mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(uSource,HxuSource);
+  VecDestroy(&uSource);
+
+  ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
+  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // rhs = rhs + H*usource
+  VecDestroy(&HxviscSource);
+  VecDestroy(&HxuSource);
 
 
   // solve for displacement
@@ -551,43 +550,12 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   VecSet(_stressxyP,0.0);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
-  // set rates
+  // set rates for locked fault
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
   //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
-  // update rates
-  ierr = VecSet(*(_fault._var.begin()),0.0);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(*(_fault._var.begin()+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(_fault._var.begin()+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(_fault._var.begin()+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
-
-  ierr = VecGetOwnershipRange(_epsVxyP,&Istart,&Iend);CHKERRQ(ierr);
-  //~PetscScalar visc;
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~VecGetValues(_visc,1,&Ii,&visc);
-    //~visc = 1;// !!! check
-
-    v = MMS_epsVxy_t_source(y,z,time);
-    ierr = VecSetValues(_depsVxyP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-
-    v = MMS_epsVxz_t_source(y,z,time);
-    ierr = VecSetValues(_depsVxzP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(_depsVxyP);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_depsVxzP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_depsVxyP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_depsVxzP);CHKERRQ(ierr);
-
-  writeVec(_depsVxyP,"depsVxyP");
-  writeVec(_depsVxzP,"depsVxzP");
 
   VecDestroy(&viscSource);
 
@@ -598,138 +566,25 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   return ierr;
 }
 
-// MMS distribution for viscosity
-double PowerLaw::MMS_visc(const double y,const double z)
-{
-  return cos(y)*cos(z) + 2.0;
-}
-
-// MMS analytical distribution for: viscous strain xy epsVxy
-double PowerLaw::MMS_epsVxy(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_y(y,z,t);
-}
-
-// Vec form of MMS analytical distribution for: viscous strain xy epsVxy
-PetscErrorCode PowerLaw::MMS_epsVxy(Vec& vec,const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = MMS_epsVxy(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-// MMS analytical distribution for: d/dy viscous strain xy epsVxy
-double PowerLaw::MMS_epsVxy_y(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_yy(y,z,t);
-}
-
-// MMS analytical distribution for: d/dt viscous strain xy epsVxy
-double PowerLaw::MMS_epsVxy_t_source(const double y,const double z,const double t)
-{
-  return -1.0 * MMS_epsVxy(y,z,t);
-}
-
-// MMS analytical distribution for: viscous strain xz epsVxz
-double PowerLaw::MMS_epsVxz(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_z(y,z,t);
-}
-
-// Vec form of MMS analytical distribution for: viscous strain xz epsVxz
-PetscErrorCode PowerLaw::MMS_epsVxz(Vec& vec,const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = MMS_epsVxz(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-// MMS analytical distribution for: d/dz viscous strain xz epsVxz
-double PowerLaw::MMS_epsVxz_z(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_zz(y,z,t);
-}
-
-// MMS analytical distribution for: d/dt viscous strain xz epsVxz
-double PowerLaw::MMS_epsVxz_t_source(const double y,const double z,const double t)
-{
-  return -1.0 * MMS_epsVxz(y,z,t);
-}
-
-
-
-PetscErrorCode PowerLaw::addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
-{
-    PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-  string funcName = "PowerLaw::setMMSViscStrainsAndRates";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-    CHKERRQ(ierr);
-  #endif
-
-  PetscScalar v,y,z;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-
-    v = MMS_epsVxy_t_source(y,z,time);
-    VecSetValues(*(dvarBegin+2),1,&Ii,&v,ADD_VALUES);
-
-    if (_Nz > 1) {
-      v = MMS_epsVxz_t_source(y,z,time);
-      VecSetValues(*(dvarBegin+3),1,&Ii,&v,ADD_VALUES);
-    }
-  }
-  VecAssemblyBegin(*(dvarBegin+2));
-  VecAssemblyEnd(*(dvarBegin+2));
-
-  if (_Nz > 1) {
-    VecAssemblyBegin(*(dvarBegin+3));
-    VecAssemblyEnd(*(dvarBegin+3));
-  }
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
-  #endif
-  return ierr = 0;
-}
-
 
 PetscErrorCode PowerLaw::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  // measure error between uAnal and _uP (the numerical solution)
-  //~double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
-  double errH = 111111;
-  double err2 = computeNormDiff_2(_uP,_uAnal);
+  // measure error between analytical and numerical solution
+  Vec gxyA,gxzA;
+  VecDuplicate(_uP,&gxyA);
+  VecDuplicate(_uP,&gxzA);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxyA,MMS_epsVxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxzA,MMS_epsVxz,_Nz,_dy,_dz,_currTime);
+
+  double err2u = computeNormDiff_2(_uP,_uAnal);
+  double err2epsxy = computeNormDiff_2(_epsVxyP,gxyA);
+  double err2epsxz = computeNormDiff_2(_epsVxzP,gxzA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
-              _Ny,_dy,err2,log2(err2),errH,log2(errH));
+              _Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy));
 
   return ierr;
 }

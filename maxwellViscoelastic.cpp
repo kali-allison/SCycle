@@ -201,22 +201,28 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
     CHKERRQ(ierr);
   #endif
 
-  MMS_uA(_uAnal,time);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
 
-  // update boundary conditions
-  setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP,_bcBP
+  // create rhs: set boundary conditions, set rhs, add source terms
+  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  Vec viscSource,HxviscSource,uSource,HxuSource;
+  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  // set source terms: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
-  Vec viscSource,uSource;
-  VecDuplicate(_uP,&viscSource);
-  VecDuplicate(_uP,&uSource);
-  ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
-  ierr = setMMSuSourceTerms(uSource,time);CHKERRQ(ierr);
+  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(viscSource,HxviscSource);
+  VecDestroy(&viscSource);
+  mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(uSource,HxuSource);
+  VecDestroy(&uSource);
 
-  // set up rhs vector including both source terms
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // rhs = rhs + source
-  ierr = VecAXPY(_rhsP,1.0,uSource);CHKERRQ(ierr); // rhs = rhs + source
+  ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
+  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // rhs = rhs + H*usource
+  VecDestroy(&HxviscSource);
+  VecDestroy(&HxuSource);
 
 
   double startTime = MPI_Wtime();
@@ -234,14 +240,9 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   VecSet(*(dvarBegin+1),0.0); // slip vel
   //~VecSet(*(dvarBegin+2),0.0); // slip vel
   //~VecSet(*(dvarBegin+3),0.0); // slip vel
-  MMS_epsVxy_t(*(dvarBegin+2),time);
-  MMS_epsVxz_t(*(dvarBegin+3),time);
-  //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
 
-  //~ierr = addMMSViscStrainsAndRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
-
-  VecDestroy(&viscSource);
-  VecDestroy(&uSource);
+  mapToVec(*(dvarBegin+2),MMS_epsVxy_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+3),MMS_epsVxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -488,22 +489,31 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  //~PetscInt Ii,Istart,Iend;
-  //~PetscScalar y,z,v;
-
-  MMS_uA(_uAnal,time);
-  VecSet(_epsVxyP,0.0);
-  VecSet(_epsVxzP,0.0);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
+  mapToVec(_epsVxyP,MMS_epsVxy,_Nz,_dy,_dz,time);
+  mapToVec(_epsVxyP,MMS_epsVxz,_Nz,_dy,_dz,time);
 
 
-  // set up boundary conditions and add source term
-  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr);
-  Vec viscSource;
-  ierr = VecDuplicate(_epsVxyP,&viscSource);CHKERRQ(ierr);
-  ierr = setViscStrainSourceTerms(viscSource,_fault._var.begin(),_fault._var.end());CHKERRQ(ierr);
-  ierr = setMMSuSourceTerms(viscSource,time);CHKERRQ(ierr);
+  // create rhs: set boundary conditions, set rhs, add source terms
+  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  Vec viscSource,HxviscSource,uSource,HxuSource;
+  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // rhs = rhs + source
+  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(viscSource,HxviscSource);
+  VecDestroy(&viscSource);
+  mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(uSource,HxuSource);
+  VecDestroy(&uSource);
+
+  ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
+  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // rhs = rhs + H*usource
+  VecDestroy(&HxviscSource);
+  VecDestroy(&HxuSource);
 
 
   // solve for displacement
@@ -523,40 +533,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
-  /*
-  // update rates
-  ierr = VecSet(*(_fault._var.begin()),0.0);CHKERRQ(ierr);
-  ierr = VecGetOwnershipRange(*(_fault._var.begin()+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(_fault._var.begin()+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(_fault._var.begin()+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
-
-  ierr = VecGetOwnershipRange(_epsVxyP,&Istart,&Iend);CHKERRQ(ierr);
-  PetscScalar visc;
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    VecGetValues(_visc,1,&Ii,&visc);
-
-    v = MMS_epsVxy_t_source(y,z,time);
-    ierr = VecSetValues(_depsVxyP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-
-    v = MMS_epsVxz_t_source(y,z,time);
-    ierr = VecSetValues(_depsVxzP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(_depsVxyP);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_depsVxzP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_depsVxyP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_depsVxzP);CHKERRQ(ierr);
-
-  writeVec(_depsVxyP,"depsVxyP");
-  writeVec(_depsVxzP,"depsVxzP");
-  */
 
   VecDestroy(&viscSource);
 
@@ -568,61 +544,21 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 }
 
 
-
-
-PetscErrorCode SymmMaxwellViscoelastic::addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd, it_vec dvarBegin,it_vec dvarEnd)
-{
-    PetscErrorCode ierr = 0;
-    string funcName = "SymmMaxwellViscoelastic::setMMSViscStrainsAndRates";
-    string fileName = "maxwellViscoelastic.cpp";
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
-    CHKERRQ(ierr);
-  #endif
-
-  PetscScalar v,y,z;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-
-    v = MMS_epsVxy_t_source(y,z,time);
-    VecSetValues(*(dvarBegin+2),1,&Ii,&v,ADD_VALUES);
-
-    if (_Nz > 1) {
-      v = MMS_epsVxz_t_source(y,z,time);
-      VecSetValues(*(dvarBegin+3),1,&Ii,&v,ADD_VALUES);
-    }
-  }
-  VecAssemblyBegin(*(dvarBegin+2));
-  VecAssemblyEnd(*(dvarBegin+2));
-
-  if (_Nz > 1) {
-    VecAssemblyBegin(*(dvarBegin+3));
-    VecAssemblyEnd(*(dvarBegin+3));
-  }
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
-      CHKERRQ(ierr);
-  #endif
-  return ierr = 0;
-}
-
-
 PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
   // measure error between analytical and numerical solution
-  MMS_uA(_uAnal,_currTime);
-  double err2u = computeNormDiff_2(_uP,_uAnal);
+  Vec gxyA,gxzA;
+  VecDuplicate(_uP,&gxyA);
+  VecDuplicate(_uP,&gxzA);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxyA,MMS_epsVxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxzA,MMS_epsVxz,_Nz,_dy,_dz,_currTime);
 
-  Vec epsVxyA;
-  VecDuplicate(_uP,&epsVxyA);
-  MMS_epsVxz(epsVxyA,_currTime);
-  double err2epsxy = computeNormDiff_2(_epsVxyP,epsVxyA);
+  double err2u = computeNormDiff_2(_uP,_uAnal);
+  double err2epsxy = computeNormDiff_2(_epsVxyP,gxyA);
+  double err2epsxz = computeNormDiff_2(_epsVxzP,gxzA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
               _Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy));

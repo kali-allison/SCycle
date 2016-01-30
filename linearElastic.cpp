@@ -592,17 +592,18 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-  PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,v;
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
 
-  MMS_uA(_uAnal,time);
-
-  Vec source;
-  ierr = setMMSuSourceTerms(source,time);CHKERRQ(ierr);
+  Vec source,Hxsource;
+  mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(source,Hxsource);
+  VecDestroy(&source);
 
   // set rhs, including body source term
-  setMMSBoundaryConditions(time);
-  ierr = VecAXPY(_rhsP,1.0,source);CHKERRQ(ierr); // rhs = rhs + source
+  setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+  VecDestroy(&Hxsource);
 
 
   // solve for displacement
@@ -621,17 +622,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
   // update rates
   VecSet(*dvarBegin,0.0);
-
-  //~ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
-  //~for(Ii=Istart;Ii<Iend;Ii++) {
-    //~y = 0;
-    //~z = _dz * Ii;
-    //~v = MMS_uA_t(y,z,time);
-    //~ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
-
+  VecSet(*(dvarBegin+1),0.0);
   VecDestroy(&source);
 
 #if VERBOSE > 1
@@ -735,10 +726,6 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
 
-
-  // solve for displacement
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
   #endif
@@ -756,15 +743,16 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  MMS_uA(_uAnal,time);
+  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
 
-  // set up source terms
-  Vec uSource;
-  ierr = setMMSuSourceTerms(uSource,time);CHKERRQ(ierr);
+  Vec source,Hxsource;
+  mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP.H(source,Hxsource);
+  VecDestroy(&source);
 
-  // set up boundary conditions and add source term
-  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr);
-  ierr = VecAXPY(_rhsP,1.0,uSource);CHKERRQ(ierr); // rhs = rhs + source
+  // set rhs, including body source term
+  setMMSBoundaryConditions(time);
+  ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
 
   // solve for displacement
   double startTime = MPI_Wtime();
@@ -774,7 +762,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // solve for shear stress
-  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
   _sbpP.muxDy(_uP,_stressxyP);
 
   // update fields on fault
@@ -793,8 +780,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = VecAssemblyBegin(*(_fault._var.begin()+1));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
 
-  VecDestroy(&uSource);
-
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -802,43 +787,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   return ierr;
 }
 
-
-PetscErrorCode SymmLinearElastic::setMMSuSourceTerms(Vec& Hxsource,const PetscScalar time)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setMMSuSourceTerms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-
-  // set up source terms
-  Vec source;
-  ierr = VecDuplicate(_uP,&source);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&Hxsource);CHKERRQ(ierr);
-
-  PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,uAnal,v;
-  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-
-    //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i: y = %g, z = %g, uAnal = %.15e\n",Ii,y,z,uAnal);
-    v = MMS_uSource(y,z,time);
-
-    ierr = VecSetValues(source,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(source);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(source);CHKERRQ(ierr);
-
-  ierr = _sbpP.H(source,Hxsource);
-
-  VecDestroy(&source);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setMMSuSourceTerms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-  return ierr = 0;
-}
 
 
 // Outputs data at each time step.
