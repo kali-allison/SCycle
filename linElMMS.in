@@ -18,7 +18,7 @@ aDepths = [0 6.283185307179586]
 bVals = [0.02 0.02]
 bDepths = [0 6.283185307179586]
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 48]
+sigmaNDepths = [0 6.283185307179586]
 
 vL = 1e-9    # m/s
 

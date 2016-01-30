@@ -1,5 +1,4 @@
-all: main
-#mainLinearElastic mainMaxwell
+all: mainMaxwell
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
@@ -38,6 +37,10 @@ main_iceSheet:  main_iceSheet.o $(OBJECTS)
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+
+mainEx: mainEx.o $(OBJECTS)
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm mainEx.o
 
 testMain: testMain.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}

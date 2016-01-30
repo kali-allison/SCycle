@@ -46,15 +46,8 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
 
 
-    double MMS_visc(const double y,const double z);
-    double MMS_epsVxy(const double y,const double z,const double t);
-    PetscErrorCode MMS_epsVxy(Vec& vec,const double time);
-    double MMS_epsVxy_y(const double y,const double z,const double t);
-    double MMS_epsVxy_t_source(const double y,const double z,const double t);
-    double MMS_epsVxz(const double y,const double z,const double t);
-    PetscErrorCode MMS_epsVxz(Vec& vec,const double time);
-    double MMS_epsVxz_z(const double y,const double z,const double t);
-    double MMS_epsVxz_t_source(const double y,const double z,const double t);
+
+
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMMSviscStrainSourceTerms(Vec& Hxsource,const PetscScalar time);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);

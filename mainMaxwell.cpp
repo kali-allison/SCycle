@@ -46,8 +46,8 @@ int runMMSTests(const char * inputFile)
   PetscErrorCode ierr = 0;
 
   PetscPrintf(PETSC_COMM_WORLD,"%-3s %-10s %-10s %-22s %-10s %-22s\n",
-             "Ny","dy","err2","log2(err2)","errH","log2(errH)");
-  for(PetscInt Ny=11;Ny<162;Ny=(Ny-1)*2+1)
+             "Ny","dy","errL2u","log2(errL2u)","errL2epsxy","log2(errL2epsxy)");
+  for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
     Domain domain(inputFile,Ny,Ny);
     domain.write();

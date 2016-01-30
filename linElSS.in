@@ -1,6 +1,6 @@
-order = 4
-Ny = 11
-Nz = 1
+order = 2
+Ny = 5
+Nz = 6
 Ly = 24 # km
 Lz = 24 # km
 
@@ -49,7 +49,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 100 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 3
 initTime = 0       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s

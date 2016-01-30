@@ -32,7 +32,6 @@ LinearElastic::LinearElastic(Domain&D)
 #endif
 
   // boundary conditions
-  Vec _bcLP;
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
   VecSetSizes(_bcLP,PETSC_DECIDE,_Nz);
   VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
@@ -283,7 +282,7 @@ PetscErrorCode LinearElastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
 
@@ -614,7 +613,6 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
   _sbpP.muxDy(_uP,_stressxyP);
 
 
@@ -624,15 +622,15 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   // update rates
   VecSet(*dvarBegin,0.0);
 
-  ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
+  //~ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
+  //~for(Ii=Istart;Ii<Iend;Ii++) {
+    //~y = 0;
+    //~z = _dz * Ii;
+    //~v = MMS_uA_t(y,z,time);
+    //~ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
 
   VecDestroy(&source);
 
@@ -683,93 +681,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 }
 
 
-//======================================================================
-//                  MMS Functions
 
-// analytical solution for u
-double SymmLinearElastic::MMS_uA(double y,double z, double t)
-{
-  return cos(y)*sin(z)*exp(-t);
-}
-
-// Vec form of MMS analytical distribution for: viscous strain xy epsVxy
-PetscErrorCode SymmLinearElastic::MMS_uA(Vec& vec,const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = MMS_uA(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-// d/dy uA
-double SymmLinearElastic::MMS_uA_y(double y,double z, double t)
-{
-  return -sin(y)*sin(z)*exp(-t);
-}
-
-// d^2/dy^2 uA
-double SymmLinearElastic::MMS_uA_yy(const double y,const double z,const double t)
-{
-  return -cos(y)*sin(z)*exp(-t);
-}
-
-// d/dz uA
-double SymmLinearElastic::MMS_uA_z(const double y,const double z,const double t)
-{
-  return cos(y)*cos(z)*exp(-t);
-}
-
-// d^2/dz^2 uA
-double SymmLinearElastic::MMS_uA_zz(const double y,const double z,const double t)
-{
-  return -cos(y)*sin(z)*exp(-t);
-}
-
-// d/dt uA
-double SymmLinearElastic::MMS_uA_t(const double y,const double z,const double t)
-{
-  return -cos(y)*sin(z)*exp(-t);
-}
-
-// MMS distribution for mu
-double SymmLinearElastic::MMS_mu(const double y,const double z)
-{
-  return sin(y)*sin(z) + 2.0;
-}
-
-// MMS analytical distribution for: d/dy mu
-double SymmLinearElastic::MMS_mu_y(const double y,const double z)
-{
-  return cos(y)*sin(z);
-}
-
-// MMS analytical distribution for: d/dz mu
-double SymmLinearElastic::MMS_mu_z(const double y,const double z)
-{
-  return sin(y)*cos(z);
-}
-
-double SymmLinearElastic::MMS_uSource(const double y,const double z,const double t)
-{
-  PetscScalar mu = MMS_mu(y,z);
-  PetscScalar mu_y = MMS_mu_y(y,z);
-  PetscScalar mu_z = MMS_mu_z(y,z);
-  PetscScalar u_y = MMS_uA_y(y,z,t);
-  PetscScalar u_yy = MMS_uA_yy(y,z,t);
-  PetscScalar u_z = MMS_uA_z(y,z,t);
-  PetscScalar u_zz = MMS_uA_zz(y,z,t);
-
-  return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
-}
 
 
 PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)

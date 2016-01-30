@@ -43,4 +43,44 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 
 
 PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
+
+
+
+
+
+// MMS functions (acting on scalars)
+double MMS_uA(double y,double z, double t);
+double MMS_uA_y(double y,double z, double t);
+double MMS_uA_yy(const double y,const double z,const double t);
+double MMS_uA_z(const double y,const double z,const double t);
+double MMS_uA_zz(const double y,const double z,const double t);
+double MMS_uA_t(const double y,const double z,const double t);
+
+double MMS_mu(const double y,const double z);
+double MMS_mu_y(const double y,const double z);
+double MMS_mu_z(const double y,const double z);
+
+double MMS_visc(const double y,const double z);
+double MMS_inVisc(const double y,const double z);
+
+double MMS_epsVxy(const double y,const double z,const double t);
+double MMS_epsVxy_y(const double y,const double z,const double t);
+double MMS_epsVxy_t(const double y,const double z,const double t);
+
+double MMS_epsVxz(const double y,const double z,const double t);
+double MMS_epsVxz_z(const double y,const double z,const double t);
+double MMS_epsVxz_t(const double y,const double z,const double t);
+
+
+double MMS_uSource(const double y,const double z,const double t);
+double MMS_gamSource(const double y,const double z,const double t);
+
+PetscErrorCode MMS_uA(Vec& vec,const double time);
+PetscErrorCode MMS_epsVxy(Vec& vec,const double time);
+PetscErrorCode MMS_epsVxy_t(Vec& vec,const double time);
+PetscErrorCode MMS_epsVxz(Vec& vec,const double time);
+PetscErrorCode MMS_epsVxz_t(Vec& vec,const double time);
+
+
+
 #endif

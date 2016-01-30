@@ -18,7 +18,7 @@ aDepths = [0 6.283185307179586]
 bVals = [0.02 0.02]
 bDepths = [0 6.283185307179586]
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 48]
+sigmaNDepths = [0 6.283185307179586]
 
 vL = 1e-9    # m/s
 
@@ -40,9 +40,9 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 1 # how many steps between writing out 2D fields
-maxStepCount = 1
+maxStepCount = 1e3
 initTime = 0       # s
-maxTime = 1      # s
+maxTime = 1e3      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7

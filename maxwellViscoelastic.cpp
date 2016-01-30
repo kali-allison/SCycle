@@ -173,13 +173,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
+  //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
 
   // lock the fault to test viscous strain alone
-  //~VecSet(*dvarBegin,0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
+  VecSet(*dvarBegin,0.0);
+  VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
 
@@ -201,25 +201,22 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
     CHKERRQ(ierr);
   #endif
 
-  PetscInt Ii,Istart,Iend; // d/dt u
-  PetscScalar y,z,v;
+  MMS_uA(_uAnal,time);
 
-  //~MMS_uA(_uAnal,time);
-  //~MMS_epsVxy(_epsVxyP,time);
-  //~MMS_epsVxz(_epsVxzP,time);
+  // update boundary conditions
+  setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP,_bcBP
 
-  // set viscous source terms: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
-  Vec viscSource;
-  VecDuplicate(_uAnal,&viscSource);
+  // set source terms: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
+  Vec viscSource,uSource;
+  VecDuplicate(_uP,&viscSource);
+  VecDuplicate(_uP,&uSource);
   ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
-  //~ierr = setMMSuSourceTerms(viscSource,time);CHKERRQ(ierr);
+  ierr = setMMSuSourceTerms(uSource,time);CHKERRQ(ierr);
 
-  // set up rhs vector
-  setMMSBoundaryConditions(time);
+  // set up rhs vector including both source terms
   ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
-
-  // add source terms
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // rhs = rhs + source
+  ierr = VecAXPY(_rhsP,1.0,uSource);CHKERRQ(ierr); // rhs = rhs + source
 
 
   double startTime = MPI_Wtime();
@@ -230,30 +227,21 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 
   // update fields on fault
   ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  //~ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // slip vel
+  //~VecSet(*(dvarBegin+2),0.0); // slip vel
+  //~VecSet(*(dvarBegin+3),0.0); // slip vel
+  MMS_epsVxy_t(*(dvarBegin+2),time);
+  MMS_epsVxz_t(*(dvarBegin+3),time);
+  //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
 
-  //~ierr = VecGetOwnershipRange(*(dvarBegin+1),&Istart,&Iend);CHKERRQ(ierr);
-  //~for(Ii=Istart;Ii<Iend;Ii++) {
-    //~y = 0;
-    //~z = _dz * Ii;
-    //~// set slip velocity on the fault
-    //~v = MMS_uA_t(y,z,time);
-    //~ierr = VecSetValues(*(dvarBegin+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  //~}
-  //~ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
-
-  // d/dt viscous strains
-  //~VecSet(*(dvarBegin+2),0.0);
-  //~VecSet(*(dvarBegin+3),0.0);
-  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
   //~ierr = addMMSViscStrainsAndRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
 
   VecDestroy(&viscSource);
+  VecDestroy(&uSource);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -500,12 +488,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,v;
+  //~PetscInt Ii,Istart,Iend;
+  //~PetscScalar y,z,v;
 
   MMS_uA(_uAnal,time);
-  //~MMS_epsVxy(_epsVxyP,time);
-  //~MMS_epsVxz(_epsVxzP,time);
   VecSet(_epsVxyP,0.0);
   VecSet(_epsVxzP,0.0);
 
@@ -531,10 +517,13 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   VecSet(_stressxyP,0.0);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
-  // set rates
+  // set rates for locked fault
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
   //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
+  /*
   // update rates
   ierr = VecSet(*(_fault._var.begin()),0.0);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(*(_fault._var.begin()+1),&Istart,&Iend);CHKERRQ(ierr);
@@ -567,6 +556,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   writeVec(_depsVxyP,"depsVxyP");
   writeVec(_depsVxzP,"depsVxzP");
+  */
 
   VecDestroy(&viscSource);
 
@@ -577,88 +567,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   return ierr;
 }
 
-// MMS distribution for viscosity
-double SymmMaxwellViscoelastic::MMS_visc(const double y,const double z)
-{
-  return cos(y)*cos(z) + 2.0;
-}
-
-// MMS analytical distribution for: viscous strain xy epsVxy
-double SymmMaxwellViscoelastic::MMS_epsVxy(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_y(y,z,t);
-}
-
-// Vec form of MMS analytical distribution for: viscous strain xy epsVxy
-PetscErrorCode SymmMaxwellViscoelastic::MMS_epsVxy(Vec& vec,const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = MMS_epsVxy(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-// MMS analytical distribution for: d/dy viscous strain xy epsVxy
-double SymmMaxwellViscoelastic::MMS_epsVxy_y(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_yy(y,z,t);
-}
-
-// MMS analytical distribution for: d/dt viscous strain xy epsVxy
-double SymmMaxwellViscoelastic::MMS_epsVxy_t_source(const double y,const double z,const double t)
-{
-  return -1.0 * MMS_epsVxy(y,z,t);
-}
-
-// MMS analytical distribution for: viscous strain xz epsVxz
-double SymmMaxwellViscoelastic::MMS_epsVxz(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_z(y,z,t);
-}
-
-// Vec form of MMS analytical distribution for: viscous strain xz epsVxz
-PetscErrorCode SymmMaxwellViscoelastic::MMS_epsVxz(Vec& vec,const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = MMS_epsVxz(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-// MMS analytical distribution for: d/dz viscous strain xz epsVxz
-double SymmMaxwellViscoelastic::MMS_epsVxz_z(const double y,const double z,const double t)
-{
-  return 0.5 * MMS_uA_zz(y,z,t);
-}
-
-// MMS analytical distribution for: d/dt viscous strain xz epsVxz
-double SymmMaxwellViscoelastic::MMS_epsVxz_t_source(const double y,const double z,const double t)
-{
-  return -1.0 * MMS_epsVxz(y,z,t);
-}
 
 
 
-PetscErrorCode SymmMaxwellViscoelastic::addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+PetscErrorCode SymmMaxwellViscoelastic::addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd, it_vec dvarBegin,it_vec dvarEnd)
 {
     PetscErrorCode ierr = 0;
     string funcName = "SymmMaxwellViscoelastic::setMMSViscStrainsAndRates";
@@ -703,13 +615,17 @@ PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  // measure error between uAnal and _uP (the numerical solution)
-  //~double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
-  double errH = 111111;
-  double err2 = computeNormDiff_2(_uP,_uAnal);
+  // measure error between analytical and numerical solution
+  MMS_uA(_uAnal,_currTime);
+  double err2u = computeNormDiff_2(_uP,_uAnal);
+
+  Vec epsVxyA;
+  VecDuplicate(_uP,&epsVxyA);
+  MMS_epsVxz(epsVxyA,_currTime);
+  double err2epsxy = computeNormDiff_2(_epsVxyP,epsVxyA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
-              _Ny,_dy,err2,log2(err2),errH,log2(errH));
+              _Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy));
 
   return ierr;
 }
