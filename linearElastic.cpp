@@ -358,6 +358,17 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   setSurfDisp();
 
+  // set up initial conditions for integration (shallow copy)
+  _var.push_back(_fault._psi);
+   if (_isMMS) {
+    _var.push_back(_uP);
+  }
+  else {
+    _var.push_back(_fault._slip);
+  }
+
+
+assert(0);
 
 
 #if VERBOSE > 1
@@ -559,7 +570,7 @@ PetscErrorCode SymmLinearElastic::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
@@ -768,17 +779,8 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // update rates
-  PetscInt Ii,Istart,Iend;
-  PetscScalar y,z,v;
-  ierr = VecGetOwnershipRange(*(_fault._var.begin()+1),&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    y = 0;
-    z = _dz * Ii;
-    v = MMS_uA_t(y,z,time);
-    ierr = VecSetValues(*(_fault._var.begin()+1),1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(*(_fault._var.begin()+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(_fault._var.begin()+1));CHKERRQ(ierr);
+  VecSet(*_var.begin(),0.0);
+  mapToVec(*(_var.begin()+1),MMS_uA_t,_Nz,_dy,_dz,time);
 
 
   #if VERBOSE > 1
@@ -940,6 +942,10 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _fault.setTauQS(_stressxyP,_sigma_xyMinus);
   _fault.setFaultDisp(_bcLP,_bcRMinus);
   _fault.computeVel();
+
+  _var.push_back(_fault._psi);
+  _var.push_back(_fault._uP);
+  _var.push_back(_fault._uM);
 
 
   VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
@@ -1141,7 +1147,7 @@ PetscErrorCode FullLinearElastic::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;

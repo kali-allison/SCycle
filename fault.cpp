@@ -302,12 +302,7 @@ SymmFault::SymmFault(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::SymmFault in fault.cpp.\n");
 #endif
 
-  // set up initial conditions for integration (shallow copy)
-  _var.push_back(_psi);
-  _var.push_back(_slip);
-
   // vectors were allocated in Fault constructor, just need to set values.
-
   setSplitNodeFields();
 
 #if VERBOSE > 1
@@ -719,10 +714,6 @@ FullFault::FullFault(Domain&D)
   VecDuplicate(_tauQSP,&_velMinus); PetscObjectSetName((PetscObject) _velMinus, "velMinus");
   VecDuplicate(_tauQSP,&_velPlus); PetscObjectSetName((PetscObject) _velPlus, "velPlus");
   VecDuplicate(_tauQSP,&_zM); PetscObjectSetName((PetscObject) _zM, "zMinus");
-
-  _var.push_back(_psi);
-  _var.push_back(_uP);
-  _var.push_back(_uM);
 
   setSplitNodeFields();
 

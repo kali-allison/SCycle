@@ -45,9 +45,9 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
 
 
-  // add viscous strain to integrated variables, stored in _fault._var
-  _fault._var.push_back(_epsVxyP);
-  _fault._var.push_back(_epsVxzP);
+  // add viscous strain to integrated variables, stored in _var
+  _var.push_back(_epsVxyP);
+  _var.push_back(_epsVxzP);
 
   if (_isMMS) {
     setMMSInitialConditions();
@@ -108,7 +108,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
   _quadrature->setTolerance(_atol);CHKERRQ(ierr);
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_fault._var);CHKERRQ(ierr);
+  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;

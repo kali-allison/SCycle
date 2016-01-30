@@ -61,7 +61,6 @@ class Fault: public RootFinderContext
     PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
 
   //~public:
-    std::vector<Vec>    _var;
     Vec            _tauQSP;
 
     // iterators for _var

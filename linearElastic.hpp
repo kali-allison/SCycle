@@ -140,6 +140,7 @@ class SymmLinearElastic: public LinearElastic
   public:
 
     SymmFault       _fault;
+    std::vector<Vec>    _var; // holds variables to integrate
 
 
     SymmLinearElastic(Domain&D);
@@ -204,6 +205,7 @@ class FullLinearElastic: public LinearElastic
     Vec                  _bcTMinus,_bcRMinus,_bcBMinus,_bcLMinus;
 
     FullFault            _fault;
+    std::vector<Vec>    _var; // holds variables to integrate
 
 
     FullLinearElastic(Domain&D);
