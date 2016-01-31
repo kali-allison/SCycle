@@ -305,7 +305,7 @@ double MMS_gxy_y(const double y,const double z,const double t)
   double den = A-1.0, B = exp(-t)-exp(-A*t);
   return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
 }
-double MMS_gVxy_t(const double y,const double z,const double t)
+double MMS_gxy_t(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fy = MMS_f_y(y,z);

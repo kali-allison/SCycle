@@ -322,17 +322,13 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
   _var.push_back(varPsi);
+  Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
+  _var.push_back(varSlip);
 
   if (_isMMS) {
-    Vec varuP; VecDuplicate(_uP,&varuP); VecCopy(_uP,varuP);
-    _var.push_back(varuP);
-
     setMMSInitialConditions();
   }
   else {
-    Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
-    _var.push_back(varSlip);
-
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
 
@@ -572,7 +568,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   return ierr;
 }
 
-
+// I'm not sure this makes sense as a function given my current MMS test
 PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                  it_vec dvarBegin,it_vec dvarEnd)
 {
@@ -610,7 +606,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   // update rates
   VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
-  ierr = mapToVec(*(dvarBegin+1),MMS_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  //~ierr = mapToVec(*(dvarBegin+1),MMS_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
@@ -750,7 +746,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
-  VecCopy(_uP,*(_var.begin()+1));
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();

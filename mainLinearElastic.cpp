@@ -37,7 +37,6 @@ int runMMSTests(const char * inputFile)
 
     ierr = obj->writeStep1D();CHKERRQ(ierr);
     ierr = obj->writeStep2D();CHKERRQ(ierr);
-    //~ierr = obj->integrate();CHKERRQ(ierr);
 
     obj->measureMMSError();
   }

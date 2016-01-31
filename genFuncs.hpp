@@ -67,7 +67,7 @@ double MMS_invVisc_z(const double y,const double z);
 
 double MMS_gxy(const double y,const double z,const double t);
 double MMS_gxy_y(const double y,const double z,const double t);
-double MMS_gVxy_t(const double y,const double z,const double t);
+double MMS_gxy_t(const double y,const double z,const double t);
 
 double MMS_gxz(const double y,const double z,const double t);
 double MMS_gxz_z(const double y,const double z,const double t);

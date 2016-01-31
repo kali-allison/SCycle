@@ -254,7 +254,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   //~VecSet(*(dvarBegin+2),0.0); // slip vel
   //~VecSet(*(dvarBegin+3),0.0); // slip vel
 
-  mapToVec(*(dvarBegin+2),MMS_gVxy_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
   mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
