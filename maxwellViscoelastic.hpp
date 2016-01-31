@@ -30,8 +30,8 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscViewer _gxzPV,_dgxzPV;
 
     // additional body fields for visualization
-    Vec         _epsTotxyP,_epsTotxzP; // total strain
-    PetscViewer _epsTotxyPV,_epsTotxzPV;
+    Vec         _gTxyP,_gTxzP; // total strain
+    PetscViewer _gTxyPV,_gTxzPV;
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
 

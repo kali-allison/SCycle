@@ -10,10 +10,10 @@ PowerLaw::PowerLaw(Domain& D)
   _stressxzP(NULL),_sigmadev(NULL),
   _gxyP(NULL),_dgxyP(NULL),
   _gxzP(NULL),_dgxzP(NULL),
-  _epsTotxyP(NULL),_epsTotxzP(NULL),
+  _gTxyP(NULL),_gTxzP(NULL),
   _T(NULL),
   _stressxyPV(NULL),_stressxzPV(NULL),_sigmadevV(NULL),
-  _epsTotxyPV(NULL),_epsTotxzPV(NULL),
+  _gTxyPV(NULL),_gTxzPV(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
   _gxzPV(NULL),_dgxzPV(NULL),
   _TV(NULL),_effViscV(NULL)
@@ -50,8 +50,8 @@ PowerLaw::PowerLaw(Domain& D)
   VecSet(_dgxzP,0.0);
 
 
-  VecDuplicate(_uP,&_epsTotxyP); VecSet(_epsTotxyP,0.0);
-  VecDuplicate(_uP,&_epsTotxzP); VecSet(_epsTotxzP,0.0);
+  VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
+  VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
 
 
@@ -84,8 +84,8 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_stressxzP);
   VecDestroy(&_sigmadev);
 
-  VecDestroy(&_epsTotxyP);
-  VecDestroy(&_epsTotxzP);
+  VecDestroy(&_gTxyP);
+  VecDestroy(&_gTxzP);
   VecDestroy(&_gxyP);
   VecDestroy(&_gxzP);
   VecDestroy(&_dgxyP);
@@ -95,8 +95,8 @@ PowerLaw::~PowerLaw()
   PetscViewerDestroy(&_stressxyPV);
   PetscViewerDestroy(&_stressxzPV);
   PetscViewerDestroy(&_sigmadevV);
-  PetscViewerDestroy(&_epsTotxyPV);
-  PetscViewerDestroy(&_epsTotxzPV);
+  PetscViewerDestroy(&_gTxyPV);
+  PetscViewerDestroy(&_gTxzPV);
   PetscViewerDestroy(&_gxyPV);
   PetscViewerDestroy(&_gxzPV);
   PetscViewerDestroy(&_dgxyPV);
@@ -225,7 +225,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  mapToVec(viscSource,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP.H(viscSource,HxviscSource);
   VecDestroy(&viscSource);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
@@ -254,8 +254,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   //~VecSet(*(dvarBegin+2),0.0); // slip vel
   //~VecSet(*(dvarBegin+3),0.0); // slip vel
 
-  mapToVec(*(dvarBegin+2),MMS_epsVxy_t,_Nz,_dy,_dz,time);
-  mapToVec(*(dvarBegin+3),MMS_epsVxz_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+2),MMS_gVxy_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -383,7 +383,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
 
   // add SAT terms to strain rate for epsxy
   Vec SAT;
-  VecDuplicate(_epsTotxyP,&SAT);
+  VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
   PetscScalar deps,invVisc,epsVisc,sat,sigmaxy,sigmaxz,sigmadev,A,B,n,T,effVisc=0;
@@ -410,7 +410,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
-      //~VecGetValues(_epsTotxzP,1,&Ii,&epsTot);
+      //~VecGetValues(_gTxzP,1,&Ii,&epsTot);
       VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
       VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
 
@@ -450,17 +450,17 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   #endif
 
   // compute strains and rates
-  _sbpP.Dy(_uP,_epsTotxyP);
-  VecScale(_epsTotxyP,0.5);
+  _sbpP.Dy(_uP,_gTxyP);
+  VecScale(_gTxyP,0.5);
 
-  _sbpP.Dz(_uP,_epsTotxzP);
-  VecScale(_epsTotxzP,0.5);
+  _sbpP.Dz(_uP,_gTxzP);
+  VecScale(_gTxzP,0.5);
 
   PetscScalar epsTot,epsVisc,sigmaxy,sigmaxz,sigmadev=0;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_epsTotxyP,&Istart,&Iend);
+  VecGetOwnershipRange(_gTxyP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_epsTotxyP,1,&Ii,&epsTot);
+    VecGetValues(_gTxyP,1,&Ii,&epsTot);
     VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
 
     // solve for stressxyP = 2*mu*epsExy (elastic strain)
@@ -471,7 +471,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
     sigmadev = sigmaxy*sigmaxy;
 
     if (_Nz > 1) {
-      VecGetValues(_epsTotxzP,1,&Ii,&epsTot);
+      VecGetValues(_gTxzP,1,&Ii,&epsTot);
       VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
 
       // solve for stressxzP = 2*mu*epsExy (elastic strain)
@@ -510,8 +510,8 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  mapToVec(_gxyP,MMS_epsVxy,_Nz,_dy,_dz,time);
-  mapToVec(_gxyP,MMS_epsVxz,_Nz,_dy,_dz,time);
+  mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
+  mapToVec(_gxyP,MMS_gxz,_Nz,_dy,_dz,time);
 
 
   // create rhs: set boundary conditions, set rhs, add source terms
@@ -523,7 +523,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  mapToVec(viscSource,MMS_gamSource,_Nz,_dy,_dz,time);
+  mapToVec(viscSource,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP.H(viscSource,HxviscSource);
   VecDestroy(&viscSource);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
@@ -574,8 +574,8 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxyA,MMS_epsVxy,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxzA,MMS_epsVxz,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxyA,MMS_gxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxzA,MMS_gxz,_Nz,_dy,_dz,_currTime);
 
   double err2u = computeNormDiff_2(_uP,uA);
   double err2epsxy = computeNormDiff_2(_gxyP,gxyA);
@@ -778,11 +778,11 @@ PetscErrorCode PowerLaw::writeStep2D()
                                    FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"totStrainxyP").c_str(),
-              FILE_MODE_WRITE,&_epsTotxyPV);CHKERRQ(ierr);
-    ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_epsTotxyPV);CHKERRQ(ierr);
+              FILE_MODE_WRITE,&_gTxyPV);CHKERRQ(ierr);
+    ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_gTxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"totStrainxyP").c_str(),
-                                   FILE_MODE_APPEND,&_epsTotxyPV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_gTxyPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
               FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
@@ -815,11 +815,11 @@ PetscErrorCode PowerLaw::writeStep2D()
     if (_Nz>1)
     {
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"totStrainxzP").c_str(),
-              FILE_MODE_WRITE,&_epsTotxzPV);CHKERRQ(ierr);
-      ierr = VecView(_epsTotxzP,_epsTotxzPV);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&_epsTotxzPV);CHKERRQ(ierr);
+              FILE_MODE_WRITE,&_gTxzPV);CHKERRQ(ierr);
+      ierr = VecView(_gTxzP,_gTxzPV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_gTxzPV);CHKERRQ(ierr);
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"totStrainxzP").c_str(),
-                                     FILE_MODE_APPEND,&_epsTotxzPV);CHKERRQ(ierr);
+                                     FILE_MODE_APPEND,&_gTxzPV);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxzP").c_str(),
                FILE_MODE_WRITE,&_stressxzPV);CHKERRQ(ierr);
@@ -840,14 +840,14 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
+    ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
-      ierr = VecView(_epsTotxzP,_epsTotxzPV);CHKERRQ(ierr);
+      ierr = VecView(_gTxzP,_gTxzPV);CHKERRQ(ierr);
       ierr = VecView(_stressxzP,_stressxzPV);CHKERRQ(ierr);
       ierr = VecView(_gxzP,_gxzPV);CHKERRQ(ierr);
     }

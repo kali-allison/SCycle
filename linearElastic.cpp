@@ -293,10 +293,10 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 
   // measure error between analytical and numerical solution
   Vec uA;
-  VecDuplicate(_uP,&uA);
+  VecDuplicate(*(_var.begin()+1),&uA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
 
-  double err2 = computeNormDiff_2(_uP,uA);
+  double err2 = computeNormDiff_2(*(_var.begin()+1),uA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e \n",
               _Ny,_dy,err2,log2(err2));
@@ -318,20 +318,20 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
 #endif
 
-  // almost everything is covered by base class' constructor, except the
-  // construction of _fault, and populating bcRshift
-
   VecDuplicate(_rhsP,&_stressxyP);
 
+  Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
+  _var.push_back(varPsi);
+
   if (_isMMS) {
-    _var.push_back(_fault._psi);
-    _var.push_back(_uP);
+    Vec varuP; VecDuplicate(_uP,&varuP); VecCopy(_uP,varuP);
+    _var.push_back(varuP);
 
     setMMSInitialConditions();
   }
   else {
-    _var.push_back(_fault._psi);
-    _var.push_back(_fault._slip);
+    Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
+    _var.push_back(varSlip);
 
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
@@ -750,14 +750,13 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
-  writeVec(_uP,"data/mms_uNP");
+  VecCopy(_uP,*(_var.begin()+1));
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
 
   // solve for shear stress
   _sbpP.muxDy(_uP,_stressxyP);
-  //~ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
 
   #if VERBOSE > 1

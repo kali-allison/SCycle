@@ -29,12 +29,12 @@ class PowerLaw: public SymmLinearElastic
     Vec         _stressxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
     Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
-    Vec         _epsTotxyP,_epsTotxzP; // total strain
+    Vec         _gTxyP,_gTxzP; // total strain
     Vec         _T; // temperature (K)
 
     // viewers
     PetscViewer _stressxyPV,_stressxzPV,_sigmadevV;
-    PetscViewer _epsTotxyPV,_epsTotxzPV;
+    PetscViewer _gTxyPV,_gTxzPV;
     PetscViewer _gxyPV,_dgxyPV;
     PetscViewer _gxzPV,_dgxzPV;
     PetscViewer _TV;

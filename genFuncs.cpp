@@ -289,13 +289,13 @@ double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 
 double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+20.0, 2.0); }
 double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+20.0 ,2.0); }
 
-double MMS_epsVxy(const double y,const double z,const double t)
+double MMS_gxy(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fy = MMS_f_y(y,z);
   return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
 }
-double MMS_epsVxy_y(const double y,const double z,const double t)
+double MMS_gxy_y(const double y,const double z,const double t)
 {
   //~return 0.5 * MMS_uA_yy(y,z,t);
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
@@ -303,31 +303,31 @@ double MMS_epsVxy_y(const double y,const double z,const double t)
   double fy = MMS_f_y(y,z);
   double fyy = MMS_f_yy(y,z);
   double den = A-1.0, B = exp(-t)-exp(-A*t);
-  return t*A*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
+  return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
 }
-double MMS_epsVxy_t(const double y,const double z,const double t)
+double MMS_gVxy_t(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fy = MMS_f_y(y,z);
   return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
 }
 
-double MMS_epsVxz(const double y,const double z,const double t)
+double MMS_gxz(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fz = MMS_f_z(y,z);
   return A*fz/(A-1.0)*(exp(-t) - exp(-A*t));
 }
-double MMS_epsVxz_z(const double y,const double z,const double t)
+double MMS_gxz_z(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double Az = MMS_mu_z(y,z)*MMS_invVisc(y,z) + MMS_mu(y,z)*MMS_invVisc_z(y,z);
   double fz = MMS_f_z(y,z);
   double fzz = MMS_f_zz(y,z);
   double den = A-1.0, B = exp(-t)-exp(-A*t);
-  return t*A*fz*exp(-A*t)/den - A*fz*Az*B/pow(den,2.0) + fz*Az*B/den + A*fzz*B/den;
+  return t*A*Az*fz*exp(-A*t)/den - A*fz*Az*B/pow(den,2.0) + fz*Az*B/den + A*fzz*B/den;
 }
-double MMS_epsVxz_t(const double y,const double z,const double t)
+double MMS_gxz_t(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fz = MMS_f_z(y,z);
@@ -345,72 +345,20 @@ double MMS_uSource(const double y,const double z,const double t)
   PetscScalar u_zz = MMS_uA_zz(y,z,t);
   return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
 }
-double MMS_gamSource(const double y,const double z,const double t)
+double MMS_gSource(const double y,const double z,const double t)
 {
   PetscScalar mu = MMS_mu(y,z);
   PetscScalar mu_y = MMS_mu_y(y,z);
   PetscScalar mu_z = MMS_mu_z(y,z);
-  PetscScalar gxy = MMS_epsVxy(y,z,t);
-  PetscScalar gxz = MMS_epsVxz(y,z,t);
-  PetscScalar gxy_y = MMS_epsVxy_y(y,z,t);
-  PetscScalar gxz_z = MMS_epsVxz_z(y,z,t);
-  return mu*(gxy_y + gxz_z) + mu_y*gxy + mu_z*gxz;
+  PetscScalar gxy = MMS_gxy(y,z,t);
+  PetscScalar gxz = MMS_gxz(y,z,t);
+  PetscScalar gxy_y = MMS_gxy_y(y,z,t);
+  PetscScalar gxz_z = MMS_gxz_z(y,z,t);
+  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
 }
 
 
-// Vec forms of the various MMS solutions
-
-/*PetscErrorCode MMS_uA(Vec& vec, double dy, double dz, const int Nz, const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = dy*(Ii/Nz);
-    z = dz*(Ii-Nz*(Ii/Nz));
-    v = MMS_uA(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-PetscErrorCode MMS_epsVxy(Vec& vec, double dy, double dz,const int Nz,  const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = dy*(Ii/Nz);
-    z = dz*(Ii-Nz*(Ii/Nz));
-    v = MMS_epsVxy(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}
-
-PetscErrorCode MMS_epsVxz(Vec& vec, double dy, double dz,const int Nz, const double time)
-{
-  PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    y = dy*(Ii/Nz);
-    z = dz*(Ii-Nz*(Ii/Nz));
-    v = MMS_epsVxz(y,z,time);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  return ierr;
-}*/
-
+// Map a function that acts on scalars to a 2D Vec
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   const int N, const double dy, const double dz, const double t)
 {

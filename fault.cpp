@@ -565,6 +565,8 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   assert(varBegin+1 != varEnd);
 
   ierr = VecCopy(*(varBegin),_tempPsi);CHKERRQ(ierr);
+  ierr = VecCopy(*(varBegin),_psi);CHKERRQ(ierr);
+  ierr = VecCopy(*(varBegin+1),_slip);CHKERRQ(ierr);
   ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
