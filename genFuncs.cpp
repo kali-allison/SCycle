@@ -284,10 +284,10 @@ double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
 double MMS_mu_y(const double y,const double z) { return cos(y)*sin(z); }
 double MMS_mu_z(const double y,const double z) { return sin(y)*cos(z); }
 
-double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 2.0; }
-double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 2.0); }
-double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2.0, 2.0); }
-double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2.0 ,2.0); }
+double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 20.0; }
+double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 20.0); }
+double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+20.0, 2.0); }
+double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+20.0 ,2.0); }
 
 double MMS_epsVxy(const double y,const double z,const double t)
 {
@@ -412,7 +412,28 @@ PetscErrorCode MMS_epsVxz(Vec& vec, double dy, double dz,const int Nz, const dou
 }*/
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const double N, const double dy, const double dz, const double time)
+  const int N, const double dy, const double dz, const double t)
+{
+  //~PetscPrintf(PETSC_COMM_WORLD,"N = %i, dy = %g, dz = %g, t = %g\n",N,dy,dz,t);
+
+  PetscErrorCode ierr = 0;
+  PetscScalar y,z,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    y = dy*(Ii/N);
+    z = dz*(Ii-N*(Ii/N));
+    //~PetscPrintf(PETSC_COMM_WORLD,"%i: (y,z) = (%e,%e)\n",Ii,y,z);
+    v = func(y,z,t);
+    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  const int N, const double dy, const double dz)
 {
   PetscErrorCode ierr = 0;
   PetscScalar y,z,v;
@@ -421,7 +442,7 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   for (Ii=Istart; Ii<Iend; Ii++) {
     y = dy*(Ii/N);
     z = dz*(Ii-N*(Ii/N));
-    v = func(y,z,time);
+    v = func(y,z);
     ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);

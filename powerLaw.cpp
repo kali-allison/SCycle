@@ -8,14 +8,14 @@ PowerLaw::PowerLaw(Domain& D)
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_B(NULL),_effVisc(NULL),
   _stressxzP(NULL),_sigmadev(NULL),
-  _epsVxyP(NULL),_depsVxyP(NULL),
-  _epsVxzP(NULL),_depsVxzP(NULL),
+  _gxyP(NULL),_dgxyP(NULL),
+  _gxzP(NULL),_dgxzP(NULL),
   _epsTotxyP(NULL),_epsTotxzP(NULL),
   _T(NULL),
   _stressxyPV(NULL),_stressxzPV(NULL),_sigmadevV(NULL),
   _epsTotxyPV(NULL),_epsTotxzPV(NULL),
-  _epsVxyPV(NULL),_depsVxyPV(NULL),
-  _epsVxzPV(NULL),_depsVxzPV(NULL),
+  _gxyPV(NULL),_dgxyPV(NULL),
+  _gxzPV(NULL),_dgxzPV(NULL),
   _TV(NULL),_effViscV(NULL)
 {
   #if VERBOSE > 1
@@ -35,19 +35,19 @@ PowerLaw::PowerLaw(Domain& D)
   VecDuplicate(_uP,&_effVisc); VecSet(_sigmadev,0.0);
 
 
-  VecDuplicate(_uP,&_epsVxyP);
-  PetscObjectSetName((PetscObject) _epsVxyP, "_epsVxyP");
-  VecSet(_epsVxyP,0.0);
-  VecDuplicate(_uP,&_depsVxyP);
-  PetscObjectSetName((PetscObject) _depsVxyP, "_depsVxyP");
-  VecSet(_depsVxyP,0.0);
+  VecDuplicate(_uP,&_gxyP);
+  PetscObjectSetName((PetscObject) _gxyP, "_gxyP");
+  VecSet(_gxyP,0.0);
+  VecDuplicate(_uP,&_dgxyP);
+  PetscObjectSetName((PetscObject) _dgxyP, "_dgxyP");
+  VecSet(_dgxyP,0.0);
 
-  VecDuplicate(_uP,&_epsVxzP);
-  PetscObjectSetName((PetscObject) _epsVxzP, "_epsVxzP");
-  VecSet(_epsVxzP,0.0);
-  VecDuplicate(_uP,&_depsVxzP);
-  PetscObjectSetName((PetscObject) _depsVxzP, "_depsVxzP");
-  VecSet(_depsVxzP,0.0);
+  VecDuplicate(_uP,&_gxzP);
+  PetscObjectSetName((PetscObject) _gxzP, "_gxzP");
+  VecSet(_gxzP,0.0);
+  VecDuplicate(_uP,&_dgxzP);
+  PetscObjectSetName((PetscObject) _dgxzP, "_dgxzP");
+  VecSet(_dgxzP,0.0);
 
 
   VecDuplicate(_uP,&_epsTotxyP); VecSet(_epsTotxyP,0.0);
@@ -56,8 +56,8 @@ PowerLaw::PowerLaw(Domain& D)
 
 
   // add viscous strain to integrated variables, stored in _var
-  _var.push_back(_epsVxyP);
-  _var.push_back(_epsVxzP);
+  _var.push_back(_gxyP);
+  _var.push_back(_gxzP);
 
   if (_isMMS) {
     setMMSInitialConditions();
@@ -86,10 +86,10 @@ PowerLaw::~PowerLaw()
 
   VecDestroy(&_epsTotxyP);
   VecDestroy(&_epsTotxzP);
-  VecDestroy(&_epsVxyP);
-  VecDestroy(&_epsVxzP);
-  VecDestroy(&_depsVxyP);
-  VecDestroy(&_depsVxzP);
+  VecDestroy(&_gxyP);
+  VecDestroy(&_gxzP);
+  VecDestroy(&_dgxyP);
+  VecDestroy(&_dgxzP);
   VecDestroy(&_T);
 
   PetscViewerDestroy(&_stressxyPV);
@@ -97,10 +97,10 @@ PowerLaw::~PowerLaw()
   PetscViewerDestroy(&_sigmadevV);
   PetscViewerDestroy(&_epsTotxyPV);
   PetscViewerDestroy(&_epsTotxzPV);
-  PetscViewerDestroy(&_epsVxyPV);
-  PetscViewerDestroy(&_epsVxzPV);
-  PetscViewerDestroy(&_depsVxyPV);
-  PetscViewerDestroy(&_depsVxzPV);
+  PetscViewerDestroy(&_gxyPV);
+  PetscViewerDestroy(&_gxzPV);
+  PetscViewerDestroy(&_dgxyPV);
+  PetscViewerDestroy(&_dgxzPV);
   PetscViewerDestroy(&_TV);
 
 
@@ -170,7 +170,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 
   // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
   Vec viscSource;
-  ierr = VecDuplicate(_epsVxyP,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
 
   // set up rhs vector
@@ -215,8 +215,6 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
-
-  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
@@ -277,12 +275,12 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   #endif
 
   Vec source;
-  VecDuplicate(_epsVxyP,&source);
+  VecDuplicate(_gxyP,&source);
 
   // add source terms to rhs: d/dy( 2*mu*epsV_xy) + d/dz( 2*mu*epsV_xz)
   // + Hz^-1 E0z mu epsV_xz + Hz^-1 ENz mu epsV_xz
   Vec sourcexy_y;
-  VecDuplicate(_epsVxyP,&sourcexy_y);
+  VecDuplicate(_gxyP,&sourcexy_y);
   ierr = _sbpP.Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
   ierr = VecScale(sourcexy_y,2.0);CHKERRQ(ierr);
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
@@ -292,7 +290,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   if (_Nz > 1)
   {
     Vec sourcexz_z;
-    VecDuplicate(_epsVxzP,&sourcexz_z);
+    VecDuplicate(_gxzP,&sourcexz_z);
 
     ierr = _sbpP.Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
     ierr = VecScale(sourcexz_z,2.0);CHKERRQ(ierr);
@@ -301,9 +299,9 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     VecDestroy(&sourcexz_z);
 
     Vec temp1,bcT,bcB;
-    VecDuplicate(_epsVxzP,&temp1);
-    VecDuplicate(_epsVxzP,&bcT);
-    VecDuplicate(_epsVxzP,&bcB);
+    VecDuplicate(_gxzP,&temp1);
+    VecDuplicate(_gxzP,&bcT);
+    VecDuplicate(_gxzP,&bcB);
 
 
 
@@ -512,9 +510,8 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
-  mapToVec(_epsVxyP,MMS_epsVxy,_Nz,_dy,_dz,time);
-  mapToVec(_epsVxyP,MMS_epsVxz,_Nz,_dy,_dz,time);
+  mapToVec(_gxyP,MMS_epsVxy,_Nz,_dy,_dz,time);
+  mapToVec(_gxyP,MMS_epsVxz,_Nz,_dy,_dz,time);
 
 
   // create rhs: set boundary conditions, set rhs, add source terms
@@ -572,16 +569,17 @@ PetscErrorCode PowerLaw::measureMMSError()
   PetscErrorCode ierr = 0;
 
   // measure error between analytical and numerical solution
-  Vec gxyA,gxzA;
+  Vec uA,gxyA,gxzA;
+  VecDuplicate(_uP,&uA);
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
-  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,_currTime);
+  mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
   mapToVec(gxyA,MMS_epsVxy,_Nz,_dy,_dz,_currTime);
   mapToVec(gxzA,MMS_epsVxz,_Nz,_dy,_dz,_currTime);
 
-  double err2u = computeNormDiff_2(_uP,_uAnal);
-  double err2epsxy = computeNormDiff_2(_epsVxyP,gxyA);
-  double err2epsxz = computeNormDiff_2(_epsVxzP,gxzA);
+  double err2u = computeNormDiff_2(_uP,uA);
+  double err2epsxy = computeNormDiff_2(_gxyP,gxyA);
+  double err2epsxz = computeNormDiff_2(_gxzP,gxzA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
               _Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy));
@@ -794,11 +792,11 @@ PetscErrorCode PowerLaw::writeStep2D()
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxyP").c_str(),
-              FILE_MODE_WRITE,&_epsVxyPV);CHKERRQ(ierr);
-    ierr = VecView(_epsVxyP,_epsVxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_epsVxyPV);CHKERRQ(ierr);
+              FILE_MODE_WRITE,&_gxyPV);CHKERRQ(ierr);
+    ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_gxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxyP").c_str(),
-                                   FILE_MODE_APPEND,&_epsVxyPV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_gxyPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
               FILE_MODE_WRITE,&_effViscV);CHKERRQ(ierr);
@@ -806,14 +804,14 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = PetscViewerDestroy(&_effViscV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
                                    FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
-    if (_isMMS) {
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-                FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
-      ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-                                     FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
-    }
+    //~if (_isMMS) {
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                //~FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
+      //~ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
+      //~ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                                     //~FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
+    //~}
     if (_Nz>1)
     {
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"totStrainxzP").c_str(),
@@ -831,11 +829,11 @@ PetscErrorCode PowerLaw::writeStep2D()
                                      FILE_MODE_APPEND,&_stressxzPV);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxzP").c_str(),
-               FILE_MODE_WRITE,&_epsVxzPV);CHKERRQ(ierr);
-      ierr = VecView(_epsVxzP,_epsVxzPV);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&_epsVxzPV);CHKERRQ(ierr);
+               FILE_MODE_WRITE,&_gxzPV);CHKERRQ(ierr);
+      ierr = VecView(_gxzP,_gxzPV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_gxzPV);CHKERRQ(ierr);
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"epsVxzP").c_str(),
-                                   FILE_MODE_APPEND,&_epsVxzPV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_gxzPV);CHKERRQ(ierr);
     }
   }
   else {
@@ -844,14 +842,14 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_epsTotxyP,_epsTotxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_epsVxyP,_epsVxyPV);CHKERRQ(ierr);
+    ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
-    if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
+    //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
       ierr = VecView(_epsTotxzP,_epsTotxzPV);CHKERRQ(ierr);
       ierr = VecView(_stressxzP,_stressxzPV);CHKERRQ(ierr);
-      ierr = VecView(_epsVxzP,_epsVxzPV);CHKERRQ(ierr);
+      ierr = VecView(_gxzP,_gxzPV);CHKERRQ(ierr);
     }
   }
 

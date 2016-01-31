@@ -84,7 +84,10 @@ double MMS_gamSource(const double y,const double z,const double t);
 //~PetscErrorCode MMS_epsVxz_t(Vec& vec,double dy, double dz,const double time);
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const double N, const double dy, const double dz, const double time);
+  const int N, const double dy, const double dz, const double t);
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  const int N, const double dy, const double dz);
 
 
 

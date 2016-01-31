@@ -23,11 +23,11 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     std::vector<double> _viscVals,_viscDepths;
     Vec         _visc;
 
-    Vec         _epsVxyP,_depsVxyP; // viscoelastic strain, and strain rate
-    Vec         _epsVxzP,_depsVxzP; // viscoelastic strain, and strain rate
+    Vec         _gxyP,_dgxyP; // viscoelastic strain, and strain rate
+    Vec         _gxzP,_dgxzP; // viscoelastic strain, and strain rate
 
-    PetscViewer _epsVxyPV,_depsVxyPV;
-    PetscViewer _epsVxzPV,_depsVxzPV;
+    PetscViewer _gxyPV,_dgxyPV;
+    PetscViewer _gxzPV,_dgxzPV;
 
     // additional body fields for visualization
     Vec         _epsTotxyP,_epsTotxzP; // total strain

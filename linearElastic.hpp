@@ -42,7 +42,6 @@ class LinearElastic: public IntegratorContext
     Mat                  _muP;
     Vec                  _bcRPShift,_surfDispPlus;
     Vec                  _rhsP,_uP,_stressxyP;
-    Vec                  _uAnal; // for MMS tests
 
     // linear system data
     std::string          _linSolver;

@@ -13,7 +13,7 @@ LinearElastic::LinearElastic(Domain&D)
   _v0(D._v0),_vL(D._vL),
   _muArrPlus(D._muArrPlus),_muP(D._muP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
-  _rhsP(NULL),_uP(NULL),_stressxyP(NULL),_uAnal(NULL),
+  _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),_sbpP(D,*D._muArrPlus,D._muP),
   _timeIntegrator(D._timeIntegrator),
@@ -105,7 +105,6 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
 
   VecDestroy(&_bcRPShift);
-  VecDestroy(&_uAnal);
 
 
 #if VERBOSE > 1
@@ -292,21 +291,15 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  // measure error between uAnal and _uP (the numerical solution)
-  //~Vec diff;
-  //~ierr = VecDuplicate(_uP,&diff);CHKERRQ(ierr);
-  //~ierr = VecWAXPY(diff,-1.0,_uP,_uAnal);CHKERRQ(ierr);
-  //~PetscScalar err;
-  //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
-  //~err = err/sqrt(_Ny*_Nz);
+  // measure error between analytical and numerical solution
+  Vec uA;
+  VecDuplicate(_uP,&uA);
+  mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
 
-  //~double errH = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
-  double errH = 11111111;
-  double err2 = computeNormDiff_2(_uP,_uAnal);
+  double err2 = computeNormDiff_2(_uP,uA);
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e H MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e\n",
-              _Ny,_dy,err2,log2(err2),errH,log2(errH));
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e \n",
+              _Ny,_dy,err2,log2(err2));
 
   return ierr;
 }
@@ -331,44 +324,31 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   VecDuplicate(_rhsP,&_stressxyP);
 
   if (_isMMS) {
-    VecDuplicate(_uP,&_uAnal);
-    PetscObjectSetName((PetscObject) _uAnal, "_uAnal");
+    _var.push_back(_fault._psi);
+    _var.push_back(_uP);
 
     setMMSInitialConditions();
   }
   else {
+    _var.push_back(_fault._psi);
+    _var.push_back(_fault._slip);
+
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
 
     _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
-  }
+    double startTime = MPI_Wtime();
+    KSPSolve(_kspP,_rhsP,_uP);
+    _factorTime += MPI_Wtime() - startTime;
 
-  double startTime = MPI_Wtime();
-  KSPSolve(_kspP,_rhsP,_uP);
-  _factorTime += MPI_Wtime() - startTime;
+    _sbpP.muxDy(_uP,_stressxyP);
+    _fault.setTauQS(_stressxyP,NULL);
+    _fault.setFaultDisp(_bcLP,NULL);
 
-  //~MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
-  _sbpP.muxDy(_uP,_stressxyP);
-  _fault.setTauQS(_stressxyP,NULL);
-  _fault.setFaultDisp(_bcLP,NULL);
-
-  if (!_isMMS) {
     _fault.computeVel();
   }
 
   setSurfDisp();
-
-  // set up initial conditions for integration (shallow copy)
-  _var.push_back(_fault._psi);
-   if (_isMMS) {
-    _var.push_back(_uP);
-  }
-  else {
-    _var.push_back(_fault._slip);
-  }
-
-
-assert(0);
 
 
 #if VERBOSE > 1
@@ -379,7 +359,6 @@ assert(0);
 SymmLinearElastic::~SymmLinearElastic()
 {
 
-  VecDestroy(&_uAnal);
   VecDestroy(&_bcRPShift);
 };
 
@@ -528,14 +507,14 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
 
-    if (_isMMS) {
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-                FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
-      ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
-                                     FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
-      }
+    //~if (_isMMS) {
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                //~FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
+      //~ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);
+      //~ierr = PetscViewerDestroy(&_uAnalV);CHKERRQ(ierr);
+      //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
+                                     //~FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
+      //~}
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -543,7 +522,6 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
 
-    if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
   }
 
 
@@ -603,12 +581,13 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
-
   Vec source,Hxsource;
+  VecDuplicate(_uP,&source);
+  VecDuplicate(_uP,&Hxsource);
   mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
   ierr = _sbpP.H(source,Hxsource);
   VecDestroy(&source);
+
 
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
@@ -628,13 +607,11 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   _sbpP.muxDy(_uP,_stressxyP);
 
 
-  // update fields on fault
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-
   // update rates
   VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
-  VecDestroy(&source);
+  //~VecSet(*(dvarBegin+1),0.0);
+  ierr = mapToVec(*(dvarBegin+1),MMS_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
@@ -754,37 +731,37 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
 
-  mapToVec(_uAnal,MMS_uA,_Nz,_dy,_dz,time);
-
   Vec source,Hxsource;
-  mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(source,Hxsource);
+  VecDuplicate(_uP,&source);
+  VecDuplicate(_uP,&Hxsource);
+
+  ierr = mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  ierr = _sbpP.H(source,Hxsource); CHKERRQ(ierr);
   VecDestroy(&source);
 
+
   // set rhs, including body source term
-  setMMSBoundaryConditions(time);
+  ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr);
+  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+  VecDestroy(&Hxsource);
+
 
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  writeVec(_uP,"data/mms_uNP");
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
 
   // solve for shear stress
   _sbpP.muxDy(_uP,_stressxyP);
-
-  // update fields on fault
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-
-  // update rates
-  VecSet(*_var.begin(),0.0);
-  mapToVec(*(_var.begin()+1),MMS_uA_t,_Nz,_dy,_dz,time);
+  //~ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
   #endif
   return ierr;
 }
