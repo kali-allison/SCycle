@@ -677,12 +677,12 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
 
     y = 0;
     if (!_bcLType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time) - MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
     if (!_bcRType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
@@ -697,12 +697,14 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
 
     z = 0;
     if (!_bcTType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); } // sigma_xz = mu * d/dz u
+    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
+    //~else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
     if (!_bcBType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); } // sigma_xz = mu * d/dz u
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);

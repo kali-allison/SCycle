@@ -47,7 +47,7 @@ int runMMSTests(const char * inputFile)
 
   PetscPrintf(PETSC_COMM_WORLD,"%-3s %-10s %-10s %-22s %-10s %-22s\n",
              "Ny","dy","errL2u","log2(errL2u)","errL2epsxy","log2(errL2epsxy)");
-  for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
+  for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
   {
     Domain domain(inputFile,Ny,Ny);
     domain.write();
