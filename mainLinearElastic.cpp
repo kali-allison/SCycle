@@ -9,6 +9,7 @@
 #include "sbpOps.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_c.hpp"
+#include "sbpOps_sc.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
 
@@ -49,23 +50,32 @@ int runTests(const char * inputFile)
   PetscErrorCode ierr = 0;
 
   Domain D(inputFile);
-  D.write();
+  mapToVec(D._muVP,MMS_mu,D._Nz,D._dy,D._dz,D._da);
+
+  SbpOps_sc sbp(D,*D._muArrPlus,D._muP);
 
   Vec f;
-  VecDuplicate(D._muVP,&f);
-  mapToVec(f,MMS_mu,11,1,1,D._da);
+  DMCreateGlobalVector(D._da,&f); PetscObjectSetName((PetscObject) f, "f");
+  VecSet(f,0.0);
+  mapToVec(f,MMS_uA,D._Nz,D._dy,D._dz,5,D._da);
+  //~mapToVec(f,MMS_test,D._Nz,D._dy,D._dz,D._da);
+  //~printVec(f,D._da);
 
-  //~mapToVec(Vec& vec, double(*func)(double,double,double),
-  //~const int N, const double dy, const double dz, const double t,DA da)
+  Vec g;
+  VecDuplicate(f,&g); PetscObjectSetName((PetscObject) g, "g");
+  VecSet(g,0.0);
 
-  //~LinearElastic *obj;
-  //~obj = new SymmLinearElastic(domain);
+  //~sbp.Dy(f,g);
+  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ierr = obj->writeStep1D();CHKERRQ(ierr);
-  //~ierr = obj->writeStep2D();CHKERRQ(ierr);
-  //~ierr = obj->integrate();CHKERRQ(ierr);
-  //~ierr = obj->view();CHKERRQ(ierr);
+  //~sbp.muxDz(f,g);
+  //~sbp.muxDy(f,g);
+  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+
+  //~sbp.Dzxmu(f,g);
+  sbp.Dyxmu(f,g);
+  VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+
   return ierr;
 }
 

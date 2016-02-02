@@ -1,8 +1,8 @@
-order = 4
-Ny = 201
-Nz = 201
-Ly = 24 # km
-Lz = 24 # km
+order = 2
+Ny = 6
+Nz = 7
+Ly = 5 # km
+Lz = 6 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
@@ -43,7 +43,7 @@ timeControlType = P
 stride1D = 5 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 45
-initTime = 0       # s
+initTime = 5       # s
 maxTime = 8e10      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
@@ -52,5 +52,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/lay_v1e9_source+T-B_
 outputDir = data/test_

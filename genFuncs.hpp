@@ -15,6 +15,9 @@ using namespace std;
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec);
 
+// Print out a vectorfrom a DMDA
+void printVec(const Vec vec, const DM da);
+
 // Print out (vec1 - vec2) with 15 significant figures.
 void printVecsDiff(Vec vec1,Vec vec2);
 
@@ -45,7 +48,8 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 
 
-
+// helper functions for testing derivatives
+double MMS_test(double y,double z);
 
 
 // MMS functions (acting on scalars)
@@ -88,6 +92,9 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const int N, const double dy, const double dz,const DM da);
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
+  const int N, const double dy, const double dz,const double t,const DM da);
 
 
 

@@ -1,4 +1,4 @@
-all: testMain
+all: mainLinearElastic
 
 DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
@@ -7,7 +7,7 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o sbpOps.o\
- spmat.o testOdeSolver.o powerLaw.o
+ spmat.o testOdeSolver.o powerLaw.o sbpOps_sc.o
 
 
 
@@ -112,7 +112,7 @@ sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 sbpOps_fc.o: sbpOps_fc.cpp sbpOps_fc.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
-sbpOps_sc.o: sbpOps_sc.cpp SbpOps_sc.hpp domain.hpp genFuncs.hpp \
+sbpOps_sc.o: sbpOps_sc.cpp sbpOps_sc.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 spmat.o: spmat.cpp spmat.hpp
 testMain.o: testMain.cpp genFuncs.hpp domain.hpp spmat.hpp sbpOps.hpp \

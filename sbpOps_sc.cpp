@@ -1,4 +1,4 @@
-#include "SbpOps_sc.hpp"
+#include "sbpOps_sc.hpp"
 
 
 
@@ -84,11 +84,11 @@ PetscErrorCode SbpOps_sc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 
 
 // out = Dy * in
-PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
+PetscErrorCode SbpOps_sc::Dz(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Dy";
+    string funcName = "Dz";
     string fileName = "SbpOps_sc.cpp";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
@@ -140,7 +140,7 @@ PetscErrorCode SbpOps_sc::muxDy(const Vec &in, Vec &out)
 #endif
 
   ierr = Dy(in,out); CHKERRQ(ierr);
-  ierr = VecPointwiseMult(_muVP,out,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVP,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -158,7 +158,7 @@ PetscErrorCode SbpOps_sc::Dyxmu(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecPointwiseMult(_muVP,in,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVP,in); CHKERRQ(ierr);
   ierr = Dy(out,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
@@ -170,11 +170,11 @@ PetscErrorCode SbpOps_sc::Dyxmu(const Vec &in, Vec &out)
 
 
 // out = d/dz * in
-PetscErrorCode SbpOps_sc::Dz(const Vec &in, Vec &out)
+PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dz";
+  string funcName = "Dy";
   string fileName = "SbpOps_sc.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -225,7 +225,7 @@ PetscErrorCode SbpOps_sc::muxDz(const Vec &in, Vec &out)
 #endif
 
   ierr = Dz(in,out); CHKERRQ(ierr);
-  ierr = VecPointwiseMult(_muVP,out,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVP,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -243,7 +243,7 @@ PetscErrorCode SbpOps_sc::Dzxmu(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecPointwiseMult(_muVP,in,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVP,in); CHKERRQ(ierr);
   ierr = Dz(out,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
