@@ -800,7 +800,8 @@ PetscErrorCode Domain::setFieldsPlus()
       v = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
-      v = sin(y)*sin(z) + 2.0;
+      //~v = sin(y)*sin(z) + 2.0;
+      v = MMS_mu(y,z);
        _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
     }
     else {

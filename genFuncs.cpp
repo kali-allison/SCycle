@@ -267,14 +267,14 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
 //                  MMS Functions
 
 
-double MMS_f(double y,double z) { return cos(y)*sin(z); } // helper function for uA
-double MMS_f_y(double y,double z) { return -sin(y)*sin(z); }
-double MMS_f_yy(double y,double z) { return -cos(y)*sin(z); }
-double MMS_f_z(double y,double z) { return cos(y)*cos(z); }
-double MMS_f_zz(double y,double z) { return -cos(y)*sin(z); }
+double MMS_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
+double MMS_f_y(const double y,const double z) { return -sin(y)*sin(z); }
+double MMS_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
+double MMS_f_z(const double y,const double z) { return cos(y)*cos(z); }
+double MMS_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
-double MMS_uA(double y,double z, double t) { return MMS_f(y,z)*exp(-t); }
-double MMS_uA_y(double y,double z, double t) { return MMS_f_y(y,z)*exp(-t); }
+double MMS_uA(const double y,const double z,const double t) { return MMS_f(y,z)*exp(-t); }
+double MMS_uA_y(const double y,const double z,const double t) { return MMS_f_y(y,z)*exp(-t); }
 double MMS_uA_yy(const double y,const double z,const double t) { return MMS_f_yy(y,z)*exp(-t); }
 double MMS_uA_z(const double y,const double z,const double t) { return MMS_f_z(y,z)*exp(-t); }
 double MMS_uA_zz(const double y,const double z,const double t) { return MMS_f_zz(y,z)*exp(-t); }
@@ -283,6 +283,9 @@ double MMS_uA_t(const double y,const double z,const double t) { return -MMS_f(y,
 double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
 double MMS_mu_y(const double y,const double z) { return cos(y)*sin(z); }
 double MMS_mu_z(const double y,const double z) { return sin(y)*cos(z); }
+
+double MMS_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*MMS_uA_y(y,z,t); }
+double MMS_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*MMS_uA_z(y,z,t); }
 
 double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 20.0; }
 double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 20.0); }

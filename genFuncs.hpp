@@ -60,6 +60,9 @@ double MMS_mu(const double y,const double z);
 double MMS_mu_y(const double y,const double z);
 double MMS_mu_z(const double y,const double z);
 
+double MMS_sigmaxy(const double y,const double z,const double t);
+double MMS_sigmaxz(const double y,const double z,const double t);
+
 double MMS_visc(const double y,const double z);
 double MMS_inVisc(const double y,const double z);
 double MMS_invVisc_y(const double y,const double z);

@@ -235,6 +235,8 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   _linSolveCount++;
   ierr = setSurfDisp();
 
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+
   // update fields on fault
   ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
 
@@ -246,7 +248,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
-  mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
+  //~mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
   //~mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
 
 
@@ -529,6 +531,65 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   // set stresses
   ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double time)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmMaxwellViscoelastic::setMMSBoundaryConditions";
+  string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+
+  // set up boundary conditions: L and R
+  PetscScalar y,z,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    z = _dz * Ii;
+
+    y = 0;
+    if (!_bcLType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time) - MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    y = _Ly;
+    if (!_bcRType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
+
+  // set up boundary conditions: T and B
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy * Ii;
+
+    z = 0;
+    if (!_bcTType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
+    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
+    //~else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    z = _Lz;
+    if (!_bcBType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());

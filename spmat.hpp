@@ -9,7 +9,8 @@
 #include <petscts.h>
 #include <petscdmda.h>
 
-/* Small class for sparse matrices, supporting a very limited set of
+/*
+ * Small class for sparse matrices, supporting a very limited set of
  * operations.
  * Based on code from http://www.cplusplus.com/forum/general/8352/
  */

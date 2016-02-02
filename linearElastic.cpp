@@ -281,7 +281,7 @@ PetscErrorCode LinearElastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
 
@@ -293,13 +293,26 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 
   // measure error between analytical and numerical solution
   Vec uA;
-  VecDuplicate(*(_var.begin()+1),&uA);
+  VecDuplicate(_uP,&uA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
 
-  double err2 = computeNormDiff_2(*(_var.begin()+1),uA);
+  Vec sigmaxyA,sigmaxzA,sigmaxzN;
+  VecDuplicate(_uP,&sigmaxyA);
+  VecDuplicate(_uP,&sigmaxzA);
+  VecDuplicate(_uP,&sigmaxzN);
+  mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(sigmaxzA,MMS_sigmaxz,_Nz,_dy,_dz,_currTime);
+  _sbpP.muxDz(_uP,sigmaxzN);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e \n",
-              _Ny,_dy,err2,log2(err2));
+
+
+
+  double err2uA = computeNormDiff_2(_uP,uA);
+  double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
+  double err2sigmaxz = computeNormDiff_2(sigmaxzN,sigmaxzA);
+
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e \n",
+              _Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy),err2sigmaxz,log2(err2sigmaxz));
 
   return ierr;
 }
@@ -677,12 +690,12 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
 
     y = 0;
     if (!_bcLType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time) - MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
     if (!_bcRType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
@@ -697,14 +710,12 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
 
     z = 0;
     if (!_bcTType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
-    //~else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
     if (!_bcBType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
-    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); }
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
@@ -748,6 +759,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  writeVec(_uP,"data/mms_uuu");
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
