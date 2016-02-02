@@ -73,35 +73,35 @@ typedef struct {
 } AppCtx;
 
 PetscScalar MMS_uA(PetscScalar x, PetscScalar y) {
-    return cos(x) * sin(y) + 2; 
+    return cos(x) * sin(y) + 2;
 }
 
 PetscScalar MMS_uA_dx(PetscScalar x, PetscScalar y) {
-    return -sin(x) * sin(y); 
+    return -sin(x) * sin(y);
 }
 
 PetscScalar MMS_uA_dxx(PetscScalar x, PetscScalar y) {
-    return -cos(x) * sin(y); 
+    return -cos(x) * sin(y);
 }
 
 PetscScalar MMS_uA_dy(PetscScalar x, PetscScalar y) {
-    return cos(x) * cos(y); 
+    return cos(x) * cos(y);
 }
 
 PetscScalar MMS_uA_dyy(PetscScalar x, PetscScalar y) {
-    return -cos(x) * sin(y); 
+    return -cos(x) * sin(y);
 }
 
 PetscScalar MMS_mu(PetscScalar x, PetscScalar y) {
-    return sin(x) * sin(y) + 2; 
+    return sin(x) * sin(y) + 2;
 }
 
 PetscScalar MMS_mu_dx(PetscScalar x, PetscScalar y) {
-    return cos(x) * sin(y); 
+    return cos(x) * sin(y);
 }
 
 PetscScalar MMS_mu_dy(PetscScalar x, PetscScalar y) {
-    return sin(x) * cos(y); 
+    return sin(x) * cos(y);
 }
 
 PetscScalar MMS_uA_dmuxx(PetscScalar x, PetscScalar y) {
@@ -113,7 +113,7 @@ PetscScalar MMS_uA_dmuyy(PetscScalar x, PetscScalar y) {
 }
 
 PetscScalar MMS_uS(PetscScalar x, PetscScalar y) {
-    return MMS_mu(x,y) * (MMS_uA_dxx(x,y) + MMS_uA_dyy(x,y)) 
+    return MMS_mu(x,y) * (MMS_uA_dxx(x,y) + MMS_uA_dyy(x,y))
         + MMS_mu_dx(x,y) * MMS_uA_dx(x,y) + MMS_mu_dy(x,y) * MMS_uA_dy(x,y);
 }
 
@@ -630,8 +630,13 @@ PetscErrorCode Dy_2d(Vec &diff_y, Vec &grid, PetscScalar dy, DM &da) {
  * dx - the spacing between each point in the x-direction
  * da - DMDA object
  */
-PetscErrorCode Dx_2d(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
+//~PetscErrorCode Dx_2d(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
   PetscErrorCode ierr = 0;
+
+
+
+
+
   PetscInt m, n, mStart, nStart, j, i, M;
   DMDAGetInfo(da,NULL,&M,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 
@@ -1705,9 +1710,9 @@ PetscErrorCode Dx_2d_Boundary(Vec &diff_x, Vec &grid, PetscScalar dx, DM &da) {
 PetscErrorCode multiplyByHinvx(Vec &out, Vec &in, PetscScalar h, PetscInt order, AppCtx* ctx) {
     PetscErrorCode ierr = 0;
     ierr = VecSet(out, 0);CHKERRQ(ierr);
-    
+
     if(order == 2) {
-         
+
         PetscInt m, n, mStart, nStart, j, i, M, N;
         DMDAGetInfo(ctx->da,NULL,&M,&N,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 
@@ -1725,12 +1730,12 @@ PetscErrorCode multiplyByHinvx(Vec &out, Vec &in, PetscScalar h, PetscInt order,
         ierr = DMDAGetCorners(ctx->da, &mStart, &nStart, 0, &m, &n, 0);CHKERRQ(ierr);
         for (j = nStart; j < nStart + n; j++) {
             for (i = mStart; i < mStart + m; i++) {
-                if (j > 0 && j < N - 1) 
+                if (j > 0 && j < N - 1)
                     local_out_arr[j][i] = 1/h * local_in_arr[j][i];
                 else
                     local_out_arr[j][i] = 2/h * local_in_arr[j][i];
                     /*
-                else if (i == 0) { 
+                else if (i == 0) {
                                     //local_out_arr[j][i] = -(-1.5 * local_in_arr[j][0] +
                                     //2.0 * local_in_arr[j][1] - 0.5 * local_in_arr[j][2])/ h; }
                 else if (i == M - 1) { local_out_arr[j][i] = (0.5 * local_in_arr[j][M-3] -
@@ -1754,7 +1759,7 @@ PetscErrorCode multiplyByHinvx(Vec &out, Vec &in, PetscScalar h, PetscInt order,
 PetscErrorCode multiplyBy_BSx_IyT_s(Vec &ADisp2, Vec& mu, Vec &fx, PetscScalar h) {
         //, string& Stype, string& Btype) {
     PetscErrorCode ierr = 0;
-    
+
     return ierr;
 }
 
@@ -1766,11 +1771,11 @@ PetscErrorCode SetLeftToMult(Vec& ADisp1, Vec& mu, Vec& temp, AppCtx* ctx) {
     Vec local_ADisp1, local_mu, local_temp;
     PetscScalar **local_ADisp1_arr;
     PetscScalar** local_mu_arr;
-    PetscScalar** local_temp_arr; 
+    PetscScalar** local_temp_arr;
     ierr = DMCreateLocalVector(ctx->da, &local_ADisp1);CHKERRQ(ierr);
     ierr = DMCreateLocalVector(ctx->da, &local_mu);CHKERRQ(ierr);
     ierr = DMCreateLocalVector(ctx->da, &local_temp);CHKERRQ(ierr);
-    
+
     DMDAGetCorners(ctx->da, &mStart, &nStart, 0, &m, &n, 0);
     //rank
     PetscMPIInt rank;
@@ -1788,9 +1793,9 @@ PetscErrorCode SetLeftToMult(Vec& ADisp1, Vec& mu, Vec& temp, AppCtx* ctx) {
     ierr = DMGlobalToLocalEnd(ctx->da, mu, INSERT_VALUES, local_mu);CHKERRQ(ierr);
     ierr = DMDAVecGetArray(ctx->da, local_mu, &local_mu_arr); CHKERRQ(ierr);
 
-    j = nStart + n - 1;  
+    j = nStart + n - 1;
     for (i = mStart; i < mStart + m; i++) {
-        local_ADisp1_arr[j][i] = local_mu_arr[j][i] * local_temp_arr[j][i]; 
+        local_ADisp1_arr[j][i] = local_mu_arr[j][i] * local_temp_arr[j][i];
     }
     DMDAVecRestoreArray(ctx->da, local_ADisp1, &local_ADisp1_arr);
     ierr = DMLocalToGlobalBegin(ctx->da, local_ADisp1, INSERT_VALUES, ADisp1);CHKERRQ(ierr);
@@ -1808,21 +1813,21 @@ PetscErrorCode setRHS_L(Vec &RHS, const Vec &fx, const PetscScalar &h_11,
     /*
     PetscMPIInt rank;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-    
+
     Vec temp;
     Vec rhs_disp1;
     ierr = VecDuplicate(fx, &rhs_disp1);CHKERRQ(ierr);
     ierr = VecDuplicate(fx, &temp);CHKERRQ(ierr);
     ierr = VecSet(rhs_disp1, 0);CHKERRQ(ierr);
     ierr = multiplyByHinvx(temp, fx, da, 2, ctx);CHKERRQ(ierr);
-    Vec rhs_disp2; 
+    Vec rhs_disp2;
     ierr = VecDuplicate(fx, &rhs_disp2);CHKERRQ(ierr);
     ierr = VecSet(rhs_disp2, 0);CHKERRQ(ierr);
 
 */
 
     return ierr;
-    
+
 }
 
 /* Function: MyMatMult
@@ -1856,7 +1861,7 @@ PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
     ierr = VecDuplicate(fx, &DxDyBoundary);
     ierr = Dx_2d_Boundary(Dx, fx, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
     ierr = Dy_2d_Boundary(Dy, fx, ctx->dx_spacing, ctx->da);CHKERRQ(ierr);
-    
+
     ierr = VecAXPY(Dy, one, Dx);CHKERRQ(ierr);
     ierr = VecCopy(Dy, DxDyBoundary);CHKERRQ(ierr);
 
@@ -1871,25 +1876,25 @@ PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
     ierr = VecDuplicate(fx, &temp);CHKERRQ(ierr);
     ierr = VecSet(temp, 0);CHKERRQ(ierr);
     // DISPLACEMENT
-    
+
     // LEFT BOUNDARY
-    
+
     Vec ADisp1;
     ierr = VecDuplicate(fx, &ADisp1);CHKERRQ(ierr);
     ierr = VecSet(ADisp1, 0);CHKERRQ(ierr);
     ierr = multiplyByHinvx(temp, fx, ctx->dx_spacing, ctx->order, ctx);CHKERRQ(ierr);
     ierr = SetLeftToMult(ADisp1, ctx->mu, temp, ctx);CHKERRQ(ierr);
-    Vec ADisp2; 
+    Vec ADisp2;
     ierr = VecDuplicate(fx, &ADisp1);CHKERRQ(ierr);
     ierr = VecSet(ADisp1, 0);CHKERRQ(ierr);
-   
+
     //string Stype = ""; // = ctx.Stype
     //string Btype = "";
     ierr = multiplyBy_BSx_IyT_s(ADisp2, ctx->mu, fx, ctx->dx_spacing);//, Stype, Btype);
     // RIGHT BOUNDARY
-     
+
     // TRACTION
-    
+
     // TOP BOUNDARY
     // BOTTOM BOUNDARY
 
@@ -1901,7 +1906,7 @@ PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
     PetscMPIInt rank;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
-    
+
     Vec DxDyBoundary_print;
     ierr = DMCreateLocalVector(ctx->da, &DxDyBoundary_print);CHKERRQ(ierr);
     ierr = DMGlobalToLocalBegin(ctx->da, DxDyBoundary, INSERT_VALUES, DxDyBoundary_print);CHKERRQ(ierr);
@@ -1915,7 +1920,7 @@ PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
       }
     }
     DMDAVecRestoreArray(ctx->da, DxDyBoundary_print, &DxDyBoundary_print_arr);
-    
+
 
     ierr = DMLocalToGlobalBegin(ctx->da, DxDyBoundary_print, INSERT_VALUES, DxDyBoundary);CHKERRQ(ierr);
     ierr = DMLocalToGlobalEnd(ctx->da, DxDyBoundary_print, INSERT_VALUES, DxDyBoundary);CHKERRQ(ierr);
@@ -1923,7 +1928,7 @@ PetscErrorCode MyMatMult(Mat A, Vec fx, Vec ans) {
     VecDestroy(&DxDyBoundary_print);
     */
     //writeVec(DxDyBoundary, "DxDyBoundary");
-    
+
 
     //endprint
     //FIXME!!!! DO WE ADD THE BOUNDARY TO EXISTING VALUES FROM THE DERIVATIVE, OR DO WE ZERO
@@ -2126,7 +2131,7 @@ PetscErrorCode testMyMatMult() {
     DMDAVecGetArray(ctx.da, local_dyymu, &local_dyymu_arr);
     for (j = nStart; j < nStart + n; j++) {
       for (i = mStart; i < mStart + m; i++) {
-          local_dyymu_arr[j][i] = MMS_uA_dmuyy(coords[j][i].x, coords[j][i].y); 
+          local_dyymu_arr[j][i] = MMS_uA_dmuyy(coords[j][i].x, coords[j][i].y);
           //local_dyymu_arr[j][i] = (-sin(coords[j][i].x + coords[j][i].y) * (-sin(coords[j][i].y))) +
           //        ((cos(coords[j][i].x + coords[j][i].y) + 4) * (-cos(coords[j][i].y)));
   //        local_dyymu_arr[j][i] = -cos(coords[j][i].y);
@@ -2140,7 +2145,7 @@ PetscErrorCode testMyMatMult() {
     //writeVec(fx,"fx");
     //Vec dfx;
     //ierr = VecDuplicate(fx, &dfx);
-    //ierr = Dx_2d(dfx, fx, ctx.dx_spacing, ctx.da); 
+    //ierr = Dx_2d(dfx, fx, ctx.dx_spacing, ctx.da);
 
 
     //writeVec(dfx, "dfx");
@@ -2150,7 +2155,7 @@ PetscErrorCode testMyMatMult() {
     // set up linear solve context (matrices, etc.)
     Mat H_Shell;
     //MatCreateAIJ(MPI_COMM_WORLD,info.xm,info.ym,info.mx,info.my,7,NULL,3,NULL,&(user.H));
-    MatCreateShell(PETSC_COMM_WORLD, vec_size, vec_size, 
+    MatCreateShell(PETSC_COMM_WORLD, vec_size, vec_size,
             num_entries, num_entries,(void*)&ctx,&H_Shell);
     MatShellSetOperation(H_Shell,MATOP_MULT,
                             (void(*)(void))MyMatMult);
@@ -2403,7 +2408,7 @@ PetscErrorCode testMultiplyByHinvx() {
 
     ierr = multiplyByHinvx(temp, fx, ctx.dx_spacing, ctx.order, &ctx);CHKERRQ(ierr);
 
-    writeVec(temp, "Hinvx_C"); 
+    writeVec(temp, "Hinvx_C");
 
     return ierr;
 }

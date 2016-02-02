@@ -401,3 +401,42 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   return ierr;
 }
 
+// Map a function that acts on scalars to a 2D DMDA Vec
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  const int N, const double dy, const double dz,DM da)
+{
+  // assumes vec has already been created and it's size has been allocated
+  PetscErrorCode ierr = 0;
+
+  PetscInt zS,yS,zn,yn;
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  PetscInt zE = zS + zn;
+  PetscInt yE = yS + yn;
+
+  Vec lVec;
+  PetscScalar** lout;
+  ierr = DMCreateLocalVector(da, &lVec);CHKERRQ(ierr);
+
+  ierr = DMDAVecGetArray(da, lVec, &lout);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da, vec, INSERT_VALUES, lVec);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da, vec, INSERT_VALUES, lVec);CHKERRQ(ierr);
+
+  PetscInt yI,zI;
+  PetscScalar y,z;
+    for (yI = yS; yI < yE; yI++) {
+      for (zI = zS; zI < zE; zI++) {
+        y = yI * dy;
+        z = zI * dz;
+        lout[yI][zI] = func(y,z);
+      }
+    }
+
+  ierr = DMDAVecRestoreArray(da, lVec, &lout);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(da, lVec, INSERT_VALUES, vec);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da, lVec, INSERT_VALUES, vec);CHKERRQ(ierr);
+
+  VecDestroy(&vec);
+
+  return ierr;
+}
+

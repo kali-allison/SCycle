@@ -80,6 +80,11 @@ main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp \
  debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp powerLaw.hpp
+mainEx.o: mainEx.cpp
+mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
+ domain.hpp sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp \
+ fault.hpp rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
+ integratorContext.hpp odeSolver.hpp
 mainMaxwell.o: mainMaxwell.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
@@ -88,10 +93,6 @@ main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp maxwellViscoelastic.hpp iceSheet.hpp
-mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
- domain.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp fault.hpp \
- rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- integratorContext.hpp odeSolver.hpp sbpOps.hpp
 maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
  linearElastic.hpp sbpOps.hpp debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp \
@@ -111,10 +112,12 @@ sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
 sbpOps_fc.o: sbpOps_fc.cpp sbpOps_fc.hpp domain.hpp genFuncs.hpp \
  debuggingFuncs.hpp spmat.hpp
+sbpOps_sc.o: sbpOps_sc.cpp SbpOps_sc.hpp domain.hpp genFuncs.hpp \
+ debuggingFuncs.hpp spmat.hpp
 spmat.o: spmat.cpp spmat.hpp
-testMain.o: testMain.cpp genFuncs.hpp domain.hpp sbpOps.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_c.hpp sbpOps_fc.hpp \
- testOdeSolver.hpp integratorContext.hpp odeSolver.hpp
+testMain.o: testMain.cpp genFuncs.hpp domain.hpp spmat.hpp sbpOps.hpp \
+ debuggingFuncs.hpp sbpOps_c.hpp sbpOps_fc.hpp testOdeSolver.hpp \
+ integratorContext.hpp odeSolver.hpp
 testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp
 

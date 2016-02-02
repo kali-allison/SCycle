@@ -20,6 +20,63 @@
  * Compare computation of d/dx with stencils, a matrix operators on DMDAs, and regular matrices.
  * Note that d/dx corresponds to z in my usual coordinate system.
  */
+int createDxStencil()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting testMain::timeDx in fault.cpp.\n");
+#endif
+
+  PetscMPIInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // initialize size and range of grid
+  PetscInt Nx=500,Ny=600;
+  PetscScalar xMin=0.0,xMax=5.0,yMin=0.0,yMax=6.0;
+  PetscScalar dx=(xMax-xMin)/(Nx-1), dy=(yMax-yMin)/(Ny-1); // grid spacing
+  PetscInt i,j,mStart,m,nStart,n; // for for loops below
+  PetscScalar x,y;
+
+
+  // create the distributed array
+  DM da;
+  ierr = DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nx,Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &da); CHKERRQ(ierr);
+
+
+  // Set the values for the global vector x based on the (x,y)
+  // coordinates for each vertex
+  Vec g=NULL,l=NULL; // g = global x, l = local x
+  PetscScalar **lArr;
+  DMCreateGlobalVector(da,&g); PetscObjectSetName((PetscObject) g, "global g");
+  ierr = DMCreateLocalVector(da,&l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(da,g,INSERT_VALUES,l);CHKERRQ(ierr);
+  DMDAVecGetArray(da,l,&lArr);
+  DMDAGetCorners(da,&mStart,&nStart,0,&m,&n,0);
+  for (j=nStart;j<nStart+n;j++) {
+    for (i=mStart;i<mStart+m;i++) {
+      x = i * dx;
+      y = j * dy;
+      lArr[j][i] = 2*x  + 3*y;
+    }
+  }
+  DMDAVecRestoreArray(da,l,&lArr);
+  ierr = DMLocalToGlobalBegin(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(da,l,INSERT_VALUES,g);CHKERRQ(ierr);
+
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending testMain::testDMDAWithMats in fault.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+/*
+ * Compare computation of d/dx with stencils, a matrix operators on DMDAs, and regular matrices.
+ * Note that d/dx corresponds to z in my usual coordinate system.
+ */
 int timeDx()
 {
   PetscErrorCode ierr = 0;

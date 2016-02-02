@@ -21,7 +21,8 @@ Domain::Domain(const char *file)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
+  _da(NULL),_muVP(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -44,6 +45,13 @@ Domain::Domain(const char *file)
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
+
+  DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
+  PetscInt zn,yn;
+  DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
+  _zE = _zS + zn;
+  _yE = _yS + yn;
 
   MatCreate(PETSC_COMM_WORLD,&_muP);
 
@@ -91,7 +99,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1)
+  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
+  _da(NULL),_muVP(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -108,6 +117,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
+
+
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
@@ -117,6 +128,13 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
+
+  DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
+  PetscInt zn,yn;
+  DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
+  _zE = _zS + zn;
+  _yE = _yS + yn;
 
   MatCreate(PETSC_COMM_WORLD,&_muP);
 
@@ -740,35 +758,6 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
 
-  /*// set viscosity
-  ierr = VecDuplicate(muVec,&_visc);CHKERRQ(ierr);
-  PetscInt Istart,Iend;
-  ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
-
-  // build viscosity structure for generalized input
-  size_t vecLen = _viscDepths.size();
-  PetscScalar z0,z1,v0,v1;
-  for (Ii=Istart;Ii<Iend;Ii++)
-  {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-        z0 = _viscDepths[0+ind];
-        z1 = _viscDepths[0+ind+1];
-        v0 = log10(_viscVals[0+ind]);
-        v1 = log10(_viscVals[0+ind+1]);
-        //~PetscPrintf(PETSC_COMM_WORLD,"  ind=%i: z0 = %g | z1 = %g | v0 = %g  | v1 = %g\n",ind,z0,z1,v0,v1);
-        if (z>=z0 && z<=z1) {
-          v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
-          v = pow(10,v);
-          }
-        ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);*/
-
-
 
 
   // set shear modulus, shear wave speed, and density
@@ -800,7 +789,6 @@ PetscErrorCode Domain::setFieldsPlus()
       v = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
-      //~v = sin(y)*sin(z) + 2.0;
       v = MMS_mu(y,z);
        _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
     }
@@ -825,6 +813,58 @@ PetscErrorCode Domain::setFieldsPlus()
 
   VecDestroy(&muVec);
   PetscFree(muInds);
+
+
+  // set DMDA version of shear modulus
+  DMCreateGlobalVector(_da,&_muVP); PetscObjectSetName((PetscObject) _muVP, "_muVP");
+  VecSet(_muVP,0.0);
+  Vec loutVec, linVec;
+  PetscScalar** lout;
+  PetscScalar** lin;
+  ierr = DMCreateLocalVector(_da, &loutVec);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(_da, &linVec);CHKERRQ(ierr);
+
+  ierr = DMDAVecGetArray(_da, loutVec, &lout);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(_da, _muVP, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(_da, _muVP, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(_da, linVec, &lin); CHKERRQ(ierr);
+
+  PetscInt yI,zI;
+  //~PetscScalar y,z;
+  for (yI = _yS; yI < _yE; yI++) {
+    for (zI = _zS; zI < _zE; zI++) {
+      if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
+
+      z = zI * _dz;
+      y = yI * _dy;
+      r=y*y + (0.25*_width*_width/_depth/_depth)*z*z;
+
+      if (_shearDistribution.compare("basin")==0) {
+        v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
+
+        csIn = sqrt(_muInPlus/_rhoInPlus);
+        csOut = sqrt(_muOutPlus/_rhoOutPlus);
+        v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
+
+        v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
+      }
+      else if (_shearDistribution.compare("constant")==0) {
+        v = _muValPlus;
+      }
+      else if (_shearDistribution.compare("mms")==0) {
+        v = MMS_mu(y,z);
+      }
+      lout[yI][zI] = v;
+    }
+  }
+
+  ierr = DMDAVecRestoreArray(_da, loutVec, &lout);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(_da, linVec, &lin);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(_da, loutVec, INSERT_VALUES, _muVP);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(_da, loutVec, INSERT_VALUES, _muVP);CHKERRQ(ierr);
+
+  VecDestroy(&loutVec);
+  VecDestroy(&linVec);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);

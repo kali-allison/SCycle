@@ -44,6 +44,31 @@ int runMMSTests(const char * inputFile)
   return ierr;
 }
 
+int runTests(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain D(inputFile);
+  D.write();
+
+  Vec f;
+  VecDuplicate(D._muVP,&f);
+  mapToVec(f,MMS_mu,11,1,1,D._da);
+
+  //~mapToVec(Vec& vec, double(*func)(double,double,double),
+  //~const int N, const double dy, const double dz, const double t,DA da)
+
+  //~LinearElastic *obj;
+  //~obj = new SymmLinearElastic(domain);
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ierr = obj->writeStep1D();CHKERRQ(ierr);
+  //~ierr = obj->writeStep2D();CHKERRQ(ierr);
+  //~ierr = obj->integrate();CHKERRQ(ierr);
+  //~ierr = obj->view();CHKERRQ(ierr);
+  return ierr;
+}
+
 int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
@@ -78,11 +103,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  {
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
-  }
+  //~{
+    //~Domain domain(inputFile);
+    //~if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~else { runEqCycle(inputFile); }
+  //~}
+
+  runTests(inputFile);
 
 
   PetscFinalize();

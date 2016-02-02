@@ -86,6 +86,9 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const int N, const double dy, const double dz);
 
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  const int N, const double dy, const double dz,const DM da);
+
 
 
 #endif

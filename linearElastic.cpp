@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D)
   _isMMS(!D._shearDistribution.compare("mms")),
   _outputDir(D._outputDir),
   _v0(D._v0),_vL(D._vL),
-  _muArrPlus(D._muArrPlus),_muP(D._muP),
+  _muArrPlus(D._muArrPlus),_muVP(D._muVP),_muP(D._muP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
@@ -51,6 +51,8 @@ LinearElastic::LinearElastic(Domain&D)
 
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
+
+  //~VecDuplicate(_muVP,&_rhsP); // turn on to use DMDA Vecs everywhere
 
   VecCreate(PETSC_COMM_WORLD,&_rhsP);
   VecSetSizes(_rhsP,PETSC_DECIDE,_Ny*_Nz);
