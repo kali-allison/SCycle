@@ -6,6 +6,7 @@
 
 #include "genFuncs.hpp"
 #include "domain.hpp"
+#include "spmat.hpp"
 #include "sbpOps.hpp"
 #include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
@@ -57,7 +58,7 @@ int timeDx()
     for (i=mStart;i<mStart+m;i++) {
       x = i * dx;
       y = j * dy;
-      lArr[j][i] = 2*x  + 3*y ;
+      lArr[j][i] = 2*x  + 3*y;
     }
   }
   DMDAVecRestoreArray(da,l,&lArr);
@@ -479,6 +480,7 @@ PetscPrintf(PETSC_COMM_WORLD,"Dy matrix: %.9e\n",endTime);
 #endif
   return ierr;
 }
+
 
 
 
@@ -1635,9 +1637,10 @@ int main(int argc,char **args)
   //~testDMDA_memory();
   //~testDMDAWithMats();
 
+
   timeDx();
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n");
-  timeDy();
+  //~PetscPrintf(PETSC_COMM_WORLD,"\n\n");
+  //~timeDy();
 
 
   PetscFinalize();
