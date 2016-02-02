@@ -60,21 +60,26 @@ int runTests(const char * inputFile)
   mapToVec(f,MMS_uA,D._Nz,D._dy,D._dz,5,D._da);
   //~mapToVec(f,MMS_test,D._Nz,D._dy,D._dz,D._da);
   //~printVec(f,D._da);
+  //~VecView(f,PETSC_VIEWER_STDOUT_WORLD);
 
   Vec g;
   VecDuplicate(f,&g); PetscObjectSetName((PetscObject) g, "g");
   VecSet(g,0.0);
 
-  //~sbp.Dy(f,g);
-  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  sbp.Dy(f,g);
+  VecView(g,PETSC_VIEWER_STDOUT_WORLD);
 
   //~sbp.muxDz(f,g);
   //~sbp.muxDy(f,g);
   //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
 
   //~sbp.Dzxmu(f,g);
-  sbp.Dyxmu(f,g);
-  VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  //~sbp.Dyxmu(f,g);
+  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+
+  // try to develop an function to perform the array stuff
+  //~PetscInt m_D1close=1,n_D1close=3;
+  //~PetscScalar D1closS[1][3] = {{-1.5, 2.0, -0.5}};
 
   return ierr;
 }
