@@ -53,14 +53,13 @@ int runTests(const char * inputFile)
   mapToVec(D._muVP,MMS_mu,D._Nz,D._dy,D._dz,D._da);
 
   SbpOps_sc s(D,*D._muArrPlus,D._muP);
-  SbpOps_c m(D,*D._muArrPlus,D._muP);
 
   Vec f;
   DMCreateGlobalVector(D._da,&f); PetscObjectSetName((PetscObject) f, "f");
   VecSet(f,0.0);
   mapToVec(f,MMS_uA,D._Nz,D._dy,D._dz,5,D._da);
   //~mapToVec(f,MMS_test,D._Nz,D._dy,D._dz,D._da);
-  printVec(f,D._da);
+  //~printVec(f,D._da);
   //~VecView(f,PETSC_VIEWER_STDOUT_WORLD);
 
   Vec dmdag;
@@ -68,20 +67,30 @@ int runTests(const char * inputFile)
   VecSet(dmdag,0.0);
 
   s.Dy(f,dmdag);
-  VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
-
-  // compare the effect of matrix derivatives and stencils on DMDA Vecs
-  Vec matg;
-  VecDuplicate(f,&matg); PetscObjectSetName((PetscObject) matg, "matg");
-  VecSet(matg,0.0);
-
-  s.Dy(f,matg);
-  VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
+  writeVec(dmdag,"data/dmdag");
+  //~VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
 
 
-  //~// try to develop a function to perform the array stuff
-  //~PetscInt m_D1close=1,n_D1close=3;
-  //~PetscScalar D1closS[1][3] = {{-1.5, 2.0, -0.5}};
+  // try to create matrix derivative
+  Spmat Dy(D._Ny,D._Ny);
+  Dy(0,0,-1.0/D._dy);Dy(0,1,1.0/D._dy); // first row
+  for (int Ii=1;Ii<D._Ny-1;Ii++) {
+    Dy(Ii,Ii-1,-0.5/D._dy);
+    Dy(Ii,Ii+1,0.5/D._dy);
+  }
+  Dy(D._Ny-1,D._Ny-1,1.0/D._dy);Dy(D._Ny-1,D._Ny-2,-1.0/D._dy); // last row
+
+  //~// compare the effect of matrix derivatives and stencils on DMDA Vecs
+  //~Vec matg;
+  //~VecDuplicate(f,&matg); PetscObjectSetName((PetscObject) matg, "matg");
+  //~VecSet(matg,0.0);
+
+  //~m.Dy(f,matg);
+  //~writeVec(matg,"data/matg");
+  //~VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
+
+
+
 
 
 

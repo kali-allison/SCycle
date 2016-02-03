@@ -260,6 +260,10 @@ void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag
   size_t rightRowSize = right.size(1);
   size_t rightColSize = right.size(2);
 
+  PetscInt zn,yn,yS,zS;
+  DMDAGetCorners(dm, &zS, &yS, 0, &zn, &yn, 0);
+
+
   ISLocalToGlobalMapping map,rmap;
   DMGetLocalToGlobalMapping(dm,&map);
   AO ao;
