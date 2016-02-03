@@ -235,7 +235,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+  mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
 
   // update fields on fault
   ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
@@ -392,8 +392,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecGetValues(SAT,1,&Ii,&sat);
 
     // d/dt gxy = mu/visc * ( d/dy u - gxy) + SAT
-    //~deps = sigmaxy/visc + _muArrPlus[Ii]/visc * sat*0;
-    deps = sigmaxy/visc;
+    deps = sigmaxy/visc + _muArrPlus[Ii]/visc * sat;
+    //~deps = sigmaxy/visc;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -615,8 +615,8 @@ PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
   double err2epsxz = computeNormDiff_2(_gxzP,gxzA);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
-              _Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
+              _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
 
   VecDestroy(&uA);
   VecDestroy(&gxyA);

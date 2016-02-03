@@ -52,34 +52,38 @@ int runTests(const char * inputFile)
   Domain D(inputFile);
   mapToVec(D._muVP,MMS_mu,D._Nz,D._dy,D._dz,D._da);
 
-  SbpOps_sc sbp(D,*D._muArrPlus,D._muP);
+  SbpOps_sc s(D,*D._muArrPlus,D._muP);
+  SbpOps_c m(D,*D._muArrPlus,D._muP);
 
   Vec f;
   DMCreateGlobalVector(D._da,&f); PetscObjectSetName((PetscObject) f, "f");
   VecSet(f,0.0);
   mapToVec(f,MMS_uA,D._Nz,D._dy,D._dz,5,D._da);
   //~mapToVec(f,MMS_test,D._Nz,D._dy,D._dz,D._da);
-  //~printVec(f,D._da);
+  printVec(f,D._da);
   //~VecView(f,PETSC_VIEWER_STDOUT_WORLD);
 
-  Vec g;
-  VecDuplicate(f,&g); PetscObjectSetName((PetscObject) g, "g");
-  VecSet(g,0.0);
+  Vec dmdag;
+  VecDuplicate(f,&dmdag); PetscObjectSetName((PetscObject) dmdag, "dmdag");
+  VecSet(dmdag,0.0);
 
-  sbp.Dy(f,g);
-  VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  s.Dy(f,dmdag);
+  VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
 
-  //~sbp.muxDz(f,g);
-  //~sbp.muxDy(f,g);
-  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  // compare the effect of matrix derivatives and stencils on DMDA Vecs
+  Vec matg;
+  VecDuplicate(f,&matg); PetscObjectSetName((PetscObject) matg, "matg");
+  VecSet(matg,0.0);
 
-  //~sbp.Dzxmu(f,g);
-  //~sbp.Dyxmu(f,g);
-  //~VecView(g,PETSC_VIEWER_STDOUT_WORLD);
+  s.Dy(f,matg);
+  VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
 
-  // try to develop an function to perform the array stuff
+
+  //~// try to develop a function to perform the array stuff
   //~PetscInt m_D1close=1,n_D1close=3;
   //~PetscScalar D1closS[1][3] = {{-1.5, 2.0, -0.5}};
+
+
 
   return ierr;
 }

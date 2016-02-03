@@ -260,7 +260,7 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
 
 
 
-double MMS_test(const double y,const double z) { return y; }
+double MMS_test(const double y,const double z) { return z; }
 
 
 //======================================================================
@@ -481,10 +481,9 @@ void printVec(const Vec vec,const DM da)
   DMDAVecGetArray(da, vec, &arr);
 
   PetscInt yI,zI;
-  PetscScalar y,z;
     for (yI = yS; yI < yE; yI++) {
       for (zI = zS; zI < zE; zI++) {
-        PetscPrintf(PETSC_COMM_SELF,"%i: f(%i,%i) = %.4e\n",rank,yI,zI,arr[yI][zI]);
+        PetscPrintf(PETSC_COMM_SELF,"%i: f(%i,%i) = %.2f\n",rank,yI,zI,arr[yI][zI]);
       }
     }
 

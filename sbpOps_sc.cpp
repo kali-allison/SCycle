@@ -88,31 +88,12 @@ PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Dz";
+    string funcName = "Dy";
     string fileName = "SbpOps_sc.cpp";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
-  // define stencil c[row][col]
-  //~if (_order == 2) {
-    //~PetscInt m_D1close=1,n_D1close=3;
-    //~PetscScalar D1closS[1][3] = {{-1.5, 2.0, -0.5}};
-    //~PetscScalar D1closE[1][3] = {{0.5, 2.0, 1.5}};
 
-    //~PetscInt m_D1Int=1,n_D1Int=3;
-    //~PetscScalar D1Int[1][3] = {{0, 0.5, -0.5}};
-  //~}
-  //~else if (_order == 4) {
-    //~PetscInt m_D1close=4,n_D1close=4;
-    //~PetscScalar D1closS[4][4] = {{-11.0/6.0,3.0,-1.5,1.0/3.0},
-                                 //~{-0.5,0.0,0.5,0.0},
-                                 //~{4.0/43.0,-59.0/86.0,59.0/86.0,-4.0/43.0},
-                                 //~{3.0/98.0,-59.0/98.0,32.0/49.0,-4.0/49.0}};
-    //~PetscScalar D1closE[4][4] = D1closS; // need to modify this
-
-    //~PetscInt m_D1Int=1,n_D1Int=5;
-    //~PetscScalar D1closInt[1][5] = {{0,2.0/3.0,-1.0/12.0,1.0/12.0,-2.0/3.0}};
-  //~}
 
   Vec loutVec, linVec;
   PetscScalar** lout;
@@ -129,8 +110,6 @@ PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
   if (_order == 2) {
     for (yI = _yS; yI < _yE; yI++) {
       for (zI = _zS; zI < _zE; zI++) {
-        // interior stencil
-        //~if (yI > m_D1close-1 && yI < _Ny-m_D1close) {
 
         if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
         else if (yI == 0) { lout[yI][zI] = -1.5*lin[0][zI] + 2.0*lin[1][zI] - 0.5*lin[2][zI]; }
@@ -139,16 +118,6 @@ PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
       }
     }
   }
-  //~else if (_order == 4) {
-    //~for (yI = _yS; yI < _yE; yI++) {
-      //~for (zI = _zS; zI < _zE; zI++) {
-        //~if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
-        //~else if (yI == 0) { lout[yI][zI] = -1.5*lin[0][zI] + 2.0*lin[1][zI] - 0.5*lin[2][zI]; }
-        //~else if (yI == _Ny-1) { lout[yI][zI] = 0.5*lin[_Ny-3][zI] - 2.0*lin[_Ny-2][zI] + 1.5*lin[_Ny-1][zI]; }
-        //~lout[yI][zI] = lout[yI][zI]/_dy;
-      //~}
-    //~}
-  //~}
 
   ierr = DMDAVecRestoreArray(_da, loutVec, &lout);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(_da, linVec, &lin);CHKERRQ(ierr);
@@ -210,7 +179,7 @@ PetscErrorCode SbpOps_sc::Dz(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dy";
+  string funcName = "Dz";
   string fileName = "SbpOps_sc.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
