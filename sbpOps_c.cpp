@@ -64,10 +64,10 @@ SbpOps_c::SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu)
         kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
 
         Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
-        kronConvert(tempFactors._Iz,E0z,_Iy_E0z,1,1);
+        kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
 
         Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
-        kronConvert(tempFactors._Iz,ENz,_Iy_ENz,1,1);
+        kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
       }
 
     }
@@ -110,6 +110,23 @@ SbpOps_c::~SbpOps_c()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps.cpp.\n");
 #endif
+}
+
+PetscErrorCode SbpOps_c::getA(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_c::getA";
+    string fileName = "SbpOps_c.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of A:
+  mat = _A;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
 }
 
 
@@ -1728,6 +1745,18 @@ PetscErrorCode SbpOps_c::HzinvxE0z(const Vec &in, Vec &out)
   string fileName = "sbpOps_c.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
+//~PetscPrintf(PETSC_COMM_WORLD,"Starting HzinvxE0z\n");
+//~PetscInt vecSize,matRowSize,matColSize;
+//~VecGetSize(in,&vecSize);
+//~PetscPrintf(PETSC_COMM_WORLD,"in vec size: %i\n",vecSize);
+
+//~MatGetSize(_Iy_E0z,&matRowSize,&matColSize);
+//~PetscPrintf(PETSC_COMM_WORLD,"_Iy_E0z size: %i x %i\n",matRowSize,matColSize);
+
+//~MatGetSize(_Iy_Hzinv,&matRowSize,&matColSize);
+//~PetscPrintf(PETSC_COMM_WORLD,"_Iy_Hzinv size: %i x %i\n",matRowSize,matColSize);
+//~assert(0);
+
 
   Vec temp1;
   ierr = VecDuplicate(in,&temp1); CHKERRQ(ierr);

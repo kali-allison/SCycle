@@ -7,6 +7,7 @@
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
 #include "spmat.hpp"
+#include "sbpOps.hpp"
 
 using namespace std;
 
@@ -83,7 +84,7 @@ struct TempMats_fc
  * be off by 4.
  */
 
-class SbpOps_fc
+class SbpOps_fc : public SbpOps
 {
 
   public:
@@ -146,6 +147,8 @@ class SbpOps_fc
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);
     PetscErrorCode writeOps(const std::string outputDir);
+
+    PetscErrorCode getA(Mat &mat);
 
 
     // functions to compute various derivatives of input vectors (this

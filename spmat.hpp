@@ -40,7 +40,7 @@ public:
 
   friend Spmat kron(const Spmat& left,const Spmat& right);
   friend void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag);
-  friend void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag,DM dm);
+  friend void kronConvertL(const Spmat& left,Mat& mat,const PetscInt diag,const PetscInt offDiag,const DM dm);
 
 
   // inline functions are defined in the header file

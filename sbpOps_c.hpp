@@ -7,6 +7,7 @@
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
 #include "spmat.hpp"
+#include "sbpOps.hpp"
 
 using namespace std;
 
@@ -37,39 +38,39 @@ using namespace std;
  * A matrix.
  */
 struct TempMats_c
-    {
-      const PetscInt    _order,_Ny,_Nz;
-      const PetscReal   _dy,_dz;
-      Mat              *_mu;
+{
+  const PetscInt    _order,_Ny,_Nz;
+  const PetscReal   _dy,_dz;
+  Mat              *_mu;
 
-      Spmat _Hy,_D1y,_D1yint,_Iy;
-      Spmat _Hz,_D1z,_D1zint,_Iz;
+  Spmat _Hy,_D1y,_D1yint,_Iy;
+  Spmat _Hz,_D1z,_D1zint,_Iz;
 
-      Mat _muxBSy_Iz;
-      Mat _Hyinv_Iz;
+  Mat _muxBSy_Iz;
+  Mat _Hyinv_Iz;
 
-      Mat _muxIy_BSz;
-      Mat _Iy_Hzinv;
+  Mat _muxIy_BSz;
+  Mat _Iy_Hzinv;
 
-      Mat _AL;
-      Mat _AR;
-      Mat _AT;
-      Mat _AB;
+  Mat _AL;
+  Mat _AR;
+  Mat _AT;
+  Mat _AB;
 
-      Mat _H;
+  Mat _H;
 
-      TempMats_c(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
-      ~TempMats_c();
+  TempMats_c(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
+  ~TempMats_c();
 
 
 
-    private:
-      PetscErrorCode computeH();
+private:
+  PetscErrorCode computeH();
 
-      // disable default copy constructor and assignment operator
-      TempMats_c(const TempMats_c & that);
-      TempMats_c& operator=( const TempMats_c& rhs );
-  };
+  // disable default copy constructor and assignment operator
+  TempMats_c(const TempMats_c & that);
+  TempMats_c& operator=( const TempMats_c& rhs );
+};
 
 
 /*
@@ -86,7 +87,7 @@ struct TempMats_c
  * be off by 4.
  */
 
-class SbpOps_c
+class SbpOps_c : public SbpOps
 {
 
   private:
@@ -95,7 +96,7 @@ class SbpOps_c
     SbpOps_c(const SbpOps_c & that);
     SbpOps_c& operator=( const SbpOps_c& rhs );
 
-  public:
+  //~public:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -135,7 +136,7 @@ class SbpOps_c
     PetscErrorCode constructRzmu(const TempMats_c& tempMats,Mat &Rzmu);
 
 
-  //~public:
+  public:
 
     Mat _H;
     Mat _A;
@@ -151,10 +152,10 @@ class SbpOps_c
     PetscErrorCode loadOps(const std::string inputDir);
     PetscErrorCode writeOps(const std::string outputDir);
 
+    PetscErrorCode getA(Mat &mat);
 
-    // functions to compute various derivatives of input vectors (this
-    // will allow the matrix-free version of these operators to present
-    // the exact same interface to the as the matrix version).
+
+    // functions to compute various derivatives of input vectors
     PetscErrorCode Dy(const Vec &in, Vec &out); // out = Dy * in
     PetscErrorCode muxDy(const Vec &in, Vec &out); // out = mu * Dy * in
     PetscErrorCode Dyxmu(const Vec &in, Vec &out); // out = Dy * mu * in

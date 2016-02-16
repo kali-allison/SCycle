@@ -7,7 +7,6 @@ Domain::Domain(const char *file)
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
-  //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -15,9 +14,7 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  //~_viscDistribution("unspecified"),_visc(NULL),
-  _A(NULL),_temp(NULL),_n(NULL),
-  _linSolver("unspecified"),_kspTol(-1),
+  _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -85,7 +82,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
-  //~_sigma_N_min(-1),_sigma_N_max(-1),_sigma_N(NULL),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -93,9 +89,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
-  //~_viscDistribution("unspecified"),_visc(NULL),
-  _A(NULL),_temp(NULL),_n(NULL),
-  _linSolver("unspecified"),_kspTol(-1),
+  _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -170,8 +164,6 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-  //~VecDestroy(&_sigma_N);
-
   PetscFree(_muArrPlus);
   PetscFree(_csArrPlus);
   PetscFree(_sigmaNArr);
@@ -180,12 +172,6 @@ Domain::~Domain()
 
   MatDestroy(&_muP);
   MatDestroy(&_muM);
-
-  VecDestroy(&_A);
-  VecDestroy(&_temp);
-  VecDestroy(&_n);
-
-
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -241,6 +227,9 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
     // linear solver settings
+    else if (var.compare("sbpType")==0) {
+      _sbpType = line.substr(pos+_delim.length(),line.npos);
+    }
     else if (var.compare("linSolver")==0) {
       _linSolver = line.substr(pos+_delim.length(),line.npos);
     }

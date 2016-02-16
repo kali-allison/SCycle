@@ -8,7 +8,6 @@ using namespace std;
 OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
-  //~_var(NULL),_dvar(NULL),
   _lenVar(0),
   _runTime(0),
   _controlType(controlType)

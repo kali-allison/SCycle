@@ -45,13 +45,10 @@ class Domain
     Mat          _muM;
 
 
-    // viscosity distribtion properties for power law rheology
-    Vec _A,_temp,_n;
-
-
     // linear solver settings
-    std::string _linSolver;
-    PetscScalar _kspTol;
+    std::string _linSolver; // type of linear solver used: MUMPSCHOLESKY, MUMPSLU, AMG
+    std::string _sbpType; // matrix or matrix-free, compatible or fully compatible
+    PetscScalar _kspTol; // tolerance for iterative solver
 
     // time integration settings
     std::string  _timeControlType,_timeIntegrator;

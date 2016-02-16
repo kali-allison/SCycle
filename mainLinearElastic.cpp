@@ -45,7 +45,8 @@ int runMMSTests(const char * inputFile)
   return ierr;
 }
 
-int runTests(const char * inputFile)
+
+/*int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
@@ -80,6 +81,62 @@ int runTests(const char * inputFile)
   }
   Dy(D._Ny-1,D._Ny-1,1.0/D._dy);Dy(D._Ny-1,D._Ny-2,-1.0/D._dy); // last row
 
+  //~kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag,DM dm)
+  Mat mat;
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  PetscInt zn,yn,yS,zS;
+  DMDAGetGhostCorners(D._da, &zS, &yS, 0, &zn, &yn, 0);
+  PetscInt zE = zS + zn;
+  PetscInt yE = yS + yn;
+  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,yn*zn,yn*zn);
+
+  MatSetFromOptions(mat);
+  PetscInt diag=1,offDiag=2;
+  MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
+  MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
+  MatSetUp(mat);
+
+  //~AO ao;
+  //~DMDAGetAO(D._da,&ao);
+
+
+  // stuff necessary to use MatSetValuesStencil (which takes global natural ordering)
+  PetscInt dims[2] = {zn, yn};
+  PetscInt starts[2] = {zS, yS};
+  MatSetStencil(mat,2,dims,starts,1);
+  ISLocalToGlobalMapping map;
+  DMGetLocalToGlobalMapping(D._da,&map);
+  MatSetLocalToGlobalMapping(mat,map,map); // do the 2 map arguments need to be different??
+
+  // try to only set 1 value in matrix
+  MatStencil row,col;
+  //~row.i = 0; row.j = 0; row.k = 10; row.c = 10; // I think c and k are useless
+  //~col.i = 0; col.j = 0; col.k = 10; col.c = 10;
+  PetscScalar v = 1;
+  //~MatSetValuesStencil(mat,1,&row,1,&col,&v,INSERT_VALUES);
+
+  //~MatStencil row,col[2];
+  //~PetscScalar v[2];
+  DMDAGetCorners(D._da, &zS, &yS, 0, &zn, &yn, 0);
+
+  PetscPrintf(PETSC_COMM_WORLD,"zS = %i, zn = %i,  yS = %i, yn = %i\n",zS,zn,yS,yn);
+    for (PetscInt yI = yS; yI < yE; yI++) {
+      for (PetscInt zI = zS; zI < zE; zI++) {
+        row.i = yI;
+        col.i = zI;
+        v = yI;
+        MatSetValuesStencil(mat,1,&row,1,&col,&v,INSERT_VALUES);
+      }
+    }
+  MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
+  MatView(mat,PETSC_VIEWER_STDOUT_WORLD);
+
+
+  // iterate over local matrix and set values using "local" grid numbering
+  // MatSetValuesStencil
+
+
   //~// compare the effect of matrix derivatives and stencils on DMDA Vecs
   //~Vec matg;
   //~VecDuplicate(f,&matg); PetscObjectSetName((PetscObject) matg, "matg");
@@ -89,13 +146,32 @@ int runTests(const char * inputFile)
   //~writeVec(matg,"data/matg");
   //~VecView(dmdag,PETSC_VIEWER_STDOUT_WORLD);
 
+  return ierr;
+}
+*/
 
+int runTests(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
 
+  //~Domain D(inputFile);
 
+  //~Vec f;
+  //~VecCreate(PETSC_COMM_WORLD,&f);
+  //~VecSetSizes(f,PETSC_DECIDE,D._Ny*D._Nz);
+  //~VecSetFromOptions(f);
+  //~mapToVec(f,MMS_mu,D._Nz,D._dy,D._dz);
 
+  //~SbpOps_sc s(D,*D._muArrPlus,D._muP);
+
+  //~Vec dfdy;
+  //~VecDuplicate(f,&dfdy);
+  //~VecSet(dfdy,0.0);
+  //~s.Dy(f,dfdy);
 
   return ierr;
 }
+
 
 int runEqCycle(const char * inputFile)
 {
@@ -111,7 +187,6 @@ int runEqCycle(const char * inputFile)
   else {
     obj = new FullLinearElastic(domain);
   }
-
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = obj->writeStep1D();CHKERRQ(ierr);
   ierr = obj->writeStep2D();CHKERRQ(ierr);
@@ -131,13 +206,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~{
-    //~Domain domain(inputFile);
-    //~if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~else { runEqCycle(inputFile); }
-  //~}
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  runTests(inputFile);
+  //~runTests(inputFile);
 
 
   PetscFinalize();

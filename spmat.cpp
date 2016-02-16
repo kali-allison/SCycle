@@ -253,12 +253,12 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
 
 
 // performs Kronecker product and converts to PETSc Mat, ordered for DMDA Vecs
-void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag,DM dm)
+void kronConvertL(const Spmat& left,Mat& mat,const PetscInt diag,const PetscInt offDiag,const DM dm)
 {
-  size_t leftRowSize = left.size(1);
-  size_t leftColSize = left.size(2);
-  size_t rightRowSize = right.size(1);
-  size_t rightColSize = right.size(2);
+  //~size_t leftRowSize = left.size(1);
+  //~size_t leftColSize = left.size(2);
+  //~size_t rightRowSize = right.size(1);
+  //~size_t rightColSize = right.size(2);
 
   PetscInt zn,yn,yS,zS;
   DMDAGetCorners(dm, &zS, &yS, 0, &zn, &yn, 0);
@@ -273,12 +273,14 @@ void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag
 
   // allocate space for mat
   MatCreate(PETSC_COMM_WORLD,&mat);
-  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,leftRowSize*rightRowSize,leftColSize*rightColSize);
+  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,yn*zn,yn*zn);
   MatSetFromOptions(mat);
   MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
   MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
   MatSetLocalToGlobalMapping(mat,map,map);
   MatSetUp(mat);
+
+  /*
   MatGetOwnershipRange(mat,&Istart,&Iend);
 
   // iterate over only nnz entries
@@ -320,6 +322,7 @@ void kronConvertDMDA(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag
       }
     }
   }
+  */
   MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
 }

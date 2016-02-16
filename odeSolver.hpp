@@ -23,7 +23,7 @@ using namespace std;
  * To obtain solutions at user-specified times, use FEuler and call setStepSize
  * in the routine f(t,y).
  *
- * y is represented as an array of one or more Vecs (PetSc data type).
+ * y is represented as an array of one or more Vecs (PETSc data type).
  *
  * At minimum, the user must specify:
  *     QUANTITY               FUNCTION

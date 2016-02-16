@@ -1,6 +1,6 @@
 order = 2
-Ny = 5
-Nz = 6
+Ny = 11
+Nz = 15
 Ly = 24 # km
 Lz = 24 # km
 
@@ -43,6 +43,7 @@ TDepths = [0 24]
 
 
 linSolver = AMG
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -59,4 +60,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/lSS_fc_
+outputDir = data/lSS_mfc_

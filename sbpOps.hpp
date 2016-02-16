@@ -1,85 +1,53 @@
-#ifndef SBPOPS_DDD_H_INCLUDED
-#define SBPOPS_DDD_H_INCLUDED
+#ifndef SBPOPS_H_INCLUDED
+#define SBPOPS_H_INCLUDED
 
 #include <petscksp.h>
-#include <string>
-#include <assert.h>
 #include "domain.hpp"
-#include "debuggingFuncs.hpp"
-#include "spmat.hpp"
-#include "sbpOps_c.hpp"
-#include "sbpOps_fc.hpp"
-
-using namespace std;
 
 
 /*
- * Contains linear SBP operators. Currently supported options:
- *   compatible
- *   fully compatible
- * Coming soon:
- *   matrix-free compatible operators!
+ * This is an abstract that defines an interface for SBP operators.
  *
- */
-
-
-/*
- * Note: PETSc's ability to count matrix creation/destructions is off.
- * For every MATAXPY, the number of destructions increments by 1 more than
- * the number of creations. Thus, after satBoundaries() the number will
- * be off by 4.
+ * Current supported options:
+ * matrix (m)/stencil (s)     order        compatible (c)/fully compatible (fc)
+ *         m                   2                 c
+ *         m                   4                 c
+ *         m                   2                 fc
+ *         m                   4                 fc
+ *
+ * Coming soon: matrix-free versions!
  */
 
 class SbpOps
 {
 
-  private:
-      // disable default copy constructor and assignment operator
-    SbpOps(const SbpOps & that);
-    SbpOps& operator=( const SbpOps& rhs );
-
   public:
+    SbpOps(){};
+    ~SbpOps(){};
 
-    const PetscInt    _order,_Ny,_Nz;
-    const PetscReal   _dy,_dz;
-    PetscScalar      *_muArr;
-    Mat              *_mu;
-
-    SbpOps_c   _internalSBP;
-    PetscScalar _alphaDy;
-
-    Mat _A;
-
-    SbpOps(Domain&D,PetscScalar& muArr,Mat& mu);
-    ~SbpOps();
+    // don't want _A to belong to the abstract class
+    virtual PetscErrorCode getA(Mat &mat) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)
-    PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD);
-
-    // read/write commands
-    PetscErrorCode loadOps(const std::string inputDir);
-    PetscErrorCode writeOps(const std::string outputDir);
+    virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD) = 0;
 
 
-    //~// functions to compute various derivatives of input vectors (this
-    //~// will allow the matrix-free version of these operators to present
-    //~// the exact same interface to the as the matrix version).
-    PetscErrorCode Dy(const Vec &in, Vec &out); // out = Dy * in
-    PetscErrorCode muxDy(const Vec &in, Vec &out); // out = mu * Dy * in
-    PetscErrorCode Dyxmu(const Vec &in, Vec &out); // out = Dy * mu * in
-    PetscErrorCode Dz(const Vec &in, Vec &out); // out = Dz * in
-    PetscErrorCode muxDz(const Vec &in, Vec &out); // out = mu * Dz * in
-    PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
+    // functions to compute various derivatives of input vectors
+    virtual PetscErrorCode Dy(const Vec &in, Vec &out) = 0; // out = Dy * in
+    virtual PetscErrorCode muxDy(const Vec &in, Vec &out) = 0; // out = mu * Dy * in
+    virtual PetscErrorCode Dyxmu(const Vec &in, Vec &out) = 0; // out = Dy * mu * in
+    virtual PetscErrorCode Dz(const Vec &in, Vec &out) = 0; // out = Dz * in
+    virtual PetscErrorCode muxDz(const Vec &in, Vec &out) = 0; // out = mu * Dz * in
+    virtual PetscErrorCode Dzxmu(const Vec &in, Vec &out) = 0; // out = Dz * mu * in
 
 
-    PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
-    PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out); // out = Hy^-1 * e0y * in
-    PetscErrorCode HyinvxeNy(const Vec &in, Vec &out); // out = Hy^-1 * eNy * in
-    PetscErrorCode HyinvxE0y(const Vec &in, Vec &out); // out = Hy^-1 * E0y * in
-    PetscErrorCode HyinvxENy(const Vec &in, Vec &out); // out = Hy^-1 * ENy * in
-    PetscErrorCode HzinvxE0z(const Vec &in, Vec &out); // out = Hz^-1 * e0z * in
-    PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
-
+    virtual PetscErrorCode H(const Vec &in, Vec &out) = 0; // out = H * in
+    virtual PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out) = 0; // out = Hy^-1 * e0y * in
+    virtual PetscErrorCode HyinvxeNy(const Vec &in, Vec &out) = 0; // out = Hy^-1 * eNy * in
+    virtual PetscErrorCode HyinvxE0y(const Vec &in, Vec &out) = 0; // out = Hy^-1 * E0y * in
+    virtual PetscErrorCode HyinvxENy(const Vec &in, Vec &out) = 0; // out = Hy^-1 * ENy * in
+    virtual PetscErrorCode HzinvxE0z(const Vec &in, Vec &out) = 0; // out = Hz^-1 * E0z * in
+    virtual PetscErrorCode HzinvxENz(const Vec &in, Vec &out) = 0; // out = Hz^-1 * ENz * in
 };
 
 

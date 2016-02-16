@@ -58,6 +58,23 @@ SbpOps_sc::~SbpOps_sc()
 
 //======================== public member functions =====================
 
+PetscErrorCode SbpOps_sc::getA(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_sc::getA";
+    string fileName = "SbpOps_sc.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of A:
+  mat = NULL;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
 // map the boundary condition vectors to rhs
 PetscErrorCode SbpOps_sc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 {

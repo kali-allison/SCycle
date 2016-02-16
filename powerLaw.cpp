@@ -174,7 +174,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
 
   // set up rhs vector
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
   VecDestroy(&viscSource);
 
@@ -218,7 +218,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   Vec viscSource,HxviscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
@@ -226,10 +226,10 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
   mapToVec(viscSource,MMS_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(viscSource,HxviscSource);
+  ierr = _sbpP->H(viscSource,HxviscSource);
   VecDestroy(&viscSource);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(uSource,HxuSource);
+  ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
   ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
@@ -245,7 +245,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   ierr = setSurfDisp();
 
   // update fields on fault
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  ierr = _sbpP->muxDy(_uP,_stressxyP); CHKERRQ(ierr);
   //~ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // update rates
@@ -281,7 +281,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   // + Hz^-1 E0z mu epsV_xz + Hz^-1 ENz mu epsV_xz
   Vec sourcexy_y;
   VecDuplicate(_gxyP,&sourcexy_y);
-  ierr = _sbpP.Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
+  ierr = _sbpP->Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
   ierr = VecScale(sourcexy_y,2.0);CHKERRQ(ierr);
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
@@ -292,7 +292,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     Vec sourcexz_z;
     VecDuplicate(_gxzP,&sourcexz_z);
 
-    ierr = _sbpP.Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
+    ierr = _sbpP->Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
     ierr = VecScale(sourcexz_z,2.0);CHKERRQ(ierr);
 
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
@@ -305,10 +305,10 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
 
 
 
-    _sbpP.HzinvxE0z(*(varBegin+3),temp1);
+    _sbpP->HzinvxE0z(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
 
-    _sbpP.HzinvxENz(*(varBegin+3),temp1);
+    _sbpP->HzinvxENz(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
     ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
@@ -320,7 +320,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   }
 
 
-  ierr = _sbpP.H(source,out); CHKERRQ(ierr);
+  ierr = _sbpP->H(source,out); CHKERRQ(ierr);
   VecDestroy(&source);
 
   #if VERBOSE > 1
@@ -348,15 +348,15 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecDuplicate(u,&GR);
   VecDuplicate(u,&temp1);
 
-  ierr = _sbpP.HyinvxE0y(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP.Hyinvxe0y(gL,GL);CHKERRQ(ierr);
-  VecAXPY(out,-_sbpP._alphaDy,temp1);
-  VecAXPY(out,_sbpP._alphaDy,GL);
+  ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+  VecAXPY(out,1.0,temp1);
+  VecAXPY(out,-1.0,GL);
 
-  ierr = _sbpP.HyinvxENy(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP.HyinvxeNy(gR,GR);CHKERRQ(ierr);
-  VecAXPY(out,_sbpP._alphaDy,temp1);
-  VecAXPY(out,-_sbpP._alphaDy,GR);
+  ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP->HyinvxeNy(gR,GR);CHKERRQ(ierr);
+  VecAXPY(out,-1.0,temp1);
+  VecAXPY(out,1.0,GR);
 
   VecDestroy(&GL);
   VecDestroy(&GR);
@@ -450,10 +450,10 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   #endif
 
   // compute strains and rates
-  _sbpP.Dy(_uP,_gTxyP);
+  _sbpP->Dy(_uP,_gTxyP);
   VecScale(_gTxyP,0.5);
 
-  _sbpP.Dz(_uP,_gTxzP);
+  _sbpP->Dz(_uP,_gTxzP);
   VecScale(_gTxzP,0.5);
 
   PetscScalar epsTot,epsVisc,sigmaxy,sigmaxz,sigmadev=0;
@@ -516,7 +516,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   Vec viscSource,HxviscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
@@ -524,10 +524,10 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
   mapToVec(viscSource,MMS_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(viscSource,HxviscSource);
+  ierr = _sbpP->H(viscSource,HxviscSource);
   VecDestroy(&viscSource);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(uSource,HxuSource);
+  ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
   ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
@@ -714,7 +714,7 @@ PetscErrorCode PowerLaw::writeStep1D()
 
   if (_stepCount==0) {
     // write contextual fields
-    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
+    //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
     ierr = writeContext(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 

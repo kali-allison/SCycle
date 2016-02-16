@@ -7,6 +7,7 @@
 #include "domain.hpp"
 #include "debuggingFuncs.hpp"
 #include "spmat.hpp"
+#include "sbpOps.hpp"
 
 using namespace std;
 
@@ -50,6 +51,8 @@ class SbpOps_sc
     Mat              *_mu;
     Vec               _muVP;
 
+    Mat               _A;
+
     // DMDA dimensions
     DM _da;
     PetscInt _yS,_yE,_zS,_zE; // for for loops below
@@ -77,6 +80,8 @@ class SbpOps_sc
 
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB);
+
+    PetscErrorCode getA(Mat &mat);
 
 
     // functions to compute various derivatives of input vectors (this

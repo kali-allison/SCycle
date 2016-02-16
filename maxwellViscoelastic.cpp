@@ -156,7 +156,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
 
   // set up rhs vector
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
   VecDestroy(&viscSource);
 
@@ -172,13 +172,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates
-  //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
+  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
 
   // lock the fault to test viscous strain alone
-  VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
 
@@ -205,7 +205,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
 
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
@@ -216,10 +216,10 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 
   ierr = setViscStrainSourceTerms(viscSource,_var.begin(),_var.end());CHKERRQ(ierr);
   mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(viscSourceMMS,HxviscSourceMMS);
+  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(uSource,HxuSource);
+  ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
@@ -278,7 +278,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   // + Hz^-1 E0z mu gxz + Hz^-1 ENz mu gxz
   Vec sourcexy_y;
   VecDuplicate(_uP,&sourcexy_y);
-  ierr = _sbpP.Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
+  ierr = _sbpP->Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
 
@@ -286,7 +286,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   {
     Vec sourcexz_z;
     VecDuplicate(_gxzP,&sourcexz_z);
-    ierr = _sbpP.Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
+    ierr = _sbpP->Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
@@ -296,10 +296,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
 
-    _sbpP.HzinvxE0z(*(varBegin+3),temp1);
+    _sbpP->HzinvxE0z(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
 
-    _sbpP.HzinvxENz(*(varBegin+3),temp1);
+    _sbpP->HzinvxENz(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
@@ -311,7 +311,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   }
 
 
-  ierr = _sbpP.H(source,out); CHKERRQ(ierr);
+  ierr = _sbpP->H(source,out); CHKERRQ(ierr);
   VecDestroy(&source);
 
   #if VERBOSE > 1
@@ -341,14 +341,14 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDuplicate(u,&temp1);
 
   // left displacement boundary
-  ierr = _sbpP.HyinvxE0y(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP.Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+  ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
   VecAXPY(out,1.0,temp1);
   VecAXPY(out,-1.0,GL);
 
   // right displacement boundary
-  ierr = _sbpP.HyinvxENy(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP.HyinvxeNy(gR,GR);CHKERRQ(ierr);
+  ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP->HyinvxeNy(gR,GR);CHKERRQ(ierr);
   VecAXPY(out,-1.0,temp1);
   VecAXPY(out,1.0,GR);
 
@@ -435,8 +435,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
   #endif
 
   // compute strains and rates
-  _sbpP.Dy(_uP,_gTxyP);
-  _sbpP.Dz(_uP,_gTxzP);
+  _sbpP->Dy(_uP,_gTxyP);
+  _sbpP->Dz(_uP,_gTxzP);
 
   PetscScalar visc,gT,gV,sigmaxy,sigmaxz;
   PetscInt Ii,Istart,Iend;
@@ -497,7 +497,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
 
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
@@ -508,10 +508,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   ierr = setViscStrainSourceTerms(viscSource,_var.begin(),_var.end());CHKERRQ(ierr);
   mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(viscSourceMMS,HxviscSourceMMS);
+  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(uSource,HxuSource);
+  ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
@@ -710,7 +710,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
 
   if (_stepCount==0) {
     // write contextual fields
-    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
+    //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 
     // output viscosity vector

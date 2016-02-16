@@ -15,7 +15,9 @@ LinearElastic::LinearElastic(Domain&D)
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
-  _kspTol(D._kspTol),_sbpP(D,*D._muArrPlus,D._muP),
+  _kspTol(D._kspTol),
+  //~_sbpP(D,*D._muArrPlus,D._muP),
+  _sbpP(NULL),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
@@ -30,6 +32,8 @@ LinearElastic::LinearElastic(Domain&D)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
 #endif
+
+
 
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
@@ -49,8 +53,6 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_bcTP,&_bcBP); PetscObjectSetName((PetscObject) _bcBP, "_bcBP");
   VecSet(_bcBP,0.0);
 
-  KSPCreate(PETSC_COMM_WORLD,&_kspP);
-  setupKSP(_sbpP,_kspP,_pcP);
 
   //~VecDuplicate(_muVP,&_rhsP); // turn on to use DMDA Vecs everywhere
 
@@ -74,6 +76,23 @@ LinearElastic::LinearElastic(Domain&D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
     assert(0); // automatically fail
   }
+  //~_sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP);
+
+  if (D._sbpType.compare("mc")==0) {
+    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP);
+  }
+  else if (D._sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
+    assert(0); // automatically fail
+  }
+
+  KSPCreate(PETSC_COMM_WORLD,&_kspP);
+  setupKSP(_sbpP,_kspP,_pcP);
+
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");
@@ -138,7 +157,7 @@ LinearElastic::~LinearElastic()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
 
@@ -154,13 +173,16 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
   // use PETSc's direct LU - only available on 1 processor!!!
   //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
 
+  Mat A;
+  sbp->getA(A);
+
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
 #if VERSION < 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 #endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
@@ -189,9 +211,9 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     //~ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
     //~ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
 #if VERSION < 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 #endif
     ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
@@ -201,9 +223,9 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     // use direct LU from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
 #if VERSION < 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 #endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
@@ -216,9 +238,9 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps& sbp,KSP& ksp,PC& pc)
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
 #if VERSION < 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
 #elif VERSION == 6
-    ierr = KSPSetOperators(ksp,sbp._A,sbp._A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KPSSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 #endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
@@ -304,7 +326,7 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   VecDuplicate(_uP,&sigmaxzN);
   mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
   mapToVec(sigmaxzA,MMS_sigmaxz,_Nz,_dy,_dz,_currTime);
-  _sbpP.muxDz(_uP,sigmaxzN);
+  _sbpP->muxDz(_uP,sigmaxzN);
 
 
 
@@ -347,12 +369,12 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
 
-    _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+    _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
     double startTime = MPI_Wtime();
     KSPSolve(_kspP,_rhsP,_uP);
     _factorTime += MPI_Wtime() - startTime;
 
-    _sbpP.muxDy(_uP,_stressxyP);
+    _sbpP->muxDy(_uP,_stressxyP);
     _fault.setTauQS(_stressxyP,NULL);
     _fault.setFaultDisp(_bcLP,NULL);
 
@@ -446,7 +468,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
 
 
   if (_stepCount==0) {
-    ierr = _sbpP.writeOps(_outputDir);CHKERRQ(ierr);
+    //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -596,13 +618,13 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   VecDuplicate(_uP,&source);
   VecDuplicate(_uP,&Hxsource);
   mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP.H(source,Hxsource);
+  ierr = _sbpP->H(source,Hxsource);
   VecDestroy(&source);
 
 
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
 
@@ -615,7 +637,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  _sbpP.muxDy(_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_stressxyP);
 
 
   // update rates
@@ -647,7 +669,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
   // solve for displacement
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
@@ -655,7 +677,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = _sbpP.muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  ierr = _sbpP->muxDy(_uP,_stressxyP); CHKERRQ(ierr);
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
@@ -747,13 +769,13 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   VecDuplicate(_uP,&Hxsource);
 
   ierr = mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
-  ierr = _sbpP.H(source,Hxsource); CHKERRQ(ierr);
+  ierr = _sbpP->H(source,Hxsource); CHKERRQ(ierr);
   VecDestroy(&source);
 
 
   // set rhs, including body source term
   ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr);
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
 
@@ -767,7 +789,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // solve for shear stress
-  _sbpP.muxDy(_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_stressxyP);
 
 
   #if VERBOSE > 1
@@ -834,13 +856,15 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _rhsM(NULL),_uM(NULL),_sigma_xyMinus(NULL),
   _surfDispMinusViewer(NULL),
   _kspM(NULL),_pcMinus(NULL),
-  _sbpMinus(D,*D._muArrMinus,D._muM),
+  //~_sbpM(D,*D._muArrMinus,D._muM),
   _bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
   _fault(D)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
 #endif
+
+  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM);
 
   //~_fault = new FullFault(D);
 
@@ -881,23 +905,23 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   // initialize KSP for y<0
   KSPCreate(PETSC_COMM_WORLD,&_kspM);
   startTime = MPI_Wtime();
-  setupKSP(_sbpMinus,_kspM,_pcMinus);
+  setupKSP(_sbpM,_kspM,_pcMinus);
   _factorTime += MPI_Wtime() - startTime;
 
 
   // solve for displacement and shear stress in y<0
-  _sbpMinus.setRhs(_rhsM,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
+  _sbpM->setRhs(_rhsM,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);
   KSPSolve(_kspM,_rhsM,_uM);
-  //~MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);
-  _sbpMinus.muxDy(_uM,_sigma_xyMinus);
+  //~MatMult(_sbpM->_muxDy_Iz,_uM,_sigma_xyMinus);
+  _sbpM->muxDy(_uM,_sigma_xyMinus);
 
   // solve for displacement and shear stress in y>0
-  _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+  _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
   startTime = MPI_Wtime();
   KSPSolve(_kspP,_rhsP,_uP);
   _factorTime += MPI_Wtime() - startTime;
-  //~MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);
-  _sbpP.muxDy(_uP,_stressxyP);
+  //~MatMult(_sbpP->_muxDy_Iz,_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_stressxyP);
 
 
   //~setU(); // set _uP, _uM analytically
@@ -1072,8 +1096,8 @@ PetscErrorCode FullLinearElastic::writeStep1D()
   double startTime = MPI_Wtime();
 
   if (_stepCount==0) {
-    ierr = _sbpP.writeOps(_outputDir+"plus_");CHKERRQ(ierr);
-    if (_problemType.compare("full")==0) { ierr = _sbpMinus.writeOps(_outputDir+"minus_");CHKERRQ(ierr); }
+    //~ierr = _sbpP->writeOps(_outputDir+"plus_");CHKERRQ(ierr);
+    //~if (_problemType.compare("full")==0) { ierr = _sbpM->writeOps(_outputDir+"minus_");CHKERRQ(ierr); }
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
 
@@ -1238,7 +1262,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = VecAXPY(_bcLMinus,1.0,_bcLMShift);CHKERRQ(ierr);
 
    // solve for displacement: + side
-  ierr = _sbpP.setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
@@ -1246,7 +1270,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
 
   // solve for displacement: - side
-  ierr = _sbpMinus.setRhs(_rhsM,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);CHKERRQ(ierr);
+  ierr = _sbpM->setRhs(_rhsM,_bcLMinus,_bcRMinus,_bcTMinus,_bcBMinus);CHKERRQ(ierr);
   startTime = MPI_Wtime();
   ierr = KSPSolve(_kspM,_rhsM,_uM);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
@@ -1257,10 +1281,10 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
 
   // solve for shear stress
-  //~ierr = MatMult(_sbpMinus._muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
-  //~ierr = MatMult(_sbpP._muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
-  _sbpMinus.muxDy(_uM,_sigma_xyMinus);
-  _sbpP.muxDy(_uP,_stressxyP);
+  //~ierr = MatMult(_sbpM->_muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP->_muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  _sbpM->muxDy(_uM,_sigma_xyMinus);
+  _sbpP->muxDy(_uP,_stressxyP);
 
 
 
@@ -1349,7 +1373,7 @@ PetscErrorCode FullLinearElastic::measureMMSError()
   //~ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
   //~err = err/sqrt(_Ny*_Nz);
 
-  //~double err = computeNormDiff_Mat(_sbpP._H,_uP,_uAnal);
+  //~double err = computeNormDiff_Mat(_sbpP->_H,_uP,_uAnal);
   double err = 1e8;
 
   PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, dy = %e MMS err = %e, log2(err) = %e\n",_Ny,_dy,err,log2(err));

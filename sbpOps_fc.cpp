@@ -112,6 +112,22 @@ SbpOps_fc::~SbpOps_fc()
 #endif
 }
 
+PetscErrorCode SbpOps_fc::getA(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::getA";
+    string fileName = "SbpOps_fc.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of A:
+  mat = _A;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
 
 //======================================================================
 
