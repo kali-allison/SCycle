@@ -31,7 +31,7 @@ depth = 5
 width = 24
 }
 
-viscDistribution = layere
+viscDistribution = layered
 viscVals = [1e20 1e20 1e9 1e9]
 viscDepths = [0 20 20 24]
 
