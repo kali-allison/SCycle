@@ -1,8 +1,8 @@
 order = 4
 Ny = 21
 Nz = 21
-Ly = 60 # km
-Lz = 48 # km
+Ly = 24 # km
+Lz = 24 # km
 
 Dc = 8e-3 # m
 
@@ -31,13 +31,12 @@ depth = 5
 width = 24
 }
 
-viscUpCrust = 1e20 # GPa s
-viscLowCrust = 1e8 # GPa s
-viscAsth = 1e8 # GPa s
-depthUpToLowCrust = 20 # km
-depthLowCrustToAsth = 60 # km
+viscDistribution = layere
+viscVals = [1e20 1e20 1e9 1e9]
+viscDepths = [0 20 20 24]
 
 linSolver = AMG
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -52,5 +51,4 @@ atol = 1e-7
 
 rootTol = 1e-9
 
-#outputDir = ../maxwellVisc/gradient/lcD20_Ly60_bcR0_Ly60_
-outputDir = data/
+outputDir = data/m2D_mc_
