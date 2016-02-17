@@ -45,8 +45,9 @@ int runMMSTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  PetscPrintf(PETSC_COMM_WORLD,"%-3s %-10s %-10s %-22s %-10s %-22s\n",
-             "Ny","dy","err2","log2(err2)","errH","log2(errH)");
+  PetscPrintf(PETSC_COMM_WORLD,"%-3s %-3s %-10s %-10s %-22s %-10s %-22s %-10s %-22s\n",
+             "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
+             "errL2gxz","log2(errL2gxz)");
   for(PetscInt Ny=11;Ny<162;Ny=(Ny-1)*2+1)
   {
     Domain domain(inputFile,Ny,Ny);

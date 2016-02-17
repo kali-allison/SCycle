@@ -37,12 +37,13 @@ ADepths = [0 24]
 BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
-BDepths = [0 24]
+nDepths = [0 24]
 TVals = [950 950]
 TDepths = [0 24]
 
 
 linSolver = AMG
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -59,5 +60,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/pSS_
-outputDir = data/pSS_1_
+outputDir = data/pSS_

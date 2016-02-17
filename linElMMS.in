@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 161
 Nz = 161
 Ly = 6.283185307179586
@@ -33,19 +33,20 @@ viscDistribution = mms
 viscVals = [1e20 1e20]
 viscDepths = [0 6.283185307179586]
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 1e3
+maxStepCount = 1e4
 initTime = 5       # s
-maxTime = 100      # s
+maxTime = 8      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
-atol = 1e-7
+atol = 1e-14
 
 rootTol = 1e-9
 

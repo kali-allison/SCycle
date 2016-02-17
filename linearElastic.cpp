@@ -320,23 +320,16 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   VecDuplicate(_uP,&uA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
 
-  Vec sigmaxyA,sigmaxzA,sigmaxzN;
+  Vec sigmaxyA;
   VecDuplicate(_uP,&sigmaxyA);
-  VecDuplicate(_uP,&sigmaxzA);
-  VecDuplicate(_uP,&sigmaxzN);
   mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
-  mapToVec(sigmaxzA,MMS_sigmaxz,_Nz,_dy,_dz,_currTime);
-  _sbpP->muxDz(_uP,sigmaxzN);
-
-
 
 
   double err2uA = computeNormDiff_2(_uP,uA);
   double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
-  double err2sigmaxz = computeNormDiff_2(sigmaxzN,sigmaxzA);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e \n",
-              _Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy),err2sigmaxz,log2(err2sigmaxz));
+  PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e\n",
+              _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
 
   return ierr;
 }

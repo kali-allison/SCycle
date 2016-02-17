@@ -67,6 +67,7 @@ double MMS_mu_z(const double y,const double z);
 double MMS_sigmaxy(const double y,const double z,const double t);
 double MMS_sigmaxz(const double y,const double z,const double t);
 
+
 double MMS_visc(const double y,const double z);
 double MMS_inVisc(const double y,const double z);
 double MMS_invVisc_y(const double y,const double z);
@@ -79,10 +80,29 @@ double MMS_gxy_t(const double y,const double z,const double t);
 double MMS_gxz(const double y,const double z,const double t);
 double MMS_gxz_z(const double y,const double z,const double t);
 double MMS_gxz_t(const double y,const double z,const double t);
+double MMS_gSource(const double y,const double z,const double t);
+
+// specific to power law
+double MMS_A(const double y,const double z);
+double MMS_B(const double y,const double z);
+double MMS_T(const double y,const double z);
+double MMS_n(const double y,const double z);
+double MMS_sigmadev(const double y,const double z,const double t);
+
+double MMS_pl_gxy(const double y,const double z,const double t);
+double MMS_pl_gxy_y(const double y,const double z,const double t);
+double MMS_pl_gxy_t(const double y,const double z,const double t);
+
+double MMS_pl_gxz(const double y,const double z,const double t);
+double MMS_pl_gxz_z(const double y,const double z,const double t);
+double MMS_pl_gxz_t(const double y,const double z,const double t);
+
+double MMS_pl_gSource(const double y,const double z,const double t);
+
 
 
 double MMS_uSource(const double y,const double z,const double t);
-double MMS_gSource(const double y,const double z,const double t);
+
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   const int N, const double dy, const double dz, const double t);

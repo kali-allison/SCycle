@@ -172,13 +172,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
+  //~ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
 
   // lock the fault to test viscous strain alone
-  //~VecSet(*dvarBegin,0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
+  VecSet(*dvarBegin,0.0);
+  VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
 
@@ -235,7 +235,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
 
   // update fields on fault
   ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);

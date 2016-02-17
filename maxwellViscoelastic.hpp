@@ -35,23 +35,19 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
 
-  PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
-  PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                        it_vec dvarBegin,it_vec dvarEnd);
-  PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
-  PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                        it_vec dvarBegin,it_vec dvarEnd);
-  PetscErrorCode setMMSBoundaryConditions(const double time);
-  PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                         const_it_vec varBegin,const_it_vec varEnd,
-                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
-
-
-
+    PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
+    PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                          it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
+    PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                           const_it_vec varBegin,const_it_vec varEnd,
+                           const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
 
     PetscErrorCode setMMSInitialConditions();
-    PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
-
+    PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+      it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode setMMSBoundaryConditions(const double time);
 
 
   public:

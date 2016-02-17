@@ -1,54 +1,56 @@
-order = 4
-Ny = 21
-Nz = 21
+order = 2
+Ny = 11
+Nz = 15
 Ly = 24 # km
 Lz = 24 # km
 
-Dc = 8e-3 # m
+DcVals = [8e-3 8e-3] # m
+DcDepths = [0 48] # m
 
-seisDepth = 12 # km
-a = 0.015
-bBasin = 0.02
-bAbove = 0.02
-bBelow = 0.0
-sigma_N_min = 50 # MPa
-sigma_N_max = 50 # MPa
+bcT = traction
+bcR = displacement
+bcB = traction
+bcL = displacement
+
+
+aVals = [0.015 0.015] # comment
+aDepths = [0 24]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 24]
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 24]
 
 vL = 1e-9    # m/s
+
+inputDir = inputData/
 
 shearDistribution = constant
 {
 problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
-
-#muInPlus = 12
-#muOutPlus = 36
-#rhoInPlus = 2.2
-#rhoOutPlus = 2.8
-
-depth = 5
-width = 24
 }
 
 viscDistribution = layered
-viscVals = [1e20 1e20 1e9 1e9]
-viscDepths = [0 20 20 24]
+viscVals = [1e13 1e13]
+viscDepths = [0 24]
 
 linSolver = AMG
-sbpType = mfc
+sbpType = mc
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-strideLength = 1
-maxStepCount = 10
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1e12      # s recommended: 1e11
+maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
-outputDir = data/m2D_mc_
+
+outputDir = data/mSS_mc_
