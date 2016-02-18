@@ -218,8 +218,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
 
-  mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
-  mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
+  //~mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
+  //~mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
