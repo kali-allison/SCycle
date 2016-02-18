@@ -89,15 +89,9 @@ double MMS_T(const double y,const double z);
 double MMS_n(const double y,const double z);
 double MMS_sigmadev(const double y,const double z,const double t);
 
-double MMS_pl_gxy(const double y,const double z,const double t);
-double MMS_pl_gxy_y(const double y,const double z,const double t);
-double MMS_pl_gxy_t(const double y,const double z,const double t);
-
-double MMS_pl_gxz(const double y,const double z,const double t);
-double MMS_pl_gxz_z(const double y,const double z,const double t);
-double MMS_pl_gxz_t(const double y,const double z,const double t);
-
 double MMS_pl_gSource(const double y,const double z,const double t);
+double MMS_pl_gxy_t_source(const double y,const double z,const double t);
+double MMS_pl_gxz_t_source(const double y,const double z,const double t);
 
 
 

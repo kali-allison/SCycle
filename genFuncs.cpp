@@ -363,54 +363,32 @@ double MMS_sigmadev(const double y,const double z,const double t)
   return sqrt( pow(MMS_sigmaxy(y,z,t),2.0) + pow(MMS_sigmaxz(y,z,t),2.0) );
 }
 
-double MMS_pl_gxy(const double y,const double z,const double t)
-{
-  double v = -exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*sin(y)*sin(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0);
-  return v;
-}
 
-double MMS_pl_gxy_y(const double y,const double z,const double t)
+// source terms for viscous strain rates
+double MMS_pl_gxy_t_source(const double y,const double z,const double t)
 {
-  double v = exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*sin(y)*sin(z)*(log(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)))*sin(y)*sin(z)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)-(cos(y)*sin(z)+2.0)*1.0/sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0))*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+1.0)*(exp(t*-2.0)*cos(y)*pow(cos(z),2.0)*sin(y)*pow(sin(y)*sin(z)+2.0,2.0)*-2.0+exp(t*-2.0)*pow(cos(y),3.0)*pow(cos(z),2.0)*sin(z)*(sin(y)*sin(z)+2.0)*2.0+exp(t*-2.0)*cos(y)*sin(y)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)*2.0+exp(t*-2.0)*cos(y)*pow(sin(y),2.0)*pow(sin(z),3.0)*(sin(y)*sin(z)+2.0)*2.0)*(1.0/2.0))*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*sin(y)*pow(sin(z),2.0)*(cos(y)*cos(z)+3.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)+exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(z)*pow(sin(y),2.0)*sin(z)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*sin(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)+exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*sin(y)*sin(z)*((cos(y)*sin(z))/(cos(z)*sin(y)+2.0)-cos(y)*cos(z)*1.0/pow(cos(z)*sin(y)+2.0,2.0)*(sin(y)*sin(z)+3.0))*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0);
-  return v;
-}
+  double A = MMS_A(y,z);
+  double B = MMS_B(y,z);
+  double n = MMS_n(y,z);
+  double T = MMS_T(y,z);
+  double sigmadev = MMS_sigmadev(y,z,t);
+  double sigmaxy = MMS_sigmaxy(y,z,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxy*1e-3;
 
-double MMS_pl_gxy_t(const double y,const double z,const double t)
+  return MMS_gxy_t(y,z,t) - v;
+}
+double MMS_pl_gxz_t_source(const double y,const double z,const double t)
 {
-  double v = exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*sin(y)*sin(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)+exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*sin(y)*sin(z)*(cos(y)*cos(z)+3.0)*(cos(y)*sin(z)+2.0)*1.0/sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0))*(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)*2.0+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)*2.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+1.0)*(1.0/2.0);
-  return v;
-}
+  double A = MMS_A(y,z);
+  double B = MMS_B(y,z);
+  double n = MMS_n(y,z);
+  double T = MMS_T(y,z);
+  double sigmadev = MMS_sigmadev(y,z,t);
+  double sigmaxz = MMS_sigmaxz(y,z,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxz*1e-3;
 
-double MMS_pl_gxz(const double y,const double z,const double t)
-{
-  double v = exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*cos(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0);
-  return v;
+  return MMS_gxz_t(y,z,t) - v;
 }
-
-double MMS_pl_gxz_z(const double y,const double z,const double t)
-{
-  double v = exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*pow(cos(z),2.0)*sin(y)*(cos(y)*cos(z)+3.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*pow(cos(y),2.0)*cos(z)*sin(z)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*sin(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)+exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*cos(z)*(log(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)))*cos(y)*cos(z)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)+(cos(y)*sin(z)+2.0)*1.0/sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0))*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+1.0)*(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),3.0)*sin(y)*(sin(y)*sin(z)+2.0)*2.0-exp(t*-2.0)*pow(cos(y),2.0)*cos(z)*sin(z)*pow(sin(y)*sin(z)+2.0,2.0)*2.0+exp(t*-2.0)*cos(z)*pow(sin(y),2.0)*sin(z)*pow(sin(y)*sin(z)+2.0,2.0)*2.0+exp(t*-2.0)*cos(z)*pow(sin(y),3.0)*pow(sin(z),2.0)*(sin(y)*sin(z)+2.0)*2.0)*(1.0/2.0))*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*cos(z)*((cos(z)*sin(y))/(cos(z)*sin(y)+2.0)+sin(y)*sin(z)*1.0/pow(cos(z)*sin(y)+2.0,2.0)*(sin(y)*sin(z)+3.0))*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0);
-  return v;
-}
-
-double MMS_pl_gxz_t(const double y,const double z,const double t)
-{
-  double v = -exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*cos(z)*(cos(y)*cos(z)+3.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+2.0)-exp(-t)*exp(-(sin(y)*sin(z)+3.0)/(cos(z)*sin(y)+2.0))*cos(y)*cos(z)*(cos(y)*cos(z)+3.0)*(cos(y)*sin(z)+2.0)*1.0/sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0))*(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)*2.0+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)*2.0)*(sin(y)*sin(z)+2.0)*pow(sqrt(exp(t*-2.0)*pow(cos(y),2.0)*pow(cos(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)+exp(t*-2.0)*pow(sin(y),2.0)*pow(sin(z),2.0)*pow(sin(y)*sin(z)+2.0,2.0)),cos(y)*sin(z)+1.0)*(1.0/2.0);
-  return v;
-}
-
-double MMS_pl_gSource(const double y,const double z,const double t)
-{
-  PetscScalar mu = MMS_mu(y,z);
-  PetscScalar mu_y = MMS_mu_y(y,z);
-  PetscScalar mu_z = MMS_mu_z(y,z);
-  PetscScalar gxy = MMS_pl_gxy(y,z,t);
-  PetscScalar gxz = MMS_pl_gxz(y,z,t);
-  PetscScalar gxy_y = MMS_pl_gxy_y(y,z,t);
-  PetscScalar gxz_z = MMS_pl_gxz_z(y,z,t);
-  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
-}
-
 
 double MMS_uSource(const double y,const double z,const double t)
 {

@@ -27,7 +27,6 @@ PowerLaw::PowerLaw(Domain& D)
   // set viscosity
   loadSettings(_file);
   checkInput();
-  if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
   setFields();
 
 
@@ -56,12 +55,12 @@ PowerLaw::PowerLaw(Domain& D)
 
 
   // add viscous strain to integrated variables, stored in _var
-  _var.push_back(_gxyP);
-  _var.push_back(_gxzP);
+  Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
+  Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
+  _var.push_back(vargxyP);
+  _var.push_back(vargxzP);
 
-  if (_isMMS) {
-    setMMSInitialConditions();
-  }
+  if (_isMMS) { setMMSInitialConditions(); }
 
 
   #if VERBOSE > 1
@@ -216,25 +215,34 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
     CHKERRQ(ierr);
   #endif
 
+  VecCopy(*(varBegin+2),_gxyP);
+  VecCopy(*(varBegin+3),_gxzP);
+
+  mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
+  mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
+
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  Vec viscSource,HxviscSource,uSource,HxuSource;
+  Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxviscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&viscSourceMMS);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSourceMMS);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  mapToVec(viscSource,MMS_pl_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP->H(viscSource,HxviscSource);
-  VecDestroy(&viscSource);
+  ierr = setViscStrainSourceTerms(viscSource,_var.begin(),_var.end());CHKERRQ(ierr);
+  mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
+  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
+  VecDestroy(&viscSourceMMS);
   mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
-  ierr = VecAXPY(_rhsP,1.0,HxviscSource);CHKERRQ(ierr); // rhs = rhs + viscSource
-  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // rhs = rhs + H*usource
-  VecDestroy(&HxviscSource);
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
+  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
+  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
+  VecDestroy(&HxviscSourceMMS);
   VecDestroy(&HxuSource);
 
 
@@ -244,18 +252,30 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   _linSolveCount++;
   ierr = setSurfDisp();
 
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+
   // update stresses
-  ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
-  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
+  //~ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
+  //~mapToVec(_stressxyP,MMS_sigmaxy,_Nz,_dy,_dz,time);
+  //~mapToVec(_stressxzP,MMS_sigmaxz,_Nz,_dy,_dz,time);
+  //~mapToVec(_sigmadev,MMS_sigmadev,_Nz,_dy,_dz,time);
+
+  // update rates
+  //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
+  //~Vec source;
+  //~VecDuplicate(_uP,&source);
+  //~mapToVec(source,MMS_pl_gxy_t_source,_Nz,_dy,_dz,time);
+  //~mapToVec(source,MMS_pl_gxz_t_source,_Nz,_dy,_dz,time);
+  //~VecAXPY(*(dvarBegin+2),1.0,source);
+  //~VecAXPY(*(dvarBegin+3),1.0,source);
+
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // slip vel
-  //~VecSet(*(dvarBegin+2),0.0); // d/dt gxy
-  //~VecSet(*(dvarBegin+3),0.0); // d/dt gxz
 
-  //~mapToVec(*(dvarBegin+2),MMS_pl_gxy_t,_Nz,_dy,_dz,time);
-  //~mapToVec(*(dvarBegin+3),MMS_pl_gxz_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
+  mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -276,34 +296,29 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
 
   Vec source;
   VecDuplicate(_gxyP,&source);
+  VecSet(source,0.0);
 
-  // add source terms to rhs: d/dy( 2*mu*epsV_xy) + d/dz( 2*mu*epsV_xz)
-  // + Hz^-1 E0z mu epsV_xz + Hz^-1 ENz mu epsV_xz
+  // add source terms to rhs: d/dy( mu*gxy) + d/dz( mu*gxz)
+  // + Hz^-1 E0z mu gxz + Hz^-1 ENz mu gxz
   Vec sourcexy_y;
-  VecDuplicate(_gxyP,&sourcexy_y);
+  VecDuplicate(_uP,&sourcexy_y);
   ierr = _sbpP->Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
-  ierr = VecScale(sourcexy_y,2.0);CHKERRQ(ierr);
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
-
 
   if (_Nz > 1)
   {
     Vec sourcexz_z;
     VecDuplicate(_gxzP,&sourcexz_z);
-
     ierr = _sbpP->Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
-    ierr = VecScale(sourcexz_z,2.0);CHKERRQ(ierr);
-
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
+    // enforce traction boundary condition
     Vec temp1,bcT,bcB;
     VecDuplicate(_gxzP,&temp1);
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
-
-
 
     _sbpP->HzinvxE0z(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
@@ -311,8 +326,8 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     _sbpP->HzinvxENz(*(varBegin+3),temp1);
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
-    ierr = VecAXPY(source,2.0,bcT);CHKERRQ(ierr);
-    ierr = VecAXPY(source,-2.0,bcB);CHKERRQ(ierr);
+    ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
+    ierr = VecAXPY(source,-1.0,bcB);CHKERRQ(ierr);
 
     VecDestroy(&temp1);
     VecDestroy(&bcT);
@@ -406,7 +421,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
 
     // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = sigmaxy*invVisc - _muArrPlus[Ii]*invVisc * sat;
+    deps = sigmaxy*invVisc - _muArrPlus[Ii]*invVisc * sat*0;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -508,11 +523,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   #endif
 
   PetscScalar time = _initTime;
-  mapToVec(_A,MMS_A,_Nz,_dy,_dz);
-  mapToVec(_B,MMS_B,_Nz,_dy,_dz);
-  mapToVec(_n,MMS_n,_Nz,_dy,_dz);
-  mapToVec(_T,MMS_T,_Nz,_dy,_dz);
-  mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
   mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
   mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
   VecCopy(_gxyP,*(_var.begin()+2));
@@ -552,12 +563,70 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // set stresses
-  ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  //~ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "PowerLaw::setMMSBoundaryConditions";
+  string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+
+  // set up boundary conditions: L and R
+  PetscScalar y,z,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    z = _dz * Ii;
+
+    y = 0;
+    if (!_bcLType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time) - MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    y = _Ly;
+    if (!_bcRType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
+
+  // set up boundary conditions: T and B
+  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy * Ii;
+
+    z = 0;
+    if (!_bcTType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
+    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
+    //~else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    z = _Lz;
+    if (!_bcBType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
+    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
   #endif
   return ierr;
 }
@@ -573,12 +642,12 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxyA,MMS_pl_gxy,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxzA,MMS_pl_gxz,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxyA,MMS_gxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxzA,MMS_gxz,_Nz,_dy,_dz,_currTime);
 
   double err2u = computeNormDiff_2(_uP,uA);
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
-  double err2epsxz = computeNormDiff_2(_gxzP,gxzA);
+  double err2epsxz = computeNormDiff_2(*(_var.begin()+3),gxzA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
@@ -1063,10 +1132,19 @@ PetscErrorCode PowerLaw::setFields()
     VecSet(_T,_TVals[0]);
   }
   else {
-    ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
+    if (_viscDistribution.compare("mms")==0) {
+      mapToVec(_A,MMS_A,_Nz,_dy,_dz);
+      mapToVec(_B,MMS_B,_Nz,_dy,_dz);
+      mapToVec(_n,MMS_n,_Nz,_dy,_dz);
+      mapToVec(_T,MMS_T,_Nz,_dy,_dz);
+    }
+    else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
+    else {
+      ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
+    }
   }
 
 

@@ -489,7 +489,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   PetscScalar time = _initTime;
   mapToVec(_visc,MMS_visc,_Nz,_dy,_dz);
-  mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
   mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
   mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
   VecCopy(_gxyP,*(_var.begin()+2));
@@ -530,7 +530,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   // set stresses
   ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
