@@ -386,7 +386,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // if bcT = traction:
     MatDestroy(&_rhsT);
     ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-    ierr = MatScale(_rhsT,-_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsT,_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!

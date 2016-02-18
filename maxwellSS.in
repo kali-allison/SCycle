@@ -1,6 +1,6 @@
-order = 2
-Ny = 11
-Nz = 15
+order = 4
+Ny = 21
+Nz = 1
 Ly = 24 # km
 Lz = 24 # km
 

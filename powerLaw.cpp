@@ -246,16 +246,16 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
 
   // update stresses
   ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // slip vel
-  //~VecSet(*(dvarBegin+2),0.0); // slip vel
-  //~VecSet(*(dvarBegin+3),0.0); // slip vel
+  //~VecSet(*(dvarBegin+2),0.0); // d/dt gxy
+  //~VecSet(*(dvarBegin+3),0.0); // d/dt gxz
 
-  mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
-  mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
+  //~mapToVec(*(dvarBegin+2),MMS_pl_gxy_t,_Nz,_dy,_dz,time);
+  //~mapToVec(*(dvarBegin+3),MMS_pl_gxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -573,8 +573,8 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
   mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxyA,MMS_gxy,_Nz,_dy,_dz,_currTime);
-  mapToVec(gxzA,MMS_gxz,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxyA,MMS_pl_gxy,_Nz,_dy,_dz,_currTime);
+  mapToVec(gxzA,MMS_pl_gxz,_Nz,_dy,_dz,_currTime);
 
   double err2u = computeNormDiff_2(_uP,uA);
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
