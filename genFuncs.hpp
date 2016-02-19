@@ -87,6 +87,8 @@ double MMS_A(const double y,const double z);
 double MMS_B(const double y,const double z);
 double MMS_T(const double y,const double z);
 double MMS_n(const double y,const double z);
+double MMS_pl_sigmaxy(const double y,const double z,const double t);
+double MMS_pl_sigmaxz(const double y,const double z,const double t);
 double MMS_sigmadev(const double y,const double z,const double t);
 
 double MMS_pl_gSource(const double y,const double z,const double t);

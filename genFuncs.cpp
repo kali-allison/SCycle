@@ -358,9 +358,11 @@ double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 3.0; }
 double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
 double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 2.0; }
 double MMS_n(const double y,const double z) { return cos(y)*sin(z) + 2.0; }
+double MMS_pl_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*(MMS_uA_y(y,z,t) - MMS_gxy(y,z,t)); }
+double MMS_pl_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*(MMS_uA_z(y,z,t) - MMS_gxz(y,z,t)); }
 double MMS_sigmadev(const double y,const double z,const double t)
 {
-  return sqrt( pow(MMS_sigmaxy(y,z,t),2.0) + pow(MMS_sigmaxz(y,z,t),2.0) );
+  return sqrt( pow(MMS_pl_sigmaxy(y,z,t),2.0) + pow(MMS_pl_sigmaxz(y,z,t),2.0) );
 }
 
 
@@ -372,7 +374,7 @@ double MMS_pl_gxy_t_source(const double y,const double z,const double t)
   double n = MMS_n(y,z);
   double T = MMS_T(y,z);
   double sigmadev = MMS_sigmadev(y,z,t);
-  double sigmaxy = MMS_sigmaxy(y,z,t);
+  double sigmaxy = MMS_pl_sigmaxy(y,z,t);
   double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxy*1e-3;
 
   return MMS_gxy_t(y,z,t) - v;
@@ -384,7 +386,7 @@ double MMS_pl_gxz_t_source(const double y,const double z,const double t)
   double n = MMS_n(y,z);
   double T = MMS_T(y,z);
   double sigmadev = MMS_sigmadev(y,z,t);
-  double sigmaxz = MMS_sigmaxz(y,z,t);
+  double sigmaxz = MMS_pl_sigmaxz(y,z,t);
   double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxz*1e-3;
 
   return MMS_gxz_t(y,z,t) - v;

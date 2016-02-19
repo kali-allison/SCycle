@@ -255,27 +255,28 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
 
   // update stresses
-  //~ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
-  //~mapToVec(_stressxyP,MMS_sigmaxy,_Nz,_dy,_dz,time);
-  //~mapToVec(_stressxzP,MMS_sigmaxz,_Nz,_dy,_dz,time);
+  ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
+  //~mapToVec(_stressxyP,MMS_pl_sigmaxy,_Nz,_dy,_dz,time);
+  //~mapToVec(_stressxzP,MMS_pl_sigmaxz,_Nz,_dy,_dz,time);
   //~mapToVec(_sigmadev,MMS_sigmadev,_Nz,_dy,_dz,time);
 
   // update rates
-  //~ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
-  //~Vec source;
-  //~VecDuplicate(_uP,&source);
-  //~mapToVec(source,MMS_pl_gxy_t_source,_Nz,_dy,_dz,time);
-  //~mapToVec(source,MMS_pl_gxz_t_source,_Nz,_dy,_dz,time);
-  //~VecAXPY(*(dvarBegin+2),1.0,source);
-  //~VecAXPY(*(dvarBegin+3),1.0,source);
+  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
+  Vec source;
+  VecDuplicate(_uP,&source);
+  mapToVec(source,MMS_pl_gxy_t_source,_Nz,_dy,_dz,time);
+  VecAXPY(*(dvarBegin+2),1.0,source);
+  mapToVec(source,MMS_pl_gxz_t_source,_Nz,_dy,_dz,time);
+  VecAXPY(*(dvarBegin+3),1.0,source);
+  VecDestroy(&source);
 
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // slip vel
 
-  mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
-  mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
+  //~mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
+  //~mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -363,11 +364,13 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecDuplicate(u,&GR);
   VecDuplicate(u,&temp1);
 
+  // left displacement boundary
   ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
   VecAXPY(out,1.0,temp1);
   VecAXPY(out,-1.0,GL);
 
+  // right displacement boundary
   ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP->HyinvxeNy(gR,GR);CHKERRQ(ierr);
   VecAXPY(out,-1.0,temp1);
@@ -406,7 +409,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    VecGetValues(*(varBegin+2),1,&Ii,&epsVisc);
     VecGetValues(SAT,1,&Ii,&sat);
 
     VecGetValues(_sigmadev,1,&Ii,&sigmadev);
@@ -418,14 +420,14 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     effVisc = 1.0/invVisc;
     VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
 
+
     //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
 
     // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = sigmaxy*invVisc - _muArrPlus[Ii]*invVisc * sat*0;
+    deps = sigmaxy*invVisc + _muArrPlus[Ii]*invVisc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
-      //~VecGetValues(_gTxzP,1,&Ii,&epsTot);
       VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
       VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
 
@@ -468,12 +470,12 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   _sbpP->Dy(_uP,_gTxyP);
   _sbpP->Dz(_uP,_gTxzP);
 
-  PetscScalar gT,gV,sigmaxy,sigmaxz,sigmadev;
+  PetscScalar gT,gV,sigmaxy,sigmaxz,sigmadev = 0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_gTxyP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_gTxyP,1,&Ii,&gT);
-    VecGetValues(*(varBegin+2),1,&Ii,&gV);
+    VecGetValues(_gxyP,1,&Ii,&gV);
 
     // solve for stressxyP = 2*mu*epsExy (elastic strain)
     //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
@@ -484,7 +486,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
 
     if (_Nz > 1) {
       VecGetValues(_gTxzP,1,&Ii,&gT);
-      VecGetValues(*(varBegin+3),1,&Ii,&gV);
+      VecGetValues(_gxzP,1,&Ii,&gV);
 
       // solve for stressxzP = 2*mu*epsExy (elastic strain)
       //                     = 2*mu*(0.5*d/dz(uhat) - epsVxz)
@@ -563,7 +565,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // set stresses
-  //~ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
+  ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -651,6 +653,31 @@ PetscErrorCode PowerLaw::measureMMSError()
 
   PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
+
+  //~// measure error for stresses as well
+  //~mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,_currTime);
+  //~mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,_currTime);
+  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,_currTime);
+  //~ierr = setStresses(_currTime,_var.begin(),_var.end());CHKERRQ(ierr); // numerical solution
+  //~Vec sigmaxyA, sigmaxzA, sigmadevA;
+  //~VecDuplicate(_uP,&sigmaxyA);
+  //~VecDuplicate(_uP,&sigmaxzA);
+  //~VecDuplicate(_uP,&sigmadevA);
+  //~mapToVec(sigmaxyA,MMS_pl_sigmaxy,_Nz,_dy,_dz,_currTime);
+  //~mapToVec(sigmaxzA,MMS_pl_sigmaxz,_Nz,_dy,_dz,_currTime);
+  //~mapToVec(sigmadevA,MMS_sigmadev,_Nz,_dy,_dz,_currTime);
+  //~double err2sigmaxyA = computeNormDiff_2(_stressxyP,sigmaxyA);
+  //~double err2sigmaxzA = computeNormDiff_2(_stressxzP,sigmaxzA);
+  //~double err2sigmadevA = computeNormDiff_2(_sigmadev,sigmadevA);
+  //~VecDestroy(&sigmaxyA);
+  //~VecDestroy(&sigmaxzA);
+  //~VecDestroy(&sigmadevA);
+
+  //~PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e\n",
+              //~_order,_Ny,_dy,err2sigmaxyA,log2(err2sigmaxyA),err2sigmaxzA,log2(err2sigmaxzA));
+
+
+
 
   VecDestroy(&uA);
   VecDestroy(&gxyA);
