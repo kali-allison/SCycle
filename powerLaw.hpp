@@ -40,9 +40,15 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _TV;
     PetscViewer _effViscV;
 
+    // thermomechanical coupling
+    SbpOps* _sbpT;
+    Vec     _k,_rho,_c,_h,_Tgeotherm; // thermal conductivity, density, heat capacity, heat generation, and geotherm temp profile
+
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                                           it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode setTempRate(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                          it_vec dvarBegin,it_vec dvarEnd); // for thermomechanical coupling
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
 
