@@ -87,8 +87,7 @@ struct TempMats_fc
 class SbpOps_fc : public SbpOps
 {
 
-  public:
-  //~protected:
+  private:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -132,13 +131,14 @@ class SbpOps_fc : public SbpOps
     SbpOps_fc(const SbpOps_fc & that);
     SbpOps_fc& operator=( const SbpOps_fc& rhs );
 
-  //~public:
+  public:
 
     Mat _H;
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
-    SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
+    //~SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
+    SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL);
     ~SbpOps_fc();
 
     // create the vector rhs out of the boundary conditions (_bc*)

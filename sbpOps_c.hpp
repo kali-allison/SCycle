@@ -96,8 +96,6 @@ class SbpOps_c : public SbpOps
     SbpOps_c(const SbpOps_c & that);
     SbpOps_c& operator=( const SbpOps_c& rhs );
 
-  //~public:
-
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
     PetscScalar      *_muArr;
@@ -142,7 +140,7 @@ class SbpOps_c : public SbpOps
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
-    SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu);
+    SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL);
     ~SbpOps_c();
 
     // create the vector rhs out of the boundary conditions (_bc*)

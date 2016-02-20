@@ -76,13 +76,13 @@ LinearElastic::LinearElastic(Domain&D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
     assert(0); // automatically fail
   }
-  //~_sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP);
 
+  // set up SBP operators
   if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP);
+    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,"traction","displacement","traction","displacement");
   }
   else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP);
+    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"traction","displacement","traction","displacement");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
@@ -857,7 +857,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
 #endif
 
-  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM);
+  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM,"traction","displacement","traction","displacement");
 
   //~_fault = new FullFault(D);
 
