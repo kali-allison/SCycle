@@ -63,19 +63,14 @@ PowerLaw::PowerLaw(Domain& D)
 
   if (_isMMS) { setMMSInitialConditions(); }
 
-  // thermomechanical coupling
-  VecDuplicate(_uP,&_k);
-  VecDuplicate(_uP,&_rho);
-  VecDuplicate(_uP,&_c);
-  VecDuplicate(_uP,&_h);
-  VecDuplicate(_uP,&_Tgeotherm);
-  VecSet(_k,3.0);
-  VecSet(_rho,3.0);
-  VecSet(_c,3.0);
-  VecSet(_h,0.0);
-  VecCopy(_T,_Tgeotherm);
-  _sbpT = new SbpOps_c(D,*D._muArrPlus,D._muP,"displacement","displacement","displacement","traction"); // T, R, B, L
-  Vec T; VecDuplicate(_uP,&T); VecCopy(_T,T); _var.push_back(T);// add temperature to _var for integration
+  // if modeling temperature evolution, coupled or uncoupled
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec T;
+    VecDuplicate(_uP,&T);
+    VecCopy(_T,T);
+    _var.push_back(T);
+  }
+
 
 
 

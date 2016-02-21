@@ -9,6 +9,7 @@
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "linearElastic.hpp"
+#include "heatEquation.hpp"
 
 // models a 1D Maxwell slider assuming symmetric boundary condition
 // on the fault.

@@ -7,7 +7,7 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
- spmat.o testOdeSolver.o powerLaw.o sbpOps_sc.o
+ spmat.o testOdeSolver.o powerLaw.o sbpOps_sc.o heatEquation.o
 
 
 
@@ -71,6 +71,8 @@ domain.o: domain.cpp domain.hpp genFuncs.hpp
 fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp \
  rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
+heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
+ sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp
 helloWorld.o: helloWorld.cpp
 iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContext.hpp odeSolver.hpp \
  genFuncs.hpp domain.hpp maxwellViscoelastic.hpp linearElastic.hpp \

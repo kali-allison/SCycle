@@ -26,7 +26,7 @@ LinearElastic::LinearElastic(Domain&D)
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _uPV(NULL),
-  _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
+  _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL)
 {
 #if VERBOSE > 1
@@ -79,10 +79,10 @@ LinearElastic::LinearElastic(Domain&D)
 
   // set up SBP operators
   if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,"traction","displacement","traction","displacement");
+    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,_bcTType,_bcRType,_bcBType,_bcLType);
   }
   else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"traction","displacement","traction","displacement");
+    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
@@ -706,13 +706,13 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
     z = _dz * Ii;
 
     y = 0;
-    if (!_bcLType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!_bcRType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
@@ -726,13 +726,13 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
     y = _dy * Ii;
 
     z = 0;
-    if (!_bcTType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    else if (!_bcTType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
+    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
-    if (!_bcBType.compare("displacement")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); }
+    if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
+    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); }
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
@@ -857,7 +857,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
 #endif
 
-  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM,"traction","displacement","traction","displacement");
+  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM,"Neumann","Dirichlet","Neumann","Dirichlet");
 
   //~_fault = new FullFault(D);
 

@@ -7,12 +7,6 @@ Lz = 6.283185307179586
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
 
-bcT = traction
-bcR = displacement
-bcB = traction
-bcL = displacement
-
-
 aVals = [0.015 0.015] # comment
 aDepths = [0 6.283185307179586]
 bVals = [0.02 0.02]

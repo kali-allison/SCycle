@@ -196,7 +196,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
   // map bcL to rhs
 
   // if bcL = displacement: _alphaD*mu*_Hinvy_Iz*e0y_Iz + _beta*_Hinvy_Iz*muxBSy_IzT*e0y_Iz
-  if (!_bcLType.compare("displacement")) {
+  if (!_bcLType.compare("Dirichlet")) {
     MatDestroy(&_rhsL);
     ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
     ierr = MatScale(_rhsL,_alphaDy);CHKERRQ(ierr);
@@ -249,7 +249,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
 
   // enforcement of right boundary bcR =================================
   // map bcR to rhs
-  if (!_bcRType.compare("displacement")) {
+  if (!_bcRType.compare("Dirichlet")) {
     // if bcR = displacement: _alphaD*mu*_Hinvy_Iz*eNy_Iz + _beta*_Hinvy_Iz*muxBSy_IzT*eNy_Iz
     MatDestroy(&_rhsR);
     ierr = MatMatMatMult(*_mu,tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
@@ -350,7 +350,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
 
   // enforcement of top boundary bcT ===================================
   // map bcS to rhs
-  if (!_bcTType.compare("displacement")) {
+  if (!_bcTType.compare("Dirichlet")) {
     // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_e0z + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_e0z
     MatDestroy(&_rhsT);
     ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
@@ -404,7 +404,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
 
   // enforcement of bottom boundary bcB ================================
   // map bcB to rhs
-  if (!_bcBType.compare("displacement")) {
+  if (!_bcBType.compare("Dirichlet")) {
     // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_eNz + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_eNz
     MatDestroy(&_rhsB);
     ierr = MatMatMatMult(*_mu,tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
