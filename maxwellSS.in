@@ -36,7 +36,7 @@ viscVals = [1e13 1e13]
 viscDepths = [0 24]
 
 linSolver = AMG
-sbpType = mc
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -45,7 +45,7 @@ stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 1 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1e11      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
@@ -53,4 +53,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/mSS_mc_
+outputDir = data/mSS_

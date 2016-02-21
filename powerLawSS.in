@@ -32,6 +32,7 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
+thermalCoupling = uncoupled
 AVals = [2.2e-6 2.2e-6]
 ADepths = [0 24]
 BVals = [1.44e4 1.44e4]
@@ -48,8 +49,8 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
 maxTime = 2e11      # s
@@ -60,4 +61,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/pSS_
+outputDir = data/pSS_uncoupled_

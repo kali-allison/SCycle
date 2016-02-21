@@ -41,6 +41,7 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _effViscV;
 
     // thermomechanical coupling
+    std::string _thermalCoupling;
     SbpOps* _sbpT;
     Vec     _k,_rho,_c,_h,_Tgeotherm; // thermal conductivity, density, heat capacity, heat generation, and geotherm temp profile
 

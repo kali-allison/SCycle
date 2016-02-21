@@ -235,7 +235,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    //~ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
 
@@ -462,26 +462,6 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
    MatDestroy(&Iy_ENz);
 
 }
-
-  //~PetscInt m,n;
-  //~ierr = MatGetSize(_rhsT,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"rhsT: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(_rhsR,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"rhsR: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(_rhsB,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"rhsB: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(_rhsL,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"rhsL: m = %i, n = %i\n",m,n);
-
-  //~ierr = MatGetSize(tempMats._AT,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"AT: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(tempMats._AR,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"AR: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(tempMats._AB,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"AB: m = %i, n = %i\n",m,n);
-  //~ierr = MatGetSize(tempMats._AL,&m,&n);
-  //~PetscPrintf(PETSC_COMM_WORLD,"AL: m = %i, n = %i\n",m,n);
-  //~assert(0);
 
   _runTime += MPI_Wtime() - startTime;
 

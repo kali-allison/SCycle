@@ -38,7 +38,7 @@ BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [950 950]
+TVals = [0 950]
 TDepths = [0 24]
 
 
