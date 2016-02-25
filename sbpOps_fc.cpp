@@ -7,12 +7,82 @@
 /* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-//~SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu)
+SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type)
+: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
+  _muArr(&muArr),_mu(&mu),
+  _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
+  _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
+  _Hyinv_Iz(NULL),_Iy_Hzinv(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL),
+  _E0y_Iz(NULL),_ENy_Iz(NULL),_Iy_E0z(NULL),_Iy_ENz(NULL),
+  _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
+  _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
+  _Dy_Iz(NULL),_Iy_Dz(NULL)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
+#endif
+
+  if (_Ny == 1) { return;}
+
+  if(_muArr) { // ensure that _muArr is not NULL
+    stringstream ss;
+    ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
+    _debugFolder += ss.str();
+
+
+    {
+      /* NOT a member of this class, contains stuff to be deleted before
+       * end of constructor to save on memory usage.
+       */
+      TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+      // reset SAT params
+      if (_order==4) {
+        _alphaDy = -48.0/17.0 /_dy;
+        _alphaDz = -48.0/17.0 /_dz;
+      }
+
+      constructH(tempFactors);
+      construct1stDerivs(tempFactors);
+      satBoundaries(tempFactors);
+      constructA(tempFactors);
+
+      {
+        MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
+        MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
+
+        Spmat e0y(_Ny,1); e0y(0,0,1.0);
+        kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
+
+        Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
+        kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
+
+        Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
+        kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
+
+        Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
+        kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
+
+        Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
+        kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
+
+        Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
+        kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
+      }
+
+    }
+}
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
+#endif
+}
+
+// same as other constructor, but uses default of 'yz' for string member "_type"
 SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(&muArr),_mu(&mu),
-  //~_bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
-  _bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
+  _type("yz"),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
   _Hyinv_Iz(NULL),_Iy_Hzinv(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL),
   _E0y_Iz(NULL),_ENy_Iz(NULL),_Iy_E0z(NULL),_Iy_ENz(NULL),
@@ -968,39 +1038,72 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
   CHKERRQ(ierr);
 #endif
 
-  Mat D2ymu;
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&D2ymu);CHKERRQ(ierr);
-  ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
+  if (_type.compare("yz")==0) {
+    Mat D2ymu;
+    ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
 
-  Mat D2zmu;
-  //~ierr = MatCreate(PETSC_COMM_WORLD,&D2zmu);CHKERRQ(ierr);
-  ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
+    Mat D2zmu;
+    ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
 
-  // compute A
-  MatDestroy(&_A);
-  ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
-  ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    // compute A
+    MatDestroy(&_A);
+    ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
+    ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-  // use new Mats _AL etc
-  ierr = MatAXPY(_A,1.0,tempMats._AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,1.0,tempMats._AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    // clean up
+    ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
+    ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
 
-  //~MatView(D2ymu,PETSC_VIEWER_STDOUT_WORLD);
-  //~MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);
-  //~MatView(tempMats._AB,PETSC_VIEWER_STDOUT_WORLD);
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,tempMats._AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,tempMats._AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_type.compare("y")==0) {
+    Mat D2ymu;
+    ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
+
+    // compute A
+    MatDestroy(&_A);
+    ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
+
+    ierr = MatDestroy(&D2ymu);CHKERRQ(ierr); // clean up
+
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,tempMats._AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,tempMats._AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_type.compare("z")==0) {
+    Mat D2zmu;
+    ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
+    ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
+
+    // compute A
+    MatDestroy(&_A);
+    ierr = MatDuplicate(D2zmu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
+
+    ierr = MatDestroy(&D2zmu);CHKERRQ(ierr); // clean up
+
+    // add matrices for boundary conditions
+    ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
+    assert(0);
+  }
+
 
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
 #endif
 
 
-  // clean up
-  ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
-  ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
+
 
   // if using H A uhat = H rhs
   Mat temp;
@@ -1353,11 +1456,28 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  ierr = VecSet(rhs,0.0);
-  ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
-  ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,bcS,rhs,rhs);
-  ierr = MatMultAdd(_rhsB,bcD,rhs,rhs);
+  if (_type.compare("yz")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+    ierr = MatMultAdd(_rhsT,bcS,rhs,rhs);
+    ierr = MatMultAdd(_rhsB,bcD,rhs,rhs);
+  }
+  else if (_type.compare("y")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  }
+  else if (_type.compare("z")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
+    assert(0);
+  }
+
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);

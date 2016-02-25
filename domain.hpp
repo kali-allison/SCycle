@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <vector>
 #include <iostream>
+#include <petscdmda.h>
 #include "genFuncs.hpp"
 
 

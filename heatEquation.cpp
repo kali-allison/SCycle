@@ -4,9 +4,14 @@
 
 
 HeatEquation::HeatEquation(Domain& D)
-:  _heatFieldsDistribution("unspecified"),_sbpT(NULL),
+: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),
+  _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
+  _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
+  _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
   _kArr(NULL),_kMat(NULL),
+  _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
   #if VERBOSE > 1
@@ -14,23 +19,45 @@ HeatEquation::HeatEquation(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~loadSettings(_file);
-  //~checkInput();
+  loadSettings(_file);
+  checkInput();
 
   // set fields
   VecDuplicate(D._muVP,&_k);
   VecDuplicate(_k,&_rho);
   VecDuplicate(_k,&_c);
   VecDuplicate(_k,&_h);
-  VecDuplicate(_k,&_T);
   setFields();
+  //~VecSet(_k,3.0);
+  //~VecSet(_rho,3000.0);
+  //~VecSet(_c,3.0);
+  //~VecSet(_h,0.0);
 
-  VecSet(_k,3.0);
-  VecSet(_rho,3000.0);
-  VecSet(_c,3.0);
-  VecSet(_h,0.0);
 
-  _sbpT = new SbpOps_c(D,*D._muArrPlus,D._muP,"Dirichlet","Dirichlet","Dirichlet","Neumann"); // T, R, B, L
+  // boundary conditions
+  VecCreate(PETSC_COMM_WORLD,&_bcT);
+  VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
+  VecSetFromOptions(_bcT);     PetscObjectSetName((PetscObject) _bcT, "_bcT");
+  VecSet(_bcT,273.0);
+
+  VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
+  VecSet(_bcB,1643.0);
+
+
+  VecCreate(PETSC_COMM_WORLD,&_bcR);
+  VecSetSizes(_bcR,PETSC_DECIDE,_Nz);
+  VecSetFromOptions(_bcR);     PetscObjectSetName((PetscObject) _bcR, "_bcR");
+  VecSet(_bcR,0.0);
+
+  VecDuplicate(_bcR,&_bcL); PetscObjectSetName((PetscObject) _bcL, "_bcL");
+  VecSet(_bcL,0.0);
+
+
+  // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
+  _sbpT = new SbpOps_c(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","z");
+
+  computeSteadyStateTemp();
+  assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -43,6 +70,9 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_rho);
   VecDestroy(&_c);
   VecDestroy(&_h);
+
+  PetscFree(_kArr);
+  MatDestroy(&_kMat);
 }
 
 // loads settings from the input text file
@@ -90,40 +120,39 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     // if values are set by vector
     else if (var.compare("rhoVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_AVals);
+      loadVectorFromInputFile(str,_rhoVals);
     }
     else if (var.compare("rhoDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_ADepths);
+      loadVectorFromInputFile(str,_rhoDepths);
     }
 
     else if (var.compare("kVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_BVals);
+      loadVectorFromInputFile(str,_kVals);
     }
     else if (var.compare("kDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_BDepths);
+      loadVectorFromInputFile(str,_kDepths);
     }
 
     else if (var.compare("hVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_nVals);
+      loadVectorFromInputFile(str,_hVals);
     }
     else if (var.compare("hDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_nDepths);
+      loadVectorFromInputFile(str,_hDepths);
     }
 
     else if (var.compare("cVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TVals);
+      loadVectorFromInputFile(str,_cVals);
     }
     else if (var.compare("cDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TDepths);
+      loadVectorFromInputFile(str,_cDepths);
     }
-
   }
 
   #if VERBOSE > 1
@@ -133,13 +162,62 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
   return ierr;
 }
 
+//parse input file and load values into data members
+PetscErrorCode HeatEquation::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::loadFieldsFromFiles()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // load k
+  ierr = VecCreate(PETSC_COMM_WORLD,&_k);CHKERRQ(ierr);
+  ierr = VecSetSizes(_k,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_k);
+  PetscObjectSetName((PetscObject) _k, "_k");
+  ierr = loadVecFromInputFile(_k,_inputDir,_kFile);CHKERRQ(ierr);
+
+
+  // load rho
+  ierr = VecCreate(PETSC_COMM_WORLD,&_rho);CHKERRQ(ierr);
+  ierr = VecSetSizes(_rho,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_rho);
+  PetscObjectSetName((PetscObject) _rho, "_rho");
+  ierr = loadVecFromInputFile(_rho,_inputDir,_rhoFile);CHKERRQ(ierr);
+
+  // load h
+  ierr = VecCreate(PETSC_COMM_WORLD,&_h);CHKERRQ(ierr);
+  ierr = VecSetSizes(_h,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_h);
+  PetscObjectSetName((PetscObject) _h, "_h");
+  ierr = loadVecFromInputFile(_h,_inputDir,_hFile);CHKERRQ(ierr);
+
+  // load c
+  ierr = VecCreate(PETSC_COMM_WORLD,&_c);CHKERRQ(ierr);
+  ierr = VecSetSizes(_c,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_c);
+  PetscObjectSetName((PetscObject) _c, "_c");
+  ierr = loadVecFromInputFile(_c,_inputDir,_cFile);CHKERRQ(ierr);
+
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
 // initialize all fields
 PetscErrorCode HeatEquation::setFields()
 {
 PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::setFields";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -158,12 +236,12 @@ PetscErrorCode ierr = 0;
       mapToVec(_h,MMS_n,_Nz,_dy,_dz);
       mapToVec(_c,MMS_T,_Nz,_dy,_dz);
     }
-    else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
+    else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
-      ierr = setVecFromVectors(_k,_AVals,_ADepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_rho,_BVals,_BDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_h,_nVals,_nDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_c,_TVals,_TDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
     }
   }
 
@@ -179,6 +257,7 @@ PetscErrorCode ierr = 0;
     kInds[Ii] = Ii;
   }
 
+  MatCreate(PETSC_COMM_WORLD,&_kMat);
   ierr = MatSetSizes(_kMat,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(_kMat);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(_kMat,1,NULL,1,NULL);CHKERRQ(ierr);
@@ -188,8 +267,9 @@ PetscErrorCode ierr = 0;
 
   PetscFree(kInds);
 
+
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -205,9 +285,9 @@ PetscErrorCode HeatEquation::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  assert(_viscDistribution.compare("mms")==0 ||
-      _viscDistribution.compare("layered")==0 ||
-      _viscDistribution.compare("loadFromFile")==0 );
+  assert(_heatFieldsDistribution.compare("mms")==0 ||
+      _heatFieldsDistribution.compare("layered")==0 ||
+      _heatFieldsDistribution.compare("loadFromFile")==0 );
 
   assert(_kVals.size() == _kDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
@@ -222,65 +302,28 @@ PetscErrorCode HeatEquation::checkInput()
 }
 
 
-// set off-fault material properties
-PetscErrorCode PowerLaw::setFields()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setFields";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-
-  ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&_T);CHKERRQ(ierr);
-
-
-  // set each field using it's vals and depths std::vectors
-  if (_Nz == 1) {
-    VecSet(_A,_AVals[0]);
-    VecSet(_B,_BVals[0]);
-    VecSet(_n,_nVals[0]);
-    VecSet(_T,_TVals[0]);
-  }
-  else {
-    if (_viscDistribution.compare("mms")==0) {
-      mapToVec(_A,MMS_A,_Nz,_dy,_dz);
-      mapToVec(_B,MMS_B,_Nz,_dy,_dz);
-      mapToVec(_n,MMS_n,_Nz,_dy,_dz);
-      mapToVec(_T,MMS_T,_Nz,_dy,_dz);
-    }
-    else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
-    else {
-      ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
-    }
-  }
-
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-return ierr;
-}
-
 // compute T assuming that dT/dt and viscous strain rates = 0
 PetscErrorCode HeatEquation::computeSteadyStateTemp()
 {
 PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::setTempRate";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
+  // set up linear solver context
+  KSP ksp;
+  PC pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+
+  Mat A;
+  _sbpT->getA(A);
+
+  //~VecSet(_bcR
+
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -288,8 +331,8 @@ PetscErrorCode ierr = 0;
 
 
 // for thermomechanical coupling
-PetscErrorCode HeatEquation::setTempRate(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                          it_vec dvarBegin,it_vec dvarEnd)
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz, Vec& T, Vec& dTdt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -298,66 +341,55 @@ PetscErrorCode HeatEquation::setTempRate(const PetscScalar time,const_it_vec var
     CHKERRQ(ierr);
   #endif
   PetscInt Ii,Istart,Iend;
-  PetscScalar v,k,slipVel,sigmaxy = 0;
-  PetscScalar dT,rho,c,h,sigmaxz,dgxy,dgxz=0;
+  PetscScalar k,v,vel,s = 0;
+  PetscScalar dT,rho,c,h,dg=0;
 
-  // set up boundary conditions
-  Vec bcT,bcB,bcR,bcL;
-  VecDuplicate(_bcTP,&bcT);
-  VecDuplicate(_bcBP,&bcB);
-  VecDuplicate(_bcRP,&bcR);
-  VecDuplicate(_bcLP,&bcL);
 
-  VecSet(bcT,0.0); // surface temp
-  VecSet(bcB,950.0); // temp at depth
-  ierr = setVecFromVectors(bcR,_TVals,_TDepths);CHKERRQ(ierr); // remote boundary matches geotherm
-
-  VecCopy(bcR,bcL);
   // left boundary: heat generated by fault motion
-  //~VecGetOwnershipRange(bcL,&Istart,&Iend);
-  //~for (Ii=Istart;Ii<Iend;Ii++) {
-    //~VecGetValues(_k,1,&Ii,&k);
-    //~VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    //~VecGetValues(*(dvarBegin+1),1,&Ii,&slipVel);
-    //~v = -k*sigmaxy*abs(slipVel);
-    //~VecSetValues(bcL,1,&Ii,&v,INSERT_VALUES);
-  //~}
-  //~VecAssemblyBegin(bcL);
-  //~VecAssemblyEnd(bcL);
+  VecGetOwnershipRange(_bcL,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    VecGetValues(_k,1,&Ii,&k);
+    VecGetValues(sigmaxy,1,&Ii,&s);
+    VecGetValues(slipVel,1,&Ii,&vel);
+    v = -k*s*abs(vel)*0;
+    VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
+  }
+  VecAssemblyBegin(_bcL);
+  VecAssemblyEnd(_bcL);
 
 
   Mat A;
   _sbpT->getA(A);
-  ierr = MatMult(A,*(varBegin+4),*(dvarBegin+4)); CHKERRQ(ierr);
+  ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
   Vec rhs;
-  VecDuplicate(_uP,&rhs);
-  ierr = _sbpP->setRhs(rhs,bcL,bcR,bcT,bcB);CHKERRQ(ierr);
-  ierr = VecAXPY(*(dvarBegin+4),1.0,rhs);CHKERRQ(ierr);
+  VecDuplicate(T,&rhs);
+  ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = VecAXPY(dTdt,1.0,rhs);CHKERRQ(ierr);
 
 
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
+  VecGetOwnershipRange(T,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_rho,1,&Ii,&rho);
     VecGetValues(_c,1,&Ii,&c);
     VecGetValues(_h,1,&Ii,&h);
-    VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    VecGetValues(*(dvarBegin+2),1,&Ii,&dgxy);
-    VecGetValues(*(dvarBegin+4),1,&Ii,&dT);
+    VecGetValues(sigmaxy,1,&Ii,&s);
+    VecGetValues(dgxy,1,&Ii,&dg);
 
-    dT = dT/(rho*c) + 0.5*sigmaxy*dgxy  + h*c;
+    dT = 0.5*s*dg  + h*c;
 
     if (_Nz > 1) {
-      VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
-      VecGetValues(*(dvarBegin+3),1,&Ii,&dgxz);
+      VecGetValues(sigmaxz,1,&Ii,&s);
+      VecGetValues(dgxz,1,&Ii,&dg);
 
-      dT += 0.5*sigmaxz*dgxz;
+      dT += 0.5*s*dg;
     }
-    VecSetValues(*(dvarBegin+4),1,&Ii,&dT,ADD_VALUES);
+    dT = dT / rho / c;
+    VecSetValues(dTdt,1,&Ii,&dT,ADD_VALUES);
   }
-  VecAssemblyBegin(*(dvarBegin+4));
-  VecAssemblyEnd(*(dvarBegin+4));
+  VecAssemblyBegin(dTdt);
+  VecAssemblyEnd(dTdt);
 
-  VecSet(*(dvarBegin+4),0.0);
+  VecSet(dTdt,0.0);
 
 
   #if VERBOSE > 1
@@ -375,19 +407,19 @@ PetscErrorCode HeatEquation::setBCs()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt    Ii,Istart,Iend;
-  PetscScalar u,y,z;
-  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    z = Ii-_Nz*(Ii/_Nz);
-    y = Ii/_Nz;
-    if (z == 0) {
-      ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
-      ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(_surfDispPlus);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_surfDispPlus);CHKERRQ(ierr);
+  //~PetscInt    Ii,Istart,Iend;
+  //~PetscScalar u,y,z;
+  //~ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
+  //~for (Ii=Istart;Ii<Iend;Ii++) {
+    //~z = Ii-_Nz*(Ii/_Nz);
+    //~y = Ii/_Nz;
+    //~if (z == 0) {
+      //~ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
+      //~ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
+    //~}
+  //~}
+  //~ierr = VecAssemblyBegin(_surfDispPlus);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(_surfDispPlus);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1

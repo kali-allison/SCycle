@@ -1,6 +1,6 @@
-all: mainLinearElastic main mainMaxwell
+all: mainLinearElastic
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -108,7 +108,7 @@ odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
 powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContext.hpp odeSolver.hpp \
  genFuncs.hpp domain.hpp linearElastic.hpp sbpOps.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp fault.hpp \
- rootFinderContext.hpp rootFinder.hpp
+ rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
 sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp
 sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \

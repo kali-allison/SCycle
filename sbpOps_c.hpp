@@ -103,6 +103,12 @@ class SbpOps_c : public SbpOps
 
     double _runTime;
 
+    // type of problem to solve (associated BC matrices will be included as well):
+    //   for Dyy+Dzz, input 'yz'
+    //   for Dzz only, input 'z'
+    //   for Dyy only, input 'y'
+    string _type;
+
     // map boundary conditions to rhs vector
     string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
@@ -141,6 +147,7 @@ class SbpOps_c : public SbpOps
     Mat _Dy_Iz, _Iy_Dz;
 
     SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL);
+    SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_c();
 
     // create the vector rhs out of the boundary conditions (_bc*)

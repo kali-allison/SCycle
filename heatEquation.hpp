@@ -25,13 +25,25 @@ class HeatEquation
 
   protected:
 
-    std::string _heatFieldsDistribution;
+    // domain dimensions etc
+    const PetscInt       _order,_Ny,_Nz;
+    const PetscScalar    _Ly,_Lz,_dy,_dz;
+    const std::string    _problemType;
 
-    SbpOps* _sbpT;
+    // input file location
+    const char       *_file;
+    std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _inputDir; // directory to load viscosity from
+    std::string _heatFieldsDistribution;
+    std::string  _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
+
+
+    std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths;
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
-    PetscScalar *_kArr
+    PetscScalar *_kArr;
     Mat          _kMat;
 
+    SbpOps* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions
 
 
@@ -44,6 +56,7 @@ class HeatEquation
     PetscErrorCode checkInput();     // check input from file
 
     PetscErrorCode computeSteadyStateTemp();
+    PetscErrorCode setBCs();
 
 
   public:
@@ -53,9 +66,12 @@ class HeatEquation
     HeatEquation(Domain&D);
     ~HeatEquation();
 
+    // return temperature
+    PetscErrorCode getTemp(Vec& T);
+
     // compute rate
-    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,
-                                          it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz, Vec& T, Vec& dTdt);
 };
 
 

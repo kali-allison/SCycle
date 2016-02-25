@@ -71,6 +71,8 @@ PowerLaw::PowerLaw(Domain& D)
     _var.push_back(T);
   }
 
+  //~HeatEquation he(D);
+
 
 
 
@@ -1173,7 +1175,7 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
   return ierr;
 }
 
- //parse input file and load values into data members
+//parse input file and load values into data members
 PetscErrorCode PowerLaw::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;

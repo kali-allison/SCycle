@@ -2,7 +2,6 @@
 #include <petscviewerhdf5.h>
 #include <string>
 #include <petscdmda.h>
-
 #include "genFuncs.hpp"
 #include "spmat.hpp"
 #include "domain.hpp"
