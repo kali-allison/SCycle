@@ -445,7 +445,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     VecGetValues(_k,1,&Ii,&k);
     VecGetValues(sigmaxy,1,&Ii,&s);
     VecGetValues(slipVel,1,&Ii,&vel);
-    v = -k*s*abs(vel)*0;
+    v = -k*s*abs(vel);
     VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
   }
   VecAssemblyBegin(_bcL);
