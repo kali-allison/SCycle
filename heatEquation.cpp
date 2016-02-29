@@ -6,11 +6,11 @@
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_kspTol(D._kspTol),
-  _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
+  _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
-  _kArr(NULL),_kMat(NULL),
+  _kArr(NULL),_kMat(NULL),_TV(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
@@ -60,9 +60,9 @@ HeatEquation::HeatEquation(Domain& D)
   {
     _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","z");
     computeSteadyStateTemp();
+    setBCs(); // update bcL and bcR with geotherm
   }
   _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
-  assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -80,13 +80,56 @@ HeatEquation::~HeatEquation()
   MatDestroy(&_kMat);
 }
 
+
+
+// return temperature
+PetscErrorCode HeatEquation::getTemp(Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::getTemp()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // return shallow copy of T:
+  T = _T;
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// set temperature
+PetscErrorCode HeatEquation::setTemp(Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::setTemp()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  VecCopy(T,_T);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
 // loads settings from the input text file
 PetscErrorCode HeatEquation::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
     std::string funcName = "HeatEquation::loadSettings()";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   PetscMPIInt rank,size;
@@ -345,8 +388,6 @@ PetscErrorCode ierr = 0;
 
   ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
 
-  VecView(_T,PETSC_VIEWER_STDOUT_WORLD);
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -414,7 +455,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecAssemblyBegin(dTdt);
   VecAssemblyEnd(dTdt);
 
-  VecSet(dTdt,0.0);
+  //~VecSet(dTdt,0.0);
 
 
   #if VERBOSE > 1
@@ -424,32 +465,103 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   return ierr;
 }
 
-// set left and right boundary conditions from computed geotherm
+// set right boundary condition from computed geotherm
 PetscErrorCode HeatEquation::setBCs()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  //~PetscInt    Ii,Istart,Iend;
-  //~PetscScalar u,y,z;
-  //~ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
-  //~for (Ii=Istart;Ii<Iend;Ii++) {
-    //~z = Ii-_Nz*(Ii/_Nz);
-    //~y = Ii/_Nz;
-    //~if (z == 0) {
-      //~ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
-      //~ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
-    //~}
-  //~}
-  //~ierr = VecAssemblyBegin(_surfDispPlus);CHKERRQ(ierr);
-  //~ierr = VecAssemblyEnd(_surfDispPlus);CHKERRQ(ierr);
+  PetscInt    Istart,Iend,z;
+  PetscScalar t;
+  ierr = VecGetOwnershipRange(_T,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    z = Ii/_Nz;
+    if (z == _Nz-1) {
+      PetscInt ind = Ii - _Ny*(_Nz-1);
+      ierr = VecGetValues(_T,1,&Ii,&t);CHKERRQ(ierr);
+      ierr = VecSetValue(_bcR,ind,t,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
+  return ierr;
+}
+
+
+
+PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::writeStep1D";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    CHKERRQ(ierr);
+  #endif
+
+  if (stepCount==0) {
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
+                                 FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
+    ierr = VecView(_T,_TV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_TV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
+                                   FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
+
+  }
+  else {
+    ierr = VecView(_T,_TV);CHKERRQ(ierr);
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// write out material properties
+PetscErrorCode HeatEquation::writeContext(const string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::writeContext";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscViewer    vw;
+
+  std::string str = outputDir + "k";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
+  ierr = VecView(_k,vw);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
+
+  str = outputDir + "rho";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
+  ierr = VecView(_rho,vw);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
+
+  str = outputDir + "c";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
+  ierr = VecView(_c,vw);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
+
+  str = outputDir + "h";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
+  ierr = VecView(_h,vw);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
+
+
+#if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 

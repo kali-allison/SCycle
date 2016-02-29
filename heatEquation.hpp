@@ -30,8 +30,8 @@ class HeatEquation
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const PetscScalar    _kspTol;
 
-    // input file location
-    const char       *_file;
+    const char       *_file; // input file location
+    std::string       _outputDir; // output file location
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load viscosity from
     std::string _heatFieldsDistribution;
@@ -42,6 +42,7 @@ class HeatEquation
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
     PetscScalar *_kArr;
     Mat          _kMat;
+    PetscViewer  _TV;
 
     SbpOps* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions
@@ -61,17 +62,20 @@ class HeatEquation
 
   public:
 
-  Vec _T;
+    Vec _T;
 
     HeatEquation(Domain&D);
     ~HeatEquation();
 
-    // return temperature
-    PetscErrorCode getTemp(Vec& T);
+    PetscErrorCode getTemp(Vec& T); // return temperature
+    PetscErrorCode setTemp(Vec& T); // set temperature
 
     // compute rate
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz, Vec& T, Vec& dTdt);
+
+    PetscErrorCode writeContext(const string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount);
 };
 
 

@@ -23,8 +23,6 @@ PowerLaw::PowerLaw(Domain& D)
     std::string funcName = "PowerLaw::PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  assert(0);
-
 
   // set viscosity
   loadSettings(_file);
@@ -68,14 +66,9 @@ PowerLaw::PowerLaw(Domain& D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
-    VecCopy(_T,T);
+    VecCopy(_he._T,T);
     _var.push_back(T);
   }
-
-  //~HeatEquation he(D);
-
-
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -177,7 +170,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
-  //~if (_thermalCoupling.compare("coupled")==0) { VecCopy(*(varBegin+4),_T); } // true if thermally coupled
+  if (_thermalCoupling.compare("coupled")==0) { VecCopy(*(varBegin+4),_T); } // true if thermally coupled
 
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
@@ -211,7 +204,10 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = setTempRate(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // uncomment to skip thermal model
+    ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,_stressxzP,*(dvarBegin+2),
+      *(dvarBegin+3),_T,*(dvarBegin+4));CHKERRQ(ierr);
+      // arguments:
+      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
 
   //~VecSet(*dvarBegin,0.0);
@@ -916,6 +912,7 @@ PetscErrorCode PowerLaw::writeStep1D()
 
   if (_stepCount==0) {
     // write contextual fields
+    _he.writeContext(_outputDir);
     //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
     ierr = writeContext(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
@@ -968,6 +965,8 @@ PetscErrorCode PowerLaw::writeStep2D()
   double startTime = MPI_Wtime();
 
   if (_stepCount==0) {
+    _he.writeStep2D(_stepCount);
+
     // write contextual fields
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -1048,13 +1047,14 @@ PetscErrorCode PowerLaw::writeStep2D()
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
+    _he.writeStep2D(_stepCount);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
-    ierr = VecView(_T,_TV);CHKERRQ(ierr);
+    //~ierr = VecView(_T,_TV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
@@ -1272,23 +1272,33 @@ PetscErrorCode PowerLaw::setFields()
     VecSet(_A,_AVals[0]);
     VecSet(_B,_BVals[0]);
     VecSet(_n,_nVals[0]);
-    VecSet(_T,_TVals[0]);
+    //~VecSet(_T,_TVals[0]);
   }
   else {
     if (_viscDistribution.compare("mms")==0) {
       mapToVec(_A,MMS_A,_Nz,_dy,_dz);
       mapToVec(_B,MMS_B,_Nz,_dy,_dz);
       mapToVec(_n,MMS_n,_Nz,_dy,_dz);
-      mapToVec(_T,MMS_T,_Nz,_dy,_dz);
+      //~mapToVec(_T,MMS_T,_Nz,_dy,_dz);
     }
     else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
       ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
+      //~ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
     }
   }
+  VecCopy(_he._T,_T);
+
+  //~if (_thermalCoupling.compare("no")==0) {
+    //~if (_Nz == 1) { VecSet(_T,_TVals[0]); }
+  //~else {
+    //~if (_viscDistribution.compare("mms")==0) { mapToVec(_T,MMS_T,_Nz,_dy,_dz); }
+    //~else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
+    //~else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
+  //~}
+  //~else {
 
 
   #if VERBOSE > 1
