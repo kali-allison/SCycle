@@ -38,13 +38,13 @@ class HeatEquation
     std::string  _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
 
 
-    std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths;
+    std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
     PetscScalar *_kArr;
     Mat          _kMat;
     PetscViewer  _TV;
 
-    SbpOps* _sbpT;
+    SbpOps_fc* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions
 
 
@@ -72,7 +72,7 @@ class HeatEquation
 
     // compute rate
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz, Vec& T, Vec& dTdt);
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
 
     PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount);

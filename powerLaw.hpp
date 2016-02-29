@@ -23,7 +23,7 @@ class PowerLaw: public SymmLinearElastic
     // material properties
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
     std::string  _AFile,_BFile,_nFile,_TFile; // names of each file within loadFromFile
-    std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_TVals,_TDepths;
+    std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
     Vec         _A,_n,_B;
     Vec         _effVisc;
 
@@ -50,8 +50,6 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                                           it_vec dvarBegin,it_vec dvarEnd);
-    PetscErrorCode setTempRate(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                          it_vec dvarBegin,it_vec dvarEnd); // for thermomechanical coupling
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
 

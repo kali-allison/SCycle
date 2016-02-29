@@ -43,6 +43,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,s
       }
 
       constructH(tempFactors);
+      constructHinv(tempFactors);
       construct1stDerivs(tempFactors);
       satBoundaries(tempFactors);
       constructA(tempFactors);
@@ -987,6 +988,32 @@ _runTime = MPI_Wtime() - startTime;
   return ierr;
 }
 
+// compute Hinv matrix (Hyinv kron Hzinv)
+PetscErrorCode SbpOps_fc::constructHinv(const TempMats_fc& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  MatCreate(PETSC_COMM_WORLD,&_Hinv);
+  MatDuplicate(_H,MAT_DO_NOT_COPY_VALUES,&_Hinv);
+  if (_Ny > 1 && _Nz > 1) {
+    MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
+
+  }
+  else if (_Nz == 1) { MatCopy(tempMats._Hyinv_Iz,_Hinv,SAME_NONZERO_PATTERN); }
+  else if (_Ny == 1) { MatCopy(tempMats._Iy_Hzinv,_Hinv,SAME_NONZERO_PATTERN); }
+  PetscObjectSetName((PetscObject) _Hinv, "Hinv");
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+_runTime = MPI_Wtime() - startTime;
+  return ierr;
+}
+
 // compute matrices for 1st derivatives
 PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
 {
@@ -1453,7 +1480,7 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
   double startTime = MPI_Wtime();
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
   if (_type.compare("yz")==0) {
@@ -1480,7 +1507,7 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
   _runTime += MPI_Wtime() - startTime;
@@ -1751,6 +1778,24 @@ PetscErrorCode SbpOps_fc::H(const Vec &in, Vec &out)
 #endif
 
   ierr = MatMult(_H,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hinv * in
+PetscErrorCode SbpOps_fc::Hinv(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Hinv";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_Hinv,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);

@@ -41,10 +41,12 @@ HeatEquation::HeatEquation(Domain& D)
   VecCreate(PETSC_COMM_WORLD,&_bcT);
   VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
   VecSetFromOptions(_bcT);     PetscObjectSetName((PetscObject) _bcT, "_bcT");
-  VecSet(_bcT,273.0);
+  //~VecSet(_bcT,273.0);
+  VecSet(_bcT,500);
 
   VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
-  VecSet(_bcB,1643.0);
+  //~VecSet(_bcB,1643.0);
+  VecSet(_bcB,500);
 
 
   VecCreate(PETSC_COMM_WORLD,&_bcR);
@@ -201,6 +203,15 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cDepths);
     }
+
+    else if (var.compare("TVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TVals);
+    }
+    else if (var.compare("TDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TDepths);
+    }
   }
 
   #if VERBOSE > 1
@@ -276,13 +287,15 @@ PetscErrorCode ierr = 0;
     VecSet(_rho,_rhoVals[0]);
     VecSet(_h,_hVals[0]);
     VecSet(_c,_cVals[0]);
+    //~VecSet(_T,_TVals[0]);
   }
   else {
     if (_heatFieldsDistribution.compare("mms")==0) {
-      mapToVec(_k,MMS_A,_Nz,_dy,_dz);
-      mapToVec(_rho,MMS_B,_Nz,_dy,_dz);
-      mapToVec(_h,MMS_n,_Nz,_dy,_dz);
-      mapToVec(_c,MMS_T,_Nz,_dy,_dz);
+      //~mapToVec(_k,MMS_A,_Nz,_dy,_dz);
+      //~mapToVec(_rho,MMS_B,_Nz,_dy,_dz);
+      //~mapToVec(_h,MMS_n,_Nz,_dy,_dz);
+      //~mapToVec(_c,MMS_c,_Nz,_dy,_dz);
+      //~mapToVec(_T,MMS_T,_Nz,_dy,_dz);
     }
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
@@ -290,6 +303,7 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
+      //~ierr = setVecFromVectors(_T,_TVals,_cDepths);CHKERRQ(ierr);
     }
   }
 
@@ -341,6 +355,7 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_rhoVals.size() == _rhoDepths.size() );
   assert(_hVals.size() == _hDepths.size() );
   assert(_cVals.size() == _cDepths.size() );
+  assert(_TVals.size() == _TDepths.size() );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -360,33 +375,43 @@ PetscErrorCode ierr = 0;
     CHKERRQ(ierr);
   #endif
 
+  if (_Nz > 1) {
+    // set up linear solver context
+    KSP ksp;
+    PC pc;
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
 
-  // set up linear solver context
-  KSP ksp;
-  PC pc;
-  KSPCreate(PETSC_COMM_WORLD,&ksp);
+    Mat A;
+    MatCreate(PETSC_COMM_WORLD,&A);
+    _sbpT->getA(A);
 
-  Mat A;
-  MatCreate(PETSC_COMM_WORLD,&A);
-  _sbpT->getA(A);
+    ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
 
-  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-  ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    // perform computation of preconditioners now, rather than on first use
+    ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
-  // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+    Vec rhs;
+    VecDuplicate(_T,&rhs);
+    _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
-  Vec rhs;
-  VecDuplicate(_T,&rhs);
-  _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
-
-  ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+    ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+  }
+  else {
+    // set each field using it's vals and depths std::vectors
+    if (_Nz == 1) { VecSet(_T,_TVals[0]); }
+    else {
+      if (_heatFieldsDistribution.compare("mms")==0) { mapToVec(_T,MMS_T,_Nz,_dy,_dz); }
+      else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
+      else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
+    }
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -398,14 +423,17 @@ PetscErrorCode ierr = 0;
 
 // for thermomechanical coupling
 PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz, Vec& T, Vec& dTdt)
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "HeatEquation::setTempRate";
+    string funcName = "HeatEquation::d_dt";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
+
+  VecCopy(T,_T);
+
   PetscInt Ii,Istart,Iend;
   PetscScalar k,v,vel,s = 0;
   PetscScalar dT,rho,c,h,dg=0;
@@ -425,12 +453,20 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
 
 
   Mat A;
+  MatCreate(PETSC_COMM_WORLD,&A);
   _sbpT->getA(A);
   ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
   Vec rhs;
   VecDuplicate(T,&rhs);
   ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  ierr = VecAXPY(dTdt,1.0,rhs);CHKERRQ(ierr);
+  ierr = VecAXPY(dTdt,-1.0,rhs);CHKERRQ(ierr);
+
+  Vec temp;
+  VecDuplicate(dTdt,&temp);
+  _sbpT->Hinv(dTdt,temp);
+  VecCopy(temp,dTdt);
+  VecDestroy(&temp);
+
 
 
   VecGetOwnershipRange(T,&Istart,&Iend);

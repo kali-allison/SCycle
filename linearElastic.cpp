@@ -79,10 +79,10 @@ LinearElastic::LinearElastic(Domain&D)
 
   // set up SBP operators
   if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,_bcTType,_bcRType,_bcBType,_bcLType);
+    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet");
+    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
