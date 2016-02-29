@@ -29,7 +29,7 @@ class SbpOps
     virtual PetscErrorCode getA(Mat &mat) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)
-    virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcS,Vec &_bcD) = 0;
+    virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;
 
     // functions to compute various derivatives of input vectors
     virtual PetscErrorCode Dy(const Vec &in, Vec &out) = 0; // out = Dy * in

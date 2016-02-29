@@ -5,7 +5,7 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_kspTol(D._kspTol),
   _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
@@ -33,6 +33,9 @@ HeatEquation::HeatEquation(Domain& D)
   //~VecSet(_c,3.0);
   //~VecSet(_h,0.0);
 
+  VecDuplicate(D._muVP,&_T);
+  VecSet(_T,0.0);
+
 
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcT);
@@ -54,9 +57,11 @@ HeatEquation::HeatEquation(Domain& D)
 
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
-  _sbpT = new SbpOps_c(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","z");
-
-  computeSteadyStateTemp();
+  {
+    _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","z");
+    computeSteadyStateTemp();
+  }
+  _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
   assert(0);
 
   #if VERBOSE > 1
@@ -312,15 +317,35 @@ PetscErrorCode ierr = 0;
     CHKERRQ(ierr);
   #endif
 
+
   // set up linear solver context
   KSP ksp;
   PC pc;
   KSPCreate(PETSC_COMM_WORLD,&ksp);
 
   Mat A;
+  MatCreate(PETSC_COMM_WORLD,&A);
   _sbpT->getA(A);
 
-  //~VecSet(_bcR
+  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+
+  // perform computation of preconditioners now, rather than on first use
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+
+  Vec rhs;
+  VecDuplicate(_T,&rhs);
+  _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+
+  ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+
+  VecView(_T,PETSC_VIEWER_STDOUT_WORLD);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

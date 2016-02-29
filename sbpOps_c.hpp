@@ -151,7 +151,7 @@ class SbpOps_c : public SbpOps
     ~SbpOps_c();
 
     // create the vector rhs out of the boundary conditions (_bc*)
-    PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB);
+    PetscErrorCode setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB);
 
     // read/write commands
     PetscErrorCode loadOps(const std::string inputDir);

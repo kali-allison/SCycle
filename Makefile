@@ -1,4 +1,4 @@
-all: mainLinearElastic
+all: main
 
 DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)

@@ -1,6 +1,6 @@
 order = 2
-Ny = 5
-Nz = 5
+Ny = 11
+Nz = 11
 Ly = 24 # km
 Lz = 24 # km
 
@@ -32,6 +32,12 @@ rhoPlus = 2.8 # g/cm^3
 }
 
 viscDistribution = layered
+
+# Maxwell properties
+viscVals = [1e13 1e13]
+viscDepths = [0 24]
+
+# power law properties
 AVals = [2.2e-6 2.2e-6]
 ADepths = [0 24]
 BVals = [1.44e4 1.44e4]
@@ -50,7 +56,7 @@ cVals = [3 3]
 cDepths = [0 24]
 rhoVals = [3000 3000]
 rhoDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 
 linSolver = AMG
@@ -59,9 +65,9 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 50
 initTime = 0       # s
 maxTime = 2e11      # s
 minDeltaT = 1e-3     # s

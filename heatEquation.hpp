@@ -28,7 +28,7 @@ class HeatEquation
     // domain dimensions etc
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
-    const std::string    _problemType;
+    const PetscScalar    _kspTol;
 
     // input file location
     const char       *_file;

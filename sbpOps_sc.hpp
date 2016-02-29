@@ -79,7 +79,7 @@ class SbpOps_sc
     ~SbpOps_sc();
 
     // create the vector rhs out of the boundary conditions (_bc*)
-    PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB);
+    PetscErrorCode setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB);
 
     PetscErrorCode getA(Mat &mat);
 

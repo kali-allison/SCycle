@@ -429,10 +429,10 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr);
-    MatDestroy(&temp3); //!!!
+      ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
+    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    //~ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr); / why is this here??
+    MatDestroy(&temp3);
     ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
     MatDestroy(&temp1);
     MatDestroy(&temp2);
@@ -484,7 +484,7 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
     ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
@@ -1085,18 +1085,18 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     // compute A
     MatDestroy(&_A);
     ierr = MatDuplicate(D2zmu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
-
     ierr = MatDestroy(&D2zmu);CHKERRQ(ierr); // clean up
 
     // add matrices for boundary conditions
     ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
     assert(0);
   }
-
 
 #if DEBUG > 0
   checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
@@ -1447,7 +1447,7 @@ switch ( order ) {
 //======================== public member functions =====================
 
 // map the boundary condition vectors to rhs
-PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
+PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 {
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -1460,8 +1460,8 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
     ierr = VecSet(rhs,0.0);
     ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
     ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-    ierr = MatMultAdd(_rhsT,bcS,rhs,rhs);
-    ierr = MatMultAdd(_rhsB,bcD,rhs,rhs);
+    ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
   }
   else if (_type.compare("y")==0) {
     ierr = VecSet(rhs,0.0);
@@ -1470,8 +1470,8 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcS,Vec &bcD)
   }
   else if (_type.compare("z")==0) {
     ierr = VecSet(rhs,0.0);
-    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
-    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+    ierr = MatMult(_rhsT,bcT,rhs);CHKERRQ(ierr);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");

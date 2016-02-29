@@ -303,10 +303,9 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // For rhsL: if bcL = traction: - alphaT * Hinvy_Iz * e0y_Iz
     MatDestroy(&_rhsL);
     ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    ierr = MatScale(_rhsL,-1.0);CHKERRQ(ierr);
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
 
@@ -1443,11 +1442,27 @@ PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  ierr = VecSet(rhs,0.0);
-  ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
-  ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
-  ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
+  if (_type.compare("yz")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+    ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
+  }
+  else if (_type.compare("y")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  }
+  else if (_type.compare("z")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsT,bcT,rhs);CHKERRQ(ierr);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
+    assert(0);
+  }
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps.cpp.\n");CHKERRQ(ierr);
