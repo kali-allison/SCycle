@@ -303,17 +303,31 @@ PetscErrorCode ierr = 0;
   }
 
 
-  // set conductivity matrix
-  PetscInt *kInds;
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
+  //~// set conductivity matrix
+  //~PetscInt *kInds;
+  //~ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
+  //~ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
 
-  //~VecSet(_k,1.0);
-  for (PetscInt Ii=0;Ii<_Ny*_Nz;Ii++) {
-    //~z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~y = _dy*(Ii/_Nz);
+  //~PetscInt Istart,Iend;
+  //~VecGetOwnershipRange(_k,&Istart,&Iend);
+  //~for (PetscInt Ii=0;Ii<Iend;Ii++) {
+    //~_kArr[Ii] = _kVals[0];
+    //~kInds[Ii] = Ii;
+  //~}
+
+  // build kArr
+  PetscInt *kInds=NULL;
+  PetscInt len,Istart,Iend;
+  VecGetLocalSize(_k,&len);
+  ierr = PetscMalloc(len*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
+  ierr = PetscMalloc(len*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
+  VecGetOwnershipRange(_k,&Istart,&Iend);
+  PetscInt ind = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    kInds[ind] = Ii;
     _kArr[Ii] = _kVals[0];
-    kInds[Ii] = Ii;
+    ind++;
   }
 
   MatCreate(PETSC_COMM_WORLD,&_kMat);
