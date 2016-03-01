@@ -42,7 +42,7 @@ class HeatEquation
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
     PetscScalar *_kArr;
     Mat          _kMat;
-    PetscViewer  _TV;
+    PetscViewer  _TV,_vw; // temperature viewer and extra viewer for debugging
 
     SbpOps_fc* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions

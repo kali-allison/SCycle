@@ -10,7 +10,7 @@ HeatEquation::HeatEquation(Domain& D)
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
-  _kArr(NULL),_kMat(NULL),_TV(NULL),
+  _kArr(NULL),_kMat(NULL),_TV(NULL),_vw(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
@@ -49,10 +49,6 @@ HeatEquation::HeatEquation(Domain& D)
   VecDuplicate(_k,&_c);
   VecDuplicate(_k,&_h);
   setFields();
-  VecSet(_k,1.0);
-  VecSet(_rho,3.0);
-  VecSet(_c,900.0);
-  VecSet(_h,0.0);
 
   VecDuplicate(D._muVP,&_T);
   VecSet(_T,0.0);
@@ -60,7 +56,6 @@ HeatEquation::HeatEquation(Domain& D)
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n starting heat equation computations \n\n");
     _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     computeSteadyStateTemp();
     setBCs(); // update bcL and bcR with geotherm
@@ -78,6 +73,9 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_rho);
   VecDestroy(&_c);
   VecDestroy(&_h);
+
+  PetscViewerDestroy(&_TV);
+  PetscViewerDestroy(&_vw);
 
   PetscFree(_kArr);
   MatDestroy(&_kMat);
@@ -288,7 +286,6 @@ PetscErrorCode ierr = 0;
     VecSet(_rho,_rhoVals[0]);
     VecSet(_h,_hVals[0]);
     VecSet(_c,_cVals[0]);
-    //~VecSet(_T,_TVals[0]);
   }
   else {
     if (_heatFieldsDistribution.compare("mms")==0) {
@@ -301,23 +298,27 @@ PetscErrorCode ierr = 0;
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
       //~ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
-      //~ierr = setVecFromVectors(_T,_TVals,_cDepths);CHKERRQ(ierr);
+      //~ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+      //~ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
+      //~ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
+      VecSet(_k,_kVals[0]);
+      VecSet(_rho,_rhoVals[0]);
+      VecSet(_c,_cVals[0]);
+      VecSet(_h,_hVals[0]);
     }
   }
+
 
   // set conductivity matrix
   PetscInt *kInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
 
-  VecSet(_k,1.0);
+  //~VecSet(_k,1.0);
   for (PetscInt Ii=0;Ii<_Ny*_Nz;Ii++) {
     //~z = _dz*(Ii-_Nz*(Ii/_Nz));
     //~y = _dy*(Ii/_Nz);
-    _kArr[Ii] = 1.0;
+    _kArr[Ii] = _kVals[0];
     kInds[Ii] = Ii;
   }
 
@@ -330,7 +331,6 @@ PetscErrorCode ierr = 0;
   ierr = MatDiagonalSet(_kMat,_k,INSERT_VALUES);CHKERRQ(ierr);
 
   PetscFree(kInds);
-
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -404,11 +404,6 @@ PetscErrorCode ierr = 0;
     _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
     ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
-
-
-    //~VecView(_T,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(A,PETSC_VIEWER_STDOUT_WORLD);
-    assert(0);
   }
   else {
     // set each field using it's vals and depths std::vectors
@@ -455,9 +450,6 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecAssemblyBegin(_bcL);
   VecAssemblyEnd(_bcL);
 
-  VecSet(_bcL,0.0);
-
-
   Mat A;
   MatCreate(PETSC_COMM_WORLD,&A);
   _sbpT->getA(A);
@@ -473,7 +465,6 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecCopy(temp,dTdt);
   VecDestroy(&temp);
 
-  //~VecSet(dTdt,0.0);
 
   // shear heating terms: simgaxy*dgxy + sigmaxz*dgxz (stresses times viscous strain rates)
   Vec shearHeat;
@@ -509,20 +500,19 @@ PetscErrorCode HeatEquation::setBCs()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt    Istart,Iend,z;
+  PetscInt    Istart,Iend,y;
   PetscScalar t;
   ierr = VecGetOwnershipRange(_T,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    z = Ii/_Nz;
-    if (z == _Nz-1) {
-      PetscInt ind = Ii - _Ny*(_Nz-1);
+    y = Ii/_Nz;
+    if (y == _Ny-1) {
+      PetscInt ind = Ii - _Ny*(_Nz-1)+1;
       ierr = VecGetValues(_T,1,&Ii,&t);CHKERRQ(ierr);
       ierr = VecSetValue(_bcR,ind,t,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
-
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -549,9 +539,17 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
                                    FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
 
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                 FILE_MODE_WRITE,&_vw);CHKERRQ(ierr);
+    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_vw);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                   FILE_MODE_APPEND,&_vw);CHKERRQ(ierr);
+
   }
   else {
     ierr = VecView(_T,_TV);CHKERRQ(ierr);
+    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1

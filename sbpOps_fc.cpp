@@ -67,8 +67,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,s
         Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
         kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
       }
-    MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);
     }
 }
 
@@ -307,12 +305,10 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
 
-
     // For A:if bcL = traction: alphaT * Hinvy_Iz * E0y_Iz * muxBySy_Iz
     ierr = MatMatMatMult(tempMats._Hyinv_Iz,E0y_Iz,tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AL,_alphaT);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
-    //~ierr = MatView(_AL,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
 
   // enforcement of right boundary bcR =================================
@@ -333,7 +329,6 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
     MatDestroy(&temp1);
     MatDestroy(&temp2);
-    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
 
     // in computation of A
@@ -1107,10 +1102,6 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     // add matrices for boundary conditions
     ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-
-    //~MatView(tempMats._AT,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(*tempMats._mu,PETSC_VIEWER_STDOUT_WORLD);
-    //~MatView(tempMats._AB,PETSC_VIEWER_STDOUT_WORLD);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
