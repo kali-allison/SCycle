@@ -210,8 +210,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
       // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
 
-  VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
   //~VecSet(*(dvarBegin+3),0.0);
   //~VecSet(*(dvarBegin+4),0.0);

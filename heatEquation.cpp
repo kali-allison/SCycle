@@ -468,29 +468,29 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecDestroy(&temp);
 
 
+  //~VecGetOwnershipRange(T,&Istart,&Iend);
+  //~for (Ii=Istart;Ii<Iend;Ii++) {
+    //~VecGetValues(_rho,1,&Ii,&rho);
+    //~VecGetValues(_c,1,&Ii,&c);
+    //~VecGetValues(_h,1,&Ii,&h);
+    //~VecGetValues(sigmaxy,1,&Ii,&s);
+    //~VecGetValues(dgxy,1,&Ii,&dg);
 
-  VecGetOwnershipRange(T,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_rho,1,&Ii,&rho);
-    VecGetValues(_c,1,&Ii,&c);
-    VecGetValues(_h,1,&Ii,&h);
-    VecGetValues(sigmaxy,1,&Ii,&s);
-    VecGetValues(dgxy,1,&Ii,&dg);
+    //~dT = 0.5*s*dg  + h*c;
 
-    dT = 0.5*s*dg  + h*c;
+    //~if (_Nz > 1) {
+      //~VecGetValues(sigmaxz,1,&Ii,&s);
+      //~VecGetValues(dgxz,1,&Ii,&dg);
 
-    if (_Nz > 1) {
-      VecGetValues(sigmaxz,1,&Ii,&s);
-      VecGetValues(dgxz,1,&Ii,&dg);
+      //~dT += 0.5*s*dg;
+    //~}
+    //~VecSetValues(dTdt,1,&Ii,&dT,ADD_VALUES);
+  //~}
+  //~VecAssemblyBegin(dTdt);
+  //~VecAssemblyEnd(dTdt);
 
-      dT += 0.5*s*dg;
-    }
-    dT = dT / rho / c;
-    VecSetValues(dTdt,1,&Ii,&dT,ADD_VALUES);
-  }
-  VecAssemblyBegin(dTdt);
-  VecAssemblyEnd(dTdt);
-
+  VecPointwiseDivide(dTdt,dTdt,_rho);
+  VecPointwiseDivide(dTdt,dTdt,_c);
   //~VecSet(dTdt,0.0);
 
 

@@ -390,7 +390,7 @@ PetscReal RK32::computeError()
 
   //~int ind = 1;
   for (int ind=0;ind<_lenVar;ind++) // if using full vector for measurement
-  //~for (int ind=0;ind<4;ind++)
+  //~for (int ind=0;ind<2;ind++)
   {
     ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
 
