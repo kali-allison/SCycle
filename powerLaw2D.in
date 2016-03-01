@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 201
+Nz = 101
 Ly = 24 # km
 Lz = 24 # km
 
@@ -44,7 +44,7 @@ BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [500 500]
+TVals = [273 1643]
 TDepths = [0 24]
 
 heatFieldsDistribution = layered
@@ -56,7 +56,7 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 
 linSolver = AMG
@@ -67,7 +67,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 5
 initTime = 0       # s
 maxTime = 8.5e10      # s
 minDeltaT = 1e-3     # s

@@ -96,7 +96,7 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_gxzP);
   VecDestroy(&_dgxyP);
   VecDestroy(&_dgxzP);
-  VecDestroy(&_T);
+  //~VecDestroy(&_T);
 
   PetscViewerDestroy(&_stressxyPV);
   PetscViewerDestroy(&_stressxzPV);
@@ -107,7 +107,7 @@ PowerLaw::~PowerLaw()
   PetscViewerDestroy(&_gxzPV);
   PetscViewerDestroy(&_dgxyPV);
   PetscViewerDestroy(&_dgxzPV);
-  PetscViewerDestroy(&_TV);
+  //~PetscViewerDestroy(&_TV);
 
 
   #if VERBOSE > 1
@@ -920,13 +920,6 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
                                    FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
-              FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
-    ierr = VecView(_T,_TV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_TV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
-                                   FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
-
     //~if (_isMMS) {
       //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                 //~FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -968,7 +961,6 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
-    //~ierr = VecView(_T,_TV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
@@ -1185,7 +1177,6 @@ PetscErrorCode PowerLaw::setFields()
     VecSet(_A,_AVals[0]);
     VecSet(_B,_BVals[0]);
     VecSet(_n,_nVals[0]);
-    //~VecSet(_T,_TVals[0]);
   }
   else {
     if (_viscDistribution.compare("mms")==0) {
@@ -1199,7 +1190,6 @@ PetscErrorCode PowerLaw::setFields()
       ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-      //~ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
     }
   }
   VecCopy(_he._T,_T);

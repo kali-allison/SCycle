@@ -22,7 +22,6 @@ HeatEquation::HeatEquation(Domain& D)
   loadSettings(_file);
   checkInput();
 
-
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcT);
   VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
@@ -53,14 +52,13 @@ HeatEquation::HeatEquation(Domain& D)
   VecDuplicate(D._muVP,&_T);
   VecSet(_T,0.0);
 
-
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
     _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     computeSteadyStateTemp();
     setBCs(); // update bcL and bcR with geotherm
   }
-  _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  //~_sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -370,42 +368,42 @@ PetscErrorCode HeatEquation::checkInput()
 // compute T assuming that dT/dt and viscous strain rates = 0
 PetscErrorCode HeatEquation::computeSteadyStateTemp()
 {
-PetscErrorCode ierr = 0;
+  PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::setTempRate";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  if (_Nz > 1) {
-    // set up linear solver context
-    KSP ksp;
-    PC pc;
-    KSPCreate(PETSC_COMM_WORLD,&ksp);
+  //~if (_Nz > 1) {
+    //~// set up linear solver context
+    //~KSP ksp;
+    //~PC pc;
+    //~KSPCreate(PETSC_COMM_WORLD,&ksp);
 
-    Mat A;
-    MatCreate(PETSC_COMM_WORLD,&A);
-    _sbpT->getA(A);
+    //~Mat A;
+    //~MatCreate(PETSC_COMM_WORLD,&A);
+    //~_sbpT->getA(A);
 
-    ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    //~ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    //~ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    //~ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+    //~ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+    //~ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    //~ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+    //~ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
 
-    // perform computation of preconditioners now, rather than on first use
-    ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+    //~// perform computation of preconditioners now, rather than on first use
+    //~ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
-    Vec rhs;
-    VecDuplicate(_T,&rhs);
-    _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+    //~Vec rhs;
+    //~VecDuplicate(_T,&rhs);
+    //~_sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
-    ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
-  }
-  else {
+    //~ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+  //~}
+  //~else {
     // set each field using it's vals and depths std::vectors
     if (_Nz == 1) { VecSet(_T,_TVals[0]); }
     else {
@@ -413,7 +411,7 @@ PetscErrorCode ierr = 0;
       else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
       else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
     }
-  }
+  //~}
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -479,7 +477,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   }
   VecDestroy(&shearHeat);
 
-  //!!! missing h*c term (heat production), also check if need to multiply by 0.5
+  //~//!!! missing h*c term (heat production), also check if need to multiply by 0.5
 
   VecPointwiseDivide(dTdt,dTdt,_rho);
   VecPointwiseDivide(dTdt,dTdt,_c);
@@ -496,9 +494,11 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
 PetscErrorCode HeatEquation::setBCs()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::setBCs";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
 
   PetscInt    Istart,Iend,y;
   PetscScalar t;
@@ -513,10 +513,13 @@ PetscErrorCode HeatEquation::setBCs()
   }
   ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
+  VecView(_bcR,PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setBCs in lithosphere.cpp\n");CHKERRQ(ierr);
-#endif
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -526,7 +529,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "HeatEquation::writeStep1D";
+    string funcName = "HeatEquation::writeStep2D";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);
   #endif
@@ -539,17 +542,17 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
                                    FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                 FILE_MODE_WRITE,&_vw);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_vw);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                   FILE_MODE_APPEND,&_vw);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                 //~FILE_MODE_WRITE,&_vw);CHKERRQ(ierr);
+    //~ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
+    //~ierr = PetscViewerDestroy(&_vw);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                   //~FILE_MODE_APPEND,&_vw);CHKERRQ(ierr);
 
   }
   else {
     ierr = VecView(_T,_TV);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
+    //~ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
