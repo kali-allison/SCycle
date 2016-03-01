@@ -50,7 +50,7 @@ HeatEquation::HeatEquation(Domain& D)
   setFields();
 
   VecDuplicate(D._muVP,&_T);
-  VecSet(_T,0.0);
+  VecSet(_T,_TVals[0]);
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
@@ -58,7 +58,7 @@ HeatEquation::HeatEquation(Domain& D)
     computeSteadyStateTemp();
     setBCs(); // update bcL and bcR with geotherm
   }
-  //~_sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -295,14 +295,10 @@ PetscErrorCode ierr = 0;
     }
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
-      //~ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
-      //~ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-      //~ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
-      //~ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
-      VecSet(_k,_kVals[0]);
-      VecSet(_rho,_rhoVals[0]);
-      VecSet(_c,_cVals[0]);
-      VecSet(_h,_hVals[0]);
+      ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
     }
   }
 
@@ -375,35 +371,35 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     CHKERRQ(ierr);
   #endif
 
-  //~if (_Nz > 1) {
-    //~// set up linear solver context
-    //~KSP ksp;
-    //~PC pc;
-    //~KSPCreate(PETSC_COMM_WORLD,&ksp);
+  if (_Nz > 1) {
+    // set up linear solver context
+    KSP ksp;
+    PC pc;
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
 
-    //~Mat A;
-    //~MatCreate(PETSC_COMM_WORLD,&A);
-    //~_sbpT->getA(A);
+    Mat A;
+    MatCreate(PETSC_COMM_WORLD,&A);
+    _sbpT->getA(A);
 
-    //~ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-    //~ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-    //~ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-    //~ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    //~ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    //~ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-    //~ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
 
-    //~// perform computation of preconditioners now, rather than on first use
-    //~ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+    // perform computation of preconditioners now, rather than on first use
+    ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
-    //~Vec rhs;
-    //~VecDuplicate(_T,&rhs);
-    //~_sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+    Vec rhs;
+    VecDuplicate(_T,&rhs);
+    _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
-    //~ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
-  //~}
-  //~else {
+    ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+  }
+  else {
     // set each field using it's vals and depths std::vectors
     if (_Nz == 1) { VecSet(_T,_TVals[0]); }
     else {
@@ -411,7 +407,8 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
       else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
       else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
     }
-  //~}
+  }
+  //~ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -501,20 +498,19 @@ PetscErrorCode HeatEquation::setBCs()
   #endif
 
   PetscInt    Istart,Iend,y;
-  PetscScalar t;
+  PetscScalar t = 0;
   ierr = VecGetOwnershipRange(_T,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     y = Ii/_Nz;
     if (y == _Ny-1) {
-      PetscInt ind = Ii - _Ny*(_Nz-1)+1;
+      PetscInt z = Ii-_Nz*(Ii/_Nz);
+      //~PetscPrintf(PETSC_COMM_WORLD,"y=%i, z=%i Ii=%i\n",y,z,Ii);
       ierr = VecGetValues(_T,1,&Ii,&t);CHKERRQ(ierr);
-      ierr = VecSetValue(_bcR,ind,t,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValue(_bcR,z,t,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
-  VecView(_bcR,PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
 
 #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -542,17 +538,17 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
                                    FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
 
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                 //~FILE_MODE_WRITE,&_vw);CHKERRQ(ierr);
-    //~ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
-    //~ierr = PetscViewerDestroy(&_vw);CHKERRQ(ierr);
-    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                   //~FILE_MODE_APPEND,&_vw);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                 FILE_MODE_WRITE,&_vw);CHKERRQ(ierr);
+    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_vw);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
+                                   FILE_MODE_APPEND,&_vw);CHKERRQ(ierr);
 
   }
   else {
     ierr = VecView(_T,_TV);CHKERRQ(ierr);
-    //~ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
+    ierr = VecView(_bcL,_vw);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -604,11 +600,10 @@ PetscErrorCode HeatEquation::writeContext(const string outputDir)
 
 
 // Fills vec with the linear interpolation between the pairs of points (vals,depths)
-// this probably won't work if the vector is 2D instead of 1D
 PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::setVecFromVectors";
@@ -616,42 +611,21 @@ PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,ve
     CHKERRQ(ierr);
   #endif
 
-  // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
-  z1 = depths.back();
-  depths.pop_back();
-  z0 = depths.back();
-  v1 = vals.back();
-  vals.pop_back();
-  v0 = vals.back();
+  // build structure from generalized input
+  size_t vecLen = depths.size();
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  z = _dz*(Iend-1);
-  while (z<z0) {
-    z1 = depths.back();
-    depths.pop_back();
-    z0 = depths.back();
-    v1 = vals.back();
-    vals.pop_back();
-    v0 = vals.back();
-    //~PetscPrintf(PETSC_COMM_WORLD,"2: z = %g: z0 = %g   z1 = %g   v0 = %g  v1 = %g\n",z,z0,z1,v0,v1);
-  }
-
-
-  for (Ii=Iend-1; Ii>=Istart; Ii--) {
-    z = _dz*Ii;
-    if (z==z1) { v = v1; }
-    else if (z==z0) { v = v0; }
-    else if (z>z0 && z<z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-
-    // if z is no longer bracketed by (z0,z1), move on to the next pair of points
-    if (z<=z0) {
-      z1 = depths.back();
-      depths.pop_back();
-      z0 = depths.back();
-      v1 = vals.back();
-      vals.pop_back();
-      v0 = vals.back();
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = depths[0+ind];
+        z1 = depths[0+ind+1];
+        v0 = vals[0+ind];
+        v1 = vals[0+ind+1];
+        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);

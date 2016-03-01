@@ -1183,7 +1183,6 @@ PetscErrorCode PowerLaw::setFields()
       mapToVec(_A,MMS_A,_Nz,_dy,_dz);
       mapToVec(_B,MMS_B,_Nz,_dy,_dz);
       mapToVec(_n,MMS_n,_Nz,_dy,_dz);
-      //~mapToVec(_T,MMS_T,_Nz,_dy,_dz);
     }
     else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
@@ -1193,15 +1192,6 @@ PetscErrorCode PowerLaw::setFields()
     }
   }
   VecCopy(_he._T,_T);
-
-  //~if (_thermalCoupling.compare("no")==0) {
-    //~if (_Nz == 1) { VecSet(_T,_TVals[0]); }
-  //~else {
-    //~if (_viscDistribution.compare("mms")==0) { mapToVec(_T,MMS_T,_Nz,_dy,_dz); }
-    //~else if (_viscDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
-    //~else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
-  //~}
-  //~else {
 
 
   #if VERBOSE > 1
