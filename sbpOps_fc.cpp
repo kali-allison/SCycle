@@ -4,9 +4,6 @@
 
 
 //================= constructor and destructor ========================
-/* SAT params _alphaD,_alphaD set to values that work for both 2nd and
- * 4th order but are not ideal for 4th.
- */
 SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(&muArr),_mu(&mu),
@@ -70,7 +67,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,s
         Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
         kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
       }
-
+    MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);
     }
 }
 
@@ -432,14 +430,10 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-    //~ierr = MatScale(_rhsT,-1.0);CHKERRQ(ierr); / why is this here??
     MatDestroy(&temp3);
     ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
     MatDestroy(&temp1);
     MatDestroy(&temp2);
-    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    // else if bcR = traction-free
-    // _rhsR is unneeded because bcR = 0
 
     // in computation of A
     // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_E0z + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_E0z
@@ -463,14 +457,12 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3);
     ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
-    //~ierr = MatView(_rhsT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
     // in computation of A
     // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
     ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
-    //~ierr = MatView(_AT,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
 
   // enforcement of bottom boundary bcB ================================
@@ -482,18 +474,16 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatScale(_rhsB,_alphaDz);CHKERRQ(ierr);
 
     ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
+    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
     ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
+
+    ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
     ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
     MatDestroy(&temp1);
     MatDestroy(&temp2);
-    //~ierr = MatView(_rhsR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    // else if bcR = traction-free
-    // _rhsR is unneeded because bcR = 0
+
 
     // in computation of A
     // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_ENz + _beta*Iy_Hzinv*(_muxIy_BSz)'*Iy_ENz
@@ -1118,7 +1108,9 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-
+    //~MatView(tempMats._AT,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(*tempMats._mu,PETSC_VIEWER_STDOUT_WORLD);
+    //~MatView(tempMats._AB,PETSC_VIEWER_STDOUT_WORLD);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");

@@ -1,8 +1,8 @@
-order = 4
-Ny = 41
-Nz = 1
-Ly = 24 # km
-Lz = 24 # km
+order = 2
+Ny = 8
+Nz = 9
+Ly = 7 # km
+Lz = 8 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 24] # m
@@ -44,11 +44,11 @@ BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [500 500]
+TVals = [1 2]
 TDepths = [0 24]
 
 heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (W/km/K)
+kVals = [1.0 1.0]  # crustal conductivity, should be 1.89e-9 (W/km/K)
 kDepths = [0 24]
 hVals = [0 0]
 hDepths = [0 24]
@@ -56,7 +56,7 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 
 linSolver = AMG
@@ -65,11 +65,11 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100 # how many steps between writing out 1D fields
-stride2D = 1000 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 100
 initTime = 0       # s
-maxTime = 7e10      # s
+maxTime = 8.5e10      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
