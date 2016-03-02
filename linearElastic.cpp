@@ -54,12 +54,7 @@ LinearElastic::LinearElastic(Domain&D)
   VecSet(_bcBP,0.0);
 
 
-  //~VecDuplicate(_muVecP,&_rhsP); // turn on to use DMDA Vecs everywhere
-
-  VecCreate(PETSC_COMM_WORLD,&_rhsP);
-  VecSetSizes(_rhsP,PETSC_DECIDE,_Ny*_Nz);
-  VecSetFromOptions(_rhsP);
-
+  VecDuplicate(_muVecP,&_rhsP);
   VecDuplicate(_rhsP,&_uP);
 
 
