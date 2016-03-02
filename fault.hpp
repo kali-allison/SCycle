@@ -64,8 +64,8 @@ class Fault: public RootFinderContext
     Vec            _tauQSP;
 
     // iterators for _var
-    typedef typename std::vector<Vec>::iterator it_vec;
-    typedef typename std::vector<Vec>::const_iterator const_it_vec;
+    typedef std::vector<Vec>::iterator it_vec;
+    typedef std::vector<Vec>::const_iterator const_it_vec;
 
     Fault(Domain&D);
     ~Fault();
@@ -166,8 +166,8 @@ class FullFault: public Fault
     Vec            _tauQSMinus;
 
     // iterators for _var
-    typedef typename std::vector<Vec>::iterator it_vec;
-    typedef typename std::vector<Vec>::const_iterator const_it_vec;
+    typedef std::vector<Vec>::iterator it_vec;
+    typedef std::vector<Vec>::const_iterator const_it_vec;
 
     FullFault(Domain&D);
     ~FullFault();

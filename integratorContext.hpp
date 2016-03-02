@@ -15,8 +15,8 @@ class IntegratorContext
 {
   public:
 
-    typedef typename std::vector<Vec>::iterator it_vec;
-    typedef typename std::vector<Vec>::const_iterator const_it_vec;
+    typedef std::vector<Vec>::iterator it_vec;
+    typedef std::vector<Vec>::const_iterator const_it_vec;
 
     virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
               it_vec dvarBegin,it_vec dvarEnd) = 0;

@@ -43,7 +43,7 @@ Domain::Domain(const char *file)
 
   checkInput(); // perform some basic value checking to prevent NaNs
 
-  DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
     DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
   PetscInt zn,yn;
   DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
@@ -123,7 +123,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   checkInput(); // perform some basic value checking to prevent NaNs
 
-  DMDACreate2d(PETSC_COMM_WORLD,DMDA_BOUNDARY_NONE,DMDA_BOUNDARY_NONE,
+  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
     DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
   PetscInt zn,yn;
   DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);

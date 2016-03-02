@@ -67,8 +67,8 @@ class OdeSolver
   public:
 
     // iterators for _var and _dvar
-    typedef typename vector<Vec>::iterator it_vec;
-    typedef typename vector<Vec>::const_iterator const_it_vec;
+    typedef vector<Vec>::iterator it_vec;
+    typedef vector<Vec>::const_iterator const_it_vec;
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~OdeSolver();

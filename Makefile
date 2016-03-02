@@ -1,4 +1,4 @@
-all: main
+all: test
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
 CFLAGS          = $(DEBUG_MODULES)
@@ -11,8 +11,10 @@ OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
 
 
 
-include ${PETSC_DIR}/conf/variables
-include ${PETSC_DIR}/conf/rules
+#include ${PETSC_DIR}/conf/variables
+#include ${PETSC_DIR}/conf/rules
+include ${PETSC_DIR}/lib/petsc/conf/variables
+include ${PETSC_DIR}/lib/petsc/conf/rules
 
 
 trial:
@@ -30,10 +32,6 @@ mainMaxwell:  mainMaxwell.o $(OBJECTS)
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm mainLinearElastic.o
-
-test:  test.o domain.o sbpOps_c.o spmat.o genFuncs.o
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm test.o
 
 main_iceSheet:  main_iceSheet.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -54,6 +52,10 @@ helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm helloWorld.o
 
+test: test.o
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-rm test.o
+
 #.PHONY : clean
 clean::
 	-rm -f *.o main helloWorld mainLinearElastic mainMaxwell
@@ -61,7 +63,7 @@ clean::
 depend:
 	-g++ -MM *.c*
 
-include ${PETSC_DIR}/conf/test
+include ${PETSC_DIR}/lib/petsc/conf/test
 
 #=========================================================
 # Dependencies
@@ -126,4 +128,5 @@ testMain.o: testMain.cpp genFuncs.hpp domain.hpp spmat.hpp sbpOps.hpp \
  integratorContext.hpp odeSolver.hpp
 testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp
+test.o: test.cpp
 

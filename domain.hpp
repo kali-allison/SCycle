@@ -9,6 +9,7 @@
 #include <vector>
 #include <iostream>
 #include <petscdmda.h>
+#include <petscdm.h>
 #include "genFuncs.hpp"
 
 

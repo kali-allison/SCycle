@@ -19,11 +19,11 @@ class Spmat
 {
 public:
   typedef std::map<size_t, std::map<size_t, double> > mat_t;
-  typedef typename mat_t::iterator row_iter;
-  typedef typename mat_t::const_iterator const_row_iter;
+  typedef mat_t::iterator row_iter;
+  typedef mat_t::const_iterator const_row_iter;
   typedef std::map<size_t, double> col_t;
-  typedef typename col_t::iterator col_iter;
-  typedef typename col_t::const_iterator const_col_iter;
+  typedef col_t::iterator col_iter;
+  typedef col_t::const_iterator const_col_iter;
 
   Spmat(size_t rowSize, size_t colSize); // constructor
   Spmat(const Spmat &that); // copy constructor
