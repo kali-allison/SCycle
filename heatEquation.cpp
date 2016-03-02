@@ -59,7 +59,7 @@ HeatEquation::HeatEquation(Domain& D)
     setBCs(); // update bcL and bcR with geotherm
   }
   _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
-assert(0);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -303,30 +303,29 @@ PetscErrorCode ierr = 0;
   }
 
 
-  // build kArr
-  PetscInt *kInds=NULL;
-  PetscInt len,Istart,Iend;
-  VecGetLocalSize(_k,&len);
-  ierr = PetscMalloc(len*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
-  ierr = PetscMalloc(len*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
-  VecGetOwnershipRange(_k,&Istart,&Iend);
-  PetscInt ind = 0;
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    kInds[ind] = Ii;
-    _kArr[Ii] = _kVals[0];
-    ind++;
-  }
-
   MatCreate(PETSC_COMM_WORLD,&_kMat);
   ierr = MatSetSizes(_kMat,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
   ierr = MatSetFromOptions(_kMat);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(_kMat,1,NULL,1,NULL);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(_kMat,1,NULL);CHKERRQ(ierr);
   ierr = MatSetUp(_kMat);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_kMat,_k,INSERT_VALUES);CHKERRQ(ierr);
 
-  PetscFree(kInds);
+  // build kArr
+  PetscInt len,Istart,Iend;
+  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
+  for (PetscInt Ii=0;Ii<_Ny*_Nz;Ii++)
+  {
+    _kArr[Ii] = _kVals[0];
+  }
+
+  VecGetOwnershipRange(_k,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    PetscScalar v = _kArr[Ii];
+    MatSetValues(_kMat,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(_kMat,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_kMat,MAT_FINAL_ASSEMBLY);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
