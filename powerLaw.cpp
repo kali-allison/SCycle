@@ -216,7 +216,6 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   //~VecSet(*(dvarBegin+3),0.0);
   //~VecSet(*(dvarBegin+4),0.0);
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
@@ -424,14 +423,14 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  PetscScalar deps,invVisc,epsVisc,sat,sigmaxy,sigmaxz,sigmadev,A,B,n,T,effVisc=0;
+  PetscScalar deps,invVisc,epsVisc,sat,sigmaxy,sigmaxz,sigmadev,mu,A,B,n,T,effVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    VecGetValues(SAT,1,&Ii,&sat);
-
     VecGetValues(_sigmadev,1,&Ii,&sigmadev);
+    VecGetValues(_muVecP,1,&Ii,&mu);
+    VecGetValues(SAT,1,&Ii,&sat);
     VecGetValues(_A,1,&Ii,&A);
     VecGetValues(_B,1,&Ii,&B);
     VecGetValues(_n,1,&Ii,&n);
@@ -443,10 +442,11 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
 
     //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
 
-    // d/dt epsVxy = mu/visc * ( 0.5*d/dy u - epsxy) - SAT
-    deps = sigmaxy*invVisc + _muArrPlus[Ii]*invVisc * sat;
+    deps = sigmaxy*invVisc + mu*invVisc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
+    assert(!isnan(invVisc));
+    assert(!isnan(deps));
     if (_Nz > 1) {
       VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
       VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
@@ -454,6 +454,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
       // d/dt epsVxz = mu/visc * ( 0.5*d/dz u - epsxz)
       deps = sigmaxz*invVisc;
       VecSetValues(*(dvarBegin+3),1,&Ii,&deps,INSERT_VALUES);
+      assert(!isnan(deps));
     }
   }
   VecAssemblyBegin(*(dvarBegin+2));
@@ -490,16 +491,17 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   _sbpP->Dy(_uP,_gTxyP);
   _sbpP->Dz(_uP,_gTxzP);
 
-  PetscScalar gT,gV,sigmaxy,sigmaxz,sigmadev = 0;
+  PetscScalar gT,gV,sigmaxy,sigmaxz,sigmadev,mu = 0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_gTxyP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_gTxyP,1,&Ii,&gT);
     VecGetValues(_gxyP,1,&Ii,&gV);
+    VecGetValues(_muVecP,1,&Ii,&mu);
 
     // solve for stressxyP = 2*mu*epsExy (elastic strain)
     //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
-    sigmaxy = _muArrPlus[Ii] * (gT - gV);
+    sigmaxy = mu* (gT - gV);
     VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
 
     sigmadev = sigmaxy*sigmaxy;
@@ -510,7 +512,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
 
       // solve for stressxzP = 2*mu*epsExy (elastic strain)
       //                     = 2*mu*(0.5*d/dz(uhat) - epsVxz)
-      sigmaxz = _muArrPlus[Ii] * (gT - gV);
+      sigmaxz = mu * (gT - gV);
       VecSetValues(_stressxzP,1,&Ii,&sigmaxz,INSERT_VALUES);
 
       sigmadev += sigmaxz*sigmaxz;
@@ -1204,11 +1206,10 @@ return ierr;
 
 
 // Fills vec with the linear interpolation between the pairs of points (vals,depths)
-// this probably won't work if the vector is 2D instead of 1D
 PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::setVecFromVectors";
@@ -1216,42 +1217,21 @@ PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector
     CHKERRQ(ierr);
   #endif
 
-  // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
-  z1 = depths.back();
-  depths.pop_back();
-  z0 = depths.back();
-  v1 = vals.back();
-  vals.pop_back();
-  v0 = vals.back();
+  // build structure from generalized input
+  size_t vecLen = depths.size();
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  z = _dz*(Iend-1);
-  while (z<z0) {
-    z1 = depths.back();
-    depths.pop_back();
-    z0 = depths.back();
-    v1 = vals.back();
-    vals.pop_back();
-    v0 = vals.back();
-    //~PetscPrintf(PETSC_COMM_WORLD,"2: z = %g: z0 = %g   z1 = %g   v0 = %g  v1 = %g\n",z,z0,z1,v0,v1);
-  }
-
-
-  for (Ii=Iend-1; Ii>=Istart; Ii--) {
-    z = _dz*Ii;
-    if (z==z1) { v = v1; }
-    else if (z==z0) { v = v0; }
-    else if (z>z0 && z<z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-
-    // if z is no longer bracketed by (z0,z1), move on to the next pair of points
-    if (z<=z0) {
-      z1 = depths.back();
-      depths.pop_back();
-      z0 = depths.back();
-      v1 = vals.back();
-      vals.pop_back();
-      v0 = vals.back();
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = depths[0+ind];
+        z1 = depths[0+ind+1];
+        v0 = vals[0+ind];
+        v1 = vals[0+ind+1];
+        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);

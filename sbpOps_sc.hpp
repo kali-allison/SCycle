@@ -49,7 +49,7 @@ class SbpOps_sc
     const PetscReal   _dy,_dz;
     PetscScalar      *_muArr;
     Mat              *_mu;
-    Vec               _muVP;
+    Vec               _muVecP;
 
     Mat               _A;
 

@@ -41,7 +41,7 @@ class LinearElastic: public IntegratorContext
 
     // off-fault material fields: + side
     PetscScalar         *_muArrPlus;
-    Vec                  _muVP;
+    Vec                  _muVecP;
     Mat                  _muP;
     Vec                  _bcRPShift,_surfDispPlus;
     Vec                  _rhsP,_uP,_stressxyP;

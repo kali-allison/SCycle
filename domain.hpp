@@ -71,7 +71,8 @@ class Domain
     // DMDA for all vectors
     DM _da;
     PetscInt _yS,_yE,_zS,_zE; // Start and End indices for loops (does NOT include ghost points)
-    Vec _muVP; // DMDA vector version of shear modulus
+    //~Vec _muVecP; // DMDA vector version of shear modulus
+    Vec _muVecP; // vector version of shear modulus
 
     Domain(const char * file);
     Domain(const char *file,PetscInt Ny, PetscInt Nz);

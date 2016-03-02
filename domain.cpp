@@ -19,7 +19,7 @@ Domain::Domain(const char *file)
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVP(NULL)
+  _da(NULL),_muVecP(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -94,7 +94,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVP(NULL)
+  _da(NULL),_muVecP(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -172,6 +172,8 @@ Domain::~Domain()
 
   MatDestroy(&_muP);
   MatDestroy(&_muM);
+
+  VecDestroy(&_muVecP);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -797,16 +799,20 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  //~ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  ierr = MatSetUp(_muP);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
+
+  VecDuplicate(muVec,&_muVecP);
+  VecCopy(muVec,_muVecP);
 
   VecDestroy(&muVec);
   PetscFree(muInds);
 
 
+/*
   // set DMDA version of shear modulus
-  DMCreateGlobalVector(_da,&_muVP); PetscObjectSetName((PetscObject) _muVP, "_muVP");
-  VecSet(_muVP,0.0);
+  DMCreateGlobalVector(_da,&_muVecP); PetscObjectSetName((PetscObject) _muVecP, "_muVecP");
+  VecSet(_muVecP,0.0);
   Vec loutVec, linVec;
   PetscScalar** lout;
   PetscScalar** lin;
@@ -814,8 +820,8 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = DMCreateLocalVector(_da, &linVec);CHKERRQ(ierr);
 
   ierr = DMDAVecGetArray(_da, loutVec, &lout);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(_da, _muVP, INSERT_VALUES, linVec);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(_da, _muVP, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(_da, _muVecP, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(_da, _muVecP, INSERT_VALUES, linVec);CHKERRQ(ierr);
   ierr = DMDAVecGetArray(_da, linVec, &lin); CHKERRQ(ierr);
 
   PetscInt yI,zI;
@@ -849,11 +855,12 @@ PetscErrorCode Domain::setFieldsPlus()
 
   ierr = DMDAVecRestoreArray(_da, loutVec, &lout);CHKERRQ(ierr);
   ierr = DMDAVecRestoreArray(_da, linVec, &lin);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(_da, loutVec, INSERT_VALUES, _muVP);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(_da, loutVec, INSERT_VALUES, _muVP);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(_da, loutVec, INSERT_VALUES, _muVecP);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(_da, loutVec, INSERT_VALUES, _muVecP);CHKERRQ(ierr);
 
   VecDestroy(&loutVec);
   VecDestroy(&linVec);
+  */
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
