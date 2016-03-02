@@ -57,10 +57,10 @@ HeatEquation::HeatEquation(Domain& D)
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
-    //~_sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
-    _sbpT = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","z");
+    _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    //~_sbpT = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","z");
     computeSteadyStateTemp();
-    //~setBCs(); // update bcL and bcR with geotherm
+    setBCs(); // update bcL and bcR with geotherm
   }
   _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
