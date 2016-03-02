@@ -43,20 +43,24 @@ HeatEquation::HeatEquation(Domain& D)
   VecSet(_bcL,0.0);
 
   // set fields
-  VecDuplicate(D._muVP,&_k);
+  VecCreate(PETSC_COMM_WORLD,&_k);
+  VecSetSizes(_k,PETSC_DECIDE,_Ny*_Nz);
+  VecSetFromOptions(_k);
+  //~VecDuplicate(D._muVP,&_k);
   VecDuplicate(_k,&_rho);
   VecDuplicate(_k,&_c);
   VecDuplicate(_k,&_h);
   setFields();
 
-  VecDuplicate(D._muVP,&_T);
+  VecDuplicate(_k,&_T);
   VecSet(_T,_TVals[0]);
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
-    _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    //~_sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    _sbpT = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","z");
     computeSteadyStateTemp();
-    setBCs(); // update bcL and bcR with geotherm
+    //~setBCs(); // update bcL and bcR with geotherm
   }
   _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
@@ -321,7 +325,8 @@ PetscErrorCode ierr = 0;
   VecGetOwnershipRange(_k,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    PetscScalar v = _kArr[Ii];
+    //~PetscScalar v = _kArr[Ii];
+    PetscScalar v = 1.0;
     MatSetValues(_kMat,1,&Ii,1,&Ii,&v,INSERT_VALUES);
   }
   MatAssemblyBegin(_kMat,MAT_FINAL_ASSEMBLY);
@@ -367,7 +372,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "HeatEquation::setTempRate";
+    string funcName = "HeatEquation::computeSteadyStateTemp";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -395,7 +400,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
     Vec rhs;
-    VecDuplicate(_T,&rhs);
+    VecDuplicate(_k,&rhs);
     _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
     ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);

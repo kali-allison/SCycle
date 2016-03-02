@@ -797,7 +797,7 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
   ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  //~ierr = MatSetUp(_muP);CHKERRQ(ierr);
   ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
   VecDestroy(&muVec);
