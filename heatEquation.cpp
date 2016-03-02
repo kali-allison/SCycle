@@ -59,7 +59,7 @@ HeatEquation::HeatEquation(Domain& D)
     setBCs(); // update bcL and bcR with geotherm
   }
   _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
-
+assert(0);
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -302,18 +302,6 @@ PetscErrorCode ierr = 0;
     }
   }
 
-
-  //~// set conductivity matrix
-  //~PetscInt *kInds;
-  //~ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&kInds);CHKERRQ(ierr);
-  //~ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
-
-  //~PetscInt Istart,Iend;
-  //~VecGetOwnershipRange(_k,&Istart,&Iend);
-  //~for (PetscInt Ii=0;Ii<Iend;Ii++) {
-    //~_kArr[Ii] = _kVals[0];
-    //~kInds[Ii] = Ii;
-  //~}
 
   // build kArr
   PetscInt *kInds=NULL;
