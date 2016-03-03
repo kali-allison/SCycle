@@ -1,4 +1,4 @@
-all: mainLinearElastic
+all: main
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
