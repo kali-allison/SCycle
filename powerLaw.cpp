@@ -1142,9 +1142,10 @@ PetscErrorCode PowerLaw::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  assert(_viscDistribution.compare("mms")==0 ||
-      _viscDistribution.compare("layered")==0 ||
-      _viscDistribution.compare("loadFromFile")==0 );
+  assert(_viscDistribution.compare("layered")==0 ||
+      _viscDistribution.compare("mms")==0 ||
+      _viscDistribution.compare("loadFromFile")==0 ||
+      _viscDistribution.compare("effectiveVisc")==0 );
 
   assert(_AVals.size() == _ADepths.size() );
   assert(_BVals.size() == _BDepths.size() );
