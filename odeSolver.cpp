@@ -362,7 +362,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   PetscReal deltaT = stepRatio*_deltaT;
 
   // respect bounds on min and max possible step size
-  //~deltaT=min(_maxDeltaT,deltaT); // absolute max
+  deltaT=min(_maxDeltaT,deltaT); // absolute max
   deltaT = min(_deltaT*5.0,deltaT); // cap growth rate of step size
   deltaT = max(_minDeltaT,deltaT);
 

@@ -17,7 +17,7 @@ PowerLaw::PowerLaw(Domain& D)
   _gxyPV(NULL),_dgxyPV(NULL),
   _gxzPV(NULL),_dgxzPV(NULL),
   _TV(NULL),_effViscV(NULL),
-  _thermalCoupling("no"),_k(NULL),_rho(NULL),_c(NULL),_h(NULL),_Tgeotherm(NULL),_he(D)
+  _thermalCoupling("no"),_he(D)
 {
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::PowerLaw";
@@ -96,7 +96,6 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_gxzP);
   VecDestroy(&_dgxyP);
   VecDestroy(&_dgxzP);
-  //~VecDestroy(&_T);
 
   PetscViewerDestroy(&_stressxyPV);
   PetscViewerDestroy(&_stressxzPV);

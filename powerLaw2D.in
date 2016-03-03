@@ -1,6 +1,6 @@
 order = 4
-Ny = 21
-Nz = 1
+Ny = 51
+Nz = 41
 Ly = 24 # km
 Lz = 24 # km
 
@@ -31,11 +31,14 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
-viscDistribution = layered
-
 # Maxwell properties
-viscVals = [1e13 1e13]
-viscDepths = [0 24]
+#viscDistribution = layered
+#viscVals = [1e17 1e17]
+#viscDepths = [0 24]
+
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 24]
 
 # power law properties
 AVals = [2.2e-6 2.2e-6]
@@ -44,9 +47,11 @@ BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [273 1643]
+TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
+thermalCoupling = coupled
 
+# heat equation properties
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (W/km/K)
 kDepths = [0 24]
@@ -56,7 +61,6 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
-thermalCoupling = uncoupled
 
 
 linSolver = AMG
@@ -67,7 +71,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 1
 initTime = 0       # s
 maxTime = 2e11      # s
 minDeltaT = 1e-3     # s

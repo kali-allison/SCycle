@@ -10,7 +10,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _gxzPV(NULL),_dgxzPV(NULL),
   _gTxyP(NULL),_gTxzP(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
-  _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL)
+  _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL),
+  _thermalCoupling("no"),_he(D)
 {
   #if VERBOSE > 1
     string funcName = "SymmMaxwellViscoelastic::SymmMaxwellViscoelastic";
@@ -21,8 +22,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   // set viscosity
   loadSettings(_file);
   checkInput();
-  //~if (_viscDistribution.compare("loadFromFile")==0) {
-  setVisc();
+  setFields();
 
 
   VecDuplicate(_uP,&_gxyP);
@@ -875,7 +875,7 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in maxwellViscoelastic.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
 #endif
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
@@ -895,6 +895,8 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
     if (var.compare("viscDistribution")==0) {
       _viscDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+
+    // if explicity setting viscosity distribution as layered
     else if (var.compare("viscVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_viscVals);
@@ -904,57 +906,138 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
       loadVectorFromInputFile(str,_viscDepths);
     }
 
+    // if using effective viscosity from power law
+    else if (var.compare("thermalCoupling")==0) {
+      _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("AVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_AVals);
+    }
+    else if (var.compare("ADepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_ADepths);
+    }
+    else if (var.compare("BVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_BVals);
+    }
+    else if (var.compare("BDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_BDepths);
+    }
+    else if (var.compare("nVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_nVals);
+    }
+    else if (var.compare("nDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_nDepths);
+    }
+    else if (var.compare("sigmadevVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_sigmadevVals);
+    }
+    else if (var.compare("sigmadevDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_sigmadevDepths);
+    }
+
   }
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
 // set viscosity
-PetscErrorCode SymmMaxwellViscoelastic::setVisc()
+PetscErrorCode SymmMaxwellViscoelastic::setFields()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in maxwellVisc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFields in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt       Ii;
-  PetscScalar    v=0,z=0;
-  PetscScalar z0,z1,v0,v1;
+    ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+    ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+    ierr = VecSetFromOptions(_visc);CHKERRQ(ierr);
 
-  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
-  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_visc);CHKERRQ(ierr);
-
-  PetscInt Istart,Iend;
-  ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
-
-  // build viscosity structure from generalized input
-  size_t vecLen = _viscDepths.size();
-  for (Ii=Istart;Ii<Iend;Ii++)
-  {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-        z0 = _viscDepths[0+ind];
-        z1 = _viscDepths[0+ind+1];
-        v0 = log10(_viscVals[0+ind]);
-        v1 = log10(_viscVals[0+ind+1]);
-
-        if (z>=z0 && z<=z1) {
-          v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
-          v = pow(10,v);
-          }
-        ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  if (_viscDistribution.compare("effectiveVisc")==0) {
+    ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
+    ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
+    ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
+    Vec sigmadev;
+    ierr = VecDuplicate(_uP,&sigmadev);CHKERRQ(ierr);
+    if (_Nz == 1) {
+      VecSet(_A,_AVals[0]);
+      VecSet(_B,_BVals[0]);
+      VecSet(_n,_nVals[0]);
+      VecSet(sigmadev,_sigmadevVals[0]);
     }
+    else {
+      ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(sigmadev,_sigmadevVals,_sigmadevDepths);CHKERRQ(ierr);
+    }
+
+    // compute effective viscosity using heat equation's computed temperature
+    PetscScalar s,A,B,n,T,effVisc,invVisc=0;
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_A,&Istart,&Iend);
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      VecGetValues(sigmadev,1,&Ii,&s);
+      VecGetValues(_A,1,&Ii,&A);
+      VecGetValues(_B,1,&Ii,&B);
+      VecGetValues(_n,1,&Ii,&n);
+      VecGetValues(_he._T,1,&Ii,&T);
+      invVisc = A*pow(s,n-1.0)*exp(-B/T) * 1e-3; // *1e-3 to get resulting eff visc in GPa s
+      effVisc = 1.0/invVisc;
+      VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
+      assert(!isnan(invVisc));
+    }
+    VecAssemblyBegin(_visc);
+    VecAssemblyEnd(_visc);
+    VecDestroy(&sigmadev);
+    //~writeVec(_he._T,"he_T");
   }
-  ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+  else if (_viscDistribution.compare("layered")==0) {
+    PetscInt       Ii;
+    PetscScalar    v=0,z=0;
+    PetscScalar z0,z1,v0,v1;
+    PetscInt Istart,Iend;
+    ierr = VecGetOwnershipRange(_visc,&Istart,&Iend);CHKERRQ(ierr);
+
+    // build viscosity structure from generalized input
+    size_t vecLen = _viscDepths.size();
+    for (Ii=Istart;Ii<Iend;Ii++)
+    {
+      z = _dz*(Ii-_Nz*(Ii/_Nz));
+      //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+      for (size_t ind = 0; ind < vecLen-1; ind++) {
+          z0 = _viscDepths[0+ind];
+          z1 = _viscDepths[0+ind+1];
+          v0 = log10(_viscVals[0+ind]);
+          v1 = log10(_viscVals[0+ind+1]);
+
+          if (z>=z0 && z<=z1) {
+            v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
+            v = pow(10,v);
+            }
+          ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      }
+    }
+    ierr = VecAssemblyBegin(_visc);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(_visc);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: viscDistribution type not understood\n");
+    assert(0); // automatically fail
+  }
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFields in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
 #endif
 return ierr;
 }
@@ -989,15 +1072,69 @@ PetscErrorCode SymmMaxwellViscoelastic::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
   #endif
 
-  assert(_viscVals.size() == _viscDepths.size() );
-
   assert(_viscDistribution.compare("layered")==0 ||
       _viscDistribution.compare("mms")==0 ||
-      _viscDistribution.compare("loadFromFile")==0 );
+      _viscDistribution.compare("loadFromFile")==0 ||
+      _viscDistribution.compare("effectiveVisc")==0 );
+
+  if (_viscDistribution.compare("effectiveVisc")==0) {
+    assert(_AVals.size() == _ADepths.size() );
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_nVals.size() == _nDepths.size() );
+    assert(_sigmadevVals.size() == _sigmadevDepths.size() );
+    assert(_AVals.size() > 0);
+    assert(_BVals.size() > 0);
+    assert(_nVals.size() > 0);
+    assert(_sigmadevVals.size() > 0);
+  }
+
+  assert(_viscVals.size() == _viscDepths.size() );
+  if (_viscDistribution.compare("layered")==0) {
+    assert(_viscVals.size() > 0);
+  }
 
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);
 #endif
   //~}
+  return ierr;
+}
+
+
+// Fills vec with the linear interpolation between the pairs of points (vals,depths)
+PetscErrorCode SymmMaxwellViscoelastic::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    std::string funcName = "SymmMaxwellViscoelastic::setVecFromVectors";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = depths[0+ind];
+        z1 = depths[0+ind+1];
+        v0 = vals[0+ind];
+        v1 = vals[0+ind+1];
+        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }

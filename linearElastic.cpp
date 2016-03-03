@@ -68,7 +68,7 @@ LinearElastic::LinearElastic(Domain&D)
     _quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
     assert(0); // automatically fail
   }
 

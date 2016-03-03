@@ -1,4 +1,4 @@
-all: main mainMaxwell mainLinearElastic
+all: mainMaxwell
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
@@ -102,7 +102,7 @@ main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
 maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
  linearElastic.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp \
- sbpOps_fc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp
+ sbpOps_fc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
  genFuncs.hpp
 powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContext.hpp odeSolver.hpp \
