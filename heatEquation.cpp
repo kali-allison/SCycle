@@ -365,11 +365,11 @@ PetscErrorCode HeatEquation::checkInput()
 PetscErrorCode HeatEquation::computeSteadyStateTemp()
 {
   PetscErrorCode ierr = 0;
-  //~#if VERBOSE > 1
+  #if VERBOSE > 1
     string funcName = "HeatEquation::computeSteadyStateTemp";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
-  //~#endif
+  #endif
 
   if (_Nz > 1) {
     // set up linear solver context
