@@ -1,5 +1,5 @@
-order = 2
-Ny = 11
+order = 4
+Ny = 21
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -28,19 +28,35 @@ shearDistribution = constant
 {
 problem = symmetric
 muPlus = 30 # GPa
-rhoPlus = 2.8 # g/cm^3
+rhoPlus = 3.0 # g/cm^3
 }
 
 viscDistribution = layered
-thermalCoupling = uncoupled
+
+# Maxwell properties
+viscVals = [1e13 1e13]
+viscDepths = [0 24]
+
+# power law properties
 AVals = [2.2e-6 2.2e-6]
 ADepths = [0 24]
 BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [950 950]
+TVals = [273 1643]
 TDepths = [0 24]
+
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (W/km/K)
+kDepths = [0 24]
+hVals = [0 0]
+hDepths = [0 24]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 24]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 24]
+thermalCoupling = coupled
 
 
 linSolver = AMG
@@ -49,16 +65,17 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1 # how many steps between writing out 1D fields
-stride2D = 1 # how many steps between writing out 2D fields
+stride1D = 10 # how many steps between writing out 1D fields
+stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 2e11      # s
+maxTime = 1.4e11      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e7      # s
+maxDeltaT = 1e8      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-outputDir = data/pSS_uncoupled_
+#outputDir = data/pSS_c_
+outputDir = data/lSS_
