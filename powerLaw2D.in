@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 21
+Nz = 21
 Ly = 24 # km
 Lz = 24 # km
 
@@ -56,7 +56,7 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 
 linSolver = AMG
@@ -77,4 +77,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/p2D_no_
+outputDir = data/p2D_uc_

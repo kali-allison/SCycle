@@ -382,7 +382,9 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     _sbpT->getA(A);
 
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
@@ -439,7 +441,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     VecGetValues(_k,1,&Ii,&k);
     VecGetValues(sigmaxy,1,&Ii,&s);
     VecGetValues(slipVel,1,&Ii,&vel);
-    v = -k*s*abs(vel);
+    v = -s*abs(vel)/k;
     VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
   }
   VecAssemblyBegin(_bcL);
