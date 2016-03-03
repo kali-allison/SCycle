@@ -1,7 +1,8 @@
 all: mainLinearElastic
 
-DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DDEBUG=0 -DVERSION=${PETSC_VERSION_NUM}
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
+CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
@@ -17,9 +18,6 @@ include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
 
-trial:
-	@echo ${PETSC_DIR}/conf/variables
-
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	echo ${PETSC_DIR}
@@ -30,7 +28,7 @@ mainMaxwell:  mainMaxwell.o $(OBJECTS)
 	-rm mainMaxwell.o
 
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
+	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
 	-rm mainLinearElastic.o
 
 main_iceSheet:  main_iceSheet.o $(OBJECTS)
