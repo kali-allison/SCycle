@@ -10,8 +10,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _gxzPV(NULL),_dgxzPV(NULL),
   _gTxyP(NULL),_gTxzP(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
-  _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL),
-  _thermalCoupling("no"),_he(D)
+  _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL)
 {
   #if VERBOSE > 1
     string funcName = "SymmMaxwellViscoelastic::SymmMaxwellViscoelastic";
@@ -22,7 +21,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   // set viscosity
   loadSettings(_file);
   checkInput();
-  setFields();
+  setFields(D);
 
 
   VecDuplicate(_uP,&_gxyP);
@@ -907,9 +906,6 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
     }
 
     // if using effective viscosity from power law
-    else if (var.compare("thermalCoupling")==0) {
-      _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
     else if (var.compare("AVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_AVals);
@@ -952,7 +948,7 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
 }
 
 // set viscosity
-PetscErrorCode SymmMaxwellViscoelastic::setFields()
+PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -964,6 +960,9 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields()
     ierr = VecSetFromOptions(_visc);CHKERRQ(ierr);
 
   if (_viscDistribution.compare("effectiveVisc")==0) {
+    std::string _thermalCoupling;
+    HeatEquation _he(D);
+    Vec         _A,_n,_B;
     ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
     ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
     ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
@@ -1000,7 +999,9 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields()
     VecAssemblyBegin(_visc);
     VecAssemblyEnd(_visc);
     VecDestroy(&sigmadev);
-    //~writeVec(_he._T,"he_T");
+    VecDestroy(&_A);
+    VecDestroy(&_B);
+    VecDestroy(&_n);
   }
   else if (_viscDistribution.compare("layered")==0) {
     PetscInt       Ii;

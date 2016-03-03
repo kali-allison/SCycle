@@ -20,10 +20,9 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load viscosity from
 
-    std::string  _viscDistribution; // options: mms, layered
+    std::string  _viscDistribution; // options: mms, layered, effectiveVisc
     std::vector<double> _viscVals,_viscDepths;
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_sigmadevVals,_sigmadevDepths;
-    Vec         _A,_n,_B;
     Vec         _visc;
 
     Vec         _gxyP,_dgxyP; // viscoelastic strain and strain rate
@@ -37,10 +36,6 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscViewer _gTxyPV,_gTxzPV;
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
-
-    // thermomechanical coupling
-    std::string _thermalCoupling;
-    HeatEquation _he;
 
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
@@ -82,7 +77,7 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode setFields();
+    PetscErrorCode setFields(Domain& D);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
