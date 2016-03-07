@@ -261,6 +261,7 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
 
 
 double MMS_test(const double y,const double z) { return z; }
+double MMS_test(const double z) { return z; }
 
 
 //======================================================================
@@ -470,6 +471,34 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
         arr[yI][zI] = func(y,z);
       }
     }
+
+  ierr = DMDAVecRestoreArray(da, vec, &arr);CHKERRQ(ierr);
+  VecAssemblyBegin(vec);
+  VecAssemblyEnd(vec);
+
+  return ierr;
+}
+
+// Map a function that acts on scalars to a 1DD DMDA Vec
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
+  const int N, const double dz,DM da)
+{
+  // assumes vec has already been created and it's size has been allocated
+  PetscErrorCode ierr = 0;
+
+  PetscInt zS,zn;
+  DMDAGetCorners(da, &zS, 0, 0, &zn, 0, 0);
+  PetscInt zE = zS + zn;
+
+  PetscScalar* arr;
+  ierr = DMDAVecGetArray(da, vec, &arr);CHKERRQ(ierr);
+
+  PetscInt zI;
+  PetscScalar z;
+  for (zI = zS; zI < zE; zI++) {
+    z = zI * dz;
+    arr[zI] = func(z);
+  }
 
   ierr = DMDAVecRestoreArray(da, vec, &arr);CHKERRQ(ierr);
   VecAssemblyBegin(vec);

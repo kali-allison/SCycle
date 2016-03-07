@@ -49,6 +49,7 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 
 
 // helper functions for testing derivatives
+double MMS_test(double z);
 double MMS_test(double y,double z);
 
 
@@ -105,6 +106,10 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const int N, const double dy, const double dz);
+
+// for 1D da
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
+  const int N, const double dz,const DM da);
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const int N, const double dy, const double dz,const DM da);

@@ -1,8 +1,8 @@
 order = 2
-Ny = 201
-Nz = 201
-Ly = 5 # km
-Lz = 6 # km
+Ny = 5
+Nz = 6
+Ly = 4 # km
+Lz = 5 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
