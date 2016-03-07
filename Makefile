@@ -29,7 +29,7 @@ mainMaxwell:  mainMaxwell.o $(OBJECTS)
 
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
-	-rm mainLinearElastic.o
+#~	-rm mainLinearElastic.o
 
 main_iceSheet:  main_iceSheet.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}

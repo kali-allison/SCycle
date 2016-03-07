@@ -260,7 +260,7 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
 
 
 
-double MMS_test(const double y,const double z) { return z; }
+double MMS_test(const double y,const double z) { return y*10.0 + z; }
 double MMS_test(const double z) { return z; }
 
 

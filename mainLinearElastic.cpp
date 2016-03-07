@@ -56,7 +56,6 @@ int runTests1D()
   DMDACreate1d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,N,dof,2,NULL,&da);
   PetscInt zn,zS,dim;
   DMDAGetCorners(da, &zS, 0, 0, &zn, 0, 0);
-  PetscInt zE = zS + zn;
   DMDAGetInfo(da,&dim, 0,0,0, 0,0,0, 0,0,0,0,0,0);
 
   Vec f;
@@ -128,7 +127,7 @@ int runTests1D()
 int runTests2D()
 {
   PetscErrorCode ierr = 0;
-  PetscInt Ny = 4, Nz = 6,dof=1,sw=1; // degrees of freedom, stencil width
+  PetscInt Ny = 5, Nz = 6,dof=1,sw=2; // degrees of freedom, stencil width
   PetscScalar dy =1.0, dz = 1.0;
 
   DM da;
@@ -153,7 +152,7 @@ int runTests2D()
   DMDAGetCorners(da, 0, 0, 0, &zn, &yn, 0);
   MatSetSizes(mat,dof*zn*yn,dof*zn*yn,PETSC_DETERMINE,PETSC_DETERMINE); // be sure to set with DMDAGetCorners!!
   MatSetFromOptions(mat);
-  PetscInt diag=5,offDiag=5;
+  PetscInt diag=Ny*Nz,offDiag=Ny*Nz;
   MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
   MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
   MatSetUp(mat);
@@ -163,7 +162,7 @@ int runTests2D()
   ISLocalToGlobalMapping map;
   DMGetLocalToGlobalMapping(da,&map);
   MatSetLocalToGlobalMapping(mat,map,map);
-  DMDAGetGhostCorners(da, &zS, &yS, 0, &zn, &zn, 0);
+  DMDAGetGhostCorners(da, &zS, &yS, 0, &zn, &yn, 0);
   PetscInt dims[2] = {zn,yn};
   PetscInt starts[2] = {zS,yS};
   MatSetStencil(mat,dim,dims,starts,1); // be sure to set with DMDAGetGhostCorners!!
@@ -171,36 +170,45 @@ int runTests2D()
   // create 1st derivative matrix (2nd order accuracy)
   PetscMPIInt localRank;
   MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
-  DMDAGetCorners(da, &zS, &zS, 0, &zn, &yn, 0);
-  MatStencil row,col[2];
-  PetscScalar v[2] = {0.0, 0.0};
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  MatStencil row,col;
+  PetscScalar v = 0.0;
   for (PetscInt yI = yS; yI < yS + yn; yI++) {
     for (PetscInt zI = zS; zI < zS + zn; zI++) {
-      // set diagonal matrix
-      row.i = yI; row.j = zI;
-      col[0].i = yI; col[0].j = zI;
-      v[0] = zI;
-      MatSetValuesStencil(mat,1,&row,1,col,v,INSERT_VALUES);
+      PetscPrintf(PETSC_COMM_WORLD,"(yI,zI) = (%i,%i)\n",yI,zI);
+      row.i = zI; row.j = yI;
 
-    /*
-    row.i = zI;
-    if (zI > 0 && zI < N-1) {
-      col[0].i = zI-1; v[0] = -0.5/dz;
-      col[1].i = zI+1; v[1] = 0.5/dz;
-      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+
+      // interior of Dz matrix (slow method):
+      if (zI > 0 && zI < Nz-1) {
+      col.i = zI-1; col.j = yI;
+      v = -0.5;
+      MatSetValuesStencil(mat,1,&row,1,&col,&v,INSERT_VALUES);
+
+      col.i = zI+1; col.j = yI;
+      v = 0.5;
+      MatSetValuesStencil(mat,1,&row,1,&col,&v,INSERT_VALUES);
     }
-    else if (zI == 0) {
-      col[0].i = zI; v[0] = -1.0/dz;
-      col[1].i = zI+1; v[1] = 1.0/dz;
-      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+
+
+
+    //~row.i = zI;
+    //~if (zI > 0 && zI < N-1) {
+      //~col[0].i = zI-1; v[0] = -0.5/dz;
+      //~col[1].i = zI+1; v[1] = 0.5/dz;
+      //~MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+    //~}
+    //~else if (zI == 0) {
+      //~col[0].i = zI; v[0] = -1.0/dz;
+      //~col[1].i = zI+1; v[1] = 1.0/dz;
+      //~MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+    //~}
+    //~else if (zI == N-1) {
+      //~PetscPrintf(PETSC_COMM_WORLD,"here!!\n");
+      //~col[0].i = zI-1; v[0] = -1.0/dz;
+      //~col[1].i = zI; v[1] = 1.0/dz;
+      //~MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
     }
-    else if (zI == N-1) {
-      PetscPrintf(PETSC_COMM_WORLD,"here!!\n");
-      col[0].i = zI-1; v[0] = -1.0/dz;
-      col[1].i = zI; v[1] = 1.0/dz;
-      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
-    }*/
-  }
   }
   MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
