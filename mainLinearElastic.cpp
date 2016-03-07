@@ -49,21 +49,21 @@ int runMMSTests(const char * inputFile)
 int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
-  PetscInt N = 11,dof=1;
+  PetscInt N = 21,dof=1;
   PetscScalar dz = 1.0;
 
   DM da;
   DMDACreate1d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,N,dof,2,NULL,&da);
   PetscInt zn,zS,dim;
-  DMDAGetGhostCorners(da, &zS, 0, 0, &zn, 0, 0);
+  DMDAGetCorners(da, &zS, 0, 0, &zn, 0, 0);
+  PetscInt zE = zS + zn;
   DMDAGetInfo(da,&dim, 0,0,0, 0,0,0, 0,0,0,0,0,0);
 
   Vec f;
   DMCreateGlobalVector(da,&f); PetscObjectSetName((PetscObject) f, "f");
   VecSet(f,0.0);
   mapToVec(f,MMS_test,N,dz,da);
-  //~printVec(f,D._da);
-  VecView(f,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(f,PETSC_VIEWER_STDOUT_WORLD);
 
   Vec dfdz;
   VecDuplicate(f,&dfdz); PetscObjectSetName((PetscObject) dfdz, "dfdz");
@@ -71,8 +71,8 @@ int runTests(const char * inputFile)
 
   Mat mat;
   MatCreate(PETSC_COMM_WORLD,&mat);
-  PetscInt zE = zS + zn;
-  MatSetSizes(mat,zn,zn,PETSC_DETERMINE,PETSC_DETERMINE);
+  DMDAGetCorners(da, 0, 0, 0, &zn, 0, 0);
+  MatSetSizes(mat,dof*zn,dof*zn,PETSC_DETERMINE,PETSC_DETERMINE);
   MatSetFromOptions(mat);
   PetscInt diag=5,offDiag=5;
   MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
@@ -81,18 +81,21 @@ int runTests(const char * inputFile)
 
 
   // stuff necessary to use MatSetValuesStencil (which takes global natural ordering)
-  PetscInt dims[1] = {zn};
-  PetscInt starts[1] = {zS};
-  MatSetStencil(mat,dim,dims,starts,1);
   ISLocalToGlobalMapping map;
   DMGetLocalToGlobalMapping(da,&map);
   MatSetLocalToGlobalMapping(mat,map,map);
-  MatSetStencil(mat,dim,dims,starts,1);
+  DMDAGetGhostCorners(da, &zS, 0, 0, &zn, 0, 0);
+  PetscInt dims = zn;
+  PetscInt starts = zS;
+  MatSetStencil(mat,dim,&dims,&starts,1); // be sure to set with DMDAGetGhostCorners!!
 
   // create 1st derivative matrix (2nd order accuracy)
+  PetscMPIInt localRank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  DMDAGetCorners(da, &zS, 0, 0, &zn, 0, 0);
   MatStencil row,col[2];
-  PetscScalar v[2] = {0,0};
-  for (PetscInt zI = zS; zI < zE; zI++) {
+  PetscScalar v[2] = {0.0, 0.0};
+  for (PetscInt zI = zS; zI < zS + zn; zI++) {
     row.i = zI;
     if (zI > 0 && zI < N-1) {
       col[0].i = zI-1; v[0] = -0.5/dz;
@@ -105,15 +108,30 @@ int runTests(const char * inputFile)
       MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
     }
     else if (zI == N-1) {
+      PetscPrintf(PETSC_COMM_WORLD,"here!!\n");
       col[0].i = zI-1; v[0] = -1.0/dz;
       col[1].i = zI; v[1] = 1.0/dz;
       MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
     }
-
   }
   MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
   MatView(mat,PETSC_VIEWER_STDOUT_WORLD);
+
+  //~PetscMPIInt localRank;
+  //~MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  //~DMDALocalInfo info;
+  //~DMDAGetLocalInfo(da,&info);
+  //~PetscPrintf(PETSC_COMM_SELF,"[%i] da | zS = %i, zN = %i, zE = %i, info.sw=%i\n",localRank,zS,zn,zE,info.sw);
+  //~PetscInt rg,cg,rl,cl;
+  //~MatGetSize(mat,&rg,&cg);
+  //~MatGetSize(mat,&rl,&cl);
+  //~PetscPrintf(PETSC_COMM_SELF,"[%i] mat size | local: %i x %i, global: %i x %i\n",localRank,rl,cl,rg,cg);
+  //~PetscInt vg,vl;
+  //~VecGetSize(f,&vg);
+  //~VecGetLocalSize(f,&vl);
+  //~PetscPrintf(PETSC_COMM_SELF,"[%i] vec size | local: %i, global: %i\n",localRank,vl,vg);
+
 
   MatMult(mat,f,dfdz);
   VecView(dfdz,PETSC_VIEWER_STDOUT_WORLD);

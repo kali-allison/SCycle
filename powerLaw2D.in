@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 401
+Nz = 401
 Ly = 24 # km
 Lz = 24 # km
 
@@ -49,11 +49,11 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (W/km/K)
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (km^2 kPa/K/s)
 kDepths = [0 24]
 hVals = [0 0]
 hDepths = [0 24]
@@ -81,4 +81,6 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/p2D_uc_
+#outputDir = data/p2D_no_
+#outputDir = data/m2D_501_
+outputDir = data/l2D_401_
