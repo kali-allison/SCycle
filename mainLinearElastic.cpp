@@ -46,7 +46,7 @@ int runMMSTests(const char * inputFile)
 }
 
 
-int runTests(const char * inputFile)
+int runTests1D()
 {
   PetscErrorCode ierr = 0;
   PetscInt N = 21,dof=1;
@@ -118,24 +118,96 @@ int runTests(const char * inputFile)
   MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
   MatView(mat,PETSC_VIEWER_STDOUT_WORLD);
 
-  //~PetscMPIInt localRank;
-  //~MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
-  //~DMDALocalInfo info;
-  //~DMDAGetLocalInfo(da,&info);
-  //~PetscPrintf(PETSC_COMM_SELF,"[%i] da | zS = %i, zN = %i, zE = %i, info.sw=%i\n",localRank,zS,zn,zE,info.sw);
-  //~PetscInt rg,cg,rl,cl;
-  //~MatGetSize(mat,&rg,&cg);
-  //~MatGetSize(mat,&rl,&cl);
-  //~PetscPrintf(PETSC_COMM_SELF,"[%i] mat size | local: %i x %i, global: %i x %i\n",localRank,rl,cl,rg,cg);
-  //~PetscInt vg,vl;
-  //~VecGetSize(f,&vg);
-  //~VecGetLocalSize(f,&vl);
-  //~PetscPrintf(PETSC_COMM_SELF,"[%i] vec size | local: %i, global: %i\n",localRank,vl,vg);
-
-
   MatMult(mat,f,dfdz);
   VecView(dfdz,PETSC_VIEWER_STDOUT_WORLD);
 
+  return ierr;
+}
+
+
+int runTests2D()
+{
+  PetscErrorCode ierr = 0;
+  PetscInt Ny = 4, Nz = 6,dof=1,sw=1; // degrees of freedom, stencil width
+  PetscScalar dy =1.0, dz = 1.0;
+
+  DM da;
+  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nz,Ny,PETSC_DECIDE,PETSC_DECIDE,dof,sw,NULL,NULL,&da);
+  PetscInt yn,yS,zn,zS,dim;
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  DMDAGetInfo(da,&dim, 0,0,0, 0,0,0, 0,0,0,0,0,0);
+
+  Vec f;
+  DMCreateGlobalVector(da,&f); PetscObjectSetName((PetscObject) f, "f");
+  VecSet(f,0.0);
+  mapToVec(f,MMS_test,Nz,dy,dz,da);
+  VecView(f,PETSC_VIEWER_STDOUT_WORLD);
+
+  Vec dfdz;
+  VecDuplicate(f,&dfdz); PetscObjectSetName((PetscObject) dfdz, "dfdz");
+  VecSet(dfdz,0.0);
+
+  Mat mat;
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  DMDAGetCorners(da, 0, 0, 0, &zn, &yn, 0);
+  MatSetSizes(mat,dof*zn*yn,dof*zn*yn,PETSC_DETERMINE,PETSC_DETERMINE); // be sure to set with DMDAGetCorners!!
+  MatSetFromOptions(mat);
+  PetscInt diag=5,offDiag=5;
+  MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
+  MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
+  MatSetUp(mat);
+
+
+  // stuff necessary to use MatSetValuesStencil (which takes global natural ordering)
+  ISLocalToGlobalMapping map;
+  DMGetLocalToGlobalMapping(da,&map);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  DMDAGetGhostCorners(da, &zS, &yS, 0, &zn, &zn, 0);
+  PetscInt dims[2] = {zn,yn};
+  PetscInt starts[2] = {zS,yS};
+  MatSetStencil(mat,dim,dims,starts,1); // be sure to set with DMDAGetGhostCorners!!
+
+  // create 1st derivative matrix (2nd order accuracy)
+  PetscMPIInt localRank;
+  MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  DMDAGetCorners(da, &zS, &zS, 0, &zn, &yn, 0);
+  MatStencil row,col[2];
+  PetscScalar v[2] = {0.0, 0.0};
+  for (PetscInt yI = yS; yI < yS + yn; yI++) {
+    for (PetscInt zI = zS; zI < zS + zn; zI++) {
+      // set diagonal matrix
+      row.i = yI; row.j = zI;
+      col[0].i = yI; col[0].j = zI;
+      v[0] = zI;
+      MatSetValuesStencil(mat,1,&row,1,col,v,INSERT_VALUES);
+
+    /*
+    row.i = zI;
+    if (zI > 0 && zI < N-1) {
+      col[0].i = zI-1; v[0] = -0.5/dz;
+      col[1].i = zI+1; v[1] = 0.5/dz;
+      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+    }
+    else if (zI == 0) {
+      col[0].i = zI; v[0] = -1.0/dz;
+      col[1].i = zI+1; v[1] = 1.0/dz;
+      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+    }
+    else if (zI == N-1) {
+      PetscPrintf(PETSC_COMM_WORLD,"here!!\n");
+      col[0].i = zI-1; v[0] = -1.0/dz;
+      col[1].i = zI; v[1] = 1.0/dz;
+      MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+    }*/
+  }
+  }
+  MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
+  MatView(mat,PETSC_VIEWER_STDOUT_WORLD);
+
+  MatMult(mat,f,dfdz);
+  VecView(dfdz,PETSC_VIEWER_STDOUT_WORLD);
 
   return ierr;
 }
@@ -180,7 +252,8 @@ int main(int argc,char **args)
     //~else { runEqCycle(inputFile); }
   //~}
 
-  runTests(inputFile);
+  //~runTests1D();
+  runTests2D();
 
 
   PetscFinalize();
