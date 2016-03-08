@@ -40,7 +40,7 @@ class Fault: public RootFinderContext
    PetscScalar    _f0,_v0,_vL;
    std::vector<double> _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec            _a,_b,_Dc;
-   Vec            _state,_tempPsi,_dPsi;
+   Vec            _state,_dPsi;
 
 
     // fields that differ on the split nodes
@@ -55,7 +55,7 @@ class Fault: public RootFinderContext
     PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_stateViewer;
 
 
-    PetscErrorCode setFrictionFields();
+    PetscErrorCode setFrictionFields(Domain&D);
 
     // disable default copy constructor and assignment operator
     Fault(const Fault & that);

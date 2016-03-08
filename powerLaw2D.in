@@ -1,6 +1,6 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 301
+Nz = 301
 Ly = 24 # km
 Lz = 24 # km
 
@@ -73,7 +73,7 @@ stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 1000 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 2e11      # s
+maxTime = 7e10      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
@@ -82,5 +82,5 @@ rootTol = 1e-9
 
 
 #outputDir = data/p2D_no_
-#outputDir = data/m2D_501_
-outputDir = data/l2D_401_
+outputDir = data/m2D_301_
+#outputDir = data/l2D_theta_401_

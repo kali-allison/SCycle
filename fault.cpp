@@ -13,7 +13,7 @@ Fault::Fault(Domain&D)
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _f0(D._f0),_v0(D._v0),_vL(D._vL),
   _a(NULL),_b(NULL),_Dc(NULL),
-  _state(NULL),_tempPsi(NULL),_dPsi(NULL),
+  _state(NULL),_dPsi(NULL),
   _sigma_N(NULL),
   _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
@@ -33,7 +33,6 @@ Fault::Fault(Domain&D)
   VecSetSizes(_tauQSP,PETSC_DECIDE,_N);
   VecSetFromOptions(_tauQSP);     PetscObjectSetName((PetscObject) _tauQSP, "tau");
   VecDuplicate(_tauQSP,&_state); PetscObjectSetName((PetscObject) _state, "psi");
-  VecDuplicate(_tauQSP,&_tempPsi); PetscObjectSetName((PetscObject) _tempPsi, "tempPsi");
   VecDuplicate(_tauQSP,&_dPsi); PetscObjectSetName((PetscObject) _dPsi, "dPsi");
   VecDuplicate(_tauQSP,&_slip); PetscObjectSetName((PetscObject) _slip, "_slip");
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "_slipVel");
@@ -49,25 +48,7 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "_b");
 
 
-  setFrictionFields();
-
-  //~PetscPrintf(PETSC_COMM_WORLD,"N = %i\n",_N);
-  //~PetscPrintf(PETSC_COMM_WORLD,"f0 = %e, v0 = %e, vL = %e\n",_f0,_v0,_vL);
-  //~PetscPrintf(PETSC_COMM_WORLD,"L = %e\n",_L);
-  //~PetscPrintf(PETSC_COMM_WORLD,"h = %e\n",_h);
-
-  //~VecView(_Dc,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_a,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_b,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_state,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_tempPsi,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_dPsi,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_slip,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_slipVel,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_sigma_N,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_zP,PETSC_VIEWER_STDOUT_WORLD);
-  //~VecView(_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-  //~assert(0);
+  setFrictionFields(D);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
@@ -188,7 +169,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   return ierr;
 }
 
-PetscErrorCode Fault::setFrictionFields()
+PetscErrorCode Fault::setFrictionFields(Domain&D)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -196,8 +177,12 @@ PetscErrorCode Fault::setFrictionFields()
 #endif
 
   // set depth-independent fields
-  ierr = VecSet(_state,_f0);CHKERRQ(ierr);
-  ierr = VecCopy(_state,_tempPsi);CHKERRQ(ierr);
+  #if STATE_PSI == 1
+    ierr = VecSet(_state,_f0);CHKERRQ(ierr); // in terms of psi
+  #endif
+  #if STATE_PSI == 0
+    ierr = VecSet(_state,D._initTime);CHKERRQ(ierr);
+  #endif
 
   // set a using a vals
   if (_N == 1) {
@@ -554,7 +539,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
 
   // frictional strength of fault
-   // in terms of psi
+  // in terms of psi
   #if STATE_PSI == 1
     PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
   #endif
@@ -1176,7 +1161,6 @@ PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
 
   assert(varBegin+1 != varEnd);
 
-  ierr = VecCopy(*(varBegin),_tempPsi);CHKERRQ(ierr);
   ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
