@@ -1,8 +1,5 @@
 #include "odeSolver.hpp"
 
-//~enum CONTROL { controlP,controlPI,controlPID };
-//~const CONTROL controlType = controlPID;
-
 using namespace std;
 
 OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
@@ -117,6 +114,7 @@ PetscErrorCode FEuler::setInitialConds(vector<Vec>& var)
     ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
   }
 
+
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -190,7 +188,6 @@ RK32::~RK32()
     VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
     VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
     VecDestroy(&_var3rd[ind]);
-    VecDestroy(&_errVec[ind]);
   }
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
@@ -265,8 +262,6 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
   _var = var;
   _lenVar = var.size();
 
-  _errVec.reserve(_lenVar);
-
   _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
   _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
   _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
@@ -291,9 +286,6 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
         ierr = VecSet(_dvar2nd[ind],0.0);CHKERRQ(ierr);
     ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
         ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
-
-    ierr = VecDuplicate(_var[ind],&_errVec[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_errVec[ind],0.0);CHKERRQ(ierr);
   }
 
 
@@ -302,6 +294,18 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setInitialConds in odeSolver.cpp.\n");
 #endif
   return ierr;
+}
+
+PetscErrorCode RK32::setErrInds(std::vector<int>& errInds)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setErrInds in odeSolver.cpp.\n");
+#endif
+  _errInds = errInds;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setTimeStepBounds in odeSolver.cpp.\n");
+#endif
+  return 0;
 }
 
 PetscErrorCode RK32::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
@@ -384,36 +388,23 @@ PetscReal RK32::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::computeError in odeSolver.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err[_lenVar],totErr=0.0;
-  PetscInt       size,totSize=0;
+  PetscReal      err,totErr=0.0;
+  PetscInt       size;
 
-
-  //~int ind = 1;
-  //~for (int ind=0;ind<_lenVar;ind++) // if using full vector for measurement
-  //~for (int ind=0;ind<2;ind++)
-  for (int ind=1;ind<2;ind++)
-  {
-    ierr = VecWAXPY(_errVec[ind],-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-
-    // error based on max norm
-    //~ierr = VecNorm(_errVec[ind],NORM_INFINITY,&err[ind]);CHKERRQ(ierr);
-    //~if (err[ind]>totErr) { totErr=err[ind]; }
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    PetscInt ind = _errInds[i];
 
     // error based on weighted 2 norm
-    VecDot(_errVec[ind],_errVec[ind],&err[ind]);
-    VecGetSize(_errVec[ind],&size);
-    totErr += sqrt(err[ind]/size);
-    //~totErr += err[ind];
-    //~totSize += size;
+    Vec errVec;
+    VecDuplicate(_var2nd[ind],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+    VecDot(errVec,errVec,&err);
+    VecGetSize(errVec,&size);
+    totErr += sqrt(err/size);
+    VecDestroy(&errVec);
   }
-  //~totErr = sqrt(totErr/totSize);
-  //~totErr = sqrt(totErr/size);
-  //~assert(0>1);
 
 
-  // abs error of slip
-  //~ierr = VecNorm(_errVec[0],NORM_INFINITY,&totErr);CHKERRQ(ierr);
-  //~totErr = abs(totErr);
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
 #endif
@@ -431,6 +422,14 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
   PetscErrorCode ierr=0;
   PetscReal      totErr=0.0;
   PetscInt       attemptCount = 0;
+
+  // build default errInds if it hasn't been defined already
+  if (_errInds.size()==0) {
+    for(std::vector<int>::size_type i = 0; i != _var.size(); i++) {
+      _errInds.push_back(i);
+    }
+  }
+
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }

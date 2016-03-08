@@ -10,8 +10,6 @@
 #include "integratorContext.hpp"
 #include "genFuncs.hpp"
 
-using namespace std;
-
 /*
  * Provides a set of algorithms to solve a system of ODEs of
  * the form y' = f(t,y).
@@ -59,7 +57,8 @@ class OdeSolver
 
     PetscReal           _initT,_finalT,_currT,_deltaT;
     PetscInt            _maxNumSteps,_stepCount;
-    std::vector<Vec>    _var,_dvar;
+    std::vector<Vec>    _var,_dvar; // integration variable and rate
+    std::vector<int>    _errInds; // which inds of _var to use for error control
     int                 _lenVar;
     double              _runTime;
     string              _controlType;
@@ -81,6 +80,7 @@ class OdeSolver
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
+    virtual PetscErrorCode setErrInds(std::vector<int>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContext *obj) = 0;
 };
@@ -98,7 +98,8 @@ class FEuler : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(vector<Vec>& var);
+    PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
     PetscErrorCode integrate(IntegratorContext *obj);
 };
 
@@ -115,7 +116,6 @@ class RK32 : public OdeSolver
     //~Vec *_varHalfdT,*_dvarHalfdT,*_vardT,*_dvardT,*_var2nd,*_dvar2nd,*_var3rd;
     //~Vec *_errVec;
     std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
-    std::vector<Vec> _errVec;
 
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
@@ -127,11 +127,11 @@ class RK32 : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(vector<Vec>& var);
+    PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    PetscErrorCode setErrInds(std::vector<int>& errInds);
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContext *obj);
-
 };
 
 #endif
