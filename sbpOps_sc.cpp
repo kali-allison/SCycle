@@ -125,7 +125,6 @@ PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
   if (_order == 2) {
     for (yI = _yS; yI < _yE; yI++) {
       for (zI = _zS; zI < _zE; zI++) {
-
         if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
         else if (yI == 0) { lout[yI][zI] = -1.5*lin[0][zI] + 2.0*lin[1][zI] - 0.5*lin[2][zI]; }
         else if (yI == _Ny-1) { lout[yI][zI] = 0.5*lin[_Ny-3][zI] - 2.0*lin[_Ny-2][zI] + 1.5*lin[_Ny-1][zI]; }

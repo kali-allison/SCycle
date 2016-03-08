@@ -132,7 +132,7 @@ void Spmat::scale(double val)
   }
 }
 
-// preforms Kronecker product
+// performs Kronecker product
 Spmat kron(const Spmat& left,const Spmat& right)
 {
   size_t leftRowSize = left.size(1);
@@ -255,33 +255,36 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
 // performs Kronecker product and converts to PETSc Mat, ordered for DMDA Vecs
 void kronConvertL(const Spmat& left,Mat& mat,const PetscInt diag,const PetscInt offDiag,const DM dm)
 {
-  //~size_t leftRowSize = left.size(1);
-  //~size_t leftColSize = left.size(2);
-  //~size_t rightRowSize = right.size(1);
-  //~size_t rightColSize = right.size(2);
 
-  PetscInt zn,yn,yS,zS;
+  /*PetscInt zn,yn,yS,zS;
   DMDAGetCorners(dm, &zS, &yS, 0, &zn, &yn, 0);
 
 
-  ISLocalToGlobalMapping map,rmap;
-  DMGetLocalToGlobalMapping(dm,&map);
-  AO ao;
-  DMDAGetAO(dm,&ao);
-
-  PetscInt Istart,Iend;
-
-  // allocate space for mat
+  Mat mat;
   MatCreate(PETSC_COMM_WORLD,&mat);
-  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,yn*zn,yn*zn);
+  DMDAGetCorners(da, 0, 0, 0, &zn, &yn, 0);
+  MatSetSizes(mat,dof*zn*yn,dof*zn*yn,PETSC_DETERMINE,PETSC_DETERMINE); // be sure to set with DMDAGetCorners!!
   MatSetFromOptions(mat);
+  PetscInt diag=2,offDiag=2;
   MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
   MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
-  MatSetLocalToGlobalMapping(mat,map,map);
   MatSetUp(mat);
 
-  /*
-  MatGetOwnershipRange(mat,&Istart,&Iend);
+  // stuff necessary to use MatSetValuesStencil (which takes global natural ordering)
+  ISLocalToGlobalMapping map;
+  DMGetLocalToGlobalMapping(da,&map);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  DMDAGetGhostCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  PetscInt dims[2] = {zn,yn};
+  PetscInt starts[2] = {zS,yS};
+  MatSetStencil(mat,dim,dims,starts,1); // be sure to set with DMDAGetGhostCorners!!
+
+  // create Dz matrix (2nd order accuracy)
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  MatStencil row,col[2];
+  PetscScalar v[2] = {0.0,0.0};
+  // create Dy matrix (2nd order accuracy)
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
 
   // iterate over only nnz entries
   Spmat::const_row_iter IiL,IiR;
@@ -312,19 +315,14 @@ void kronConvertL(const Spmat& left,Mat& mat,const PetscInt diag,const PetscInt 
           row = rowL*rightRowSize + rowR;
           col = colL*rightColSize + colR;
           if (val!=0 && row>=Istart && row<Iend) { // if entry is nnz and belongs to processor
-            //~MatSetValues(mat,1,&row,1,&col,&val,INSERT_VALUES); // works
-            //~MatSetValuesStencil(mat,1,&row,1,&col,&val,INSERT_VALUES); // not right, might be easier function call
-            AOApplicationToPetsc(ao,1,&row);
-            AOApplicationToPetsc(ao,1,&col);
             MatSetValues(mat,1,&row,1,&col,&val,INSERT_VALUES);
           }
         }
       }
     }
   }
-  */
   MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);*/
 }
 
 

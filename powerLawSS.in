@@ -78,5 +78,6 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/pow/pSS_1T950_c_
+#outputDir = data/pow/pSS_1T950_c_
+outputDir = data/linEl/test_
 #outputDir = data/max/v1e17_

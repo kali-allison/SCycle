@@ -345,7 +345,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   VecDuplicate(_rhsP,&_stressxyP);
 
-  Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
+  Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
   _var.push_back(varPsi);
   Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
   _var.push_back(varSlip);
@@ -381,6 +381,7 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_bcRPShift);
+  // delete stuff in _var
 };
 
 
@@ -912,37 +913,13 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _sbpP->muxDy(_uP,_stressxyP);
 
 
-  //~setU(); // set _uP, _uM analytically
-  //~setSigmaxy(); // set shear stresses analytically
-
-
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLMinus = \n");
-  //~printVec(_bcLMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRMinus = \n");
-  //~printVec(_bcRMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcLP = \n");
-  //~printVec(_bcLP);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_bcRP = \n");
-  //~printVec(_bcRP);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_uP = \n");
-  //~printVec(_uP);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_uM = \n");
-  //~printVec(_uM);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyMinus = \n");
-  //~printVec(_sigma_xyMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_stressxyP = \n");
-  //~printVec(_stressxyP);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xy diff = \n");
-  //~printVecsDiff(_stressxyP,_sigma_xyMinus);
-  //~assert(0>1);
-
 
   // set up fault
   _fault.setTauQS(_stressxyP,_sigma_xyMinus);
   _fault.setFaultDisp(_bcLP,_bcRMinus);
   _fault.computeVel();
 
-  _var.push_back(_fault._psi);
+  _var.push_back(_fault._state);
   _var.push_back(_fault._uP);
   _var.push_back(_fault._uM);
 

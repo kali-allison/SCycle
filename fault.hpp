@@ -10,6 +10,9 @@
 #include "domain.hpp"
 #include "rootFinderContext.hpp"
 
+// defines if state is in terms of psi (=1) or in terms of theta (=0)
+#define STATE_PSI 0
+
 class RootFinder;
 
 
@@ -37,7 +40,7 @@ class Fault: public RootFinderContext
    PetscScalar    _f0,_v0,_vL;
    std::vector<double> _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec            _a,_b,_Dc;
-   Vec            _psi,_tempPsi,_dPsi;
+   Vec            _state,_tempPsi,_dPsi;
 
 
     // fields that differ on the split nodes
@@ -49,7 +52,7 @@ class Fault: public RootFinderContext
     Vec            _slip,_slipVel;
 
     // viewers
-    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer;
+    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_stateViewer;
 
 
     PetscErrorCode setFrictionFields();
@@ -70,7 +73,8 @@ class Fault: public RootFinderContext
     Fault(Domain&D);
     ~Fault();
 
-    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar psi,PetscScalar *dPsi);
+    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode slipLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,const_it_vec varEnd,
@@ -151,7 +155,7 @@ class FullFault: public Fault
 
     // viewers
     PetscViewer    _uPlusViewer,_uMinusViewer,_velPlusViewer,_velMinusViewer,
-                   _tauQSMinusViewer,_psiViewer;
+                   _tauQSMinusViewer,_stateViewer;
 
 
     PetscErrorCode setSplitNodeFields();
