@@ -1,11 +1,11 @@
 order = 2
-Ny = 101
-Nz = 101
+Ny = 1001
+Nz = 1001
 Ly = 4 # km
 Lz = 5 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 48] # m
+DcDepths = [0 24] # m
 
 bcT = traction
 bcR = displacement
@@ -31,25 +31,45 @@ muPlus = 30 # GPa
 rhoPlus = 2.8 # g/cm^3
 }
 
-viscDistribution = loadFromFile
-viscVals = [1e20 1e20 1e9 1e9]
-viscDepths = [0 15 15 24]
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 24]
+
+# power law properties
+AVals = [2.2e-6 2.2e-6]
+ADepths = [0 24]
+BVals = [1.44e4 1.44e4]
+BDepths = [0 24]
+nVals = [2.7 2.7]
+nDepths = [0 24]
+TVals = [273 1643] # [273 1643] or [500 500]
+TDepths = [0 24]
+thermalCoupling = no
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (km^2 kPa/K/s)
+kDepths = [0 24]
+hVals = [0 0]
+hDepths = [0 24]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 24]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 24]
 
 linSolver = AMG
+sbpType = mfc
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 5 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 45
-initTime = 5       # s
-maxTime = 8e10      # s
+stride1D = 10 # how many steps between writing out 1D fields
+stride2D = 1000 # how many steps between writing out 2D fields
+maxStepCount = 1e8
+initTime = 0       # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e7      # s
 atol = 1e-7
 
 rootTol = 1e-9
-
-
-outputDir = data/test_

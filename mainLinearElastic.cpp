@@ -238,7 +238,7 @@ int runTimingTest(const char * inputFile)
   Domain d(inputFile);
 
   PetscInt Ny = d._Ny, Nz = d._Nz, dof=1, sw=1; // degrees of freedom, stencil width
-  PetscScalar dy =1.0, dz = 1.0;
+  PetscScalar dy =d._dy, dz = d._dz;
 
   DM da;
   DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
@@ -261,7 +261,7 @@ int runTimingTest(const char * inputFile)
   DMDAGetCorners(da, 0, 0, 0, &zn, &yn, 0);
   MatSetSizes(mat,dof*zn*yn,dof*zn*yn,PETSC_DETERMINE,PETSC_DETERMINE); // be sure to set with DMDAGetCorners!!
   MatSetFromOptions(mat);
-  PetscInt diag=Ny*Nz,offDiag=Ny*Nz;
+  PetscInt diag=2,offDiag=2;
   MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
   MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
   MatSetUp(mat);
@@ -306,17 +306,22 @@ int runTimingTest(const char * inputFile)
   MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
 
-  double startTime = MPI_Wtime();
-  for (int ind=0; ind < 49; ind++) { MatMult(mat,f,dfdz); }
+  // print data about run
+  PetscMPIInt np;
+  MPI_Comm_size(MPI_COMM_WORLD, &np);
+  PetscPrintf(PETSC_COMM_WORLD,"np = %i, Ny = %i\n",np,d._Ny);
+
+  { double startTime = MPI_Wtime();
+  for (int ind=0; ind < 99; ind++) { MatMult(mat,f,dfdz); }
   double endTime = MPI_Wtime() - startTime;
-  PetscPrintf(PETSC_COMM_WORLD,"DMDA mat time: %.9e\n",endTime);
+  PetscPrintf(PETSC_COMM_WORLD,"DMDA mat time: %.9e\n",endTime); }
 
   // perform stencil-based derivative
-  SbpOps_sc sbp_sc(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
-  startTime = MPI_Wtime();
-  for (int ind=0; ind < 49; ind++) { sbp_sc.Dy(f,dfdz); }
-  endTime = MPI_Wtime() - startTime;
-  PetscPrintf(PETSC_COMM_WORLD,"stencil time: %.9e\n",endTime);
+  { SbpOps_sc sbp_sc(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  double startTime = MPI_Wtime();
+  for (int ind=0; ind < 99; ind++) { sbp_sc.Dy(f,dfdz); }
+  double endTime = MPI_Wtime() - startTime;
+  PetscPrintf(PETSC_COMM_WORLD,"stencil time: %.9e\n",endTime); }
 
 
   // non-DMDA matrix method
@@ -331,12 +336,17 @@ int runTimingTest(const char * inputFile)
   VecDuplicate(g,&dgdz); PetscObjectSetName((PetscObject) dgdz, "dgdz");
   VecSet(dgdz,0.0);
 
-  SbpOps_c sbp_c(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
-  startTime = MPI_Wtime();
-  for (int ind=0; ind < 49; ind++) { sbp_c.Dy(g,dgdz); }
-  endTime = MPI_Wtime() - startTime;
-  PetscPrintf(PETSC_COMM_WORLD,"non DMDA mat time: %.9e\n",endTime);
+  { SbpOps_c sbp_c(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  double startTime = MPI_Wtime();
+  for (int ind=0; ind < 99; ind++) { sbp_c.Dy(g,dgdz); }
+  double endTime = MPI_Wtime() - startTime;
+  PetscPrintf(PETSC_COMM_WORLD,"non DMDA mat time: %.9e\n",endTime); }
 
+  VecDestroy(&f);
+  VecDestroy(&dfdz);
+  VecDestroy(&g);
+  VecDestroy(&dgdz);
+  PetscPrintf(PETSC_COMM_WORLD,"========================================\n\n\n");
   return ierr;
 }
 
