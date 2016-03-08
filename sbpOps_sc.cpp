@@ -7,7 +7,7 @@
 /* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-SbpOps_sc::SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu)
+SbpOps_sc::SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muArr(&muArr),_mu(&mu),_muVecP(D._muVecP),
   _da(D._da),
@@ -100,7 +100,7 @@ PetscErrorCode SbpOps_sc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 }
 
 
-// out = Dy * in
+// out = Dy * in: stencil-based
 PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
@@ -110,7 +110,54 @@ PetscErrorCode SbpOps_sc::Dy(const Vec &in, Vec &out)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
+  Vec loutVec, linVec;
+  PetscScalar** lout;
+  PetscScalar** lin;
+  ierr = DMCreateLocalVector(_da, &loutVec);CHKERRQ(ierr);
+  ierr = DMCreateLocalVector(_da, &linVec);CHKERRQ(ierr);
 
+  ierr = DMDAVecGetArray(_da, loutVec, &lout);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalBegin(_da, in, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMGlobalToLocalEnd(_da, in, INSERT_VALUES, linVec);CHKERRQ(ierr);
+  ierr = DMDAVecGetArray(_da, linVec, &lin); CHKERRQ(ierr);
+
+  PetscInt yI,zI;
+  if (_order == 2) {
+    for (yI = _yS; yI < _yE; yI++) {
+      for (zI = _zS; zI < _zE; zI++) {
+
+        if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
+        else if (yI == 0) { lout[yI][zI] = -1.5*lin[0][zI] + 2.0*lin[1][zI] - 0.5*lin[2][zI]; }
+        else if (yI == _Ny-1) { lout[yI][zI] = 0.5*lin[_Ny-3][zI] - 2.0*lin[_Ny-2][zI] + 1.5*lin[_Ny-1][zI]; }
+        lout[yI][zI] = lout[yI][zI]/_dy;
+      }
+    }
+  }
+
+  ierr = DMDAVecRestoreArray(_da, loutVec, &lout);CHKERRQ(ierr);
+  ierr = DMDAVecRestoreArray(_da, linVec, &lin);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalBegin(_da, loutVec, INSERT_VALUES, out);CHKERRQ(ierr);
+  ierr = DMLocalToGlobalEnd(_da, loutVec, INSERT_VALUES, out);CHKERRQ(ierr);
+
+  VecDestroy(&loutVec);
+  VecDestroy(&linVec);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// out = Dy * in: mat-based
+PetscErrorCode SbpOps_sc::matDy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "matDy";
+    string fileName = "SbpOps_sc.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
 
   Vec loutVec, linVec;
   PetscScalar** lout;

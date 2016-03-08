@@ -232,6 +232,97 @@ int runTests2D()
 }
 
 
+int runTimingTest(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+  Domain d(inputFile);
+
+  PetscInt Ny = d._Ny, Nz = d._Nz, dof=1, sw=1; // degrees of freedom, stencil width
+  PetscScalar dy =1.0, dz = 1.0;
+
+  DM da;
+  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
+    DMDA_STENCIL_BOX,Nz,Ny,PETSC_DECIDE,PETSC_DECIDE,dof,sw,NULL,NULL,&da);
+  PetscInt yn,yS,zn,zS,dim;
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  DMDAGetInfo(da,&dim, 0,0,0, 0,0,0, 0,0,0,0,0,0);
+
+  Vec f;
+  DMCreateGlobalVector(da,&f); PetscObjectSetName((PetscObject) f, "f");
+  VecSet(f,0.0);
+  mapToVec(f,MMS_test,Nz,dy,dz,da);
+
+  Vec dfdz;
+  VecDuplicate(f,&dfdz); PetscObjectSetName((PetscObject) dfdz, "dfdz");
+  VecSet(dfdz,0.0);
+
+  Mat mat;
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  DMDAGetCorners(da, 0, 0, 0, &zn, &yn, 0);
+  MatSetSizes(mat,dof*zn*yn,dof*zn*yn,PETSC_DETERMINE,PETSC_DETERMINE); // be sure to set with DMDAGetCorners!!
+  MatSetFromOptions(mat);
+  PetscInt diag=Ny*Nz,offDiag=Ny*Nz;
+  MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
+  MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
+  MatSetUp(mat);
+
+  // stuff necessary to use MatSetValuesStencil (which takes global natural ordering)
+  ISLocalToGlobalMapping map;
+  DMGetLocalToGlobalMapping(da,&map);
+  MatSetLocalToGlobalMapping(mat,map,map);
+  DMDAGetGhostCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  PetscInt dims[2] = {zn,yn};
+  PetscInt starts[2] = {zS,yS};
+  MatSetStencil(mat,dim,dims,starts,1); // be sure to set with DMDAGetGhostCorners!!
+
+  // create Dz matrix (2nd order accuracy)
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  MatStencil row,col[2];
+  PetscScalar v[2] = {0.0,0.0};
+  // create Dy matrix (2nd order accuracy)
+  DMDAGetCorners(da, &zS, &yS, 0, &zn, &yn, 0);
+  for (PetscInt yI = yS; yI < yS + yn; yI++) {
+    for (PetscInt zI = zS; zI < zS + zn; zI++) {
+      row.i = zI; row.j = yI;
+
+      // interior
+      if (yI > 0 && yI < Ny-1) {
+        col[0].i = zI; col[0].j = yI-1; v[0] = -0.5/dy;
+        col[1].i = zI; col[1].j = yI+1; v[1] = 0.5/dy;
+        MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+      }
+      else if (yI == 0) { // boundary
+        col[0].i = zI; col[0].j = yI; v[0] = -1.0/dy;
+        col[1].i = zI; col[1].j = yI+1; v[1] = 1.0/dy;
+        MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+      }
+      else if (yI == Ny-1) { // boundary
+        col[0].i = zI; col[0].j = yI-1; v[0] = -1.0/dy;
+        col[1].i = zI; col[1].j = yI; v[1] = 1.0/dy;
+        MatSetValuesStencil(mat,1,&row,2,col,v,INSERT_VALUES);
+      }
+    }
+  }
+  MatAssemblyBegin(mat,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(mat,MAT_FINAL_ASSEMBLY);
+
+  double startTime = MPI_Wtime();
+  for (int ind=0; ind < 49; ind++) { MatMult(mat,f,dfdz); }
+  double endTime = MPI_Wtime() - startTime;
+  PetscPrintf(PETSC_COMM_WORLD,"mat time: %.9e\n",endTime);
+
+  // perform stencil-based derivative
+  SbpOps_sc sbp_sc(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  startTime = MPI_Wtime();
+  for (int ind=0; ind < 49; ind++) { sbp_sc.Dy(f,dfdz); }
+  endTime = MPI_Wtime() - startTime;
+  PetscPrintf(PETSC_COMM_WORLD,"stencil time: %.9e\n",endTime);
+
+
+  return ierr;
+}
+
+
 int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
@@ -272,7 +363,8 @@ int main(int argc,char **args)
   //~}
 
   //~runTests1D();
-  runTests2D();
+  //~runTests2D();
+  runTimingTest(inputFile);
 
 
   PetscFinalize();

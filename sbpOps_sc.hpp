@@ -75,13 +75,17 @@ class SbpOps_sc
 
   public:
 
-    SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu);
+    //~SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu);
+    SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_sc();
 
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB);
 
     PetscErrorCode getA(Mat &mat);
+
+    // mat-based versions
+    PetscErrorCode matDy(const Vec &in, Vec &out); // out = Dy * in
 
 
     // functions to compute various derivatives of input vectors (this

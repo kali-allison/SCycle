@@ -1,6 +1,6 @@
 order = 2
-Ny = 5
-Nz = 6
+Ny = 101
+Nz = 101
 Ly = 4 # km
 Lz = 5 # km
 
