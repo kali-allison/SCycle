@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N m2D_v5e12
+#PBS -N m2D_v1e12_2
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/newEqCycle/data/m2D_v5e12.err
-#PBS -o /data/dunham/kallison/newEqCycle/data/m2D_v5e12.out
+#PBS -e /data/dunham/kallison/newEqCycle/data/m2D_v1e12_2.err
+#PBS -o /data/dunham/kallison/newEqCycle/data/m2D_v1e12_2.out
 #
 
 EXEC_DIR=/data/dunham/kallison/newEqCycle

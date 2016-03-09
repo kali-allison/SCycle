@@ -33,7 +33,7 @@ rhoPlus = 3.0 # g/cm^3
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [5e12 5e12] # GPa s
+viscVals = [1e12 1e12] # GPa s
 viscDepths = [0 24]
 
 #viscDistribution = effectiveVisc
@@ -70,17 +70,17 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 1000 # how many steps between writing out 2D fields
+stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1.5e11      # s
+maxTime = 1.3e11      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e7      # s
+maxDeltaT = 1e6      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
 #outputDir = data/p2D_no_
-outputDir = data/m2D_v5e12_
+outputDir = data/m2D_v1e12_
 #outputDir = data/l2D_theta_401_

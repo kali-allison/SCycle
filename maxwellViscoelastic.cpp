@@ -812,11 +812,11 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
     //~}
     if (_Nz>1)
     {
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gxzP").c_str(),
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gTxzP").c_str(),
               FILE_MODE_WRITE,&_gTxzPV);CHKERRQ(ierr);
       ierr = VecView(_gTxzP,_gTxzPV);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_gTxzPV);CHKERRQ(ierr);
-      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gxzP").c_str(),
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gTxzP").c_str(),
                                      FILE_MODE_APPEND,&_gTxzPV);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxzP").c_str(),
