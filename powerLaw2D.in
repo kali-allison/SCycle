@@ -32,13 +32,13 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 # Maxwell properties
-#viscDistribution = layered
-#viscVals = [1e17 1e17]
-#viscDepths = [0 24]
+viscDistribution = layered
+viscVals = [5e12 5e12] # GPa s
+viscDepths = [0 24]
 
-viscDistribution = effectiveVisc
-sigmadevVals = [35 35]
-sigmadevDepths = [0 24]
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 24]
 
 # power law properties
 AVals = [2.2e-6 2.2e-6]
@@ -53,7 +53,7 @@ thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (km^2 kPa/K/s)
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 24]
 hVals = [0 0]
 hDepths = [0 24]
@@ -82,5 +82,5 @@ rootTol = 1e-9
 
 
 #outputDir = data/p2D_no_
-outputDir = data/m2D_401_
+outputDir = data/m2D_v5e12_
 #outputDir = data/l2D_theta_401_
