@@ -303,7 +303,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // For rhsL: if bcL = traction: - alphaT * Hinvy_Iz * e0y_Iz
     MatDestroy(&_rhsL);
     ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!
@@ -457,7 +457,7 @@ PetscErrorCode SbpOps_c::satBoundaries(TempMats_c& tempMats)
     // if bcT = traction:
     MatDestroy(&_rhsT);
     ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-    ierr = MatScale(_rhsT,_alphaT);CHKERRQ(ierr);
+    ierr = MatScale(_rhsT,-_alphaT);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!

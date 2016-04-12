@@ -109,7 +109,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
   ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
-  int arrInds[] = {1}; // only use slip
+  int arrInds[] = {1}; // state: 0, slip: 1
   std::vector<int> errInds(arrInds,arrInds+1);
   ierr = _quadrature->setErrInds(errInds);
 

@@ -1,21 +1,16 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 601
+Nz = 601
 Ly = 24 # km
 Lz = 24 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 24] # m
 
-bcT = traction
-bcR = displacement
-bcB = traction
-bcL = displacement
-
 
 aVals = [0.015 0.015] # comment
 aDepths = [0 24]
-bVals = [0.02 0.02 0.0 0.0]
+bVals = [0.02 0.02 0.0 0.0] # usual values
 bDepths = [0 12 15 24]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 24]
@@ -73,7 +68,7 @@ stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 8e10      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s
 atol = 1e-7
@@ -81,7 +76,7 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/p2D_no_
-#outputDir = data/m2D_v1e12_
-#outputDir = data/l2D_theta_401_
-outputDir = data/linEl/l2D_theta_401_
+#outputDir = data/max/m2D_theta_1e12_123_801_
+#outputDir = data/max/m2D_theta_1e12_1_401_
+outputDir = data/max/m2D_theta_1e12_1_601_
+#outputDir = data/linEl/l2D_psi_401_

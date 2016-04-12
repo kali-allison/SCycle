@@ -559,18 +559,18 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   *out = strength - stress;
 
 #if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",state,a,sigma_N,zPlus,tauQS,slipVel);
 #endif
   if (isnan(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",state,a,sigma_N,zPlus,tauQS,slipVel);
     CHKERRQ(ierr);
   }
   else if (isinf(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*out) evaluated to true\n");
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",state,a,sigma_N,zPlus,tauQS,slipVel);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(state/a));
     ierr = PetscPrintf(PETSC_COMM_WORLD,"z*vel=%.9e\n",zPlus*slipVel);
     CHKERRQ(ierr);
   }

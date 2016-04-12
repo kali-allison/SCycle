@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N linEl/l2D_theta_401
+#PBS -N l2D_psi_401
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/newEqCycle/data/linEl/l2D_theta_401.err
-#PBS -o /data/dunham/kallison/newEqCycle/data/linEl/l2D_theta_401.out
+#PBS -e /data/dunham/kallison/newEqCycle/data/linEl/l2D_psi_401.err
+#PBS -o /data/dunham/kallison/newEqCycle/data/linEl/l2D_psi_401.out
 #
 
 EXEC_DIR=/data/dunham/kallison/newEqCycle
