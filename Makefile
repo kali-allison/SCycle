@@ -1,4 +1,4 @@
-all: mainMaxwell mainLinearElastic
+all: mainMaxwell
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
@@ -26,6 +26,7 @@ main:  main.o $(OBJECTS)
 mainMaxwell:  mainMaxwell.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm mainMaxwell.o
+
 
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)

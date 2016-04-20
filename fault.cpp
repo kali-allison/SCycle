@@ -31,11 +31,12 @@ Fault::Fault(Domain&D)
   // fields that exist on the fault
   VecCreate(PETSC_COMM_WORLD,&_tauQSP);
   VecSetSizes(_tauQSP,PETSC_DECIDE,_N);
-  VecSetFromOptions(_tauQSP);     PetscObjectSetName((PetscObject) _tauQSP, "tau");
-  VecDuplicate(_tauQSP,&_state); PetscObjectSetName((PetscObject) _state, "psi");
-  VecDuplicate(_tauQSP,&_dPsi); PetscObjectSetName((PetscObject) _dPsi, "dPsi");
-  VecDuplicate(_tauQSP,&_slip); PetscObjectSetName((PetscObject) _slip, "_slip");
+  VecSetFromOptions(_tauQSP);     PetscObjectSetName((PetscObject) _tauQSP, "tau");  VecSet(_tauQSP,0.0);
+  VecDuplicate(_tauQSP,&_state); PetscObjectSetName((PetscObject) _state, "psi"); VecSet(_state,0.0);
+  VecDuplicate(_tauQSP,&_dPsi); PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
+  VecDuplicate(_tauQSP,&_slip); PetscObjectSetName((PetscObject) _slip, "_slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "_slipVel");
+  VecSet(_slipVel,0.0);
 
 
 
@@ -121,6 +122,27 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
+// build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = _h*(Ii-_N*(Ii/_N));
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = depths[0+ind];
+        z1 = depths[0+ind+1];
+        v0 = vals[0+ind];
+        v1 = vals[0+ind+1];
+        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+  /*
+
   // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
   z1 = depths.back();
   depths.pop_back();
@@ -162,6 +184,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
   //~VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+  */
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
@@ -252,7 +275,8 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar state,PetscS
 
   // if in terms of psi
   #if STATE_PSI == 1
-    if ( isinf(exp(1/b)) ) { dstate = 0; }
+    if ( isinf(exp((_f0-state)/b)) ) { dstate = 0; } // new criteria
+    //~if ( isinf(exp(1.0/b)) ) { dstate = 0; } // old criteria
     else if ( b <= 1e-3 ) { dstate = 0; }
     else {
       dstate = (PetscScalar) (b*_v0/Dc)*( exp((double) ( (_f0-state)/b) ) - (slipVel/_v0) );
@@ -293,13 +317,16 @@ PetscErrorCode Fault::slipLaw(const PetscInt ind,const PetscScalar state,PetscSc
 
   // if in terms of theta
   #if STATE_PSI == 0
-  PetscScalar A = state*slipVel/Dc;
+    PetscScalar A = state*slipVel/Dc;
     dstate = -A*log(A);
   #endif
   #if STATE_PSI == 1
     PetscPrintf(PETSC_COMM_WORLD,"WARNING: Fault::slipLaw not written for state variable psi!\n\n");
     assert(0);
   #endif
+  if (isnan(dstate)) {
+    PetscPrintf(PETSC_COMM_WORLD,"state = %e, slipVel=%e,Dc = %e\n",state,slipVel,Dc);
+  }
   assert(!isnan(dstate));
   assert(!isinf(dstate));
 
@@ -609,6 +636,7 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(*(varBegin),1,&Ii,&stateVal);
     ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr);
+    //~ierr = slipLaw(Ii,stateVal,val);CHKERRQ(ierr);
     ierr = VecSetValue(*(dvarBegin),Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
     ierr = VecGetValues(_slipVel,1,&Ii,&val);CHKERRQ(ierr);

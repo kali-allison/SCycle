@@ -389,13 +389,14 @@ PetscReal RK32::computeError()
 #endif
   PetscErrorCode ierr = 0;
   PetscReal      err,totErr=0.0;
-  PetscInt       size;
+
 
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     PetscInt ind = _errInds[i];
 
     // error based on weighted 2 norm
     Vec errVec;
+    PetscInt       size;
     VecDuplicate(_var2nd[ind],&errVec);
     ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
     VecDot(errVec,errVec,&err);
@@ -484,7 +485,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
       #if ODEPRINT > 0
         ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
       #endif
-      if (totErr<_atol) { break; }
+      if (totErr<_atol) { break; } // !!!orig
       _deltaT = computeStepSize(totErr);
       if (_minDeltaT == _deltaT) { break; }
 

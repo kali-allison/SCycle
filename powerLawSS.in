@@ -1,5 +1,5 @@
 order = 4
-Ny = 21
+Ny = 4
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -34,7 +34,7 @@ rhoPlus = 3.0 # g/cm^3
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e17 1e17]
+viscVals = [1e20 1e20]
 viscDepths = [0 24]
 
 # power law properties
@@ -46,7 +46,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [500 500]
 TDepths = [0 24]
-thermalCoupling = coupled
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -66,11 +66,11 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 5
 initTime = 0       # s
-maxTime = 1.4e11      # s
+maxTime = 9e10      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 5e7      # s
 atol = 1e-7
@@ -78,6 +78,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/pow/pSS_1T950_c_
-outputDir = data/linEl/test_
-#outputDir = data/max/v1e17_
+outputDir = data/testInstability/test_
+#outputDir = data/temp_h/test_

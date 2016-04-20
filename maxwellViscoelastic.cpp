@@ -110,7 +110,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 
   // control which fields are used to select step size
   int arrInds[] = {1}; // state: 0, slip: 1
-  std::vector<int> errInds(arrInds,arrInds+1);
+  std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
   ierr = _quadrature->setErrInds(errInds);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
@@ -148,11 +148,28 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
     CHKERRQ(ierr);
   #endif
 
+  VecCopy(*(varBegin+2),_gxyP);
+  VecCopy(*(varBegin+3),_gxzP);
+
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
   ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+
+  // update boundaries for test of instability
+  //~ierr = VecSet(_bcRP,5.853814697425500e+10 * _vL/2.0);CHKERRQ(ierr);
+  //~PetscScalar z,v;
+  //~PetscInt Ii,Istart,Iend;
+  //~ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  //~for(Ii=Istart;Ii<Iend;Ii++) {
+    //~z = _dz * Ii;
+    //~v = 1.2e-4*(tanh((z-14.8)*10.0) + 1.0);
+    //~//v = 1.2e-4*(tanh((z-14.8)/2.0) + 1.0);
+    //~ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  //~}
+  //~ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  //~ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
 
   // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
   Vec viscSource;
@@ -732,12 +749,20 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
+    // write out boundary conditions for testing purposes
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
               FILE_MODE_WRITE,&_bcRPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+              FILE_MODE_WRITE,&_bcLPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+                                   FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
@@ -747,6 +772,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

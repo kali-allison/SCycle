@@ -45,6 +45,21 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "bcRplus");
   VecSet(_bcRP,_vL*_initTime/2.0);
 
+  //~// update boundaries for test of instability
+  //~VecSet(_bcRP,5.853814697425500e+10 * _vL/2.0);
+  //~PetscScalar z,v;
+  //~PetscInt Ii,Istart,Iend;
+  //~VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+  //~for(Ii=Istart;Ii<Iend;Ii++) {
+    //~z = _dz * Ii;
+    //~v = 1.2e-4*(tanh((z-14.8)*10.0) + 1.0);
+    //~//v = 1.2e-4*(tanh((z-14.8)/2.0) + 1.0);
+    //~VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
+  //~}
+  //~VecAssemblyBegin(_bcLP);
+  //~VecAssemblyEnd(_bcLP);
+
+
   VecCreate(PETSC_COMM_WORLD,&_bcTP);
   VecSetSizes(_bcTP,PETSC_DECIDE,_Ny);
   VecSetFromOptions(_bcTP);     PetscObjectSetName((PetscObject) _bcTP, "_bcTP");
@@ -573,8 +588,8 @@ PetscErrorCode SymmLinearElastic::integrate()
   ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
-  int arrInds[] = {1}; // only use slip
-  std::vector<int> errInds(arrInds,arrInds+1);
+  int arrInds[] = {0,1}; // state: 0, slip: 1
+  std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
   ierr = _quadrature->setErrInds(errInds);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
@@ -1129,6 +1144,11 @@ PetscErrorCode FullLinearElastic::integrate()
   _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadrature->setTimeRange(_initTime,_maxTime);
   ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
+
+  // control which fields are used to select step size
+  int arrInds[] = {1}; // state: 0, slip: 1
+  std::vector<int> errInds(arrInds,arrInds+1);
+  ierr = _quadrature->setErrInds(errInds);
 
   ierr = _quadrature->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
