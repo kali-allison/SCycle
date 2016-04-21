@@ -12,10 +12,6 @@ aVals = [0.015 0.015] # usual values
 aDepths = [0 24] # usual values
 bVals = [0.02 0.02 0.0 0.0] # usual values
 bDepths = [0 12 15 24] # usual values
-#aVals = [0.015 0.015]
-#aDepths = [0 24]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 8 20 24]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 24]
 
@@ -80,12 +76,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/matlabInput/psi401_
-
-#outputDir = data/testInstability/m2D_rs401_theta_
-#outputDir = data/testInstability/m2D_rs401_noSAT_
-#outputDir = data/testInstability/m2D_rs401_-SAT_
-#outputDir = data/testInstability/m2D_rs401_-SAT_normab_
 outputDir = data/testInstability/m2D_grad_
-#outputDir = data/testInstability/m2D_rs401_+SAT_
-#outputDir = data/testInstability/m2D_rs401_v1e20_

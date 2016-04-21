@@ -1,4 +1,4 @@
-all: mainMaxwell
+all: mainMaxwell main
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
@@ -12,8 +12,6 @@ OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
 
 
 
-#include ${PETSC_DIR}/conf/variables
-#include ${PETSC_DIR}/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
