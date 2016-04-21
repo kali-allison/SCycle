@@ -8,14 +8,14 @@ DcVals = [8e-3 8e-3] # m
 DcDepths = [0 24] # m
 
 
-#aVals = [0.015 0.015] # usual values
-#aDepths = [0 24] # usual values
-#bVals = [0.02 0.02 0.0 0.0] # usual values
-#bDepths = [0 12 15 24] # usual values
-aVals = [0.015 0.015]
-aDepths = [0 24]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 8 20 24]
+aVals = [0.015 0.015] # usual values
+aDepths = [0 24] # usual values
+bVals = [0.02 0.02 0.0 0.0] # usual values
+bDepths = [0 12 15 24] # usual values
+#aVals = [0.015 0.015]
+#aDepths = [0 24]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 8 20 24]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 24]
 
@@ -72,7 +72,7 @@ stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1.5e11      # s
+maxTime = 1e12      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s
 atol = 1e-7
@@ -81,9 +81,11 @@ rootTol = 1e-9
 
 
 #outputDir = data/matlabInput/psi401_
-# old criteria
-#outputDir = data/testInstability/rs401_theta_diff_m2D_
-#outputDir = data/testInstability/rs801_theta_2Dout_
 
-# check that maxwell produces linear elastic sims in high viscosity limit
-outputDir = data/testInstability/rs401_theta_v1e25_
+#outputDir = data/testInstability/m2D_rs401_theta_
+#outputDir = data/testInstability/m2D_rs401_noSAT_
+#outputDir = data/testInstability/m2D_rs401_-SAT_
+#outputDir = data/testInstability/m2D_rs401_-SAT_normab_
+outputDir = data/testInstability/m2D_grad_
+#outputDir = data/testInstability/m2D_rs401_+SAT_
+#outputDir = data/testInstability/m2D_rs401_v1e20_

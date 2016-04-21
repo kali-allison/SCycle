@@ -1,6 +1,6 @@
 order = 4
-Ny = 801
-Nz = 801
+Ny = 401
+Nz = 401
 Ly = 24 # km
 Lz = 24 # km
 
@@ -12,10 +12,10 @@ aVals = [0.015 0.015] # usual values
 aDepths = [0 24] # usual values
 bVals = [0.02 0.02 0.0 0.0] # usual values
 bDepths = [0 12 15 24] # usual values
-#aVals = [0.015 0.015 0.025]
-#aDepths = [0 15 24]
+#aVals = [0.015 0.015]
+#aDepths = [0 24]
 #bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 24]
+#bDepths = [0 8 20 24]
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 24]
 
@@ -31,13 +31,13 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 # Maxwell properties
-viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
-viscDepths = [0 24]
+#viscDistribution = layered
+#viscVals = [1e12 1e12] # GPa s
+#viscDepths = [0 24]
 
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 24]
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 24]
 
 # power law properties
 AVals = [2.2e-6 2.2e-6]
@@ -72,7 +72,7 @@ stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1e12      # s 1e12 or 3e10
+maxTime = 1e12      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s
 atol = 1e-7
@@ -80,7 +80,12 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/testInstability/test801_
-outputDir = data/testInstability/rs801_
-#outputDir = data/testInstability/rs801_diff_
-#outputDir = data/max/m2D_theta_1e12_1_601_
+#outputDir = data/matlabInput/psi401_
+
+#outputDir = data/testInstability/m2D_rs401_theta_
+#outputDir = data/testInstability/m2D_rs401_noSAT_
+#outputDir = data/testInstability/m2D_rs401_-SAT_
+#outputDir = data/testInstability/m2D_rs401_-SAT_normab_
+outputDir = data/testInstability/m2D_grad_
+#outputDir = data/testInstability/m2D_rs401_+SAT_
+#outputDir = data/testInstability/m2D_rs401_v1e20_
