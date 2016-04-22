@@ -27,13 +27,13 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 # Maxwell properties
-viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
-viscDepths = [0 24]
+#viscDistribution = layered
+#viscVals = [1e12 1e12] # GPa s
+#viscDepths = [0 24]
 
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 24]
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 24]
 
 # power law properties
 AVals = [2.2e-6 2.2e-6]
@@ -76,4 +76,6 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/testInstability/m2D_grad_
+#outputDir = data/testInstability/m2D_grad_
+#outputDir = data/max/m2D_+2SAT_
+outputDir = data/max/m2D_grad_

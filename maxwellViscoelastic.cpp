@@ -313,7 +313,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
 
     // enforce traction boundary condition
     Vec temp1,bcT,bcB;
-    VecDuplicate(_gxzP,&temp1);
+    VecDuplicate(_gxzP,&temp1); VecSet(temp1,0.0);
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
 
@@ -324,7 +324,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
 
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
-    ierr = VecAXPY(source,-1.0,bcB);CHKERRQ(ierr);
+    ierr = VecAXPY(source,1.0,bcB);CHKERRQ(ierr);
 
     VecDestroy(&temp1);
     VecDestroy(&bcT);
@@ -412,7 +412,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecGetValues(SAT,1,&Ii,&sat);
 
     // d/dt gxy = mu/visc * ( d/dy u - gxy) + SAT
-    deps = sigmaxy/visc - _muArrPlus[Ii]/visc * sat;
+    deps = sigmaxy/visc + _muArrPlus[Ii]/visc * sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {

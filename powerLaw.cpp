@@ -847,12 +847,19 @@ PetscErrorCode PowerLaw::writeStep1D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
                                    FILE_MODE_APPEND,&_surfDispPlusViewer);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
-              FILE_MODE_WRITE,&_bcRPlusV);CHKERRQ(ierr);
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
-                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
+              //~FILE_MODE_WRITE,&_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
+                                   //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
+              FILE_MODE_WRITE,&_effViscV);CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_effViscV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
+                                   FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
@@ -861,7 +868,8 @@ PetscErrorCode PowerLaw::writeStep1D()
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

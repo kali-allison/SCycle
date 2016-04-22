@@ -1,6 +1,6 @@
-all: mainMaxwell main
+all: mainMaxwell
 
-DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
+DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
@@ -18,7 +18,6 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	echo ${PETSC_DIR}
 	-rm main.o
 
 mainMaxwell:  mainMaxwell.o $(OBJECTS)
