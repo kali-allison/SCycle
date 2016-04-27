@@ -38,6 +38,13 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "_slipVel");
   VecSet(_slipVel,0.0);
 
+  #if STATE_PSI == 0
+    VecSet(_dPsi,1e9);
+  #endif
+  #if STATE_PSI == 1
+    VecSet(_dPsi,0.6);
+  #endif
+
 
 
 
