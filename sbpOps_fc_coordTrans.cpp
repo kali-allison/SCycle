@@ -158,9 +158,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   MatMult(_Dy_Iz,_q,temp); // temp = Dy * q
   ierr = MatDiagonalSet(_qy,temp,INSERT_VALUES);CHKERRQ(ierr);
 
+  MatDuplicate(_qy,MAT_DO_NOT_COPY_VALUES,&_rz);
   MatMult(_Iy_Dz,_r,temp); // temp = Dy * q
   ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr);
-
 
   // modify tempMats factors
   Mat mat;
@@ -169,6 +169,12 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
 
   MatMatMult(_rz,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,tempMats._muxIy_BSz,SAME_NONZERO_PATTERN);
+
+  // modify 1st derivatives
+  MatMatMult(_qy,_Dy_Iz,MAT_INITIAL_MATRIX,1.0,&mat);
+  MatCopy(mat,_Dy_Iz,SAME_NONZERO_PATTERN);
+  MatMatMult(_rz,_Iy_Dz,MAT_INITIAL_MATRIX,1.0,&mat);
+  MatCopy(mat,_Iy_Dz,SAME_NONZERO_PATTERN);
 
   MatDestroy(&mat);
 
@@ -1078,20 +1084,27 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function construct1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  Mat temp;
-  kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
-  MatMatMult(_qy,temp,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);
+  //~ Mat temp;
+  //~ kronConvert(tempMats._D1y,tempMats._Iz,temp,5,5);
+  //~ MatMatMult(_qy,temp,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);
+  //~ ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
+
+  //~ // create _Iy_Dz
+  //~ kronConvert(tempMats._Iy,tempMats._D1z,temp,5,5);
+  //~ MatMatMult(_rz,temp,MAT_INITIAL_MATRIX,1.0,&_Iy_Dz);
+  //~ ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
+
+  kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
 
   // create _Iy_Dz
-  kronConvert(tempMats._Iy,tempMats._D1z,temp,5,5);
-  MatMatMult(_rz,temp,MAT_INITIAL_MATRIX,1.0,&_Iy_Dz);
+  kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
   //~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   //~ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
-  MatDestroy(&temp);
+  //~ MatDestroy(&temp);
 
 
 #if VERBOSE > 2

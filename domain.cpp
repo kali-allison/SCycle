@@ -110,8 +110,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
-
-
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
@@ -696,11 +694,23 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  //~ // output shear modulus matrix
-  //~ str =  _outputDir + "muPlus";
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ ierr = MatView(_muP,viewer);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  // output shear modulus
+  str =  _outputDir + "muPlus";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_muVecP,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // output q
+  str =  _outputDir + "q";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_q,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // output r
+  str =  _outputDir + "r";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_r,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   //~// output normal stress vector
   //~str =  _outputDir + "sigma_N";
@@ -756,7 +766,9 @@ PetscErrorCode Domain::setFieldsPlus()
   for (Ii=Istart;Ii<Iend;Ii++) {
     y = _dy*(Ii/_Nz);
     z = _dz*(Ii-_Nz*(Ii/_Nz));
-    v = y;
+    PetscScalar b = 1;
+    v = sinh(b*y/_Ly)/sinh(b);
+    //~ v = y;
     ierr = VecSetValues(_q,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     v = z;
