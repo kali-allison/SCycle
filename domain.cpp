@@ -825,6 +825,7 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
+
   }
 
   ierr = VecSetValues(_muVecP,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);

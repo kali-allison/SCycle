@@ -923,12 +923,6 @@ switch ( _order ) {
       MatDestroy(&D4y_Iz);
       MatDestroy(&C4y_Iz);
 
-      //~ MatView(muqy,PETSC_VIEWER_STDOUT_WORLD);
-      MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);
-      //~ MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
-      //~ VecView(*_muVec,PETSC_VIEWER_STDOUT_WORLD);
-      assert(0);
-
       break;
     }
     default:

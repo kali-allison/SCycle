@@ -771,7 +771,6 @@ switch ( _order ) {
         MatSeqAIJSetPreallocation(mu3,1,NULL);
         MatSetUp(mu3);
         ierr = MatDiagonalSet(mu3,*_muVec,INSERT_VALUES);CHKERRQ(ierr);
-        MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
         VecGetOwnershipRange(*_muVec,&Istart,&Iend);
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;

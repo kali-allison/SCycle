@@ -970,6 +970,9 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmadevDepths);
     }
+    else if (var.compare("strainRate")==0) {
+      _strainRate = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
 
   }
 
@@ -998,19 +1001,19 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
     ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
     ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
     ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
-    Vec sigmadev;
-    ierr = VecDuplicate(_uP,&sigmadev);CHKERRQ(ierr);
+    //~ Vec sigmadev;
+    //~ ierr = VecDuplicate(_uP,&sigmadev);CHKERRQ(ierr);
     if (_Nz == 1) {
       VecSet(_A,_AVals[0]);
       VecSet(_B,_BVals[0]);
       VecSet(_n,_nVals[0]);
-      VecSet(sigmadev,_sigmadevVals[0]);
+      //~ VecSet(sigmadev,_sigmadevVals[0]);
     }
     else {
       ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(sigmadev,_sigmadevVals,_sigmadevDepths);CHKERRQ(ierr);
+      //~ ierr = setVecFromVectors(sigmadev,_sigmadevVals,_sigmadevDepths);CHKERRQ(ierr);
     }
 
     // compute effective viscosity using heat equation's computed temperature
@@ -1018,19 +1021,22 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
     PetscInt Ii,Istart,Iend;
     VecGetOwnershipRange(_A,&Istart,&Iend);
     for (Ii=Istart;Ii<Iend;Ii++) {
-      VecGetValues(sigmadev,1,&Ii,&s);
       VecGetValues(_A,1,&Ii,&A);
       VecGetValues(_B,1,&Ii,&B);
       VecGetValues(_n,1,&Ii,&n);
       VecGetValues(_he._T,1,&Ii,&T);
-      invVisc = A*pow(s,n-1.0)*exp(-B/T) * 1e-3; // *1e-3 to get resulting eff visc in GPa s
-      effVisc = 1.0/invVisc;
+      //~ VecGetValues(sigmadev,1,&Ii,&s);
+      //~ invVisc = A*pow(s,n-1.0)*exp(-B/T) * 1e-3; // (GPa s) in terms of dev. stress
+      s = pow(_strainRate/(A*exp(-B/T)),1.0/n);
+      effVisc =  s/_strainRate* 1e-3; // (GPa s)  in terms of strain rate
+      invVisc = 1.0/invVisc;
+
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));
     }
     VecAssemblyBegin(_visc);
     VecAssemblyEnd(_visc);
-    VecDestroy(&sigmadev);
+    //~ VecDestroy(&sigmadev);
     VecDestroy(&_A);
     VecDestroy(&_B);
     VecDestroy(&_n);

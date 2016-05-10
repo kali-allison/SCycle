@@ -23,6 +23,7 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     std::string  _viscDistribution; // options: mms, layered, effectiveVisc
     std::vector<double> _viscVals,_viscDepths;
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_sigmadevVals,_sigmadevDepths;
+    PetscScalar _strainRate;
     Vec         _visc;
 
     Vec         _gxyP,_dgxyP; // viscoelastic strain and strain rate
