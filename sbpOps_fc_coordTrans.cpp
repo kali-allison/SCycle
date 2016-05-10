@@ -885,9 +885,6 @@ switch ( _order ) {
         MatAssemblyEnd(mu3,MAT_FINAL_ASSEMBLY);
         MatScale(mu3,0.5);
       }
-      //~ MatView(muqy,PETSC_VIEWER_STDOUT_WORLD);
-      MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
-      assert(0);
 
       Mat D3y_Iz;
       kronConvert(D3y,tempMats._Iz,D3y_Iz,6,6);
@@ -927,9 +924,9 @@ switch ( _order ) {
       MatDestroy(&C4y_Iz);
 
       //~ MatView(muqy,PETSC_VIEWER_STDOUT_WORLD);
-      //~ MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);
+      MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);
       //~ MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
-      VecView(*_muVec,PETSC_VIEWER_STDOUT_WORLD);
+      //~ VecView(*_muVec,PETSC_VIEWER_STDOUT_WORLD);
       assert(0);
 
       break;
