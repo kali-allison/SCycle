@@ -771,19 +771,15 @@ switch ( _order ) {
         MatSeqAIJSetPreallocation(mu3,1,NULL);
         MatSetUp(mu3);
         ierr = MatDiagonalSet(mu3,*_muVec,INSERT_VALUES);CHKERRQ(ierr);
+        MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
         VecGetOwnershipRange(*_muVec,&Istart,&Iend);
-        if (Istart==0) {
-          Jj = Istart + 1;
-          VecGetValues(*_muVec,1,&Jj,&mu);
-          MatSetValues(mu3,1,&Istart,1,&Istart,&mu,ADD_VALUES);
-        }
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
           VecGetValues(*_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
-        for (Ii=Istart+1;Ii<Iend-1;Ii++) {
+        for (Ii=Istart+1;Ii<Iend;Ii++) {
           VecGetValues(*_muVec,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);

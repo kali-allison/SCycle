@@ -32,6 +32,10 @@ Domain::Domain(const char *file)
   if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   else (_dz = 1);
 
+  _dq = 1.0/(_Ny-1.0);
+  if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
+  else (_dr = 1);
+
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
@@ -326,6 +330,7 @@ PetscErrorCode Domain::loadShearModSettings(ifstream& infile)
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
+      _muValPlus = 1.0;
       // look for rho, mu will be prescribed
       if (var.compare("rhoPlus")==0) { _rhoValPlus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
       else if (var.compare("rhoMinus")==0) { _rhoValMinus = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }

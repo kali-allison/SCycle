@@ -5,7 +5,7 @@
 
 //================= constructor and destructor ========================
 SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
+: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dq),_dz(D._dr),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
@@ -870,18 +870,13 @@ switch ( _order ) {
         PetscScalar mu=0;
         PetscInt Ii,Jj,Istart,Iend=0;
         VecGetOwnershipRange(muqyV,&Istart,&Iend);
-        if (Istart==0) {
-          Jj = Istart + 1;
-          VecGetValues(muqyV,1,&Jj,&mu);
-          MatSetValues(mu3,1,&Istart,1,&Istart,&mu,ADD_VALUES);
-        }
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
           VecGetValues(muqyV,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
-        for (Ii=Istart+1;Ii<Iend-1;Ii++) {
+        for (Ii=Istart+1;Ii<Iend;Ii++) {
           VecGetValues(muqyV,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);
@@ -890,6 +885,9 @@ switch ( _order ) {
         MatAssemblyEnd(mu3,MAT_FINAL_ASSEMBLY);
         MatScale(mu3,0.5);
       }
+      //~ MatView(muqy,PETSC_VIEWER_STDOUT_WORLD);
+      MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
+      assert(0);
 
       Mat D3y_Iz;
       kronConvert(D3y,tempMats._Iz,D3y_Iz,6,6);
@@ -927,6 +925,12 @@ switch ( _order ) {
       MatDestroy(&temp2);
       MatDestroy(&D4y_Iz);
       MatDestroy(&C4y_Iz);
+
+      //~ MatView(muqy,PETSC_VIEWER_STDOUT_WORLD);
+      //~ MatView(Rymu,PETSC_VIEWER_STDOUT_WORLD);
+      //~ MatView(mu3,PETSC_VIEWER_STDOUT_WORLD);
+      VecView(*_muVec,PETSC_VIEWER_STDOUT_WORLD);
+      assert(0);
 
       break;
     }

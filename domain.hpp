@@ -46,6 +46,7 @@ class Domain
 
     // for coordinate transform
     Vec   _q,_r; // q(y), r(z)
+    PetscScalar _dq,_dr;
 
 
 
