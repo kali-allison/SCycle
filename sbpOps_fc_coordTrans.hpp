@@ -1,5 +1,5 @@
-#ifndef SbpOps_fc_coordTrans_COORDTRANS_H_INCLUDED
-#define SbpOps_fc_coordTrans_COORDTRANS_H_INCLUDED
+#ifndef SBPOPS_FC_COORDTRANS_H_INCLUDED
+#define SBPOPS_FC_COORDTRANS_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
