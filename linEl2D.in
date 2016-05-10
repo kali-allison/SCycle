@@ -1,6 +1,6 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 11
+Nz = 11
 Ly = 24 # km
 Lz = 24 # km
 
@@ -78,4 +78,5 @@ rootTol = 1e-9
 
 #outputDir = data/testInstability/m2D_grad_
 #outputDir = data/max/m2D_+2SAT_
-outputDir = data/max/m2D_grad_
+#outputDir = data/max/m2D_grad_
+outputDir = data/test_

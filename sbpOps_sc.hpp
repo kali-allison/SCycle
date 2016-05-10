@@ -47,9 +47,7 @@ class SbpOps_sc
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
-    PetscScalar      *_muArr;
-    Mat              *_mu;
-    Vec               _muVecP;
+    Vec               _muVec;
 
     Mat               _A;
 
@@ -76,7 +74,7 @@ class SbpOps_sc
   public:
 
     //~SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu);
-    SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_sc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_sc();
 
     // create the vector rhs out of the boundary conditions (_bc*)

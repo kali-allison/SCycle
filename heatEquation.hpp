@@ -40,8 +40,6 @@ class HeatEquation
 
     std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
-    PetscScalar *_kArr;
-    Mat          _kMat;
     PetscViewer  _TV,_vw; // temperature viewer and extra viewer for debugging
 
     SbpOps_fc* _sbpT;

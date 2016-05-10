@@ -10,16 +10,16 @@ Domain::Domain(const char *file)
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muP(NULL),
+  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
+  _muArrMinus(NULL),_csArrMinus(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVecP(NULL)
+  _da(NULL),_muVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -50,8 +50,6 @@ Domain::Domain(const char *file)
   _zE = _zS + zn;
   _yE = _yS + yn;
 
-  MatCreate(PETSC_COMM_WORLD,&_muP);
-
   // if loading fields from source vecs
   if (_shearDistribution.compare("CVM")==0 ) {
     loadFieldsFromFiles();
@@ -65,7 +63,6 @@ Domain::Domain(const char *file)
   {
     setFieldsPlus();
     if (_problemType.compare("full")==0) {
-      MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
     }
   }
@@ -85,16 +82,16 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),_muP(NULL),
+  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),_muM(NULL),
+  _muArrMinus(NULL),_csArrMinus(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVecP(NULL)
+  _da(NULL),_muVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -130,8 +127,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _zE = _zS + zn;
   _yE = _yS + yn;
 
-  MatCreate(PETSC_COMM_WORLD,&_muP);
-
   // if loading fields from source vecs
   if (_shearDistribution.compare("CVM")==0 ) {
     loadFieldsFromFiles();
@@ -145,7 +140,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   {
     setFieldsPlus();
     if (_problemType.compare("full")==0) {
-      MatCreate(PETSC_COMM_WORLD,&_muM);
       setFieldsMinus();
     }
   }
@@ -170,10 +164,9 @@ Domain::~Domain()
   PetscFree(_muArrMinus);
   PetscFree(_csArrMinus);
 
-  MatDestroy(&_muP);
-  MatDestroy(&_muM);
-
   VecDestroy(&_muVecP);
+  VecDestroy(&_csVecP);
+  VecDestroy(&_rhoVecP);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -698,11 +691,11 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  // output shear modulus matrix
-  str =  _outputDir + "muPlus";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_muP,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ // output shear modulus matrix
+  //~ str =  _outputDir + "muPlus";
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ ierr = MatView(_muP,viewer);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   //~// output normal stress vector
   //~str =  _outputDir + "sigma_N";
@@ -712,10 +705,10 @@ PetscErrorCode Domain::write()
 
   if (_problemType.compare("full")==0)
   {
-    str =  _outputDir + "muMinus";
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-    ierr = MatView(_muM,viewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    //~ str =  _outputDir + "muMinus";
+    //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+    //~ ierr = MatView(_muM,viewer);CHKERRQ(ierr);
+    //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   }
 
 #if VERBOSE > 1
@@ -738,16 +731,18 @@ PetscErrorCode Domain::setFieldsPlus()
   PetscInt       Ii;
   PetscScalar    v,y,z,csIn,csOut;
 
-  Vec muVec;
   PetscInt *muInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
 
-  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
-  ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&_muVecP);CHKERRQ(ierr);
+  ierr = VecSetSizes(_muVecP,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_muVecP);CHKERRQ(ierr);
+
+  VecDuplicate(_muVecP,&_csVecP);
+  VecDuplicate(_muVecP,&_rhoVecP);
 
 
 
@@ -756,7 +751,10 @@ PetscErrorCode Domain::setFieldsPlus()
   PetscScalar r = 0;
   PetscScalar rbar = 0.25*_width*_width;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
+  //~ PetscInt Ii,Istart,Iend;
+  //~ ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
     z = _dz*(Ii-_Nz*(Ii/_Nz));
     y = _dy*(Ii/_Nz);
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
@@ -785,28 +783,23 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
-      assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+      assert(0); // automatically fail
     }
     _muArrPlus[Ii] = v;
     muInds[Ii] = Ii;
   }
 
-  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
-
-  ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muP);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
-
-  VecDuplicate(muVec,&_muVecP);
-  VecCopy(muVec,_muVecP);
-
-  VecDestroy(&muVec);
+  ierr = VecSetValues(_muVecP,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_muVecP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_muVecP);CHKERRQ(ierr);
   PetscFree(muInds);
+
+  //~ ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
+  //~ ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  //~ ierr = MatDiagonalSet(_muP,_muVecP,INSERT_VALUES);CHKERRQ(ierr);
 
 
 /*
@@ -880,7 +873,6 @@ PetscErrorCode Domain::setFieldsMinus()
   PetscInt       Ii;
   PetscScalar    v,y,z,csIn,csOut;
 
-  Vec muVec;
   PetscInt *muInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
 
@@ -888,9 +880,9 @@ PetscErrorCode Domain::setFieldsMinus()
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrMinus);CHKERRQ(ierr);
 
 
-  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
-  ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&_muVecM);CHKERRQ(ierr);
+  ierr = VecSetSizes(_muVecM,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_muVecM);CHKERRQ(ierr);
 
   PetscScalar r = 0;
   PetscScalar rbar = 0.25*_width*_width;
@@ -930,18 +922,17 @@ PetscErrorCode Domain::setFieldsMinus()
     _muArrMinus[Ii] = v;
     muInds[Ii] = Ii;
   }
-  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrMinus,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
+  ierr = VecSetValues(_muVecM,_Ny*_Nz,muInds,_muArrMinus,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_muVecM);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_muVecM);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_muM,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muM);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muM,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muM,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muM);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muM,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  //~ ierr = MatSetSizes(_muM,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = MatSetFromOptions(_muM);CHKERRQ(ierr);
+  //~ ierr = MatMPIAIJSetPreallocation(_muM,1,NULL,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSeqAIJSetPreallocation(_muM,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSetUp(_muM);CHKERRQ(ierr);
+  //~ ierr = MatDiagonalSet(_muM,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
-  VecDestroy(&muVec);
   PetscFree(muInds);
 
 #if VERBOSE > 1
@@ -1080,12 +1071,12 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
 
-  ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_muP);CHKERRQ(ierr);
-  ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
+  //~ ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
+  //~ ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSetUp(_muP);CHKERRQ(ierr);
+  //~ ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
 
 
 

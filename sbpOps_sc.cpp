@@ -7,9 +7,9 @@
 /* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-SbpOps_sc::SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type)
+SbpOps_sc::SbpOps_sc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
-  _muArr(&muArr),_mu(&mu),_muVecP(D._muVecP),
+  _muVec(muVec),
   _da(D._da),
   _bcTType(D._bcTType),_bcRType(D._bcRType),_bcBType(D._bcBType),_bcLType(D._bcLType),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0)
@@ -21,7 +21,6 @@ SbpOps_sc::SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,s
 
   if (_Ny == 1) { return;}
 
-  if(_muArr) { // ensure that _muArr is not NULL
       /* NOT a member of this class, contains stuff to be deleted before
        * end of constructor to save on memory usage.
        */
@@ -36,7 +35,6 @@ SbpOps_sc::SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,s
         _alphaDz = -2.0*48.0/17.0 /_dz;
 
     }
-}
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -208,7 +206,7 @@ PetscErrorCode SbpOps_sc::muxDy(const Vec &in, Vec &out)
 #endif
 
   ierr = Dy(in,out); CHKERRQ(ierr);
-  ierr = VecPointwiseMult(out,_muVecP,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVec,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -226,7 +224,7 @@ PetscErrorCode SbpOps_sc::Dyxmu(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecPointwiseMult(out,_muVecP,in); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVec,in); CHKERRQ(ierr);
   ierr = Dy(out,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
@@ -293,7 +291,7 @@ PetscErrorCode SbpOps_sc::muxDz(const Vec &in, Vec &out)
 #endif
 
   ierr = Dz(in,out); CHKERRQ(ierr);
-  ierr = VecPointwiseMult(out,_muVecP,out); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVec,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -311,7 +309,7 @@ PetscErrorCode SbpOps_sc::Dzxmu(const Vec &in, Vec &out)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  ierr = VecPointwiseMult(out,_muVecP,in); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(out,_muVec,in); CHKERRQ(ierr);
   ierr = Dz(out,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1

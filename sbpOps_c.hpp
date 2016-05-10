@@ -41,7 +41,7 @@ struct TempMats_c
 {
   const PetscInt    _order,_Ny,_Nz;
   const PetscReal   _dy,_dz;
-  Mat              *_mu;
+  Mat              _mu;
 
   Spmat _Hy,_D1y,_D1yint,_Iy;
   Spmat _Hz,_D1z,_D1zint,_Iz;
@@ -59,7 +59,7 @@ struct TempMats_c
 
   Mat _H;
 
-  TempMats_c(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
+  TempMats_c(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
   ~TempMats_c();
 
 
@@ -98,8 +98,8 @@ class SbpOps_c : public SbpOps
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
-    PetscScalar      *_muArr;
-    Mat              *_mu;
+    Vec              *_muVec;
+    Mat              _mu;
 
     double _runTime;
 
@@ -146,8 +146,7 @@ class SbpOps_c : public SbpOps
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
-    SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL);
-    SbpOps_c(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_c(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_c();
 
     // create the vector rhs out of the boundary conditions (_bc*)

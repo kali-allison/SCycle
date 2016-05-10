@@ -317,7 +317,7 @@ int runTimingTest(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"DMDA mat time: %.9e\n",endTime); }
 
   // perform stencil-based derivative
-  { SbpOps_sc sbp_sc(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  { SbpOps_sc sbp_sc(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   double startTime = MPI_Wtime();
   for (int ind=0; ind < 99; ind++) { sbp_sc.Dy(f,dfdz); }
   double endTime = MPI_Wtime() - startTime;
@@ -336,7 +336,7 @@ int runTimingTest(const char * inputFile)
   VecDuplicate(g,&dgdz); PetscObjectSetName((PetscObject) dgdz, "dgdz");
   VecSet(dgdz,0.0);
 
-  { SbpOps_c sbp_c(d,*d._muArrPlus,d._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  { SbpOps_c sbp_c(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   double startTime = MPI_Wtime();
   for (int ind=0; ind < 99; ind++) { sbp_c.Dy(g,dgdz); }
   double endTime = MPI_Wtime() - startTime;

@@ -11,12 +11,11 @@ LinearElastic::LinearElastic(Domain&D)
   _isMMS(!D._shearDistribution.compare("mms")),
   _outputDir(D._outputDir),
   _v0(D._v0),_vL(D._vL),
-  _muArrPlus(D._muArrPlus),_muVecP(D._muVecP),_muP(D._muP),
+  _muVecP(D._muVecP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),
-  //~_sbpP(D,*D._muArrPlus,D._muP),
   _sbpP(NULL),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
@@ -89,10 +88,10 @@ LinearElastic::LinearElastic(Domain&D)
 
   // set up SBP operators
   if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+    _sbpP = new SbpOps_c(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
   else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,*D._muArrPlus,D._muP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+    _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
@@ -860,12 +859,10 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
 //================= Full LinearElastic (+ and - sides) Functions =========
 FullLinearElastic::FullLinearElastic(Domain&D)
 : LinearElastic(D),
-  _muArrMinus(D._muArrMinus),_muM(D._muM),
   _bcLMShift(NULL),_surfDispMinus(NULL),
   _rhsM(NULL),_uM(NULL),_sigma_xyMinus(NULL),
   _surfDispMinusViewer(NULL),
   _kspM(NULL),_pcMinus(NULL),
-  //~_sbpM(D,*D._muArrMinus,D._muM),
   _bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
   _fault(D)
 {
@@ -873,7 +870,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
 #endif
 
-  _sbpM = new SbpOps_c(D,*D._muArrMinus,D._muM,"Neumann","Dirichlet","Neumann","Dirichlet");
+  _sbpM = new SbpOps_c(D,D._muVecM,"Neumann","Dirichlet","Neumann","Dirichlet","yx");
 
   //~_fault = new FullFault(D);
 
@@ -999,13 +996,13 @@ PetscErrorCode FullLinearElastic::setShifts()
 
 
   PetscInt Ii,Istart,Iend;
-  PetscScalar v,bcRshift;
+  PetscScalar v,bcRshift = 0;
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     v = _fault.getTauInf(Ii);
-    //~v = 0;
+    v = 0;
     //~v = 0.8*v;
-    bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
+    //~ bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -1213,18 +1210,18 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
 
 
   PetscInt       Istart,Iend;
-  PetscScalar    bcLPlus,bcRPlus,bcLMinus,bcRMinus;
+  PetscScalar    bcLPlus,bcRPlus,bcLMinus,bcRMinus,muP,muM;
 
   ierr = VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcLP,1,&Istart,&bcLPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_bcLMinus,1,&Istart,&bcLMinus);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRMinus,1,&Istart,&bcRMinus);CHKERRQ(ierr);
+  ierr = VecGetValues(_muVecP,1,&Istart,&muP);CHKERRQ(ierr);
+  muM = muP; // !!! NOT RIGHT
 
-  ierr = VecSet(_sigma_xyMinus,_muArrMinus[0]*(bcRMinus - bcLMinus)/_Ly);CHKERRQ(ierr);
-  ierr = VecSet(_stressxyP,_muArrPlus[0]*(bcRPlus - bcLPlus)/_Ly);CHKERRQ(ierr);
-
-  assert(_muArrPlus[0]*(bcRPlus - bcLPlus)/_Ly < 40);
+  ierr = VecSet(_sigma_xyMinus,muM*(bcRMinus - bcLMinus)/_Ly);CHKERRQ(ierr);
+  ierr = VecSet(_stressxyP,muP*(bcRPlus - bcLPlus)/_Ly);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
@@ -1310,8 +1307,6 @@ PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt step
   PetscInt       Istart,Iend;
   PetscScalar    bcRPlus,bcLMinus,uMinus,uPlus,psi,velMinus,velPlus,dPsi,
                  tauQSPlus,tauQSMinus;
-
-  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psi);CHKERRQ(ierr);

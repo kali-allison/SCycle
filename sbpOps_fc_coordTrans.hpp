@@ -1,5 +1,5 @@
-#ifndef SBPOPS_FC_COORDTRANS_H_INCLUDED
-#define SBPOPS_FC_COORDTRANS_H_INCLUDED
+#ifndef SbpOps_fc_coordTrans_COORDTRANS_H_INCLUDED
+#define SbpOps_fc_coordTrans_COORDTRANS_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -34,11 +34,11 @@ using namespace std;
  * to 2D, and the 2D factors that are used to enforce boundaries in the
  * A matrix.
  */
-struct TempMats_fc
+struct TempMats_fc_coordTrans
     {
       const PetscInt    _order,_Ny,_Nz;
       const PetscReal   _dy,_dz;
-      Mat              *_mu;
+      Mat              _mu;
 
       Spmat _Hy,_D1y,_D1yint,_Iy;
       Spmat _Hz,_D1z,_D1zint,_Iz;
@@ -56,8 +56,9 @@ struct TempMats_fc
 
       Mat _H;
 
-      TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat*mu);
-      ~TempMats_fc();
+      TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,
+        const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
+      ~TempMats_fc_coordTrans();
 
 
 
@@ -65,8 +66,8 @@ struct TempMats_fc
       PetscErrorCode computeH();
 
       // disable default copy constructor and assignment operator
-      TempMats_fc(const TempMats_fc & that);
-      TempMats_fc& operator=( const TempMats_fc& rhs );
+      TempMats_fc_coordTrans(const TempMats_fc_coordTrans & that);
+      TempMats_fc_coordTrans& operator=( const TempMats_fc_coordTrans& rhs );
   };
 
 
@@ -84,15 +85,15 @@ struct TempMats_fc
  * be off by 4.
  */
 
-class SbpOps_fc : public SbpOps
+class SbpOps_fc_coordTrans : public SbpOps
 {
 
   private:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
-    PetscScalar      *_muArr;
-    Mat              *_mu;
+    Vec              *_muVec;
+    Mat              _mu;
 
     double _runTime;
 
@@ -116,11 +117,11 @@ class SbpOps_fc : public SbpOps
     string _debugFolder;
 
 
-    PetscErrorCode constructH(const TempMats_fc& tempMats);
-    PetscErrorCode constructHinv(const TempMats_fc& tempMats);
-    PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
-    PetscErrorCode constructA(const TempMats_fc& tempMats);
-    PetscErrorCode satBoundaries(TempMats_fc& tempMats);
+    PetscErrorCode constructH(const TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode constructHinv(const TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode construct1stDerivs(const TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode constructA(const TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode satBoundaries(TempMats_fc_coordTrans& tempMats);
 
     /*
      * Functions to compute intermediate matrices that comprise A:
@@ -128,15 +129,15 @@ class SbpOps_fc : public SbpOps
      *     (second derivative in z) D2z = D2zmu + R2zmu
      * where R2ymu and R2zmu vanish as the grid spacing approaches 0.
      */
-    PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
-    PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
-    PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
-    PetscErrorCode  constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
+    PetscErrorCode constructD2ymu(const TempMats_fc_coordTrans& tempMats, Mat &D2ymu);
+    PetscErrorCode constructD2zmu(const TempMats_fc_coordTrans& tempMats, Mat &D2zmu);
+    PetscErrorCode constructRymu(const TempMats_fc_coordTrans& tempMats,Mat &Rymu);
+    PetscErrorCode  constructRzmu(const TempMats_fc_coordTrans& tempMats,Mat &Rzmu);
 
 
     // disable default copy constructor and assignment operator
-    SbpOps_fc(const SbpOps_fc & that);
-    SbpOps_fc& operator=( const SbpOps_fc& rhs );
+    SbpOps_fc_coordTrans(const SbpOps_fc_coordTrans & that);
+    SbpOps_fc_coordTrans& operator=( const SbpOps_fc_coordTrans& rhs );
 
   public:
 
@@ -145,10 +146,9 @@ class SbpOps_fc : public SbpOps
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
-    //~SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
-    SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL);
-    SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu,string bcT,string bcR,string bcB, string bcL, string type);
-    ~SbpOps_fc();
+    //~SbpOps_fc_coordTrans(Domain&D,PetscScalar& muArr,Mat& mu);
+    SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
+    ~SbpOps_fc_coordTrans();
 
     // create the vector rhs out of the boundary conditions (_bc*)
     PetscErrorCode setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB);
@@ -181,10 +181,10 @@ class SbpOps_fc : public SbpOps
 };
 
 // functions to construct 1D sbp operators
-PetscErrorCode sbp_fc_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
+PetscErrorCode sbp_fc_coordTrans_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
                         Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
-PetscErrorCode sbp_fc_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
-PetscErrorCode sbp_fc_Spmat4(const PetscInt N,const PetscScalar scale,
+PetscErrorCode sbp_fc_coordTrans_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
+PetscErrorCode sbp_fc_coordTrans_Spmat4(const PetscInt N,const PetscScalar scale,
                          Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

@@ -10,7 +10,7 @@ HeatEquation::HeatEquation(Domain& D)
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
-  _kArr(NULL),_kMat(NULL),_TV(NULL),_vw(NULL),
+  _TV(NULL),_vw(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
@@ -54,11 +54,11 @@ HeatEquation::HeatEquation(Domain& D)
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   {
-    _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     computeSteadyStateTemp();
     setBCs(); // update bcR with geotherm
   }
-  _sbpT = new SbpOps_fc(D,*_kArr,_kMat,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -75,8 +75,6 @@ HeatEquation::~HeatEquation()
   PetscViewerDestroy(&_TV);
   PetscViewerDestroy(&_vw);
 
-  PetscFree(_kArr);
-  MatDestroy(&_kMat);
 }
 
 
@@ -302,29 +300,14 @@ PetscErrorCode ierr = 0;
     }
   }
 
-  MatCreate(PETSC_COMM_WORLD,&_kMat);
-  ierr = MatSetSizes(_kMat,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = MatSetFromOptions(_kMat);CHKERRQ(ierr);
-  ierr = MatMPIAIJSetPreallocation(_kMat,1,NULL,1,NULL);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(_kMat,1,NULL);CHKERRQ(ierr);
-  ierr = MatSetUp(_kMat);CHKERRQ(ierr);
+  //~ MatCreate(PETSC_COMM_WORLD,&_kMat);
+  //~ ierr = MatSetSizes(_kMat,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = MatSetFromOptions(_kMat);CHKERRQ(ierr);
+  //~ ierr = MatMPIAIJSetPreallocation(_kMat,1,NULL,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSeqAIJSetPreallocation(_kMat,1,NULL);CHKERRQ(ierr);
+  //~ ierr = MatSetUp(_kMat);CHKERRQ(ierr);
 
-  // build kArr
-  PetscInt len,Istart,Iend;
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_kArr);CHKERRQ(ierr);
-  for (PetscInt Ii=0;Ii<_Ny*_Nz;Ii++)
-  {
-    _kArr[Ii] = _kVals[0];
-  }
-
-  VecGetOwnershipRange(_k,&Istart,&Iend);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    PetscScalar v = _kArr[Ii];
-    MatSetValues(_kMat,1,&Ii,1,&Ii,&v,INSERT_VALUES);
-  }
-  MatAssemblyBegin(_kMat,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(_kMat,MAT_FINAL_ASSEMBLY);
+  //~ ierr = MatDiagonalSet(_kMat,_k,INSERT_VALUES);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

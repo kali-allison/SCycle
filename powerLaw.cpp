@@ -344,11 +344,13 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
 
-    _sbpP->HzinvxE0z(*(varBegin+3),temp1);
-    ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
+    _sbpP->HzinvxE0z(_gxzP,temp1);
+    //~ ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
+    ierr = VecPointwiseMult(bcT,_muVecP,temp1); CHKERRQ(ierr);
 
-    _sbpP->HzinvxENz(*(varBegin+3),temp1);
-    ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
+    _sbpP->HzinvxENz(_gxzP,temp1);
+    //~ ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
+    ierr = VecPointwiseMult(bcB,_muVecP,temp1); CHKERRQ(ierr);
 
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
     ierr = VecAXPY(source,-1.0,bcB);CHKERRQ(ierr);
@@ -747,8 +749,6 @@ PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
   PetscInt       Istart,Iend;
   PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
   PetscScalar    epsVxy,depsVxy;
-
-  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);

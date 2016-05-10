@@ -39,12 +39,11 @@ class Domain
     PetscScalar  _muInPlus,_muOutPlus,_rhoInPlus,_rhoOutPlus; // if basin
     PetscScalar  _depth,_width;
     PetscScalar *_muArrPlus,*_csArrPlus,*_sigmaNArr; // general data containers
-    Mat          _muP;
     // - side fields (sometimes initiated)
     PetscScalar  _muValMinus,_rhoValMinus; // if constant
     PetscScalar  _muInMinus,_muOutMinus,_rhoInMinus,_rhoOutMinus; // if basin
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
-    Mat          _muM;
+
 
 
     // linear solver settings
@@ -74,6 +73,8 @@ class Domain
     PetscInt _yS,_yE,_zS,_zE; // Start and End indices for loops (does NOT include ghost points)
     //~Vec _muVecP; // DMDA vector version of shear modulus
     Vec _muVecP; // vector version of shear modulus
+    Vec _csVecP,_rhoVecP;
+    Vec          _muVecM;
 
     Domain(const char * file);
     Domain(const char *file,PetscInt Ny, PetscInt Nz);
