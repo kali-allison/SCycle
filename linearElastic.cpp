@@ -93,6 +93,9 @@ LinearElastic::LinearElastic(Domain&D)
   else if (D._sbpType.compare("mfc")==0) {
     _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
+  else if (D._sbpType.compare("mfc_coordTrans")==0) {
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
     assert(0); // automatically fail

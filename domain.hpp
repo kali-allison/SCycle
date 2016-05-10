@@ -44,6 +44,9 @@ class Domain
     PetscScalar  _muInMinus,_muOutMinus,_rhoInMinus,_rhoOutMinus; // if basin
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
 
+    // for coordinate transform
+    Vec   _q,_r; // q(y), r(z)
+
 
 
     // linear solver settings

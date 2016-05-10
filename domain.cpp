@@ -14,6 +14,7 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
+  _q(NULL),_r(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -86,6 +87,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
+  _q(NULL),_r(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -158,15 +160,18 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-  PetscFree(_muArrPlus);
+  //~ PetscFree(_muArrPlus);
   PetscFree(_csArrPlus);
   PetscFree(_sigmaNArr);
   PetscFree(_muArrMinus);
   PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
-  VecDestroy(&_csVecP);
-  VecDestroy(&_rhoVecP);
+  //~ VecDestroy(&_csVecP);
+  //~ VecDestroy(&_rhoVecP);
+
+  VecDestroy(&_q);
+  VecDestroy(&_r);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -728,7 +733,6 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt       Ii;
   PetscScalar    v,y,z,csIn,csOut;
 
   PetscInt *muInds;
@@ -742,7 +746,24 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecSetFromOptions(_muVecP);CHKERRQ(ierr);
 
   VecDuplicate(_muVecP,&_csVecP);
-  VecDuplicate(_muVecP,&_rhoVecP);
+  VecDuplicate(_muVecP,&_csVecP);
+
+  // construct coordinate transform
+  VecDuplicate(_muVecP,&_q);
+  VecDuplicate(_muVecP,&_r);
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy*(Ii/_Nz);
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    v = y;
+    ierr = VecSetValues(_q,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    v = z;
+    ierr = VecSetValues(_r,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  VecAssemblyBegin(_q); VecAssemblyBegin(_r);
+  VecAssemblyEnd(_q); VecAssemblyEnd(_r);
 
 
 

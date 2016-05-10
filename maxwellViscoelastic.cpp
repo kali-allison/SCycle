@@ -1142,7 +1142,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setVecFromVectors(Vec& vec, vector<doubl
   PetscScalar    v,z,z0,z1,v0,v1;
   #if VERBOSE > 1
     std::string funcName = "SymmMaxwellViscoelastic::setVecFromVectors";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    std::string FILENAME = "SymmMaxwellViscoelastic";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
 
@@ -1166,7 +1167,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setVecFromVectors(Vec& vec, vector<doubl
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
   return ierr;

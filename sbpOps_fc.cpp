@@ -21,11 +21,14 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 
   if (_Ny == 1) { return; }
 
-    stringstream ss;
-    ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
-    _debugFolder += ss.str();
+  stringstream ss;
+  ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
+  _debugFolder += ss.str();
+
 
   // construct matrix mu
+  MatCreate(PETSC_COMM_WORLD,&_mu);
+  MatCreate(PETSC_COMM_WORLD,&_mu);
   MatSetSizes(_mu,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
   MatSetFromOptions(_mu);
   MatMPIAIJSetPreallocation(_mu,1,NULL,1,NULL);

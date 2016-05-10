@@ -38,7 +38,7 @@ struct TempMats_fc_coordTrans
     {
       const PetscInt    _order,_Ny,_Nz;
       const PetscReal   _dy,_dz;
-      Mat              _mu;
+      Mat               _mu;
 
       Spmat _Hy,_D1y,_D1yint,_Iy;
       Spmat _Hz,_D1z,_D1zint,_Iz;
@@ -109,6 +109,12 @@ class SbpOps_fc_coordTrans : public SbpOps
 
     Mat _Hyinv_Iz,_Iy_Hzinv,_e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
 
+
+    // for coordinate transform
+    Vec  _q,_r;
+    Mat  _qy,_rz;
+
+
     // boundary conditions
     //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // penalty terms for traction and displacement respectively
@@ -123,6 +129,8 @@ class SbpOps_fc_coordTrans : public SbpOps
     PetscErrorCode constructA(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode satBoundaries(TempMats_fc_coordTrans& tempMats);
 
+    PetscErrorCode constructCoordTrans(TempMats_fc_coordTrans& tempMats);
+
     /*
      * Functions to compute intermediate matrices that comprise A:
      *     (second derivative in y) D2y = D2ymu + R2ymu
@@ -132,7 +140,7 @@ class SbpOps_fc_coordTrans : public SbpOps
     PetscErrorCode constructD2ymu(const TempMats_fc_coordTrans& tempMats, Mat &D2ymu);
     PetscErrorCode constructD2zmu(const TempMats_fc_coordTrans& tempMats, Mat &D2zmu);
     PetscErrorCode constructRymu(const TempMats_fc_coordTrans& tempMats,Mat &Rymu);
-    PetscErrorCode  constructRzmu(const TempMats_fc_coordTrans& tempMats,Mat &Rzmu);
+    PetscErrorCode constructRzmu(const TempMats_fc_coordTrans& tempMats,Mat &Rzmu);
 
 
     // disable default copy constructor and assignment operator
