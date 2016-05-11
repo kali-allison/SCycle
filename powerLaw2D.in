@@ -76,4 +76,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = /data/dunham/kallison/eqcycle/data/powerLaw/p2D_no_
+outputDir = data/powerLaw/p2D_no_

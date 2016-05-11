@@ -1,10 +1,10 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 401
+Nz = 401
 Ly = 50 # km
 Lz = 50 # km
 
-DcVals = [8e-3 8e-3] # m
+DcVals = [1.6e-5 0.1568] # m
 DcDepths = [0 50] # m
 
 
@@ -12,7 +12,7 @@ aVals = [0.0082 0.0532]
 aDepths = [0 50]
 bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
 bDepths = [0 10 20 50]
-sigmaNVals = [0 980] # MPa
+sigmaNVals = [0.1 980] # MPa
 sigmaNDepths = [0 50]
 
 vL = 1e-9    # m/s
@@ -67,7 +67,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 200
+maxStepCount = 1e8
 initTime = 0       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
@@ -77,4 +77,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/nehrp_
+outputDir = data/nehrp/test_
