@@ -1,19 +1,19 @@
 order = 4
 Ny = 401
 Nz = 401
-Ly = 50 # km
-Lz = 50 # km
+Ly = 30 # km
+Lz = 30 # km
 
 DcVals = [1.6e-5 0.1568] # m
 DcDepths = [0 50] # m
 
 
 aVals = [0.0082 0.0532]
-aDepths = [0 50]
+aDepths = [0 30]
 bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
-bDepths = [0 10 20 50]
+bDepths = [0 10 20 30]
 sigmaNVals = [0.1 980] # MPa
-sigmaNDepths = [0 50]
+sigmaNDepths = [0 30]
 
 vL = 1e-9    # m/s
 
@@ -66,10 +66,10 @@ kspTol = 1e-7
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
+stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 0       # s
-maxTime = 1e11      # s
+initTime = 1e8       # s
+maxTime = 1e15      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s
 atol = 1e-7
@@ -77,4 +77,6 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/nehrp/test_
+#outputDir = data/nehrp/test_wSAT_theta_
+outputDir = data/nehrp/p_wSAT_theta_
+#outputDir = data/nehrp/l_theta_

@@ -1,19 +1,25 @@
 order = 4
-Ny = 41
-Nz = 1
-Ly = 24 # km
-Lz = 24 # km
+Ny = 401
+Nz = 401
+Ly = 30 # km
+Lz = 30 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 24] # m
+#DcVals = [0.0472 0.0472] # m
+DcDepths = [0 30] # m
 
 
 aVals = [0.015 0.015] # usual values
-aDepths = [0 24] # usual values
+aDepths = [0 30] # usual values
 bVals = [0.02 0.02 0.0 0.0] # usual values
-bDepths = [0 12 15 24] # usual values
+bDepths = [0 12 15 30] # usual values
+#aVals = [0.0082 0.0532]
+#aDepths = [0 50]
+#bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
+#bDepths = [0 10 20 50]
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 24]
+#sigmaNVals = [0.1 588] # MPa
+sigmaNDepths = [0 30]
 
 vL = 1e-9    # m/s
 
@@ -33,52 +39,64 @@ rhoPlus = 3.0 # g/cm^3
 
 viscDistribution = effectiveVisc
 sigmadevVals = [35 35]
-sigmadevDepths = [0 24]
+sigmadevDepths = [0 50]
+strainRate = 1e-11
 
 # power law properties
-AVals = [2.2e-6 2.2e-6]
-ADepths = [0 24]
+AVals = [1e-9 2.1e-9]
+ADepths = [0 30]
 BVals = [1.44e4 1.44e4]
-BDepths = [0 24]
-nVals = [2.7 2.7]
-nDepths = [0 24]
-TVals = [273 1643] # [273 1643] or [500 500]
-TDepths = [0 24]
-thermalCoupling = no
+BDepths = [0 30]
+nVals = [4 4]
+nDepths = [0 30]
+TVals = [273 1173]
+TDepths = [0 30]
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
-kDepths = [0 24]
+kDepths = [0 30]
 hVals = [0 0]
-hDepths = [0 24]
+hDepths = [0 30]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
-cDepths = [0 24]
+cDepths = [0 30]
 rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 24]
+rhoDepths = [0 30]
 
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
+sbpType = mfc
+#sbpType = mfc_coordTrans
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 500
-initTime = 1e9       # s
-maxTime = 1e11      # s
+stride2D = 100 # how many steps between writing out 2D fields
+maxStepCount = 1e8
+initTime = 5e10       # s
+maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s
+maxDeltaT = 1e6      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = data/testInstability/m2D_grad_
-#outputDir = data/max/m2D_+2SAT_
-#outputDir = data/max/m2D_grad_
-outputDir = data/coordTrans_
-#outputDir = data/mfc_
+#outputDir = data/coordTrans_
+#outputDir = data/nehrp/m2D_constSN_uab_0SAT_
+#outputDir = data/nehrp/l2D_constSN_nab_0SAT_
+#outputDir = data/nehrp/l2D_gradSN_uab_0SAT_
+#outputDir = data/nehrp/l2D_gradSN_nab_0SAT_
+#outputDir = data/nehrp/m2D_constSN_nab_0SAT_
+#outputDir = data/nehrp/m2D_constSN_uab_wSAT_
+#outputDir = data/nehrp/m2D_Lz25_constSN_uab_wSAT_
+#outputDir = data/nehrp/test_wSAT_
+#outputDir = data/nehrp/sR1e-11_
+#outputDir = data/nehrp/sR1e-11_wSAT_wT_
+#outputDir = data/nehrp/sR1e-11_0SAT_wT_
+#outputDir = data/nehrp/sR1e-11_0SAT_wT_q0_
+#outputDir = data/nehrp/p_wSAT_wT_q0_
+#outputDir = data/nehrp/sR1e-14_0SAT_wT_
+outputDir = data/nehrp/m_wSAT_wT_

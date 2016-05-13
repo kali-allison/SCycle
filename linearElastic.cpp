@@ -26,7 +26,8 @@ LinearElastic::LinearElastic(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _uPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
-  _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL)
+  _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),
+  _tLast(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
@@ -494,12 +495,20 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
+        ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+              FILE_MODE_WRITE,&_bcLPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+                                   FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
+
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
 
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
@@ -674,10 +683,28 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
 
   // update boundaries
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
+  //~ ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+  //~ ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+  //~ ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+
+  PetscScalar tcrit = 3.14e7 * 100.0; // 100 years in seconds
+  if (_tLast >= tcrit) // time for earthquake
+  {
+    ierr = VecSet(_bcLP,3.0 * time/tcrit);CHKERRQ(ierr); // everything catches up to same level
+  }
+  else {
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
+      PetscScalar v = 0.5*_vL*time * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
+      //~ PetscScalar v = 0.5*_vL*time;
+      VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
+    }
+    ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  }
 
   // solve for displacement
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
@@ -692,7 +719,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+  //~ ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);

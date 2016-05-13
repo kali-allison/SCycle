@@ -85,6 +85,8 @@ class LinearElastic: public IntegratorContext
     OdeSolver           *_quadrature;
     //~Fault               *_fault;
 
+    PetscScalar _tLast; // time of last earthquake
+
     LinearElastic(Domain&D);
     ~LinearElastic();
 

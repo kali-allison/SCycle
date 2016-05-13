@@ -39,10 +39,11 @@ Fault::Fault(Domain&D)
   VecSet(_slipVel,0.0);
 
   #if STATE_PSI == 0
-    VecSet(_dPsi,1e9);
+    VecSet(_state,-2e4);
+    PetscPrintf(PETSC_COMM_WORLD,"here\n");
   #endif
   #if STATE_PSI == 1
-    VecSet(_dPsi,0.6);
+    VecSet(_state,0.6);
   #endif
 
 

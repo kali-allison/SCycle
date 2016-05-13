@@ -38,6 +38,9 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     Vec         _stressxzP;
     PetscViewer _stressxyPV,_stressxzPV;
 
+    std::string _thermalCoupling;
+    HeatEquation _he;
+
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                                           it_vec dvarBegin,it_vec dvarEnd);
@@ -65,6 +68,8 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                             it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
+                                it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode d_dt_kinetic(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                                 it_vec dvarBegin,it_vec dvarEnd);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,

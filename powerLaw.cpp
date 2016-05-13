@@ -448,7 +448,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
 
     //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
 
-    deps = sigmaxy*invVisc - mu*invVisc * sat;
+    deps = sigmaxy*invVisc + mu*invVisc * sat*0;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     assert(!isnan(invVisc));

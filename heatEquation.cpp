@@ -429,7 +429,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
       //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y=%i\n",Ii,y);
       VecGetValues(_k,1,&Ii,&k);
       VecGetValues(sigmaxy,1,&Ii,&s);
-      v = -s/k;
+      v = -s/k * 0;
       VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
     }
   }
