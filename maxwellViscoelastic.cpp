@@ -11,7 +11,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _gTxyP(NULL),_gTxzP(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
   _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL)
-  //~ _thermalCoupling("no"),_he(D)
 {
   #if VERBOSE > 1
     string funcName = "SymmMaxwellViscoelastic::SymmMaxwellViscoelastic";
@@ -47,7 +46,9 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
-  _var.pop_back(); // remove temperature
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    _var.pop_back(); // remove temperature
+  }
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 

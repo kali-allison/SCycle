@@ -41,10 +41,6 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _TV;
     PetscViewer _effViscV;
 
-    // thermomechanical coupling
-    std::string _thermalCoupling;
-    HeatEquation _he;
-
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
                                           it_vec dvarBegin,it_vec dvarEnd);

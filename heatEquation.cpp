@@ -425,8 +425,6 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     //~PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
     PetscInt y = Ii/_Nz;
     if (y == 0) {
-      //~PetscInt z = Ii-_Nz*(Ii/_Nz);
-      //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y=%i\n",Ii,y);
       VecGetValues(_k,1,&Ii,&k);
       VecGetValues(sigmaxy,1,&Ii,&s);
       v = -s/k; // s in MPa, k in km^2 kPa/K/s

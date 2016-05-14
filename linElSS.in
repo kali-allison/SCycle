@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered

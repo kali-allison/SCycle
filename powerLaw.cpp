@@ -16,8 +16,7 @@ PowerLaw::PowerLaw(Domain& D)
   _gTxyPV(NULL),_gTxzPV(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
   _gxzPV(NULL),_dgxzPV(NULL),
-  _TV(NULL),_effViscV(NULL),
-  _thermalCoupling("no"),_he(D)
+  _TV(NULL),_effViscV(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::PowerLaw";
@@ -57,6 +56,9 @@ PowerLaw::PowerLaw(Domain& D)
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    _var.pop_back(); // remove temperature
+  }
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
