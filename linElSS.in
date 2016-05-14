@@ -28,7 +28,7 @@ rhoPlus = 3.0 # g/cm^3
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e25 1e25] # GPa s
+viscVals = [1e13 1e13] # GPa s
 viscDepths = [0 24]
 
 #viscDistribution = effectiveVisc
@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -79,5 +79,5 @@ rootTol = 1e-9
 
 
 #outputDir = data/SS_coordTrans_
-#outputDir = data/SS_mfc_wT_
+#outputDir = data/lSS_mfc_wT_
 outputDir = data/mSS_mfc_wT_

@@ -3,7 +3,7 @@
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 : SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
-  _viscDistribution("unspecified"),_visc(NULL),//~_visc(D._visc),
+  _viscDistribution("unspecified"),_visc(NULL),
   _gxyP(NULL),_dgxyP(NULL),
   _gxzP(NULL),_dgxzP(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
@@ -47,16 +47,18 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
+  _var.pop_back(); // remove temperature
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
+
   // if also solving heat equation
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec T;
-    //~ VecDuplicate(_uP,&T);
-    //~ VecCopy(_he._T,T);
-    //~ _var.push_back(T);
-  //~ }
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec T;
+    VecDuplicate(_uP,&T);
+    VecCopy(_he._T,T);
+    _var.push_back(T);
+  }
 
   if (_isMMS) { setMMSInitialConditions(); }
 
@@ -192,18 +194,19 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
 
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,_stressxzP,*(dvarBegin+2),
-      //~ *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,_stressxzP,*(dvarBegin+2),
+      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
       //~ // arguments:
       //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  //~ }
+  }
 
   // lock the fault to test viscous strain alone
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
   //~ VecSet(*(dvarBegin+2),0.0);
   //~ VecSet(*(dvarBegin+3),0.0);
+  //~ VecSet(*(dvarBegin+4),0.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);

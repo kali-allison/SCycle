@@ -472,12 +472,12 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecDestroy(&shearHeat);
   }
 
-  //~//!!! missing h*c term (heat production), also check if need to multiply by 0.5
+  //~//!!! missing h*c term (heat production)
 
   VecPointwiseDivide(dTdt,dTdt,_rho);
   VecPointwiseDivide(dTdt,dTdt,_c);
 
-  //~VecSet(dTdt,0.0);
+  //~ VecSet(dTdt,0.0);
 
 
   #if VERBOSE > 1
