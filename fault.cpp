@@ -38,16 +38,6 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "_slipVel");
   VecSet(_slipVel,0.0);
 
-  #if STATE_PSI == 0
-    VecSet(_state,-2e4);
-    PetscPrintf(PETSC_COMM_WORLD,"here\n");
-  #endif
-  #if STATE_PSI == 1
-    VecSet(_state,0.6);
-  #endif
-
-
-
 
   // frictional fields
   VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "_Dc");

@@ -35,8 +35,6 @@ LinearElastic::LinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
 #endif
 
-
-
   loadSettings(D._file);
 
 
@@ -158,8 +156,9 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "PowerLaw::loadSettings()";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    std::string funcName = "LinearElastic::loadSettings()";
+    std::string FILENAME = "linearElastic.cpp()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
   PetscMPIInt rank,size;
@@ -183,7 +182,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
   return ierr;

@@ -1,5 +1,5 @@
 order = 4
-Ny = 101
+Ny = 51
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -27,13 +27,14 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 # Maxwell properties
-#viscDistribution = layered
-#viscVals = [1e12 1e12] # GPa s
-#viscDepths = [0 24]
+viscDistribution = layered
+viscVals = [1e25 1e25] # GPa s
+viscDepths = [0 24]
 
-viscDistribution = effectiveVisc
-sigmadevVals = [35 35]
-sigmadevDepths = [0 24]
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 24]
+#strainRate = 1e-14
 
 # power law properties
 AVals = [2.2e-6 2.2e-6]
@@ -44,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -68,8 +69,8 @@ timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 1e9       # s
-maxTime = 9e10      # s
+initTime = 1       # s
+maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-7
@@ -78,5 +79,5 @@ rootTol = 1e-9
 
 
 #outputDir = data/SS_coordTrans_
-#outputDir = data/SS_mfc_
-outputDir = data/SS_mfc_wT_
+#outputDir = data/SS_mfc_wT_
+outputDir = data/mSS_mfc_wT_
