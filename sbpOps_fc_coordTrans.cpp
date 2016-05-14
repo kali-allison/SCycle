@@ -5,7 +5,7 @@
 
 //================= constructor and destructor ========================
 SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dq),_dz(D._dr),
+: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
@@ -147,20 +147,33 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
 
   // construct dq/dy and dr/dz
   MatCreate(PETSC_COMM_WORLD,&_qy);
-  MatSetSizes(_qy,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
-  MatSetFromOptions(_qy);
-  MatMPIAIJSetPreallocation(_qy,1,NULL,1,NULL);
-  MatSeqAIJSetPreallocation(_qy,1,NULL);
-  MatSetUp(_qy);
+  MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_qy);
 
   Vec temp;
-  VecDuplicate(_q,&temp);
-  MatMult(_Dy_Iz,_q,temp); // temp = Dy * q
-  ierr = MatDiagonalSet(_qy,temp,INSERT_VALUES);CHKERRQ(ierr);
+  VecDuplicate(*_y,&temp);
+  MatMult(_Dy_Iz,*_y,temp); // temp = Dq * y
+  ierr = MatDiagonalSet(_qy,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
 
   MatDuplicate(_qy,MAT_DO_NOT_COPY_VALUES,&_rz);
-  MatMult(_Iy_Dz,_r,temp); // temp = Dy * q
-  ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr);
+  MatMult(_Iy_Dz,*_z,temp); // temp = Dr * z
+  ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+
+  PetscScalar v=0;
+  PetscInt Ii,Istart,Iend=0;
+  MatGetOwnershipRange(_qy,&Istart,&Iend);
+  for (Ii=Istart+1;Ii<Iend;Ii++) {
+  MatGetValues(_qy,1,&Ii,1,&Ii,&v);
+  v = 1.0/v;
+  MatSetValues(_qy,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+
+  MatGetValues(_rz,1,&Ii,1,&Ii,&v);
+  v = 1.0/v;
+  MatSetValues(_rz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(_qy,MAT_FINAL_ASSEMBLY);
+  MatAssemblyBegin(_rz,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_qy,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_rz,MAT_FINAL_ASSEMBLY);
 
   // modify tempMats factors
   Mat mat;

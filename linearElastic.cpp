@@ -7,7 +7,7 @@ using namespace std;
 LinearElastic::LinearElastic(Domain&D)
 : _delim(D._delim),_inputDir(D._inputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
   _problemType(D._problemType),
   _isMMS(!D._shearDistribution.compare("mms")),
   _outputDir(D._outputDir),

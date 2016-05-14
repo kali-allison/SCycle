@@ -92,6 +92,7 @@ class SbpOps_fc_coordTrans : public SbpOps
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
+    Vec               *_y,*_z;
     Vec              *_muVec;
     Mat              _mu;
 

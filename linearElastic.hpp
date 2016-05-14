@@ -34,6 +34,7 @@ class LinearElastic: public IntegratorContext
     std::string          _inputDir; // directory to load viscosity from
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
+    const Vec            *_y,*_z; // to handle variable grid spacing
     const std::string    _problemType; // symmetric (only y>0) or full
     const bool _isMMS; // true if running mms test
 
