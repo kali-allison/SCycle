@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D)
 : _file(D._file),_delim(D._delim),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(&D._z),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
@@ -125,7 +125,8 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    z = _h*(Ii-_N*(Ii/_N));
+    //~ z = _h*(Ii-_N*(Ii/_N));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
         z0 = depths[0+ind];
@@ -139,50 +140,6 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
-  /*
-
-  // Find the appropriate starting pair of points to interpolate between: (z0,v0) and (z1,v1)
-  z1 = depths.back();
-  depths.pop_back();
-  z0 = depths.back();
-  v1 = vals.back();
-  vals.pop_back();
-  v0 = vals.back();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  z = _h*(Iend-1);
-  while (z<z0) {
-    z1 = depths.back();
-    depths.pop_back();
-    z0 = depths.back();
-    v1 = vals.back();
-    vals.pop_back();
-    v0 = vals.back();
-    //~PetscPrintf(PETSC_COMM_WORLD,"2: z = %g: z0 = %g   z1 = %g   v0 = %g  v1 = %g\n",z,z0,z1,v0,v1);
-  }
-
-
-  for (Ii=Iend-1; Ii>=Istart; Ii--) {
-    z = _h*Ii;
-    if (z==z1) { v = v1; }
-    else if (z==z0) { v = v0; }
-    else if (z>z0 && z<z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-
-    // if z is no longer bracketed by (z0,z1), move on to the next pair of points
-    if (z<=z0) {
-      z1 = depths.back();
-      depths.pop_back();
-      z0 = depths.back();
-      v1 = vals.back();
-      vals.pop_back();
-      v0 = vals.back();
-    }
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-  //~VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
-  */
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
