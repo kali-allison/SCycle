@@ -146,27 +146,35 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   #endif
 
   // construct dq/dy and dr/dz
+  Mat yq,zr;
+  MatCreate(PETSC_COMM_WORLD,&yq);
+  MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&yq);
+  MatCreate(PETSC_COMM_WORLD,&zr);
+  MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&zr);
+
   MatCreate(PETSC_COMM_WORLD,&_qy);
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_qy);
+  MatCreate(PETSC_COMM_WORLD,&_rz);
+  MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_rz);
 
   Vec temp;
   VecDuplicate(*_y,&temp);
   MatMult(_Dy_Iz,*_y,temp); // temp = Dq * y
-  ierr = MatDiagonalSet(_qy,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+  ierr = MatDiagonalSet(yq,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
 
-  MatDuplicate(_qy,MAT_DO_NOT_COPY_VALUES,&_rz);
   MatMult(_Iy_Dz,*_z,temp); // temp = Dr * z
-  ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+  ierr = MatDiagonalSet(zr,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+  VecDestroy(&temp);
 
   PetscScalar v=0;
   PetscInt Ii,Istart,Iend=0;
   MatGetOwnershipRange(_qy,&Istart,&Iend);
   for (Ii=Istart+1;Ii<Iend;Ii++) {
-  MatGetValues(_qy,1,&Ii,1,&Ii,&v);
+  MatGetValues(yq,1,&Ii,1,&Ii,&v);
   v = 1.0/v;
   MatSetValues(_qy,1,&Ii,1,&Ii,&v,INSERT_VALUES);
 
-  MatGetValues(_rz,1,&Ii,1,&Ii,&v);
+  MatGetValues(zr,1,&Ii,1,&Ii,&v);
   v = 1.0/v;
   MatSetValues(_rz,1,&Ii,1,&Ii,&v,INSERT_VALUES);
   }
@@ -174,6 +182,10 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   MatAssemblyBegin(_rz,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(_qy,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(_rz,MAT_FINAL_ASSEMBLY);
+
+  MatView(_qy,PETSC_VIEWER_STDOUT_WORLD);
+  VecView(_y,PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
 
   // modify tempMats factors
   Mat mat;
@@ -190,6 +202,8 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   MatCopy(mat,_Iy_Dz,SAME_NONZERO_PATTERN);
 
   MatDestroy(&mat);
+  MatDestroy(&yq);
+  MatDestroy(&zr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
