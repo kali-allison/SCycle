@@ -184,7 +184,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   MatAssemblyEnd(_rz,MAT_FINAL_ASSEMBLY);
 
   MatView(_qy,PETSC_VIEWER_STDOUT_WORLD);
-  VecView(_y,PETSC_VIEWER_STDOUT_WORLD);
+  VecView(*_y,PETSC_VIEWER_STDOUT_WORLD);
   assert(0);
 
   // modify tempMats factors
