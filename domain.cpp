@@ -14,7 +14,7 @@ Domain::Domain(const char *file)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
-  _q(NULL),_r(NULL),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -748,7 +748,7 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  PetscScalar    v,y,z,csIn,csOut;
+  PetscScalar    v,y,z,r,q,csIn,csOut;
 
   PetscInt *muInds;
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
@@ -761,40 +761,58 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecSetFromOptions(_muVecP);CHKERRQ(ierr);
 
   VecDuplicate(_muVecP,&_csVecP);
-  VecDuplicate(_muVecP,&_csVecP);
+
+  VecDuplicate(_muVecP,&_y); PetscObjectSetName((PetscObject) _y, "y");
+  VecDuplicate(_muVecP,&_z); PetscObjectSetName((PetscObject) _z, "z");
+  VecDuplicate(_muVecP,&_q); PetscObjectSetName((PetscObject) _q, "q");
+  VecDuplicate(_muVecP,&_r); PetscObjectSetName((PetscObject) _r, "r");
 
   // construct coordinate transform
-  VecDuplicate(_muVecP,&_q);
-  VecDuplicate(_muVecP,&_r);
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    PetscScalar b = 1;
-    v = sinh(b*y/_Ly)/sinh(b);
-    //~ v = y;
-    ierr = VecSetValues(_q,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-
-    v = z;
-    ierr = VecSetValues(_r,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    //~ y = _dy*(Ii/_Nz);
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    q = _dq*(Ii/_Nz);
+    r = _dr*(Ii-_Nz*(Ii/_Nz));
+    ierr = VecSetValues(_q,1,&Ii,&q,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_r,1,&Ii,&r,INSERT_VALUES);CHKERRQ(ierr);
+    if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
+      y = q*_Ly;
+      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
+      z = r*_Lz;
+      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+    }
+    else {
+      PetscScalar b = 1;
+      y = sinh(b*q/_Ly)/sinh(b);
+      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
+      z = r*_Lz;
+      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
-  VecAssemblyBegin(_q); VecAssemblyBegin(_r);
-  VecAssemblyEnd(_q); VecAssemblyEnd(_r);
+  VecAssemblyBegin(_q);
+  VecAssemblyBegin(_r);
+  VecAssemblyBegin(_y);
+  VecAssemblyBegin(_z);
+  VecAssemblyEnd(_q);
+  VecAssemblyEnd(_r);
+  VecAssemblyEnd(_y);
+  VecAssemblyEnd(_z);
 
 
 
   // set shear modulus, shear wave speed, and density
   // controls on transition in shear modulus
-  PetscScalar r = 0;
+  r = 0;
   PetscScalar rbar = 0.25*_width*_width;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
   //~ PetscInt Ii,Istart,Iend;
   //~ ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
+    ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
+    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
   //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    y = _dy*(Ii/_Nz);
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 
     if (_shearDistribution.compare("basin")==0) {

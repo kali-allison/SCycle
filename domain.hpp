@@ -45,7 +45,7 @@ class Domain
     PetscScalar *_muArrMinus,*_csArrMinus; // general data containers
 
     // for coordinate transform
-    Vec   _q,_r; // q(y), r(z)
+    Vec   _q,_r,_y,_z; // q(y), r(z)
     PetscScalar _dq,_dr;
 
 

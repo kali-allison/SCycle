@@ -1,5 +1,5 @@
-order = 4
-Ny = 51
+order = 2
+Ny = 5
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
