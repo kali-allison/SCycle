@@ -28,7 +28,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 
   // construct matrix mu
   MatCreate(PETSC_COMM_WORLD,&_mu);
-  MatCreate(PETSC_COMM_WORLD,&_mu);
   MatSetSizes(_mu,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
   MatSetFromOptions(_mu);
   MatMPIAIJSetPreallocation(_mu,1,NULL,1,NULL);
@@ -604,14 +603,8 @@ switch ( _order ) {
       Mat mu3;
       {
         PetscScalar mu=0;
+        MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        MatCreate(PETSC_COMM_WORLD,&mu3);
-        MatSetSizes(mu3,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
-        MatSetFromOptions(mu3);
-        MatMPIAIJSetPreallocation(mu3,1,NULL,1,NULL);
-        MatSeqAIJSetPreallocation(mu3,1,NULL);
-        MatSetUp(mu3);
-        ierr = MatDiagonalSet(mu3,*_muVec,INSERT_VALUES);CHKERRQ(ierr);
         VecGetOwnershipRange(*_muVec,&Istart,&Iend);
         if (Istart==0) {
           Jj = Istart + 1;
@@ -763,14 +756,8 @@ switch ( _order ) {
       Mat mu3;
       {
         PetscScalar mu=0;
+        MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        MatCreate(PETSC_COMM_WORLD,&mu3);
-        MatSetSizes(mu3,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
-        MatSetFromOptions(mu3);
-        MatMPIAIJSetPreallocation(mu3,1,NULL,1,NULL);
-        MatSeqAIJSetPreallocation(mu3,1,NULL);
-        MatSetUp(mu3);
-        ierr = MatDiagonalSet(mu3,*_muVec,INSERT_VALUES);CHKERRQ(ierr);
         VecGetOwnershipRange(*_muVec,&Istart,&Iend);
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;

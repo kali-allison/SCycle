@@ -14,6 +14,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
+#include "heatEquation.hpp"
 
 
 
@@ -29,6 +30,8 @@ class LinearElastic: public IntegratorContext
   protected:
 
     // domain properties
+    std::string          _delim; // format is: var delim value (without the white space)
+    std::string          _inputDir; // directory to load viscosity from
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const std::string    _problemType; // symmetric (only y>0) or full
@@ -62,6 +65,10 @@ class LinearElastic: public IntegratorContext
     PetscScalar          _atol;
     PetscScalar          _initDeltaT;
 
+    // thermomechanical coupling
+    std::string _thermalCoupling;
+    HeatEquation _he;
+
     // viewers
     PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
 
@@ -73,6 +80,7 @@ class LinearElastic: public IntegratorContext
                          _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_stressxyPV,_sigma_xyMinusV;
 
 
+    PetscErrorCode loadSettings(const char *file);
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
 

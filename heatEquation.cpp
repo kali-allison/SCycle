@@ -429,7 +429,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
       //~PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y=%i\n",Ii,y);
       VecGetValues(_k,1,&Ii,&k);
       VecGetValues(sigmaxy,1,&Ii,&s);
-      v = -s/k * 0;
+      v = -s/k; // s in MPa, k in km^2 kPa/K/s
       VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
     }
   }
@@ -457,7 +457,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecCopy(temp,dTdt);
   VecDestroy(&temp);
 
-
+  if (dgxy!=NULL && dgxz!=NULL) {
   // shear heating terms: simgaxy*dgxy + sigmaxz*dgxz (stresses times viscous strain rates)
   Vec shearHeat;
   VecDuplicate(sigmaxy,&shearHeat);
@@ -470,11 +470,13 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     VecAXPY(dTdt,1.0,shearHeat);
   }
   VecDestroy(&shearHeat);
+  }
 
   //~//!!! missing h*c term (heat production), also check if need to multiply by 0.5
 
   VecPointwiseDivide(dTdt,dTdt,_rho);
   VecPointwiseDivide(dTdt,dTdt,_c);
+
   //~VecSet(dTdt,0.0);
 
 

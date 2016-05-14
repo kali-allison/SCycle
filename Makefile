@@ -79,7 +79,7 @@ iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContext.hpp odeSolver.hpp \
 linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp fault.hpp \
- rootFinderContext.hpp rootFinder.hpp
+ rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  integratorContext.hpp odeSolver.hpp sbpOps_c.hpp debuggingFuncs.hpp \

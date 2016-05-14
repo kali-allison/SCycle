@@ -1,5 +1,5 @@
 order = 4
-Ny = 11
+Ny = 101
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -44,7 +44,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -52,30 +52,31 @@ kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 24]
 hVals = [0 0]
 hDepths = [0 24]
-cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite
 cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
 
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
+sbpType = mfc
+#sbpType = mfc_coordTrans
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1 # how many steps between writing out 1D fields
-stride2D = 1 # how many steps between writing out 2D fields
+stride1D = 10 # how many steps between writing out 1D fields
+stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 1e9       # s
-maxTime = 1e11      # s
+maxTime = 9e10      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s
+maxDeltaT = 1e9      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-outputDir = data/SS_coordTrans_
+#outputDir = data/SS_coordTrans_
 #outputDir = data/SS_mfc_
+outputDir = data/SS_mfc_wT_
