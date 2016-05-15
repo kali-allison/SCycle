@@ -427,7 +427,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     if (y == 0) {
       VecGetValues(_k,1,&Ii,&k);
       VecGetValues(sigmaxy,1,&Ii,&s);
-      v = -s/k; // s in MPa, k in km^2 kPa/K/s
+      v = -s/k*0; // s in MPa, k in km^2 kPa/K/s
       VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);
     }
   }
@@ -449,6 +449,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecDuplicate(T,&rhs);
   ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
   ierr = VecAXPY(dTdt,-1.0,rhs);CHKERRQ(ierr);
+  VecDestroy(&rhs);
 
   Vec temp;
   VecDuplicate(dTdt,&temp);
