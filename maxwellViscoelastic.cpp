@@ -415,13 +415,14 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
 
     // enforce traction boundary condition
     Vec temp1,bcT,bcB;
-    VecDuplicate(_gxzP,&temp1); VecSet(temp1,0.0);
+    //~ VecDuplicate(_gxzP,&temp1); VecSet(temp1,0.0);
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
 
     _sbpP->HzinvxE0z(_gxzP,temp1);
     //~ ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
     ierr = VecPointwiseMult(bcT,_muVecP,temp1); CHKERRQ(ierr);
+    VecDestroy(&temp1);
 
     _sbpP->HzinvxENz(_gxzP,temp1);
     //~ ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);

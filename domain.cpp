@@ -811,8 +811,10 @@ PetscErrorCode Domain::setFieldsPlus()
   //~ PetscInt Ii,Istart,Iend;
   //~ ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=0;Ii<_Ny*_Nz;Ii++) {
-    ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
-    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    y = _dy*(Ii/_Nz);
+    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~ ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
+    //~ ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
   //~ for (Ii=Istart;Ii<Iend;Ii++) {
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 

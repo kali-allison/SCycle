@@ -439,6 +439,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecCopy(slipVel,absVel);
   VecAbs(absVel);
   VecPointwiseMult(_bcL,_bcL,absVel);
+  VecDestroy(absVel);
 
   Mat A;
   MatCreate(PETSC_COMM_WORLD,&A);
