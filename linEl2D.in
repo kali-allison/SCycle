@@ -93,5 +93,5 @@ rootTol = 1e-9
 #outputDir = data/nehrp/sR1e-14_0SAT_wT_
 #outputDir = data/nehrp/m_wSAT_wT_
 
-outputDir = data/m_mfc_wT_
-#outputDir = data/test_
+#outputDir = data/nehrp/m_mfc_wT_
+outputDir = data/test_
