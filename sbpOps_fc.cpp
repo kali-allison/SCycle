@@ -40,7 +40,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
     // end of constructor to save on memory usage.
 
     TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
-/*
+
     // reset SAT params
     if (_order==4) {
       _alphaDy = -48.0/17.0 /_dy;
@@ -51,6 +51,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
     constructHinv(tempFactors);
     construct1stDerivs(tempFactors);
     satBoundaries(tempFactors);
+
     constructA(tempFactors);
 
     MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
@@ -73,7 +74,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 
     Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
-*/
 
 
 
@@ -735,7 +735,7 @@ switch ( _order ) {
         #endif
       }
 
-      // Rymu = (D2y_Iz^T x C2y_Iz x mu x D2y_Iz)/4/dy^3;
+      //~ // Rymu = (D2y_Iz^T x C2y_Iz x mu x D2y_Iz)/4/dy^3;
       Mat temp;
       ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMatMult(temp,_mu,D2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
@@ -941,7 +941,6 @@ PetscErrorCode SbpOps_fc::constructHinv(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  MatCreate(PETSC_COMM_WORLD,&_Hinv);
   MatDuplicate(_H,MAT_DO_NOT_COPY_VALUES,&_Hinv);
   if (_Ny > 1 && _Nz > 1) {
     MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
@@ -1019,7 +1018,6 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
 
     // compute A
-    MatDestroy(&_A);
     ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
     ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 

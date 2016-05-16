@@ -358,26 +358,17 @@ int runEqCycle(const char * inputFile)
   Domain domain(inputFile);
   domain.write();
 
-  SymmFault obj(domain);
-  //~ obj.writeContext(domain._outputDir);
-  //~ obj.writeStep(domain._outputDir,1);
-  //~ obj.writeStep(domain._outputDir,2);
-
-  SbpOps_fc sbp(domain,domain._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
-
-  //~ RK32 _quadrature(domain._maxStepCount,domain._maxTime,domain._initDeltaT,domain._timeControlType);
-
-  //~ LinearElastic *obj;
-  //~ if (domain._problemType.compare("symmetric")==0) {
-    //~ obj = new SymmLinearElastic(domain);
-  //~ }
-  //~ else {
-    //~ obj = new FullLinearElastic(domain);
-  //~ }
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
-  //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
-  //~ ierr = obj->integrate();CHKERRQ(ierr);
+  LinearElastic *obj;
+  if (domain._problemType.compare("symmetric")==0) {
+    obj = new SymmLinearElastic(domain);
+  }
+  else {
+    obj = new FullLinearElastic(domain);
+  }
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = obj->writeStep1D();CHKERRQ(ierr);
+  ierr = obj->writeStep2D();CHKERRQ(ierr);
+  ierr = obj->integrate();CHKERRQ(ierr);
   //~ ierr = obj->view();CHKERRQ(ierr);
   return ierr;
 }

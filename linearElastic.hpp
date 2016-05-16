@@ -56,6 +56,7 @@ class LinearElastic: public IntegratorContext
     PetscScalar          _kspTol;
 
     SbpOps               *_sbpP;
+    std::string           _sbpType;
 
     // time stepping data
     std::string          _timeIntegrator;

@@ -13,7 +13,8 @@ HeatEquation::HeatEquation(Domain& D)
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
   _TV(NULL),_vw(NULL),
   _sbpT(NULL),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
+  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
+  _T(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::HeatEquation";
@@ -58,6 +59,8 @@ HeatEquation::HeatEquation(Domain& D)
     _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     computeSteadyStateTemp();
     setBCs(); // update bcR with geotherm
+    (*_sbpT).~SbpOps_fc();
+    //~ delete _sbpT;
   }
   _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
@@ -73,9 +76,18 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_c);
   VecDestroy(&_h);
 
+  VecDestroy(&_T);
+
+  VecDestroy(&_bcL);
+  VecDestroy(&_bcR);
+  VecDestroy(&_bcT);
+  VecDestroy(&_bcB);
+
   PetscViewerDestroy(&_TV);
   PetscViewerDestroy(&_vw);
 
+  (*_sbpT).~SbpOps_fc();
+  //~ delete _sbpT;
 }
 
 
