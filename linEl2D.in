@@ -1,6 +1,6 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 51
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
@@ -72,9 +72,9 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
+stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 5
 initTime = 10       # s
 maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
@@ -93,5 +93,5 @@ rootTol = 1e-9
 #outputDir = data/nehrp/sR1e-14_0SAT_wT_
 #outputDir = data/nehrp/m_wSAT_wT_
 
-outputDir = data/m_mfc_wT_
+outputDir = data/m_wT_0bcL_
 #outputDir = data/test_
