@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N m_mfc_wT
+#PBS -N m_mfc_wT_wbcL
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/nehrp/m_mfc_wT.err
-#PBS -o /data/dunham/kallison/eqcycle/data/nehrp/m_mfc_wT.out
+#PBS -e /data/dunham/kallison/eqcycle/data/nehrp/m_mfc_wT_wbcL.err
+#PBS -o /data/dunham/kallison/eqcycle/data/nehrp/m_mfc_wT_wbcL.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

@@ -40,7 +40,7 @@ rhoPlus = 3.0 # g/cm^3
 viscDistribution = effectiveVisc
 sigmadevVals = [35 35]
 sigmadevDepths = [0 50]
-strainRate = 1e-11
+strainRate = 1e-14
 
 # power law properties
 AVals = [1e-9 2.1e-9]
@@ -94,4 +94,6 @@ rootTol = 1e-9
 #outputDir = data/nehrp/m_wSAT_wT_
 
 #outputDir = data/nehrp/m_mfc_wT_
-outputDir = data/test_
+#outputDir = data/nehrp/m_mfc_wT_0bcL_
+outputDir = data/nehrp/m_mfc_wT_wbcL_
+#outputDir = data/test_
