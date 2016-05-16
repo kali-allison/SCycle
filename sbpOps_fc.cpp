@@ -36,11 +36,11 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   MatDiagonalSet(_mu,*_muVec,INSERT_VALUES);
 
 
-    /* NOT a member of this class, contains stuff to be deleted before
-     * end of constructor to save on memory usage.
-     */
-    TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+    // NOT a member of this class, contains stuff to be deleted before
+    // end of constructor to save on memory usage.
 
+    TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+/*
     // reset SAT params
     if (_order==4) {
       _alphaDy = -48.0/17.0 /_dy;
@@ -73,6 +73,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 
     Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
+*/
 
 
 
@@ -88,6 +89,7 @@ SbpOps_fc::~SbpOps_fc()
 #endif
 
   MatDestroy(&_H);
+  MatDestroy(&_Hinv);
 
   // final operator A
   MatDestroy(&_A);
@@ -100,6 +102,8 @@ SbpOps_fc::~SbpOps_fc()
 
   MatDestroy(&_Dy_Iz);
   MatDestroy(&_Iy_Dz);
+
+  MatDestroy(&_mu);
 
   MatDestroy(&_Hyinv_Iz);
   MatDestroy(&_Iy_Hzinv);
@@ -1897,27 +1901,15 @@ TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
       const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
   _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
+  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz),
+  _muxBSy_Iz(NULL),_Hyinv_Iz(NULL),_muxIy_BSz(NULL),_Iy_Hzinv(NULL),
+  _AL(NULL),_AR(NULL),_AT(NULL),_AB(NULL),_H(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
 #endif
 
   _mu = mu; // shallow copy
-
-  // so the destructor can run happily
-  MatCreate(PETSC_COMM_WORLD,&_muxBSy_Iz);
-  MatCreate(PETSC_COMM_WORLD,&_Hyinv_Iz);
-
-  MatCreate(PETSC_COMM_WORLD,&_muxIy_BSz);
-  MatCreate(PETSC_COMM_WORLD,&_Iy_Hzinv);
-
-  MatCreate(PETSC_COMM_WORLD,&_AL);
-  MatCreate(PETSC_COMM_WORLD,&_AR);
-  MatCreate(PETSC_COMM_WORLD,&_AT);
-  MatCreate(PETSC_COMM_WORLD,&_AB);
-
-  MatCreate(PETSC_COMM_WORLD,&_H);
 
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
@@ -2005,6 +1997,7 @@ TempMats_fc::~TempMats_fc()
   MatDestroy(&_AB);
 
   MatDestroy(&_H);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");

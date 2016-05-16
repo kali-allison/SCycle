@@ -169,11 +169,23 @@ Domain::~Domain()
   PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
-  //~ VecDestroy(&_csVecP);
+
+  VecDestroy(&_csVecP);
   //~ VecDestroy(&_rhoVecP);
 
   VecDestroy(&_q);
   VecDestroy(&_r);
+  VecDestroy(&_y);
+  VecDestroy(&_z);
+
+  DMDestroy(&_da);
+
+  VecDestroy(&_muVecM);
+
+  //~ DM _da;
+    //~ Vec _muVecP; // vector version of shear modulus
+    //~ Vec _csVecP,_rhoVecP;
+    //~ Vec          _muVecM;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");

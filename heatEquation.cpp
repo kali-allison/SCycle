@@ -442,7 +442,6 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecDestroy(&absVel);
 
   Mat A;
-  MatCreate(PETSC_COMM_WORLD,&A);
   _sbpT->getA(A);
   ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
   Vec rhs;
