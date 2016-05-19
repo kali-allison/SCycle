@@ -373,7 +373,7 @@ int testMemoryLeak(const char * inputFile)
   SymmLinearElastic sle(d);
   sle.writeStep1D();
   sle.writeStep2D();
-  //~ ierr = sle.integrate();CHKERRQ(ierr);
+  ierr = sle.integrate();CHKERRQ(ierr);
   //~ ierr = obj->view();CHKERRQ(ierr);
   return ierr;
 }

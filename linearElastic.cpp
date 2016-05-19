@@ -142,7 +142,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
 
   delete _sbpP;
-  //~ delete _quadrature;
+  delete _quadrature;
 
 
   PetscViewerDestroy(&_bcRPlusV);

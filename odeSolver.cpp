@@ -177,22 +177,22 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 
 RK32::~RK32()
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
-#endif
+//~ #if VERBOSE > 1
+  //~ PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
+//~ #endif
 
-PetscPrintf(PETSC_COMM_WORLD,"%i\n\n",_lenVar);
-assert(0);
-  // destruct temporary containers
-  for (int ind=0;ind<_lenVar;ind++) {
-    VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
-    VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
-    VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
-    VecDestroy(&_var3rd[ind]);
-  }
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
-#endif
+//~ PetscPrintf(PETSC_COMM_WORLD,"%i\n\n",_lenVar);
+//~ assert(0);
+  //~ // destruct temporary containers
+  //~ for (int ind=0;ind<_lenVar;ind++) {
+    //~ VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
+    //~ VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
+    //~ VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
+    //~ VecDestroy(&_var3rd[ind]);
+  //~ }
+//~ #if VERBOSE > 1
+  //~ PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
+//~ #endif
 }
 
 PetscErrorCode RK32::view()
@@ -506,6 +506,17 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
     }
 
     ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
+  }
+
+    // destruct temporary containers
+  for (int ind=0;ind<_lenVar;ind++) {
+    VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
+    VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
+    VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
+    VecDestroy(&_var3rd[ind]);
+  }
+  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    VecDestroy(&_dvar[i]);
   }
 
   _runTime += MPI_Wtime() - startTime;
