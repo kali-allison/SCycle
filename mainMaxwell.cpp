@@ -37,6 +37,9 @@ int runTests(const char * inputFile)
   //~ lith.view();
 
   SymmMaxwellViscoelastic max(d);
+  max.writeStep1D();
+  max.writeStep2D();
+  max.integrate();
 
 
   return ierr;
