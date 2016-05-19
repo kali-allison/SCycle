@@ -1,4 +1,4 @@
-all: mainMaxwell
+all: main
 
 DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)

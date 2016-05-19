@@ -53,12 +53,15 @@ PowerLaw::PowerLaw(Domain& D)
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
 
+  // remove temperature from integration variable
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec  vec = * (_var.end() - 1);
+    VecDestroy(&vec);
+  _var.pop_back();
+  }
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    _var.pop_back(); // remove temperature
-  }
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
@@ -84,6 +87,14 @@ PowerLaw::~PowerLaw()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  VecDestroy(&_bcRPShift);
+  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    VecDestroy(&_var[i]);
+  }
+
+
+  VecDestroy(&_effVisc);
+  VecDestroy(&_T);
 
   VecDestroy(&_A);
   VecDestroy(&_n);
@@ -108,8 +119,9 @@ PowerLaw::~PowerLaw()
   PetscViewerDestroy(&_gxzPV);
   PetscViewerDestroy(&_dgxyPV);
   PetscViewerDestroy(&_dgxzPV);
-  //~PetscViewerDestroy(&_TV);
+  PetscViewerDestroy(&_effViscV);
 
+  //~ PetscViewerDestroy(&_timeV2D);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -855,13 +867,6 @@ PetscErrorCode PowerLaw::writeStep1D()
     //~ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
-              FILE_MODE_WRITE,&_effViscV);CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_effViscV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
-                                   FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
