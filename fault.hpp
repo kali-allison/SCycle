@@ -50,6 +50,7 @@ class Fault: public RootFinderContext
 
     Vec            _zP;
     PetscScalar   *_muArrPlus,*_csArrPlus;
+    Vec           *_muVecP,*_csVecP;
     Vec            _slip,_slipVel;
 
     // viewers

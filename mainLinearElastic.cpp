@@ -351,6 +351,37 @@ int runTimingTest(const char * inputFile)
 }
 
 
+int testMemoryLeak(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain d(inputFile);
+  d.write();
+
+  //~ SymmFault fault(d);
+  //~ fault.writeContext(d._outputDir);
+  //~ fault.writeStep(d._outputDir,0);
+  //~ fault.writeStep(d._outputDir,1);
+
+  //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+
+  //~ HeatEquation he(d);
+  //~ he.writeContext(d._outputDir);
+  //~ he.writeStep2D(0);
+  //~ he.writeStep2D(1);
+
+  SymmLinearElastic sle(d);
+  //~ sle.writeStep1D();
+  //~ sle.writeStep1D();
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
+  //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
+  //~ ierr = obj->integrate();CHKERRQ(ierr);
+  //~ ierr = obj->view();CHKERRQ(ierr);
+  return ierr;
+}
+
+
 int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
@@ -369,7 +400,7 @@ int runEqCycle(const char * inputFile)
   ierr = obj->writeStep1D();CHKERRQ(ierr);
   ierr = obj->writeStep2D();CHKERRQ(ierr);
   ierr = obj->integrate();CHKERRQ(ierr);
-  ierr = obj->view();CHKERRQ(ierr);
+  //~ ierr = obj->view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -384,11 +415,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  {
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
-  }
+  //~ {
+    //~ Domain domain(inputFile);
+    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
+  //~ }
+
+  testMemoryLeak(inputFile);
 
   //~runTests1D();
   //~runTests2D();

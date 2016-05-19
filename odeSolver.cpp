@@ -27,8 +27,6 @@ OdeSolver::~OdeSolver()
 #endif
 
   // because I don't allocate the contents of _var, I don't delete them in this class either
-  //~for_each(_var.begin(),_var.end(),DeleteVecObject()); // from Effective STL
-  //~for_each(_dvar.begin(),_dvar.end(),DeleteVecObject());
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver destructor in odeSolver.cpp.\n");
@@ -182,6 +180,9 @@ RK32::~RK32()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
 #endif
+
+PetscPrintf(PETSC_COMM_WORLD,"%i\n\n",_lenVar);
+assert(0);
   // destruct temporary containers
   for (int ind=0;ind<_lenVar;ind++) {
     VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);

@@ -23,7 +23,7 @@ class SbpOps
 
   public:
     SbpOps(){};
-    ~SbpOps(){};
+    virtual ~SbpOps(){};
 
     // don't want _A to belong to the abstract class
     virtual PetscErrorCode getA(Mat &mat) = 0;

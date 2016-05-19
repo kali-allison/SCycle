@@ -1,6 +1,6 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 51
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
@@ -76,7 +76,7 @@ stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 10       # s
-maxTime = 1e13      # s
+maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e6      # s
 atol = 1e-7
@@ -84,16 +84,7 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/nehrp/test_wSAT_
-#outputDir = data/nehrp/sR1e-11_
-#outputDir = data/nehrp/sR1e-11_wSAT_wT_
-#outputDir = data/nehrp/sR1e-11_0SAT_wT_
-#outputDir = data/nehrp/sR1e-11_0SAT_wT_q0_
-#outputDir = data/nehrp/p_wSAT_wT_q0_
-#outputDir = data/nehrp/sR1e-14_0SAT_wT_
-#outputDir = data/nehrp/m_wSAT_wT_
-
-#outputDir = data/nehrp/m_mfc_wT_
-#outputDir = data/nehrp/m_mfc_wT_0bcL_
-outputDir = data/nehrp/m_mfc_wT_wbcL_
-#outputDir = data/test_
+#outputDir = data/nehrp/m_wT_0bcL_
+#outputDir = data/nehrp/m_nT_
+#outputDir = data/nehrp/m_wT_wbcL_
+outputDir = data/test_

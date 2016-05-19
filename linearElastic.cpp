@@ -17,7 +17,7 @@ LinearElastic::LinearElastic(Domain&D)
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),
-  _sbpP(NULL),
+  _sbpP(NULL),_sbpType(D._sbpType),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
@@ -109,8 +109,6 @@ LinearElastic::LinearElastic(Domain&D)
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
 
-
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");
 #endif
@@ -128,6 +126,7 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcRP);
   VecDestroy(&_bcTP);
   VecDestroy(&_bcBP);
+  VecDestroy(&_bcRPShift);
 
   // body fields
   VecDestroy(&_rhsP);
@@ -142,7 +141,21 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_surfDispPlusViewer);
   PetscViewerDestroy(&_uPV);
 
-  VecDestroy(&_bcRPShift);
+  delete _sbpP;
+  //~ delete _quadrature;
+
+  PetscViewerDestroy(&_bcRPlusV);
+  PetscViewerDestroy(&_bcRMinusV);
+  PetscViewerDestroy(&_bcRMinusShiftV);
+  PetscViewerDestroy(&_bcRMlusShiftV);
+  PetscViewerDestroy(&_bcLPlusV);
+  PetscViewerDestroy(&_bcLMinusV);
+  PetscViewerDestroy(&_uAnalV);
+  PetscViewerDestroy(&_uMinusV);
+  PetscViewerDestroy(&_rhsPlusV);
+  PetscViewerDestroy(&_rhsMinusV);
+  PetscViewerDestroy(&_stressxyPV);
+  PetscViewerDestroy(&_sigma_xyMinusV);
 
 
 #if VERBOSE > 1
@@ -404,6 +417,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
 #endif
 
+
   VecDuplicate(_rhsP,&_stressxyP);
 
   Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
@@ -451,7 +465,9 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_bcRPShift);
-  // delete stuff in _var
+  //~ for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    //~ VecDestroy(&_var[i]);
+  //~ }
 };
 
 

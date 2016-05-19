@@ -20,7 +20,7 @@ Domain::Domain(const char *file)
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVecP(NULL),_muVecM(NULL)
+  _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -169,11 +169,23 @@ Domain::~Domain()
   PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
-  //~ VecDestroy(&_csVecP);
+
+  VecDestroy(&_csVecP);
   //~ VecDestroy(&_rhoVecP);
 
   VecDestroy(&_q);
   VecDestroy(&_r);
+  VecDestroy(&_y);
+  VecDestroy(&_z);
+
+  DMDestroy(&_da);
+
+  VecDestroy(&_muVecM);
+
+  //~ DM _da;
+    //~ Vec _muVecP; // vector version of shear modulus
+    //~ Vec _csVecP,_rhoVecP;
+    //~ Vec          _muVecM;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -750,10 +762,10 @@ PetscErrorCode Domain::setFieldsPlus()
 
   PetscScalar    v,y,z,r,q,csIn,csOut;
 
-  PetscInt *muInds;
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
+  //~ PetscInt *muInds;
+  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
+  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
+  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_muVecP);CHKERRQ(ierr);
@@ -771,8 +783,7 @@ PetscErrorCode Domain::setFieldsPlus()
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ y = _dy*(Ii/_Nz);
-    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+
     q = _dq*(Ii/_Nz);
     r = _dr*(Ii-_Nz*(Ii/_Nz));
     ierr = VecSetValues(_q,1,&Ii,&q,INSERT_VALUES);CHKERRQ(ierr);
@@ -786,9 +797,13 @@ PetscErrorCode Domain::setFieldsPlus()
     else {
       //~ PetscScalar b = 1;
       //~ y = sinh(b*q/_Ly)/sinh(b);
-      y = q*_Ly;
+      //~ y = q*_Ly;
+      //~ z = r*_Lz;
+
+      y = _dy*(Ii/_Nz);
+      z = _dz*(Ii-_Nz*(Ii/_Nz));
+
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      z = r*_Lz;
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -809,57 +824,58 @@ PetscErrorCode Domain::setFieldsPlus()
   PetscScalar rbar = 0.25*_width*_width;
   PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
   //~ PetscInt Ii,Istart,Iend;
-  //~ ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=0;Ii<_Ny*_Nz;Ii++) {
-    y = _dy*(Ii/_Nz);
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    //~ ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
-    //~ ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+  ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar mu,cs = 0;
+  //~ for (Ii=0;Ii<_Ny*_Nz;Ii++) {
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ y = _dy*(Ii/_Nz);
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
+    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+
     r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
 
     if (_shearDistribution.compare("basin")==0) {
-      v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
+      //~ v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
 
       csIn = sqrt(_muInPlus/_rhoInPlus);
       csOut = sqrt(_muOutPlus/_rhoOutPlus);
-      v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
-      _csArrPlus[Ii] = v;
+      //~ v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
+      //~ _csArrPlus[Ii] = v;
+      cs =  0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
 
-      v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
+      //~ v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
+      mu = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
     }
     else if (_shearDistribution.compare("constant")==0) {
-      _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
-      v = _muValPlus;
+      //~ _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
+      //~ v = _muValPlus;
+      cs = sqrt(_muValPlus/_rhoValPlus);
+      mu = _muValPlus;
     }
     else if (_shearDistribution.compare("gradient")==0) {
-       _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
-      v = Ii+2;
+      //~ _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
+      //~ v = Ii+2;
+      cs = sqrt(_muValPlus/_rhoValPlus);
+      mu = Ii+2;
     }
     else if (_shearDistribution.compare("mms")==0) {
-      v = MMS_mu(y,z);
-       _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
+      //~ v = MMS_mu(y,z);
+      //~ _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
+      mu = MMS_mu(y,z);
+      cs = sqrt(v/_rhoValPlus);
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
       assert(0); // automatically fail
     }
-    _muArrPlus[Ii] = v;
-    muInds[Ii] = Ii;
-
+    //~ _muArrPlus[Ii] = v;
+    //~ muInds[Ii] = Ii;
+    ierr = VecSetValues(_muVecP,1,&Ii,&mu,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_csVecP,1,&Ii,&cs,INSERT_VALUES);CHKERRQ(ierr);
   }
-
-  ierr = VecSetValues(_muVecP,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_muVecP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_muVecP);CHKERRQ(ierr);
-  PetscFree(muInds);
-
-  //~ ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  //~ ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
-  //~ ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSetUp(_muP);CHKERRQ(ierr);
-  //~ ierr = MatDiagonalSet(_muP,_muVecP,INSERT_VALUES);CHKERRQ(ierr);
 
 
 /*
@@ -985,15 +1001,6 @@ PetscErrorCode Domain::setFieldsMinus()
   ierr = VecSetValues(_muVecM,_Ny*_Nz,muInds,_muArrMinus,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_muVecM);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_muVecM);CHKERRQ(ierr);
-
-  //~ ierr = MatSetSizes(_muM,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  //~ ierr = MatSetFromOptions(_muM);CHKERRQ(ierr);
-  //~ ierr = MatMPIAIJSetPreallocation(_muM,1,NULL,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSeqAIJSetPreallocation(_muM,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSetUp(_muM);CHKERRQ(ierr);
-  //~ ierr = MatDiagonalSet(_muM,muVec,INSERT_VALUES);CHKERRQ(ierr);
-
-  PetscFree(muInds);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFields in domain.cpp.\n");CHKERRQ(ierr);

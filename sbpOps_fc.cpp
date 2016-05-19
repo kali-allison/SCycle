@@ -12,7 +12,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   _Hyinv_Iz(NULL),_Iy_Hzinv(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL),
   _E0y_Iz(NULL),_ENy_Iz(NULL),_Iy_E0z(NULL),_Iy_ENz(NULL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
-  _debugFolder("./matlabAnswers/"),_H(NULL),_A(NULL),
+  _debugFolder("./matlabAnswers/"),_H(NULL),_Hinv(NULL),_A(NULL),
   _Dy_Iz(NULL),_Iy_Dz(NULL)
 {
 #if VERBOSE > 1
@@ -36,9 +36,9 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   MatDiagonalSet(_mu,*_muVec,INSERT_VALUES);
 
 
-    /* NOT a member of this class, contains stuff to be deleted before
-     * end of constructor to save on memory usage.
-     */
+    // NOT a member of this class, contains stuff to be deleted before
+    // end of constructor to save on memory usage.
+
     TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
     // reset SAT params
@@ -51,6 +51,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
     constructHinv(tempFactors);
     construct1stDerivs(tempFactors);
     satBoundaries(tempFactors);
+
     constructA(tempFactors);
 
     MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
@@ -88,6 +89,7 @@ SbpOps_fc::~SbpOps_fc()
 #endif
 
   MatDestroy(&_H);
+  MatDestroy(&_Hinv);
 
   // final operator A
   MatDestroy(&_A);
@@ -100,6 +102,8 @@ SbpOps_fc::~SbpOps_fc()
 
   MatDestroy(&_Dy_Iz);
   MatDestroy(&_Iy_Dz);
+
+  MatDestroy(&_mu);
 
   MatDestroy(&_Hyinv_Iz);
   MatDestroy(&_Iy_Hzinv);
@@ -731,7 +735,7 @@ switch ( _order ) {
         #endif
       }
 
-      // Rymu = (D2y_Iz^T x C2y_Iz x mu x D2y_Iz)/4/dy^3;
+      //~ // Rymu = (D2y_Iz^T x C2y_Iz x mu x D2y_Iz)/4/dy^3;
       Mat temp;
       ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       ierr = MatMatMatMult(temp,_mu,D2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
@@ -859,12 +863,11 @@ PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
   // mu*kron(Iy,Hz)
   Mat muxIy_Hz = NULL;
   {
-    //~Spmat muxIy_HzS(_Ny*_Nz,_Ny*_Nz);
-    //~muxIy_HzS = kron(tempMats._Iy,tempMats._Hz);
-    //~muxIy_HzS.convert(muxIy_Hz,1);
-    kronConvert(tempMats._Iy,tempMats._Hz,muxIy_Hz,1,1);
-    ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
-    ierr = MatMatMult(_mu,muxIy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
+    Mat Iy_Hz = NULL;
+    kronConvert(tempMats._Iy,tempMats._Hz,Iy_Hz,1,1);
+    ierr = MatMatMult(_mu,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
+     ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
+    MatDestroy(&Iy_Hz);
     #if DEBUG > 0
       ierr = checkMatrix(&muxIy_Hz,_debugFolder,"muxIy_Hz");CHKERRQ(ierr);
     #endif
@@ -937,11 +940,8 @@ PetscErrorCode SbpOps_fc::constructHinv(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  MatCreate(PETSC_COMM_WORLD,&_Hinv);
-  MatDuplicate(_H,MAT_DO_NOT_COPY_VALUES,&_Hinv);
   if (_Ny > 1 && _Nz > 1) {
     MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
-
   }
   else if (_Nz == 1) { MatCopy(tempMats._Hyinv_Iz,_Hinv,SAME_NONZERO_PATTERN); }
   else if (_Ny == 1) { MatCopy(tempMats._Iy_Hzinv,_Hinv,SAME_NONZERO_PATTERN); }
@@ -1006,16 +1006,13 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
 #endif
 
   if (_type.compare("yz")==0) {
-    Mat D2ymu;
+    Mat D2ymu = NULL;
     ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
 
-    Mat D2zmu;
+    Mat D2zmu = NULL;
     ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
 
     // compute A
-    MatDestroy(&_A);
     ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
     ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
@@ -1070,14 +1067,14 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
 
 
 
-  // if using H A uhat = H rhs
-  Mat temp;
-  ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-  ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatDestroy(&temp);CHKERRQ(ierr);
-  ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
+  //~ // if using H A uhat = H rhs
+  //~ Mat temp;
+  //~ ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  //~ ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  //~ ierr = MatDestroy(&temp);CHKERRQ(ierr);
+  //~ ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
 
-  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+  //~ ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
 
 
   //~MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
@@ -1897,27 +1894,15 @@ TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
       const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
   _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
+  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz),
+  _muxBSy_Iz(NULL),_Hyinv_Iz(NULL),_muxIy_BSz(NULL),_Iy_Hzinv(NULL),
+  _AL(NULL),_AR(NULL),_AT(NULL),_AB(NULL),_H(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
 #endif
 
   _mu = mu; // shallow copy
-
-  // so the destructor can run happily
-  MatCreate(PETSC_COMM_WORLD,&_muxBSy_Iz);
-  MatCreate(PETSC_COMM_WORLD,&_Hyinv_Iz);
-
-  MatCreate(PETSC_COMM_WORLD,&_muxIy_BSz);
-  MatCreate(PETSC_COMM_WORLD,&_Iy_Hzinv);
-
-  MatCreate(PETSC_COMM_WORLD,&_AL);
-  MatCreate(PETSC_COMM_WORLD,&_AR);
-  MatCreate(PETSC_COMM_WORLD,&_AT);
-  MatCreate(PETSC_COMM_WORLD,&_AB);
-
-  MatCreate(PETSC_COMM_WORLD,&_H);
 
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
@@ -2005,6 +1990,7 @@ TempMats_fc::~TempMats_fc()
   MatDestroy(&_AB);
 
   MatDestroy(&_H);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");

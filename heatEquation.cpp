@@ -13,7 +13,8 @@ HeatEquation::HeatEquation(Domain& D)
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
   _TV(NULL),_vw(NULL),
   _sbpT(NULL),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
+  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
+  _T(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::HeatEquation";
@@ -31,7 +32,6 @@ HeatEquation::HeatEquation(Domain& D)
   VecSet(_bcT,_TVals[0]);
 
   VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
-  //~VecSet(_bcB,1643.0);
   VecSet(_bcB,_TVals.back());
 
 
@@ -58,6 +58,8 @@ HeatEquation::HeatEquation(Domain& D)
     _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     computeSteadyStateTemp();
     setBCs(); // update bcR with geotherm
+    //~ (*_sbpT).~SbpOps_fc();
+    delete _sbpT;
   }
   _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
@@ -73,9 +75,18 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_c);
   VecDestroy(&_h);
 
+  VecDestroy(&_T);
+
+  VecDestroy(&_bcL);
+  VecDestroy(&_bcR);
+  VecDestroy(&_bcT);
+  VecDestroy(&_bcB);
+
   PetscViewerDestroy(&_TV);
   PetscViewerDestroy(&_vw);
 
+
+  delete _sbpT;
 }
 
 
@@ -362,7 +373,6 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     KSPCreate(PETSC_COMM_WORLD,&ksp);
 
     Mat A;
-    MatCreate(PETSC_COMM_WORLD,&A);
     _sbpT->getA(A);
 
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
@@ -384,6 +394,9 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
 
     ierr = KSPSolve(ksp,rhs,_T);CHKERRQ(ierr);
+
+    VecDestroy(&rhs);
+    KSPDestroy(&ksp);
   }
   else {
     // set each field using it's vals and depths std::vectors
@@ -395,6 +408,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     }
   }
   //~ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -442,7 +456,6 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecDestroy(&absVel);
 
   Mat A;
-  MatCreate(PETSC_COMM_WORLD,&A);
   _sbpT->getA(A);
   ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
   Vec rhs;

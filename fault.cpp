@@ -15,7 +15,8 @@ Fault::Fault(Domain&D)
   _a(NULL),_b(NULL),_Dc(NULL),
   _state(NULL),_dPsi(NULL),
   _sigma_N(NULL),
-  _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_slip(NULL),_slipVel(NULL),
+  _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_muVecP(&D._muVecP),_csVecP(&D._csVecP),
+  _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
   _stateViewer(NULL),
   _tauQSP(NULL)
@@ -87,7 +88,6 @@ Fault::~Fault()
   // fields that exist on the fault
   VecDestroy(&_tauQSP);
   VecDestroy(&_state);
-  //~VecDestroy(&_tempPsi);
   VecDestroy(&_dPsi);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
@@ -98,6 +98,7 @@ Fault::~Fault()
   VecDestroy(&_zP);
   VecDestroy(&_a);
   VecDestroy(&_b);
+  VecDestroy(&_sigma_N);
 
 
   PetscViewerDestroy(&_slipViewer);
@@ -425,7 +426,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
 
   // tau, eta, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,tau_inf,sigma_N;
+  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs;
 
 
   ierr = VecGetOwnershipRange(_tauQSP,&Istart,&Iend);CHKERRQ(ierr);
@@ -435,7 +436,10 @@ PetscErrorCode SymmFault::setSplitNodeFields()
     ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
-    zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
+    //~ zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
+    ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
+    ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
+    zPlus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
     //~bcRshift = tau_inf*_L/_muArrPlus[_sizeMuArr-_N+Ii]; // use last values of muArr

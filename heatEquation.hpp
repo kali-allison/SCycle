@@ -34,8 +34,8 @@ class HeatEquation
     std::string       _outputDir; // output file location
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load viscosity from
-    std::string _heatFieldsDistribution;
-    std::string  _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
+    std::string       _heatFieldsDistribution;
+    std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
 
 
     std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;

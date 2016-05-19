@@ -1,8 +1,8 @@
-order = 2
-Ny = 5
+order = 4
+Ny = 21
 Nz = 1
-Ly = 5 # km
-Lz = 5 # km
+Ly = 24 # km
+Lz = 24 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 24] # m
@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -60,15 +60,15 @@ rhoDepths = [0 24]
 
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
+sbpType = mfc
+#sbpType = mfc_coordTrans
 kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 80
 initTime = 1       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
@@ -78,6 +78,7 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/lSS_coordTrans_
-#outputDir = data/lSS_mfc_wT_
-#outputDir = data/mSS_mfc_wT_
+#outputDir = data/lSS_coordTrans_
+#outputDir = data/lSS_wT_
+#outputDir = data/mSS_wT_
+outputDir = data/test_
