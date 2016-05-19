@@ -20,9 +20,9 @@ int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  Domain domain(inputFile);
+  Domain d(inputFile);
   //~Domain domain(inputFile,5,4);
-  domain.write();
+  d.write();
 
 
   //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
@@ -30,11 +30,13 @@ int runTests(const char * inputFile)
 
   //~SymmFault fault(domain);
   //~fault.writeContext(domain._outputDir);
-  SymmLinearElastic lith(domain);
-  lith.writeStep1D();
-  lith.writeStep2D();
-  lith.integrate();
-  lith.view();
+  //~ SymmLinearElastic lith(domain);
+  //~ lith.writeStep1D();
+  //~ lith.writeStep2D();
+  //~ lith.integrate();
+  //~ lith.view();
+
+  SymmMaxwellViscoelastic max(d);
 
 
   return ierr;
@@ -94,13 +96,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  {
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
-  }
+  //~ {
+    //~ Domain domain(inputFile);
+    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
+  //~ }
 
-  //~runTests(inputFile);
+  runTests(inputFile);
 
   PetscFinalize();
   return ierr;

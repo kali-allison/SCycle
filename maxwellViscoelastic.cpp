@@ -43,12 +43,15 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
 
+  // remove temperature from integration variable
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec  vec = * (_var.end() - 1);
+    VecDestroy(&vec);
+  _var.pop_back();
+  }
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    _var.pop_back(); // remove temperature
-  }
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
@@ -76,7 +79,15 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
   #endif
 
+  VecDestroy(&_bcRPShift);
+  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    VecDestroy(&_var[i]);
+  }
+
+
   // from maxwellViscoelastic
+  VecDestroy(&_visc);
+
   VecDestroy(&_gTxyP);
   VecDestroy(&_gTxzP);
   VecDestroy(&_gxyP);
@@ -84,6 +95,7 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
   VecDestroy(&_dgxyP);
   VecDestroy(&_dgxzP);
 
+  VecDestroy(&_stressxyP);
   VecDestroy(&_stressxzP);
 
   PetscViewerDestroy(&_gTxyPV);
