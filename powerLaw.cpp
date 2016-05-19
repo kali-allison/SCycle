@@ -92,7 +92,6 @@ PowerLaw::~PowerLaw()
     VecDestroy(&_var[i]);
   }
 
-
   VecDestroy(&_effVisc);
   VecDestroy(&_T);
 

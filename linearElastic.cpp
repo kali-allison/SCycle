@@ -152,6 +152,9 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_rhsPlusV);
   PetscViewerDestroy(&_stressxyPV);
 
+  PetscViewerDestroy(&_timeV1D);
+  PetscViewerDestroy(&_timeV2D);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::~LinearElastic in lithosphere.cpp.\n");
