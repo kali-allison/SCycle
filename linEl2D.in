@@ -72,9 +72,9 @@ kspTol = 1e-7
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 5
 initTime = 10       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s

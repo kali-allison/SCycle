@@ -201,6 +201,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
       //~ // arguments:
       //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
+  // state +0, slip +1, gxy +2, gxz +3, T +4
 
   // lock the fault to test viscous strain alone
   //~VecSet(*dvarBegin,0.0);

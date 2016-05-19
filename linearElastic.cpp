@@ -26,7 +26,7 @@ LinearElastic::LinearElastic(Domain&D)
   _thermalCoupling("no"),_he(D),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
-  _uPV(NULL),
+  _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_stressxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),
   _tLast(0)
@@ -144,18 +144,13 @@ LinearElastic::~LinearElastic()
   delete _sbpP;
   //~ delete _quadrature;
 
+
   PetscViewerDestroy(&_bcRPlusV);
-  PetscViewerDestroy(&_bcRMinusV);
-  PetscViewerDestroy(&_bcRMinusShiftV);
-  PetscViewerDestroy(&_bcRMlusShiftV);
+  PetscViewerDestroy(&_bcRPShiftV);
   PetscViewerDestroy(&_bcLPlusV);
-  PetscViewerDestroy(&_bcLMinusV);
   PetscViewerDestroy(&_uAnalV);
-  PetscViewerDestroy(&_uMinusV);
   PetscViewerDestroy(&_rhsPlusV);
-  PetscViewerDestroy(&_rhsMinusV);
   PetscViewerDestroy(&_stressxyPV);
-  PetscViewerDestroy(&_sigma_xyMinusV);
 
 
 #if VERBOSE > 1
@@ -465,9 +460,9 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_bcRPShift);
-  //~ for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    //~ VecDestroy(&_var[i]);
-  //~ }
+  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    VecDestroy(&_var[i]);
+  }
 };
 
 
@@ -972,9 +967,8 @@ FullLinearElastic::FullLinearElastic(Domain&D)
 : LinearElastic(D),
   _bcLMShift(NULL),_surfDispMinus(NULL),
   _rhsM(NULL),_uM(NULL),_sigma_xyMinus(NULL),
-  _surfDispMinusViewer(NULL),
-  _kspM(NULL),_pcMinus(NULL),
-  _bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
+  _kspM(NULL),_pcMinus(NULL),_sbpM(NULL),
+  _surfDispMinusViewer(NULL),_bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
   _fault(D)
 {
 #if VERBOSE > 1
@@ -1084,6 +1078,12 @@ FullLinearElastic::~FullLinearElastic()
 
 
   PetscViewerDestroy(&_surfDispMinusViewer);
+  //~ PetscViewerDestroy(&_bcRMinusV);
+  //~ PetscViewerDestroy(&_bcRMShiftV);
+  //~ PetscViewerDestroy(&_bcLMinusV);
+  //~ PetscViewerDestroy(&_uMV);
+  //~ PetscViewerDestroy(&_rhsMV);
+  //~ PetscViewerDestroy(&_stressxyMV);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::~FullLinearElastic in lithosphere.cpp.\n");

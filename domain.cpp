@@ -169,7 +169,6 @@ Domain::~Domain()
   PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
-
   VecDestroy(&_csVecP);
   //~ VecDestroy(&_rhoVecP);
 
@@ -760,7 +759,7 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  PetscScalar    v,y,z,r,q,csIn,csOut;
+  PetscScalar    y,z,r,q,csIn,csOut = 0;
 
   //~ PetscInt *muInds;
   //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
@@ -789,9 +788,13 @@ PetscErrorCode Domain::setFieldsPlus()
     ierr = VecSetValues(_q,1,&Ii,&q,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(_r,1,&Ii,&r,INSERT_VALUES);CHKERRQ(ierr);
     if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
-      y = q*_Ly;
+      //~ y = q*_Ly;
+      //~ z = r*_Lz;
+
+      y = _dy*(Ii/_Nz);
+      z = _dz*(Ii-_Nz*(Ii/_Nz));
+
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      z = r*_Lz;
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
@@ -863,7 +866,7 @@ PetscErrorCode Domain::setFieldsPlus()
       //~ v = MMS_mu(y,z);
       //~ _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
       mu = MMS_mu(y,z);
-      cs = sqrt(v/_rhoValPlus);
+      cs = sqrt(mu/_rhoValPlus);
     }
     else {
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
@@ -875,7 +878,9 @@ PetscErrorCode Domain::setFieldsPlus()
     ierr = VecSetValues(_csVecP,1,&Ii,&cs,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_muVecP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_csVecP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_muVecP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_csVecP);CHKERRQ(ierr);
 
 
 /*

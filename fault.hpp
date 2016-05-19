@@ -156,7 +156,7 @@ class FullFault: public Fault
     //~std::vector<Vec>    _var;
 
     // viewers
-    PetscViewer    _uPlusViewer,_uMinusViewer,_velPlusViewer,_velMinusViewer,
+    PetscViewer    _uPlusViewer,_uMV,_velPlusViewer,_velMinusViewer,
                    _tauQSMinusViewer,_stateViewer;
 
 

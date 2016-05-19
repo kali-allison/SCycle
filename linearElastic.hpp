@@ -78,8 +78,8 @@ class LinearElastic: public IntegratorContext
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
     PetscInt             _linSolveCount;
 
-    PetscViewer          _bcRPlusV,_bcRMinusV,_bcRMinusShiftV,_bcRMlusShiftV,_bcLPlusV,_bcLMinusV,
-                         _uPV,_uAnalV,_uMinusV,_rhsPlusV,_rhsMinusV,_stressxyPV,_sigma_xyMinusV;
+    PetscViewer          _bcRPlusV,_bcRPShiftV,_bcLPlusV,
+                         _uPV,_uAnalV,_rhsPlusV,_stressxyPV;
 
 
     PetscErrorCode loadSettings(const char *file);
@@ -200,13 +200,17 @@ class FullLinearElastic: public LinearElastic
     Vec                  _bcLMShift,_surfDispMinus;
     Vec                  _rhsM,_uM,_sigma_xyMinus;
 
-    PetscViewer          _surfDispMinusViewer;
+
 
     // linear system data
     KSP                  _kspM;
     PC                   _pcMinus;
 
     SbpOps               *_sbpM;
+
+    PetscViewer          _surfDispMinusViewer;
+    PetscViewer          __bcRMinusV,_bcRMShiftV,_bcLMinusV,
+                         _uMV,_rhsMV_stressxyMV;
 
 
     PetscErrorCode setShifts();

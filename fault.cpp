@@ -115,7 +115,7 @@ Fault::~Fault()
 PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
 {
   PetscErrorCode ierr = 0;
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
@@ -126,16 +126,15 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    z = _h*(Ii-_N*(Ii/_N));
-    //~ VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    //~ z = _h*(Ii-_N*(Ii/_N));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
-        z0 = depths[0+ind];
-        z1 = depths[0+ind+1];
-        v0 = vals[0+ind];
-        v1 = vals[0+ind+1];
-        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      z0 = depths[0+ind];
+      z1 = depths[0+ind+1];
+      v0 = vals[0+ind];
+      v1 = vals[0+ind+1];
+      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
@@ -725,7 +724,7 @@ FullFault::FullFault(Domain&D)
 : Fault(D),_zM(NULL),_muArrMinus(D._muArrMinus),_csArrMinus(D._csArrMinus),
   _arrSize(D._Ny*D._Nz),
   _uP(NULL),_uM(NULL),_velPlus(NULL),_velMinus(NULL),
-  _uPlusViewer(NULL),_uMinusViewer(NULL),_velPlusViewer(NULL),_velMinusViewer(NULL),
+  _uPlusViewer(NULL),_uMV(NULL),_velPlusViewer(NULL),_velMinusViewer(NULL),
  _tauQSMinusViewer(NULL),_stateViewer(NULL),_tauQSMinus(NULL)
 {
 #if VERBOSE > 1
@@ -831,7 +830,7 @@ FullFault::~FullFault()
   VecDestroy(&_velPlus);
 
   PetscViewerDestroy(&_uPlusViewer);
-  PetscViewerDestroy(&_uMinusViewer);
+  PetscViewerDestroy(&_uMV);
   PetscViewerDestroy(&_velMinusViewer);
   PetscViewerDestroy(&_velPlusViewer);
   PetscViewerDestroy(&_tauQSMinusViewer);
@@ -1264,9 +1263,9 @@ PetscErrorCode FullFault::writeStep(const string outputDir,const PetscInt step)
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"psi").c_str(),
                                    FILE_MODE_APPEND,&_stateViewer);CHKERRQ(ierr);
 
-        PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uMinus").c_str(),FILE_MODE_WRITE,&_uMinusViewer);
-        ierr = VecView(_uM,_uMinusViewer);CHKERRQ(ierr);
-        ierr = PetscViewerDestroy(&_uMinusViewer);CHKERRQ(ierr);
+        PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uMinus").c_str(),FILE_MODE_WRITE,&_uMV);
+        ierr = VecView(_uM,_uMV);CHKERRQ(ierr);
+        ierr = PetscViewerDestroy(&_uMV);CHKERRQ(ierr);
 
         PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"tauQSMinus").c_str(),FILE_MODE_WRITE,&_tauQSMinusViewer);
         ierr = VecView(_tauQSMinus,_tauQSMinusViewer);CHKERRQ(ierr);
@@ -1277,7 +1276,7 @@ PetscErrorCode FullFault::writeStep(const string outputDir,const PetscInt step)
         ierr = PetscViewerDestroy(&_velMinusViewer);CHKERRQ(ierr);
 
         ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"uMinus").c_str(),
-                                   FILE_MODE_APPEND,&_uMinusViewer);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_uMV);CHKERRQ(ierr);
         ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"velMinus").c_str(),
                                    FILE_MODE_APPEND,&_velMinusViewer);CHKERRQ(ierr);
         ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"tauQSMinus").c_str(),
@@ -1289,7 +1288,7 @@ PetscErrorCode FullFault::writeStep(const string outputDir,const PetscInt step)
     ierr = VecView(_tauQSP,_tauQSPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_state,_stateViewer);CHKERRQ(ierr);
 
-      ierr = VecView(_uM,_uMinusViewer);CHKERRQ(ierr);
+      ierr = VecView(_uM,_uMV);CHKERRQ(ierr);
       ierr = VecView(_velMinus,_velMinusViewer);CHKERRQ(ierr);
       ierr = VecView(_tauQSMinus,_tauQSMinusViewer);CHKERRQ(ierr);
   }

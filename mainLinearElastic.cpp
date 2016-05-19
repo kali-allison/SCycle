@@ -371,12 +371,9 @@ int testMemoryLeak(const char * inputFile)
   //~ he.writeStep2D(1);
 
   SymmLinearElastic sle(d);
-  //~ sle.writeStep1D();
-  //~ sle.writeStep1D();
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
-  //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
-  //~ ierr = obj->integrate();CHKERRQ(ierr);
+  sle.writeStep1D();
+  sle.writeStep2D();
+  //~ ierr = sle.integrate();CHKERRQ(ierr);
   //~ ierr = obj->view();CHKERRQ(ierr);
   return ierr;
 }
