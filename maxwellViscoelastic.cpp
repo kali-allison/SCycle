@@ -59,7 +59,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
-    VecDuplicate(_uP,&T);
+    VecDuplicate(_he._T,&T);
     VecCopy(_he._T,T);
     _var.push_back(T);
   }
@@ -208,7 +208,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,_stressxzP,*(dvarBegin+2),
+    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
       *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
       //~ // arguments:
       //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt

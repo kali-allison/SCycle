@@ -142,7 +142,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
 
   delete _sbpP;
-  delete _quadrature;
+  //~ delete _quadrature;
 
 
   PetscViewerDestroy(&_bcRPlusV);
@@ -794,7 +794,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,stressxzP,NULL,
+    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
       NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
     VecDestroy(&stressxzP);
       // arguments:

@@ -69,7 +69,7 @@ class HeatEquation
     PetscErrorCode setTemp(Vec& T); // set temperature
 
     // compute rate
-    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& sigmaxy,
+    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
 
     PetscErrorCode writeContext(const string outputDir);

@@ -221,7 +221,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = _he.d_dt(time,*(dvarBegin+1),_stressxyP,_stressxzP,*(dvarBegin+2),
+    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
       *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
       // arguments:
       // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
