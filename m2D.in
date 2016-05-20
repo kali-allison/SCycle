@@ -33,14 +33,14 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 # Maxwell properties
-#viscDistribution = layered
-#viscVals = [1e12 1e12] # GPa s
-#viscDepths = [0 24]
+viscDistribution = layered
+viscVals = [1e13 1e13] # GPa s
+viscDepths = [0 30]
 
-viscDistribution = effectiveVisc
-sigmadevVals = [35 35]
-sigmadevDepths = [0 50]
-strainRate = 1e-14
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 50]
+#strainRate = 1e-14
 
 # power law properties
 AVals = [1e-9 2.1e-9]
@@ -75,8 +75,8 @@ timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 1 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 10       # s
-maxTime = 1e8      # s
+initTime = 0       # s
+maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e6      # s
 atol = 1e-7
@@ -84,7 +84,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/nehrp/m_wT_0bcL_
-#outputDir = data/nehrp/m_nT_
-#outputDir = data/nehrp/m_wT_wbcL_
-outputDir = data/test_
+outputDir = data/l2D_wT_
+#outputDir = data/m2D_nT_

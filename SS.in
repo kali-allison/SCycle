@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -79,6 +79,5 @@ rootTol = 1e-9
 
 
 #outputDir = data/lSS_coordTrans_
-#outputDir = data/lSS_wT_
-#outputDir = data/mSS_wT_
-outputDir = data/test_
+outputDir = data/mSS_wT_
+#outputDir = data/lSS_nT_
