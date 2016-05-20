@@ -183,9 +183,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructCoordTrans(TempMats_fc_coordTrans&
   MatAssemblyEnd(_qy,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(_rz,MAT_FINAL_ASSEMBLY);
 
-  MatView(_qy,PETSC_VIEWER_STDOUT_WORLD);
-  VecView(*_y,PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
+  //~ MatView(_qy,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(*_y,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
 
   // modify tempMats factors
   Mat mat;
@@ -998,15 +998,13 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
 
 
   // mu*kron(Iy,Hz)
-  Mat muxIy_Hz;
+  Mat muxIy_Hz = NULL;
   {
-    //~Spmat muxIy_HzS(_Ny*_Nz,_Ny*_Nz);
-    //~muxIy_HzS = kron(tempMats._Iy,tempMats._Hz);
-    //~muxIy_HzS.convert(muxIy_Hz,1);
-    kronConvert(tempMats._Iy,tempMats._Hz,muxIy_Hz,1,1);
-    ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
-    //~ ierr = MatMatMult(_mu,muxIy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
-    ierr = MatMatMatMult(_rz,_mu,muxIy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
+    Mat Iy_Hz = NULL;
+    kronConvert(tempMats._Iy,tempMats._Hz,Iy_Hz,1,1);
+    ierr = MatMatMult(_mu,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
+     ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
+    MatDestroy(&Iy_Hz);
     #if DEBUG > 0
       ierr = checkMatrix(&muxIy_Hz,_debugFolder,"muxIy_Hz");CHKERRQ(ierr);
     #endif
@@ -2045,7 +2043,9 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
     const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
   _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz)
+  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz),
+  _muxBSy_Iz(NULL),_Hyinv_Iz(NULL),_muxIy_BSz(NULL),_Iy_Hzinv(NULL),
+  _AL(NULL),_AR(NULL),_AT(NULL),_AB(NULL),_H(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc_coordTrans::TempMats_fc_coordTrans in sbpOps.cpp.\n");
@@ -2053,19 +2053,6 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
 
   _mu = mu; // shallow copy
 
-  // so the destructor can run happily
-  MatCreate(PETSC_COMM_WORLD,&_muxBSy_Iz);
-  MatCreate(PETSC_COMM_WORLD,&_Hyinv_Iz);
-
-  MatCreate(PETSC_COMM_WORLD,&_muxIy_BSz);
-  MatCreate(PETSC_COMM_WORLD,&_Iy_Hzinv);
-
-  MatCreate(PETSC_COMM_WORLD,&_AL);
-  MatCreate(PETSC_COMM_WORLD,&_AR);
-  MatCreate(PETSC_COMM_WORLD,&_AT);
-  MatCreate(PETSC_COMM_WORLD,&_AB);
-
-  MatCreate(PETSC_COMM_WORLD,&_H);
 
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();

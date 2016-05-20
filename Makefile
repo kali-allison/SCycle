@@ -88,7 +88,7 @@ mainEx.o: mainEx.cpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
- linearElastic.hpp integratorContext.hpp odeSolver.hpp
+ linearElastic.hpp integratorContext.hpp odeSolver.hpp sbpOps_fc_coordTrans.hpp
 mainMaxwell.o: mainMaxwell.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
  linearElastic.hpp integratorContext.hpp odeSolver.hpp sbpOps_c.hpp \

@@ -803,6 +803,7 @@ PetscErrorCode Domain::setFieldsPlus()
       //~ y = q*_Ly;
       //~ z = r*_Lz;
 
+      // old
       y = _dy*(Ii/_Nz);
       z = _dz*(Ii-_Nz*(Ii/_Nz));
 

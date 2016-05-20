@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D)
 : _file(D._file),_delim(D._delim),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_y(&D._y),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
@@ -29,6 +29,8 @@ Fault::Fault(Domain&D)
   loadSettings(_file);
   checkInput();
 
+
+
   // fields that exist on the fault
   VecCreate(PETSC_COMM_WORLD,&_tauQSP);
   VecSetSizes(_tauQSP,PETSC_DECIDE,_N);
@@ -47,6 +49,19 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "_a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "_b");
 
+  // initialize _z
+  VecDuplicate(_tauQSP,&_z);
+  PetscInt    Istart,Iend;
+  VecGetOwnershipRange(_tauQSP,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar z = Ii-_N*(Ii/_N);
+    if (Ii < _N) {
+      VecGetValues(D._z,1,&Ii,&z);
+      VecSetValue(_z,Ii,z,INSERT_VALUES);
+    }
+  }
+  VecAssemblyBegin(_z);
+  VecAssemblyEnd(_z);
 
   setFrictionFields(D);
 
@@ -127,7 +142,9 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
     //~ z = _h*(Ii-_N*(Ii/_N));
-    VecGetValues(*_y,1,&Ii,&z);CHKERRQ(ierr);
+    //~ PetscScalar z2 = 0;
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: z = %g, z2 = %g\n",Ii,z,z2);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
       z0 = depths[0+ind];
       z1 = depths[0+ind+1];
@@ -139,6 +156,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
 
 
 #if VERBOSE > 1
@@ -426,11 +444,10 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
 
   // tau, eta, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs,y;
+  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs;
   ierr = VecGetOwnershipRange(*_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr =  VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
-    if (y == 0) {
+    if (Ii <= _N) {
 
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);

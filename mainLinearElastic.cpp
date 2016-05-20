@@ -10,6 +10,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_c.hpp"
 #include "sbpOps_sc.hpp"
+#include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
 
@@ -367,13 +368,14 @@ int testMemoryLeak(const char * inputFile)
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
 
   //~ SbpOps_c sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
+  SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
 
   //~ HeatEquation he(d);
   //~ he.writeContext(d._outputDir);
   //~ he.writeStep2D(0);
   //~ he.writeStep2D(1);
 
-  SymmLinearElastic sle(d);
+  //~ SymmLinearElastic sle(d);
   //~ sle.writeStep1D();
   //~ sle.writeStep2D();
   //~ ierr = sle.integrate();CHKERRQ(ierr);
@@ -422,13 +424,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  testMemoryLeak(inputFile);
+  //~ testMemoryLeak(inputFile);
 
   //~runTests1D();
   //~runTests2D();
