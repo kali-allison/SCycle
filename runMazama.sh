@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N l2D_nT
+#PBS -N l2D_wT
 #PBS -l nodes=1:ppn=24
-#PBS -q tgp
+#PBS -q default
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/nehrp/l2D_nT.err
-#PBS -o /data/dunham/kallison/eqcycle/data/nehrp/l2D_nTout
+#PBS -e /data/dunham/kallison/eqcycle/data/nehrp/l2D_wT.err
+#PBS -o /data/dunham/kallison/eqcycle/data/nehrp/l2D_wTout
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D)
 : _file(D._file),_delim(D._delim),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(&D._z),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_y(&D._y),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
@@ -127,7 +127,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
     //~ z = _h*(Ii-_N*(Ii/_N));
-    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+    VecGetValues(*_y,1,&Ii,&z);CHKERRQ(ierr);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
       z0 = depths[0+ind];
       z1 = depths[0+ind+1];
@@ -175,6 +175,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
   }
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
@@ -425,11 +426,12 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
 
   // tau, eta, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs;
-
-
-  ierr = VecGetOwnershipRange(_tauQSP,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs,y;
+  ierr = VecGetOwnershipRange(*_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
+    ierr =  VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+    if (y == 0) {
+
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
     ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
@@ -441,16 +443,23 @@ PetscErrorCode SymmFault::setSplitNodeFields()
     zPlus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
-    //~bcRshift = tau_inf*_L/_muArrPlus[_sizeMuArr-_N+Ii]; // use last values of muArr
 
     ierr = VecSetValue(_tauQSP,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
   ierr = VecAssemblyBegin(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
+
+  //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(*_muVecP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_zP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
