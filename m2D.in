@@ -1,6 +1,6 @@
 order = 4
-Ny = 301
-Nz = 301
+Ny = 51
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
@@ -51,7 +51,7 @@ nVals = [4 4]
 nDepths = [0 30]
 TVals = [273 1173]
 TDepths = [0 30]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -84,5 +84,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/l2D_wT_
-#outputDir = data/m2D_nT_
+#outputDir = data/l2D_wT_
+outputDir = data/m2D_nT_
