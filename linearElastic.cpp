@@ -424,13 +424,13 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   _var.push_back(varSlip);
 
 
-  // if also solving heat equation
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec T;
-    VecDuplicate(_uP,&T);
-    VecCopy(_he._T,T);
-    _var.push_back(T);
-  }
+  //~ // if also solving heat equation
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec T;
+    //~ VecDuplicate(_uP,&T);
+    //~ VecCopy(_he._T,T);
+    //~ _var.push_back(T);
+  //~ }
 
   if (_isMMS) {
     setMMSInitialConditions();
@@ -757,24 +757,6 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
-  //~ PetscScalar tcrit = 3.14e7 * 100.0; // 100 years in seconds
-  //~ if (_tLast >= tcrit) // time for earthquake
-  //~ {
-    //~ ierr = VecSet(_bcLP,3.0 * time/tcrit);CHKERRQ(ierr); // everything catches up to same level
-  //~ }
-  //~ else {
-    //~ PetscInt Ii,Istart,Iend;
-    //~ VecGetOwnershipRange(_bcLP,&Istart,&Iend);
-    //~ for (Ii=Istart;Ii<Iend;Ii++) {
-      //~ PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
-      //~ PetscScalar v = 0.5*_vL*time * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
-      //~ PetscScalar v = 0.5*_vL*time;
-      //~ VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
-    //~ }
-    //~ ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
-    //~ ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
-  //~ }
-
   // solve for displacement
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
@@ -790,16 +772,16 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
 
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec stressxzP;
-    VecDuplicate(_uP,&stressxzP);
-    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-      NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
-    VecDestroy(&stressxzP);
-      // arguments:
-      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  }
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec stressxzP;
+    //~ VecDuplicate(_uP,&stressxzP);
+    //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+      //~ NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
+    //~ VecDestroy(&stressxzP);
+      //~ // arguments:
+      //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  //~ }
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
 

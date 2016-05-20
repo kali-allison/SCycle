@@ -159,7 +159,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = VecSet(_state,_f0);CHKERRQ(ierr); // in terms of psi
   #endif
   #if STATE_PSI == 0
-    ierr = VecSet(_state,D._initTime);CHKERRQ(ierr);
+    ierr = VecSet(_state,1e9);CHKERRQ(ierr);
   #endif
 
   // set a using a vals

@@ -416,13 +416,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  testMemoryLeak(inputFile);
+  //~ testMemoryLeak(inputFile);
 
   //~runTests1D();
   //~runTests2D();

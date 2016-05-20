@@ -35,10 +35,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   MatSetUp(_mu);
   MatDiagonalSet(_mu,*_muVec,INSERT_VALUES);
 
-
     // NOT a member of this class, contains stuff to be deleted before
     // end of constructor to save on memory usage.
-
     TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
     // reset SAT params
@@ -915,17 +913,14 @@ PetscErrorCode SbpOps_fc::constructH(const TempMats_fc& tempMats)
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  {
-    // kron(Hy,Hz)
-    kronConvert(tempMats._Hy,tempMats._Hz,_H,1,0);
-  }
-  PetscObjectSetName((PetscObject) _H, "H");
+  //~ MatCreate(PETSC_COMM_WORLD,&_H);
+  MatDuplicate(tempMats._H,MAT_COPY_VALUES,&_H);
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -937,18 +932,18 @@ PetscErrorCode SbpOps_fc::constructHinv(const TempMats_fc& tempMats)
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructHinv in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
   if (_Ny > 1 && _Nz > 1) {
     MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
   }
-  else if (_Nz == 1) { MatCopy(tempMats._Hyinv_Iz,_Hinv,SAME_NONZERO_PATTERN); }
-  else if (_Ny == 1) { MatCopy(tempMats._Iy_Hzinv,_Hinv,SAME_NONZERO_PATTERN); }
+  else if (_Nz == 1) { MatDuplicate(tempMats._Hyinv_Iz,MAT_COPY_VALUES,&_Hinv); }
+  else if (_Ny == 1) { MatDuplicate(tempMats._Iy_Hzinv,MAT_COPY_VALUES,&_Hinv); }
   PetscObjectSetName((PetscObject) _Hinv, "Hinv");
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructHinv in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1067,14 +1062,14 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
 
 
 
-  //~ // if using H A uhat = H rhs
-  //~ Mat temp;
-  //~ ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-  //~ ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  //~ ierr = MatDestroy(&temp);CHKERRQ(ierr);
-  //~ ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
+  // if using H A uhat = H rhs
+  Mat temp;
+  ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+  ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+  ierr = MatDestroy(&temp);CHKERRQ(ierr);
+  ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
 
-  //~ ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
 
 
   //~MatView(_A,PETSC_VIEWER_STDOUT_WORLD);

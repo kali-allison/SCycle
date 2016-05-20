@@ -882,6 +882,13 @@ PetscErrorCode Domain::setFieldsPlus()
   ierr = VecAssemblyEnd(_muVecP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_csVecP);CHKERRQ(ierr);
 
+  //~ VecView(_csVecP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_muVecP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_q,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_r,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_y,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_z,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
 
 /*
   // set DMDA version of shear modulus
