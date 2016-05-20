@@ -49,20 +49,6 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "bcRplus");
   VecSet(_bcRP,_vL*_initTime/2.0);
 
-  //~// update boundaries for test of instability
-  //~VecSet(_bcRP,5.853814697425500e+10 * _vL/2.0);
-  //~PetscScalar z,v;
-  //~PetscInt Ii,Istart,Iend;
-  //~VecGetOwnershipRange(_bcLP,&Istart,&Iend);
-  //~for(Ii=Istart;Ii<Iend;Ii++) {
-    //~z = _dz * Ii;
-    //~v = 1.2e-4*(tanh((z-14.8)*10.0) + 1.0);
-    //~//v = 1.2e-4*(tanh((z-14.8)/2.0) + 1.0);
-    //~VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
-  //~}
-  //~VecAssemblyBegin(_bcLP);
-  //~VecAssemblyEnd(_bcLP);
-
 
   VecCreate(PETSC_COMM_WORLD,&_bcTP);
   VecSetSizes(_bcTP,PETSC_DECIDE,_Ny);
@@ -108,6 +94,7 @@ LinearElastic::LinearElastic(Domain&D)
 
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");

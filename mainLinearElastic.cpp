@@ -364,13 +364,16 @@ int testMemoryLeak(const char * inputFile)
   //~ fault.writeStep(d._outputDir,1);
 
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
+
+  //~ SbpOps_c sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
 
   //~ HeatEquation he(d);
   //~ he.writeContext(d._outputDir);
   //~ he.writeStep2D(0);
   //~ he.writeStep2D(1);
 
-  //~ SymmLinearElastic sle(d);
+  SymmLinearElastic sle(d);
   //~ sle.writeStep1D();
   //~ sle.writeStep2D();
   //~ ierr = sle.integrate();CHKERRQ(ierr);
@@ -390,18 +393,21 @@ int runEqCycle(const char * inputFile)
   Domain domain(inputFile);
   domain.write();
 
-  LinearElastic *obj;
-  if (domain._problemType.compare("symmetric")==0) {
-    obj = new SymmLinearElastic(domain);
-  }
-  else {
-    obj = new FullLinearElastic(domain);
-  }
+  // if want to switch between full and symmetric problems
+  //~ LinearElastic *obj;
+  //~ if (domain._problemType.compare("symmetric")==0) {
+    //~ obj = new SymmLinearElastic(domain);
+  //~ }
+  //~ else {
+    //~ obj = new FullLinearElastic(domain);
+  //~ }
+
+  SymmLinearElastic sle(domain);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->writeStep1D();CHKERRQ(ierr);
-  ierr = obj->writeStep2D();CHKERRQ(ierr);
-  ierr = obj->integrate();CHKERRQ(ierr);
-  //~ ierr = obj->view();CHKERRQ(ierr);
+  ierr = sle.writeStep1D();CHKERRQ(ierr);
+  ierr = sle.writeStep2D();CHKERRQ(ierr);
+  ierr = sle.integrate();CHKERRQ(ierr);
+  //~ ierr = sle.view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -416,13 +422,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  {
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
-  }
+  //~ {
+    //~ Domain domain(inputFile);
+    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
+  //~ }
 
-  //~ testMemoryLeak(inputFile);
+  testMemoryLeak(inputFile);
 
   //~runTests1D();
   //~runTests2D();

@@ -83,7 +83,7 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 SbpOps_fc::~SbpOps_fc()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
 #endif
 
   MatDestroy(&_H);
@@ -113,7 +113,7 @@ SbpOps_fc::~SbpOps_fc()
   MatDestroy(&_Iy_ENz);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
 #endif
 }
 
