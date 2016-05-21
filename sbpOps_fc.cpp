@@ -916,7 +916,6 @@ PetscErrorCode SbpOps_fc::constructH(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  //~ MatCreate(PETSC_COMM_WORLD,&_H);
   MatDuplicate(tempMats._H,MAT_COPY_VALUES,&_H);
 
 #if VERBOSE >1
