@@ -52,9 +52,9 @@ Fault::Fault(Domain&D)
   // initialize _z
   VecDuplicate(_tauQSP,&_z);
   PetscInt    Istart,Iend;
-  VecGetOwnershipRange(_tauQSP,&Istart,&Iend);
+  PetscScalar z = 0;
+  VecGetOwnershipRange(D._z,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar z = Ii-_N*(Ii/_N);
     if (Ii < _N) {
       VecGetValues(D._z,1,&Ii,&z);
       VecSetValue(_z,Ii,z,INSERT_VALUES);
