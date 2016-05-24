@@ -1278,7 +1278,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setVecFromVectors(Vec& vec, vector<doubl
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
         z0 = depths[0+ind];

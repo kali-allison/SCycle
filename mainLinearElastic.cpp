@@ -376,10 +376,10 @@ int testMemoryLeak(const char * inputFile)
   //~ he.writeStep2D(0);
   //~ he.writeStep2D(1);
 
-  //~ SymmLinearElastic sle(d);
-  //~ sle.writeStep1D();
-  //~ sle.writeStep2D();
-  //~ ierr = sle.integrate();CHKERRQ(ierr);
+  SymmLinearElastic sle(d);
+  sle.writeStep1D();
+  sle.writeStep2D();
+  ierr = sle.integrate();CHKERRQ(ierr);
 
 
   //~ sle.writeStep1D();
@@ -406,11 +406,11 @@ int runEqCycle(const char * inputFile)
   //~ }
 
   SymmLinearElastic sle(domain);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = sle.writeStep1D();CHKERRQ(ierr);
-  //~ ierr = sle.writeStep2D();CHKERRQ(ierr);
-  //~ ierr = sle.integrate();CHKERRQ(ierr);
-  //~ ierr = sle.view();CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = sle.writeStep1D();CHKERRQ(ierr);
+  ierr = sle.writeStep2D();CHKERRQ(ierr);
+  ierr = sle.integrate();CHKERRQ(ierr);
+  ierr = sle.view();CHKERRQ(ierr);
   return ierr;
 }
 

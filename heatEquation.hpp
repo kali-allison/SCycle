@@ -28,6 +28,7 @@ class HeatEquation
     // domain dimensions etc
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
+    const Vec            *_y,*_z; // to handle variable grid spacing
     const PetscScalar    _kspTol;
 
     const char       *_file; // input file location

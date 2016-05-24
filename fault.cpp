@@ -489,6 +489,9 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
 
+  VecDestroy(&muV);
+  VecDestroy(&csV);
+
   //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
   //~ VecView(*_muVecP,PETSC_VIEWER_STDOUT_WORLD);
   //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
