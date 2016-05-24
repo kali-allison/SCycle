@@ -503,9 +503,9 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   PetscScalar u,y,z;
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    z = Ii-_Nz*(Ii/_Nz);
-    y = Ii/_Nz;
-    if (z == 0) {
+    //~ z = Ii-_Nz*(Ii/_Nz);
+    //~ y = Ii/_Nz;
+    if (Ii % _Nz == 0) {
       ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
       ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
     }

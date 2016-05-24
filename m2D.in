@@ -1,7 +1,7 @@
 order = 4
-Ny = 401
-Nz = 401
-Ly = 30 # km
+Ny = 301
+Nz = 301
+Ly = 60 # km
 Lz = 30 # km
 
 DcVals = [8e-3 8e-3] # m
@@ -75,8 +75,8 @@ timeControlType = P
 stride1D = 10 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 2e10       # s
-maxTime = 1e11      # s
+initTime = 1e11       # s
+maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e6      # s
 atol = 1e-7
@@ -84,4 +84,4 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/linEl/l2D_wTrans_
+outputDir = data/linEl/l2D_Ly60_wTrans_
