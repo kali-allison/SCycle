@@ -359,7 +359,7 @@ int testMemoryLeak(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  SymmFault fault(d);
+  //~ SymmFault fault(d);
   //~ fault.writeContext(d._outputDir);
   //~ fault.writeStep(d._outputDir,0);
   //~ fault.writeStep(d._outputDir,1);
@@ -376,10 +376,10 @@ int testMemoryLeak(const char * inputFile)
   //~ he.writeStep2D(0);
   //~ he.writeStep2D(1);
 
-  //~ SymmLinearElastic sle(d);
-  //~ sle.writeStep1D();
-  //~ sle.writeStep2D();
-  //~ ierr = sle.integrate();CHKERRQ(ierr);
+  SymmLinearElastic sle(d);
+  sle.writeStep1D();
+  sle.writeStep2D();
+  ierr = sle.integrate();CHKERRQ(ierr);
 
 
   //~ sle.writeStep1D();

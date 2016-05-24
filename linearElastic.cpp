@@ -26,6 +26,7 @@ LinearElastic::LinearElastic(Domain&D)
   _thermalCoupling("no"),_he(D),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
+  _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
   _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_stressxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),
@@ -36,8 +37,6 @@ LinearElastic::LinearElastic(Domain&D)
 #endif
 
   loadSettings(D._file);
-
-
 
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
@@ -96,6 +95,7 @@ LinearElastic::LinearElastic(Domain&D)
   setupKSP(_sbpP,_kspP,_pcP);
 
 
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");
 #endif
@@ -129,7 +129,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
 
   delete _sbpP;
-  //~ delete _quadrature;
+  //delete _quadrature;
 
 
   PetscViewerDestroy(&_bcRPlusV);
@@ -444,6 +444,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   }
 
   setSurfDisp();
+
 
 
 #if VERBOSE > 1

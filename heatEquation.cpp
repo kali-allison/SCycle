@@ -6,7 +6,8 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_kspTol(D._kspTol),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
+  _kspTol(D._kspTol),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
@@ -297,6 +298,7 @@ PetscErrorCode ierr = 0;
   }
   else {
     if (_heatFieldsDistribution.compare("mms")==0) {
+      assert(0);
       //~mapToVec(_k,MMS_A,_Nz,_dy,_dz);
       //~mapToVec(_rho,MMS_B,_Nz,_dy,_dz);
       //~mapToVec(_h,MMS_n,_Nz,_dy,_dz);
@@ -311,15 +313,6 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
     }
   }
-
-  //~ MatCreate(PETSC_COMM_WORLD,&_kMat);
-  //~ ierr = MatSetSizes(_kMat,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  //~ ierr = MatSetFromOptions(_kMat);CHKERRQ(ierr);
-  //~ ierr = MatMPIAIJSetPreallocation(_kMat,1,NULL,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSeqAIJSetPreallocation(_kMat,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSetUp(_kMat);CHKERRQ(ierr);
-
-  //~ ierr = MatDiagonalSet(_kMat,_k,INSERT_VALUES);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -616,7 +609,8 @@ PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,ve
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
         z0 = depths[0+ind];
