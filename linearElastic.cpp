@@ -435,6 +435,11 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     _fault.setTauQS(_stressxyP,NULL);
     _fault.setFaultDisp(_bcLP,NULL);
 
+    //~ VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
+    //~ MatView(,PETSC_VIEWER_STDOUT_WORLD);
+    //~ VecView(_stressxyP,PETSC_VIEWER_STDOUT_WORLD);
+    //~ assert(0);
+
     _fault.computeVel();
   }
 

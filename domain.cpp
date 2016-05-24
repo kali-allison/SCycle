@@ -728,6 +728,18 @@ PetscErrorCode Domain::write()
   ierr = VecView(_r,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  // output y
+  str =  _outputDir + "y";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_y,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // output y
+  str =  _outputDir + "z";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_z,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
   //~// output normal stress vector
   //~str =  _outputDir + "sigma_N";
   //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -798,14 +810,13 @@ PetscErrorCode Domain::setFieldsPlus()
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
-      //~ PetscScalar b = 1;
-      //~ y = sinh(b*q/_Ly)/sinh(b);
+      PetscScalar b = 5;
+      y = _Ly * sinh(b*q)/sinh(b);
       //~ y = q*_Ly;
-      //~ z = r*_Lz;
+      z = r*_Lz;
 
-      // old
-      y = _dy*(Ii/_Nz);
-      z = _dz*(Ii-_Nz*(Ii/_Nz));
+      //~ y = _dy*(Ii/_Nz);
+      //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
 
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
@@ -819,7 +830,6 @@ PetscErrorCode Domain::setFieldsPlus()
   VecAssemblyEnd(_r);
   VecAssemblyEnd(_y);
   VecAssemblyEnd(_z);
-
 
 
   // set shear modulus, shear wave speed, and density

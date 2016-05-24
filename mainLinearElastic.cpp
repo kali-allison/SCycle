@@ -367,8 +367,9 @@ int testMemoryLeak(const char * inputFile)
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
 
-  //~ SbpOps_c sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
-  SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
+  //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
+  //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","yz");
+  SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
 
   //~ HeatEquation he(d);
   //~ he.writeContext(d._outputDir);
@@ -424,13 +425,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  testMemoryLeak(inputFile);
+  //~ testMemoryLeak(inputFile);
 
   //~runTests1D();
   //~runTests2D();

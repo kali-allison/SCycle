@@ -1,5 +1,5 @@
 order = 4
-Ny = 21
+Ny = 41
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -60,8 +60,8 @@ rhoDepths = [0 24]
 
 
 linSolver = AMG
-sbpType = mfc
-#sbpType = mfc_coordTrans
+#sbpType = mfc
+sbpType = mfc_coordTrans
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -79,5 +79,8 @@ rootTol = 1e-9
 
 
 #outputDir = data/lSS_coordTrans_
-outputDir = data/mSS_wT_
+#outputDir = data/mSS_wT_
 #outputDir = data/lSS_nT_
+
+outputDir = data/lSS_wTrans_
+#outputDir = data/lSS_nTrans_
