@@ -359,7 +359,7 @@ int testMemoryLeak(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  //~ SymmFault fault(d);
+  SymmFault fault(d);
   //~ fault.writeContext(d._outputDir);
   //~ fault.writeStep(d._outputDir,0);
   //~ fault.writeStep(d._outputDir,1);
@@ -369,7 +369,7 @@ int testMemoryLeak(const char * inputFile)
 
   //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
   //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","yz");
-  SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
 
   //~ HeatEquation he(d);
   //~ he.writeContext(d._outputDir);
@@ -410,7 +410,7 @@ int runEqCycle(const char * inputFile)
   ierr = sle.writeStep1D();CHKERRQ(ierr);
   ierr = sle.writeStep2D();CHKERRQ(ierr);
   ierr = sle.integrate();CHKERRQ(ierr);
-  //~ ierr = sle.view();CHKERRQ(ierr);
+  ierr = sle.view();CHKERRQ(ierr);
   return ierr;
 }
 

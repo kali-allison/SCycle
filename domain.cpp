@@ -162,24 +162,22 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-  //~ PetscFree(_muArrPlus);
-  PetscFree(_csArrPlus);
-  PetscFree(_sigmaNArr);
-  PetscFree(_muArrMinus);
-  PetscFree(_csArrMinus);
+  //~ PetscFree(_sigmaNArr);
+  //~ PetscFree(_muArrMinus);
+  //~ PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
   VecDestroy(&_csVecP);
-  //~ VecDestroy(&_rhoVecP);
+  //~ //VecDestroy(&_rhoVecP);
 
   VecDestroy(&_q);
   VecDestroy(&_r);
   VecDestroy(&_y);
   VecDestroy(&_z);
 
-  DMDestroy(&_da);
+  //~ DMDestroy(&_da);
 
-  VecDestroy(&_muVecM);
+  //~ VecDestroy(&_muVecM);
 
   //~ DM _da;
     //~ Vec _muVecP; // vector version of shear modulus
@@ -734,7 +732,7 @@ PetscErrorCode Domain::write()
   ierr = VecView(_y,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  // output y
+  // output z
   str =  _outputDir + "z";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_z,viewer);CHKERRQ(ierr);
@@ -772,12 +770,6 @@ PetscErrorCode Domain::setFieldsPlus()
 #endif
 
   PetscScalar    y,z,r,q,csIn,csOut = 0;
-
-  //~ PetscInt *muInds;
-  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
-  //~ ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
-
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_muVecP);CHKERRQ(ierr);
   ierr = VecSetSizes(_muVecP,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
@@ -883,8 +875,6 @@ PetscErrorCode Domain::setFieldsPlus()
       ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
       assert(0); // automatically fail
     }
-    //~ _muArrPlus[Ii] = v;
-    //~ muInds[Ii] = Ii;
     ierr = VecSetValues(_muVecP,1,&Ii,&mu,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(_csVecP,1,&Ii,&cs,INSERT_VALUES);CHKERRQ(ierr);
   }

@@ -15,7 +15,7 @@ Fault::Fault(Domain&D)
   _a(NULL),_b(NULL),_Dc(NULL),
   _state(NULL),_dPsi(NULL),
   _sigma_N(NULL),
-  _muArrPlus(D._muArrPlus),_csArrPlus(D._csArrPlus),_muVecP(&D._muVecP),_csVecP(&D._csVecP),
+  _muVecP(&D._muVecP),_csVecP(&D._csVecP),
   _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
   _stateViewer(NULL),
@@ -64,6 +64,7 @@ Fault::Fault(Domain&D)
   VecAssemblyEnd(_z);
 
   setFrictionFields(D);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
@@ -442,28 +443,45 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-
-  // tau, eta, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,tau_inf,sigma_N,mu,cs;
+  // create properly sized vectors for mu and cs
+  Vec muV; VecDuplicate(_a,&muV);
+  Vec csV; VecDuplicate(_a,&csV);
+  PetscScalar mu,cs;
   ierr = VecGetOwnershipRange(*_muVecP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii <= _N) {
+    if (Ii < _N) {
+    ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
+    ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
 
+    ierr = VecSetValue(muV,Ii,mu,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(csV,Ii,cs,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(muV);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(csV);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(muV);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(csV);CHKERRQ(ierr);
+
+
+
+  // tau, eta, bcRShift, sigma_N
+  PetscScalar a,b,zPlus,tau_inf,sigma_N;
+  ierr = VecGetOwnershipRange(_a,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
     ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     //~ zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
-    ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
-    ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
+    ierr =  VecGetValues(muV,1,&Ii,&mu);CHKERRQ(ierr);
+    ierr =  VecGetValues(csV,1,&Ii,&cs);CHKERRQ(ierr);
     zPlus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
 
     ierr = VecSetValue(_tauQSP,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
-    }
   }
   ierr = VecAssemblyBegin(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
@@ -996,17 +1014,19 @@ PetscErrorCode FullFault::setSplitNodeFields()
 
 
   // tauQSPlus/Minus, zPlus/Minus, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,zMinus,tau_inf,sigma_N;
+  PetscScalar a,b,zPlus,zMinus,tau_inf,sigma_N,mu,cs;
   ierr = VecGetOwnershipRange(_tauQSP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
     ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
-    //~eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
-    zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
-    //~zMinus = _muArrMinus[Ii]/_csArrMinus[Ii];
-    zMinus = _muArrMinus[_arrSize - _N + Ii]/_csArrMinus[_arrSize - _N + Ii];
+    ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
+    ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
+    zPlus = mu/cs;
+    PetscPrintf(PETSC_COMM_WORLD,"FullFault::SsetSplitNodeFields not set up!!\n");
+    assert(0);
+    zMinus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
 
