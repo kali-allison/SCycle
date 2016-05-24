@@ -360,9 +360,9 @@ int testMemoryLeak(const char * inputFile)
   d.write();
 
   SymmFault fault(d);
-  //~ fault.writeContext(d._outputDir);
-  //~ fault.writeStep(d._outputDir,0);
-  //~ fault.writeStep(d._outputDir,1);
+  fault.writeContext(d._outputDir);
+  fault.writeStep(d._outputDir,0);
+  fault.writeStep(d._outputDir,1);
 
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
@@ -406,11 +406,11 @@ int runEqCycle(const char * inputFile)
   //~ }
 
   SymmLinearElastic sle(domain);
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = sle.writeStep1D();CHKERRQ(ierr);
-  ierr = sle.writeStep2D();CHKERRQ(ierr);
-  ierr = sle.integrate();CHKERRQ(ierr);
-  ierr = sle.view();CHKERRQ(ierr);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = sle.writeStep1D();CHKERRQ(ierr);
+  //~ ierr = sle.writeStep2D();CHKERRQ(ierr);
+  //~ ierr = sle.integrate();CHKERRQ(ierr);
+  //~ ierr = sle.view();CHKERRQ(ierr);
   return ierr;
 }
 
