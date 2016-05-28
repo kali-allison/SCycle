@@ -749,7 +749,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
@@ -760,10 +760,10 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     VecDestroy(&stressxzP);
       // arguments:
       // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  }
-  else {
-    ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
-  }
+  //~ }
+  //~ else {
+    //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
+  //~ }
 
 
 #if VERBOSE > 1
