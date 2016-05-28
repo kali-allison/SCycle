@@ -46,6 +46,12 @@ class HeatEquation
     SbpOps_fc* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions
 
+    // linear system data
+    std::string          _linSolver;
+    KSP                  _kspP;
+    PC                   _pcP;
+    Mat                  _I,_rhoC; // intermediates for Backward Euler
+
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
@@ -57,6 +63,7 @@ class HeatEquation
 
     PetscErrorCode computeSteadyStateTemp();
     PetscErrorCode setBCs();
+    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt,KSP& ksp,PC& pc);
 
 
   public:
@@ -71,7 +78,7 @@ class HeatEquation
 
     // compute rate
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt,const PetscScalar dt);
 
     PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount);

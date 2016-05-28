@@ -105,7 +105,8 @@ class FEuler : public OdeSolver
 
 class RK32 : public OdeSolver
 {
-  private:
+  //~ private:
+  public:
 
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol; // absolute and relative tolerances
@@ -120,7 +121,7 @@ class RK32 : public OdeSolver
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 
-  public:
+  //~ public:
 
     RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32();

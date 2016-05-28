@@ -19,7 +19,7 @@ class IntegratorContext
     typedef std::vector<Vec>::const_iterator const_it_vec;
 
     virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-              it_vec dvarBegin,it_vec dvarEnd) = 0;
+              it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,

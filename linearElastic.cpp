@@ -504,7 +504,7 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     //~ z = Ii-_Nz*(Ii/_Nz);
-    //~ y = Ii/_Nz;
+    y = Ii/_Nz;
     if (Ii % _Nz == 0) {
       ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
       ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
@@ -675,21 +675,21 @@ PetscErrorCode SymmLinearElastic::integrate()
 
 
 PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   return ierr;
 }
 
 // I'm not sure this makes sense as a function given my current MMS test
 PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -736,7 +736,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
 
 PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -770,13 +770,14 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
     ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-      NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
+      NULL,*(varBegin+2),*(dvarBegin+2),dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
       // arguments:
       // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
+
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
@@ -928,7 +929,6 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,psiVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,dQVal);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
-
 
 
   //~VecView(_fault._tauQSP,PETSC_VIEWER_STDOUT_WORLD);
@@ -1320,7 +1320,7 @@ return ierr;
 }
 
 PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1

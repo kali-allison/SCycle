@@ -48,7 +48,7 @@ class TestOdeSolver: public IntegratorContext
     PetscErrorCode integrate();
 
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-        it_vec dvarBegin,it_vec dvarEnd);
+        it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
 
     PetscErrorCode writeStep();
 

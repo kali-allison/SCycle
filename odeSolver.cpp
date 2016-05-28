@@ -133,7 +133,7 @@ PetscErrorCode FEuler::integrate(IntegratorContext *obj)
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
-    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),_deltaT);CHKERRQ(ierr);
     //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
     ierr = obj->debug(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),"FE");CHKERRQ(ierr);
     for (int varInd=0;varInd<_lenVar;varInd++) {
@@ -440,7 +440,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
   //~assert(0>1);
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),_deltaT);CHKERRQ(ierr);
   ierr = obj->debug(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),"IC");CHKERRQ(ierr);
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -457,7 +457,8 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_varHalfdT.end(),_dvarHalfdT.begin(),_dvarHalfdT.end());CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_varHalfdT.end(),
+               _dvarHalfdT.begin(),_dvarHalfdT.end(),0.5*_deltaT);CHKERRQ(ierr);
       ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT.begin(),_varHalfdT.end(),_dvarHalfdT.begin(),_dvarHalfdT.end(),"t+dt/2");CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
@@ -465,7 +466,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
         ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_vardT.end(),_dvardT.begin(),_dvardT.end());CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_vardT.end(),_dvardT.begin(),_dvardT.end(),_deltaT);CHKERRQ(ierr);
       ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT.begin(),_vardT.end(),_dvardT.begin(),_dvardT.end(),"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
@@ -498,7 +499,7 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
     for (int ind=0;ind<_lenVar;ind++) {
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
-    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end());CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),_deltaT);CHKERRQ(ierr);
     ierr = obj->debug(_currT,_stepCount,_var.begin(),_var.end(),_dvar.begin(),_dvar.end(),"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
@@ -527,7 +528,6 @@ PetscErrorCode RK32::integrate(IntegratorContext *obj)
 }
 
 
-
 //================= placeholder functions ================================
 
 PetscErrorCode newtempRhsFunc(const PetscReal time, const int lenVar, Vec *var, Vec *dvar, void*userContext)
@@ -543,3 +543,5 @@ PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount
   PetscErrorCode ierr = 0;
   return ierr;
 }
+
+

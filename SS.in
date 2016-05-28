@@ -1,5 +1,5 @@
-order = 4
-Ny = 41
+order = 2
+Ny = 11
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -60,8 +60,8 @@ rhoDepths = [0 24]
 
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
+sbpType = mfc
+#sbpType = mfc_coordTrans
 kspTol = 1e-7
 
 timeIntegrator = RK32
@@ -69,7 +69,7 @@ timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 10 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 0       # s
+initTime = 1e10       # s
 maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
@@ -78,9 +78,5 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = data/lSS_coordTrans_
-#outputDir = data/mSS_wT_
-#outputDir = data/lSS_nT_
-
-outputDir = data/lSS_wTrans_
-#outputDir = data/lSS_nTrans_
+#outputDir = data/lSS_wTrans_
+outputDir = data/test_

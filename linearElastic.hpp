@@ -106,7 +106,7 @@ class LinearElastic: public IntegratorContext
     PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
 
     PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd) = 0;
+                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt) = 0;
     PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
                          const_it_vec varBegin,const_it_vec varEnd,
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage) = 0;
@@ -161,11 +161,11 @@ class SymmLinearElastic: public LinearElastic
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                        it_vec dvarBegin,it_vec dvarEnd);
+                        it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                            it_vec dvarBegin,it_vec dvarEnd);
+                            it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                it_vec dvarBegin,it_vec dvarEnd);
+                                it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
                          const_it_vec varBegin,const_it_vec varEnd,
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
@@ -230,7 +230,7 @@ class FullLinearElastic: public LinearElastic
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd);
+                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
                          const_it_vec varBegin,const_it_vec varEnd,
                          const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);

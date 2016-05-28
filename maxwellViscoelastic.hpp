@@ -61,13 +61,13 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
 
     PetscErrorCode integrate(); // don't need now that LinearElastic defines this
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd);
+                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                            it_vec dvarBegin,it_vec dvarEnd);
+                            it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                it_vec dvarBegin,it_vec dvarEnd);
+                                it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode d_dt_kinetic(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                it_vec dvarBegin,it_vec dvarEnd);
+                                it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec varEnd,
                              const_it_vec dvarBegin,const_it_vec dvarEnd);

@@ -162,21 +162,21 @@ PetscErrorCode PowerLaw::integrate()
 
 
 PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   return ierr;
 }
 
 
 PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -222,7 +222,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
-      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
+      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
       // arguments:
       // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
@@ -241,7 +241,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 }
 
 PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

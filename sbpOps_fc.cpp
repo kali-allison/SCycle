@@ -74,7 +74,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
     kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
 
 
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
 #endif
@@ -957,12 +956,12 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function construct1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-//~PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
-//~tempMats._D1y.printPetsc();
-//~PetscPrintf(PETSC_COMM_WORLD,"\n");
-//~PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
-//~tempMats._D1y.printPetsc();
-//~PetscPrintf(PETSC_COMM_WORLD,"\n");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
+  //~ tempMats._D1y.printPetsc();
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
+  //~ tempMats._D1y.printPetsc();
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);

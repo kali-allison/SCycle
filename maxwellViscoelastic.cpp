@@ -148,21 +148,21 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 
 
 PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
   }
   return ierr;
 }
 
 
 PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::d_dt_eqCycle";
@@ -209,7 +209,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
-      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4));CHKERRQ(ierr);
+      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
       //~ // arguments:
       //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   }
@@ -230,7 +230,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 }
 
 PetscErrorCode SymmMaxwellViscoelastic::d_dt_kinetic(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::d_dt_eqCycle";
@@ -326,7 +326,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_kinetic(const PetscScalar time,cons
 }
 
 PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::d_dt_mms";

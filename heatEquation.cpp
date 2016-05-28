@@ -15,6 +15,7 @@ HeatEquation::HeatEquation(Domain& D)
   _TV(NULL),_vw(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
+  _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),
   _T(NULL)
 {
   #if VERBOSE > 1
@@ -64,6 +65,39 @@ HeatEquation::HeatEquation(Domain& D)
   }
   _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
 
+
+  // create identity matrix I
+  MatCreate(PETSC_COMM_WORLD,&_I);
+  MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
+  MatSetFromOptions(_I);
+  MatMPIAIJSetPreallocation(_I,1,NULL,0,NULL);
+  MatSeqAIJSetPreallocation(_I,1,NULL);
+  MatSetUp(_I);
+  PetscInt Istart,Iend;
+  PetscScalar v = 1;
+  MatGetOwnershipRange(_I,&Istart,&Iend);
+  for(PetscInt Ii=Istart; Ii<Iend; Ii++) {
+    MatSetValues(_I,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(_I,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_I,MAT_FINAL_ASSEMBLY);
+
+  // create dt/rho*c matrix
+  Vec rhoCV;
+  VecDuplicate(_rho,&rhoCV);
+  VecSet(rhoCV,1.0);
+  VecPointwiseDivide(rhoCV,rhoCV,_rho);
+  VecPointwiseDivide(rhoCV,rhoCV,_c);
+  MatDuplicate(_I,MAT_DO_NOT_COPY_VALUES,&_rhoC);
+  MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
+  VecDestroy(&rhoCV);
+
+
+  // compute preconditioner
+  KSP ksp;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+  setupKSP(_sbpT,D._minDeltaT,ksp,_pcP);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -71,6 +105,11 @@ HeatEquation::HeatEquation(Domain& D)
 
 HeatEquation::~HeatEquation()
 {
+
+  KSPDestroy(&_kspP);
+  MatDestroy(&_rhoC);
+  MatDestroy(&_I);
+
   VecDestroy(&_k);
   VecDestroy(&_rho);
   VecDestroy(&_c);
@@ -411,9 +450,55 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
 }
 
 
+PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp,PC& pc)
+{
+  PetscErrorCode ierr = 0;
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setupKSP in heatequation.cpp\n");CHKERRQ(ierr);
+#endif
+
+  // A = I - dt/rho*c D2
+  Mat D2;
+  sbp->getA(D2);
+
+  // create A
+  Mat A;
+  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&A);
+
+  MatScale(A,-dt);
+  MatAYPX(A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+
+  // uses HYPRE's solver AMG (not HYPRE's preconditioners)
+  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+
+  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+
+  // finish setting up KSP context using options defined above
+  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+
+  // perform computation of preconditioners now, rather than on first use
+  ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setupKSP in heatequation.cpp\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+
+
 // for thermomechanical coupling
 PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt)
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -432,8 +517,12 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecPointwiseMult(_bcL,tau,absVel);
   VecDestroy(&absVel);
 
-  //~ VecSet(_bcL,-100);
-  VecSet(_bcL,0);
+
+  // create
+  KSP ksp;
+  setupKSP(_sbpT,D._minDeltaT,&ksp,_pcP);
+  KSPSolve(ksp,rhs,_T);
+
 
   Mat A;
   _sbpT->getA(A);
