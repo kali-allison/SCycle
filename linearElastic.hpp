@@ -6,7 +6,10 @@
 #include <cmath>
 #include <assert.h>
 #include <vector>
-#include "integratorContext.hpp"
+#include "integratorContextEx.hpp"
+#include "integratorContextImex.hpp"
+#include "odeSolver.hpp"
+#include "odeSolverImex.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -20,7 +23,7 @@
 
 /* Base class for a linear elastic material
  */
-class LinearElastic: public IntegratorContext
+class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 {
   private:
     // disable default copy constructor and assignment operator
@@ -92,7 +95,8 @@ class LinearElastic: public IntegratorContext
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcTP,_bcRP,_bcBP,_bcLP;
 
-    OdeSolver           *_quadrature;
+    OdeSolver           *_quadEx; // explicit time stepping
+    OdeSolverImex       *_quadImex; // implicit time stepping
     //~Fault               *_fault;
 
     PetscScalar _tLast; // time of last earthquake
@@ -105,14 +109,16 @@ class LinearElastic: public IntegratorContext
     //~PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
 
-    PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt) = 0;
+    // explicit time-stepping methods
+    PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin) = 0;
     PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
-                         const_it_vec varBegin,const_it_vec varEnd,
-                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage) = 0;
+                             const_it_vec varBegin,const_it_vec dvarBegin,const char *stage) = 0;
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+                     const_it_vec varBegin,const_it_vec dvarBegin);
+
+    // methods for implicit/explicit time stepping
+    PetscErrorCode virtual d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
+                      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt) = 0; // IMEX backward Euler
 
     // IO commands
     PetscErrorCode view();
@@ -152,23 +158,26 @@ class SymmLinearElastic: public LinearElastic
 
   public:
 
-    SymmFault       _fault;
-    std::vector<Vec>    _var; // holds variables to integrate
+    SymmFault           _fault;
+    std::vector<Vec>    _var; // holds variables for explicit integration in time
+    std::vector<Vec>    _varIm; // holds variables for implicit integration in time
 
 
     SymmLinearElastic(Domain&D);
     ~SymmLinearElastic();
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                        it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                            it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
+
+    // methods for explicit time stepping
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                         const_it_vec varBegin,const_it_vec varEnd,
-                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
+                         const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
+
+    // methods for implicit/explicit time stepping
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
+      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
 
     // IO commands
     PetscErrorCode writeStep1D(); // write out 1D fields
@@ -229,11 +238,13 @@ class FullLinearElastic: public LinearElastic
     ~FullLinearElastic();
 
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                         const_it_vec varBegin,const_it_vec varEnd,
-                         const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
+                         const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
+
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
+                      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
+
     // IO commands
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();

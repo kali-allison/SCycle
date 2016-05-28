@@ -1,43 +1,46 @@
-#include "odeSolver.hpp"
+#include "OdeSolverImex.hpp"
 
 using namespace std;
 
-OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
-  _lenVar(0),
-  _runTime(0),
-  _controlType(controlType)
+  _lenVar(0),_runTime(0),_controlType(controlType),
+  _minDeltaT(0),_maxDeltaT(finalT),
+  _atol(1e-9),_kappa(0.9),_ord(2.0),
+  _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex constructor in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
+  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
+
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver constructor in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex constructor in OdeSolverImex.cpp.\n");
 #endif
 }
 
-OdeSolver::~OdeSolver()
+OdeSolverImex::~OdeSolverImex()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver destructor in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex destructor in OdeSolverImex.cpp.\n");
 #endif
 
   // because I don't allocate the contents of _var, I don't delete them in this class either
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver destructor in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex destructor in OdeSolverImex.cpp.\n");
 #endif
 }
 
 
-PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
+PetscErrorCode OdeSolverImex::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setTimeRange in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setTimeRange in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
@@ -48,154 +51,26 @@ PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal fin
   _runTime += MPI_Wtime() - startTime;
   return 0;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver::setTimeRange in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setTimeRange in OdeSolverImex.cpp.\n");
 #endif
 }
 
-PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
+PetscErrorCode OdeSolverImex::setStepSize(const PetscReal deltaT)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setStepSize in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setStepSize in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   _deltaT = deltaT;
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver::setStepSize in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setStepSize in OdeSolverImex.cpp.\n");
 #endif
   return 0;
 }
 
-//================= FEuler child class functions =======================
 
-FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolver(maxNumSteps,finalT,deltaT,controlType)
-{}
-
-PetscErrorCode FEuler::view()
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::view in odeSolver.cpp.\n");
-#endif
-  PetscErrorCode ierr = 0;
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTimeSolver summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: forward euler\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
-                     _initT,_finalT);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total number of steps taken: %i/%i\n",
-                     _stepCount,_maxNumSteps);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   final time reached: %g\n",
-                     _currT);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time: %g\n",
-                     _runTime);CHKERRQ(ierr);
-  return 0;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::view in odeSolver.cpp.\n");
-#endif
-}
-
-PetscErrorCode FEuler::setInitialConds(vector<Vec>& var)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-  PetscErrorCode ierr = 0;
-
-  _var = var; // shallow copy
-  _lenVar = var.size();
-
-  _dvar.reserve(_lenVar);
-  for (int ind=0;ind<_lenVar;ind++) {
-    ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
-  }
-
-
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::setInitialConds in odeSolver.cpp.\n");
-#endif
-  return ierr;
-}
-
-PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::integrate in odeSolver.cpp.\n");
-#endif
-  PetscErrorCode ierr = 0;
-  double startTime = MPI_Wtime();
-
-  if (_finalT==_initT) { return ierr; }
-  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
-
-  while (_stepCount<_maxNumSteps && _currT<_finalT) {
-
-    ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"FE");CHKERRQ(ierr);
-    for (int varInd=0;varInd<_lenVar;varInd++) {
-      ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
-    }
-    _currT = _currT + _deltaT;
-    if (_currT>_finalT) { _currT = _finalT; }
-    _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-  }
-
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::integrate in odeSolver.cpp.\n");
-#endif
-  return ierr;
-}
-
-
-
-//================= RK32 child class functions =========================
-
-RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolver(maxNumSteps,finalT,deltaT,controlType),
-  _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(2.0),
-  _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::constructor in odeSolver.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-
-  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
-
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver::constructor in odeSolver.cpp.\n");
-#endif
-}
-
-RK32::~RK32()
-{
-//~ #if VERBOSE > 1
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
-//~ #endif
-
-//~ PetscPrintf(PETSC_COMM_WORLD,"%i\n\n",_lenVar);
-//~ assert(0);
-  //~ // destruct temporary containers
-  //~ for (int ind=0;ind<_lenVar;ind++) {
-    //~ VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
-    //~ VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
-    //~ VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
-    //~ VecDestroy(&_var3rd[ind]);
-  //~ }
-//~ #if VERBOSE > 1
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
-//~ #endif
-}
-
-PetscErrorCode RK32::view()
+PetscErrorCode OdeSolverImex::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -237,31 +112,32 @@ PetscErrorCode RK32::view()
   return 0;
 }
 
-PetscErrorCode RK32::setTolerance(const PetscReal tol)
+PetscErrorCode OdeSolverImex::setTolerance(const PetscReal tol)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setTolerance in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setTolerance in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   _atol = tol;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setTolerance in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setTolerance in OdeSolverImex.cpp.\n");
 #endif
   return 0;
 }
 
-PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
+PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setInitialConds in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  _var = var;
-  _lenVar = var.size();
+  // explicit part
+  _var = varEx;
+  _lenVar = varEx.size();
 
   _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
   _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
@@ -289,45 +165,49 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
         ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
   }
 
+  // implicit part
+  _varIm = varIm;
+  Vec temp; VecDuplicate(*varIm.begin(),&temp); VecSet(temp,0.0); _varHalfdTIm.push_back(temp);
+  Vec temp1; VecDuplicate(*varIm.begin(),&temp1);  VecSet(temp1,0.0); _vardTIm.push_back(temp1);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setInitialConds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setInitialConds in OdeSolverImex.cpp.\n");
 #endif
   return ierr;
 }
 
-PetscErrorCode RK32::setErrInds(std::vector<int>& errInds)
+PetscErrorCode OdeSolverImex::setErrInds(std::vector<int>& errInds)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setErrInds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setErrInds in OdeSolverImex.cpp.\n");
 #endif
   _errInds = errInds;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setTimeStepBounds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setTimeStepBounds in OdeSolverImex.cpp.\n");
 #endif
   return 0;
 }
 
-PetscErrorCode RK32::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
+PetscErrorCode OdeSolverImex::setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setTimeStepBounds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setTimeStepBounds in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   _minDeltaT = minDeltaT;
   _maxDeltaT = maxDeltaT;
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::setTimeStepBounds in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setTimeStepBounds in OdeSolverImex.cpp.\n");
 #endif
   return 0;
 }
 
-PetscReal RK32::computeStepSize(const PetscReal totErr)
+PetscReal OdeSolverImex::computeStepSize(const PetscReal totErr)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::computeStepSize in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::computeStepSize in OdeSolverImex.cpp.\n");
 #endif
   PetscReal stepRatio;
 
@@ -378,15 +258,15 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
     _numMaxSteps++;
   }
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeStepSize in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::computeStepSize in OdeSolverImex.cpp.\n");
 #endif
   return deltaT;
 }
 
-PetscReal RK32::computeError()
+PetscReal OdeSolverImex::computeError()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::computeError in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::computeError in OdeSolverImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
   PetscReal      err,totErr=0.0;
@@ -408,16 +288,16 @@ PetscReal RK32::computeError()
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::computeError in OdeSolverImex.cpp.\n");
 #endif
   return totErr;
 }
 
 
-PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
+PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::integrate in OdeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
@@ -436,12 +316,10 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"_lenVar = %i\n",_lenVar);
-  //~assert(0>1);
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-  ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"IC");CHKERRQ(ierr);
+  //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"IC");CHKERRQ(ierr);
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -457,16 +335,19 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin());CHKERRQ(ierr);
-      ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT.begin(),_dvarHalfdT.begin(),"t+dt/2");CHKERRQ(ierr);
+
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin(),
+               _varHalfdTIm.begin(),_varIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
+      //~ ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT.begin(),_dvarHalfdT.begin(),"t+dt/2");CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin());CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT.begin(),_dvardT.begin(),"t+dt");CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin(),
+               _vardTIm.begin(),_varHalfdTIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
+      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT.begin(),_dvardT.begin(),"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (int ind=0;ind<_lenVar;ind++) {
@@ -477,8 +358,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
         ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
       }
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd.begin(),_dvardT.begin(),"2nd");CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd.begin(),_dvardT.begin(),"3rd");CHKERRQ(ierr);
+      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd.begin(),_dvardT.begin(),"2nd");CHKERRQ(ierr);
+      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd.begin(),_dvardT.begin(),"3rd");CHKERRQ(ierr);
 
 
       // calculate error
@@ -498,8 +379,9 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     for (int ind=0;ind<_lenVar;ind++) {
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
+    VecCopy(_vardTIm[0],_varIm[0]);
     ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"F");CHKERRQ(ierr);
+    //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
@@ -518,29 +400,13 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
     VecDestroy(&_dvar[i]);
   }
+  VecDestroy(&_varHalfdTIm[0]);
+  VecDestroy(&_vardTIm[0]);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::integrate in odeSolver.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::integrate in OdeSolverImex.cpp.\n");
 #endif
   return ierr;
 }
-
-
-//================= placeholder functions ================================
-
-PetscErrorCode newtempRhsFunc(const PetscReal time, const int lenVar, Vec *var, Vec *dvar, void*userContext)
-{
-  PetscErrorCode ierr = 0;
-  SETERRQ(PETSC_COMM_WORLD,1,"rhsFunc not defined.\n");
-  return ierr;
-}
-
-PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
-                               const Vec *var, const int lenVar, void*userContext)
-{
-  PetscErrorCode ierr = 0;
-  return ierr;
-}
-
 

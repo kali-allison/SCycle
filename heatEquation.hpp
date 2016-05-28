@@ -78,7 +78,11 @@ class HeatEquation
 
     // compute rate
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt,const PetscScalar dt);
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
+
+    // implicitly solve for temperature using backward Euler
+    PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
+      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
     PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount);

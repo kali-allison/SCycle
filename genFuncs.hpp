@@ -12,6 +12,9 @@
 
 using namespace std;
 
+typedef std::vector<Vec>::iterator it_vec;
+typedef std::vector<Vec>::const_iterator const_it_vec;
+
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec);
 

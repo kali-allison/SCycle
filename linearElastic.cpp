@@ -29,7 +29,7 @@ LinearElastic::LinearElastic(Domain&D)
   _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
   _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_stressxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
-  _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),
+  _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),_quadEx(NULL),_quadImex(NULL),
   _tLast(0)
 {
 #if VERBOSE > 1
@@ -66,10 +66,13 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
   if (_timeIntegrator.compare("FEuler")==0) {
-    _quadrature = new FEuler(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
+    _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
   }
   else if (_timeIntegrator.compare("RK32")==0) {
-    _quadrature = new RK32(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
+    _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
+  }
+  else if (_timeIntegrator.compare("IMEX")==0) {
+    _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
@@ -87,13 +90,12 @@ LinearElastic::LinearElastic(Domain&D)
     _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type type not understood\n");
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
 
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
-
 
 
 #if VERBOSE > 1
@@ -129,7 +131,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
 
   delete _sbpP;
-  //delete _quadrature;
+  //delete _quadEx;
 
 
   PetscViewerDestroy(&_bcRPlusV);
@@ -324,8 +326,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
 
 
 PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd)
+                             const_it_vec varBegin,const_it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   _stepCount++;
@@ -349,7 +350,7 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
 PetscErrorCode LinearElastic::view()
 {
   PetscErrorCode ierr = 0;
-  ierr = _quadrature->view();
+  //~ ierr = _quadEx->view();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
@@ -416,7 +417,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     Vec T;
     VecDuplicate(_uP,&T);
     VecCopy(_he._T,T);
-    _var.push_back(T);
+    _varIm.push_back(T);
   }
 
   if (_isMMS) {
@@ -435,16 +436,10 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     _fault.setTauQS(_stressxyP,NULL);
     _fault.setFaultDisp(_bcLP,NULL);
 
-    //~ VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
-    //~ MatView(,PETSC_VIEWER_STDOUT_WORLD);
-    //~ VecView(_stressxyP,PETSC_VIEWER_STDOUT_WORLD);
-    //~ assert(0);
-
     _fault.computeVel();
   }
 
   setSurfDisp();
-
 
 
 #if VERBOSE > 1
@@ -503,7 +498,7 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   PetscScalar u,y,z;
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ z = Ii-_Nz*(Ii/_Nz);
+    z = Ii-_Nz*(Ii/_Nz);
     y = Ii/_Nz;
     if (Ii % _Nz == 0) {
       ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
@@ -624,6 +619,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
       //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                                      //~FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
       //~}
+
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -654,18 +650,34 @@ PetscErrorCode SymmLinearElastic::integrate()
 
   _stepCount++;
 
-  // call odeSolver routine integrate here
-  _quadrature->setTolerance(_atol);CHKERRQ(ierr);
-  _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-  ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
+  if (_timeIntegrator.compare("IMEX")==0) {
+    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadImex->setTimeRange(_initTime,_maxTime);
+    ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
-  // control which fields are used to select step size
-  int arrInds[] = {1}; // state: 0, slip: 1
-  std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-  ierr = _quadrature->setErrInds(errInds);
+    // control which fields are used to select step size
+    int arrInds[] = {1}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    ierr = _quadImex->setErrInds(errInds);
 
-  ierr = _quadrature->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+  }
+  else {
+    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+    ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+
+    // control which fields are used to select step size
+    int arrInds[] = {1}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    ierr = _quadEx->setErrInds(errInds);
+
+    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  }
+
+
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -674,26 +686,98 @@ PetscErrorCode SymmLinearElastic::integrate()
 }
 
 
-PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+// explicit time stepping
+PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varBegin,dvarBegin);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
   }
   return ierr;
 }
 
-// I'm not sure this makes sense as a function given my current MMS test
-PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+
+// explicit time stepping
+PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+
+  // update boundaries
+  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
+  ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+
+  // solve for displacement
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+  ierr = setSurfDisp();
+
+  // solve for shear stress
+  ierr = _sbpP->muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+
+  // update fields on fault
+  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault.d_dt(varBegin,dvarBegin);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+// implicit/explicit time stepping
+PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
+  const_it_vec varBegin,it_vec dvarBegin,it_vec varBeginIm,const_it_vec varBeginImo,
+  const PetscScalar dt)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+  ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
+
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec stressxzP;
+    VecDuplicate(_uP,&stressxzP);
+    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+      //~ NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
+    ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+      NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+    VecDestroy(&stressxzP);
+      // arguments:
+      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  }
+  else {
+    ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
+  }
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   Vec source,Hxsource;
@@ -729,64 +813,10 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
-
-
-PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-
-
-  // update boundaries
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
-  ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
-
-  // solve for displacement
-  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  double startTime = MPI_Wtime();
-  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
-  ierr = setSurfDisp();
-
-  // solve for shear stress
-  ierr = _sbpP->muxDy(_uP,_stressxyP); CHKERRQ(ierr);
-
-  // update fields on fault
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
-
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec stressxzP;
-    VecDuplicate(_uP,&stressxzP);
-    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-      NULL,*(varBegin+2),*(dvarBegin+2),dt);CHKERRQ(ierr);
-    VecDestroy(&stressxzP);
-      // arguments:
-      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  }
-  //~VecSet(*dvarBegin,0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-
-
 
 
 PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
@@ -895,8 +925,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
 // Outputs data at each time step.
 PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec varEnd,
-                     const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
+                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
 {
   PetscErrorCode ierr = 0;
 
@@ -1226,17 +1255,17 @@ PetscErrorCode FullLinearElastic::integrate()
   double startTime = MPI_Wtime();
 
   // call odeSolver routine integrate here
-  _quadrature->setTolerance(_atol);CHKERRQ(ierr);
-  _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-  ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
+  _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+  _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+  ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
   int arrInds[] = {1}; // state: 0, slip: 1
   std::vector<int> errInds(arrInds,arrInds+1);
-  ierr = _quadrature->setErrInds(errInds);
+  ierr = _quadEx->setErrInds(errInds);
 
-  ierr = _quadrature->integrate(this);CHKERRQ(ierr);
+  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
@@ -1319,8 +1348,7 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
 return ierr;
 }
 
-PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -1374,7 +1402,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   //~assert(0>1);
 
   ierr = _fault.setTauQS(_stressxyP,_sigma_xyMinus);CHKERRQ(ierr);
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd);
+  ierr = _fault.d_dt(varBegin,dvarBegin);
 
   ierr = setSurfDisp();
 
@@ -1384,12 +1412,43 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   return ierr;
 }
 
+// implicit/explicit time stepping
+PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
+  const_it_vec varBegin,it_vec dvarBegin,it_vec varBeginIm,const_it_vec varBeginImo,
+  const PetscScalar dt)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+  ierr = d_dt(time,varBegin,dvarBegin);CHKERRQ(ierr);
+
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec stressxzP;
+    //~ VecDuplicate(_uP,&stressxzP);
+    //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+      //~ NULL,*(varBegin+2),*(dvarBegin+2),dt);CHKERRQ(ierr);
+    //~ VecDestroy(&stressxzP);
+      //~ // arguments:
+      //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  //~ }
+  //~VecSet(*dvarBegin,0.0);
+  //~VecSet(*(dvarBegin+1),0.0);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 
 
 // Outputs data at each time step.
 PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec varEnd,
-                     const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
+                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
 {
   PetscErrorCode ierr = 0;
 #if ODEPRINT > 0

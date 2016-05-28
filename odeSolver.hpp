@@ -7,12 +7,12 @@
 #include <vector>
 #include <algorithm>
 #include <assert.h>
-#include "integratorContext.hpp"
+#include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 
 /*
  * Provides a set of algorithms to solve a system of ODEs of
- * the form y' = f(t,y).
+ * the form y' = f(t,y) using EXPLICIT time stepping.
  *
  * SOLVER TYPE      ALGORITHM
  *  FEuler        forward Euler
@@ -66,8 +66,8 @@ class OdeSolver
   public:
 
     // iterators for _var and _dvar
-    typedef vector<Vec>::iterator it_vec;
-    typedef vector<Vec>::const_iterator const_it_vec;
+    //~ typedef vector<Vec>::iterator it_vec;
+    //~ typedef vector<Vec>::const_iterator const_it_vec;
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~OdeSolver();
@@ -80,9 +80,10 @@ class OdeSolver
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
+    virtual PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) = 0;
     virtual PetscErrorCode setErrInds(std::vector<int>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(IntegratorContext *obj) = 0;
+    virtual PetscErrorCode integrate(IntegratorContextEx *obj) = 0;
 };
 
 PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
@@ -99,8 +100,9 @@ class FEuler : public OdeSolver
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
     PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
-    PetscErrorCode integrate(IntegratorContext *obj);
+    PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 class RK32 : public OdeSolver
@@ -129,10 +131,11 @@ class RK32 : public OdeSolver
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<int>& errInds);
     PetscErrorCode view();
 
-    PetscErrorCode integrate(IntegratorContext *obj);
+    PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 #endif

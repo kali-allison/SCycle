@@ -5,7 +5,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
-#include "integratorContext.hpp"
+#include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "linearElastic.hpp"
@@ -41,15 +41,13 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _TV;
     PetscViewer _effViscV;
 
-    PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin,const_it_vec varEnd);
-    PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                          it_vec dvarBegin,it_vec dvarEnd);
+    PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
+    PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
-    PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd);
+    PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin);
 
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                           const_it_vec varBegin,const_it_vec varEnd,
-                           const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage);
+                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
 
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
@@ -61,15 +59,13 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode resetInitialConds();
 
     PetscErrorCode integrate(); // don't need now that LinearElastic defines this
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                     it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                            it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                                it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt);
+
+    // methods for explicit time stepping
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd);
+                     const_it_vec varBegin,const_it_vec dvarBegin);
 
     PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep1D();

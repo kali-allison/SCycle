@@ -1,6 +1,6 @@
 all: mainLinearElastic
 
-DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
@@ -8,7 +8,8 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
- spmat.o testOdeSolver.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o
+ spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
+ odeSolverImex.o
 
 
 
@@ -72,38 +73,41 @@ genFuncs.o: genFuncs.cpp genFuncs.hpp
 heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp
 helloWorld.o: helloWorld.cpp
-iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContext.hpp odeSolver.hpp \
+iceSheet.o: iceSheet.cpp iceSheet.hpp integratorContextEx.hpp odeSolver.hpp \
  genFuncs.hpp domain.hpp maxwellViscoelastic.hpp linearElastic.hpp \
  sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp \
- integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
+ integratorContextEx.hpp odeSolver.hpp genFuncs.hpp domain.hpp sbpOps.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- integratorContext.hpp odeSolver.hpp sbpOps_c.hpp debuggingFuncs.hpp \
+ integratorContextEx.hpp odeSolver.hpp sbpOps_c.hpp debuggingFuncs.hpp \
  sbpOps_fc.hpp maxwellViscoelastic.hpp powerLaw.hpp
 mainEx.o: mainEx.cpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
- linearElastic.hpp integratorContext.hpp odeSolver.hpp sbpOps_fc_coordTrans.hpp
+ linearElastic.hpp integratorContextEx.hpp integratorContextImex.hpp \
+ odeSolver.hpp odeSolverImex.hpp sbpOps_fc_coordTrans.hpp
 mainMaxwell.o: mainMaxwell.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
- linearElastic.hpp integratorContext.hpp odeSolver.hpp sbpOps_c.hpp \
+ linearElastic.hpp integratorContextEx.hpp odeSolver.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp sbpOps_fc.hpp maxwellViscoelastic.hpp powerLaw.hpp
 main_iceSheet.o: main_iceSheet.cpp genFuncs.hpp spmat.hpp domain.hpp \
  sbpOps.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
- linearElastic.hpp integratorContext.hpp odeSolver.hpp sbpOps_c.hpp \
+ linearElastic.hpp integratorContextEx.hpp odeSolver.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp sbpOps_fc.hpp maxwellViscoelastic.hpp iceSheet.hpp
 maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
- integratorContext.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
+ integratorContextEx.hpp odeSolver.hpp genFuncs.hpp domain.hpp \
  linearElastic.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp \
  sbpOps_fc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
-odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContext.hpp \
+odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContextEx.hpp \
  genFuncs.hpp
-powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContext.hpp odeSolver.hpp \
+odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp integratorContextImex.hpp \
+ genFuncs.hpp
+powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContextEx.hpp odeSolver.hpp \
  genFuncs.hpp domain.hpp linearElastic.hpp sbpOps.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp heatEquation.hpp
@@ -123,8 +127,6 @@ test.o: test.cpp sbpOps.hpp domain.hpp genFuncs.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp
 testMain.o: testMain.cpp genFuncs.hpp domain.hpp spmat.hpp sbpOps.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp sbpOps_fc.hpp testOdeSolver.hpp \
- integratorContext.hpp odeSolver.hpp
-testOdeSolver.o: testOdeSolver.cpp testOdeSolver.hpp \
- integratorContext.hpp odeSolver.hpp genFuncs.hpp
+ integratorContextEx.hpp odeSolver.hpp
 test.o: test.cpp
 

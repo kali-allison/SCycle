@@ -510,7 +510,9 @@ PetscErrorCode Domain::checkInput()
   assert(_vL > 0);
 
 
-  assert(_timeIntegrator.compare("FEuler")==0 || _timeIntegrator.compare("RK32")==0);
+  assert(_timeIntegrator.compare("FEuler")==0
+    || _timeIntegrator.compare("RK32")==0
+    || _timeIntegrator.compare("IMEX")==0);
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
          _timeControlType.compare("PID")==0 );
@@ -802,7 +804,7 @@ PetscErrorCode Domain::setFieldsPlus()
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
-      PetscScalar b = 5;
+      PetscScalar b = 15;
       y = _Ly * sinh(b*q)/sinh(b);
       //~ y = q*_Ly;
       z = r*_Lz;

@@ -141,17 +141,17 @@ PetscErrorCode PowerLaw::integrate()
   _stepCount++;
 
   // call odeSolver routine integrate here
-  _quadrature->setTolerance(_atol);CHKERRQ(ierr);
-  _quadrature->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-  ierr = _quadrature->setTimeRange(_initTime,_maxTime);
-  ierr = _quadrature->setInitialConds(_var);CHKERRQ(ierr);
+  _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+  _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+  ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
   int arrInds[] = {1}; // only use slip
   std::vector<int> errInds(arrInds,arrInds+1);
-  ierr = _quadrature->setErrInds(errInds);
+  ierr = _quadEx->setErrInds(errInds);
 
-  ierr = _quadrature->integrate(this);CHKERRQ(ierr);
+  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -161,22 +161,20 @@ PetscErrorCode PowerLaw::integrate()
 }
 
 
-PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varBegin,dvarBegin);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,varEnd,dvarBegin,dvarEnd,dt);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
   }
   return ierr;
 }
 
 
-PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -198,7 +196,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
   Vec viscSource;
   ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
-  ierr = setViscStrainSourceTerms(viscSource,varBegin,varEnd);CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,varBegin);CHKERRQ(ierr);
 
   // set up rhs vector
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
@@ -213,19 +211,19 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = setSurfDisp();
 
   // set shear traction on fault
-  ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
+  ierr = setStresses(time,varBegin);CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates
-  ierr = _fault.d_dt(varBegin,varEnd, dvarBegin, dvarEnd); // sets rates for slip and state
-  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // sets viscous strain rates
+  ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // sets viscous strain rates
 
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
-      *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
-      // arguments:
-      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  }
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
+      //~ *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
+      //~ // arguments:
+      //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  //~ }
 
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
@@ -240,8 +238,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   return ierr;
 }
 
-PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd,const PetscScalar dt)
+PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -267,7 +264,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  ierr = setViscStrainSourceTerms(viscSource,_var.begin(),_var.end());CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
@@ -291,13 +288,13 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
   //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
 
   // update stresses
-  ierr = setStresses(time,varBegin,varEnd);CHKERRQ(ierr);
+  ierr = setStresses(time,varBegin);CHKERRQ(ierr);
   //~mapToVec(_stressxyP,MMS_pl_sigmaxy,_Nz,_dy,_dz,time);
   //~mapToVec(_stressxzP,MMS_pl_sigmaxz,_Nz,_dy,_dz,time);
   //~mapToVec(_sigmadev,MMS_sigmadev,_Nz,_dy,_dz,time);
 
   // update rates
-  ierr = setViscStrainRates(time,varBegin,varEnd,dvarBegin,dvarEnd);CHKERRQ(ierr); // set viscous strain rates
+  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
   Vec source;
   VecDuplicate(_uP,&source);
   mapToVec(source,MMS_pl_gxy_t_source,_Nz,_dy,_dz,time);
@@ -322,7 +319,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,c
 }
 
 
-PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin,const_it_vec varEnd)
+PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -427,8 +424,7 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
 
 
 
-PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd,
-                 it_vec dvarBegin,it_vec dvarEnd)
+PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -497,7 +493,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
 }
 
 // computes sigmaxy, sigmaxz, and sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
-PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegin,const_it_vec varEnd)
+PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegin)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -583,7 +579,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
-  ierr = setViscStrainSourceTerms(viscSource,_var.begin(),_var.end());CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
@@ -606,7 +602,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // set stresses
-  ierr = setStresses(time,_var.begin(),_var.end());CHKERRQ(ierr);
+  ierr = setStresses(time,_var.begin());CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -728,8 +724,7 @@ PetscErrorCode PowerLaw::measureMMSError()
 
 
 PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec varEnd,
-                             const_it_vec dvarBegin,const_it_vec dvarEnd)
+                             const_it_vec varBegin,const_it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
 
@@ -753,8 +748,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
 
 // Outputs data at each time step.
 PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec varEnd,
-                     const_it_vec dvarBegin,const_it_vec dvarEnd,const char *stage)
+                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
 {
   PetscErrorCode ierr = 0;
 
@@ -1001,7 +995,7 @@ PetscErrorCode PowerLaw::writeStep2D()
 PetscErrorCode PowerLaw::view()
 {
   PetscErrorCode ierr = 0;
-  ierr = _quadrature->view();
+  ierr = _quadEx->view();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);

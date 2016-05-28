@@ -620,8 +620,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 
 
 
-PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
-                        it_vec dvarBegin,it_vec dvarEnd)
+PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -630,8 +629,6 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
 
   PetscScalar    val,stateVal;
   PetscInt       Ii,Istart,Iend;
-
-  assert(varBegin+1 != varEnd);
 
   ierr = VecCopy(*(varBegin),_state);CHKERRQ(ierr);
   ierr = VecCopy(*(varBegin+1),_slip);CHKERRQ(ierr);
@@ -1183,8 +1180,7 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 
 
 
-PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
-                               it_vec dvarBegin,it_vec dvarEnd)
+PetscErrorCode FullFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
@@ -1193,8 +1189,6 @@ PetscErrorCode FullFault::d_dt(const_it_vec varBegin,const_it_vec varEnd,
 
   PetscScalar    val,stateVal;
   PetscInt       Ii,Istart,Iend;
-
-  assert(varBegin+1 != varEnd);
 
   ierr = computeVel();CHKERRQ(ierr);
 
