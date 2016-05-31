@@ -27,6 +27,7 @@ int runMMSTests(const char * inputFile)
   for(PetscInt Ny=11;Ny<162;Ny=(Ny-1)*2+1)
   {
     Domain domain(inputFile,Ny,Ny);
+    //~ Domain domain(inputFile,Ny,1);
     domain.write();
 
     LinearElastic *obj;

@@ -91,13 +91,13 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
-  _q(NULL),_r(NULL),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),
   _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
-  _da(NULL),_muVecP(NULL),_muVecM(NULL)
+  _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -111,6 +111,10 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _dy = _Ly/(_Ny-1.0);
   if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   else (_dz = 1);
+
+  _dq = 1.0/(_Ny-1.0);
+  if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
+  else (_dr = 1);
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
@@ -513,6 +517,7 @@ PetscErrorCode Domain::checkInput()
   assert(_timeIntegrator.compare("FEuler")==0
     || _timeIntegrator.compare("RK32")==0
     || _timeIntegrator.compare("IMEX")==0);
+
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
          _timeControlType.compare("PID")==0 );

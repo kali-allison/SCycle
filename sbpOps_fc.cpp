@@ -133,6 +133,23 @@ PetscErrorCode SbpOps_fc::getA(Mat &mat)
   return 0;
 }
 
+PetscErrorCode SbpOps_fc::getH(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::getH";
+    string fileName = "SbpOps_fc.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of H:
+  mat = _H;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
 //======================================================================
 
 /* Enforce boundary conditions using SAT penalty terms, computing both

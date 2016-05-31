@@ -87,7 +87,8 @@ struct TempMats_fc
 class SbpOps_fc : public SbpOps
 {
 
-  private:
+  //~ private:
+  public:
 
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
@@ -157,6 +158,7 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode writeOps(const std::string outputDir);
 
     PetscErrorCode getA(Mat &mat);
+    PetscErrorCode getH(Mat &mat);
 
 
     // functions to compute various derivatives of input vectors (this

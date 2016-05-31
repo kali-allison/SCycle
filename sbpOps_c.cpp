@@ -138,6 +138,23 @@ PetscErrorCode SbpOps_c::getA(Mat &mat)
   return 0;
 }
 
+PetscErrorCode SbpOps_c::getH(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_c::getH";
+    string fileName = "SbpOps_c.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of H:
+  mat = _H;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
 
 //======================================================================
 
@@ -942,6 +959,29 @@ _runTime = MPI_Wtime() - startTime;
   return ierr;
 }
 
+// compute Hinv matrix (Hyinv kron Hzinv)
+PetscErrorCode SbpOps_c::constructHinv(const TempMats_c& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructHinv in sbpOps_c.cpp.\n");CHKERRQ(ierr);
+#endif
+
+  if (_Ny > 1 && _Nz > 1) {
+    MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
+  }
+  else if (_Nz == 1) { MatDuplicate(tempMats._Hyinv_Iz,MAT_COPY_VALUES,&_Hinv); }
+  else if (_Ny == 1) { MatDuplicate(tempMats._Iy_Hzinv,MAT_COPY_VALUES,&_Hinv); }
+  PetscObjectSetName((PetscObject) _Hinv, "Hinv");
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructHinv in sbpOps_c.cpp.\n");CHKERRQ(ierr);
+#endif
+_runTime = MPI_Wtime() - startTime;
+  return ierr;
+}
+
 // compute matrices for 1st derivatives
 PetscErrorCode SbpOps_c::construct1stDerivs(const TempMats_c& tempMats)
 {
@@ -1689,6 +1729,24 @@ PetscErrorCode SbpOps_c::H(const Vec &in, Vec &out)
 #endif
 
   ierr = MatMult(_H,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hinv * in
+PetscErrorCode SbpOps_c::Hinv(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Hinv";
+  string fileName = "sbpOps_c.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_Hinv,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);

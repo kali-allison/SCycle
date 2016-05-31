@@ -7,7 +7,7 @@
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
-  _kspTol(D._kspTol),
+  _kspTol(1e-8),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
@@ -56,31 +56,55 @@ HeatEquation::HeatEquation(Domain& D)
   VecSet(_T,_TVals[0]);
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
+  // solve for steady state temperature profile
   {
-    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    //~ _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    if (D._sbpType.compare("mfc")==0) {
+      _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    }
+    else if (D._sbpType.compare("mfc_coordTrans")==0) {
+      _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    }
+    else {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+      assert(0); // automatically fail
+    }
     computeSteadyStateTemp();
     setBCs(); // update bcR with geotherm
     //~ (*_sbpT).~SbpOps_fc();
     delete _sbpT;
   }
-  _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  if (D._sbpType.compare("mfc")==0) {
+    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  }
+  else if (D._sbpType.compare("mfc_coordTrans")==0) {
+    _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
 
 
   // create identity matrix I
-  MatCreate(PETSC_COMM_WORLD,&_I);
-  MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
-  MatSetFromOptions(_I);
-  MatMPIAIJSetPreallocation(_I,1,NULL,0,NULL);
-  MatSeqAIJSetPreallocation(_I,1,NULL);
-  MatSetUp(_I);
-  PetscInt Istart,Iend;
-  PetscScalar v = 1;
-  MatGetOwnershipRange(_I,&Istart,&Iend);
-  for(PetscInt Ii=Istart; Ii<Iend; Ii++) {
-    MatSetValues(_I,1,&Ii,1,&Ii,&v,INSERT_VALUES);
-  }
-  MatAssemblyBegin(_I,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(_I,MAT_FINAL_ASSEMBLY);
+  //~ MatCreate(PETSC_COMM_WORLD,&_I);
+  //~ MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
+  //~ MatSetFromOptions(_I);
+  //~ MatMPIAIJSetPreallocation(_I,1,NULL,0,NULL);
+  //~ MatSeqAIJSetPreallocation(_I,1,NULL);
+  //~ MatSetUp(_I);
+  //~ PetscInt Istart,Iend;
+  //~ PetscScalar v = 1;
+  //~ MatGetOwnershipRange(_I,&Istart,&Iend);
+  //~ for(PetscInt Ii=Istart; Ii<Iend; Ii++) {
+    //~ MatSetValues(_I,1,&Ii,1,&Ii,&v,INSERT_VALUES);
+  //~ }
+  //~ MatAssemblyBegin(_I,MAT_FINAL_ASSEMBLY);
+  //~ MatAssemblyEnd(_I,MAT_FINAL_ASSEMBLY);
+
+  Mat H;
+  _sbpT->getH(H);
+  MatDuplicate(H,MAT_COPY_VALUES,&_I);
 
   // create dt/rho*c matrix
   Vec rhoCV;
@@ -450,7 +474,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
 }
 
 
-PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp,PC& pc)
+PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp)
 {
   PetscErrorCode ierr = 0;
 
@@ -468,20 +492,32 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
   MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&A);
 
   MatScale(A,-dt);
-  MatAYPX(A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  MatAXPY(A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
 
-  // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-  KSPCreate(PETSC_COMM_WORLD,&ksp);
-  ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-  ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    PC pc;
+  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
+    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 
-  ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-  ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+  }
+  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
+    ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    PCSetType(pc,PCCHOLESKY);
+    PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
+    PCFactorSetUpMatSolverPackage(pc);
+  }
 
   // finish setting up KSP context using options defined above
   ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
@@ -567,7 +603,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
 
 // for thermomechanical coupling using backward Euler (implicit time stepping)
 PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+      const Vec& sigmaxz, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -581,24 +617,40 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecDuplicate(_bcL,&vel);
   VecCopy(slipVel,vel);
   VecPointwiseMult(_bcL,tau,vel);
-  VecScale(_bcL,0.5);
+  VecScale(_bcL,0.5); // *-1 to match sign for matrix rhsL
   VecDestroy(&vel);
 
-  KSP ksp;
-  setupKSP(_sbpT,dt,ksp,_pcP);
+  //~ VecSet(_bcL,2e5);
 
-  Vec rhs;
+  KSP ksp;
+  setupKSP(_sbpT,dt,ksp);
+
+  Vec rhs,temp;
   VecDuplicate(sigmaxy,&rhs);
-  ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  VecScale(rhs,dt/3.0/900.0);
+  VecDuplicate(sigmaxy,&temp);
+  ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  MatMult(_rhoC,temp,rhs);
+  VecScale(rhs,dt);
+
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"a*b:\n");
+  //~ printVec(rhs);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   // add H * Tn to rhs
-  Vec temp;
-  VecDuplicate(To,&temp);
   _sbpT->H(To,temp);
   VecAXPY(rhs,1.0,temp);
-  VecDestroy(&temp);
 
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"H*To:\n");
+  //~ printVec(temp);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"rhs:\n");
+  //~ printVec(rhs);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
+
+  VecDestroy(&temp);
 
   //~ if (dgxy!=NULL && dgxz!=NULL) {
   //~ // shear heating terms: simgaxy*dgxy + sigmaxz*dgxz (stresses times viscous strain rates)
@@ -619,11 +671,21 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   // solve for temperature
   KSPSolve(ksp,rhs,_T);
-  VecDestroy(&rhs);
-  KSPDestroy(&ksp);
+
 
   VecCopy(_T,T);
 
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %.14e\n",time);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"T:\n");
+  //~ printVec(T);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
+
+  VecDestroy(&rhs);
+  KSPDestroy(&ksp);
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n");
+  //~ assert(0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -656,6 +718,7 @@ PetscErrorCode HeatEquation::setBCs()
   }
   ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
+  VecScale(_bcR,-1.0); // !!! to match sign for Backward Euler
 
 #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

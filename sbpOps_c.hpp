@@ -124,6 +124,7 @@ class SbpOps_c : public SbpOps
 
 
     PetscErrorCode constructH(const TempMats_c& tempMats);
+    PetscErrorCode constructHinv(const TempMats_c& tempMats);
     PetscErrorCode construct1stDerivs(const TempMats_c& tempMats);
     PetscErrorCode constructA(const TempMats_c& tempMats);
     PetscErrorCode satBoundaries(TempMats_c& tempMats);
@@ -142,7 +143,7 @@ class SbpOps_c : public SbpOps
 
   public:
 
-    Mat _H;
+    Mat _H,_Hinv;
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
@@ -157,6 +158,7 @@ class SbpOps_c : public SbpOps
     PetscErrorCode writeOps(const std::string outputDir);
 
     PetscErrorCode getA(Mat &mat);
+    PetscErrorCode getH(Mat &mat);
 
 
     // functions to compute various derivatives of input vectors
@@ -168,6 +170,7 @@ class SbpOps_c : public SbpOps
     PetscErrorCode Dzxmu(const Vec &in, Vec &out); // out = Dz * mu * in
 
     PetscErrorCode H(const Vec &in, Vec &out); // out = H * in
+    PetscErrorCode Hinv(const Vec &in, Vec &out); // out = H * in
     PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out); // out = Hy^-1 * e0y * in
     PetscErrorCode HyinvxeNy(const Vec &in, Vec &out); // out = Hy^-1 * eNy * in
     PetscErrorCode HyinvxE0y(const Vec &in, Vec &out); // out = Hy^-1 * E0y * in

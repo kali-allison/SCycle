@@ -74,7 +74,7 @@ class OdeSolverImex
 
     // intermediate values for time stepping for the explicit variable
     std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
-    std::vector<Vec> _varHalfdTIm,_vardTIm;
+    std::vector<Vec> _varHalfdTIm,_vardTIm,_varIm_half;
 
 
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);

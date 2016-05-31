@@ -1,5 +1,5 @@
-order = 2
-Ny = 41
+order = 4
+Ny = 21
 Nz = 1
 Ly = 24 # km
 Lz = 24 # km
@@ -45,7 +45,7 @@ nVals = [2.7 2.7]
 nDepths = [0 24]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 24]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -59,24 +59,25 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
 
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 #sbpType = mfc
 sbpType = mfc_coordTrans
-kspTol = 1e-7
+kspTol = 1e-8
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
-stride2D = 10 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride2D = 1 # how many steps between writing out 2D fields
+maxStepCount = 10
 initTime = 4e10       # s
-maxTime = 6e10      # s
-minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
-atol = 1e-7
+maxTime = 9e10      # s
+minDeltaT = 1e-5     # s
+maxDeltaT = 1e10      # s
+atol = 1e-8
 
-rootTol = 1e-9
+rootTol = 1e-8
 
 
-#outputDir = data/lSS_wTrans_
-outputDir = data/test_
+outputDir = data/nT_
+#outputDir = data/imex_
+#outputDir = data/rk32_

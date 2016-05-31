@@ -169,6 +169,7 @@ class SbpOps_fc_coordTrans : public SbpOps
     PetscErrorCode writeOps(const std::string outputDir);
 
     PetscErrorCode getA(Mat &mat);
+    PetscErrorCode getH(Mat &mat);
 
 
     // functions to compute various derivatives of input vectors (this

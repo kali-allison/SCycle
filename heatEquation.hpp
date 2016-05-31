@@ -11,6 +11,7 @@
 #include "sbpOps.hpp"
 #include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
+#include "sbpOps_fc_coordTrans.hpp"
 
 
 
@@ -43,7 +44,8 @@ class HeatEquation
     Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
     PetscViewer  _TV,_vw; // temperature viewer and extra viewer for debugging
 
-    SbpOps_fc* _sbpT;
+    //~ SbpOps_fc* _sbpT;
+    SbpOps* _sbpT;
     Vec _bcT,_bcR,_bcB,_bcL; // boundary conditions
 
     // linear system data
@@ -63,7 +65,7 @@ class HeatEquation
 
     PetscErrorCode computeSteadyStateTemp();
     PetscErrorCode setBCs();
-    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt,KSP& ksp);
 
 
   public:

@@ -167,8 +167,21 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vecto
 
   // implicit part
   _varIm = varIm;
-  Vec temp; VecDuplicate(*varIm.begin(),&temp); VecSet(temp,0.0); _varHalfdTIm.push_back(temp);
-  Vec temp1; VecDuplicate(*varIm.begin(),&temp1);  VecSet(temp1,0.0); _vardTIm.push_back(temp1);
+  Vec temp;
+  VecDuplicate(*varIm.begin(),&temp);
+  VecSet(temp,0.0);
+  _varHalfdTIm.push_back(temp);
+
+  Vec temp1;
+  VecDuplicate(*varIm.begin(),&temp1);
+  VecSet(temp1,0.0);
+  _vardTIm.push_back(temp1);
+
+  Vec temp2;
+  VecDuplicate(*varIm.begin(),&temp2);
+  VecSet(temp2,0.0);
+  _varIm_half.push_back(temp2);
+
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -312,14 +325,12 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     }
   }
 
-
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-  //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"IC");CHKERRQ(ierr);
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -335,19 +346,18 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
       }
-
+      //~ ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin());CHKERRQ(ierr);
       ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin(),
                _varHalfdTIm.begin(),_varIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
-      //~ ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT.begin(),_dvarHalfdT.begin(),"t+dt/2");CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (int ind=0;ind<_lenVar;ind++) {
         ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
       }
+      //~ ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin());CHKERRQ(ierr);
       ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin(),
                _vardTIm.begin(),_varHalfdTIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
-      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT.begin(),_dvardT.begin(),"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (int ind=0;ind<_lenVar;ind++) {
@@ -358,8 +368,6 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
         ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
         ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
       }
-      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd.begin(),_dvardT.begin(),"2nd");CHKERRQ(ierr);
-      //~ ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd.begin(),_dvardT.begin(),"3rd");CHKERRQ(ierr);
 
 
       // calculate error
@@ -380,8 +388,8 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
     VecCopy(_vardTIm[0],_varIm[0]);
+    VecCopy(_varHalfdTIm[0],_varIm_half[0]);
     ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
@@ -402,6 +410,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
   }
   VecDestroy(&_varHalfdTIm[0]);
   VecDestroy(&_vardTIm[0]);
+  VecDestroy(&_varIm_half[0]);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1

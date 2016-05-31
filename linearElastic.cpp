@@ -530,7 +530,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
 
   if (_stepCount==0) {
     _he.writeContext(_outputDir);
-    //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
+    ierr = _sbpP->writeOps(_outputDir + "u_");CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -657,8 +657,8 @@ PetscErrorCode SymmLinearElastic::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    int arrInds[] = {1}; // state: 0, slip: 1
-    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    int arrInds[] = {0,1}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
     ierr = _quadImex->setErrInds(errInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
@@ -753,13 +753,13 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-      //~ NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
+    //ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+      //NULL,*(varBegin+2),*(dvarBegin+2));CHKERRQ(ierr);
     ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
       NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
-      // arguments:
-      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+    // arguments:
+    // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
   //~ }
   //~ else {
     //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);

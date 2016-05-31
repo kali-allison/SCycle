@@ -133,9 +133,16 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
   ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
-  int arrInds[] = {1}; // state: 0, slip: 1
-  std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-  ierr = _quadEx->setErrInds(errInds);
+  if (_isMMS) {
+    int arrInds[] = {2,3}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    ierr = _quadEx->setErrInds(errInds);
+  }
+  else  {
+    int arrInds[] = {1}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    ierr = _quadEx->setErrInds(errInds);
+  }
 
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;

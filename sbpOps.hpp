@@ -27,6 +27,7 @@ class SbpOps
 
     // don't want _A to belong to the abstract class
     virtual PetscErrorCode getA(Mat &mat) = 0;
+    virtual PetscErrorCode getH(Mat &mat) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)
     virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;
@@ -41,12 +42,16 @@ class SbpOps
 
 
     virtual PetscErrorCode H(const Vec &in, Vec &out) = 0; // out = H * in
+    virtual PetscErrorCode Hinv(const Vec &in, Vec &out) = 0; // out = H^-1 * in
     virtual PetscErrorCode Hyinvxe0y(const Vec &in, Vec &out) = 0; // out = Hy^-1 * e0y * in
     virtual PetscErrorCode HyinvxeNy(const Vec &in, Vec &out) = 0; // out = Hy^-1 * eNy * in
     virtual PetscErrorCode HyinvxE0y(const Vec &in, Vec &out) = 0; // out = Hy^-1 * E0y * in
     virtual PetscErrorCode HyinvxENy(const Vec &in, Vec &out) = 0; // out = Hy^-1 * ENy * in
     virtual PetscErrorCode HzinvxE0z(const Vec &in, Vec &out) = 0; // out = Hz^-1 * E0z * in
     virtual PetscErrorCode HzinvxENz(const Vec &in, Vec &out) = 0; // out = Hz^-1 * ENz * in
+
+    // file I/O
+    virtual PetscErrorCode writeOps(const std::string outputDir) = 0;
 };
 
 

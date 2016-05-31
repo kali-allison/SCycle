@@ -80,8 +80,6 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
     kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
   }
 
-
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps_fc.cpp.\n");
 #endif
@@ -133,6 +131,24 @@ PetscErrorCode SbpOps_fc_coordTrans::getA(Mat &mat)
 
   // return shallow copy of A:
   mat = _A;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
+
+PetscErrorCode SbpOps_fc_coordTrans::getH(Mat &mat)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc_coordTrans::getH";
+    string fileName = "SbpOps_fc_coordTrans.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return shallow copy of H:
+  mat = _H;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -2098,8 +2114,11 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
   // construct dq/dy
   MatDuplicate(mu,MAT_DO_NOT_COPY_VALUES,&_qy);
   MatMult(_Dy_Iz,*_y,temp); // temp = Dq * y
+  writeVec(temp,"./data/nT_u_yq");
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
   ierr = MatDiagonalSet(_qy,temp,INSERT_VALUES);CHKERRQ(ierr);
+
+  writeVec(temp,"./data/nT_u_qy");
 
   // construct dr/dz
   MatDuplicate(mu,MAT_DO_NOT_COPY_VALUES,&_rz);
@@ -2109,6 +2128,8 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
 
   VecDestroy(&temp);
   VecDestroy(&ones);
+
+
 
 
   return ierr;
