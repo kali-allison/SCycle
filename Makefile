@@ -1,4 +1,4 @@
-all: mainLinearElastic mainMaxwell
+all: mainLinearElastic
 
 DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)

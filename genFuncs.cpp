@@ -268,11 +268,13 @@ double MMS_test(const double z) { return z; }
 //                  MMS Functions
 
 
+// version 1
 double MMS_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
 double MMS_f_y(const double y,const double z) { return -sin(y)*sin(z); }
 double MMS_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
 double MMS_f_z(const double y,const double z) { return cos(y)*cos(z); }
 double MMS_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
+
 
 double MMS_uA(const double y,const double z,const double t) { return MMS_f(y,z)*exp(-t); }
 double MMS_uA_y(const double y,const double z,const double t) { return MMS_f_y(y,z)*exp(-t); }
@@ -407,20 +409,192 @@ double MMS_uSource(const double y,const double z,const double t)
 
 
 
-// Map a function that acts on scalars to a 2D Vec
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const int N, const double dy, const double dz, const double t)
-{
-  //~PetscPrintf(PETSC_COMM_WORLD,"N = %i, dy = %g, dz = %g, t = %g\n",N,dy,dz,t);
+//======================================================================
+// 1D MMS
+// version 1
+double MMS_f(const double y) { return cos(y); } // helper function for uA
+double MMS_f_y(const double y) { return -sin(y); }
+double MMS_f_yy(const double y) { return -cos(y); }
+double MMS_f_z(const double y) { return 0; }
+double MMS_f_zz(const double y) { return 0; }
 
+double MMS_uA1D(const double y,const double t) { return MMS_f1D(y)*exp(-t); }
+double MMS_uA_y1D(const double y,const double t) { return MMS_f_y1D(y)*exp(-t); }
+double MMS_uA_yy1D(const double y,const double t) { return MMS_f_yy1D(y)*exp(-t); }
+double MMS_uA_z1D(const double y,const double t) { return 0; }
+double MMS_uA_zz1D(const double y,const double t) { return 0; }
+double MMS_uA_t1D(const double y,const double t) { return -MMS_f1D(y)*exp(-t); }
+
+double MMS_mu1D(const double y) { return sin(y) + 2.0; }
+double MMS_mu_y1D(const double y) { return cos(y); }
+double MMS_mu_z1D(const double y) { return 0; }
+
+double MMS_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*MMS_uA_y1D(y,t); }
+
+
+// specific MMS functions
+double MMS_visc1D(const double y) { return cos(y) + 20.0; }
+double MMS_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
+double MMS_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
+double MMS_invVisc_z1D(const double y) { return 0; }
+
+double MMS_gxy1D(const double y,const double t)
+{
+  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
+  double fy = MMS_f_y1D(y);
+  return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
+}
+double MMS_gxy_y1D(const double y,const double t)
+{
+  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
+  double Ay = MMS_mu_y1D(y)*MMS_invVisc1D(y) + MMS_mu1D(y)*MMS_invVisc_y1D(y);
+  double fy = MMS_f_y1D(y);
+  double fyy = MMS_f_yy1D(y);
+  double den = A-1.0, B = exp(-t)-exp(-A*t);
+  return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
+}
+double MMS_gxy_t1D(const double y,const double t)
+{
+  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
+  double fy = MMS_f_y1D(y);
+  return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
+}
+
+double MMS_gxz1D(const double y,const double t)
+{
+  //~ double A = MMS_mu(y)*MMS_invVisc(y);
+  //~ double fz = MMS_f_z(y);
+  return 0;
+}
+double MMS_gxz_z1D(const double y,const double t)
+{
+  //~ double A = MMS_mu(y)*MMS_invVisc(y);
+  //~ double Az = MMS_mu_z(y)*MMS_invVisc(y) + MMS_mu(y)*MMS_invVisc_z(y);
+  //~ double fz = MMS_f_z(y);
+  //~ double fzz = MMS_f_zz(y);
+  //~ double den = A-1.0, B = exp(-t)-exp(-A*t);
+  return 0;
+}
+double MMS_gxz_t1D(const double y,const double t)
+{
+  //~ double A = MMS_mu(y)*MMS_invVisc(y);
+  //~ double fz = MMS_f_z(y);
+  return 0;
+}
+
+double MMS_gSource1D(const double y,const double t)
+{
+  PetscScalar mu = MMS_mu1D(y);
+  PetscScalar mu_y = MMS_mu_y1D(y);
+  PetscScalar mu_z = MMS_mu_z1D(y);
+  PetscScalar gxy = MMS_gxy1D(y,t);
+  PetscScalar gxz = MMS_gxz1D(y,t);
+  PetscScalar gxy_y = MMS_gxy_y1D(y,t);
+  PetscScalar gxz_z = MMS_gxz_z1D(y,t);
+  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
+}
+
+
+
+// specific to power law
+double MMS_A1D(const double y) { return cos(y) + 3.0; }
+double MMS_B1D(const double y) { return sin(y) + 2.0; }
+double MMS_T1D(const double y) { return sin(y) + 2.0; }
+double MMS_n1D(const double y) { return cos(y) + 2.0; }
+double MMS_pl_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*(MMS_uA_y1D(y,t) - MMS_gxy1D(y,t)); }
+double MMS_pl_sigmaxz1D(const double y,const double t) { return 0; }
+double MMS_sigmadev1D(const double y,const double t) { return sqrt( pow(MMS_pl_sigmaxy1D(y,t),2.0)); }
+
+
+// source terms for viscous strain rates
+double MMS_pl_gxy_t_source1D(const double y,const double t)
+{
+  double A = MMS_A1D(y);
+  double B = MMS_B1D(y);
+  double n = MMS_n1D(y);
+  double T = MMS_T1D(y);
+  double sigmadev = MMS_sigmadev1D(y,t);
+  double sigmaxy = MMS_pl_sigmaxy1D(y,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxy*1e-3;
+
+  return MMS_gxy_t1D(y,t) - v;
+}
+double MMS_pl_gxz_t_source1D(const double y,const double t)
+{
+  double A = MMS_A1D(y);
+  double B = MMS_B1D(y);
+  double n = MMS_n1D(y);
+  double T = MMS_T1D(y);
+  double sigmadev = MMS_sigmadev1D(y,t);
+  double sigmaxz = MMS_pl_sigmaxz1D(y,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxz*1e-3;
+
+  return MMS_gxz_t1D(y,t) - v;
+}
+
+double MMS_uSource1D(const double y,const double t)
+{
+  PetscScalar mu = MMS_mu1D(y);
+  PetscScalar mu_y = MMS_mu_y1D(y);
+  PetscScalar mu_z = MMS_mu_z1D(y);
+  PetscScalar u_y = MMS_uA_y1D(y,t);
+  PetscScalar u_yy = MMS_uA_yy1D(y,t);
+  PetscScalar u_z = MMS_uA_z1D(y,t);
+  PetscScalar u_zz = MMS_uA_zz1D(y,t);
+  return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
+}
+
+
+
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  const Vec& yV, const double t)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar y,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
+    //~ y = dy*(Ii/N);
+    //~ z = dz*(Ii-N*(Ii/N));
+    v = func(y,t);
+    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar y,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
+    v = func(y);
+    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  return ierr;
+}
+
+
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
+  const Vec& yV,const Vec& zV, const double t)
+{
   PetscErrorCode ierr = 0;
   PetscScalar y,z,v;
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
   for (Ii=Istart; Ii<Iend; Ii++) {
-    y = dy*(Ii/N);
-    z = dz*(Ii-N*(Ii/N));
-    //~PetscPrintf(PETSC_COMM_WORLD,"%i: (y,z) = (%e,%e)\n",Ii,y,z);
+    //~ y = dy*(Ii/N);
+    //~ z = dz*(Ii-N*(Ii/N));
+    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
+    ierr = VecGetValues(zV,1,&Ii,&z);CHKERRQ(ierr);
     v = func(y,z,t);
     ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -430,15 +604,17 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
 }
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const int N, const double dy, const double dz)
+  const Vec& yV,const Vec& zV)
 {
   PetscErrorCode ierr = 0;
   PetscScalar y,z,v;
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
   for (Ii=Istart; Ii<Iend; Ii++) {
-    y = dy*(Ii/N);
-    z = dz*(Ii-N*(Ii/N));
+    //~ y = dy*(Ii/N);
+    //~ z = dz*(Ii-N*(Ii/N));
+    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
+    ierr = VecGetValues(zV,1,&Ii,&z);CHKERRQ(ierr);
     v = func(y,z);
     ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -446,6 +622,60 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
   return ierr;
 }
+
+
+
+
+
+
+
+//~ // scalars args to func are: spatial variable, spatial variable
+//~ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
+  //~ const int N, const double h1, const double h2)
+//~ {
+  //~ PetscErrorCode ierr = 0;
+
+  //~ if (N == 1) { mapToVec1Dt(vec,func,N,h1,h2); } // h2 is time
+  //~ else { mapToVec2D(vec,func,N,h1,h2); } // h2 is spatial variable
+  //~ return ierr;
+//~ }
+
+//~ // scalars args to func are: spatial variable, spatial variable
+//~ PetscErrorCode mapToVec2D(Vec& vec, double(*func)(double,double),
+  //~ const int N, const double dy, const double dz)
+//~ {
+  //~ PetscErrorCode ierr = 0;
+  //~ PetscScalar y,z,v;
+  //~ PetscInt Ii,Istart,Iend;
+  //~ ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  //~ for (Ii=Istart; Ii<Iend; Ii++) {
+    //~ y = dy*(Ii/N);
+    //~ z = dz*(Ii-N*(Ii/N));
+    //~ v = func(y,z);
+    //~ ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  //~ }
+  //~ ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  //~ return ierr;
+//~ }
+
+//~ // scalars args to func are: spatial variable, time
+//~ PetscErrorCode mapToVec1Dt(Vec& vec, double(*func)(double,double),
+  //~ const int N, const double dy, const double t)
+//~ {
+  //~ PetscErrorCode ierr = 0;
+  //~ PetscScalar y,v;
+  //~ PetscInt Ii,Istart,Iend;
+  //~ ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  //~ for (Ii=Istart; Ii<Iend; Ii++) {
+    //y = dy*(Ii/N);
+    //~ v = func(y,t);
+    //~ ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  //~ }
+  //~ ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  //~ return ierr;
+//~ }
 
 // Map a function that acts on scalars to a 2D DMDA Vec
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),

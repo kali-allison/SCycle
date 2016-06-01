@@ -373,11 +373,18 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   // measure error between analytical and numerical solution
   Vec uA;
   VecDuplicate(_uP,&uA);
-  mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
+  PetscPrintf(PETSC_COMM_WORLD,"about to call mapToVec!!!");
+  if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
+  else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
+
+  VecView(uA,PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
 
   Vec sigmaxyA;
   VecDuplicate(_uP,&sigmaxyA);
-  mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
+  //~ mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
+    if (_Nz == 1) { mapToVec(sigmaxyA,MMS_sigmaxy1D,*_y,_currTime); }
+  else { mapToVec(sigmaxyA,MMS_sigmaxy,*_y,*_z,_currTime); }
 
 
   double err2uA = computeNormDiff_2(_uP,uA);
@@ -783,7 +790,9 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   Vec source,Hxsource;
   VecDuplicate(_uP,&source);
   VecDuplicate(_uP,&Hxsource);
-  mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time);
+  if (_Nz==1) { mapToVec(source,MMS_uSource1D,*_y,time); }
+  else { mapToVec(source,MMS_uSource,*_y,*_z,time); }
+
   ierr = _sbpP->H(source,Hxsource);
   VecDestroy(&source);
 
@@ -891,7 +900,9 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   VecDuplicate(_uP,&source);
   VecDuplicate(_uP,&Hxsource);
 
-  ierr = mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  if (_Nz == 1) { mapToVec(source,MMS_uSource1D,*_y,_currTime); }
+  else { mapToVec(source,MMS_uSource,*_y,*_z,_currTime); }
+  //~ ierr = mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
   ierr = _sbpP->H(source,Hxsource); CHKERRQ(ierr);
   VecDestroy(&source);
 

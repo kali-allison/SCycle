@@ -332,7 +332,8 @@ int runTimingTest(const char * inputFile)
   VecSetSizes(g,PETSC_DECIDE,d._Ny*d._Nz);
   VecSetFromOptions(g);     PetscObjectSetName((PetscObject) g, "g");
   VecSet(g,0.0);
-  mapToVec(g,MMS_test,Nz,dy,dz);
+  assert(0);
+  //~ mapToVec2D(g,MMS_test,Nz,dy,dz);
 
   Vec dgdz;
   VecDuplicate(g,&dgdz); PetscObjectSetName((PetscObject) dgdz, "dgdz");
