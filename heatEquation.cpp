@@ -458,7 +458,11 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp()
     // set each field using it's vals and depths std::vectors
     if (_Nz == 1) { VecSet(_T,_TVals[0]); }
     else {
-      if (_heatFieldsDistribution.compare("mms")==0) { mapToVec(_T,MMS_T,_Nz,_dy,_dz); }
+      if (_heatFieldsDistribution.compare("mms")==0) {
+        if (_Nz == 1) { mapToVec(_T,MMS_T1D,*_y); }
+        else { mapToVec(_T,MMS_T,*_y,*_z); }
+        //~ mapToVec(_T,MMS_T,_Nz,_dy,_dz);
+      }
       else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
       else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
     }

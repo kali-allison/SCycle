@@ -412,11 +412,11 @@ double MMS_uSource(const double y,const double z,const double t)
 //======================================================================
 // 1D MMS
 // version 1
-double MMS_f(const double y) { return cos(y); } // helper function for uA
-double MMS_f_y(const double y) { return -sin(y); }
-double MMS_f_yy(const double y) { return -cos(y); }
-double MMS_f_z(const double y) { return 0; }
-double MMS_f_zz(const double y) { return 0; }
+double MMS_f1D(const double y) { return cos(y); } // helper function for uA
+double MMS_f_y1D(const double y) { return -sin(y); }
+double MMS_f_yy1D(const double y) { return -cos(y); }
+double MMS_f_z1D(const double y) { return 0; }
+double MMS_f_zz1D(const double y) { return 0; }
 
 double MMS_uA1D(const double y,const double t) { return MMS_f1D(y)*exp(-t); }
 double MMS_uA_y1D(const double y,const double t) { return MMS_f_y1D(y)*exp(-t); }
