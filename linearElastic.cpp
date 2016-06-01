@@ -373,12 +373,8 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   // measure error between analytical and numerical solution
   Vec uA;
   VecDuplicate(_uP,&uA);
-  PetscPrintf(PETSC_COMM_WORLD,"about to call mapToVec!!!");
   if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
   else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
-
-  VecView(uA,PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
 
   Vec sigmaxyA;
   VecDuplicate(_uP,&sigmaxyA);
