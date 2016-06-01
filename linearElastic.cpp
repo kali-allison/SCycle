@@ -796,6 +796,9 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  //~ VecView(_rhsP,PETSC_VIEWER_STDOUT_WORLD);
+  VecView(_muVecP,PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
 
@@ -837,18 +840,32 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   PetscScalar y,z,v;
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    z = _dz * Ii;
 
+  if (_Nz == 1) {
     y = 0;
-    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("Neumann")) { v = MMS_mu1D(y) * MMS_uA_y1D(y,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("Neumann")) { v = MMS_mu1D(y) * MMS_uA_y1D(y,time); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  else {
+    for(Ii=Istart;Ii<Iend;Ii++) {
+      z = _dz * Ii;
+
+      y = 0;
+      if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
+      else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+      ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+      y = _Ly;
+      if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
+      else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
+      ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
@@ -856,7 +873,7 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy * Ii;
 

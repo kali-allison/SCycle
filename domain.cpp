@@ -875,7 +875,8 @@ PetscErrorCode Domain::setFieldsPlus()
     else if (_shearDistribution.compare("mms")==0) {
       //~ v = MMS_mu(y,z);
       //~ _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
-      mu = MMS_mu(y,z);
+      if (_Nz == 1) { mu = MMS_mu1D(y); }
+      else { mu = MMS_mu(y,z); }
       cs = sqrt(mu/_rhoValPlus);
     }
     else {
