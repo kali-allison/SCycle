@@ -52,18 +52,18 @@ rhoDepths = [0 24]
 
 linSolver = AMG
 sbpType = mfc
-kspTol = 1e-8
+kspTol = 1e-9
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 1 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+maxStepCount = 1
 initTime = 0       # s
-maxTime = 1      # s
-minDeltaT = 1e-3     # s
+maxTime = 0.5      # s
+minDeltaT = 1e-4     # s
 maxDeltaT = 1e8      # s
-atol = 1e-7
+atol = 1e-9
 
 rootTol = 1e-9
 

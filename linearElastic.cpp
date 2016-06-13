@@ -796,9 +796,6 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  //~ VecView(_rhsP,PETSC_VIEWER_STDOUT_WORLD);
-  VecView(_muVecP,PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
 

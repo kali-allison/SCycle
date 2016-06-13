@@ -432,9 +432,10 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     }
   }
 
-
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+
+  if (_maxNumSteps == 0) { return ierr; }
 
   //~PetscPrintf(PETSC_COMM_WORLD,"_lenVar = %i\n",_lenVar);
   //~assert(0>1);

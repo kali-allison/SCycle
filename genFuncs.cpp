@@ -11,6 +11,7 @@ void printVec(Vec vec)
     VecGetValues(vec,1,&Ii,&v);
     PetscPrintf(PETSC_COMM_WORLD,"%.15e\n",v);
   }
+  PetscPrintf(PETSC_COMM_WORLD,"\n");
 }
 
 // Print out (vec1 - vec2) with 15 significant figures.
@@ -491,7 +492,8 @@ double MMS_gSource1D(const double y,const double t)
   PetscScalar gxz = MMS_gxz1D(y,t);
   PetscScalar gxy_y = MMS_gxy_y1D(y,t);
   PetscScalar gxz_z = MMS_gxz_z1D(y,t);
-  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
+  //~ return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
+  return -mu*gxy_y - mu_y*gxy;
 }
 
 
