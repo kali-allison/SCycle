@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 161
 Nz = 1
 Ly = 6.283185307179586
@@ -52,18 +52,18 @@ rhoDepths = [0 24]
 
 linSolver = AMG
 sbpType = mfc
-kspTol = 1e-9
+kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 1 # how many steps between writing out 1D fields
 stride2D = 1 # how many steps between writing out 2D fields
-maxStepCount = 1
+maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 0.5      # s
-minDeltaT = 1e-4     # s
+maxTime = 1      # s
+minDeltaT = 1e-5     # s
 maxDeltaT = 1e8      # s
-atol = 1e-9
+atol = 1e-10
 
 rootTol = 1e-9
 

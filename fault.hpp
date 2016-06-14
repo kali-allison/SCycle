@@ -11,7 +11,7 @@
 #include "rootFinderContext.hpp"
 
 // defines if state is in terms of psi (=1) or in terms of theta (=0)
-#define STATE_PSI 1
+#define STATE_PSI 0
 
 class RootFinder;
 
