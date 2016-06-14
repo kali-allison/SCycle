@@ -5,7 +5,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
-#include "integratorContextEX.hpp"
+#include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "linearElastic.hpp"
