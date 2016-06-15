@@ -1,6 +1,6 @@
 all: mainMaxwell mainLinearElastic
 
-DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude

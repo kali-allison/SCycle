@@ -492,18 +492,18 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
 
 
   // create A
-  Mat A;
-  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&A);
+  //~ Mat _A;
+  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
 
-  MatScale(A,-dt);
-  MatAXPY(A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  MatScale(_A,-dt);
+  MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
 
-    PC pc;
+  PC pc;
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     KSPCreate(PETSC_COMM_WORLD,&ksp);
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,_A,_A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
 
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
@@ -515,7 +515,7 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,_A,_A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCCHOLESKY);
@@ -624,7 +624,6 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecScale(_bcL,0.5); // *-1 to match sign for matrix rhsL
   VecDestroy(&vel);
 
-  //~ VecSet(_bcL,2e5);
 
   KSP ksp;
   setupKSP(_sbpT,dt,ksp);
@@ -636,24 +635,9 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   MatMult(_rhoC,temp,rhs);
   VecScale(rhs,dt);
 
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"a*b:\n");
-  //~ printVec(rhs);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
-
   // add H * Tn to rhs
   _sbpT->H(To,temp);
   VecAXPY(rhs,1.0,temp);
-
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"H*To:\n");
-  //~ printVec(temp);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"rhs:\n");
-  //~ printVec(rhs);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
-
   VecDestroy(&temp);
 
   //~ if (dgxy!=NULL && dgxz!=NULL) {
@@ -679,20 +663,9 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   VecCopy(_T,T);
 
-  //~ VecSet(T,273);
-  //~ VecSet(_T,273);
-
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %.14e\n",time);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"T:\n");
-  //~ printVec(T);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
-
   VecDestroy(&rhs);
   KSPDestroy(&ksp);
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n");
-  //~ assert(0);
+  MatDestroy(&_A);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

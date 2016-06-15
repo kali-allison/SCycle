@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N l2D_IMEX_wTrans
-#PBS -l nodes=1:ppn=16
-#PBS -q default
+#PBS -N imex
+#PBS -l nodes=1:ppn=24
+#PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/l2D.err
-#PBS -o /data/dunham/kallison/eqcycle/data/l2D.out
+#PBS -e /data/dunham/kallison/eqcycle/data/imex.err
+#PBS -o /data/dunham/kallison/eqcycle/data/imex.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

@@ -52,7 +52,7 @@ class HeatEquation
     std::string          _linSolver;
     KSP                  _kspP;
     PC                   _pcP;
-    Mat                  _I,_rhoC; // intermediates for Backward Euler
+    Mat                  _I,_rhoC,_A; // intermediates for Backward Euler
 
 
     // load settings from input file
