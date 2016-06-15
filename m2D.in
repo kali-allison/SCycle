@@ -17,6 +17,7 @@ bDepths = [0 12 15 30] # usual values
 #aDepths = [0 50]
 #bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
 #bDepths = [0 10 20 50]
+
 sigmaNVals = [50 50] # MPa
 #sigmaNVals = [0.1 588] # MPa
 sigmaNDepths = [0 30]
@@ -51,7 +52,7 @@ nVals = [4 4]
 nDepths = [0 30]
 TVals = [273 1173]
 TDepths = [0 30]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -70,11 +71,11 @@ linSolver = AMG
 sbpType = mfc_coordTrans
 kspTol = 1e-7
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
-maxStepCount = 1e8
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1000 # how many steps between writing out 2D fields
+maxStepCount = 10
 initTime = 1e11       # s
 maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
@@ -84,4 +85,6 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/linEl/l2D_Ly60_wTrans_
+#outputDir = data/linEl/l2D_Ly60_wTrans_
+#outputDir = data/linEl/l2D_Ly60_nTrans_
+outputDir = data/linEl/l2D_IMEX_wTrans_

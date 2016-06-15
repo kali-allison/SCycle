@@ -809,7 +809,7 @@ PetscErrorCode Domain::setFieldsPlus()
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
-      PetscScalar b = 15;
+      PetscScalar b = 10.0;
       y = _Ly * sinh(b*q)/sinh(b);
       //~ y = q*_Ly;
       z = r*_Lz;

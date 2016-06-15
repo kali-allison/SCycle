@@ -328,6 +328,8 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
+  if (_maxNumSteps == 0) { return ierr; }
+
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);

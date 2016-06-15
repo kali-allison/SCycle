@@ -679,6 +679,9 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   VecCopy(_T,T);
 
+  //~ VecSet(T,273);
+  //~ VecSet(_T,273);
+
 
   //~ PetscPrintf(PETSC_COMM_WORLD,"time = %.14e\n",time);
   //~ PetscPrintf(PETSC_COMM_WORLD,"T:\n");

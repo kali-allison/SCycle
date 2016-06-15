@@ -407,12 +407,12 @@ int runEqCycle(const char * inputFile)
     //~ obj = new FullLinearElastic(domain);
   //~ }
 
-  SymmLinearElastic sle(domain);
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = sle.writeStep1D();CHKERRQ(ierr);
-  ierr = sle.writeStep2D();CHKERRQ(ierr);
-  ierr = sle.integrate();CHKERRQ(ierr);
-  ierr = sle.view();CHKERRQ(ierr);
+  //~ SymmLinearElastic sle(domain);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = sle.writeStep1D();CHKERRQ(ierr);
+  //~ ierr = sle.writeStep2D();CHKERRQ(ierr);
+  //~ ierr = sle.integrate();CHKERRQ(ierr);
+  //~ ierr = sle.view();CHKERRQ(ierr);
   return ierr;
 }
 
@@ -428,9 +428,12 @@ int main(int argc,char **args)
   else { inputFile = "test.in"; }
 
   {
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
+    PetscMPIInt localRank;
+    MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+    PetscPrintf(PETSC_COMM_SELF,"%i: hi!\n", localRank);
+    //~ Domain domain(inputFile);
+    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
   }
 
   //~ testMemoryLeak(inputFile);
