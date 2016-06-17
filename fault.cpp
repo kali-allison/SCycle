@@ -6,7 +6,7 @@ using namespace std;
 
 
 Fault::Fault(Domain&D)
-: _file(D._file),_delim(D._delim),
+: _file(D._file),_delim(D._delim),_stateLaw("agingLaw"),
   _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
@@ -85,6 +85,10 @@ PetscErrorCode Fault::checkInput()
   assert(_aVals.size() == _aDepths.size() );
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
+
+  assert(_stateLaw.compare("agingLaw")==0
+    || _stateLaw.compare("slipLaw")==0
+    || _stateLaw.compare("stronglyVWLaw")==0);
 
 
 #if VERBOSE > 1
@@ -304,6 +308,66 @@ PetscErrorCode Fault::slipLaw(const PetscInt ind,const PetscScalar state,PetscSc
   }
   assert(!isnan(dstate));
   assert(!isinf(dstate));
+
+  /* // if in terms of psi
+  if ( isinf(exp(1/b)) ) { *dPsi = 0; }
+  else if ( b <= 1e-3 ) { *dPsi = 0; }
+  else {
+    *dPsi = (PetscScalar) (b*_v0/Dc)*( exp((double) ( (_f0-psi)/b) ) - (slipVel/_v0) );
+  }
+  assert(!isnan(*dPsi));
+  assert(!isinf(*dPsi));
+  */
+
+  return ierr;
+}
+
+
+// state evolution law for strongly velocity-weakening friction
+PetscErrorCode Fault::stronglyVWLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    b,slipVel,Dc;
+
+
+  ierr = VecGetOwnershipRange(_state,&Istart,&Iend);
+  assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
+  slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
+
+    //~PetscScalar fss = _f0 + log(slipVel/_v0);
+
+
+  // if in terms of theta
+  #if STATE_PSI == 1
+    PetscScalar a = 0;
+    ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+    PetscScalar fw = 0.2,Vw = 0.1,n = 8.0;
+    PetscScalar fLV = _f0 - (b-a)*log(slipVel/_v0);
+    PetscScalar fss = fw + (fLV - fw)/pow(1 + pow(slipVel/Vw,n),1.0/n);
+    PetscScalar f = (PetscScalar) a * asinh( (double) slipVel/2.0/_v0 * exp(state/a) );
+    dstate = -(slipVel/Dc)*(f - fss);
+
+      if (isinf(dstate)) {
+    PetscPrintf(PETSC_COMM_WORLD,"slipVel = %.9e, a = %.4e, b = %.4e, f = %.9e\n",slipVel,a,b,f);
+    PetscPrintf(PETSC_COMM_WORLD,"fss = %.9e, fLV = %.9e\n",fss,fLV);
+    PetscPrintf(PETSC_COMM_WORLD,"state = %.9e\n",fss,fLV);
+  }
+  #endif
+  #if STATE_PSI == 0
+    PetscPrintf(PETSC_COMM_WORLD,"WARNING: Fault::stronglyVWLaw not written for state variable theta!\n\n");
+    assert(0);
+  #endif
+  if (isnan(dstate)) {
+    PetscPrintf(PETSC_COMM_WORLD,"state = %e, slipVel=%e,Dc = %e\n",state,slipVel,Dc);
+  }
+  assert(!isnan(dstate));
+  assert(!isinf(dstate));
+
+
 
   /* // if in terms of psi
   if ( isinf(exp(1/b)) ) { *dPsi = 0; }
@@ -637,8 +701,12 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(*(varBegin),1,&Ii,&stateVal);
-    ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr);
-    //~ierr = slipLaw(Ii,stateVal,val);CHKERRQ(ierr);
+    //~ ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr);
+    if (!_stateLaw.compare("agingLaw")) { ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr); }
+    else if (!_stateLaw.compare("slipLaw")) { ierr = slipLaw(Ii,stateVal,val);CHKERRQ(ierr); }
+    else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
+    else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
+
     ierr = VecSetValue(*(dvarBegin),Ii,val,INSERT_VALUES);CHKERRQ(ierr);
 
     ierr = VecGetValues(_slipVel,1,&Ii,&val);CHKERRQ(ierr);
@@ -846,6 +914,9 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("bDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_bDepths);
+    }
+    else if (var.compare("stateLaw")==0) {
+      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }
 

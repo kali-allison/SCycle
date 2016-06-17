@@ -15,7 +15,7 @@ Domain::Domain(const char *file)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
+  _linSolver("unspecified"),_sbpType("unspecified"),_bCoordTrans(5.0),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -92,7 +92,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  _linSolver("unspecified"),_sbpType("unspecified"),_kspTol(-1),
+  _linSolver("unspecified"),_sbpType("unspecified"),_bCoordTrans(5.0),_kspTol(-1),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -244,6 +244,9 @@ PetscErrorCode Domain::loadData(const char *file)
     // linear solver settings
     else if (var.compare("sbpType")==0) {
       _sbpType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("bCoordTrans")==0) {
+       _bCoordTrans = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("linSolver")==0) {
       _linSolver = line.substr(pos+_delim.length(),line.npos);
@@ -809,8 +812,8 @@ PetscErrorCode Domain::setFieldsPlus()
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
     }
     else {
-      PetscScalar b = 10.0;
-      y = _Ly * sinh(b*q)/sinh(b);
+      //~ PetscScalar b = 15.0;
+      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
       //~ y = q*_Ly;
       z = r*_Lz;
 

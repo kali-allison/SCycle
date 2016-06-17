@@ -1,13 +1,15 @@
 order = 4
-Ny = 401
+Ny = 201
 Nz = 201
-Ly = 60 # km
+Ly = 30 # km
 Lz = 30 # km
 
 DcVals = [16e-3 16e-3] # m
 #DcVals = [0.0472 0.0472] # m
 DcDepths = [0 30] # m
 
+
+stateLaw = agingLaw
 
 aVals = [0.015 0.015] # usual values
 aDepths = [0 30] # usual values
@@ -35,7 +37,7 @@ rhoPlus = 3.0 # g/cm^3
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e13 1e13] # GPa s
+viscVals = [1e12 1e12] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
@@ -52,7 +54,7 @@ nVals = [4 4]
 nDepths = [0 30]
 TVals = [273 1173]
 TDepths = [0 30]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -67,27 +69,27 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-#sbpType = mfc
 sbpType = mfc_coordTrans
-kspTol = 1e-7
+bCoordTrans = 10.0
+#sbpType = mfc
+kspTol = 1e-10
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
+stride1D = 10
+stride2D = 100
 maxStepCount = 1e8
-initTime = 1e11       # s
-maxTime = 1e13      # s
+initTime = 1e10       # s 1e11
+maxTime = 1e14      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e6      # s
+maxDeltaT = 1e10      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = data/linEl/l2D_Ly60_wTrans_
-#outputDir = data/linEl/l2D_Ly60_nTrans_
+#outputDir = data/linEl/l2D_wTemp_
+#outputDir = data/max/m2D_effVisc_
 
-#outputDir = data/linEl/l2D_IMEX_wTrans_
-#outputDir = data/linEl/l2D_Dc16_nTrans_
-outputDir = data/imex_
+outputDir = data/max/m2D_test_
+

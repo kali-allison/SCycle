@@ -70,7 +70,7 @@ HeatEquation::HeatEquation(Domain& D)
       assert(0); // automatically fail
     }
     computeSteadyStateTemp();
-    setBCs(); // update bcR with geotherm
+    setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
     //~ (*_sbpT).~SbpOps_fc();
     delete _sbpT;
   }
@@ -675,7 +675,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 }
 
 // set right boundary condition from computed geotherm
-PetscErrorCode HeatEquation::setBCs()
+PetscErrorCode HeatEquation::setBCsforBE()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -698,7 +698,11 @@ PetscErrorCode HeatEquation::setBCs()
   }
   ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
-  VecScale(_bcR,-1.0); // !!! to match sign for Backward Euler
+
+  // correct sign for Backward Euler
+  VecScale(_bcT,-1.0);
+  VecScale(_bcR,-1.0);
+  VecScale(_bcB,-1.0);
 
 #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

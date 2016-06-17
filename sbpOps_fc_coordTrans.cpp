@@ -58,8 +58,11 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
     //~ MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
     //~ assert(0);
 
-    MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
-    MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
+    MatMatMult(tempFactors._qy,tempFactors._Hyinv_Iz,MAT_INITIAL_MATRIX,1.0,&_Hyinv_Iz);
+    MatMatMult(tempFactors._rz,tempFactors._Iy_Hzinv,MAT_INITIAL_MATRIX,1.0,&_Iy_Hzinv);
+
+    //~ MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
+    //~ MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
 
     Spmat e0y(_Ny,1); e0y(0,0,1.0);
     kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);

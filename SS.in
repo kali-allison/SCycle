@@ -1,12 +1,14 @@
 order = 4
-Ny = 41
+Ny = 321
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 24] # m
+DcDepths = [0 30] # m
 
+stateLaw = agingLaw
+#stateLaw = stronglyVWLaw
 
 aVals = [0.015 0.015] # usual values
 aDepths = [0 30] # usual values
@@ -29,7 +31,7 @@ rhoPlus = 3.0 # g/cm^3
 # Maxwell properties
 viscDistribution = layered
 viscVals = [1e13 1e13] # GPa s
-viscDepths = [0 24]
+viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
 #sigmadevVals = [35 35]
@@ -45,7 +47,7 @@ nVals = [2.7 2.7]
 nDepths = [0 30]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 30]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -62,23 +64,24 @@ rhoDepths = [0 30]
 linSolver = AMG
 #sbpType = mfc
 sbpType = mfc_coordTrans
-kspTol = 1e-8
+bCoordTrans = 5.0
+kspTol = 1e-10
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 100
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e8
 initTime = 4e10       # s
-maxTime = 9e10      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e11      # s
-atol = 1e-7
+atol = 1e-8
 
 rootTol = 1e-8
 
 
-#outputDir = data/nct_
-#outputDir = data/wct_
-outputDir = data/imex_
-#outputDir = data/rk32_
+#outputDir = data/SS/stronglyVWLaw_
+#outputDir = data/SS/agingLaw_
+outputDir = data/SS/mSS_IMEX_agingLaw_
+#outputDir = data/SS/lSS_agingLaw_

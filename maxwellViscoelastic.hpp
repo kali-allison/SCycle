@@ -67,6 +67,10 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec dvarBegin);
 
+    // methods for implicit/explicit time stepping
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
+      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
+
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();
     PetscErrorCode view();

@@ -11,7 +11,7 @@
 #include "rootFinderContext.hpp"
 
 // defines if state is in terms of psi (=1) or in terms of theta (=0)
-#define STATE_PSI 0
+#define STATE_PSI 1
 
 class RootFinder;
 
@@ -24,6 +24,7 @@ class Fault: public RootFinderContext
   public:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _stateLaw; // state evolution law
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
@@ -77,6 +78,7 @@ class Fault: public RootFinderContext
 
     PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode slipLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode stronglyVWLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,it_vec dvarBegin) = 0;

@@ -64,7 +64,7 @@ class HeatEquation
     PetscErrorCode checkInput();     // check input from file
 
     PetscErrorCode computeSteadyStateTemp();
-    PetscErrorCode setBCs();
+    PetscErrorCode setBCsforBE();
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt,KSP& ksp);
 
 
