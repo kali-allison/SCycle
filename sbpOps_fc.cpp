@@ -1322,7 +1322,7 @@ switch ( order ) {
         H.printPetsc();
       #endif
 
-      for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
+      for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1.0/H(Ii,Ii)); }
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
         Hinv.printPetsc();
@@ -1763,6 +1763,9 @@ PetscErrorCode SbpOps_fc::Hyinvxe0y(const Vec &in, Vec &out)
   ierr = MatMult(_e0y_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
 
+  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
+  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
+
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
@@ -1785,6 +1788,9 @@ PetscErrorCode SbpOps_fc::HyinvxeNy(const Vec &in, Vec &out)
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
   ierr = MatMult(_eNy_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
+  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
 
   VecDestroy(&temp1);
 
@@ -1809,6 +1815,9 @@ PetscErrorCode SbpOps_fc::HyinvxE0y(const Vec &in, Vec &out)
   ierr = MatMult(_E0y_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
 
+  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
+  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
+
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
@@ -1831,6 +1840,9 @@ PetscErrorCode SbpOps_fc::HyinvxENy(const Vec &in, Vec &out)
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
   ierr = MatMult(_ENy_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
+  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
 
   VecDestroy(&temp1);
 

@@ -49,6 +49,8 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setMMSBoundaryConditions(const double time);
 
+    PetscErrorCode computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+
 
   public:
     SymmMaxwellViscoelastic(Domain&D);

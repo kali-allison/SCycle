@@ -22,6 +22,8 @@ class SbpOps
 {
 
   public:
+    Mat _H,_B,_R; // temporarily make these available
+
     SbpOps(){};
     virtual ~SbpOps(){};
 

@@ -161,7 +161,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
     }
     else  {
       int arrInds[] = {1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -368,6 +368,24 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 }
 
 
+PetscErrorCode computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmMaxwellViscoelastic::computeEnergy";
+  string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+      CHKERRQ(ierr);
+  #endif
+  return ierr = 0;
+}
+
+
 PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin)
 {
   PetscErrorCode ierr = 0;
@@ -451,10 +469,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDuplicate(u,&temp1);
 
   // left displacement boundary
-  ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
-  VecAXPY(out,1.0,temp1);
-  VecAXPY(out,-1.0,GL);
+  //~ ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
+  //~ ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+  //~ VecAXPY(out,1.0,temp1);
+  //~ VecAXPY(out,-1.0,GL);
 
   // right displacement boundary
   ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
@@ -502,7 +520,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecGetValues(SAT,1,&Ii,&sat);
 
     // d/dt gxy = mu/visc * ( d/dy u - gxy) + SAT
-    deps = sigmaxy/visc + mu/visc * sat*0;
+    deps = sigmaxy/visc + (mu/visc)*sat;
     VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
 
     if (_Nz > 1) {
@@ -673,6 +691,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
   if (_Nz == 1) {
+    Ii = Istart;
     y = 0;
     if (!_bcLType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=0,z)
     else if (!_bcLType.compare("Neumann")) { v = MMS_mu1D(y) * (MMS_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
@@ -704,7 +723,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy * Ii;
 
@@ -757,7 +776,7 @@ PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
   double err2epsxz = computeNormDiff_2(_gxzP,gxzA);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
+  PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
 
   VecDestroy(&uA);

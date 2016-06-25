@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 401
+Nz = 401
 Ly = 30 # km
 Lz = 30 # km
 
@@ -11,10 +11,17 @@ DcDepths = [0 30] # m
 
 stateLaw = agingLaw
 
-aVals = [0.015 0.015] # usual values
-aDepths = [0 30] # usual values
-bVals = [0.02 0.02 0.0 0.0] # usual values
-bDepths = [0 12 15 30] # usual values
+# usual rate-and-state values
+#aVals = [0.015 0.015]
+#aDepths = [0 30]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 12 15 30]
+
+aVals = [0.015 0.015]
+aDepths = [0 30]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 10 20 30]
+
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
 #bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
@@ -35,15 +42,7 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
-# Maxwell properties
-viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
-viscDepths = [0 30]
 
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 50]
-#strainRate = 1e-14
 
 # power law properties
 AVals = [1e-9 2.1e-9]
@@ -69,27 +68,43 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-sbpType = mfc_coordTrans
-bCoordTrans = 10.0
-#sbpType = mfc
+#sbpType = mfc_coordTrans
+#bCoordTrans = 5.0
+sbpType = mfc
 kspTol = 1e-10
+
+
+# Maxwell properties
+viscDistribution = layered
+viscVals = [1e12 1e12] # GPa s
+viscDepths = [0 30]
+
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 50]
+#strainRate = 1e-14
+
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 100
+stride1D = 1
+stride2D = 1
 maxStepCount = 1e8
-initTime = 1e10       # s 1e11
-maxTime = 1e14      # s
+initTime = 1e6       # s 1e11
+maxTime = 5e12      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s
+maxDeltaT = 1e9      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
 #outputDir = data/linEl/l2D_wTemp_
-#outputDir = data/max/m2D_effVisc_
+#outputDir = data/max/test_coordTrans_
 
-outputDir = data/max/m2D_test_
+#outputDir = data/max/test_10h0_v1e12_
+#outputDir = data/max/test_hy_v1e12_
+outputDir = data/max/test_0SAT_v1e12_
+#outputDir = data/max/test_10h0_v8e11_
+#outputDir = data/max/test_10h0_v1e11_
 

@@ -7,6 +7,7 @@ Lz = 6.283185307179586
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
 
+stateLaw = agingLaw
 
 aVals = [0.015 0.015] # comment
 aDepths = [0 6.283185307179586]

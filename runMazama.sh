@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N m2D_nTrans_v1e9
+#PBS -N test_0SAT_v1e12
 #PBS -l nodes=1:ppn=16
-#PBS -q tgp
+#PBS -q default
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/max/m2D_nTrans_v1e9.err
-#PBS -o /data/dunham/kallison/eqcycle/data/max/m2D_nTrans_v1e9.out
+#PBS -e /data/dunham/kallison/eqcycle/data/max/test_0SAT_v1e12.err
+#PBS -o /data/dunham/kallison/eqcycle/data/max/test_0SAT_v1e12.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

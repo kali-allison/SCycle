@@ -380,7 +380,7 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   double err2uA = computeNormDiff_2(_uP,uA);
   double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e\n",
+  PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
 
   return ierr;
@@ -820,7 +820,7 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmLinearElastic::setMMSBoundaryConditions";
-  string fileName = "lithosphere.cpp";
+  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
@@ -831,6 +831,7 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
 
   if (_Nz == 1) {
+    Ii = Istart;
     y = 0;
     if (!_bcLType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=0,z)
     else if (!_bcLType.compare("Neumann")) { v = MMS_mu1D(y) * MMS_uA_y1D(y,time); } // sigma_xy = mu * d/dy u
@@ -844,7 +845,6 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   else {
     for(Ii=Istart;Ii<Iend;Ii++) {
       z = _dz * Ii;
-
       y = 0;
       if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
       else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
