@@ -22,7 +22,9 @@ class SbpOps
 {
 
   public:
-    Mat _H,_B,_R; // temporarily make these available
+    // temporarily available for energy balance calculations
+    //~ Mat _mu,_H,_Hy_Iz,_Iy_Hz,_e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
+    //~ Mat _Ry,_Rz,_By_Iz,_Iy_Bz;
 
     SbpOps(){};
     virtual ~SbpOps(){};
@@ -30,6 +32,14 @@ class SbpOps
     // don't want _A to belong to the abstract class
     virtual PetscErrorCode getA(Mat &mat) = 0;
     virtual PetscErrorCode getH(Mat &mat) = 0;
+
+    // temporarily available for energy balance
+    virtual PetscErrorCode getMu(Mat &mat) = 0;
+    virtual PetscErrorCode getR(Mat& Ry, Mat& Rz) = 0;
+    virtual PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) = 0;
+    virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
+    virtual PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz) = 0;
+    virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)
     virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;

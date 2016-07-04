@@ -30,7 +30,7 @@ LinearElastic::LinearElastic(Domain&D)
   _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_stressxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),_quadEx(NULL),_quadImex(NULL),
-  _tLast(0)
+  _tLast(0),_uPPrev(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
@@ -325,6 +325,9 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
   PetscErrorCode ierr = 0;
   _stepCount++;
   _currTime = time;
+  #if CALCULATE_ENERGY == 1
+    VecCopy(_uP,_uPPrev);
+  #endif
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
@@ -394,7 +397,8 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 //================= Symmetric LinearElastic Functions ==================
 
 SymmLinearElastic::SymmLinearElastic(Domain&D)
-: LinearElastic(D),_fault(D)
+: LinearElastic(D),_fault(D),
+  _E(NULL),_eV(NULL),_intEV(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
@@ -438,6 +442,21 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   setSurfDisp();
 
+  #if CALCULATE_ENERGY == 1
+  VecCreate(PETSC_COMM_WORLD,&_E);
+  VecSetSizes(_E,PETSC_DECIDE,1);
+  VecSetFromOptions(_E);     PetscObjectSetName((PetscObject) _E, "_E");
+  computeEnergy(_initTime,_E);
+
+  Vec E;
+  VecDuplicate(_E,&E);
+  VecCopy(_E,E);
+  _var.push_back(E);
+
+  VecDuplicate(_uP,&_uPPrev);
+  VecCopy(_uP,_uPPrev);
+#endif
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
@@ -451,6 +470,11 @@ SymmLinearElastic::~SymmLinearElastic()
   for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
     VecDestroy(&_var[i]);
   }
+
+
+  VecDestroy(&_E);
+  PetscViewerDestroy(&_eV);
+  PetscViewerDestroy(&_intEV);
 };
 
 
@@ -555,6 +579,25 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
                                    FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
 
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+
+  #if CALCULATE_ENERGY == 1
+  // write out calculated energy
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"E").c_str(),FILE_MODE_WRITE,
+    &_eV);CHKERRQ(ierr);
+  ierr = VecView(_E,_eV);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&_eV);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"E").c_str(),
+    FILE_MODE_APPEND,&_eV);CHKERRQ(ierr);
+
+  // write out integrated energy
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"intE").c_str(),FILE_MODE_WRITE,
+    &_intEV);CHKERRQ(ierr);
+  ierr = VecView(*(_var.end()-1),_intEV);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&_intEV);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"intE").c_str(),
+    FILE_MODE_APPEND,&_intEV);CHKERRQ(ierr);
+
+  #endif
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -562,6 +605,11 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
 
     ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+
+    #if CALCULATE_ENERGY == 1
+      ierr = VecView(_E,_eV);CHKERRQ(ierr);
+      ierr = VecView(*(_var.end()-1),_intEV);CHKERRQ(ierr);
+    #endif
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   }
@@ -727,6 +775,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,dvarBegin);
 
+  // compute energy
+  computeEnergyRate(time,varBegin,dvarBegin);
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
@@ -746,7 +797,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
@@ -755,10 +806,10 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     VecDestroy(&stressxzP);
     // arguments:
     // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  //~ }
-  //~ else {
-    //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
-  //~ }
+  }
+  else {
+    ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
+  }
 
 
 #if VERBOSE > 1
@@ -978,6 +1029,154 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   return ierr;
 }
 
+PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmLinearElastic::computeEnergy";
+  string fileName = "linearElastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+
+  // elastic strain
+  Vec gExy;
+  ierr = VecDuplicate(_uP,&gExy); CHKERRQ(ierr);
+  ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
+
+  Vec gExz;
+  ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
+  ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
+
+
+  PetscScalar alphaDy = 0, alphaDz = 0;
+  if (_order==2) {
+   alphaDy = -4.0/_dy;
+   alphaDz = -4.0/_dz;
+  }
+  if (_order==4) {
+    alphaDy = -48.0/17.0 /_dy;
+    alphaDz = -48.0/17.0 /_dz;
+  }
+
+  // get relevant matrices
+  Mat mu,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
+  ierr = _sbpP->getMu(mu); CHKERRQ(ierr);
+  ierr =  _sbpP->getR(Ry,Rz); CHKERRQ(ierr);
+  ierr =  _sbpP->getEs(E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz); CHKERRQ(ierr);
+  ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
+  ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
+  ierr =  _sbpP->getH(H); CHKERRQ(ierr);
+
+  // energy
+  PetscScalar E = 0;
+  E = multVecMatMatVec(gExy,H,mu,gExy);
+  E += multVecMatMatVec(gExz,H,mu,gExz);
+  E += multVecMatMatVec(_uP,Iy_Hz,Ry,_uP);
+  E += multVecMatMatVec(_uP,Hy_Iz,Rz,_uP);
+
+  E -= multVecMatMatMatVec(_uP,Iy_Hz,By_Iz,mu,gExy);
+  E -= multVecMatMatMatVec(gExy,Iy_Hz,By_Iz,mu,_uP);
+  E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,mu,E0y_Iz,_uP);
+  E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,mu,ENy_Iz,_uP);
+
+  //~ if (_Nz > 1) {
+    //~ E -= multVecMatMatMatVec(_uP,Hy_Iz,Iy_Bz,mu,gExz);
+    //~ E -= multVecMatMatMatVec(gExz,Hy_Iz,Iy_Bz,mu,_uP);
+    //~ E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,mu,Iy_E0z,_uP);
+    //~ E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,mu,Iy_ENz,_uP);
+  //~ }
+
+  E = E * 0.5;
+  VecSet(out,E);
+
+  //~ MatView(H,PETSC_VIEWER_STDOUT_WORLD);
+  //~ MatView(mu,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(gExy,PETSC_VIEWER_STDOUT_WORLD);
+  //~ MatView(Ry,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ MatView(Iy_E0z,PETSC_VIEWER_STDOUT_WORLD);
+  //~ MatView(Iy_ENz,PETSC_VIEWER_STDOUT_WORLD);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"E = %.9e\n",E);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %g\n",time);
+  //~ assert(0);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+      CHKERRQ(ierr);
+  #endif
+  return ierr = 0;
+}
+
+PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmLinearElastic::computeEnergy";
+  string fileName = "linearElastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+
+  computeEnergy(time,_E);
+
+  PetscScalar alphaDy = 0, alphaDz = 0;
+  if (_order==2) {
+   alphaDy = -4.0/_dy;
+   alphaDz = -4.0/_dz;
+  }
+  if (_order==4) {
+    alphaDy = -48.0/17.0 /_dy;
+    alphaDz = -48.0/17.0 /_dz;
+  }
+
+  // get relevant matrices
+  Mat mu,H,e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
+  ierr = _sbpP->getMu(mu); CHKERRQ(ierr);
+  ierr =  _sbpP->getes(e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz); CHKERRQ(ierr);
+  ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
+  ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
+  ierr =  _sbpP->getH(H); CHKERRQ(ierr);
+
+  Vec ut;
+  VecDuplicate(_uP,&ut);
+  VecSet(ut,0.0);
+  if (abs(time - _currTime) > 1e-14) {
+    VecWAXPY(ut,-1.0,_uPPrev,_uP);
+    VecScale(ut,1.0/(time - _currTime));
+  }
+
+  // energy rate
+  PetscScalar dE = 0.0;
+  dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,mu,e0y_Iz,_bcLP);
+  dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,mu,eNy_Iz,_bcRP);
+
+
+  Vec ut_y;
+  VecDuplicate(ut,&ut_y);
+  VecSet(ut_y,0.0);
+  ierr = _sbpP->Dy(ut,ut_y); CHKERRQ(ierr);
+
+  dE += multVecMatMatMatVec(ut_y,Iy_Hz,mu,e0y_Iz,_bcLP);
+  dE -= multVecMatMatMatVec(ut_y,Iy_Hz,mu,eNy_Iz,_bcRP);
+
+  if (_Nz > 1) {
+    dE -= multVecMatMatVec(ut,Hy_Iz,Iy_e0z,_bcTP);
+    dE += multVecMatMatVec(ut,Hy_Iz,Iy_eNz,_bcBP);
+  }
+
+
+  VecSet(*(dvarBegin+2),dE);
+
+  VecDestroy(&ut);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+      CHKERRQ(ierr);
+  #endif
+  return ierr = 0;
+}
+
 
 
 
@@ -992,7 +1191,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _fault(D)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in linearElastic.cpp.\n");
 #endif
 
   _sbpM = new SbpOps_c(D,D._muVecM,"Neumann","Dirichlet","Neumann","Dirichlet","yx");

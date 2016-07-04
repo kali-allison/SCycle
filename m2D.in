@@ -1,6 +1,6 @@
 order = 4
-Ny = 401
-Nz = 401
+Ny = 51
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
@@ -99,12 +99,7 @@ atol = 1e-7
 rootTol = 1e-9
 
 
+outputDir = data/test_
+
 #outputDir = data/linEl/l2D_wTemp_
 #outputDir = data/max/test_coordTrans_
-
-#outputDir = data/max/test_10h0_v1e12_
-#outputDir = data/max/test_hy_v1e12_
-outputDir = data/max/test_0SAT_v1e12_
-#outputDir = data/max/test_10h0_v8e11_
-#outputDir = data/max/test_10h0_v1e11_
-

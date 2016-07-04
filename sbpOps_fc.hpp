@@ -93,7 +93,7 @@ class SbpOps_fc : public SbpOps
     const PetscInt    _order,_Ny,_Nz;
     const PetscReal   _dy,_dz;
     Vec              *_muVec;
-    Mat              _mu;
+    Mat               _mu;
 
     double _runTime;
 
@@ -107,10 +107,10 @@ class SbpOps_fc : public SbpOps
     string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Mat _rhsL,_rhsR,_rhsT,_rhsB;
 
-    Mat _Hyinv_Iz,_Iy_Hzinv,_e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
+    Mat _Hyinv_Iz,_Iy_Hzinv;
+    Mat _e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
 
     // boundary conditions
-    //~PetscScalar const _alphaF,_alphaR,_alphaS,_alphaD,_beta; // penalty terms
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // penalty terms for traction and displacement respectively
 
     // directory for matrix debugging
@@ -139,12 +139,25 @@ class SbpOps_fc : public SbpOps
     SbpOps_fc(const SbpOps_fc & that);
     SbpOps_fc& operator=( const SbpOps_fc& rhs );
 
-  public:
+  //~ public:
 
     Mat _H;
     Mat _Hinv;
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
+
+    // for energy
+    Mat _Hy_Iz,_Iy_Hz;
+    Mat _Ry,_Rz,_By_Iz,_Iy_Bz,_Iy_e0z,_Iy_eNz;
+
+    // for energy balance
+    PetscErrorCode getMu(Mat &mat);
+    PetscErrorCode getR(Mat& Ry, Mat& Rz);
+    PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz);
+    PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
+    PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz);
+    PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
+
 
     //~SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);
     SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);

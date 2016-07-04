@@ -1,5 +1,5 @@
 order = 4
-Ny = 321
+Ny = 21
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
@@ -47,7 +47,7 @@ nVals = [2.7 2.7]
 nDepths = [0 30]
 TVals = [273 1643] # [273 1643] or [500 500]
 TDepths = [0 30]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -62,18 +62,18 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
+sbpType = mfc
+#sbpType = mfc_coordTrans
 bCoordTrans = 5.0
 kspTol = 1e-10
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 1
+stride2D = 1
 maxStepCount = 1e8
-initTime = 4e10       # s
-maxTime = 2e11      # s
+initTime = 3e10       # s
+maxTime = 1e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e11      # s
 atol = 1e-8
@@ -81,7 +81,9 @@ atol = 1e-8
 rootTol = 1e-8
 
 
+outputDir = data/SS_energy_
+
 #outputDir = data/SS/stronglyVWLaw_
 #outputDir = data/SS/agingLaw_
-outputDir = data/SS/mSS_IMEX_agingLaw_
+#outputDir = data/SS/mSS_IMEX_agingLaw_
 #outputDir = data/SS/lSS_agingLaw_

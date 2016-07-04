@@ -101,6 +101,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     PetscScalar _tLast; // time of last earthquake
 
+    Vec _uPPrev;
+
     LinearElastic(Domain&D);
     ~LinearElastic();
 
@@ -155,12 +157,19 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError();
 
+    PetscErrorCode computeEnergy(const PetscScalar time, Vec& out);
+    PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+
 
   public:
 
     SymmFault           _fault;
     std::vector<Vec>    _var; // holds variables for explicit integration in time
     std::vector<Vec>    _varIm; // holds variables for implicit integration in time
+
+    // for energy balance
+    Vec _E;
+    PetscViewer _eV,_intEV; // calculated energy, energy rate, and integrated energy
 
 
     SymmLinearElastic(Domain&D);

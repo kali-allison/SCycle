@@ -159,6 +159,13 @@ PetscErrorCode SbpOps_fc_coordTrans::getH(Mat &mat)
   return 0;
 }
 
+PetscErrorCode SbpOps_fc_coordTrans::getMu(Mat &mat) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getR(Mat& Ry, Mat& Rz) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getBs(Mat& By_Iz,Mat& Iy_Bz) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getHs(Mat& Hy_Iz,Mat& Iy_Hz) { assert(0); return 0; }
+
 //======================================================================
 /* Enforce boundary conditions using SAT penalty terms, computing both
  * matrices used to build the rhs vector from the boundary vectors and

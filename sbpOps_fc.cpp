@@ -13,7 +13,8 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   _E0y_Iz(NULL),_ENy_Iz(NULL),_Iy_E0z(NULL),_Iy_ENz(NULL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
   _debugFolder("./matlabAnswers/"),_H(NULL),_Hinv(NULL),_A(NULL),
-  _Dy_Iz(NULL),_Iy_Dz(NULL)
+  _Dy_Iz(NULL),_Iy_Dz(NULL),
+  _Ry(NULL),_Rz(NULL),_By_Iz(NULL),_Iy_Bz(NULL),_Iy_e0z(NULL),_Iy_eNz(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
@@ -73,6 +74,20 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
     Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
 
+#if CALCULATE_ENERGY == 1
+    Spmat e0z(_Nz,1); e0z(0,0,1.0);
+    kronConvert(tempFactors._Iy,e0z,_Iy_e0z,1,1);
+    Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
+    kronConvert(tempFactors._Iy,eNz,_Iy_eNz,1,1);
+
+    kronConvert(tempFactors._Hy,tempFactors._Iz,_Hy_Iz,1,0);
+    kronConvert(tempFactors._Iy,tempFactors._Hz,_Iy_Hz,1,0);
+
+    Spmat By(_Ny,_Ny); By(0,0,-1.0); By(_Ny-1,_Ny-1,1.0);
+    kronConvert(By,tempFactors._Iz,_By_Iz,1,0);
+    Spmat Bz(_Nz,_Nz); Bz(0,0,-1.0); Bz(_Nz-1,_Nz-1,1.0);
+    kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,0);
+#endif
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -149,6 +164,40 @@ PetscErrorCode SbpOps_fc::getH(Mat &mat)
   #endif
   return 0;
 }
+
+
+// for energy balance
+PetscErrorCode SbpOps_fc::getMu(Mat &mat) { mat = _mu; return 0; }
+PetscErrorCode SbpOps_fc::getR(Mat& Ry, Mat& Rz) { Ry=_Ry; Rz=_Rz; return 0; }
+PetscErrorCode SbpOps_fc::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz)
+{
+  E0y_Iz = _E0y_Iz;
+  ENy_Iz = _ENy_Iz;
+  Iy_E0z = _Iy_E0z;
+  Iy_ENz = _Iy_ENz;
+  return 0;
+}
+PetscErrorCode SbpOps_fc::getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz)
+{
+  e0y_Iz = _e0y_Iz;
+  eNy_Iz = _eNy_Iz;
+  Iy_e0z = _Iy_e0z;
+  Iy_eNz = _Iy_eNz;
+  return 0;
+}
+PetscErrorCode SbpOps_fc::getBs(Mat& By_Iz,Mat& Iy_Bz)
+{
+  By_Iz = _By_Iz;
+  Iy_Bz = _Iy_Bz;
+  return 0;
+}
+PetscErrorCode SbpOps_fc::getHs(Mat& Hy_Iz,Mat& Iy_Hz)
+{
+  Hy_Iz = _Hy_Iz;
+  Iy_Hz = _Iy_Hz;
+  return 0;
+}
+
 
 //======================================================================
 
@@ -533,6 +582,9 @@ PetscErrorCode SbpOps_fc::constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu
   Mat Rymu;
   ierr = constructRymu(tempMats,Rymu);CHKERRQ(ierr);
   ierr = MatAXPY(temp2,-1,Rymu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  #if CALCULATE_ENERGY == 1
+    MatDuplicate(Rymu,MAT_COPY_VALUES,&_Ry);
+  #endif
   MatDestroy(&Rymu);
 
   ierr = MatAXPY(temp2,1,tempMats._muxBSy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -901,6 +953,9 @@ PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
   Mat Rzmu = NULL;
   ierr = constructRzmu(tempMats,Rzmu);
   ierr = MatAXPY(temp2,-1,Rzmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  #if CALCULATE_ENERGY == 1
+    MatDuplicate(Rzmu,MAT_COPY_VALUES,&_Rz);
+  #endif
   MatDestroy(&Rzmu);
 
   ierr = MatAXPY(temp2,1,tempMats._muxIy_BSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -1938,8 +1993,9 @@ TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
     // kron(Hyinv,Iz)
     {
       Spmat Hyinv_Iz(_Ny*_Nz,_Ny*_Nz);
-      Hyinv_Iz = kron(Hyinv,_Iz);
-      Hyinv_Iz.convert(_Hyinv_Iz,1);
+      //~ Hyinv_Iz = kron(Hyinv,_Iz);
+      //~ Hyinv_Iz.convert(_Hyinv_Iz,1);
+      kronConvert(Hyinv,_Iz,_Hyinv_Iz,1,0);
       PetscObjectSetName((PetscObject) _Hyinv_Iz, "Hyinv_Iz");
     }
 

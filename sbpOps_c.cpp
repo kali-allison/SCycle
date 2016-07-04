@@ -155,6 +155,14 @@ PetscErrorCode SbpOps_c::getH(Mat &mat)
   return 0;
 }
 
+// for energy balance
+PetscErrorCode SbpOps_c::getMu(Mat &mat) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getR(Mat& Ry, Mat& Rz) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getBs(Mat& By_Iz,Mat& Iy_Bz) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getHs(Mat& Hy_Iz,Mat& Iy_Hz) { assert(0); return 0; }
+
 
 //======================================================================
 

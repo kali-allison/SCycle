@@ -368,7 +368,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 }
 
 
-PetscErrorCode computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::computeEnergy";
@@ -377,6 +377,8 @@ PetscErrorCode computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);
   #endif
+
+  //~ _sbpP->
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -469,10 +471,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDuplicate(u,&temp1);
 
   // left displacement boundary
-  //~ ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
-  //~ ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
-  //~ VecAXPY(out,1.0,temp1);
-  //~ VecAXPY(out,-1.0,GL);
+  ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
+  ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+  VecAXPY(out,1.0,temp1);
+  VecAXPY(out,-1.0,GL);
 
   // right displacement boundary
   ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);

@@ -701,7 +701,6 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(*(varBegin),1,&Ii,&stateVal);
-    //~ ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr);
     if (!_stateLaw.compare("agingLaw")) { ierr = agingLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else if (!_stateLaw.compare("slipLaw")) { ierr = slipLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }

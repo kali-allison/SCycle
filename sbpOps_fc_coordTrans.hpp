@@ -171,6 +171,13 @@ class SbpOps_fc_coordTrans : public SbpOps
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
 
+    PetscErrorCode getMu(Mat &mat);
+    PetscErrorCode getR(Mat& Ry, Mat& Rz);
+    PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz);
+    PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
+    PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz);
+    PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
+
 
     // functions to compute various derivatives of input vectors (this
     // will allow the matrix-free version of these operators to present

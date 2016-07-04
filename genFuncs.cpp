@@ -134,6 +134,7 @@ double computeNorm_Mat(const Mat& mat,const Vec& vec)
   PetscScalar err;
   ierr = VecDot(vec,Matxvec,&err);CHKERRQ(ierr);
 
+  VecDestroy(&Matxvec);
   return err;
 }
 
@@ -160,6 +161,59 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
   return err;
 }
 
+// out = vecL' x A x B x C x vecR
+double multVecMatMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+  double out = 0;
+
+  Mat ABC;
+  MatMatMatMult(A,B,C,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&ABC);
+
+  Vec temp;
+  VecDuplicate(vecL,&temp);
+
+  ierr = MatMult(ABC,vecR,temp); CHKERRQ(ierr);
+  ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+  MatDestroy(&ABC);
+  return out;
+}
+
+// out = vecL' x A x B x vecR
+double multVecMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+  double out = 0;
+
+  Mat AB;
+  MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+
+  Vec temp;
+  VecDuplicate(vecL,&temp);
+
+  ierr = MatMult(AB,vecR,temp); CHKERRQ(ierr);
+  ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+  MatDestroy(&AB);
+  return out;
+}
+
+// out = vecL' x A x vecR
+double multVecMatVec(const Vec& vecL, const Mat& A, const Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+  double out = 0;
+
+  Vec temp;
+  VecDuplicate(vecL,&temp);
+  ierr = MatMult(A,vecR,temp); CHKERRQ(ierr);
+  ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
+  VecDestroy(&temp);
+  return out;
+}
 
 
 // loads a PETSc Vec from a binary file
@@ -487,11 +541,11 @@ double MMS_gSource1D(const double y,const double t)
 {
   PetscScalar mu = MMS_mu1D(y);
   PetscScalar mu_y = MMS_mu_y1D(y);
-  PetscScalar mu_z = MMS_mu_z1D(y);
+  //~ PetscScalar mu_z = MMS_mu_z1D(y);
   PetscScalar gxy = MMS_gxy1D(y,t);
-  PetscScalar gxz = MMS_gxz1D(y,t);
+  //~ PetscScalar gxz = MMS_gxz1D(y,t);
   PetscScalar gxy_y = MMS_gxy_y1D(y,t);
-  PetscScalar gxz_z = MMS_gxz_z1D(y,t);
+  //~ PetscScalar gxz_z = MMS_gxz_z1D(y,t);
   //~ return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
   return -mu*gxy_y - mu_y*gxy;
 }

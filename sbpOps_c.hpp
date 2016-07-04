@@ -160,6 +160,14 @@ class SbpOps_c : public SbpOps
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
 
+    // for energy balance
+    PetscErrorCode getMu(Mat &mat);
+    PetscErrorCode getR(Mat& Ry, Mat& Rz);
+    PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz);
+    PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
+    PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz);
+    PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
+
 
     // functions to compute various derivatives of input vectors
     PetscErrorCode Dy(const Vec &in, Vec &out); // out = Dy * in
