@@ -4,7 +4,7 @@ Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
-DcVals = [16e-3 16e-3] # m
+DcVals = [8e-3 8e-3] # m
 #DcVals = [0.0472 0.0472] # m
 DcDepths = [0 30] # m
 
@@ -12,15 +12,15 @@ DcDepths = [0 30] # m
 stateLaw = agingLaw
 
 # usual rate-and-state values
-#aVals = [0.015 0.015]
-#aDepths = [0 30]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 30]
-
 aVals = [0.015 0.015]
 aDepths = [0 30]
 bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 10 20 30]
+bDepths = [0 12 15 30]
+
+#aVals = [0.015 0.015]
+#aDepths = [0 30]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 10 20 30]
 
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
@@ -41,7 +41,6 @@ problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
-
 
 
 # power law properties
@@ -70,7 +69,7 @@ rhoDepths = [0 30]
 linSolver = AMG
 #sbpType = mfc_coordTrans
 #bCoordTrans = 5.0
-sbpType = mfc
+sbpType = mc
 kspTol = 1e-10
 
 
@@ -87,10 +86,10 @@ viscDepths = [0 30]
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 100
 maxStepCount = 1e8
-initTime = 1e6       # s 1e11
+initTime = 1e8       # s 1e11
 maxTime = 5e12      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
@@ -99,7 +98,7 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = data/test_
+#outputDir = data/test_
 
 #outputDir = data/linEl/l2D_wTemp_
 #outputDir = data/max/test_coordTrans_

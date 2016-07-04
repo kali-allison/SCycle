@@ -775,8 +775,10 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,dvarBegin);
 
-  // compute energy
-  computeEnergyRate(time,varBegin,dvarBegin);
+  #if CALCULATE_ENERGY == 1
+    // compute energy
+    computeEnergyRate(time,varBegin,dvarBegin);
+  #endif
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);

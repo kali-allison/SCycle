@@ -59,7 +59,7 @@ HeatEquation::HeatEquation(Domain& D)
   // solve for steady state temperature profile
   {
     //~ _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
-    if (D._sbpType.compare("mfc")==0) {
+    if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
       _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     }
     else if (D._sbpType.compare("mfc_coordTrans")==0) {
@@ -74,7 +74,7 @@ HeatEquation::HeatEquation(Domain& D)
     //~ (*_sbpT).~SbpOps_fc();
     delete _sbpT;
   }
-  if (D._sbpType.compare("mfc")==0) {
+  if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
     _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
