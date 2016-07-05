@@ -816,17 +816,8 @@ PetscErrorCode Domain::setFieldsPlus()
       //~ y = q*_Ly;
       z = r*_Lz;
 
-
       y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
       //~ z = (sinh(_bCoordTrans*(r-0.5))/sinh(_bCoordTrans*0.5) + 1.0)*0.5*_Lz;
-
-      //~ PetscScalar a = 0.5347;
-      //~ PetscScalar c = 0.1;
-      //~ PetscScalar c = 0.001;
-      //~ z = pow(r-a,5.0) + pow(a,5.0) + c*r;
-      //~ PetscScalar zend = pow(1.0-a,5.0) + pow(a,5.0) + c*1.0;
-      //~ z = z*((double)_Lz) /zend;
-
 
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);

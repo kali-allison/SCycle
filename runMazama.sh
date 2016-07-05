@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N mc
+#PBS -N test_energy
 #PBS -l nodes=1:ppn=16
-#PBS -q default
+#PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/mc.err
-#PBS -o /data/dunham/kallison/eqcycle/data/mc.out
+#PBS -e /data/dunham/kallison/eqcycle/data/test_N501_energy.err
+#PBS -o /data/dunham/kallison/eqcycle/data/test_N501_energy.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

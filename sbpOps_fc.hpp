@@ -151,12 +151,13 @@ class SbpOps_fc : public SbpOps
     Mat _Ry,_Rz,_By_Iz,_Iy_Bz,_Iy_e0z,_Iy_eNz;
 
     // for energy balance
-    PetscErrorCode getMu(Mat &mat);
+    PetscErrorCode getMus(Mat &muqy,Mat &murz);
     PetscErrorCode getR(Mat& Ry, Mat& Rz);
     PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz);
     PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
     PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz);
     PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
+    PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr);
 
 
     //~SbpOps_fc(Domain&D,PetscScalar& muArr,Mat& mu);

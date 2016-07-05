@@ -201,14 +201,14 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
-    Vec stressxzP;
-    VecDuplicate(_uP,&stressxzP);
-    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-      NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-    VecDestroy(&stressxzP);
-    // arguments:
-    // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  Vec stressxzP;
+  VecDuplicate(_uP,&stressxzP);
+  ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+  ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+    NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+  VecDestroy(&stressxzP);
+  // arguments:
+  // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
 
 
 #if VERBOSE > 1

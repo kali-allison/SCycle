@@ -35,7 +35,6 @@ LinearElastic::LinearElastic(Domain&D)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
 #endif
-
   loadSettings(D._file);
 
   // boundary conditions
@@ -60,8 +59,6 @@ LinearElastic::LinearElastic(Domain&D)
 
   VecDuplicate(_muVecP,&_rhsP);
   VecDuplicate(_rhsP,&_uP);
-
-
 
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
@@ -404,14 +401,12 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
 #endif
 
-
   VecDuplicate(_rhsP,&_stressxyP);
 
   Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
   _var.push_back(varPsi);
   Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
   _var.push_back(varSlip);
-
 
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
@@ -443,20 +438,19 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   setSurfDisp();
 
   #if CALCULATE_ENERGY == 1
-  VecCreate(PETSC_COMM_WORLD,&_E);
-  VecSetSizes(_E,PETSC_DECIDE,1);
-  VecSetFromOptions(_E);     PetscObjectSetName((PetscObject) _E, "_E");
-  computeEnergy(_initTime,_E);
+    VecCreate(PETSC_COMM_WORLD,&_E);
+    VecSetSizes(_E,PETSC_DECIDE,1);
+    VecSetFromOptions(_E);     PetscObjectSetName((PetscObject) _E, "_E");
+    computeEnergy(_initTime,_E);
 
-  Vec E;
-  VecDuplicate(_E,&E);
-  VecCopy(_E,E);
-  _var.push_back(E);
+    Vec E;
+    VecDuplicate(_E,&E);
+    VecCopy(_E,E);
+    _var.push_back(E);
 
-  VecDuplicate(_uP,&_uPPrev);
-  VecCopy(_uP,_uPPrev);
-#endif
-
+    VecDuplicate(_uP,&_uPPrev);
+    VecCopy(_uP,_uPPrev);
+  #endif
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
@@ -776,7 +770,6 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = _fault.d_dt(varBegin,dvarBegin);
 
   #if CALCULATE_ENERGY == 1
-    // compute energy
     computeEnergyRate(time,varBegin,dvarBegin);
   #endif
 
@@ -1041,67 +1034,106 @@ PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
     CHKERRQ(ierr);
   #endif
 
-  // elastic strain
-  Vec gExy;
-  ierr = VecDuplicate(_uP,&gExy); CHKERRQ(ierr);
-  ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
-
-  Vec gExz;
-  ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
-  ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
-
-
-  PetscScalar alphaDy = 0, alphaDz = 0;
-  if (_order==2) {
-   alphaDy = -4.0/_dy;
-   alphaDz = -4.0/_dz;
-  }
-  if (_order==4) {
-    alphaDy = -48.0/17.0 /_dy;
-    alphaDz = -48.0/17.0 /_dz;
-  }
+  PetscScalar alphaDy = 0, alphaDz = 0, E = 0;
 
   // get relevant matrices
-  Mat mu,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
-  ierr = _sbpP->getMu(mu); CHKERRQ(ierr);
+  Mat muqy,murz,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
   ierr =  _sbpP->getR(Ry,Rz); CHKERRQ(ierr);
   ierr =  _sbpP->getEs(E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz); CHKERRQ(ierr);
   ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
   ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
   ierr =  _sbpP->getH(H); CHKERRQ(ierr);
 
-  // energy
-  PetscScalar E = 0;
-  E = multVecMatMatVec(gExy,H,mu,gExy);
-  E += multVecMatMatVec(gExz,H,mu,gExz);
-  E += multVecMatMatVec(_uP,Iy_Hz,Ry,_uP);
-  E += multVecMatMatVec(_uP,Hy_Iz,Rz,_uP);
+  // compute elastic strains
+  Vec gExy=NULL,gExz=NULL;
+  ierr = VecDuplicate(_uP,&gExy); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
+  if (_sbpType.compare("mfc")==0) {
+    ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
+    ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
+    if (_order==2) {
+     alphaDy = -4.0/_dy;
+     alphaDz = -4.0/_dz;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /_dy;
+      alphaDz = -48.0/17.0 /_dz;
+    }
 
-  E -= multVecMatMatMatVec(_uP,Iy_Hz,By_Iz,mu,gExy);
-  E -= multVecMatMatMatVec(gExy,Iy_Hz,By_Iz,mu,_uP);
-  E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,mu,E0y_Iz,_uP);
-  E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,mu,ENy_Iz,_uP);
+    // compute energy
+    E = multVecMatMatVec(gExy,H,muqy,gExy);
+    E += multVecMatMatVec(_uP,Iy_Hz,Ry,_uP);
 
-  //~ if (_Nz > 1) {
-    //~ E -= multVecMatMatMatVec(_uP,Hy_Iz,Iy_Bz,mu,gExz);
-    //~ E -= multVecMatMatMatVec(gExz,Hy_Iz,Iy_Bz,mu,_uP);
-    //~ E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,mu,Iy_E0z,_uP);
-    //~ E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,mu,Iy_ENz,_uP);
-  //~ }
+    E -= multVecMatMatMatVec(_uP,Iy_Hz,By_Iz,muqy,gExy);
+    E -= multVecMatMatMatVec(gExy,Iy_Hz,By_Iz,muqy,_uP);
+    E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,muqy,E0y_Iz,_uP);
+    E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hz,muqy,ENy_Iz,_uP);
+
+    if (_Nz > 1) {
+      E += multVecMatMatVec(gExz,H,murz,gExz);
+      E += multVecMatMatVec(_uP,Hy_Iz,Rz,_uP);
+
+      E -= multVecMatMatMatVec(_uP,Hy_Iz,Iy_Bz,murz,gExz);
+      E -= multVecMatMatMatVec(gExz,Hy_Iz,Iy_Bz,murz,_uP);
+      E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,murz,Iy_E0z,_uP);
+      E -= alphaDz * multVecMatMatMatVec(_uP,Hy_Iz,murz,Iy_ENz,_uP);
+    }
+  }
+  else { // if mfc_coordTrans
+    Mat qy,rz,yq,zr,yqxHy_Iz,Iy_Hzxzr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(_uP,&temp); CHKERRQ(ierr);
+    ierr = _sbpP->Dy(_uP,temp); CHKERRQ(ierr);
+    ierr = MatMult(yq,temp,gExy);
+
+    ierr = _sbpP->Dz(_uP,temp); CHKERRQ(ierr);
+    ierr = MatMult(zr,temp,gExz);
+    VecDestroy(&temp);
+
+    ierr = MatMatMult(zr,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&Iy_Hzxzr);
+    ierr = MatMatMult(yq,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&yqxHy_Iz);
+
+    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    if (_order==2) {
+     alphaDy = -4.0/dq;
+     alphaDz = -4.0/dr;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /dq;
+      alphaDz = -48.0/17.0 /dr;
+    }
+
+    // compute energy
+    E = multVecMatMatMatVec(gExy,zr,H,muqy,gExy);
+    E += multVecMatMatVec(_uP,Iy_Hzxzr,Ry,_uP);
+
+    E -= multVecMatMatMatVec(_uP,Iy_Hzxzr,By_Iz,muqy,gExy);
+    E -= multVecMatMatMatVec(gExy,Iy_Hzxzr,By_Iz,muqy,_uP);
+    E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hzxzr,muqy,E0y_Iz,_uP);
+    E -= alphaDy * multVecMatMatMatVec(_uP,Iy_Hzxzr,muqy,ENy_Iz,_uP);
+
+    //~ if (_Nz > 1) {
+      //~ E += multVecMatMatMatVec(gExz,yq,H,murz,gExz);
+      //~ E += multVecMatMatVec(_uP,yqxHy_Iz,Rz,_uP);
+
+      //~ E -= multVecMatMatMatVec(_uP,yqxHy_Iz,Iy_Bz,murz,gExz);
+      //~ E -= multVecMatMatMatVec(gExz,yqxHy_Iz,Iy_Bz,murz,_uP);
+      //~ E -= alphaDz * multVecMatMatMatVec(_uP,yqxHy_Iz,murz,Iy_E0z,_uP);
+      //~ E -= alphaDz * multVecMatMatMatVec(_uP,yqxHy_Iz,murz,Iy_ENz,_uP);
+    //~ }
+
+    MatDestroy(&Iy_Hzxzr);
+    MatDestroy(&yqxHy_Iz);
+  }
 
   E = E * 0.5;
   VecSet(out,E);
 
-  //~ MatView(H,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(mu,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(gExy,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(Ry,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_uP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(Iy_E0z,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(Iy_ENz,PETSC_VIEWER_STDOUT_WORLD);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"E = %.9e\n",E);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %g\n",time);
-  //~ assert(0);
+  VecDestroy(&gExy);
+  VecDestroy(&gExz);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -1122,19 +1154,11 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
 
   computeEnergy(time,_E);
 
-  PetscScalar alphaDy = 0, alphaDz = 0;
-  if (_order==2) {
-   alphaDy = -4.0/_dy;
-   alphaDz = -4.0/_dz;
-  }
-  if (_order==4) {
-    alphaDy = -48.0/17.0 /_dy;
-    alphaDz = -48.0/17.0 /_dz;
-  }
+  PetscScalar alphaDy = 0, alphaDz = 0, dE = 0;
 
   // get relevant matrices
-  Mat mu,H,e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
-  ierr = _sbpP->getMu(mu); CHKERRQ(ierr);
+  Mat muqy,murz,H,e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
   ierr =  _sbpP->getes(e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz); CHKERRQ(ierr);
   ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
   ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
@@ -1148,29 +1172,76 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
     VecScale(ut,1.0/(time - _currTime));
   }
 
-  // energy rate
-  PetscScalar dE = 0.0;
-  dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,mu,e0y_Iz,_bcLP);
-  dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,mu,eNy_Iz,_bcRP);
-
-
   Vec ut_y;
   VecDuplicate(ut,&ut_y);
   VecSet(ut_y,0.0);
-  ierr = _sbpP->Dy(ut,ut_y); CHKERRQ(ierr);
+  if (_sbpType.compare("mfc")==0) {
+    ierr = _sbpP->Dy(ut,ut_y); CHKERRQ(ierr);
+    if (_order==2) {
+     alphaDy = -4.0/_dy;
+     alphaDz = -4.0/_dz;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /_dy;
+      alphaDz = -48.0/17.0 /_dz;
+    }
 
-  dE += multVecMatMatMatVec(ut_y,Iy_Hz,mu,e0y_Iz,_bcLP);
-  dE -= multVecMatMatMatVec(ut_y,Iy_Hz,mu,eNy_Iz,_bcRP);
+    // energy rate
+    dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,muqy,e0y_Iz,_bcLP);
+    dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hz,muqy,eNy_Iz,_bcRP);
 
-  if (_Nz > 1) {
-    dE -= multVecMatMatVec(ut,Hy_Iz,Iy_e0z,_bcTP);
-    dE += multVecMatMatVec(ut,Hy_Iz,Iy_eNz,_bcBP);
+    dE += multVecMatMatMatVec(ut_y,Iy_Hz,muqy,e0y_Iz,_bcLP);
+    dE -= multVecMatMatMatVec(ut_y,Iy_Hz,muqy,eNy_Iz,_bcRP);
+
+    if (_Nz > 1) {
+      dE -= multVecMatMatVec(ut,Hy_Iz,Iy_e0z,_bcTP);
+      dE += multVecMatMatVec(ut,Hy_Iz,Iy_eNz,_bcBP);
+    }
   }
 
+  else { // if mfc_coordTrans
+    Mat qy,rz,yq,zr,Iy_Hzxzr,yqxHy_Iz;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(ut,&temp); CHKERRQ(ierr);
+    ierr = _sbpP->Dy(ut,temp); CHKERRQ(ierr);
+    ierr = MatMult(yq,temp,ut_y);
+
+    VecDestroy(&temp);
+
+    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    if (_order==2) {
+     alphaDy = -4.0/dq;
+     alphaDz = -4.0/dr;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /dq;
+      alphaDz = -48.0/17.0 /dr;
+    }
+    ierr = MatMatMult(zr,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&Iy_Hzxzr);
+    ierr = MatMatMult(yq,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&yqxHy_Iz);
+
+    // energy rate
+    dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hzxzr,muqy,e0y_Iz,_bcLP);
+    dE -= alphaDy * multVecMatMatMatVec(ut,Iy_Hzxzr,muqy,eNy_Iz,_bcRP);
+
+    dE += multVecMatMatMatVec(ut_y,Iy_Hzxzr,muqy,e0y_Iz,_bcLP);
+    dE -= multVecMatMatMatVec(ut_y,Iy_Hzxzr,muqy,eNy_Iz,_bcRP);
+
+    if (_Nz > 1) {
+      dE -= multVecMatMatVec(ut,yqxHy_Iz,Iy_e0z,_bcTP);
+      dE += multVecMatMatVec(ut,yqxHy_Iz,Iy_eNz,_bcBP);
+    }
+  }
+
+
+
+  assert(!isnan(dE));
 
   VecSet(*(dvarBegin+2),dE);
 
   VecDestroy(&ut);
+  VecDestroy(&ut_y);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());

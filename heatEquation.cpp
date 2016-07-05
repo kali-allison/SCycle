@@ -85,7 +85,6 @@ HeatEquation::HeatEquation(Domain& D)
     assert(0); // automatically fail
   }
 
-
   // create identity matrix I
   //~ MatCreate(PETSC_COMM_WORLD,&_I);
   //~ MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
@@ -148,7 +147,6 @@ HeatEquation::~HeatEquation()
 
   PetscViewerDestroy(&_TV);
   PetscViewerDestroy(&_vw);
-
 
   delete _sbpT;
 }

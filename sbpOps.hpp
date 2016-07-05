@@ -34,12 +34,13 @@ class SbpOps
     virtual PetscErrorCode getH(Mat &mat) = 0;
 
     // temporarily available for energy balance
-    virtual PetscErrorCode getMu(Mat &mat) = 0;
+    virtual PetscErrorCode getMus(Mat &muqy,Mat &murz) = 0;
     virtual PetscErrorCode getR(Mat& Ry, Mat& Rz) = 0;
     virtual PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) = 0;
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
     virtual PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz) = 0;
     virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;
+    virtual PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)
     virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;
