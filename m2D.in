@@ -67,15 +67,15 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-sbpType = mfc_coordTrans
 bCoordTrans = 5.0
+sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
 
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
+viscVals = [1e15 1e15] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
@@ -92,14 +92,19 @@ maxStepCount = 1e8
 initTime = 1e8       # s 1e11
 maxTime = 5e12      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
+maxDeltaT = 1e10      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = data/test_N501_
-outputDir = data/test_energy_
+outputDir = data/l2D_coordTrans_
+
+#outputDir = data/m2D_lockedFault_v1e15_
+#outputDir = data/m2D_v1e11_
+#outputDir = data/m2D_v1e12_
+#outputDir = data/m2D_v1e13_
+#outputDir = data/m2D_v1e20_
 
 #outputDir = data/linEl/l2D_wTemp_
 #outputDir = data/max/test_coordTrans_

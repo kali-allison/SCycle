@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N test_energy
+#PBS -N l2D_coordTrans
 #PBS -l nodes=1:ppn=16
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/test_energy.err
-#PBS -o /data/dunham/kallison/eqcycle/data/test_energy.out
+#PBS -e /data/dunham/kallison/eqcycle/data/l2D_coordTrans.err
+#PBS -o /data/dunham/kallison/eqcycle/data/l2D_coordTrans.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

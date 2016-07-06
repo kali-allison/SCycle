@@ -52,7 +52,7 @@ rhoDepths = [0 30]
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e15 1e15] # GPa s
+viscVals = [1e20 1e20] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
@@ -68,11 +68,11 @@ kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 1000
 maxStepCount = 1e8
-initTime = 3e10       # s
-maxTime = 8e10      # s
+initTime = 1e8       # s
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-8
@@ -80,4 +80,5 @@ atol = 1e-8
 rootTol = 1e-9
 
 
-outputDir = data/SS_energy_
+#outputDir = data/SS_v1e20_
+outputDir = data/lSS_

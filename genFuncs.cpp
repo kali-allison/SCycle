@@ -233,7 +233,7 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
   ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
 
   VecDestroy(&temp);
-  MatDestroy(&ABC);
+  MatDestroy(&ABCD);
   return out;
 }
 

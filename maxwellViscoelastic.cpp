@@ -162,8 +162,14 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
+      #if LOCK_FAULT == 1
+      int arrInds[] = {2,3}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      #endif
+      #if LOCK_FAULT == 0
       int arrInds[] = {1}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      #endif
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -239,7 +245,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
-  // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
+  // add source terms to rhs: d/dy(mu * gxy) + d/dz(mu * gxz)
   Vec viscSource;
   ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,varBegin);CHKERRQ(ierr);
@@ -543,27 +549,31 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergyRate(const PetscScalar time
     if (_order==4) { alphaDy = -48.0/17.0 /_dy; }
 
     // energy rate
-    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,e0y_Iz,_bcLP); // ok
-    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,eNy_Iz,_bcRP); // ok
-    dE += multVecMatsVec(ut_y,Iy_Hz,muqy,e0y_Iz,_bcLP); // ok
-    dE -= multVecMatsVec(ut_y,Iy_Hz,muqy,eNy_Iz,_bcRP); // ok
+    dE -= multVecMatsVec(gExy,H,coeff,gExy);
 
-    dE -= multVecMatsVec(gExy,H,coeff,gExy); // ok
-    dE -= 2.0 * multVecMatsVec(_uP,coeff,E0y_Iz,gExy); // ok
-    dE += 2.0 * multVecMatsVec(_uP,coeff,ENy_Iz,gExy); // ok
-    dE -= multVecMatsVec(_uP,coeff,Hyinv_Iz,E0y_Iz,_uP); // ok
-    dE -= multVecMatsVec(_uP,coeff,Hyinv_Iz,ENy_Iz,_uP); // ok
+    dE -= 2.0 * multVecMatsVec(_uP,Iy_Hz,coeff,E0y_Iz,gExy);
+    dE += 2.0 * multVecMatsVec(_uP,Iy_Hz,coeff,ENy_Iz,gExy);
+    dE -= multVecMatsVec(_uP,Iy_Hz,coeff,Hyinv_Iz,E0y_Iz,_uP);
+    dE -= multVecMatsVec(_uP,Iy_Hz,coeff,Hyinv_Iz,ENy_Iz,_uP);
 
-    // using transpose of expression from matlab
-    dE += multVecMatsVec(gExy,coeff,e0y_Iz,_bcLP);
-    dE -= multVecMatsVec(gExy,coeff,eNy_Iz,_bcRP);
-    dE -= multVecMatsVec(_uP,Hyinv_Iz,By_Iz,coeff,e0y_Iz,_bcLP);
-    dE += multVecMatsVec(_uP,Hyinv_Iz,By_Iz,coeff,eNy_Iz,_bcRP);
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,e0y_Iz,_bcLP);
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,eNy_Iz,_bcRP);
+    dE += multVecMatsVec(ut_y,Iy_Hz,muqy,e0y_Iz,_bcLP);
+    dE -= multVecMatsVec(ut_y,Iy_Hz,muqy,eNy_Iz,_bcRP);
 
-    //~ if (_Nz > 1) {
-      //~ dE -= multVecMatsVec(ut,Hy_Iz,Iy_e0z,_bcTP);
-      //~ dE += multVecMatsVec(ut,Hy_Iz,Iy_eNz,_bcBP);
-    //~ }
+    dE += multVecMatsVec(gExy,coeff,Iy_Hz,e0y_Iz,_bcLP);
+    dE -= multVecMatsVec(gExy,coeff,Iy_Hz,eNy_Iz,_bcRP);
+    dE += multVecMatsVec(_uP,Hyinv_Iz,Iy_Hz,coeff,e0y_Iz,_bcLP);
+    dE -= multVecMatsVec(_uP,Hyinv_Iz,Iy_Hz,coeff,eNy_Iz,_bcRP);
+
+    if (_Nz > 1) {
+      ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
+      ierr = VecAXPY(gExz,-1.0,_gxzP); CHKERRQ(ierr);
+
+      dE -= multVecMatsVec(gExz,H,coeff,gExz);
+      dE -= multVecMatsVec(ut,Hy_Iz,Iy_e0z,_bcTP);
+      dE += multVecMatsVec(ut,Hy_Iz,Iy_eNz,_bcBP);
+    }
 
     MatDestroy(&coeff);
   }
@@ -660,11 +670,9 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDuplicate(_gxzP,&bcB);
 
     _sbpP->HzinvxE0z(_gxzP,temp1);
-    //~ ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
     ierr = VecPointwiseMult(bcT,_muVecP,temp1); CHKERRQ(ierr);
 
     _sbpP->HzinvxENz(_gxzP,temp1);
-    //~ ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
     ierr = VecPointwiseMult(bcB,_muVecP,temp1); CHKERRQ(ierr);
 
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
@@ -748,12 +756,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
 
   //~ VecSet(SAT,0.0); // to test effect of removing SAT term
 
-  //~ // use mu weighted by coordinate transform
-  Mat muqy,murz;
-  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
+  // use mu weighted by coordinate transform
+  Mat mu,muqy,murz;
+  ierr =  _sbpP->getMus(mu,murz); CHKERRQ(ierr);
 
-  // d/dt gxy = sxy/visc + mu*qy/visc*SAT
-  MatMult(muqy,SAT,*(dvarBegin+2));
+  // d/dt gxy = sxy/visc + mu/visc*SAT
+  MatMult(mu,SAT,*(dvarBegin+2));
   VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
   VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);
 
@@ -784,39 +792,15 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
 
   // compute strains and rates
   _sbpP->Dy(_uP,_gTxyP);
-  _sbpP->Dz(_uP,_gTxzP);
-
-  PetscScalar visc,mu,gT,gV,sigmaxy,sigmaxz;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_gTxyP,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_visc,1,&Ii,&visc);
-    VecGetValues(_gTxyP,1,&Ii,&gT);
-    VecGetValues(_gxyP,1,&Ii,&gV);
-    VecGetValues(_muVecP,1,&Ii,&mu);
-
-    // solve for stressxyP = 2*mu*epsExy (elastic strain)
-    //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
-    sigmaxy = mu * (gT - gV);
-    VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
-
-    if (_Nz > 1) {
-      VecGetValues(_gTxzP,1,&Ii,&gT);
-      VecGetValues(_gxzP,1,&Ii,&gV);
-
-      // solve for stressxzP = 2*mu*epsExy (elastic strain)
-      //                     = 2*mu*(0.5*d/dz(uhat) - epsVxz)
-      sigmaxz = mu * (gT - gV);
-      VecSetValues(_stressxzP,1,&Ii,&sigmaxz,INSERT_VALUES);
-    }
-  }
-  VecAssemblyBegin(_stressxyP);
-  VecAssemblyEnd(_stressxyP);
-
+  VecCopy(_gTxyP,_stressxyP);
+  VecAXPY(_stressxyP,-1.0,_gxyP);
+  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
 
   if (_Nz > 1) {
-    VecAssemblyBegin(_stressxzP);
-    VecAssemblyEnd(_stressxzP);
+    _sbpP->Dz(_uP,_gTxzP);
+    VecCopy(_gTxzP,_stressxzP);
+    VecAXPY(_stressxzP,-1.0,_gxzP);
+    VecPointwiseMult(_stressxzP,_stressxzP,_muVecP);
   }
 
   #if VERBOSE > 1
