@@ -1,5 +1,5 @@
 order = 4
-Ny = 41
+Ny = 81
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
@@ -28,16 +28,6 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
-# Maxwell properties
-viscDistribution = layered
-viscVals = [1e13 1e13] # GPa s
-viscDepths = [0 30]
-
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 30]
-#strainRate = 1e-14
-
 # power law properties
 AVals = [2.2e-6 2.2e-6]
 ADepths = [0 30]
@@ -60,11 +50,20 @@ cDepths = [0 30]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 30]
 
+# Maxwell properties
+viscDistribution = layered
+viscVals = [1e15 1e15] # GPa s
+viscDepths = [0 30]
+
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 30]
+#strainRate = 1e-14
 
 linSolver = AMG
-#sbpType = mfc
-sbpType = mfc_coordTrans
-bCoordTrans = 5.0
+sbpType = mfc
+#sbpType = mfc_coordTrans
+#bCoordTrans = 5.0
 kspTol = 1e-10
 
 timeIntegrator = RK32
@@ -73,17 +72,12 @@ stride1D = 1
 stride2D = 1
 maxStepCount = 1e8
 initTime = 3e10       # s
-maxTime = 1e11      # s
+maxTime = 8e10      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e11      # s
+maxDeltaT = 1e9      # s
 atol = 1e-8
 
-rootTol = 1e-8
+rootTol = 1e-9
 
 
 outputDir = data/SS_energy_
-
-#outputDir = data/SS/stronglyVWLaw_
-#outputDir = data/SS/agingLaw_
-#outputDir = data/SS/mSS_IMEX_agingLaw_
-#outputDir = data/SS/lSS_agingLaw_

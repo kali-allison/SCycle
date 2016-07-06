@@ -43,36 +43,38 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
 
-//~ // if also solving heat equation
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec T;
-    //~ VecDuplicate(_uP,&T);
-    //~ VecCopy(_he._T,T);
-    //~ _varIm.push_back(T);
-  //~ }
+// if also solving heat equation
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    Vec T;
+    VecDuplicate(_uP,&T);
+    VecCopy(_he._T,T);
+    _varIm.push_back(T);
+  }
 
-  //~ // remove temperature from integration variable
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec  vec = * (_var.end() - 1);
-    //~ VecDestroy(&vec);
-  //~ _var.pop_back();
-  //~ }
+  #if CALCULATE_ENERGY == 1
+    // remove E that was added by SymmLinearElastic
+    Vec  vec = * (_var.end() - 1);
+    VecDestroy(&vec);
+    _var.pop_back();
+  #endif
+
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
-
-  //~ // if also solving heat equation
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec T;
-    //~ VecDuplicate(_he._T,&T);
-    //~ VecCopy(_he._T,T);
-    //~ _var.push_back(T);
-  //~ }
-
   if (_isMMS) { setMMSInitialConditions(); }
+
+  #if CALCULATE_ENERGY == 1
+    Vec E;
+    VecDuplicate(_E,&E);
+    VecCopy(_E,E);
+    _var.push_back(E);
+
+    VecDuplicate(_uP,&_uPPrev);
+    VecCopy(_uP,_uPPrev);
+  #endif
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -260,16 +262,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
   // set rates
   ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
-  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // sets viscous strain rates
-
-
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
-      //~ *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
-      // arguments:
-      // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  //~ }
-  // state +0, slip +1, gxy +2, gxz +3, T +4
+  ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
   // lock the fault to test viscous strain alone
   //~ VecSet(*dvarBegin,0.0); // dstate
@@ -277,6 +270,10 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   //~ VecSet(*(dvarBegin+2),0.0); // dgxy
   //~ VecSet(*(dvarBegin+3),0.0); // dgxz
   //~ VecSet(*(dvarBegin+4),0.0); // dtemp
+
+  #if CALCULATE_ENERGY == 1
+    computeEnergyRate(time,varBegin,dvarBegin);
+  #endif
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -302,7 +299,6 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  //~ printVec(_rhsP);
 
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
@@ -319,12 +315,12 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   VecDestroy(&viscSourceMMS);
   if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,time); }
   else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
-  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);k
+  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
-  //~ ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
-  //~ ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
+  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
   ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
   VecDestroy(&HxviscSourceMMS);
   VecDestroy(&HxuSource);
@@ -368,7 +364,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
 }
 
 
-PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,Vec& out)
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmMaxwellViscoelastic::computeEnergy";
@@ -378,7 +374,246 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,con
     CHKERRQ(ierr);
   #endif
 
-  //~ _sbpP->
+  PetscScalar alphaDy = 0, alphaDz = 0, E = 0;
+
+  // get relevant matrices
+  Mat muqy,murz,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
+  ierr =  _sbpP->getR(Ry,Rz); CHKERRQ(ierr);
+  ierr =  _sbpP->getEs(E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz); CHKERRQ(ierr);
+  ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
+  ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
+  ierr =  _sbpP->getH(H); CHKERRQ(ierr);
+
+  // compute elastic strains
+  Vec gExy=NULL,gExz=NULL;
+  ierr = VecDuplicate(_uP,&gExy); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
+  if (_sbpType.compare("mfc")==0) {
+    ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
+    ierr = VecAYPX(gExy,-1.0,_gxyP); CHKERRQ(ierr);
+
+    if (_order==2) { alphaDy = -4.0/_dy; }
+    if (_order==4) { alphaDy = -48.0/17.0 /_dy; }
+
+    // compute energy
+    E = multVecMatsVec(gExy,H,muqy,gExy);
+    E += multVecMatsVec(_uP,Iy_Hz,Ry,_uP);
+
+    E -= multVecMatsVec(_uP,Iy_Hz,By_Iz,muqy,gExy);
+    E -= multVecMatsVec(gExy,Iy_Hz,By_Iz,muqy,_uP);
+    E -= alphaDy * multVecMatsVec(_uP,Iy_Hz,muqy,E0y_Iz,_uP);
+    E -= alphaDy * multVecMatsVec(_uP,Iy_Hz,muqy,ENy_Iz,_uP);
+
+    if (_Nz > 1) {
+      ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
+      ierr = VecAYPX(gExz,-1.0,_gxzP); CHKERRQ(ierr);
+      E += multVecMatsVec(gExz,H,murz,gExz);
+      E += multVecMatsVec(_uP,Hy_Iz,Rz,_uP);
+    }
+  }
+  else { // if mfc_coordTrans  !!! NOT CORRECT!!
+    Mat qy,rz,yq,zr,yqxHy_Iz,Iy_Hzxzr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(_uP,&temp); CHKERRQ(ierr);
+    ierr = _sbpP->Dy(_uP,temp); CHKERRQ(ierr);
+    ierr = MatMult(yq,temp,gExy);
+
+    ierr = _sbpP->Dz(_uP,temp); CHKERRQ(ierr);
+    ierr = MatMult(zr,temp,gExz);
+    VecDestroy(&temp);
+
+    ierr = MatMatMult(zr,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&Iy_Hzxzr);
+    ierr = MatMatMult(yq,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&yqxHy_Iz);
+
+    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    if (_order==2) {
+     alphaDy = -4.0/dq;
+     alphaDz = -4.0/dr;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /dq;
+      alphaDz = -48.0/17.0 /dr;
+    }
+
+    // compute energy
+    E = multVecMatsVec(gExy,zr,H,muqy,gExy);
+    E += multVecMatsVec(_uP,Iy_Hzxzr,Ry,_uP);
+
+    E -= multVecMatsVec(_uP,Iy_Hzxzr,By_Iz,muqy,gExy);
+    E -= multVecMatsVec(gExy,Iy_Hzxzr,By_Iz,muqy,_uP);
+    E -= alphaDy * multVecMatsVec(_uP,Iy_Hzxzr,muqy,E0y_Iz,_uP);
+    E -= alphaDy * multVecMatsVec(_uP,Iy_Hzxzr,muqy,ENy_Iz,_uP);
+
+    if (_Nz > 1) {
+      E += multVecMatsVec(gExz,yq,H,murz,gExz);
+      E += multVecMatsVec(_uP,yqxHy_Iz,Rz,_uP);
+
+      E -= multVecMatsVec(_uP,yqxHy_Iz,Iy_Bz,murz,gExz);
+      E -= multVecMatsVec(gExz,yqxHy_Iz,Iy_Bz,murz,_uP);
+      E -= alphaDz * multVecMatsVec(_uP,yqxHy_Iz,murz,Iy_E0z,_uP);
+      E -= alphaDz * multVecMatsVec(_uP,yqxHy_Iz,murz,Iy_ENz,_uP);
+    }
+
+    MatDestroy(&Iy_Hzxzr);
+    MatDestroy(&yqxHy_Iz);
+  }
+
+  E = E * 0.5;
+  VecSet(out,E);
+
+  VecDestroy(&gExy);
+  VecDestroy(&gExz);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+      CHKERRQ(ierr);
+  #endif
+  return ierr = 0;
+}
+
+PetscErrorCode SymmMaxwellViscoelastic::computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "SymmMaxwellViscoelastic::computeEnergy";
+  string fileName = "maxwellViscoelastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+
+  computeEnergy(time,_E);
+
+  PetscScalar alphaDy = 0, alphaDz = 0, dE = 0;
+
+  // get relevant matrices
+  //~ Mat muqy,murz,H,e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz,Hyinv_Iz,Iy_Hzinv,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz;
+  Mat muqy,murz,By_Iz,Iy_Bz;
+  Mat H,Hy_Iz,Iy_Hz,Hyinv_Iz,Iy_Hzinv;
+  Mat e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
+  ierr =  _sbpP->getes(e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz); CHKERRQ(ierr);
+  ierr =  _sbpP->getEs(E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz); CHKERRQ(ierr);
+  ierr =  _sbpP->getBs(By_Iz,Iy_Bz); CHKERRQ(ierr);
+  ierr =  _sbpP->getHs(Hy_Iz,Iy_Hz); CHKERRQ(ierr);
+  ierr =  _sbpP->getHinvs(Hyinv_Iz,Iy_Hzinv); CHKERRQ(ierr);
+  ierr =  _sbpP->getH(H); CHKERRQ(ierr);
+
+  Vec ut;
+  VecDuplicate(_uP,&ut);
+  VecSet(ut,0.0);
+  if (abs(time - _currTime) > 1e-14) {
+    VecWAXPY(ut,-1.0,_uPPrev,_uP);
+    VecScale(ut,1.0/(time - _currTime));
+  }
+
+  Vec ones;
+  VecDuplicate(_visc,&ones);
+  VecSet(ones,1.0);
+  Vec invViscV;
+  ierr = VecDuplicate(_visc,&invViscV); CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(invViscV,ones,_visc); CHKERRQ(ierr);
+  Mat invVisc;
+  MatDuplicate(muqy,MAT_DO_NOT_COPY_VALUES,&invVisc);
+  ierr = MatDiagonalSet(invVisc,invViscV,INSERT_VALUES); CHKERRQ(ierr);
+  VecDestroy(&invViscV);
+  VecDestroy(&ones);
+
+
+  Vec ut_y;
+  VecDuplicate(ut,&ut_y);
+  VecSet(ut_y,0.0);
+
+  Vec gExy=NULL,gExz=NULL;
+  ierr = VecDuplicate(_uP,&gExy); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
+
+  if (_sbpType.compare("mfc")==0) {
+    ierr = _sbpP->Dy(ut,ut_y); CHKERRQ(ierr);
+
+    ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
+    ierr = VecAXPY(gExy,-1.0,_gxyP); CHKERRQ(ierr);
+
+    Mat coeff;
+    ierr = MatMatMatMult(muqy,muqy,invVisc,MAT_INITIAL_MATRIX,1.0,&coeff);
+
+    if (_order==2) { alphaDy = -4.0/_dy; }
+    if (_order==4) { alphaDy = -48.0/17.0 /_dy; }
+
+    // energy rate
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,e0y_Iz,_bcLP); // ok
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hz,muqy,eNy_Iz,_bcRP); // ok
+    dE += multVecMatsVec(ut_y,Iy_Hz,muqy,e0y_Iz,_bcLP); // ok
+    dE -= multVecMatsVec(ut_y,Iy_Hz,muqy,eNy_Iz,_bcRP); // ok
+
+    dE -= multVecMatsVec(gExy,H,coeff,gExy); // ok
+    dE -= 2.0 * multVecMatsVec(_uP,coeff,E0y_Iz,gExy); // ok
+    dE += 2.0 * multVecMatsVec(_uP,coeff,ENy_Iz,gExy); // ok
+    dE -= multVecMatsVec(_uP,coeff,Hyinv_Iz,E0y_Iz,_uP); // ok
+    dE -= multVecMatsVec(_uP,coeff,Hyinv_Iz,ENy_Iz,_uP); // ok
+
+    // using transpose of expression from matlab
+    dE += multVecMatsVec(gExy,coeff,e0y_Iz,_bcLP);
+    dE -= multVecMatsVec(gExy,coeff,eNy_Iz,_bcRP);
+    dE -= multVecMatsVec(_uP,Hyinv_Iz,By_Iz,coeff,e0y_Iz,_bcLP);
+    dE += multVecMatsVec(_uP,Hyinv_Iz,By_Iz,coeff,eNy_Iz,_bcRP);
+
+    //~ if (_Nz > 1) {
+      //~ dE -= multVecMatsVec(ut,Hy_Iz,Iy_e0z,_bcTP);
+      //~ dE += multVecMatsVec(ut,Hy_Iz,Iy_eNz,_bcBP);
+    //~ }
+
+    MatDestroy(&coeff);
+  }
+
+  else { // if mfc_coordTrans
+    Mat qy,rz,yq,zr,Iy_Hzxzr,yqxHy_Iz;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(ut,&temp); CHKERRQ(ierr);
+    ierr = _sbpP->Dy(ut,temp); CHKERRQ(ierr);
+    ierr = MatMult(yq,temp,ut_y);
+
+    VecDestroy(&temp);
+
+    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    if (_order==2) {
+     alphaDy = -4.0/dq;
+     alphaDz = -4.0/dr;
+    }
+    if (_order==4) {
+      alphaDy = -48.0/17.0 /dq;
+      alphaDz = -48.0/17.0 /dr;
+    }
+    ierr = MatMatMult(zr,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&Iy_Hzxzr);
+    ierr = MatMatMult(yq,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&yqxHy_Iz);
+
+    // energy rate
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hzxzr,muqy,e0y_Iz,_bcLP);
+    dE -= alphaDy * multVecMatsVec(ut,Iy_Hzxzr,muqy,eNy_Iz,_bcRP);
+
+    dE += multVecMatsVec(ut_y,Iy_Hzxzr,muqy,e0y_Iz,_bcLP);
+    dE -= multVecMatsVec(ut_y,Iy_Hzxzr,muqy,eNy_Iz,_bcRP);
+
+    if (_Nz > 1) {
+      dE -= multVecMatsVec(ut,yqxHy_Iz,Iy_e0z,_bcTP);
+      dE += multVecMatsVec(ut,yqxHy_Iz,Iy_eNz,_bcBP);
+    }
+    MatDestroy(&Iy_Hzxzr);
+    MatDestroy(&yqxHy_Iz);
+  }
+
+  assert(!isnan(dE));
+
+  VecSet(*(dvarBegin+4),dE);
+
+  VecDestroy(&ut);
+  VecDestroy(&ut_y);
+  VecDestroy(&gExy);
+  VecDestroy(&gExz);
+  MatDestroy(&invVisc);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -506,43 +741,28 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     CHKERRQ(ierr);
   #endif
 
-
   // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  PetscScalar deps,visc,mu,sat,sigmaxy,sigmaxz=0;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_visc,1,&Ii,&visc);
-    VecGetValues(_muVecP,1,&Ii,&mu);
-    VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    VecGetValues(SAT,1,&Ii,&sat);
+  //~ VecSet(SAT,0.0); // to test effect of removing SAT term
 
-    // d/dt gxy = mu/visc * ( d/dy u - gxy) + SAT
-    deps = sigmaxy/visc + (mu/visc)*sat;
-    VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
+  //~ // use mu weighted by coordinate transform
+  Mat muqy,murz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
 
-    if (_Nz > 1) {
-      VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
-
-      // d/dt gxz = mu/visc * ( *d/dz u - gxz)
-      deps = sigmaxz/visc;
-      VecSetValues(*(dvarBegin+3),1,&Ii,&deps,INSERT_VALUES);
-    }
-  }
-  VecAssemblyBegin(*(dvarBegin+2));
-  VecAssemblyEnd(*(dvarBegin+2));
-
-  VecDestroy(&SAT);
-
+  // d/dt gxy = sxy/visc + mu*qy/visc*SAT
+  MatMult(muqy,SAT,*(dvarBegin+2));
+  VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
+  VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);
 
   if (_Nz > 1) {
-    VecAssemblyBegin(*(dvarBegin+3));
-    VecAssemblyEnd(*(dvarBegin+3));
+    VecCopy(_stressxzP,*(dvarBegin+3));
+    VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);
   }
+
+  VecDestroy(&SAT);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);
@@ -794,6 +1014,9 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
   PetscErrorCode ierr = 0;
   _stepCount++;
   _currTime = time;
+  #if CALCULATE_ENERGY == 1
+    VecCopy(_uP,_uPPrev);
+  #endif
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
@@ -906,6 +1129,24 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
                                    FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+
+    #if CALCULATE_ENERGY == 1
+      // write out calculated energy
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"E").c_str(),FILE_MODE_WRITE,
+        &_eV);CHKERRQ(ierr);
+      ierr = VecView(_E,_eV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_eV);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"E").c_str(),
+        FILE_MODE_APPEND,&_eV);CHKERRQ(ierr);
+
+      // write out integrated energy
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"intE").c_str(),FILE_MODE_WRITE,
+        &_intEV);CHKERRQ(ierr);
+      ierr = VecView(*(_var.end()-1),_intEV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_intEV);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"intE").c_str(),
+        FILE_MODE_APPEND,&_intEV);CHKERRQ(ierr);
+    #endif
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
@@ -914,6 +1155,11 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
+
+    #if CALCULATE_ENERGY == 1
+      ierr = VecView(_E,_eV);CHKERRQ(ierr);
+      ierr = VecView(*(_var.end()-1),_intEV);CHKERRQ(ierr);
+    #endif
   }
 
   _writeTime += MPI_Wtime() - startTime;

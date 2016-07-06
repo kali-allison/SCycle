@@ -197,6 +197,12 @@ PetscErrorCode SbpOps_fc::getHs(Mat& Hy_Iz,Mat& Iy_Hz)
   Iy_Hz = _Iy_Hz;
   return 0;
 }
+PetscErrorCode SbpOps_fc::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
+{
+  Hyinv_Iz = _Hyinv_Iz;
+  Iy_Hzinv = _Iy_Hzinv;
+  return 0;
+}
 PetscErrorCode SbpOps_fc::getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
 
 

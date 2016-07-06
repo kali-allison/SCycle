@@ -161,28 +161,22 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
   return err;
 }
 
-// out = vecL' x A x B x C x vecR
-double multVecMatMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR)
+// out = vecL' x A x vecR
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR)
 {
   PetscErrorCode ierr = 0;
   double out = 0;
 
-  Mat ABC;
-  MatMatMatMult(A,B,C,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&ABC);
-
   Vec temp;
   VecDuplicate(vecL,&temp);
-
-  ierr = MatMult(ABC,vecR,temp); CHKERRQ(ierr);
+  ierr = MatMult(A,vecR,temp); CHKERRQ(ierr);
   ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
-
   VecDestroy(&temp);
-  MatDestroy(&ABC);
   return out;
 }
 
 // out = vecL' x A x B x vecR
-double multVecMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR)
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR)
 {
   PetscErrorCode ierr = 0;
   double out = 0;
@@ -201,17 +195,45 @@ double multVecMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& 
   return out;
 }
 
-// out = vecL' x A x vecR
-double multVecMatVec(const Vec& vecL, const Mat& A, const Vec& vecR)
+// out = vecL' x A x B x C x vecR
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR)
 {
   PetscErrorCode ierr = 0;
   double out = 0;
 
+  Mat ABC;
+  MatMatMatMult(A,B,C,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&ABC);
+
   Vec temp;
   VecDuplicate(vecL,&temp);
-  ierr = MatMult(A,vecR,temp); CHKERRQ(ierr);
+
+  ierr = MatMult(ABC,vecR,temp); CHKERRQ(ierr);
   ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
+
   VecDestroy(&temp);
+  MatDestroy(&ABC);
+  return out;
+}
+
+// out = vecL' x A x B x C x vecR
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Mat& D, const Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+  double out = 0;
+
+  Mat ABC,ABCD;
+  MatMatMatMult(A,B,C,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&ABC);
+  MatMatMult(ABC,D,MAT_INITIAL_MATRIX,1.0,&ABCD);
+  MatDestroy(&ABC);
+
+  Vec temp;
+  VecDuplicate(vecL,&temp);
+
+  ierr = MatMult(ABCD,vecR,temp); CHKERRQ(ierr);
+  ierr = VecDot(vecL,temp,&out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+  MatDestroy(&ABC);
   return out;
 }
 

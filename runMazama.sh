@@ -5,8 +5,8 @@
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/test_N501_energy.err
-#PBS -o /data/dunham/kallison/eqcycle/data/test_N501_energy.out
+#PBS -e /data/dunham/kallison/eqcycle/data/test_energy.err
+#PBS -o /data/dunham/kallison/eqcycle/data/test_energy.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

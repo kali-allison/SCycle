@@ -74,6 +74,9 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
   Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
   kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
 
+  MatDuplicate(tempFactors._muqy,MAT_COPY_VALUES,&_muqy);
+    MatDuplicate(tempFactors._murz,MAT_COPY_VALUES,&_murz);
+
   #if CALCULATE_ENERGY == 1
     Spmat e0z(_Nz,1); e0z(0,0,1.0);
     kronConvert(tempFactors._Iy,e0z,_Iy_e0z,1,1);
@@ -87,9 +90,6 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
     kronConvert(By,tempFactors._Iz,_By_Iz,1,0);
     Spmat Bz(_Nz,_Nz); Bz(0,0,-1.0); Bz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,0);
-
-    MatDuplicate(tempFactors._muqy,MAT_COPY_VALUES,&_muqy);
-    MatDuplicate(tempFactors._murz,MAT_COPY_VALUES,&_murz);
 
     MatDuplicate(tempFactors._yq,MAT_COPY_VALUES,&_yq);
     MatDuplicate(tempFactors._zr,MAT_COPY_VALUES,&_zr);
@@ -132,6 +132,9 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   MatDestroy(&_ENy_Iz);
   MatDestroy(&_Iy_E0z);
   MatDestroy(&_Iy_ENz);
+
+  MatDestroy(&_muqy);
+  MatDestroy(&_murz);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
@@ -202,6 +205,12 @@ PetscErrorCode SbpOps_fc_coordTrans::getHs(Mat& Hy_Iz,Mat& Iy_Hz)
 {
   Hy_Iz = _Hy_Iz;
   Iy_Hz = _Iy_Hz;
+  return 0;
+}
+PetscErrorCode SbpOps_fc_coordTrans::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
+{
+  Hyinv_Iz = _Hyinv_Iz;
+  Iy_Hzinv = _Iy_Hzinv;
   return 0;
 }
 PetscErrorCode SbpOps_fc_coordTrans::getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr)

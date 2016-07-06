@@ -40,6 +40,7 @@ class SbpOps
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
     virtual PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz) = 0;
     virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;
+    virtual PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv) = 0;
     virtual PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;
 
     // create the vector rhs out of the boundary conditions (_bc*)

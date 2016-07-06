@@ -167,6 +167,7 @@ class SbpOps_c : public SbpOps
     PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz);
     PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz);
     PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
+    PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv);
     PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr);
 
 

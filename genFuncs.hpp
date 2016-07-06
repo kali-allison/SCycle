@@ -44,9 +44,10 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
 double computeNorm_Mat(const Mat& mat,const Vec& vec);
 
 // functions to make computing the energy much easier
-double multVecMatMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR);
-double multVecMatMatVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR);
-double multVecMatVec(const Vec& vecL, const Mat& A, const Vec& vecR);
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR);
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR);
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR);
+double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Mat& D, const Vec& vecR);
 
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
