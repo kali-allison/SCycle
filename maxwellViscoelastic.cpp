@@ -391,7 +391,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,Vec
   ierr = VecDuplicate(_uP,&gExz); CHKERRQ(ierr);
   if (_sbpType.compare("mfc")==0) {
     ierr = _sbpP->Dy(_uP,gExy); CHKERRQ(ierr);
-    ierr = VecAYPX(gExy,-1.0,_gxyP); CHKERRQ(ierr);
+    ierr = VecAXPY(gExy,-1.0,_gxyP); CHKERRQ(ierr);
 
     if (_order==2) { alphaDy = -4.0/_dy; }
     if (_order==4) { alphaDy = -48.0/17.0 /_dy; }
@@ -407,7 +407,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,Vec
 
     if (_Nz > 1) {
       ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
-      ierr = VecAYPX(gExz,-1.0,_gxzP); CHKERRQ(ierr);
+      ierr = VecAXPY(gExz,-1.0,_gxzP); CHKERRQ(ierr);
       E += multVecMatsVec(gExz,H,murz,gExz);
       E += multVecMatsVec(_uP,Hy_Iz,Rz,_uP);
     }
