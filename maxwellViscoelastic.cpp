@@ -668,6 +668,16 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   Vec sourcexy_y;
   VecDuplicate(_uP,&sourcexy_y);
   ierr = _sbpP->Dyxmu(_gxyP,sourcexy_y);CHKERRQ(ierr);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1,temp2;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(yq,sourcexy_y,temp1);
+    MatMult(zr,temp1,temp2);
+    VecCopy(temp2,sourcexy_y);
+    VecDestroy(&temp1);
+    VecDestroy(&temp2);
+  }
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
 
@@ -676,6 +686,16 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     Vec sourcexz_z;
     VecDuplicate(_gxzP,&sourcexz_z);
     ierr = _sbpP->Dzxmu(_gxzP,sourcexz_z);CHKERRQ(ierr);
+    if (_sbpType.compare("mfc_coordTrans")==0) {
+      Mat qy,rz,yq,zr;
+      Vec temp1,temp2;
+      ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+      MatMult(zr,sourcexz_z,temp1);
+      MatMult(yq,temp1,temp2);
+      VecCopy(temp2,sourcexz_z);
+      VecDestroy(&temp1);
+      VecDestroy(&temp2);
+    }
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
@@ -745,6 +765,15 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDestroy(&GR);
   VecDestroy(&temp1);
 
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp2;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(qy,out,temp2);
+    VecCopy(temp2,out);
+    VecDestroy(&temp2);
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
       CHKERRQ(ierr);
@@ -773,11 +802,11 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
   //~ VecSet(SAT,0.0); // to test effect of removing SAT term
 
   // use mu weighted by coordinate transform
-  Mat mu,muqy,murz;
-  ierr =  _sbpP->getMus(mu,murz); CHKERRQ(ierr);
+  Mat muqy,murz;
+  ierr =  _sbpP->getMus(muqy,murz); CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + mu/visc*SAT
-  MatMult(mu,SAT,*(dvarBegin+2));
+  MatMult(muqy,SAT,*(dvarBegin+2));
   VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
   VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);
 

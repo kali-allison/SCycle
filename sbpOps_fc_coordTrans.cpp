@@ -75,7 +75,7 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
   kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
 
   MatDuplicate(tempFactors._muqy,MAT_COPY_VALUES,&_muqy);
-    MatDuplicate(tempFactors._murz,MAT_COPY_VALUES,&_murz);
+  MatDuplicate(tempFactors._murz,MAT_COPY_VALUES,&_murz);
 
   #if CALCULATE_ENERGY == 1
     Spmat e0z(_Nz,1); e0z(0,0,1.0);
@@ -91,11 +91,12 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
     Spmat Bz(_Nz,_Nz); Bz(0,0,-1.0); Bz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,0);
 
-    MatDuplicate(tempFactors._yq,MAT_COPY_VALUES,&_yq);
-    MatDuplicate(tempFactors._zr,MAT_COPY_VALUES,&_zr);
-    MatDuplicate(tempFactors._qy,MAT_COPY_VALUES,&_qy);
-    MatDuplicate(tempFactors._rz,MAT_COPY_VALUES,&_rz);
+
   #endif
+  MatDuplicate(tempFactors._yq,MAT_COPY_VALUES,&_yq);
+  MatDuplicate(tempFactors._zr,MAT_COPY_VALUES,&_zr);
+  MatDuplicate(tempFactors._qy,MAT_COPY_VALUES,&_qy);
+  MatDuplicate(tempFactors._rz,MAT_COPY_VALUES,&_rz);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps_fc.cpp.\n");
@@ -135,6 +136,10 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
 
   MatDestroy(&_muqy);
   MatDestroy(&_murz);
+  MatDestroy(&_yq);
+  MatDestroy(&_zr);
+  MatDestroy(&_qy);
+  MatDestroy(&_rz);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
