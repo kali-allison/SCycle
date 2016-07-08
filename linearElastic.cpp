@@ -43,6 +43,18 @@ LinearElastic::LinearElastic(Domain&D)
   VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
   VecSet(_bcLP,0.0);
 
+   #if LOCK_FAULT == 1
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
+      PetscScalar v = 3e-4 * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
+      VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
+    }
+    VecAssemblyBegin(_bcLP);
+    VecAssemblyEnd(_bcLP);
+  #endif
+
   VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRplusShift");
   VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "bcRplus");
   VecSet(_bcRP,_vL*_initTime/2.0);

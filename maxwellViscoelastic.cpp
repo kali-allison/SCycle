@@ -163,12 +163,12 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
     }
     else  {
       #if LOCK_FAULT == 1
-      int arrInds[] = {2,3}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+        int arrInds[] = {2,3}; // state: 0, slip: 1
+        std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       #endif
       #if LOCK_FAULT == 0
-      int arrInds[] = {1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+        int arrInds[] = {1,2,3}; // state: 0, slip: 1
+        std::vector<int> errInds(arrInds,arrInds+3); // !! UPDATE THIS LINE TOO
       #endif
       ierr = _quadEx->setErrInds(errInds);
     }
@@ -245,6 +245,18 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
+  #if LOCK_FAULT == 1
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
+      PetscScalar v = 3e-4 * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
+      VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
+    }
+    VecAssemblyBegin(_bcLP);
+    VecAssemblyEnd(_bcLP);
+  #endif
+
   // add source terms to rhs: d/dy(mu * gxy) + d/dz(mu * gxz)
   Vec viscSource;
   ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
@@ -267,12 +279,16 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
   // set rates
+  #if LOCK_FAULT == 0
   ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+  #endif
   ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
   // lock the fault to test viscous strain alone
-  //~ VecSet(*dvarBegin,0.0); // dstate
-  //~ VecSet(*(dvarBegin+1),0.0); // slip vel
+  #if LOCK_FAULT == 1
+    VecSet(*dvarBegin,0.0); // dstate
+    VecSet(*(dvarBegin+1),0.0); // slip vel
+  #endif
   //~ VecSet(*(dvarBegin+2),0.0); // dgxy
   //~ VecSet(*(dvarBegin+3),0.0); // dgxz
   //~ VecSet(*(dvarBegin+4),0.0); // dtemp
@@ -564,7 +580,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergyRate(const PetscScalar time
     dE += multVecMatsVec(gExy,coeff,Iy_Hz,e0y_Iz,_bcLP);
     dE -= multVecMatsVec(gExy,coeff,Iy_Hz,eNy_Iz,_bcRP);
     dE += multVecMatsVec(_uP,Hyinv_Iz,Iy_Hz,coeff,e0y_Iz,_bcLP);
-    dE -= multVecMatsVec(_uP,Hyinv_Iz,Iy_Hz,coeff,eNy_Iz,_bcRP);
+    dE += multVecMatsVec(_uP,Hyinv_Iz,Iy_Hz,coeff,eNy_Iz,_bcRP);
 
     if (_Nz > 1) {
       ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
