@@ -148,7 +148,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   {
     //~ z = _h*(Ii-_N*(Ii/_N));
     //~ PetscScalar z2 = 0;
-    //~ VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: z = %g, z2 = %g\n",Ii,z,z2);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
       z0 = depths[0+ind];

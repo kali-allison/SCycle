@@ -738,7 +738,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     if (_sbpType.compare("mfc_coordTrans")==0) {
       Mat qy,rz,yq,zr;
       Vec temp2;
-      VecDuplicate(_gxzP,&temp1);
+      VecDuplicate(_gxzP,&temp2);
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
       MatMult(yq,bcB,temp2);
       VecCopy(temp2,bcB);

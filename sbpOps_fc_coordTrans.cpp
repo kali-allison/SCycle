@@ -90,8 +90,6 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
     kronConvert(By,tempFactors._Iz,_By_Iz,1,0);
     Spmat Bz(_Nz,_Nz); Bz(0,0,-1.0); Bz(_Nz-1,_Nz-1,1.0);
     kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,0);
-
-
   #endif
   MatDuplicate(tempFactors._yq,MAT_COPY_VALUES,&_yq);
   MatDuplicate(tempFactors._zr,MAT_COPY_VALUES,&_zr);
