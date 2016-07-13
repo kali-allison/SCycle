@@ -1,6 +1,6 @@
 order = 4
-Ny = 501
-Nz = 501
+Ny = 161
+Nz = 1
 Ly = 30 # km
 Lz = 30 # km
 
@@ -17,10 +17,17 @@ aDepths = [0 30]
 bVals = [0.02 0.02 0.0 0.0]
 bDepths = [0 12 15 30]
 
+# VS only
 #aVals = [0.015 0.015]
 #aDepths = [0 30]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 10 20 30]
+#bVals = [0.0 0.0]
+#bDepths = [0 30]
+
+# b crosses 0 at multiple points
+#aVals = [0.015 0.015]
+#aDepths = [0 30]
+#bVals = [0.02 0.02 0.0 0.0 0.02 0.02]
+#bDepths = [0 5 10 20 25 30]
 
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
@@ -68,14 +75,14 @@ rhoDepths = [0 30]
 
 linSolver = AMG
 bCoordTrans = 5.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
-kspTol = 1e-10
+sbpType = mfc_coordTrans
+#sbpType = mfc
+kspTol = 1e-8
 
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
+viscVals = [1e11 1e11] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
@@ -86,29 +93,36 @@ viscDepths = [0 30]
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 1000
+stride1D = 1
+stride2D = 1
 maxStepCount = 1e8
-initTime = 3e10       # s 1e11
-maxTime = 5e12      # s
+initTime = 1e3       # s 1e11
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s
-atol = 1e-7
+maxDeltaT = 1e9      # s
+atol = 1e-8
 
 rootTol = 1e-9
 
 
-#outputDir = data/l2D_relTol_coordTrans_
-#outputDir = data/m2D_relTol_v1e20_N501_
+outputDir = data/testCT_
 
-#outputDir = data/m2D_relTol_v1e12_
-outputDir = data/m2D_LF_relTol_v1e12_N501_
 
-#outputDir = data/m2D_lockedFault_v1e12_
-#outputDir = data/m2D_LF_relTol_v1e12_
+#outputDir = data/m2D_1_0sin1_v1e12_
+#outputDir = data/m2D_1_0sin2_v1e12_
+#outputDir = data/m2D_123_0sin2_v1e12_
+#outputDir = data/m2D_123_0sin1_v1e12_
 
-#outputDir = data/m2D_2_v1e11_
-#outputDir = data/m2D_3_v1e12_
-#outputDir = data/m2D_v1e13_
-#outputDir = data/m2D_v1e20_
+#outputDir = data/m2D_1_sin1_v1e12_
+#outputDir = data/m2D_123_sin1_v1e12_
+#outputDir = data/m2D_1_sin2_v1e12_
+#outputDir = data/m2D_123_sin2_v1e12_
 
+#outputDir = data/m2D_1_expb0.5_v1e12_
+#outputDir = data/m2D_1_expb1_v1e12_
+#outputDir = data/m2D_expb3_
+#outputDir = data/m2D_mult0_
+#outputDir = data/m2D_VS_
+#outputDir = data/m2D_VSCT_
+#outputDir = data/mSS_
+#outputDir = data/lSS_

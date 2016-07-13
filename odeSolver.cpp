@@ -417,7 +417,7 @@ PetscReal RK32::computeError()
     ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_var3rd[ind],NORM_2,&size);
-    totErr += err/size;
+    totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
 

@@ -617,9 +617,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
     if (_order==2) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,2,2); }
     else { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
-    #endif
     #if VERBOSE > 2
       ierr = MatView(Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     #endif
@@ -633,9 +630,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
     kronConvert(tempMats._Hy,tempMats._Iz,temp,1,0);
     ierr = MatMatMult(tempMats._muqy,temp,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) muxHy_Iz, "muxHy_Iz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
-    #endif
     #if VERBOSE > 2
       ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     #endif
@@ -661,7 +655,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
 
   ierr = MatAXPY(temp2,1,tempMats._muxBSy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-  //~ ierr = MatMatMult(tempMats._Hyinv_Iz,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
   ierr = MatMatMatMult(tempMats._zr,tempMats._Hyinv_Iz,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
   MatDestroy(&temp2);
@@ -1000,16 +993,10 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
     if (_order==2) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,2,2); }
     else { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,5,5); }
     ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&Iy_Dz,_debugFolder,"Iy_Dz");CHKERRQ(ierr);
-    #endif
     #if VERBOSE > 2
       ierr = MatView(Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     #endif
   }
-
-
-
 
   // mu*kron(Iy,Hz)
   Mat muxIy_Hz = NULL;
@@ -1019,9 +1006,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
     ierr = MatMatMult(tempMats._murz,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
      ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
     MatDestroy(&Iy_Hz);
-    #if DEBUG > 0
-      ierr = checkMatrix(&muxIy_Hz,_debugFolder,"muxIy_Hz");CHKERRQ(ierr);
-    #endif
     #if VERBOSE > 2
       ierr = MatView(muxIy_Hz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
     #endif
@@ -1046,13 +1030,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
 
   ierr = MatAXPY(temp2,1,tempMats._muxIy_BSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-  //~ ierr = MatMatMult(tempMats._Iy_Hzinv,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
   ierr = MatMatMatMult(tempMats._yq,tempMats._Iy_Hzinv,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
   MatDestroy(&temp2);
-  #if DEBUG > 0
-    ierr = checkMatrix(&D2zmu,_debugFolder,"D2zmu");CHKERRQ(ierr);
-  #endif
   #if VERBOSE > 2
     ierr = MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   #endif
@@ -1203,16 +1183,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& te
     assert(0);
   }
 
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
-#endif
-
-  //~ MatView(tempMats._AL,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(tempMats._AR,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-
-
   // if using H A uhat = H rhs
   Mat temp;
   ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
@@ -1222,8 +1192,6 @@ PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& te
 
   ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
 
-
-  //~MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
 
 #if VERBOSE > 2
   MatView(_A,PETSC_VIEWER_STDOUT_WORLD);

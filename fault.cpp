@@ -148,7 +148,7 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   {
     //~ z = _h*(Ii-_N*(Ii/_N));
     //~ PetscScalar z2 = 0;
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~ VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: z = %g, z2 = %g\n",Ii,z,z2);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
       z0 = depths[0+ind];
@@ -198,6 +198,28 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
   }
+
+ /*
+  PetscInt Istart,Iend,Ii;
+  PetscScalar v,z;
+  ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+
+    // for exponential decay
+    //~ if (z <= 12.0) { v = 0.02; }
+    //~ else { v = 0.02 * exp(-(z-12)/0.5); }
+
+    // for sinusoidal profile
+    //~ v = 0.01 * (sin(1.0 *2.0*3.141529*z/_L)+1.0);
+    v = 0.02 * (sin(1.0 *2.0*3.141529*z/_L));
+    ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
+  */
+
 
 
 #if VERBOSE > 1

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N m2D_LF_relTol_v1e12_N501
-#PBS -l nodes=1:ppn=16
+#PBS -N testCT
+#PBS -l nodes=1:ppn=20
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/m2D_LF_relTol_v1e12_N501.err
-#PBS -o /data/dunham/kallison/eqcycle/data/m2D_LF_relTol_v1e12_N501.out
+#PBS -e /data/dunham/kallison/eqcycle/data/testCT.err
+#PBS -o /data/dunham/kallison/eqcycle/data/testCT.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
