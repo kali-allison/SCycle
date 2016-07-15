@@ -43,8 +43,8 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
 
   // reset SAT params
   if (_order==4) {
-    _alphaDy = -48.0/17.0 /_dy;
-    _alphaDz = -48.0/17.0 /_dz;
+    _alphaDy = 2.0 * -48.0/17.0 /_dy;
+    _alphaDz = 2.0 * -48.0/17.0 /_dz;
   }
 
   constructH(tempFactors);
@@ -394,22 +394,18 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
   // include effects of coordinate transform
   Mat mat;
   MatMatMult(tempMats._zr,tempMats._AL,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._qy,tempMats._AL,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,tempMats._AL,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._zr,tempMats._AR,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._qy,tempMats._AR,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,tempMats._AR,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._zr,_rhsL,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._qy,_rhsL,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,_rhsL,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._zr,_rhsR,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._qy,_rhsR,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,_rhsR,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
@@ -1097,6 +1093,9 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
   MatMatMult(tempMats._qy,tempMats._Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);
   MatMatMult(tempMats._rz,tempMats._Iy_Dz,MAT_INITIAL_MATRIX,1.0,&_Iy_Dz);
 
+  //~ MatDuplicate(tempMats._Dy_Iz,MAT_COPY_VALUES,&_Dy_Iz);
+  //~ MatDuplicate(tempMats._Iy_Dz,MAT_COPY_VALUES,&_Iy_Dz);
+
 
 #if VERBOSE > 2
   ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -1652,6 +1651,37 @@ PetscErrorCode SbpOps_fc_coordTrans::writeOps(const std::string outputDir)
   ierr = MatView(_rhsB,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
+  str = outputDir + "H";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_H,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  str = outputDir + "Hinv";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_Hinv,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+
+  // coordinate transforms
+  str = outputDir + "qy";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_qy,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "yq";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_yq,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "rz";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  str = outputDir + "zr";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_rz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
 
   //~// matrices to map SAT boundaries to A
   //~str = outputDir + "AL";
@@ -2164,13 +2194,20 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
   // construct dz/dr and dr/dz
   MatDuplicate(mu,MAT_DO_NOT_COPY_VALUES,&_rz);
   MatMult(_Iy_Dz,*_z,temp); // temp = Dr * z
-  if (_Nz == 1) { ierr = MatDiagonalSet(_zr,ones,INSERT_VALUES);CHKERRQ(ierr); }
-  else { ierr = MatDiagonalSet(_zr,temp,INSERT_VALUES);CHKERRQ(ierr); }
+  ierr = MatDiagonalSet(_zr,temp,INSERT_VALUES);CHKERRQ(ierr);
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
   ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+  if (_Nz == 1) {
+    ierr = MatDiagonalSet(_zr,ones,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = MatDiagonalSet(_rz,ones,INSERT_VALUES);CHKERRQ(ierr);
+    }
 
   VecDestroy(&temp);
   VecDestroy(&ones);
+
+  //~ MatView(_zr,PETSC_VIEWER_STDOUT_WORLD);
+  //~ MatView(_rz,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
 
   return ierr;
 

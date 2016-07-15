@@ -62,10 +62,10 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
-kspTol = 1e-8
+bCoordTrans = 1.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
+kspTol = 1e-9
 
 
 # Maxwell properties
@@ -81,19 +81,35 @@ viscDepths = [0 30]
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e8
-initTime = 1e6       # s 1e11
+initTime = 1e6       # s
 maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
 atol = 1e-8
 
-rootTol = 1e-9
+rootTol = 1e-8
 
 
-outputDir = data/testCT_
+#outputDir = data/testCT_
+#outputDir = data/CT_b10_
+#outputDir = data/CT_lSS_
+#outputDir = data/CT_mSS_
+#outputDir = data/CT_m2D_
+#outputDir = data/CT_m2D_v1e11_
+#outputDir = data/CT_m2D_v1e12_
+#outputDir = data/CT_Nz501_b5_v1e12_
+
+#outputDir = data/CT_1_
+#outputDir = data/CT_2_
+#outputDir = data/CT_3_
+#outputDir = data/CT_4_
+#outputDir = data/CT_5_
+#outputDir = data/CT_6_
+outputDir = data/temp_
+
 
 
 #outputDir = data/m2D_1_0sin1_v1e12_
@@ -106,11 +122,3 @@ outputDir = data/testCT_
 #outputDir = data/m2D_1_sin2_v1e12_
 #outputDir = data/m2D_123_sin2_v1e12_
 
-#outputDir = data/m2D_1_expb0.5_v1e12_
-#outputDir = data/m2D_1_expb1_v1e12_
-#outputDir = data/m2D_expb3_
-#outputDir = data/m2D_mult0_
-#outputDir = data/m2D_VS_
-#outputDir = data/m2D_VSCT_
-#outputDir = data/mSS_
-#outputDir = data/lSS_

@@ -468,6 +468,14 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
+      // set fields to 0
+      for (int ind=0;ind<_lenVar;ind++) {
+        VecSet(_varHalfdT[ind],0.0); VecSet(_dvarHalfdT[ind],0.0);
+        VecSet(_vardT[ind],0.0);     VecSet(_dvardT[ind],0.0);
+        VecSet(_var2nd[ind],0.0);    VecSet(_dvar2nd[ind],0.0);
+        VecSet(_var3rd[ind],0.0);
+      }
+
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
       for (int ind=0;ind<_lenVar;ind++) {
