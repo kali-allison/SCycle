@@ -1,5 +1,5 @@
 order = 4
-Ny = 41
+Ny = 81
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
@@ -7,13 +7,20 @@ Lz = 30 # km
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 30] # m
 
-stateLaw = agingLaw
-#stateLaw = stronglyVWLaw
 
-aVals = [0.015 0.015] # usual values
-aDepths = [0 30] # usual values
-bVals = [0.02 0.02 0.0 0.0] # usual values
-bDepths = [0 12 15 30] # usual values
+stateLaw = agingLaw
+
+# usual rate-and-state values
+aVals = [0.015 0.015]
+aDepths = [0 30]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 30]
+
+#aVals = [0.0082 0.0532]
+#aDepths = [0 50]
+#bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
+#bDepths = [0 10 20 50]
+
 sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 30]
 
@@ -28,16 +35,17 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
+
 # power law properties
-AVals = [2.2e-6 2.2e-6]
+AVals = [1e-9 2.1e-9]
 ADepths = [0 30]
 BVals = [1.44e4 1.44e4]
 BDepths = [0 30]
-nVals = [2.7 2.7]
+nVals = [4 4]
 nDepths = [0 30]
-TVals = [273 1643] # [273 1643] or [500 500]
+TVals = [273 1173]
 TDepths = [0 30]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -45,41 +53,43 @@ kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 30]
 hVals = [0 0]
 hDepths = [0 30]
-cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 30]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 30]
 
+
+linSolver = MUMPSCHOLESKY
+bCoordTrans = 15.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+kspTol = 1e-9
+
+
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e11 1e11] # GPa s
+viscVals = [1e13 1e13] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
 #sigmadevVals = [35 35]
-#sigmadevDepths = [0 30]
+#sigmadevDepths = [0 50]
 #strainRate = 1e-14
 
-linSolver = AMG
-sbpType = mfc
-#sbpType = mfc_coordTrans
-#bCoordTrans = 5.0
-kspTol = 1e-10
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 1
-stride2D = 1000
+stride2D = 1
 maxStepCount = 1e8
-initTime = 1e8       # s
+initTime = 3e10       # s 4e11
 maxTime = 8e10      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
+maxDeltaT = 1e10      # s
 atol = 1e-8
 
 rootTol = 1e-9
 
 
-#outputDir = data/SS_v1e20_
-outputDir = data/SS_v1e11_
-#outputDir = data/lSS_
+
+outputDir = data/lSS_wTherm_

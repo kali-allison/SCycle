@@ -64,6 +64,8 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
+      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                      const_it_vec varBegin,const_it_vec dvarBegin);
 

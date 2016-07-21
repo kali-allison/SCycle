@@ -53,7 +53,7 @@ class HeatEquation
     KSP                  _kspP;
     PC                   _pcP;
     Mat                  _I,_rhoC,_A; // intermediates for Backward Euler
-
+    std::string          _sbpType;
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);

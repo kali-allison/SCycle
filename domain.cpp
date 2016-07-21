@@ -814,12 +814,10 @@ PetscErrorCode Domain::setFieldsPlus()
     else {
       // no transformation
       //~ y = q*_Ly;
-      z = r*_Lz; // CT 5
+      z = r*_Lz;
 
       y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
       //~ z = (sinh(5.0*5.0*(r-0.5))/sinh(5.0*5.0*0.5) + 1.0)*0.5*_Lz; // original
-      //~ z = (sinh(5.0*(r-0.5))/sinh(5.0*.5) + 1.0)*0.5*_Lz; // CT 1, 3, 4
-      //~ z = (sinh(1.0*(r-0.5))/sinh(1.0*.5) + 1.0)*0.5*_Lz; // CT 2
 
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);

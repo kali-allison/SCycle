@@ -15,7 +15,7 @@ HeatEquation::HeatEquation(Domain& D)
   _TV(NULL),_vw(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
-  _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),
+  _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_sbpType(D._sbpType),
   _T(NULL)
 {
   #if VERBOSE > 1
@@ -58,7 +58,6 @@ HeatEquation::HeatEquation(Domain& D)
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   // solve for steady state temperature profile
   {
-    //~ _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
       _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     }
@@ -84,7 +83,6 @@ HeatEquation::HeatEquation(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-
   // create identity matrix I
   //~ MatCreate(PETSC_COMM_WORLD,&_I);
   //~ MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
@@ -103,7 +101,14 @@ HeatEquation::HeatEquation(Domain& D)
 
   Mat H;
   _sbpT->getH(H);
-  MatDuplicate(H,MAT_COPY_VALUES,&_I);
+  if (D._sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    _sbpT->getCoordTrans(qy,rz,yq,zr);
+    MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,1.0,&_I);
+  }
+  else {
+    MatDuplicate(H,MAT_COPY_VALUES,&_I);
+  }
 
   // create dt/rho*c matrix
   Vec rhoCV;
@@ -114,7 +119,6 @@ HeatEquation::HeatEquation(Domain& D)
   MatDuplicate(_I,MAT_DO_NOT_COPY_VALUES,&_rhoC);
   MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
   VecDestroy(&rhoCV);
-
 
   //~ // compute preconditioner
   //~ KSP ksp;
@@ -488,18 +492,17 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
   Mat D2;
   sbp->getA(D2);
 
-
   // create A
-  //~ Mat _A;
   MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
 
   MatScale(_A,-dt);
   MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
 
   PC pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    KSPCreate(PETSC_COMM_WORLD,&ksp);
+
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,_A,_A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
@@ -519,6 +522,7 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
     PCSetType(pc,PCCHOLESKY);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
+
   }
 
   // finish setting up KSP context using options defined above
@@ -619,9 +623,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecDuplicate(_bcL,&vel);
   VecCopy(slipVel,vel);
   VecPointwiseMult(_bcL,tau,vel);
-  VecScale(_bcL,0.5); // *-1 to match sign for matrix rhsL
+  VecScale(_bcL,0.5);
   VecDestroy(&vel);
-
 
   KSP ksp;
   setupKSP(_sbpT,dt,ksp);
@@ -629,14 +632,29 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   Vec rhs,temp;
   VecDuplicate(sigmaxy,&rhs);
   VecDuplicate(sigmaxy,&temp);
+  VecSet(rhs,0.0);
+  VecSet(temp,0.0);
   ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
   MatMult(_rhoC,temp,rhs);
   VecScale(rhs,dt);
 
+
   // add H * Tn to rhs
+  VecSet(temp,0.0);
   _sbpT->H(To,temp);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1;
+    VecDuplicate(To,&temp1);
+    VecSet(temp1,0.0);
+    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(yq,temp,temp1);
+    MatMult(zr,temp1,temp);
+    VecDestroy(&temp1);
+  }
   VecAXPY(rhs,1.0,temp);
   VecDestroy(&temp);
+
 
   //~ if (dgxy!=NULL && dgxz!=NULL) {
   //~ // shear heating terms: simgaxy*dgxy + sigmaxz*dgxz (stresses times viscous strain rates)
@@ -654,10 +672,10 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   //~ }
   //~ VecPointwiseDivide(shearHeat,shearHeat,_rho);
   //~ VecPointwiseDivide(shearHeat,shearHeat,_c);
+  // if coordinate transform, weight this with yq*rz*H
 
   // solve for temperature
   KSPSolve(ksp,rhs,_T);
-
 
   VecCopy(_T,T);
 

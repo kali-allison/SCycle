@@ -204,7 +204,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmMaxwellViscoelastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmMaxwellViscoelastic::d_dt IMEX in maxwellViscoelastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
@@ -220,7 +220,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmMaxwellViscoelastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmMaxwellViscoelastic::d_dt IMEX in maxwellViscoelastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -801,16 +801,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDestroy(&GR);
   VecDestroy(&temp1);
 
-  //~ if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ Mat qy,rz,yq,zr;
-    //~ Vec temp2;
-    //~ VecDuplicate(out,&temp2);
-    //~ ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    //~ MatMult(qy,out,temp2);
-    //~ VecCopy(temp2,out);
-    //~ VecDestroy(&temp2);
-  //~ }
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
       CHKERRQ(ierr);
@@ -835,8 +825,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
-
-  //~ VecSet(SAT,0.0); // to test effect of removing SAT term
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);

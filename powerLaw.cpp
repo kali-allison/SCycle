@@ -53,12 +53,12 @@ PowerLaw::PowerLaw(Domain& D)
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
 
-  // remove temperature from integration variable
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec  vec = * (_var.end() - 1);
-    VecDestroy(&vec);
-  _var.pop_back();
-  }
+  //~ // remove temperature from integration variable
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec  vec = * (_var.end() - 1);
+    //~ VecDestroy(&vec);
+  //~ _var.pop_back();
+  //~ }
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
@@ -67,12 +67,19 @@ PowerLaw::PowerLaw(Domain& D)
 
   if (_isMMS) { setMMSInitialConditions(); }
 
-  // if modeling temperature evolution, coupled or uncoupled
+  //~ // if modeling temperature evolution, coupled or uncoupled
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec T;
+    //~ VecDuplicate(_uP,&T);
+    //~ VecCopy(_he._T,T);
+    //~ _var.push_back(T);
+  //~ }
+  // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
     VecCopy(_he._T,T);
-    _var.push_back(T);
+    _varIm.push_back(T);
   }
 
   #if VERBOSE > 1
@@ -140,18 +147,53 @@ PetscErrorCode PowerLaw::integrate()
 
   _stepCount++;
 
-  // call odeSolver routine integrate here
-  _quadEx->setTolerance(_atol);CHKERRQ(ierr);
-  _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-  ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-  ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+  //~ // call odeSolver routine integrate here
+  //~ _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+  //~ _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  //~ ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+  //~ ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
-  // control which fields are used to select step size
-  int arrInds[] = {1}; // only use slip
-  std::vector<int> errInds(arrInds,arrInds+1);
-  ierr = _quadEx->setErrInds(errInds);
+  //~ // control which fields are used to select step size
+  //~ int arrInds[] = {1}; // only use slip
+  //~ std::vector<int> errInds(arrInds,arrInds+1);
+  //~ ierr = _quadEx->setErrInds(errInds);
 
-  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  //~ ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+
+
+  if (_timeIntegrator.compare("IMEX")==0) {
+    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadImex->setTimeRange(_initTime,_maxTime);
+    ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
+
+    // control which fields are used to select step size
+    int arrInds[] = {1}; // state: 0, slip: 1
+    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    ierr = _quadImex->setErrInds(errInds);
+
+    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+  }
+  else {
+    // call odeSolver routine integrate here
+    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+    ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+
+    // control which fields are used to select step size
+    if (_isMMS) {
+      int arrInds[] = {2,3}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      ierr = _quadEx->setErrInds(errInds);
+    }
+    else  {
+      int arrInds[] = {1}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      ierr = _quadEx->setErrInds(errInds);
+    }
+    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  }
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -173,6 +215,36 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const_it_vec varBegin,it_ve
   return ierr;
 }
 
+// implicit/explicit time stepping
+PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
+  const_it_vec varBegin,it_vec dvarBegin,it_vec varBeginIm,const_it_vec varBeginImo,
+  const PetscScalar dt)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting PowerLaw::d_dt IMEX in powerLaw.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+  if (_thermalCoupling.compare("coupled")==0) { VecCopy(*varBeginImo,_T); }
+
+  ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
+
+  Vec stressxzP;
+  VecDuplicate(_uP,&stressxzP);
+  ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+  ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+    NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+  VecDestroy(&stressxzP);
+  // arguments:
+  // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending PowerLaw::d_dt IMEX in powerLaw.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 
 PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
@@ -185,7 +257,6 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
-  if (_thermalCoupling.compare("coupled")==0) { VecCopy(*(varBegin+4),_T); } // true if thermally coupled
 
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
@@ -344,7 +415,20 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   // + Hz^-1 E0z mu gxz + Hz^-1 ENz mu gxz
   Vec sourcexy_y;
   VecDuplicate(_uP,&sourcexy_y);
-  ierr = _sbpP->Dyxmu(*(varBegin+2),sourcexy_y);CHKERRQ(ierr);
+  VecSet(sourcexy_y,0.0);
+  ierr = _sbpP->Dyxmu(_gxyP,sourcexy_y);CHKERRQ(ierr);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1,temp2;
+    VecDuplicate(_gxyP,&temp1);
+    VecDuplicate(_gxyP,&temp2);
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(yq,sourcexy_y,temp1);
+    MatMult(zr,temp1,temp2);
+    VecCopy(temp2,sourcexy_y);
+    VecDestroy(&temp1);
+    VecDestroy(&temp2);
+  }
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
 
@@ -352,23 +436,45 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   {
     Vec sourcexz_z;
     VecDuplicate(_gxzP,&sourcexz_z);
-    ierr = _sbpP->Dzxmu(*(varBegin+3),sourcexz_z);CHKERRQ(ierr);
+    ierr = _sbpP->Dzxmu(_gxzP,sourcexz_z);CHKERRQ(ierr);
+    if (_sbpType.compare("mfc_coordTrans")==0) {
+      Mat qy,rz,yq,zr;
+      Vec temp1,temp2;
+      VecDuplicate(_gxzP,&temp1);
+      VecDuplicate(_gxzP,&temp2);
+      ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+      MatMult(zr,sourcexz_z,temp1);
+      MatMult(yq,temp1,temp2);
+      VecCopy(temp2,sourcexz_z);
+      VecDestroy(&temp1);
+      VecDestroy(&temp2);
+    }
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
     // enforce traction boundary condition
     Vec temp1,bcT,bcB;
-    VecDuplicate(_gxzP,&temp1);
+    VecDuplicate(_gxzP,&temp1); VecSet(temp1,0.0);
     VecDuplicate(_gxzP,&bcT);
     VecDuplicate(_gxzP,&bcB);
 
     _sbpP->HzinvxE0z(_gxzP,temp1);
-    //~ ierr = MatMult(_muP,temp1,bcT); CHKERRQ(ierr);
     ierr = VecPointwiseMult(bcT,_muVecP,temp1); CHKERRQ(ierr);
 
     _sbpP->HzinvxENz(_gxzP,temp1);
-    //~ ierr = MatMult(_muP,temp1,bcB); CHKERRQ(ierr);
     ierr = VecPointwiseMult(bcB,_muVecP,temp1); CHKERRQ(ierr);
+
+    if (_sbpType.compare("mfc_coordTrans")==0) {
+      Mat qy,rz,yq,zr;
+      Vec temp2;
+      VecDuplicate(_gxzP,&temp2);
+      ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+      MatMult(yq,bcB,temp2);
+      VecCopy(temp2,bcB);
+      MatMult(yq,bcT,temp2);
+      VecCopy(temp2,bcT);
+      VecDestroy(&temp2);
+    }
 
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
     ierr = VecAXPY(source,-1.0,bcB);CHKERRQ(ierr);
@@ -441,57 +547,53 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     CHKERRQ(ierr);
   #endif
 
+  // compute effective viscosity
+  PetscScalar invVisc,sigmadev,A,B,n,T,effVisc=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    VecGetValues(_sigmadev,1,&Ii,&sigmadev);
+    VecGetValues(_A,1,&Ii,&A);
+    VecGetValues(_B,1,&Ii,&B);
+    VecGetValues(_n,1,&Ii,&n);
+    VecGetValues(_T,1,&Ii,&T);
+    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T) * 1e3; // not sure scaling here
+    effVisc = 1.0/invVisc;
+    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+
+    assert(!isnan(invVisc));
+  }
+  VecAssemblyBegin(_effVisc);
+  VecAssemblyEnd(_effVisc);
+
   // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  PetscScalar deps,invVisc,epsVisc,sat,sigmaxy,sigmaxz,sigmadev,mu,A,B,n,T,effVisc=0;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_stressxyP,1,&Ii,&sigmaxy);
-    VecGetValues(_sigmadev,1,&Ii,&sigmadev);
-    VecGetValues(_muVecP,1,&Ii,&mu);
-    VecGetValues(SAT,1,&Ii,&sat);
-    VecGetValues(_A,1,&Ii,&A);
-    VecGetValues(_B,1,&Ii,&B);
-    VecGetValues(_n,1,&Ii,&n);
-    VecGetValues(_T,1,&Ii,&T);
-    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T) * 1e-3; // *1e-3 to get resulting eff visc in GPa s
-    effVisc = 1.0/invVisc;
-    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+  //~ VecSet(SAT,0.0); // to test effect of removing SAT term
 
-
-    //~PetscPrintf(PETSC_COMM_WORLD,"  Ii = %i| A = %e, B = %e, n = %e, T = %e, visc = %e\n",Ii,A,B,n,T,invVisc);
-
-    deps = sigmaxy*invVisc + mu*invVisc * sat*0;
-    VecSetValues(*(dvarBegin+2),1,&Ii,&deps,INSERT_VALUES);
-
-    assert(!isnan(invVisc));
-    assert(!isnan(deps));
-    if (_Nz > 1) {
-      VecGetValues(_stressxzP,1,&Ii,&sigmaxz);
-      VecGetValues(*(varBegin+3),1,&Ii,&epsVisc);
-
-      // d/dt epsVxz = mu/visc * ( 0.5*d/dz u - epsxz)
-      deps = sigmaxz*invVisc;
-      VecSetValues(*(dvarBegin+3),1,&Ii,&deps,INSERT_VALUES);
-      assert(!isnan(deps));
-    }
+  // d/dt gxy = sxy/visc + qy*mu/visc*SAT
+  VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1;
+    VecDuplicate(_gxyP,&temp1);
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(qy,*(dvarBegin+2),temp1);
+    VecCopy(temp1,*(dvarBegin+2));
+    VecDestroy(&temp1);
   }
-  VecAssemblyBegin(*(dvarBegin+2));
-  VecAssemblyEnd(*(dvarBegin+2));
-  VecAssemblyBegin(_effVisc);
-  VecAssemblyEnd(_effVisc);
-
-  VecDestroy(&SAT);
-
+  VecSet(*(dvarBegin+2),0.0);
+  VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
+  VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_effVisc);
 
   if (_Nz > 1) {
-    VecAssemblyBegin(*(dvarBegin+3));
-    VecAssemblyEnd(*(dvarBegin+3));
+    VecCopy(_stressxzP,*(dvarBegin+3));
+    VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_effVisc);
   }
+
+  VecDestroy(&SAT);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -512,45 +614,31 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
 
   // compute strains and rates
   _sbpP->Dy(_uP,_gTxyP);
-  _sbpP->Dz(_uP,_gTxzP);
+  VecCopy(_gTxyP,_stressxyP);
+  VecAXPY(_stressxyP,-1.0,_gxyP);
+  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
 
-  PetscScalar gT,gV,sigmaxy,sigmaxz,sigmadev,mu = 0;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_gTxyP,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_gTxyP,1,&Ii,&gT);
-    VecGetValues(_gxyP,1,&Ii,&gV);
-    VecGetValues(_muVecP,1,&Ii,&mu);
-
-    // solve for stressxyP = 2*mu*epsExy (elastic strain)
-    //                     = 2*mu*(0.5*d/dy(uhat) - epsVxy)
-    sigmaxy = mu* (gT - gV);
-    VecSetValues(_stressxyP,1,&Ii,&sigmaxy,INSERT_VALUES);
-
-    sigmadev = sigmaxy*sigmaxy;
-
-    if (_Nz > 1) {
-      VecGetValues(_gTxzP,1,&Ii,&gT);
-      VecGetValues(_gxzP,1,&Ii,&gV);
-
-      // solve for stressxzP = 2*mu*epsExy (elastic strain)
-      //                     = 2*mu*(0.5*d/dz(uhat) - epsVxz)
-      sigmaxz = mu * (gT - gV);
-      VecSetValues(_stressxzP,1,&Ii,&sigmaxz,INSERT_VALUES);
-
-      sigmadev += sigmaxz*sigmaxz;
-    }
-    sigmadev = sqrt(sigmadev);
-    VecSetValues(_sigmadev,1,&Ii,&sigmadev,INSERT_VALUES);
-  }
-  VecAssemblyBegin(_stressxyP); VecAssemblyBegin(_sigmadev);
-  VecAssemblyEnd(_stressxyP); VecAssemblyEnd(_sigmadev);
-
+  // deviatoric stress: 1/3
+  VecPointwiseMult(_sigmadev,_stressxyP,_stressxyP);
 
   if (_Nz > 1) {
-    VecAssemblyBegin(_stressxzP);
-    VecAssemblyEnd(_stressxzP);
+    _sbpP->Dz(_uP,_gTxzP);
+    VecCopy(_gTxzP,_stressxzP);
+    VecAXPY(_stressxzP,-1.0,_gxzP);
+    VecPointwiseMult(_stressxzP,_stressxzP,_muVecP);
+
+  // deviatoric stress: 2/3
+  Vec temp;
+  VecDuplicate(_stressxzP,&temp);
+  VecPointwiseMult(temp,_stressxzP,_stressxzP);
+  VecAXPY(_sigmadev,1.0,temp);
   }
+
+  // deviatoric stress: 3/3
+  VecSqrtAbs(_sigmadev);
+
+
+
 
 
   #if VERBOSE > 1

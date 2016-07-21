@@ -23,6 +23,7 @@ bDepths = [0 12 15 30]
 #bDepths = [0 10 20 50]
 
 sigmaNVals = [50 50] # MPa
+#sigmaNVals = [300 300] # MPa
 #sigmaNVals = [0.1 588] # MPa
 sigmaNDepths = [0 30]
 
@@ -47,7 +48,7 @@ nVals = [4 4]
 nDepths = [0 30]
 TVals = [273 1173]
 TDepths = [0 30]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -62,15 +63,15 @@ rhoDepths = [0 30]
 
 
 linSolver = AMG
-bCoordTrans = 1.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 15.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 kspTol = 1e-9
 
 
 # Maxwell properties
 viscDistribution = layered
-viscVals = [1e12 1e12] # GPa s
+viscVals = [1e13 1e13] # GPa s
 viscDepths = [0 30]
 
 #viscDistribution = effectiveVisc
@@ -79,13 +80,13 @@ viscDepths = [0 30]
 #strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 1e6       # s
-maxTime = 1e13      # s
+initTime = 3e10       # s 4e11
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
 atol = 1e-8
@@ -93,32 +94,27 @@ atol = 1e-8
 rootTol = 1e-8
 
 
-#outputDir = data/testCT_
-#outputDir = data/CT_b10_
-#outputDir = data/CT_lSS_
-#outputDir = data/CT_mSS_
-#outputDir = data/CT_m2D_
-#outputDir = data/CT_m2D_v1e11_
-#outputDir = data/CT_m2D_v1e12_
-#outputDir = data/CT_Nz501_b5_v1e12_
 
-#outputDir = data/CT_1_
-#outputDir = data/CT_2_
-#outputDir = data/CT_3_
-#outputDir = data/CT_4_
-#outputDir = data/CT_5_
-#outputDir = data/CT_6_
-outputDir = data/temp_
+#outputDir = data/l2D_N201_gradsN_
+#outputDir = data/l2D_N201_gradsN_2_
+#outputDir = data/l2D_N201_gradsN_3_
+#outputDir = data/l2D_N201_gradsN_4_
+#outputDir = data/l2D_N201_gradsN_5_
+#outputDir = data/l2D_N201_check_
+#outputDir = data/m2D_N201_gradVisc_
+#outputDir = data/m2D_N301_gradVisc_
 
+#outputDir = data/ct_N201_v1e14_
+#outputDir = data/nct_N201_v1e14_
+#outputDir = data/ct_N201_v1e13_
 
+#outputDir = data/ct_N201_pl_
 
-#outputDir = data/m2D_1_0sin1_v1e12_
-#outputDir = data/m2D_1_0sin2_v1e12_
-#outputDir = data/m2D_123_0sin2_v1e12_
-#outputDir = data/m2D_123_0sin1_v1e12_
+outputDir = data/m2D_wTherm_N201_
+#outputDir = data/l2D_wTherm_N201_
+#outputDir = data/lSS_wTherm_
 
-#outputDir = data/m2D_1_sin1_v1e12_
-#outputDir = data/m2D_123_sin1_v1e12_
-#outputDir = data/m2D_1_sin2_v1e12_
-#outputDir = data/m2D_123_sin2_v1e12_
-
+#outputDir = data/nct_N201_v1e12_
+#outputDir = data/nct_N301_v1e12_
+#outputDir = data/ct_N401_v1e12_
+#outputDir = data/ct_N501_v1e12_
