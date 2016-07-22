@@ -253,7 +253,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
   }
@@ -501,7 +501,10 @@ PetscErrorCode SymmLinearElastic::setShifts()
     v = _fault.getTauInf(Ii);
     //~bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
-    bcRshift = 0. * v;
+    //~ bcRshift = 0. * v;
+    PetscScalar z;
+    ierr =  VecGetValues(_fault._z,1,&Ii,&z);CHKERRQ(ierr);
+    bcRshift = 0.25*2.0*9.8*z *0;
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
@@ -521,13 +524,14 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt    Ii,Istart,Iend;
-  PetscScalar u,y,z;
+  PetscInt    Ii,Istart,Iend,y,z;
+  PetscScalar u;
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     z = Ii-_Nz*(Ii/_Nz);
-    y = Ii/_Nz;
+    y = Ii / _Nz;
     if (Ii % _Nz == 0) {
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y = %i, z = %i\n",Ii,y,z);
       ierr = VecGetValues(_uP,1,&Ii,&u);CHKERRQ(ierr);
       ierr = VecSetValue(_surfDispPlus,y,u,INSERT_VALUES);CHKERRQ(ierr);
     }

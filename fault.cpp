@@ -65,7 +65,6 @@ Fault::Fault(Domain&D)
 
   setFrictionFields(D);
 
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
 #endif
@@ -141,15 +140,13 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-// build structure from generalized input
+  // build structure from generalized input
   size_t vecLen = depths.size();
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    //~ z = _h*(Ii-_N*(Ii/_N));
-    //~ PetscScalar z2 = 0;
     VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: z = %g, z2 = %g\n",Ii,z,z2);
+    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
       z0 = depths[0+ind];
       z1 = depths[0+ind+1];
@@ -161,7 +158,6 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   }
   ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
 
 
 #if VERBOSE > 1
@@ -199,27 +195,6 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
   }
 
- /*
-  PetscInt Istart,Iend,Ii;
-  PetscScalar v,z;
-  ierr = VecGetOwnershipRange(_b,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-
-    // for exponential decay
-    //~ if (z <= 12.0) { v = 0.02; }
-    //~ else { v = 0.02 * exp(-(z-12)/0.5); }
-
-    // for sinusoidal profile
-    //~ v = 0.01 * (sin(1.0 *2.0*3.141529*z/_L)+1.0);
-    v = 0.02 * (sin(1.0 *2.0*3.141529*z/_L));
-    ierr = VecSetValues(_b,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
-  */
-
 
 
 #if VERBOSE > 1
@@ -251,6 +226,7 @@ PetscScalar Fault::getTauInf(PetscInt& ind)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauInf in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
 #endif
   return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
+  //~ return sigma_N;
 }
 
 
@@ -647,6 +623,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::getResid in fault.cpp\n");CHKERRQ(ierr);
 #endif
+
 
   ierr = VecGetOwnershipRange(_state,&Istart,&Iend);
   assert(ind>=Istart && ind<Iend);

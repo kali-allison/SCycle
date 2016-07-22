@@ -216,7 +216,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,
     NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   VecDestroy(&stressxzP);
   // arguments:
-  // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  // time, slipVel, txy, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
 
 
 #if VERBOSE > 1

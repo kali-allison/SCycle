@@ -15,7 +15,9 @@ HeatEquation::HeatEquation(Domain& D)
   _TV(NULL),_vw(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
-  _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_sbpType(D._sbpType),
+  //~ _linSolver(D._linSolver),
+  _linSolver("AMG"),
+  _kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_sbpType(D._sbpType),
   _T(NULL)
 {
   #if VERBOSE > 1
@@ -510,7 +512,7 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
   }

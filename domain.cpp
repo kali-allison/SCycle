@@ -817,6 +817,8 @@ PetscErrorCode Domain::setFieldsPlus()
       z = r*_Lz;
 
       y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
+      //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
+
       //~ z = (sinh(5.0*5.0*(r-0.5))/sinh(5.0*5.0*0.5) + 1.0)*0.5*_Lz; // original
 
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
@@ -831,7 +833,6 @@ PetscErrorCode Domain::setFieldsPlus()
   VecAssemblyEnd(_r);
   VecAssemblyEnd(_y);
   VecAssemblyEnd(_z);
-
 
   // set shear modulus, shear wave speed, and density
   // controls on transition in shear modulus

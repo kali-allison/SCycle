@@ -1,5 +1,5 @@
 order = 4
-Ny = 81
+Ny = 201
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
@@ -59,11 +59,12 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 30]
 
 
-linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
+# linear solve for momentum balance equation
+linSolver = AMG
+bCoordTrans = 14.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
-kspTol = 1e-9
+kspTol = 1e-13
 
 
 # Maxwell properties
@@ -92,4 +93,8 @@ rootTol = 1e-9
 
 
 
-outputDir = data/lSS_wTherm_
+#outputDir = data/lSS_wTherm_
+#outputDir = data/lSS_uChol_TAMG_
+#outputDir = data/lSS_uAMG_TAMG_
+#outputDir = data/lSS_uChol_
+outputDir = data/lSS_uAMG1e-13_

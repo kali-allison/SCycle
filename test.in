@@ -1,24 +1,30 @@
-order = 2
-Ny = 7
-Nz = 6
-Ly = 4 # km
-Lz = 5 # km
+order = 4
+Ny = 301
+Nz = 401
+Ly = 120 # km
+Lz = 60 # km
 
 DcVals = [8e-3 8e-3] # m
-DcDepths = [0 24] # m
-
-bcT = traction
-bcR = displacement
-bcB = traction
-bcL = displacement
+#DcVals = [0.0472 0.0472] # m
+DcDepths = [0 60] # m
 
 
-aVals = [0.015 0.015] # comment
-aDepths = [0 48]
+stateLaw = agingLaw
+
+# usual rate-and-state values
+aVals = [0.015 0.015]
+aDepths = [0 60]
 bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 25]
+bDepths = [0 12 15 60]
+
+#aVals = [0.0082 0.0532]
+#aDepths = [0 50]
+#bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
+#bDepths = [0 10 20 50]
+
 sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 48]
+#sigmaNVals = [0.1 588] # MPa
+sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
@@ -28,48 +34,72 @@ shearDistribution = constant
 {
 problem = symmetric
 muPlus = 30 # GPa
-rhoPlus = 2.8 # g/cm^3
+rhoPlus = 3.0 # g/cm^3
 }
 
-viscDistribution = effectiveVisc
-sigmadevVals = [35 35]
-sigmadevDepths = [0 24]
 
 # power law properties
-AVals = [2.2e-6 2.2e-6]
-ADepths = [0 24]
+AVals = [1e-9 2.1e-9]
+ADepths = [0 60]
 BVals = [1.44e4 1.44e4]
-BDepths = [0 24]
-nVals = [2.7 2.7]
-nDepths = [0 24]
-TVals = [273 1643] # [273 1643] or [500 500]
-TDepths = [0 24]
+BDepths = [0 60]
+nVals = [4 4]
+nDepths = [0 60]
+TVals = [273 1173]
+TDepths = [0 60]
 thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity, should be 1.89e-9 (km^2 kPa/K/s)
-kDepths = [0 24]
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
 hVals = [0 0]
-hDepths = [0 24]
+hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
-cDepths = [0 24]
+cDepths = [0 60]
 rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 24]
+rhoDepths = [0 60]
+
 
 linSolver = AMG
-sbpType = mfc
-kspTol = 1e-7
+bCoordTrans = 5.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+kspTol = 1e-10
+
+
+# Maxwell properties
+viscDistribution = layered
+viscVals = [1e13 1e13] # GPa s
+viscDepths = [0 60]
+
+#viscDistribution = effectiveVisc
+#sigmadevVals = [35 35]
+#sigmadevDepths = [0 60]
+#strainRate = 1e-14
+
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10 # how many steps between writing out 1D fields
-stride2D = 1000 # how many steps between writing out 2D fields
+stride1D = 10
+stride2D = 100
 maxStepCount = 1e8
-initTime = 0       # s
-maxTime = 2e11      # s
+initTime = 3e11       # s
+maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e7      # s
-atol = 1e-7
+maxDeltaT = 1e10      # s
+atol = 1e-8
 
-rootTol = 1e-9
+rootTol = 1e-8
+
+
+
+#outputDir = data/linEl/l2D_gradsN_2_
+
+outputDir = data/linEl/l2D_Dc8e-3_Ly120_
+
+
+
+
+
+
