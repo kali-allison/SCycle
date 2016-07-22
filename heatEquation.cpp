@@ -64,7 +64,7 @@ HeatEquation::HeatEquation(Domain& D)
       _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     }
     else if (D._sbpType.compare("mfc_coordTrans")==0) {
-      _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+      _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
     }
     else {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");

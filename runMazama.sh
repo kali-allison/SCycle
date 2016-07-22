@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N l2D_Dc8e-3_Ly120
+#PBS -N l2D_Dc1e-3
 #PBS -l nodes=1:ppn=20
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/linEl/l2D_Dc8e-3_Ly120.err
-#PBS -o /data/dunham/kallison/eqcycle/data/linEl/l2D_Dc8e-3_Ly120.out
+#PBS -e /data/dunham/kallison/eqcycle/data/linEl/l2D_Dc1e-3.err
+#PBS -o /data/dunham/kallison/eqcycle/data/linEl/l2D_Dc1e-3.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

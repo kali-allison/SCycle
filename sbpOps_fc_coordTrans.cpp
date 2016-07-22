@@ -2,7 +2,6 @@
 
 
 
-
 //================= constructor and destructor ========================
 SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
@@ -17,9 +16,10 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
   _muqy(NULL),_murz(NULL)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps_fc.cpp.\n");
+  string funcName = "SbpOps_fc_coordTrans::constructor";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
-
   if (_Ny == 1) { return; }
 
     stringstream ss;
@@ -97,14 +97,16 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
   MatDuplicate(tempFactors._rz,MAT_COPY_VALUES,&_rz);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps_fc.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
 SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
+  string funcName = "SbpOps_fc_coordTrans::destructor";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   MatDestroy(&_H);
@@ -140,7 +142,7 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   MatDestroy(&_rz);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -238,7 +240,9 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
   double startTime = MPI_Wtime();
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function satBoundaries in sbpOps_fc.cpp.\n");
+  string funcName = "SbpOps_fc_coordTrans::satBoundaries";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());
   CHKERRQ(ierr);
 #endif
 
@@ -515,7 +519,14 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
              MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
     ierr = MatScale(_rhsB,_alphaDz);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    Mat muxIy_BSzT;
+    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
+    MatMatMult(muxIy_BSzT,Iy_eNz,MAT_INITIAL_MATRIX,1.0,&temp1);
+    MatDestroy(&muxIy_BSzT);
+    //~ MatView(tempMats._muxIy_BSz,PETSC_VIEWER_STDOUT_WORLD);
+//~ assert(0);
+
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
     ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
@@ -533,7 +544,11 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
              MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AB,_alphaDz);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
+    MatMatMult(muxIy_BSzT,Iy_ENz,MAT_INITIAL_MATRIX,1.0,&temp1);
+    MatDestroy(&muxIy_BSzT);
+
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(tempMats._AB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -591,7 +606,7 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
   _runTime += MPI_Wtime() - startTime;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function satBoundaries in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 return ierr;
 }
@@ -603,7 +618,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructD2ymu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::constructD2ymu";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
 
@@ -663,7 +680,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
 
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructD2ymu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -673,7 +690,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRzmu(const TempMats_fc_coordTrans&
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2zmu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+    string funcName = "SbpOps_fc_coordTrans::constructRzmu";
+    string fileName = "sbpOps_fc_coordTrans.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
   Vec murzV = NULL;
@@ -772,7 +791,11 @@ switch ( _order ) {
       // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
       //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
       Mat temp1,temp2;
-      ierr = MatTransposeMatMult(Iy_D3z,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(Iy_D3z,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat Iy_D3zT;
+      MatTranspose(Iy_D3z,MAT_INITIAL_MATRIX,&Iy_D3zT);
+      MatMatMult(Iy_D3zT,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+      MatDestroy(&Iy_D3zT);
       ierr = MatMatMatMult(temp1,mu3,Iy_D3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
       ierr = MatScale(temp2,1.0/_dz/18);CHKERRQ(ierr);
       MatDestroy(&temp1);
@@ -790,7 +813,11 @@ switch ( _order ) {
 
       // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
       //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
-      ierr = MatTransposeMatMult(Iy_D4z,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(Iy_D4z,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat Iy_D4zT;
+      MatTranspose(Iy_D4z,MAT_INITIAL_MATRIX,&Iy_D4zT);
+      MatMatMult(Iy_D4zT,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+      MatDestroy(&Iy_D4zT);
       ierr = MatMatMatMult(temp1,tempMats._murz,Iy_D4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);
       ierr = MatScale(Rzmu,1.0/_dz/144);CHKERRQ(ierr);
 
@@ -819,7 +846,7 @@ switch ( _order ) {
 #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2zmu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -830,7 +857,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRymu(const TempMats_fc_coordTrans&
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function computeR2ymu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::constructRymu";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   Vec muqyV = NULL;
@@ -968,7 +997,7 @@ switch ( _order ) {
   VecDestroy(&muqyV);
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2ymu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -979,7 +1008,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructD2zmu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::constructD2zmu";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
 
@@ -1035,7 +1066,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
 
 
   #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructD2zmu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -1047,14 +1078,16 @@ PetscErrorCode SbpOps_fc_coordTrans::constructH(const TempMats_fc_coordTrans& te
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::constructH";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   MatDuplicate(tempMats._H,MAT_COPY_VALUES,&_H);
   PetscObjectSetName((PetscObject) _H, "H");
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1066,7 +1099,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructHinv(const TempMats_fc_coordTrans&
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::constructHinv";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   if (_Ny > 1 && _Nz > 1) {
@@ -1077,7 +1112,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructHinv(const TempMats_fc_coordTrans&
   PetscObjectSetName((PetscObject) _Hinv, "Hinv");
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1089,7 +1124,9 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function construct1stDerivs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "SbpOps_fc_coordTrans::construct1stDerivs";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   MatMatMult(tempMats._qy,tempMats._Dy_Iz,MAT_INITIAL_MATRIX,1.0,&_Dy_Iz);
@@ -1105,7 +1142,7 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
 #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function construct1stDerivs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1119,7 +1156,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& te
   double startTime = MPI_Wtime();
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructA in sbpOps_fc.cpp.\n");
+  string funcName = "SbpOps_fc_coordTrans::constructA";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());
   CHKERRQ(ierr);
 #endif
 
@@ -1199,7 +1238,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& te
   _runTime = MPI_Wtime() - startTime;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructA in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   return 0;
@@ -1215,7 +1254,9 @@ PetscErrorCode sbp_fc_coordTrans_Spmat2(const PetscInt N,const PetscScalar scale
 PetscErrorCode ierr = 0;
 //~double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbp_fc_coordTrans_Spmat2 in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "sbp_fc_coordTrans_Spmat2";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   assert(N > 2);
@@ -1246,7 +1287,7 @@ PetscErrorCode ierr = 0;
 
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbp_fc_coordTrans_Spmat2 in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   //~_runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1262,7 +1303,9 @@ PetscErrorCode sbp_fc_coordTrans_Spmat4(const PetscInt N,const PetscScalar scale
 {
 PetscErrorCode ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbp_fc_coordTrans_Spmat4 in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "sbp_fc_coordTrans_Spmat4";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   assert(N > 8);
@@ -1338,7 +1381,7 @@ PetscErrorCode ierr = 0;
   //~C4.printPetsc();
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbp_fc_coordTrans_Spmat4 in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1350,7 +1393,9 @@ PetscErrorCode sbp_fc_coordTrans_Spmat(const PetscInt order, const PetscInt N,co
 PetscErrorCode ierr = 0;
 //~double startTime = MPI_Wtime();
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function sbp_fc_coordTrans_Spmat in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "sbp_fc_coordTrans_Spmat";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
 PetscInt Ii=0;
@@ -1510,7 +1555,7 @@ switch ( order ) {
 
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function sbp_fc_coordTrans_Spmat in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   //~_runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1528,7 +1573,9 @@ PetscErrorCode SbpOps_fc_coordTrans::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,V
   double startTime = MPI_Wtime();
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in SbpOps_fc_coordTrans.cpp.\n");CHKERRQ(ierr);
+  string funcName = "setRhs";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   if (_type.compare("yz")==0) {
@@ -1555,7 +1602,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,V
 
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in SbpOps_fc_coordTrans.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   _runTime += MPI_Wtime() - startTime;
@@ -1572,7 +1619,9 @@ PetscErrorCode SbpOps_fc_coordTrans::loadOps(const std::string inputDir)
   PetscViewer     viewer;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function loadOps in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  string funcName = "loadOps";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
   double startTime = MPI_Wtime();
@@ -1596,7 +1645,7 @@ PetscErrorCode SbpOps_fc_coordTrans::loadOps(const std::string inputDir)
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function loadOps in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
     return ierr;
@@ -1608,7 +1657,9 @@ PetscErrorCode SbpOps_fc_coordTrans::writeOps(const std::string outputDir)
   PetscErrorCode ierr = 0;
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps.c\n");CHKERRQ(ierr);
+  string funcName = "writeOps";
+  string fileName = "sbpOps_fc_coordTrans.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
   PetscViewer    viewer;
@@ -1707,7 +1758,7 @@ PetscErrorCode SbpOps_fc_coordTrans::writeOps(const std::string outputDir)
   //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps_fc.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -1721,7 +1772,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Dy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dy";
+  string funcName = "SbpOps_fc_coordTrans::Dy";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1739,7 +1790,7 @@ PetscErrorCode SbpOps_fc_coordTrans::muxDy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "muxDy";
+  string funcName = "SbpOps_fc_coordTrans::muxDy";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1762,7 +1813,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Dyxmu(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dyxmu";
+  string funcName = "SbpOps_fc_coordTrans::Dyxmu";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1786,7 +1837,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Dz(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dz";
+  string funcName = "SbpOps_fc_coordTrans::Dz";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1805,7 +1856,7 @@ PetscErrorCode SbpOps_fc_coordTrans::muxDz(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "muxDy";
+  string funcName = "SbpOps_fc_coordTrans::muxDy";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1828,7 +1879,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Dzxmu(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Dzxmu";
+  string funcName = "SbpOps_fc_coordTrans::Dzxmu";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1851,7 +1902,7 @@ PetscErrorCode SbpOps_fc_coordTrans::H(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "H";
+  string funcName = "SbpOps_fc_coordTrans::H";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1869,7 +1920,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Hinv(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Hinv";
+  string funcName = "SbpOps_fc_coordTrans::Hinv";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1887,7 +1938,7 @@ PetscErrorCode SbpOps_fc_coordTrans::Hyinvxe0y(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "Hyinvxe0y";
+  string funcName = "SbpOps_fc_coordTrans::Hyinvxe0y";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1910,7 +1961,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HyinvxeNy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "HyinvxeNy";
+  string funcName = "SbpOps_fc_coordTrans::HyinvxeNy";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1933,7 +1984,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HyinvxE0y(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "HyinvxE0y";
+  string funcName = "SbpOps_fc_coordTrans::HyinvxE0y";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1956,7 +2007,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HyinvxENy(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "HyinvxENy";
+  string funcName = "SbpOps_fc_coordTrans::HyinvxENy";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -1979,7 +2030,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HzinvxE0z(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "HzinvxE0z";
+  string funcName = "SbpOps_fc_coordTrans::HzinvxE0z";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -2002,7 +2053,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HzinvxENz(const Vec &in, Vec &out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  string funcName = "HzinvxENz";
+  string funcName = "SbpOps_fc_coordTrans::HzinvxENz";
   string fileName = "SbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
@@ -2046,7 +2097,9 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
   _muqy(NULL),_murz(NULL),_yq(NULL),_zr(NULL)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc_coordTrans::TempMats_fc_coordTrans in sbpOps_fc.cpp.\n");
+  string funcName = "TempMats_fc_coordTrans::constructor";
+  string fileName = "SbpOps_fc_coordTrans.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
 
@@ -2116,7 +2169,6 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
       MatDestroy(&temp);
     }
 
-
   }
 
 
@@ -2130,7 +2182,7 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc_coordTrans::TempMats_fc_coordTrans in sbpOps_fc.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -2139,7 +2191,9 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
 TempMats_fc_coordTrans::~TempMats_fc_coordTrans()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc_coordTrans::~TempMats_fc_coordTrans in sbpOps_fc.cpp.\n");
+  string funcName = "TempMats_fc_coordTrans::destructor";
+  string fileName = "SbpOps_fc_coordTrans.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 
   MatDestroy(&_muxBSy_Iz);
@@ -2164,7 +2218,7 @@ TempMats_fc_coordTrans::~TempMats_fc_coordTrans()
   MatDestroy(&_murz);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc_coordTrans::~TempMats_fc_coordTrans in sbpOps_fc.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 
@@ -2173,7 +2227,9 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
 {
   PetscErrorCode ierr;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc_coordTrans::~computeJacobian in sbpOps_fc.cpp.\n");
+  string funcName = "TempMats_fc_coordTrans::computeJacobian";
+  string fileName = "SbpOps_fc_coordTrans.cpp";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
   Vec ones;
   VecDuplicate(*_y,&ones);
@@ -2215,7 +2271,7 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc_coordTrans::~computeJacobian in sbpOps_fc.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
 

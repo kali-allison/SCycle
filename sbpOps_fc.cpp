@@ -476,7 +476,7 @@ PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
     ierr = MatMatMatMult(_mu,tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
     ierr = MatScale(_rhsB,_alphaDz);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,1.0,&temp1);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
     ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
