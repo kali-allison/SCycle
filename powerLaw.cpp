@@ -279,7 +279,6 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
-  ierr = setSurfDisp();
 
   // set shear traction on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
@@ -419,15 +418,12 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
   ierr = _sbpP->Dyxmu(_gxyP,sourcexy_y);CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
-    Vec temp1,temp2;
+    Vec temp1;
     VecDuplicate(_gxyP,&temp1);
-    VecDuplicate(_gxyP,&temp2);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
     MatMult(yq,sourcexy_y,temp1);
-    MatMult(zr,temp1,temp2);
-    VecCopy(temp2,sourcexy_y);
+    MatMult(zr,temp1,sourcexy_y);
     VecDestroy(&temp1);
-    VecDestroy(&temp2);
   }
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
@@ -439,15 +435,12 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     ierr = _sbpP->Dzxmu(_gxzP,sourcexz_z);CHKERRQ(ierr);
     if (_sbpType.compare("mfc_coordTrans")==0) {
       Mat qy,rz,yq,zr;
-      Vec temp1,temp2;
+      Vec temp1;
       VecDuplicate(_gxzP,&temp1);
-      VecDuplicate(_gxzP,&temp2);
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
       MatMult(zr,sourcexz_z,temp1);
-      MatMult(yq,temp1,temp2);
-      VecCopy(temp2,sourcexz_z);
+      MatMult(yq,temp1,sourcexz_z);
       VecDestroy(&temp1);
-      VecDestroy(&temp2);
     }
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
@@ -548,7 +541,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   #endif
 
   // compute effective viscosity
-  PetscScalar invVisc,sigmadev,A,B,n,T,effVisc=0;
+  PetscScalar sigmadev,A,B,n,T,effVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -557,11 +550,8 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecGetValues(_B,1,&Ii,&B);
     VecGetValues(_n,1,&Ii,&n);
     VecGetValues(_T,1,&Ii,&T);
-    invVisc = A*pow(sigmadev,n-1.0)*exp(-B/T) * 1e3; // not sure scaling here
-    effVisc = 1.0/invVisc;
+    effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
     VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
-
-    assert(!isnan(invVisc));
   }
   VecAssemblyBegin(_effVisc);
   VecAssemblyEnd(_effVisc);
@@ -618,7 +608,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   VecAXPY(_stressxyP,-1.0,_gxyP);
   VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
 
-  // deviatoric stress: 1/3
+  // deviatoric stress: part 1/3
   VecPointwiseMult(_sigmadev,_stressxyP,_stressxyP);
 
   if (_Nz > 1) {
@@ -627,14 +617,15 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
     VecAXPY(_stressxzP,-1.0,_gxzP);
     VecPointwiseMult(_stressxzP,_stressxzP,_muVecP);
 
-  // deviatoric stress: 2/3
+  // deviatoric stress: part 2/3
   Vec temp;
   VecDuplicate(_stressxzP,&temp);
   VecPointwiseMult(temp,_stressxzP,_stressxzP);
   VecAXPY(_sigmadev,1.0,temp);
+  VecDestroy(&temp);
   }
 
-  // deviatoric stress: 3/3
+  // deviatoric stress: part 3/3
   VecSqrtAbs(_sigmadev);
 
 
@@ -842,6 +833,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
 
   _stepCount++;
   _currTime = time;
+  ierr = setSurfDisp();
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);

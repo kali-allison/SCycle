@@ -1,6 +1,6 @@
 order = 4
-Ny = 26
-Nz = 26
+Ny = 201
+Nz = 501
 Ly = 30 # km
 Lz = 30 # km
 
@@ -47,7 +47,7 @@ nVals = [4 4]
 nDepths = [0 60]
 TVals = [273 1173]
 TDepths = [0 60]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -61,11 +61,11 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
 
-linSolver = AMG
-bCoordTrans = 1.0
+linSolver = MUMPSCHOLESKY
+bCoordTrans = 15.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
-kspTol = 1e-10
+kspTol = 1e-13
 
 
 # Maxwell properties
@@ -79,12 +79,12 @@ viscDepths = [0 60]
 #strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 100
-maxStepCount = 100
-initTime = 0       # s
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
+initTime = 3e10       # s
 maxTime = 5e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
@@ -94,7 +94,11 @@ rootTol = 1e-8
 
 
 
-outputDir = data/linEl/test_
+#outputDir = data/wTherm/test_
+#outputDir = data/wTherm/test1_
+outputDir = data/wTherm/test1_Nz501_
+#outputDir = data/wTherm/test100_
+#outputDir = data/wTherm/test2000_
 
 
 

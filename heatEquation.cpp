@@ -628,6 +628,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecScale(_bcL,0.5);
   VecDestroy(&vel);
 
+  //~ VecScale(_bcL,2000.0);
+
   KSP ksp;
   setupKSP(_sbpT,dt,ksp);
 

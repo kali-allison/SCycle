@@ -299,7 +299,11 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
     ierr = MatMatMatMult(tempMats._muqy,tempMats._Hyinv_Iz,e0y_Iz,
             MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
     ierr = MatScale(_rhsL,_alphaDy);CHKERRQ(ierr);
-    ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    Mat muxBSy_IzT;
+    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
+    MatMatMult(muxBSy_IzT,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxBSy_IzT);
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
     ierr = MatAYPX(_rhsL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
@@ -314,7 +318,10 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
     ierr = MatMatMatMult(tempMats._muqy,tempMats._Hyinv_Iz,E0y_Iz,
              MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AL,_alphaDy);CHKERRQ(ierr);
-    ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
+    MatMatMult(muxBSy_IzT,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxBSy_IzT);
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
     ierr = MatAYPX(tempMats._AL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
@@ -346,7 +353,11 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
             MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
     ierr = MatScale(_rhsR,_alphaDy);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    Mat muxBSy_IzT;
+    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
+    MatMatMult(muxBSy_IzT,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxBSy_IzT);
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -366,7 +377,10 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
              MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AR,_alphaDy);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
+    MatMatMult(muxBSy_IzT,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxBSy_IzT);
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(tempMats._AR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -466,7 +480,11 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
     ierr = MatMatMatMult(tempMats._murz,tempMats._Iy_Hzinv,Iy_e0z,
             MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
     ierr = MatScale(_rhsT,_alphaDz);CHKERRQ(ierr);
-    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    Mat muxIy_BSzT;
+    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
+    MatMatMult(muxIy_BSzT,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxIy_BSzT);
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -485,7 +503,10 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
              MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
     ierr = MatScale(tempMats._AT,_alphaDz);CHKERRQ(ierr);
 
-    ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
+    MatMatMult(muxIy_BSzT,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+    MatDestroy(&muxIy_BSzT);
     ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(tempMats._AT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -650,7 +671,11 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
   }
 
   Mat temp1,temp2;
-  ierr = MatTransposeMatMult(Dy_Iz,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+  //~ ierr = MatTransposeMatMult(Dy_Iz,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+  Mat Dy_IzT;
+  MatTranspose(Dy_Iz,MAT_INITIAL_MATRIX,&Dy_IzT);
+  MatMatMult(Dy_IzT,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+  MatDestroy(&Dy_IzT);
   ierr = MatMatMult(temp1,Dy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
   ierr = MatScale(temp2,-1.0);CHKERRQ(ierr);
   MatDestroy(&temp1);
@@ -735,7 +760,11 @@ switch ( _order ) {
 
       // Rzmu = (Iy_D2z^T x Iy_C2z x mu x Iy_D2z)/4/dz^3;
       Mat temp;
-      ierr = MatTransposeMatMult(Iy_D2z,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(Iy_D2z,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+      Mat Iy_D2zT;
+      MatTranspose(Iy_D2z,MAT_INITIAL_MATRIX,&Iy_D2zT);
+      MatMatMult(Iy_D2zT,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
+      MatDestroy(&Iy_D2zT);
       ierr = MatMatMatMult(temp,tempMats._murz,Iy_D2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);CHKERRQ(ierr);
       ierr = MatScale(Rzmu,0.25*pow(_dz,3));CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) Rzmu, "Rzmu");CHKERRQ(ierr);
@@ -903,7 +932,11 @@ switch ( _order ) {
 
       // Rymu = (D2y_Iz^T x C2y_Iz x mu*qy x D2y_Iz)/4/dy^3;
       Mat temp;
-      ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+      Mat D2y_IzT;
+      MatTranspose(D2y_Iz,MAT_INITIAL_MATRIX,&D2y_IzT);
+      MatMatMult(D2y_IzT,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
+      MatDestroy(&D2y_IzT);
       ierr = MatMatMatMult(temp,tempMats._muqy,D2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       ierr = MatScale(Rymu,0.25*pow(_dy,3));CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) Rymu, "Rymu");CHKERRQ(ierr);
@@ -954,7 +987,11 @@ switch ( _order ) {
       // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy
       //      + (D4y_Iz^T x C4y_Iz x mu*qy x D4y_Iz)/144/dy
       Mat temp1,temp2;
-      ierr = MatTransposeMatMult(D3y_Iz,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(D3y_Iz,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat D3y_IzT;
+      MatTranspose(D3y_Iz,MAT_INITIAL_MATRIX,&D3y_IzT);
+      MatMatMult(D3y_IzT,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+      MatDestroy(&D3y_IzT);
       ierr = MatMatMatMult(temp1,mu3,D3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
       ierr = MatScale(temp2,1.0/_dy/18.0);CHKERRQ(ierr);
       MatDestroy(&temp1);
@@ -969,7 +1006,11 @@ switch ( _order ) {
       Mat C4y_Iz;
       kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
 
-      ierr = MatTransposeMatMult(D4y_Iz,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      //~ ierr = MatTransposeMatMult(D4y_Iz,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat D4y_IzT;
+      MatTranspose(D4y_Iz,MAT_INITIAL_MATRIX,&D4y_IzT);
+      MatMatMult(D4y_IzT,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+      MatDestroy(&D4y_IzT);
       ierr = MatMatMatMult(temp1,tempMats._muqy,D4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       ierr = MatScale(Rymu,1.0/_dy/144.0);CHKERRQ(ierr);
 
@@ -1039,7 +1080,11 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans
   }
 
   Mat temp1,temp2;
-  ierr = MatTransposeMatMult(Iy_Dz,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+  //~ ierr = MatTransposeMatMult(Iy_Dz,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+  Mat Iy_DzT;
+  MatTranspose(Iy_Dz,MAT_INITIAL_MATRIX,&Iy_DzT);
+  MatMatMult(Iy_DzT,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
+  MatDestroy(&Iy_DzT);
   ierr = MatMatMult(temp1,Iy_Dz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
   ierr = MatScale(temp2,-1);CHKERRQ(ierr);
   MatDestroy(&temp1);

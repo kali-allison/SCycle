@@ -60,8 +60,8 @@ rhoDepths = [0 30]
 
 
 # linear solve for momentum balance equation
-linSolver = AMG
-bCoordTrans = 14.0
+linSolver = MUMPSCHOLESKY
+bCoordTrans = 15.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-13
@@ -96,5 +96,5 @@ rootTol = 1e-9
 #outputDir = data/lSS_wTherm_
 #outputDir = data/lSS_uChol_TAMG_
 #outputDir = data/lSS_uAMG_TAMG_
-#outputDir = data/lSS_uChol_
-outputDir = data/lSS_uAMG1e-13_
+outputDir = data/lSS_uChol_
+#outputDir = data/lSS_uAMG1e-13_
