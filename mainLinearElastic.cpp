@@ -390,6 +390,87 @@ int testMemoryLeak(const char * inputFile)
   return ierr;
 }
 
+int computeGreensFunction(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain d(inputFile);
+  d.write();
+  //~ _sbpP = new SbpOps_fc_coordTrans(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  SymmLinearElastic sle(d);
+
+  // set up boundaries
+  VecSet(sle._bcTP,0.0);
+  VecSet(sle._bcBP,0.0);
+  VecSet(sle._bcRP,0.0);
+
+  // prepare matrix to hold greens function
+  Mat G;
+  MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Nz,NULL,&G);
+  MatSetUp(G);
+
+  PetscInt *rows,*cols;
+  PetscMalloc1(d._Ny,&rows);
+  PetscMalloc1(d._Ny,&cols);
+  PetscScalar *si;
+
+  // loop over elements of bcL and compute corresponding entry of G
+  PetscScalar v = 1.0;
+  PetscInt Istart,Iend;
+  VecGetOwnershipRange(sle._bcLP,&Istart,&Iend);
+  for(PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    VecSet(sle._bcLP,0.0);
+    VecSetValue(sle._bcLP,Ii,v,INSERT_VALUES);
+
+    // solve for displacement
+    ierr = sle._sbpP->setRhs(sle._rhsP,sle._bcLP,sle._bcRP,sle._bcTP,sle._bcBP);CHKERRQ(ierr);
+    ierr = KSPSolve(sle._kspP,sle._rhsP,sle._uP);CHKERRQ(ierr);
+    ierr = sle.setSurfDisp();
+
+    // assign values to G
+    //~ _surfDispPlus
+    VecGetArray(sle._surfDispPlus,&si);
+    for(PetscInt ind=0;ind<d._Ny;ind++) { rows[ind]=ind; }
+    for(PetscInt ind=0;ind<d._Ny;ind++) { cols[ind]=Ii; }
+    MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
+    MatAssemblyBegin(G,MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(G,MAT_FINAL_ASSEMBLY);
+    VecRestoreArray(sle._bcLP,&si);
+  }
+
+  // output greens function
+  std::string str;
+
+  str =  d._outputDir + "G";
+  writeMat(G,str.c_str());
+
+
+
+  // output testing stuff
+  VecSet(sle._bcLP,0.0);
+  VecSet(sle._bcRP,5.0);
+  for(PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    v = ((PetscScalar) Ii+1)/((PetscScalar) d._Nz);
+    //~ if (Ii == 0) { v=1.0; } else { v=0.0; }
+    VecSetValue(sle._bcLP,Ii,v,INSERT_VALUES);
+  }
+  // solve for displacement
+  ierr = sle._sbpP->setRhs(sle._rhsP,sle._bcLP,sle._bcRP,sle._bcTP,sle._bcBP);CHKERRQ(ierr);
+  ierr = KSPSolve(sle._kspP,sle._rhsP,sle._uP);CHKERRQ(ierr);
+  ierr = sle.setSurfDisp();
+  //~ VecView(sle._bcLP,PETSC_VIEWER_STDOUT_WORLD);
+
+  str =  d._outputDir + "bcL";
+  writeVec(sle._bcLP,str.c_str());
+
+  str =  d._outputDir + "surfDisp";
+  writeVec(sle._surfDispPlus,str.c_str());
+
+
+  MatDestroy(&G);
+  return ierr;
+}
+
 
 int runEqCycle(const char * inputFile)
 {
@@ -427,16 +508,18 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  {
+  /*{
     //~ PetscMPIInt localRank;
     //~ MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
     //~ PetscPrintf(PETSC_COMM_SELF,"%i: hi!\n", localRank);
     Domain domain(inputFile);
     if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
     else { runEqCycle(inputFile); }
-  }
+  }*/
 
   //~ testMemoryLeak(inputFile);
+
+  computeGreensFunction(inputFile);
 
   //~runTests1D();
   //~runTests2D();

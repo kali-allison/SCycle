@@ -114,8 +114,10 @@ atol = 1e-9
 rootTol = 1e-9
 
 #outputDir = data/max/vw2_
-outputDir = data/max/s1e-11_
+#outputDir = data/max/s1e-11_
 #outputDir = data/max/s1e-12_
+
+outputDir = data/greensFuncs/test_
 
 #outputDir = data/linEl/rice1993_Dc8e-3svw_
 #outputDir = data/linEl/rice1993_Dc4e-3svw_

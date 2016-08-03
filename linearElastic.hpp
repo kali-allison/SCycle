@@ -30,7 +30,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     LinearElastic(const LinearElastic &that);
     LinearElastic& operator=(const LinearElastic &rhs);
 
-  protected:
+  //~ protected:
+  public:
 
     // domain properties
     std::string          _delim; // format is: var delim value (without the white space)
@@ -89,7 +90,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
 
-  public:
+  //~ public:
 
     // boundary conditions
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
@@ -148,7 +149,8 @@ class SymmLinearElastic: public LinearElastic
     SymmLinearElastic(const SymmLinearElastic &that);
     SymmLinearElastic& operator=(const SymmLinearElastic &rhs);
 
-  protected:
+  //~ protected:
+  public:
 
 
     PetscErrorCode setShifts();
@@ -163,7 +165,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
 
 
-  public:
+  //~ public:
 
     SymmFault           _fault;
     std::vector<Vec>    _var; // holds variables for explicit integration in time
