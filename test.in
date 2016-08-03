@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 501
+Nz = 301
 Ly = 30 # km
 Lz = 30 # km
 
@@ -12,10 +12,16 @@ DcDepths = [0 60] # m
 stateLaw = agingLaw
 
 # usual rate-and-state values
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 12 15 60]
+
+# purely velocity-weakening
 aVals = [0.015 0.015]
 aDepths = [0 60]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 60]
+bVals = [0.02 0.02]
+bDepths = [0 60]
 
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
@@ -47,7 +53,7 @@ nVals = [4 4]
 nDepths = [0 60]
 TVals = [273 1173]
 TDepths = [0 60]
-thermalCoupling = uncoupled
+thermalCoupling = no
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -69,17 +75,17 @@ kspTol = 1e-13
 
 
 # Maxwell properties
-viscDistribution = layered
-viscVals = [1e13 1e13] # GPa s
-viscDepths = [0 60]
+#viscDistribution = layered
+#viscVals = [1e13 1e13] # GPa s
+#viscDepths = [0 60]
 
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 60]
-#strainRate = 1e-14
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 60]
+strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
@@ -93,12 +99,8 @@ atol = 1e-8
 rootTol = 1e-8
 
 
+outputDir = data/max/vw_
 
-#outputDir = data/wTherm/test_
-#outputDir = data/wTherm/test1_
-outputDir = data/wTherm/test1_Nz501_
-#outputDir = data/wTherm/test100_
-#outputDir = data/wTherm/test2000_
 
 
 

@@ -128,6 +128,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscErrorCode virtual writeStep2D() = 0;
 
     PetscErrorCode virtual measureMMSError() = 0;
+
+    PetscErrorCode loadFieldsFromFiles();
 };
 
 

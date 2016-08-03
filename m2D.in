@@ -1,11 +1,11 @@
 order = 4
-Ny = 301
-Nz = 601
+Ny = 201
+Nz = 301
 Ly = 120 # km
-Lz = 60 # km
+Lz = 30 # km
 
 DcVals = [8e-3 8e-3] # m
-#DcVals = [1e-3 1e-3] # m
+#DcVals = [1e-4 1e-4] # m
 #DcVals = [0.0472 0.0472] # m
 DcDepths = [0 60] # m
 
@@ -13,10 +13,29 @@ DcDepths = [0 60] # m
 stateLaw = agingLaw
 
 # usual rate-and-state values
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 12 15 60]
+
+# uniformly velocity-weakening
 aVals = [0.015 0.015]
 aDepths = [0 60]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 60]
+bVals = [0.02 0.02]
+bDepths = [0 60]
+
+
+# from Rice 1993
+#aVals = [0.015 0.015 0.018 0.066]
+#aDepths = [0 17.5 20 60]
+#bVals = [0.01 0.019 0.019 0.0 0.0]
+#bDepths = [0 4 13.5 17.5 60]
+
+# from Rice 1993, with VW at surface
+#aVals = [0.015 0.015 0.018 0.066]
+#aDepths = [0 17.5 20 60]
+#bVals = [0.019 0.019 0.019 0.0 0.0]
+#bDepths = [0 4 13.5 17.5 60]
 
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
@@ -30,6 +49,7 @@ sigmaNDepths = [0 60]
 vL = 1e-9    # m/s
 
 inputDir = inputData/
+loadICs = 0
 
 shearDistribution = constant
 {
@@ -62,22 +82,22 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
-kspTol = 1e-13
+kspTol = 1e-10
 
 
 # Maxwell properties
-viscDistribution = layered
-viscVals = [1e13 1e13] # GPa s
-viscDepths = [0 60]
+#viscDistribution = layered
+#viscVals = [1e13 1e13] # GPa s
+#viscDepths = [0 60]
 
-#viscDistribution = effectiveVisc
-#sigmadevVals = [35 35]
-#sigmadevDepths = [0 60]
-#strainRate = 1e-14
+viscDistribution = effectiveVisc
+sigmadevVals = [35 35]
+sigmadevDepths = [0 60]
+strainRate = 1e-12
 
 
 timeIntegrator = RK32
@@ -85,33 +105,36 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 2e11       # s 2e11
-maxTime = 5e11      # s
+initTime = 1e3      # s 2e11
+maxTime = 1e12      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s
-atol = 1e-8
+maxDeltaT = 1e7      # s
+atol = 1e-9
 
-rootTol = 1e-8
+rootTol = 1e-9
 
+#outputDir = data/max/vw2_
+outputDir = data/max/s1e-11_
+#outputDir = data/max/s1e-12_
 
-outputDir = data/powerLaw/pl_wetQuartz_
-#outputDir = data/powerLaw/linEl_
+#outputDir = data/linEl/rice1993_Dc8e-3svw_
+#outputDir = data/linEl/rice1993_Dc4e-3svw_
+#outputDir = data/linEl/rice1993_Dc4e-3svs_
+#outputDir = data/max/rice1993_svw_
 
-#outputDir = data/linEl/l2D_gradsN_2_
+#outputDir = data/linEl/rice1993_Dc4e-3svw_ct_
+#outputDir = data/linEl/rice1993_Dc1e-4svw_
+#outputDir = data/linEl/rice1993_gradsN_Dc4e-3svs_
 
-#outputDir = data/linEl/l2D_Dc8e-3_Ly120_
-#outputDir = data/wTherm/l2D_b15_Ny301_Nz301_
-
-#outputDir = data/linEl/l2D_Dc1e-2_
-#outputDir = data/linEl/l2D_Dc1e-3_
-#outputDir = data/linEl/l2D_Dc1e-4_
-#outputDir = data/linEl/l2D_Dc1e-3_ctNz301_Ny301_
-#outputDir = data/linEl/l2D_Dc1e-4_Nz601_
-#outputDir = data/linEl/l2D_Dc1e-4_Nz801_
 #outputDir = data/linEl/test_
 
 
+#outputDir = data/linEl/rice1993_
+#outputDir = data/linEl/rice1993_gradsN_
+#outputDir = data/linEl/rice1993_test_gradsN_
+#outputDir = data/max/rice1993_gradsN_
+#outputDir = data/powerLaw/rice1993_gradsN_
 
-
-
-
+#outputDir = data/powerLaw/pl_wetQuartz_
+#outputDir = data/powerLaw/pl_wetQuartz_Lz50_
+#outputDir = data/powerLaw/linEl_

@@ -93,7 +93,7 @@ class Fault: public RootFinderContext
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode loadFieldsFromFiles(std::string inputDir);
 
     // check input from file
     PetscErrorCode checkInput();

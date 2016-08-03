@@ -65,6 +65,8 @@ Fault::Fault(Domain&D)
 
   setFrictionFields(D);
 
+  if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault in fault.cpp.\n");
 #endif
@@ -393,6 +395,8 @@ SymmFault::SymmFault(Domain&D)
 
   // vectors were allocated in Fault constructor, just need to set values.
   setSplitNodeFields();
+
+  if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::SymmFault in fault.cpp.\n");
@@ -920,6 +924,50 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+// parse input file and load values into data members
+PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
+#endif
+
+//~// load normal stress: _sigma_N
+  //~string vecSourceFile = _inputDir + "sigma_N";
+  PetscViewer inv; // in viewer
+
+  // load state
+  string vecSourceFile = inputDir + "state";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_state,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load state
+  vecSourceFile = inputDir + "slip";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_slip,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load state
+  vecSourceFile = inputDir + "tauQS";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_tauQSP,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }

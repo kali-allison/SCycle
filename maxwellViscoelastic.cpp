@@ -38,10 +38,11 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   PetscObjectSetName((PetscObject) _dgxzP, "_dgxzP");
   VecSet(_dgxzP,0.0);
 
-
   VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
+
+  if (D._loadICs==1) { loadFieldsFromFiles(); }
 
 // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
@@ -75,6 +76,21 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecDuplicate(_uP,&_uPPrev);
     VecCopy(_uP,_uPPrev);
   #endif
+
+    //~ writeVec(_fault._slip,"test/slip");
+    //~ writeVec(_fault._tauQSP,"test/tauQS");
+    //~ writeVec(_fault._slipVel,"test/slipVel");
+    //~ writeVec(_uP,"test/u");
+    //~ writeVec(_stressxyP,"test/stressxyP");
+    //~ writeVec(_stressxzP,"test/stressxzP");
+    //~ writeVec(_gxyP,"test/gxy");
+    //~ writeVec(_gxzP,"test/gxz");
+
+    //~ writeVec(*(_var.begin()+0),"test/state");
+    //~ writeVec(*(_var.begin()+1),"test/slip");
+    //~ writeVec(*(_var.begin()+2),"test/gxy");
+    //~ writeVec(*(_var.begin()+3),"test/gxz");
+    //~ assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -162,14 +178,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      #if LOCK_FAULT == 1
-        int arrInds[] = {2,3}; // state: 0, slip: 1
-        std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
-      #endif
-      #if LOCK_FAULT == 0
         int arrInds[] = {1}; // state: 0, slip: 1
         std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-      #endif
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -245,6 +255,15 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
+  //~ writeVec(*(_var.begin()+0),"test/state");
+  //~ writeVec(*(_var.begin()+1),"test/slip");
+  //~ writeVec(_gxyP,"test/gxy");
+  //~ writeVec(_gxzP,"test/gxz");
+  //~ writeVec(_bcLP,"test/bcL");
+  //~ writeVec(_bcRP,"test/bcR");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %.9e\n",time);
+  //~ assert(0);
+
   //~ #if LOCK_FAULT == 1
     //~ PetscInt Ii,Istart,Iend;
     //~ VecGetOwnershipRange(_bcLP,&Istart,&Iend);
@@ -275,9 +294,15 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   _linSolveCount++;
   ierr = setSurfDisp();
 
+  //~ writeVec(_uP,"test/u");
+
   // set shear traction on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+
+  //~ writeVec(_stressxyP,"test/sxy");
+  //~ writeVec(_stressxzP,"test/sxz");
+  //~ assert(0);
 
   // set rates
   ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
@@ -866,7 +891,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
     CHKERRQ(ierr);
   #endif
 
-  // compute strains and rates
+  // compute strains
   _sbpP->Dy(_uP,_gTxyP);
   VecCopy(_gTxyP,_stressxyP);
   VecAXPY(_stressxyP,-1.0,_gxyP);
@@ -1540,11 +1565,44 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
 #endif
 
   // load viscosity from input file
-  ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
-  ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_visc);
-  PetscObjectSetName((PetscObject) _visc, "_visc");
-  ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
+  //~ ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
+  //~ ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = VecSetFromOptions(_visc);
+  //~ PetscObjectSetName((PetscObject) _visc, "_visc");
+  //~ ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
+
+  PetscViewer inv; // in viewer
+
+  //~ // load bcL
+  //~ string vecSourceFile = _inputDir + "bcL";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
+
+  //~ // load bcR
+  //~ vecSourceFile = _inputDir + "bcR";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
+
+
+  // load gxy
+  string vecSourceFile = _inputDir + "Gxy";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_gxyP,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load gxz
+  vecSourceFile = _inputDir + "Gxz";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_gxzP,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);

@@ -35,6 +35,7 @@ LinearElastic::LinearElastic(Domain&D)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
 #endif
+
   loadSettings(D._file);
 
   // boundary conditions
@@ -56,7 +57,7 @@ LinearElastic::LinearElastic(Domain&D)
   #endif
 
   VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRplusShift");
-  VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "bcRplus");
+  VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "_bcRP");
   VecSet(_bcRP,_vL*_initTime/2.0);
 
 
@@ -68,9 +69,14 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_bcTP,&_bcBP); PetscObjectSetName((PetscObject) _bcBP, "_bcBP");
   VecSet(_bcBP,0.0);
 
-
   VecDuplicate(_muVecP,&_rhsP);
   VecDuplicate(_rhsP,&_uP);
+
+  VecDuplicate(_rhsP,&_stressxyP);
+
+
+  if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
+
 
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
@@ -194,6 +200,50 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
+  return ierr;
+}
+
+// parse input file and load values into data members
+PetscErrorCode LinearElastic::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
+#endif
+
+//~// load normal stress: _sigma_N
+  //~string vecSourceFile = _inputDir + "sigma_N";
+  PetscViewer inv; // in viewer
+
+
+  // load bcL
+  string vecSourceFile = _inputDir + "bcL";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load bcR
+  vecSourceFile = _inputDir + "bcR";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load u
+  //~ vecSourceFile = _inputDir + "u";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_uP,inv);CHKERRQ(ierr);
+
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
+#endif
   return ierr;
 }
 
@@ -413,8 +463,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
 #endif
 
-  VecDuplicate(_rhsP,&_stressxyP);
-
   Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
   _var.push_back(varPsi);
   Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
@@ -431,7 +479,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_isMMS) {
     setMMSInitialConditions();
   }
-  else {
+  //~ else if (D._loadICs!=1) {
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
 
@@ -445,7 +493,20 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     _fault.setFaultDisp(_bcLP,NULL);
 
     _fault.computeVel();
-  }
+  //~ }
+  //~ else {
+    //~ _fault.computeVel();
+    //~ writeVec(_fault._slip,"test/slip");
+    //~ writeVec(_fault._state,"test/state");
+    //~ writeVec(_fault._tauQSP,"test/tauQS");
+    //~ writeVec(_fault._slipVel,"test/slipVel");
+    //~ writeVec(_uP,"test/u");
+    //~ writeVec(_stressxyP,"test/stressxyP");
+    //~ writeVec(_stressxzP,"test/stressxzP");
+    //~ writeVec(_gxyP,"test/gxy");
+    //~ writeVec(_gxzP,"test/gxz");
+    //~ assert(0);
+  //~ }
 
   setSurfDisp();
 

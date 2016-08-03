@@ -7,7 +7,7 @@ Domain::Domain(const char *file)
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
   _bcLType("unspecified"),
-  _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
+  _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),_loadICs(0),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
   _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
@@ -240,6 +240,7 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("inputDir")==0) {
       _inputDir = line.substr(pos+_delim.length(),line.npos);
     }
+    else if (var.compare("loadICs")==0){ _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // linear solver settings
     else if (var.compare("sbpType")==0) {
@@ -818,6 +819,7 @@ PetscErrorCode Domain::setFieldsPlus()
 
       y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
       //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
+      //~ z = _Lz*(r+exp(r/0.125)-1.0)/exp(1.0/0.125);
 
       //~ z = (sinh(5.0*5.0*(r-0.5))/sinh(5.0*5.0*0.5) + 1.0)*0.5*_Lz; // original
 
