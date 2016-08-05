@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 301
+Ny = 301
+Nz = 501
 Ly = 120 # km
 Lz = 30 # km
 
@@ -19,10 +19,10 @@ stateLaw = agingLaw
 #bDepths = [0 12 15 60]
 
 # uniformly velocity-weakening
-aVals = [0.015 0.015]
-aDepths = [0 60]
-bVals = [0.02 0.02]
-bDepths = [0 60]
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02]
+#bDepths = [0 60]
 
 
 # from Rice 1993
@@ -32,24 +32,24 @@ bDepths = [0 60]
 #bDepths = [0 4 13.5 17.5 60]
 
 # from Rice 1993, with VW at surface
-#aVals = [0.015 0.015 0.018 0.066]
-#aDepths = [0 17.5 20 60]
-#bVals = [0.019 0.019 0.019 0.0 0.0]
-#bDepths = [0 4 13.5 17.5 60]
+aVals = [0.015 0.015 0.018 0.066]
+aDepths = [0 17.5 20 60]
+bVals = [0.019 0.019 0.019 0.0 0.0]
+bDepths = [0 4 13.5 17.5 60]
 
 #aVals = [0.0082 0.0532]
 #aDepths = [0 50]
 #bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
 #bDepths = [0 10 20 50]
 
-sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.1 588] # MPa
+#sigmaNVals = [50 50] # MPa
+sigmaNVals = [0.1 588] # MPa
 sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-inputDir = inputData/
-loadICs = 0
+inputDir = inputData/gradsN_max/
+loadICs = 1
 
 shearDistribution = constant
 {
@@ -82,7 +82,7 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
@@ -97,7 +97,7 @@ kspTol = 1e-10
 viscDistribution = effectiveVisc
 sigmadevVals = [35 35]
 sigmadevDepths = [0 60]
-strainRate = 1e-12
+strainRate = 1e-14
 
 
 timeIntegrator = RK32
@@ -105,10 +105,10 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 1e3      # s 2e11
-maxTime = 1e12      # s
+initTime = 0      # s 2e11
+maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e7      # s
+maxDeltaT = 1e9      # s
 atol = 1e-9
 
 rootTol = 1e-9
@@ -116,8 +116,13 @@ rootTol = 1e-9
 #outputDir = data/max/vw2_
 #outputDir = data/max/s1e-11_
 #outputDir = data/max/s1e-12_
+#outputDir = data/max/rice1993svw_s1e-14_
+outputDir = data/max/rice1993svw_gradsN_s1e-14_
 
-outputDir = data/greensFuncs/test_
+#outputDir = data/test_loadICs_
+
+#outputDir = data/greensFuncs/b10_
+#outputDir = data/greensFuncs/b15_
 
 #outputDir = data/linEl/rice1993_Dc8e-3svw_
 #outputDir = data/linEl/rice1993_Dc4e-3svw_
@@ -127,8 +132,6 @@ outputDir = data/greensFuncs/test_
 #outputDir = data/linEl/rice1993_Dc4e-3svw_ct_
 #outputDir = data/linEl/rice1993_Dc1e-4svw_
 #outputDir = data/linEl/rice1993_gradsN_Dc4e-3svs_
-
-#outputDir = data/linEl/test_
 
 
 #outputDir = data/linEl/rice1993_

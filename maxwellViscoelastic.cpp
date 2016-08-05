@@ -24,6 +24,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   setFields(D);
 
 
+
   VecDuplicate(_uP,&_gxyP);
   PetscObjectSetName((PetscObject) _gxyP, "_gxyP");
   VecSet(_gxyP,0.0);
@@ -43,6 +44,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
 
   if (D._loadICs==1) { loadFieldsFromFiles(); }
+  _fault.computeVel();
 
 // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
@@ -77,7 +79,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecCopy(_uP,_uPPrev);
   #endif
 
-    //~ writeVec(_fault._slip,"test/slip");
+    //~ writeVec(_bcRP,"test/bcR");
     //~ writeVec(_fault._tauQSP,"test/tauQS");
     //~ writeVec(_fault._slipVel,"test/slipVel");
     //~ writeVec(_uP,"test/u");
@@ -414,7 +416,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,Vec
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar alphaDy = 0, alphaDz = 0, E = 0;
+  PetscScalar E = 0, alphaDy = 0;//, alphaDz = 0;
 
   // get relevant matrices
   Mat muqy,murz,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
@@ -454,7 +456,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergy(const PetscScalar time,Vec
   }
 
   else { // if mfc_coordTrans
-    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    PetscScalar dq = 1.0/(_Ny-1); //, dr = 1.0/(_Nz-1);
     if (_order==2) { alphaDy = -4.0/dq; }
     if (_order==4) { alphaDy = -48.0/17.0 /dq; }
 
@@ -523,7 +525,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergyRate(const PetscScalar time
 
   computeEnergy(time,_E);
 
-  PetscScalar alphaDy = 0, alphaDz = 0, dE = 0;
+  PetscScalar dE = 0, alphaDy = 0; //, alphaDz = 0;
 
   // get relevant matrices
   Mat muqy,murz,By_Iz,Iy_Bz;
@@ -609,7 +611,7 @@ PetscErrorCode SymmMaxwellViscoelastic::computeEnergyRate(const PetscScalar time
   }
 
   else { // if mfc_coordTrans
-    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    PetscScalar dq = 1.0/(_Ny-1); //, dr = 1.0/(_Nz-1);
     if (_order==2) { alphaDy = -4.0/dq; }
     if (_order==4) { alphaDy = -48.0/17.0 /dq; }
 
@@ -1580,7 +1582,7 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
   //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   //~ ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
 
-  //~ // load bcR
+  // load bcR
   //~ vecSourceFile = _inputDir + "bcR";
   //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);

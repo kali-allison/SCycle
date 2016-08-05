@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N max/s1e-11
+#PBS -N max/rice1993svw_gradsN_s1e-14
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/max/s1e-11.err
-#PBS -o /data/dunham/kallison/eqcycle/data/max/s1e-11.out
+#PBS -e /data/dunham/kallison/eqcycle/data/max/rice1993svw_gradsN_s1e-14.err
+#PBS -o /data/dunham/kallison/eqcycle/data/max/rice1993svw_gradsN_s1e-14.out
 #
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
