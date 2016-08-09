@@ -411,12 +411,13 @@ PetscErrorCode LinearElastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
   //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  _he.view();
   return ierr;
 }
 
@@ -560,10 +561,10 @@ PetscErrorCode SymmLinearElastic::setShifts()
 #endif
 
   PetscInt Ii,Istart,Iend;
-  PetscScalar v,bcRshift;
+  PetscScalar bcRshift;
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault.getTauInf(Ii);
+    //~ v = _fault.getTauInf(Ii);
     //~bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
     //~ bcRshift = 0. * v;
@@ -589,11 +590,11 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
 #endif
 
-  PetscInt    Ii,Istart,Iend,y,z;
+  PetscInt    Ii,Istart,Iend,y;
   PetscScalar u;
   ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    z = Ii-_Nz*(Ii/_Nz);
+    //~ z = Ii-_Nz*(Ii/_Nz);
     y = Ii / _Nz;
     if (Ii % _Nz == 0) {
       //~ PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y = %i, z = %i\n",Ii,y,z);
@@ -1115,7 +1116,7 @@ PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar alphaDy = 0, alphaDz = 0, E = 0;
+  PetscScalar alphaDy = 0, E = 0;// alphaDz = 0;
 
   // get relevant matrices
   Mat muqy,murz,H,Ry,Rz,E0y_Iz,ENy_Iz,Iy_E0z,Iy_ENz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
@@ -1135,11 +1136,11 @@ PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
     ierr = _sbpP->Dz(_uP,gExz); CHKERRQ(ierr);
     if (_order==2) {
      alphaDy = -4.0/_dy;
-     alphaDz = -4.0/_dz;
+     //~ alphaDz = -4.0/_dz;
     }
     if (_order==4) {
       alphaDy = -48.0/17.0 /_dy;
-      alphaDz = -48.0/17.0 /_dz;
+      //~ alphaDz = -48.0/17.0 /_dz;
     }
 
     // compute energy
@@ -1223,7 +1224,7 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
 
   computeEnergy(time,_E);
 
-  PetscScalar alphaDy = 0, alphaDz = 0, dE = 0;
+  PetscScalar alphaDy = 0, dE = 0;//, alphaDz = 0;
 
   // get relevant matrices
   Mat muqy,murz,H,e0y_Iz,eNy_Iz,Iy_e0z,Iy_eNz,By_Iz,Iy_Bz,Hy_Iz,Iy_Hz;
@@ -1248,11 +1249,11 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
     ierr = _sbpP->Dy(ut,ut_y); CHKERRQ(ierr);
     if (_order==2) {
      alphaDy = -4.0/_dy;
-     alphaDz = -4.0/_dz;
+     //~ alphaDz = -4.0/_dz;
     }
     if (_order==4) {
       alphaDy = -48.0/17.0 /_dy;
-      alphaDz = -48.0/17.0 /_dz;
+      //~ alphaDz = -48.0/17.0 /_dz;
     }
 
     // energy rate
@@ -1278,14 +1279,14 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
 
     VecDestroy(&temp);
 
-    PetscScalar dq = 1.0/(_Ny-1), dr = 1.0/(_Nz-1);
+    PetscScalar dq = 1.0/(_Ny-1);//, dr = 1.0/(_Nz-1);
     if (_order==2) {
      alphaDy = -4.0/dq;
-     alphaDz = -4.0/dr;
+     //~ alphaDz = -4.0/dr;
     }
     if (_order==4) {
       alphaDy = -48.0/17.0 /dq;
-      alphaDz = -48.0/17.0 /dr;
+      //~ alphaDz = -48.0/17.0 /dr;
     }
     ierr = MatMatMult(zr,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&Iy_Hzxzr);
     ierr = MatMatMult(yq,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&yqxHy_Iz);

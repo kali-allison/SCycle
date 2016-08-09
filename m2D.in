@@ -1,12 +1,10 @@
 order = 4
-Ny = 301
-Nz = 501
+Ny = 201
+Nz = 301
 Ly = 120 # km
 Lz = 30 # km
 
-DcVals = [8e-3 8e-3] # m
-#DcVals = [1e-4 1e-4] # m
-#DcVals = [0.0472 0.0472] # m
+DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 
@@ -42,14 +40,20 @@ bDepths = [0 4 13.5 17.5 60]
 #bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
 #bDepths = [0 10 20 50]
 
+
 #sigmaNVals = [50 50] # MPa
-sigmaNVals = [0.1 588] # MPa
-sigmaNDepths = [0 60]
+#sigmaNVals = [0.1 588] # MPa
+#sigmaNDepths = [0 60]
+
+# gradient sigmaN
+sigmaNVals = [0.1 50 50] # MPa
+sigmaNDepths = [0 5.12 60]
+
 
 vL = 1e-9    # m/s
 
 inputDir = inputData/gradsN_max/
-loadICs = 1
+loadICs = 0
 
 shearDistribution = constant
 {
@@ -105,7 +109,7 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 0      # s 2e11
+initTime = 3e10      # s 2e11
 maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
@@ -114,32 +118,17 @@ atol = 1e-9
 rootTol = 1e-9
 
 #outputDir = data/max/vw2_
-#outputDir = data/max/s1e-11_
 #outputDir = data/max/s1e-12_
 #outputDir = data/max/rice1993svw_s1e-14_
-outputDir = data/max/rice1993svw_gradsN_s1e-14_
+#outputDir = data/max/rice1993svw_gradsN_s1e-14_
+#outputDir = data/max/rice1993svw_Dc8e-3_gradsN_s1e-14_
 
-#outputDir = data/test_loadICs_
+outputDir = /scratch/kallison/l2D_rice1993svw_Dc16e-3_gradsNCap50_
+
+#outputDir = /scratch/kallison/rice1993svw_Lz30_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/rice1993svw_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/rice1993svw_Dc8e-3_gradsN_
 
 #outputDir = data/greensFuncs/b10_
 #outputDir = data/greensFuncs/b15_
 
-#outputDir = data/linEl/rice1993_Dc8e-3svw_
-#outputDir = data/linEl/rice1993_Dc4e-3svw_
-#outputDir = data/linEl/rice1993_Dc4e-3svs_
-#outputDir = data/max/rice1993_svw_
-
-#outputDir = data/linEl/rice1993_Dc4e-3svw_ct_
-#outputDir = data/linEl/rice1993_Dc1e-4svw_
-#outputDir = data/linEl/rice1993_gradsN_Dc4e-3svs_
-
-
-#outputDir = data/linEl/rice1993_
-#outputDir = data/linEl/rice1993_gradsN_
-#outputDir = data/linEl/rice1993_test_gradsN_
-#outputDir = data/max/rice1993_gradsN_
-#outputDir = data/powerLaw/rice1993_gradsN_
-
-#outputDir = data/powerLaw/pl_wetQuartz_
-#outputDir = data/powerLaw/pl_wetQuartz_Lz50_
-#outputDir = data/powerLaw/linEl_

@@ -17,7 +17,8 @@ HeatEquation::HeatEquation(Domain& D)
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   //~ _linSolver(D._linSolver),
   _linSolver("AMG"),
-  _kspP(NULL),_pcP(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_sbpType(D._sbpType),
+  _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_sbpType(D._sbpType),_computePC(0),
+  _linSolveTime(0),_linSolveCount(0),_pcRecomputeCount(0),
   _T(NULL)
 {
   #if VERBOSE > 1
@@ -76,10 +77,10 @@ HeatEquation::HeatEquation(Domain& D)
     delete _sbpT;
   }
   if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","y");
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+    _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","y");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -122,11 +123,6 @@ HeatEquation::HeatEquation(Domain& D)
   MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
   VecDestroy(&rhoCV);
 
-  //~ // compute preconditioner
-  //~ KSP ksp;
-  //~ KSPCreate(PETSC_COMM_WORLD,&ksp);
-  //~ setupKSP(_sbpT,D._minDeltaT,ksp,_pcP);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -135,7 +131,7 @@ HeatEquation::HeatEquation(Domain& D)
 HeatEquation::~HeatEquation()
 {
 
-  KSPDestroy(&_kspP);
+  KSPDestroy(&_ksp);
   MatDestroy(&_rhoC);
   MatDestroy(&_I);
 
@@ -490,6 +486,8 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setupKSP in heatequation.cpp\n");CHKERRQ(ierr);
 #endif
 
+
+
   // A = I - dt/rho*c D2
   Mat D2;
   sbp->getA(D2);
@@ -500,7 +498,27 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
   MatScale(_A,-dt);
   MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
 
-  PC pc;
+  // reuse old PC
+  if (_computePC>0) {
+    //~ ierr = KSPGetOperators(_ksp,NULL,&_pcMat); CHKERRQ(ierr);
+    KSPSetOperators(_ksp,_A,_pcMat);
+  }
+  else {
+    if (_computePC==0) { ierr = MatConvert(_A,MATSAME,MAT_INITIAL_MATRIX,&_pcMat); CHKERRQ(ierr); }
+
+    ierr = KSPCreate(PETSC_COMM_WORLD,&ksp); CHKERRQ(ierr);
+    ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,_A,_pcMat); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&_pc);CHKERRQ(ierr);
+    ierr = PCSetType(_pc,PCICC); CHKERRQ(ierr);
+  }
+  _computePC++;
+
+
+  // compute new PC
+  /*PC pc;
   KSPCreate(PETSC_COMM_WORLD,&ksp);
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
@@ -524,14 +542,13 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
     PCSetType(pc,PCCHOLESKY);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
-
   }
-
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
+  */
 
   // perform computation of preconditioners now, rather than on first use
+  double startTime = MPI_Wtime();
   ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+  _factorTime += MPI_Wtime() - startTime;
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setupKSP in heatequation.cpp\n");CHKERRQ(ierr);
@@ -630,8 +647,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   //~ VecScale(_bcL,2000.0);
 
-  KSP ksp;
-  setupKSP(_sbpT,dt,ksp);
+  //~ KSP ksp;
+  setupKSP(_sbpT,dt,_ksp);
 
   Vec rhs,temp;
   VecDuplicate(sigmaxy,&rhs);
@@ -679,12 +696,16 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   // if coordinate transform, weight this with yq*rz*H
 
   // solve for temperature
-  KSPSolve(ksp,rhs,_T);
+  double startTime = MPI_Wtime();
+  KSPSolve(_ksp,rhs,_T);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+  if (_linSolveCount==1) { _linSolveTime1 = _linSolveTime; }
 
   VecCopy(_T,T);
 
   VecDestroy(&rhs);
-  KSPDestroy(&ksp);
+  //~ KSPDestroy(&_ksp);
   MatDestroy(&_A);
 
   #if VERBOSE > 1
@@ -767,6 +788,21 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);
   #endif
+  return ierr;
+}
+
+PetscErrorCode HeatEquation::view()
+{
+  PetscErrorCode ierr = 0;
+  //~ ierr = _quadEx->view();
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Heat Equation Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system 1st time (s): %g\n",_linSolveTime1);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+
   return ierr;
 }
 

@@ -50,10 +50,15 @@ class HeatEquation
 
     // linear system data
     std::string          _linSolver;
-    KSP                  _kspP;
-    PC                   _pcP;
-    Mat                  _I,_rhoC,_A; // intermediates for Backward Euler
+    KSP                  _ksp;
+    PC                   _pc;
+    Mat                  _I,_rhoC,_A,_pcMat; // intermediates for Backward Euler
     std::string          _sbpType;
+    int                  _computePC; // # of steps since PC was last computed
+
+    // runtime data
+    double               _linSolveTime,_linSolveTime1,_factorTime;
+    PetscInt             _linSolveCount,_pcRecomputeCount;
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
@@ -86,6 +91,8 @@ class HeatEquation
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
+    // IO commands
+    PetscErrorCode view();
     PetscErrorCode writeContext(const string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount);
 };

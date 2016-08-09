@@ -40,7 +40,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
     const std::string    _problemType; // symmetric (only y>0) or full
-    const bool _isMMS; // true if running mms test
+    const bool           _isMMS; // true if running mms test
 
 
     // output data
