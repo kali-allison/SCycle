@@ -510,7 +510,7 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt,KSP& ksp
     ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,_A,_pcMat); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&_pc);CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCICC); CHKERRQ(ierr);
   }
