@@ -382,7 +382,8 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
                              const_it_vec varBegin,const_it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
-  _stepCount++;
+  //~ _stepCount++;
+  _stepCount = stepCount;
   _currTime = time;
   #if CALCULATE_ENERGY == 1
     VecCopy(_uP,_uPPrev);

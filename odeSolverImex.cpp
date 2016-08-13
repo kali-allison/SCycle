@@ -333,6 +333,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr); // write initial conditions
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;

@@ -508,6 +508,10 @@ PetscErrorCode Domain::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
   #endif
 
+  //~ PetscMPIInt localRank;
+  //~ MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+  //~ PetscPrintf(PETSC_COMM_SELF,"%i: order = %i\n",localRank,_order);
+
   assert( _order==2 || _order==4 );
   //~assert( _Ny > 3 && _Nz > 0 );
   assert( _Ly > 0 && _Lz > 0);
@@ -623,7 +627,7 @@ PetscErrorCode Domain::write()
 
 
   // fault properties
-  ierr = PetscViewerASCIIPrintf(viewer,"vp = %.15e\n",_vL);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vL = %.15e\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // material properties

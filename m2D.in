@@ -1,10 +1,10 @@
 order = 4
-Ny = 201
-Nz = 301
+Ny = 1001
+Nz = 1001
 Ly = 120 # km
 Lz = 30 # km
 
-DcVals = [16e-3 16e-3] # m
+DcVals = [4e-3 4e-3] # m
 DcDepths = [0 60] # m
 
 
@@ -42,17 +42,17 @@ bDepths = [0 4 13.5 17.5 60]
 
 
 #sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.1 588] # MPa
-#sigmaNDepths = [0 60]
+sigmaNVals = [0.1 588] # MPa
+sigmaNDepths = [0 60]
 
 # gradient sigmaN
-sigmaNVals = [0.1 50 50] # MPa
-sigmaNDepths = [0 5.12 60]
+#sigmaNVals = [0.1 50 50] # MPa
+#sigmaNDepths = [0 5.12 60]
 
 
 vL = 1e-9    # m/s
 
-inputDir = inputData/gradsN_max/
+inputDir = inputData/gradsN_linEl/
 loadICs = 0
 
 shearDistribution = constant
@@ -86,7 +86,7 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
 
-linSolver = MUMPSCHOLESKY
+linSolver = AMG
 bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
@@ -108,8 +108,8 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 1e8
-initTime = 3e10      # s 2e11
+maxStepCount = 100
+initTime = 0      # s 2e11
 maxTime = 1e13      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
@@ -123,9 +123,14 @@ rootTol = 1e-9
 #outputDir = data/max/rice1993svw_gradsN_s1e-14_
 #outputDir = data/max/rice1993svw_Dc8e-3_gradsN_s1e-14_
 
-outputDir = /scratch/kallison/l2D_rice1993svw_Dc16e-3_gradsNCap50_
+#outputDir = /scratch/kallison/l2D_rice1993svw_Dc16e-3_gradsNCap50_
 
-#outputDir = /scratch/kallison/rice1993svw_Lz30_Dc4e-3_gradsN_
+outputDir = /scratch/kallison/test_timing_
+
+#outputDir = data/test_loadICs_Dc8_
+#outputDir = data/test_loadICs_Dc4_
+
+#outputDir = /scratch/kallison/l2D_rice1993svw_Dc4e-3_gradsN_
 #outputDir = /scratch/kallison/rice1993svw_Dc4e-3_gradsN_
 #outputDir = /scratch/kallison/rice1993svw_Dc8e-3_gradsN_
 

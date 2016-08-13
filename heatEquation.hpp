@@ -70,7 +70,7 @@ class HeatEquation
 
     PetscErrorCode computeSteadyStateTemp();
     PetscErrorCode setBCsforBE();
-    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt,KSP& ksp);
+    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
 
 
   public:

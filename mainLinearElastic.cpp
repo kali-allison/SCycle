@@ -490,8 +490,8 @@ int runEqCycle(const char * inputFile)
 
   SymmLinearElastic sle(domain);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = sle.writeStep1D();CHKERRQ(ierr);
-  ierr = sle.writeStep2D();CHKERRQ(ierr);
+  //~ ierr = sle.writeStep1D();CHKERRQ(ierr);
+  //~ ierr = sle.writeStep2D();CHKERRQ(ierr);
   ierr = sle.integrate();CHKERRQ(ierr);
   ierr = sle.view();CHKERRQ(ierr);
   return ierr;
