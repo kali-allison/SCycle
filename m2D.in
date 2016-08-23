@@ -1,10 +1,10 @@
 order = 4
-Ny = 1001
-Nz = 1001
-Ly = 120 # km
+Ny = 201
+Nz = 301
+Ly = 60 # km
 Lz = 30 # km
 
-DcVals = [4e-3 4e-3] # m
+DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
 
 
@@ -20,6 +20,12 @@ stateLaw = agingLaw
 #aVals = [0.015 0.015]
 #aDepths = [0 60]
 #bVals = [0.02 0.02]
+#bDepths = [0 60]
+
+# uniformly velocity-strengthening
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.0 0.0]
 #bDepths = [0 60]
 
 
@@ -41,18 +47,18 @@ bDepths = [0 4 13.5 17.5 60]
 #bDepths = [0 10 20 50]
 
 
-#sigmaNVals = [50 50] # MPa
-sigmaNVals = [0.1 588] # MPa
+sigmaNVals = [50 50] # MPa
+#sigmaNVals = [0.1 588] # MPa
 sigmaNDepths = [0 60]
 
-# gradient sigmaN
+# capped gradient sigmaN
 #sigmaNVals = [0.1 50 50] # MPa
 #sigmaNDepths = [0 5.12 60]
 
 
 vL = 1e-9    # m/s
 
-inputDir = inputData/gradsN_linEl/
+inputDir = inputData/gradsN_max/
 loadICs = 0
 
 shearDistribution = constant
@@ -71,7 +77,7 @@ BDepths = [0 60]
 nVals = [4 4]
 nDepths = [0 60]
 TVals = [273 1173]
-TDepths = [0 60]
+TDepths = [0 30]
 thermalCoupling = no
 
 # heat equation properties
@@ -95,42 +101,44 @@ kspTol = 1e-10
 
 # Maxwell properties
 #viscDistribution = layered
-#viscVals = [1e13 1e13] # GPa s
+#viscVals = [1e12 1e12] # GPa s
 #viscDepths = [0 60]
 
 viscDistribution = effectiveVisc
-sigmadevVals = [35 35]
-sigmadevDepths = [0 60]
 strainRate = 1e-14
 
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 100
-initTime = 0      # s 2e11
-maxTime = 1e13      # s
+stride1D = 100
+stride2D = 100
+maxStepCount = 1e8
+initTime = 3e10      # s 2e11
+maxTime = 1e12      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-9
+atol = 1e-10
 
 rootTol = 1e-9
 
-#outputDir = data/max/vw2_
-#outputDir = data/max/s1e-12_
-#outputDir = data/max/rice1993svw_s1e-14_
-#outputDir = data/max/rice1993svw_gradsN_s1e-14_
-#outputDir = data/max/rice1993svw_Dc8e-3_gradsN_s1e-14_
-
-#outputDir = /scratch/kallison/l2D_rice1993svw_Dc16e-3_gradsNCap50_
-
-outputDir = /scratch/kallison/test_timing_
-
-#outputDir = data/test_loadICs_Dc8_
-#outputDir = data/test_loadICs_Dc4_
-
 #outputDir = /scratch/kallison/l2D_rice1993svw_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/l2D_rice1993svw_Dc8e-3_gradsN_
+#outputDir = /scratch/kallison/m2D_rice1993svw_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/m2D_rice1993svw_Dc8e-3_gradsN_
+#outputDir = /scratch/kallison/m2D_rice1993svw_Dc4e-3_gradsN_
+#outputDir = /data/kallison/eqcycle/data/max/m2D_rice1993svw_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/m2D_rice1993svw_Dc4e-3_gradsN_
+#outputDir = /scratch/kallison/max_rice1993svw_Dc4e-3_gradsN_
+
+#outputDir = /scratch/kallison/max_rice1993svw_Dc16e-3_gradsN_
+
+
+#outputDir = /scratch/kallison/test_v1e15_
+#outputDir = /scratch/kallison/test_s1e-12_
+#outputDir = /scratch/kallison/test1_
+outputDir = /scratch/kallison/test2_
+
+
 #outputDir = /scratch/kallison/rice1993svw_Dc4e-3_gradsN_
 #outputDir = /scratch/kallison/rice1993svw_Dc8e-3_gradsN_
 

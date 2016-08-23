@@ -481,6 +481,8 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_isMMS) {
     setMMSInitialConditions();
   }
+  VecAXPY(_bcRP,1.0,_bcRPShift);
+  /*else { d_dt_eqCycle(_initTime,_var.begin(),it_vec dvarBegin) }
   else if (D._loadICs!=1) {
     setShifts(); // set _bcRPShift
     VecAXPY(_bcRP,1.0,_bcRPShift);
@@ -493,13 +495,11 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     _sbpP->muxDy(_uP,_stressxyP);
     _fault.setTauQS(_stressxyP,NULL);
     _fault.setFaultDisp(_bcLP,NULL);
-
-
   }
   else {
     VecAXPY(_bcRP,1.0,_bcRPShift);
    _fault.computeVel();
-  }
+  }*/
   //~ else {
     //~ _fault.computeVel();
     //~ writeVec(_fault._slip,"test/slip");

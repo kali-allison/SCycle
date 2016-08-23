@@ -368,9 +368,6 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
     MatDestroy(&temp1);
     MatDestroy(&temp2);
 
-    //~ MatView(,PETSC_VIEWER_STDOUT_WORLD);
-
-
     // in computation of A
     // if bcR = displacement: _alphaD*mu*Hinvy_Iz*ENy_Iz + _beta*Hinvy_Iz*muxBSy_IzT*ENy_Iz
     ierr = MatMatMatMult(tempMats._muqy,tempMats._Hyinv_Iz,ENy_Iz,

@@ -7,7 +7,7 @@
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
-  _kspTol(1e-8),
+  _kspTol(1e-10),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
@@ -500,32 +500,48 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
   MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
 
   // reuse old PC
-  if (_computePC>0) {
-    KSPSetOperators(_ksp,_A,_pcMat);
-  }
-  else {
-    if (_computePC==0) { ierr = MatConvert(_A,MATSAME,MAT_INITIAL_MATRIX,&_pcMat); CHKERRQ(ierr); }
+  //~ if (_computePC>0) {
+    //~ KSPSetOperators(_ksp,_A,_pcMat);
+  //~ }
+  //~ else {
+    //~ if (_computePC==0) { ierr = MatConvert(_A,MATSAME,MAT_INITIAL_MATRIX,&_pcMat); CHKERRQ(ierr); }
 
-    //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
-    //~ ierr = KSPSetType(_ksp,KSPCG); CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(_ksp,_A,_pcMat); CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-    //~ ierr = PCSetType(_pc,PCICC); CHKERRQ(ierr);
+    ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+    ierr = KSPSetType(_ksp,KSPCG); CHKERRQ(ierr);
+    ierr = KSPSetOperators(_ksp,_A,_pcMat); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+    ierr = PCSetType(_pc,PCICC); CHKERRQ(ierr);
+
 
     ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
     ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
+    //~ ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
+    ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
     //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
     ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-    ierr = KSPSetTolerances(_ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(_ksp,1e-9,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
-  }
+
+
+
+
+    // use MUMPSCHOLESKY
+    //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+    //~ ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+    //~ ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
+    //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+    //~ PC pc;
+    //~ ierr = KSPGetPC(_ksp,&pc);CHKERRQ(ierr);
+    //~ PCSetType(pc,PCCHOLESKY);
+    //~ PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
+    //~ PCFactorSetUpMatSolverPackage(pc);
+  //~ }
   _computePC++;
 
 
@@ -629,7 +645,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecScale(_bcL,0.5);
   VecDestroy(&vel);
 
-  VecScale(_bcL,0.0);
+  //~ VecSet(_bcL,0.0);
 
   setupKSP(_sbpT,dt);
 
@@ -639,6 +655,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecSet(rhs,0.0);
   VecSet(temp,0.0);
   ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+
+  //~ assert(0);
   MatMult(_rhoC,temp,rhs);
   VecScale(rhs,dt);
 
@@ -654,6 +672,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
     MatMult(yq,temp,temp1);
     MatMult(zr,temp1,temp);
+    //~ VecCopy(temp1,temp);
     VecDestroy(&temp1);
   }
   VecAXPY(rhs,1.0,temp);
@@ -689,6 +708,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   VecDestroy(&rhs);
   MatDestroy(&_A);
+  KSPDestroy(&_ksp);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N wTherm/test1_
+#PBS -N test2
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/wTherm/test1.err
-#PBS -o /data/dunham/kallison/eqcycle/data/wTherm/test1.out
+#PBS -e /data/dunham/kallison/eqcycle/data/max/test2.err
+#PBS -o /data/dunham/kallison/eqcycle/data/max/test2.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -16,12 +16,14 @@ INIT_DIR=/data/dunham/kallison/eqcycle
 cd $PBS_O_WORKDIR
 
 #~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/m2D.in
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/h2D.in
-#~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/m2D.in
+#~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/h2D.in
+mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/m2D.in
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/h2D.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/m2D.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/pl.in
 
 #~ mv /scratch/kallison/l2D_wTherm_test1* /data/dunham/kallison/eqcycle/data/wTherm/
 #~ mv /scratch/kallison/l2D_rice1993svw_Dc4e-3_gradsN* /data/dunham/kallison/eqcycle/data/linEl/
-#~ mv /scratch/kallison/test1* /data/dunham/kallison/eqcycle/data/wTherm/
+#~ mv /scratch/kallison/max_rice1993svw_Dc4e-3_gradsN* /data/dunham/kallison/eqcycle/data/max/
+#~ mv /scratch/kallison/l2D_rice1993svw_Dc8e-3_gradsN* /data/dunham/kallison/eqcycle/data/linEl/
+#~ mv /scratch/kallison/l2D_AMG_T200* /data/dunham/kallison/eqcycle/data/wTherm/

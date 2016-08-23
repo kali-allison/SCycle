@@ -44,7 +44,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
 
   if (D._loadICs==1) { loadFieldsFromFiles(); }
-  _fault.computeVel();
+  //~ _fault.computeVel();
 
 // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
@@ -1099,7 +1099,7 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
                              const_it_vec varBegin,const_it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
-  _stepCount++;
+  _stepCount = stepCount;
   _currTime = time;
   #if CALCULATE_ENERGY == 1
     VecCopy(_uP,_uPPrev);
@@ -1440,14 +1440,6 @@ PetscErrorCode SymmMaxwellViscoelastic::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_nDepths);
     }
-    else if (var.compare("sigmadevVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_sigmadevVals);
-    }
-    else if (var.compare("sigmadevDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_sigmadevDepths);
-    }
     else if (var.compare("strainRate")==0) {
       _strainRate = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
@@ -1501,11 +1493,14 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       VecGetValues(_B,1,&Ii,&B);
       VecGetValues(_n,1,&Ii,&n);
       VecGetValues(_he._T,1,&Ii,&T);
-      //~ VecGetValues(sigmadev,1,&Ii,&s);
-      //~ invVisc = A*pow(s,n-1.0)*exp(-B/T) * 1e-3; // (GPa s) in terms of dev. stress
       s = pow(_strainRate/(A*exp(-B/T)),1.0/n);
       effVisc =  s/_strainRate* 1e-3; // (GPa s)  in terms of strain rate
       invVisc = 1.0/effVisc;
+
+      PetscScalar z;
+      VecGetValues(*_z,1,&Ii,&z); // !!
+      //~ if (z <= 15) { effVisc = 7.693e11; }
+      if (z <= 21) { effVisc = 1e14; }
 
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));
@@ -1575,14 +1570,14 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
 
   PetscViewer inv; // in viewer
 
-  //~ // load bcL
+  // load bcL
   //~ string vecSourceFile = _inputDir + "bcL";
   //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   //~ ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
 
-  // load bcR
+  //~ // load bcR
   //~ vecSourceFile = _inputDir + "bcR";
   //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
@@ -1630,11 +1625,9 @@ PetscErrorCode SymmMaxwellViscoelastic::checkInput()
     assert(_AVals.size() == _ADepths.size() );
     assert(_BVals.size() == _BDepths.size() );
     assert(_nVals.size() == _nDepths.size() );
-    assert(_sigmadevVals.size() == _sigmadevDepths.size() );
     assert(_AVals.size() > 0);
     assert(_BVals.size() > 0);
     assert(_nVals.size() > 0);
-    assert(_sigmadevVals.size() > 0);
   }
 
   assert(_viscVals.size() == _viscDepths.size() );
