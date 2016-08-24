@@ -36,7 +36,7 @@ BVals = [1.44e4 1.44e4]
 BDepths = [0 24]
 nVals = [2.7 2.7]
 nDepths = [0 24]
-TVals = [273 1643] # [273 1643] or [500 500]
+TVals = [273 1643]
 TDepths = [0 24]
 thermalCoupling = no
 
@@ -60,12 +60,13 @@ timeControlType = P
 stride1D = 100 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime = 0       # s
-maxTime = 100      # s
+initTime =   50    # s 3000000
+maxTime =  3000100      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-10
+atol = 1e-9
 
 rootTol = 1e-8
 
-outputDir = data/mms_
+#outputDir = data/mms_
+outputDir = data/test_mms_

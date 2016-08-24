@@ -381,8 +381,8 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~ if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
-  //~ else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
+  else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
 
   // update fields on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
@@ -950,43 +950,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   VecCopy(_gxyP,*(_var.begin()+2));
   VecCopy(_gxzP,*(_var.begin()+3));
 
-  // create rhs: set boundary conditions, set rhs, add source terms
-  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-
-  Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
-  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&viscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxviscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
-
-  ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
-  if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,time); }
-  else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,time); }
-  //~ mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
-  VecDestroy(&viscSourceMMS);
-  if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,time); }
-  else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
-  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
-  ierr = _sbpP->H(uSource,HxuSource);
-  VecDestroy(&uSource);
-
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
-  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
-  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
-  VecDestroy(&HxviscSourceMMS);
-  VecDestroy(&HxuSource);
-  VecDestroy(&viscSource);
-
-
-  // solve for displacement
-  double startTime = MPI_Wtime();
-  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
-  ierr = setSurfDisp();
+  if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
+  else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
 
   // set stresses
   ierr = setStresses(time,_var.begin());CHKERRQ(ierr);
@@ -1508,10 +1473,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       effVisc =  s/_strainRate* 1e-3; // (GPa s)  in terms of strain rate
       invVisc = 1.0/effVisc;
 
-      PetscScalar z;
-      VecGetValues(*_z,1,&Ii,&z); // !!
+      //~ PetscScalar z;
+      //~ VecGetValues(*_z,1,&Ii,&z); // !!
       //~ if (z <= 15) { effVisc = 7.693e11; }
-      if (z <= 25) { effVisc = 1e14; }
+      //~ if (z <= 25) { effVisc = 1e14; }
 
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));

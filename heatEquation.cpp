@@ -34,12 +34,12 @@ HeatEquation::HeatEquation(Domain& D)
   VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
   VecSetFromOptions(_bcT);     PetscObjectSetName((PetscObject) _bcT, "_bcT");
   //~ VecSet(_bcT,273.0);
-  VecSet(_bcT,_TVals[0]);
+  PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
+  VecSet(_bcT,bcTval);
 
   VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
-  VecSet(_bcB,_TVals.back());
-  //~ VecSet(_bcT,273.0);
-
+  PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz-_TDepths[0]) + _TVals[0];
+  VecSet(_bcB,bcBval);
 
   VecCreate(PETSC_COMM_WORLD,&_bcR);
   VecSetSizes(_bcR,PETSC_DECIDE,_Nz);
@@ -404,6 +404,7 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_hVals.size() == _hDepths.size() );
   assert(_cVals.size() == _cDepths.size() );
   assert(_TVals.size() == _TDepths.size() );
+  assert(_TVals.size() == 2 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
