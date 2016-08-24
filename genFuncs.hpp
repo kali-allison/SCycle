@@ -71,6 +71,7 @@ double MMS_f_yy(const double y,const double z);
 double MMS_f_z(const double y,const double z);
 double MMS_f_zz(const double y,const double z);
 
+double MMS_g(const double t);
 double MMS_uA(const double y,const double z,const double t);
 double MMS_uA_y(const double y,const double z,const double t);
 double MMS_uA_yy(const double y,const double z,const double t);

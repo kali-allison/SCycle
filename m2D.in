@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 301
+Ny = 251
+Nz = 401
 Ly = 60 # km
 Lz = 30 # km
 
@@ -136,7 +136,8 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/test_v1e15_
 #outputDir = /scratch/kallison/test_s1e-12_
 #outputDir = /scratch/kallison/test1_
-outputDir = /scratch/kallison/test2_
+#outputDir = /scratch/kallison/test2_
+outputDir = /scratch/kallison/test3_
 
 
 #outputDir = /scratch/kallison/rice1993svw_Dc4e-3_gradsN_

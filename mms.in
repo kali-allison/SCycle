@@ -51,20 +51,20 @@ cDepths = [0 24]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
 
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
 sbpType = mfc
 kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1 # how many steps between writing out 1D fields
-stride2D = 1 # how many steps between writing out 2D fields
+stride1D = 100 # how many steps between writing out 1D fields
+stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 1      # s
+maxTime = 5e7      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s
-atol = 1e-10
+atol = 1e-8
 
 rootTol = 1e-9
 

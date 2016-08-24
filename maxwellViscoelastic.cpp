@@ -370,6 +370,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
   ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
   ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
+  VecDestroy(&viscSource);
   VecDestroy(&HxviscSourceMMS);
   VecDestroy(&HxuSource);
 
@@ -1500,7 +1501,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       PetscScalar z;
       VecGetValues(*_z,1,&Ii,&z); // !!
       //~ if (z <= 15) { effVisc = 7.693e11; }
-      if (z <= 21) { effVisc = 1e14; }
+      if (z <= 25) { effVisc = 1e14; }
 
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));
