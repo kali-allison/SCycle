@@ -175,8 +175,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 
     // control which fields are used to select step size
     if (_isMMS) {
-      int arrInds[] = {2,3}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {2}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
@@ -391,7 +391,17 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // d/dt slip
 
-  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // sets viscous strain rates
+  // update rates
+  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
+  Vec source;
+  VecDuplicate(_uP,&source);
+  if (_Nz == 1) { mapToVec(source,MMS_pl_gxy_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,MMS_max_gxy_t_source,*_y,*_z,_currTime); }
+  VecAXPY(*(dvarBegin+2),1.0,source);
+  if (_Nz == 1) { mapToVec(source,MMS_pl_gxz_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,MMS_max_gxz_t_source,*_y,*_z,_currTime); }
+  VecAXPY(*(dvarBegin+3),1.0,source);
+  VecDestroy(&source);
 
   //~ if (_Nz == 1) { mapToVec(*(dvarBegin+2),MMS_gxy_t1D,*_y,time); }
   //~ else { mapToVec(*(dvarBegin+2),MMS_gxy_t,*_y,*_z,time); }

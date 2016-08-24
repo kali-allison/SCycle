@@ -353,14 +353,14 @@ double MMS_f_z(const double y,const double z) { return cos(y)*cos(z); }
 double MMS_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
 
-double MMS_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(t/3e9); }
+double MMS_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
 double MMS_uA(const double y,const double z,const double t) { return MMS_f(y,z)*MMS_g(t); }
 double MMS_uA_y(const double y,const double z,const double t) { return MMS_f_y(y,z)*MMS_g(t); }
 double MMS_uA_yy(const double y,const double z,const double t) { return MMS_f_yy(y,z)*MMS_g(t); }
 double MMS_uA_z(const double y,const double z,const double t) { return MMS_f_z(y,z)*MMS_g(t); }
 double MMS_uA_zz(const double y,const double z,const double t) { return MMS_f_zz(y,z)*MMS_g(t); }
 double MMS_uA_t(const double y,const double z,const double t) {
-  return -MMS_f(y,z)*((-1.0/60)*exp(-t/60.0) + (-1.0/3e7)*exp(-t/3e7) + (-1.0/3e9)*exp(t/3e9));
+  return MMS_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
 }
 
 double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
@@ -394,17 +394,15 @@ double MMS_gxy_y(const double y,const double z,const double t)
   double Ay = MMS_mu_y(y,z)*MMS_invVisc(y,z) + MMS_mu(y,z)*MMS_invVisc_y(y,z);
   double fy = MMS_f_y(y,z);
   double fyy = MMS_f_yy(y,z);
-  //~ double den = A-1.0, B = exp(-t)-exp(-A*t);
-  //~ return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
 
   double T1 = 60, T2 = 3e7, T3 = 3e9;
   double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
   double out1 = -pow(T1,2.0)*A*Ay*fy/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fy*Ay/d1 *(exp(-t/T1)-exp(-A*t))
-       + T1*A*Ay*fy/d1*t*exp(-A*t) + T1*A*fyy/d1*(exp(-t/T1)-exp(-A*t));
+      +T1*A*Ay*fy*exp(-A*t)*t/d1 + T1*A*fyy/d1*(exp(-t/T1)-exp(-A*t));
   double out2 = pow(T2,2.0)*A*Ay*fy/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fy*Ay/d2 *(exp(-t/T2)-exp(-A*t))
-       - T2*A*Ay*fy/d2*t*exp(-A*t) - T2*A*fyy/d2*(exp(-t/T2)-exp(-A*t));
-  double out3 = -pow(T3,2.0)*A*Ay*fy/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t)) + T3*fy*Ay/d3 *(exp(-t/T3)-exp(-A*t))
-       + T3*A*Ay*fy/d3*t*exp(-A*t) + T3*A*fyy/d3*(exp(-t/T3)-exp(-A*t));
+       -T2*A*Ay*fy*exp(-A*t)*t/d2 - T2*A*fyy/d2*(exp(-t/T2)-exp(-A*t));
+  double out3 = -pow(T3,2.0)*A*Ay*fy/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fy*Ay/d3 *(exp(-t/T3)-exp(-A*t))
+       +T3*A*Ay*fy*exp(-A*t)*t/d3 + T3*A*fyy/d3*(exp(-t/T3)-exp(-A*t));
   return out1 + out2 + out3;
 
 }
@@ -412,7 +410,6 @@ double MMS_gxy_t(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fy = MMS_f_y(y,z);
-  //~ return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
   double T1 = 60, T2 = 3e7, T3 = 3e9;
   return T1*A*fy/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
        - T2*A*fy/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
@@ -423,7 +420,6 @@ double MMS_gxz(const double y,const double z,const double t)
 {
   double A = MMS_mu(y,z)*MMS_invVisc(y,z);
   double fz = MMS_f_z(y,z);
-  //~ return A*fz/(A-1.0)*(exp(-t) - exp(-A*t));
   double T1 = 60, T2 = 3e7, T3 = 3e9;
   return T1*A*fz/(T1*A-1)*(exp(-t/T1)-exp(-A*t))
        - T2*A*fz/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
@@ -440,12 +436,12 @@ double MMS_gxz_z(const double y,const double z,const double t)
 
   double T1 = 60, T2 = 3e7, T3 = 3e9;
   double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
-  double out1 = -pow(T1,2.0)*A*Az*fz/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t)) + T1*fz*Az/d1 *(exp(-t/T1)-exp(-A*t))
-       + T1*A*Az*fz/d1*t*exp(-A*t) + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
+  double out1 = -pow(T1,2.0)*A*Az*fz/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fz*Az/d1 *(exp(-t/T1)-exp(-A*t))
+       +T1*A*Az*fz*exp(-A*t)*t/d1 + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
   double out2 = pow(T2,2.0)*A*Az*fz/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fz*Az/d2 *(exp(-t/T2)-exp(-A*t))
-       - T2*A*Az*fz/d2*t*exp(-A*t) - T2*A*fzz/d2*(exp(t/T2)-exp(-A*t));
-  double out3 = -pow(T3,2.0)*A*Az*fz/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t)) + T3*fz*Az/d3 *(exp(-t/T3)-exp(-A*t))
-       + T3*A*Az*fz/d3*t*exp(-A*t) + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
+       -T2*A*Az*fz*exp(-A*t)*t/d2 - T2*A*fzz/d2*(exp(t/T2)-exp(-A*t));
+  double out3 = -pow(T3,2.0)*A*Az*fz/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fz*Az/d3 *(exp(-t/T3)-exp(-A*t))
+       +T3*A*Az*fz*exp(-A*t)*t/d3 + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
   return out1 + out2 + out3;
 }
 double MMS_gxz_t(const double y,const double z,const double t)
@@ -457,6 +453,24 @@ double MMS_gxz_t(const double y,const double z,const double t)
   return T1*A*fz/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
        - T2*A*fz/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
        + T3*A*fz/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
+}
+
+// source terms for viscous strain rates
+double MMS_max_gxy_t_source(const double y,const double z,const double t)
+{
+  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
+  double uy = MMS_uA_y(y,z,t);
+  double g = MMS_gxy(y,z,t);
+
+  return MMS_gxy_t(y,z,t) - A*(uy - g);
+}
+double MMS_max_gxz_t_source(const double y,const double z,const double t)
+{
+  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
+  double uz = MMS_uA_z(y,z,t);
+  double g = MMS_gxz(y,z,t);
+
+  return MMS_gxz_t(y,z,t) - A*(uz - g);
 }
 
 double MMS_gSource(const double y,const double z,const double t)

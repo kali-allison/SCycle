@@ -99,7 +99,10 @@ double MMS_gxy_t(const double y,const double z,const double t);
 double MMS_gxz(const double y,const double z,const double t);
 double MMS_gxz_z(const double y,const double z,const double t);
 double MMS_gxz_t(const double y,const double z,const double t);
+double MMS_max_gxy_t_source(const double y,const double z,const double t);
+double MMS_max_gxz_t_source(const double y,const double z,const double t);
 double MMS_gSource(const double y,const double z,const double t);
+
 
 // specific to power law
 double MMS_A(const double y,const double z);

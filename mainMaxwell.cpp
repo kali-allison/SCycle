@@ -61,8 +61,8 @@ int runMMSTests(const char * inputFile)
     SymmMaxwellViscoelastic *obj;
     obj = new SymmMaxwellViscoelastic(domain);
 
-    ierr = obj->writeStep1D();CHKERRQ(ierr);
-    ierr = obj->writeStep2D();CHKERRQ(ierr);
+    //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
+    //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
     ierr = obj->integrate();CHKERRQ(ierr);
     ierr = obj->measureMMSError();CHKERRQ(ierr);
   }

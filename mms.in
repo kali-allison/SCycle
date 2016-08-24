@@ -61,11 +61,11 @@ stride1D = 100 # how many steps between writing out 1D fields
 stride2D = 100 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime = 0       # s
-maxTime = 5e7      # s
+maxTime = 100      # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s
-atol = 1e-8
+maxDeltaT = 1e9      # s
+atol = 1e-10
 
-rootTol = 1e-9
+rootTol = 1e-8
 
 outputDir = data/mms_
