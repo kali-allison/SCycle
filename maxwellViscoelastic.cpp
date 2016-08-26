@@ -79,20 +79,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecCopy(_uP,_uPPrev);
   #endif
 
-    //~ writeVec(_bcRP,"test/bcR");
-    //~ writeVec(_fault._tauQSP,"test/tauQS");
-    //~ writeVec(_fault._slipVel,"test/slipVel");
-    //~ writeVec(_uP,"test/u");
-    //~ writeVec(_stressxyP,"test/stressxyP");
-    //~ writeVec(_stressxzP,"test/stressxzP");
-    //~ writeVec(_gxyP,"test/gxy");
-    //~ writeVec(_gxzP,"test/gxz");
-
-    //~ writeVec(*(_var.begin()+0),"test/state");
-    //~ writeVec(*(_var.begin()+1),"test/slip");
-    //~ writeVec(*(_var.begin()+2),"test/gxy");
-    //~ writeVec(*(_var.begin()+3),"test/gxz");
-    //~ assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -251,32 +237,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
 
+
+
   // update boundaries
   ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
   ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
-
-  //~ writeVec(*(_var.begin()+0),"test/state");
-  //~ writeVec(*(_var.begin()+1),"test/slip");
-  //~ writeVec(_gxyP,"test/gxy");
-  //~ writeVec(_gxzP,"test/gxz");
-  //~ writeVec(_bcLP,"test/bcL");
-  //~ writeVec(_bcRP,"test/bcR");
-  //~ PetscPrintf(PETSC_COMM_WORLD,"time = %.9e\n",time);
-  //~ assert(0);
-
-  //~ #if LOCK_FAULT == 1
-    //~ PetscInt Ii,Istart,Iend;
-    //~ VecGetOwnershipRange(_bcLP,&Istart,&Iend);
-    //~ for (Ii=Istart;Ii<Iend;Ii++) {
-      //~ PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
-      //~ PetscScalar v = 3e-4 * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
-      //~ VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
-    //~ }
-    //~ VecAssemblyBegin(_bcLP);
-    //~ VecAssemblyEnd(_bcLP);
-  //~ #endif
 
   // add source terms to rhs: d/dy(mu * gxy) + d/dz(mu * gxz)
   Vec viscSource;
@@ -344,6 +311,14 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
 
+  // force viscous strains to be correct
+  //~ if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
+  //~ else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
+  //~ if (_Nz == 1) { VecSet(_gxzP,0.0); }
+  //~ else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
+
+
+
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
@@ -358,14 +333,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,time); }
   else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,time); }
-  //~ mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
   if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,time); }
   else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
-  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
+
 
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
   ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
@@ -381,8 +355,9 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
-  else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
+  // force displacement to be correct
+  //~ if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
+  //~ else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
 
   // update fields on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
@@ -403,6 +378,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_mms(const PetscScalar time,const_it
   VecAXPY(*(dvarBegin+3),1.0,source);
   VecDestroy(&source);
 
+  // force viscous strain rates to be correct
   //~ if (_Nz == 1) { mapToVec(*(dvarBegin+2),MMS_gxy_t1D,*_y,time); }
   //~ else { mapToVec(*(dvarBegin+2),MMS_gxy_t,*_y,*_z,time); }
   //~ if (_Nz == 1) { VecSet(*(dvarBegin+3),0.0);}
@@ -793,7 +769,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDestroy(&bcB);
   }
 
-
   ierr = _sbpP->H(source,out); CHKERRQ(ierr);
   VecDestroy(&source);
 
@@ -942,6 +917,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
 
   if (_Nz == 1) { mapToVec(_visc,MMS_visc1D,*_y); }
   else { mapToVec(_visc,MMS_visc,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_muVecP,MMS_mu1D,*_y); }
+  else { mapToVec(_muVecP,MMS_mu,*_y,*_z); }
   if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
   else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
   if (_Nz == 1) { VecSet(_gxzP,0.0); }
@@ -1007,6 +984,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
   ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
+
   // set up boundary conditions: T and B
   ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
@@ -1015,12 +993,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
     z = 0;
     if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
     else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
-    //~ else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
     if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
+    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
     //~ else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -1028,6 +1006,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
   ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1055,6 +1034,7 @@ PetscErrorCode SymmMaxwellViscoelastic::measureMMSError()
   else { mapToVec(gxyA,MMS_gxy,*_y,*_z,_currTime); }
   if (_Nz == 1) { VecSet(gxzA,0.0); }
   else { mapToVec(gxzA,MMS_gxz,*_y,*_z,_currTime); }
+  writeVec(uA,"data/test_mms_uA");
 
 
   double err2u = computeNormDiff_2(_uP,uA);

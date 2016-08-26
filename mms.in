@@ -2,7 +2,7 @@ order = 4
 Ny = 161
 Nz = 1
 Ly = 6.283185307179586
-Lz = 6.283185307179586
+Lz = 1
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
@@ -57,11 +57,11 @@ kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100 # how many steps between writing out 1D fields
-stride2D = 100 # how many steps between writing out 2D fields
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime =   50    # s 3000000
-maxTime =  3000100      # s
+initTime =   1000000000    # s 3000000
+maxTime =  1000000100      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-9

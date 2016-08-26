@@ -437,12 +437,15 @@ double MMS_gxz_z(const double y,const double z,const double t)
   double T1 = 60, T2 = 3e7, T3 = 3e9;
   double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
   double out1 = -pow(T1,2.0)*A*Az*fz/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fz*Az/d1 *(exp(-t/T1)-exp(-A*t))
-       +T1*A*Az*fz*exp(-A*t)*t/d1 + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
+      +T1*A*Az*fz*exp(-A*t)*t/d1 + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
   double out2 = pow(T2,2.0)*A*Az*fz/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fz*Az/d2 *(exp(-t/T2)-exp(-A*t))
-       -T2*A*Az*fz*exp(-A*t)*t/d2 - T2*A*fzz/d2*(exp(t/T2)-exp(-A*t));
+       -T2*A*Az*fz*exp(-A*t)*t/d2 - T2*A*fzz/d2*(exp(-t/T2)-exp(-A*t));
   double out3 = -pow(T3,2.0)*A*Az*fz/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fz*Az/d3 *(exp(-t/T3)-exp(-A*t))
        +T3*A*Az*fz*exp(-A*t)*t/d3 + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
   return out1 + out2 + out3;
+
+
+
 }
 double MMS_gxz_t(const double y,const double z,const double t)
 {

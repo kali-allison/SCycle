@@ -2,7 +2,7 @@ order = 4
 Ny = 201
 Nz = 301
 Ly = 60 # km
-Lz = 60 # km
+Lz = 30 # km
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
@@ -101,10 +101,10 @@ kspTol = 1e-10
 
 # Maxwell properties
 viscDistribution = layered
-#viscVals = [1e12 1e12 1e15 1e15 1e12 1e12] # GPa s
-#viscDepths = [0 5 5 25 25 60]
-viscVals = [1e14 1e14] # GPa s
-viscDepths = [0 60]
+viscVals = [1e15 1e15 1e14 1e14 1e15 1e15] # GPa s
+viscDepths = [0 5 5 25 25 30]
+#viscVals = [1e14 1e14] # GPa s
+#viscDepths = [0 60]
 
 #viscDistribution = effectiveVisc
 #strainRate = 1e-14
@@ -113,13 +113,13 @@ viscDepths = [0 60]
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride2D = 100
+maxStepCount = 1e8
 initTime = 3e10      # s 2e11
 maxTime = 1e12      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-10
+atol = 1e-9
 
 rootTol = 1e-9
 
@@ -135,14 +135,9 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/max_rice1993svw_Dc16e-3_gradsN_
 
 
-#outputDir = /scratch/kallison/test_v1e15_
-#outputDir = /scratch/kallison/test_s1e-12_
-#outputDir = /scratch/kallison/test1_
-#outputDir = /scratch/kallison/test2_
-#outputDir = /scratch/kallison/test3_
-#outputDir = /scratch/kallison/test4_
-#outputDir = /scratch/kallison/v1e14_
-outputDir = /scratch/kallison/test_heat_
+#outputDir = /scratch/kallison/test_linEl_
+#outputDir = /scratch/kallison/test_max2_
+outputDir = /scratch/kallison/test_MMS_
 
 
 #outputDir = /scratch/kallison/rice1993svw_Dc4e-3_gradsN_
