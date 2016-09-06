@@ -1456,7 +1456,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       //~ PetscScalar z;
       //~ VecGetValues(*_z,1,&Ii,&z); // !!
       //~ if (z <= 15) { effVisc = 7.693e11; }
-      //~ if (z <= 25) { effVisc = 1e14; }
+      //~ if (z <= 20) { effVisc = 1e25; }
 
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));
@@ -1509,7 +1509,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
 return ierr;
 }
 
- //parse input file and load values into data members
+//parse input file and load values into data members
 PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
@@ -1541,6 +1541,7 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
   //~ ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
 
 
+
   // load gxy
   string vecSourceFile = _inputDir + "Gxy";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -1556,6 +1557,13 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_gxzP,inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerDestroy(&inv);
+
+  //~ // load viscosity
+  //~ vecSourceFile = _inputDir + "Visc";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_visc,inv);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);

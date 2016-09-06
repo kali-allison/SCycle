@@ -57,16 +57,15 @@ kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1 # how many steps between writing out 1D fields
-stride2D = 1 # how many steps between writing out 2D fields
+stride1D = 10000 # how many steps between writing out 1D fields
+stride2D = 10000 # how many steps between writing out 2D fields
 maxStepCount = 1e8
-initTime =   1000000000    # s 3000000
-maxTime =  1000000100      # s
+initTime =   0    # s 3000000
+maxTime =  1e9      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-9
+atol = 1e-8
 
 rootTol = 1e-8
 
-#outputDir = data/mms_
-outputDir = data/test_mms_
+outputDir = data/mms_

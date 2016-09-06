@@ -52,6 +52,8 @@ PowerLaw::PowerLaw(Domain& D)
   VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
+  if (D._loadICs==1) { loadFieldsFromFiles(); }
+
 
   //~ // remove temperature from integration variable
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
@@ -1038,6 +1040,21 @@ PetscErrorCode PowerLaw::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"effVisc").c_str(),
                                    FILE_MODE_APPEND,&_effViscV);CHKERRQ(ierr);
 
+    // write out boundary conditions for testing purposes
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
+              FILE_MODE_WRITE,&_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcRPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
+                                   FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
+
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+              FILE_MODE_WRITE,&_bcLPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_bcLPlusV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+                                   FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
+
     //~if (_isMMS) {
       //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                 //~FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -1073,6 +1090,9 @@ PetscErrorCode PowerLaw::writeStep2D()
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
     _he.writeStep2D(_stepCount);
+
+    ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
+    ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
@@ -1210,7 +1230,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  // load A
+  /*// load A
   ierr = VecCreate(PETSC_COMM_WORLD,&_A);CHKERRQ(ierr);
   ierr = VecSetSizes(_A,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_A);
@@ -1238,6 +1258,23 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = VecSetFromOptions(_T);
   PetscObjectSetName((PetscObject) _T, "_T");
   ierr = loadVecFromInputFile(_T,_inputDir,_TFile);CHKERRQ(ierr);
+  */
+
+  // load gxy
+  PetscViewer inv; // in viewer
+  string vecSourceFile = _inputDir + "Gxy";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_gxyP,inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&inv);
+
+  // load gxz
+  vecSourceFile = _inputDir + "Gxz";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_gxzP,inv);CHKERRQ(ierr);
 
 
 
