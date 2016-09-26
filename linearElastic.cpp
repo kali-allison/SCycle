@@ -99,7 +99,8 @@ LinearElastic::LinearElastic(Domain&D)
     _sbpP = new SbpOps_c(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   }
   else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+    //~ _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz"); // for main simulations
+    _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Neumann","yz"); // to spin up viscoelastic
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
     _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
@@ -418,7 +419,9 @@ PetscErrorCode LinearElastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
   //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  _he.view();
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    _he.view();
+  }
   return ierr;
 }
 

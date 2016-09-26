@@ -79,6 +79,18 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecCopy(_uP,_uPPrev);
   #endif
 
+  // set bcL
+  //~ PetscScalar v;
+  //~ PetscInt Istart,Iend;
+  //~ VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+  //~ for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    //~ VecGetValues(_bcLP,1,&Ii,&v);
+    //~ v = _fault.getTauInf(Ii);
+
+    //~ VecSetValue(_bcLP,Ii,v,INSERT_VALUES);
+  //~ }
+  //~ VecAssemblyBegin(_bcLP);
+  //~ VecAssemblyEnd(_bcLP);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -240,10 +252,12 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
 
   // update boundaries
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+  //~ ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+
+  // if bcL = shear stress: do nothing
 
   // add source terms to rhs: d/dy(mu * gxy) + d/dz(mu * gxz)
   Vec viscSource;
@@ -1527,23 +1541,24 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
   PetscViewer inv; // in viewer
 
   // load bcL
-  //~ string vecSourceFile = _inputDir + "bcL";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
+  string vecSourceFile = _inputDir + "bcL";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
 
   //~ // load bcR
-  //~ vecSourceFile = _inputDir + "bcR";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
+  vecSourceFile = _inputDir + "bcR";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
 
 
 
   // load gxy
-  string vecSourceFile = _inputDir + "Gxy";
+  //~ string vecSourceFile = _inputDir + "Gxy";
+  vecSourceFile = _inputDir + "Gxy";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);

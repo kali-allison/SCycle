@@ -215,19 +215,21 @@ PetscScalar Fault::getTauInf(PetscInt& ind)
 #endif
 
   PetscInt       Istart,Iend;
-  PetscScalar    a,sigma_N;
+  PetscScalar    a,b,sigma_N;
 
   // throw error if value requested is not stored locally
   ierr = VecGetOwnershipRange(_tauQSP,&Istart,&Iend);CHKERRQ(ierr);
   assert(ind>=Istart && ind<Iend);
 
   ierr =  VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+  ierr =  VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr =  VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauInf in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
 #endif
   return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
+  //~ return sigma_N* (_f0 + (b-a) * log(_vL/_v0) );
   //~ return sigma_N;
 }
 
