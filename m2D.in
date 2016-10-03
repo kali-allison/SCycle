@@ -60,6 +60,7 @@ vL = 1e-9    # m/s
 
 inputDir = inputData/max_s1e-14_spinup/
 loadICs = 1
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -110,12 +111,13 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 2e5
+stride1D = 50
+stride2D = 50
+maxStepCount = 1e8
 initTime = 0      # s
-maxTime = 1e14      # s
-minDeltaT = 1e-3     # s
+maxTime = 2e14      # s
+##minDeltaT = 1e-3     # s
+minDeltaT = 1e6     # s
 maxDeltaT = 1e9      # s
 atol = 1e-10
 

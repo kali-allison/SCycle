@@ -10,6 +10,7 @@ LinearElastic::LinearElastic(Domain&D)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
   _problemType(D._problemType),
   _isMMS(!D._shearDistribution.compare("mms")),
+  _bcLTauQS(0),
   _outputDir(D._outputDir),
   _v0(D._v0),_vL(D._vL),
   _muVecP(D._muVecP),
@@ -95,15 +96,20 @@ LinearElastic::LinearElastic(Domain&D)
   }
 
   // set up SBP operators
+  //~ string bcT,string bcR,string bcB, string bcL
+  std::string bcTType = "Neumann";
+  std::string bcBType = "Neumann";
+  std::string bcRType = "Dirichlet";
+  std::string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann";}
+
   if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (D._sbpType.compare("mfc")==0) {
-    //~ _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz"); // for main simulations
-    _sbpP = new SbpOps_fc(D,D._muVecP,"Neumann","Dirichlet","Neumann","Neumann","yz"); // to spin up viscoelastic
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -193,6 +199,9 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
 
     if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("bcLTauQS")==0) {
+      _bcLTauQS = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
   }
@@ -485,37 +494,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     setMMSInitialConditions();
   }
   VecAXPY(_bcRP,1.0,_bcRPShift);
-  /*else { d_dt_eqCycle(_initTime,_var.begin(),it_vec dvarBegin) }
-  else if (D._loadICs!=1) {
-    setShifts(); // set _bcRPShift
-    VecAXPY(_bcRP,1.0,_bcRPShift);
-
-    _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
-    double startTime = MPI_Wtime();
-    KSPSolve(_kspP,_rhsP,_uP);
-    _factorTime += MPI_Wtime() - startTime;
-
-    _sbpP->muxDy(_uP,_stressxyP);
-    _fault.setTauQS(_stressxyP,NULL);
-    _fault.setFaultDisp(_bcLP,NULL);
-  }
-  else {
-    VecAXPY(_bcRP,1.0,_bcRPShift);
-   _fault.computeVel();
-  }*/
-  //~ else {
-    //~ _fault.computeVel();
-    //~ writeVec(_fault._slip,"test/slip");
-    //~ writeVec(_fault._state,"test/state");
-    //~ writeVec(_fault._tauQSP,"test/tauQS");
-    //~ writeVec(_fault._slipVel,"test/slipVel");
-    //~ writeVec(_uP,"test/u");
-    //~ writeVec(_stressxyP,"test/stressxyP");
-    //~ writeVec(_stressxzP,"test/stressxzP");
-    //~ writeVec(_gxyP,"test/gxy");
-    //~ writeVec(_gxzP,"test/gxz");
-    //~ assert(0);
-  //~ }
 
   setSurfDisp();
 
@@ -835,8 +813,10 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
 
   // update boundaries
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
+  if (_bcLTauQS==0) {
+    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+    ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
+  } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
@@ -853,7 +833,14 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
   // update fields on fault
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-  ierr = _fault.d_dt(varBegin,dvarBegin);
+
+  if (_bcLTauQS==0) {
+    ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+  }
+  else {
+    VecSet(*dvarBegin,0.0); // dstate
+    VecSet(*(dvarBegin+1),0.0); // slip vel
+  }
 
   #if CALCULATE_ENERGY == 1
     computeEnergyRate(time,varBegin,dvarBegin);

@@ -392,34 +392,35 @@ PetscReal RK32::computeError()
   PetscReal      err,totErr=0.0;
 
 
-  //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    //~ PetscInt ind = _errInds[i];
-
-    //~ // error based on weighted 2 norm
-    //~ Vec errVec;
-    //~ PetscInt       size;
-    //~ VecDuplicate(_var2nd[ind],&errVec);
-    //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-    //~ VecDot(errVec,errVec,&err);
-    //~ VecGetSize(errVec,&size);
-    //~ totErr += sqrt(err/size);
-    //~ VecDestroy(&errVec);
-  //~ }
-
-  // relative error with scale
+  // absolute error scaled by length of vector
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     PetscInt ind = _errInds[i];
 
     // error based on weighted 2 norm
     Vec errVec;
-    PetscScalar    size;
+    PetscInt       size;
     VecDuplicate(_var2nd[ind],&errVec);
     ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-    VecNorm(errVec,NORM_2,&err);
-    VecNorm(_var3rd[ind],NORM_2,&size);
-    totErr += err/(size+1.0);
+    VecDot(errVec,errVec,&err);
+    VecGetSize(errVec,&size);
+    totErr += sqrt(err/size);
     VecDestroy(&errVec);
   }
+
+  //~ // relative error
+  //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    //~ PetscInt ind = _errInds[i];
+
+    //~ // error based on weighted 2 norm
+    //~ Vec errVec;
+    //~ PetscScalar    size;
+    //~ VecDuplicate(_var2nd[ind],&errVec);
+    //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+    //~ VecNorm(errVec,NORM_2,&err);
+    //~ VecNorm(_var3rd[ind],NORM_2,&size);
+    //~ totErr += err/(size+1.0);
+    //~ VecDestroy(&errVec);
+  //~ }
 
 
 #if VERBOSE > 1

@@ -41,6 +41,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     const Vec            *_y,*_z; // to handle variable grid spacing
     const std::string    _problemType; // symmetric (only y>0) or full
     const bool           _isMMS; // true if running mms test
+    bool           _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
+
 
 
     // output data

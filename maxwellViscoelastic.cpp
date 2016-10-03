@@ -92,6 +92,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   //~ VecAssemblyBegin(_bcLP);
   //~ VecAssemblyEnd(_bcLP);
 
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
   #endif
@@ -164,7 +165,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
-  else {
+  else { // fully explicit time integration
     // call odeSolver routine integrate here
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
@@ -178,7 +179,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-        int arrInds[] = {1}; // state: 0, slip: 1
+        int arrInds[] = {2}; // state: 0, slip: 1
         std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
@@ -252,12 +253,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
 
   // update boundaries
-  //~ ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  //~ ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
+  if (_bcLTauQS==0) {
+    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+    ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
+  } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
-  // if bcL = shear stress: do nothing
 
   // add source terms to rhs: d/dy(mu * gxy) + d/dz(mu * gxz)
   Vec viscSource;
@@ -277,18 +279,19 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~ writeVec(_uP,"test/u");
-
   // set shear traction on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
 
-  //~ writeVec(_stressxyP,"test/sxy");
-  //~ writeVec(_stressxzP,"test/sxz");
-  //~ assert(0);
 
   // set rates
-  ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+  if (_bcLTauQS==0) {
+    ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+  }
+  else {
+    VecSet(*dvarBegin,0.0); // dstate
+    VecSet(*(dvarBegin+1),0.0); // slip vel
+  }
   ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
   // lock the fault to test viscous strain alone
@@ -716,6 +719,19 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   VecDuplicate(_uP,&sourcexy_y);
   VecSet(sourcexy_y,0.0);
   ierr = _sbpP->Dyxmu(_gxyP,sourcexy_y);CHKERRQ(ierr);
+
+  // if bcL is shear stress, then also add Hy^-1 E0y mu gxy
+  if (_bcLTauQS==1) {
+    Vec temp1,bcL;
+    VecDuplicate(_gxyP,&temp1); VecSet(temp1,0.0);
+    VecDuplicate(_gxyP,&bcL);
+    _sbpP->HyinvxE0y(_gxyP,temp1);
+    ierr = VecPointwiseMult(bcL,_muVecP,temp1); CHKERRQ(ierr);
+    VecDestroy(&temp1);
+    ierr = VecAXPY(sourcexy_y,1.0,bcL);CHKERRQ(ierr);
+  }
+
+  // apply effects of coordinate transform
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
     Vec temp1,temp2;
@@ -728,8 +744,11 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDestroy(&temp1);
     VecDestroy(&temp2);
   }
+
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
+
+
 
   if (_Nz > 1)
   {
