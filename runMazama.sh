@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N testBcL
+#PBS -N testBcLCont
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/data/testBcL.err
-#PBS -o /data/dunham/kallison/eqcycle/data/testBcL.out
+#PBS -e /data/dunham/kallison/eqcycle/data/testBcLCont.err
+#PBS -o /data/dunham/kallison/eqcycle/data/testBcLCont.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
