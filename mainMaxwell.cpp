@@ -84,7 +84,7 @@ int runEqCycle(const char * inputFile)
 
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = obj->integrate();CHKERRQ(ierr);
-  //~ ierr = obj->view();CHKERRQ(ierr);
+  ierr = obj->view();CHKERRQ(ierr);
   return ierr;
 }
 

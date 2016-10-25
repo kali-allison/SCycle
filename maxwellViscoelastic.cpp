@@ -78,18 +78,32 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecCopy(_uP,_uPPrev);
   #endif
 
-  // set bcL
-  //~ PetscScalar v;
-  //~ PetscInt Istart,Iend;
-  //~ VecGetOwnershipRange(_bcLP,&Istart,&Iend);
-  //~ for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    //~ VecGetValues(_bcLP,1,&Ii,&v);
-    //~ v = _fault.getTauInf(Ii);
 
-    //~ VecSetValue(_bcLP,Ii,v,INSERT_VALUES);
-  //~ }
-  //~ VecAssemblyBegin(_bcLP);
-  //~ VecAssemblyEnd(_bcLP);
+  if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
+    PetscInt    Istart,Iend;
+    PetscScalar v = 0;
+    Vec faultVisc; VecDuplicate(_bcLP,&faultVisc);
+    VecGetOwnershipRange(_visc,&Istart,&Iend);
+    for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+      if (Ii < _Nz) {
+        VecGetValues(_visc,1,&Ii,&v);
+        VecSetValue(faultVisc,Ii,v,INSERT_VALUES);
+      }
+    }
+    VecAssemblyBegin(faultVisc); VecAssemblyEnd(faultVisc);
+    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+    for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+      PetscScalar tauRS = 1.2*_fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
+
+      // viscous strength
+      VecGetValues(faultVisc,1,&Ii,&v);
+      PetscScalar tauVisc = v*_vL/2.0/14.0; // 14 = seismogenic depth
+
+      PetscScalar tau = min(tauRS,tauVisc);
+      VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
+    }
+    VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
+  }
 
 
   #if VERBOSE > 1
@@ -178,8 +192,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-        int arrInds[] = {1}; // state: 0, slip: 1
-        std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {1}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -281,15 +295,6 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
   // set shear traction on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
   ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
-
-  //~ writeVec(_gxyP,"test/gxy");
-  //~ writeVec(_gxzP,"test/gxz");
-  //~ writeVec(_stressxyP,"test/sxy");
-  //~ writeVec(_uP,"test/u");
-  //~ writeVec(_fault._tauQSP,"test/tauQS");
-  //~ writeVec(_bcLP,"test/bcL");
-  //~ writeVec(_bcRP,"test/bcR");
-  //~ assert(0);
 
   // set rates
   if (_bcLTauQS==0) {

@@ -392,7 +392,7 @@ PetscReal RK32::computeError()
   PetscReal      err,totErr=0.0;
 
 
-  //~ // absolute error scaled by length of vector
+  // absolute error scaled by length of vector
   //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     //~ PetscInt ind = _errInds[i];
 
