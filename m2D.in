@@ -1,6 +1,6 @@
 order = 4
 Ny = 301
-Nz = 601
+Nz = 701
 Ly = 120 # km
 Lz = 30 # km
 
@@ -8,21 +8,15 @@ DcVals = [8e-3 8e-3] # m
 #DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
-
 stateLaw = agingLaw
 
-# usual rate-and-state values
+
+
+# Brittany's rate-and-state values
 #aVals = [0.015 0.015]
 #aDepths = [0 60]
 #bVals = [0.02 0.02 0.0 0.0]
 #bDepths = [0 12 15 60]
-
-# uniformly velocity-weakening
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02]
-#bDepths = [0 60]
-
 
 # from Rice 1993
 #aVals = [0.015 0.015 0.018 0.066]
@@ -31,15 +25,18 @@ stateLaw = agingLaw
 #bDepths = [0 4 13.5 17.5 60]
 
 # from Rice 1993, with VW at surface
-aVals = [0.015 0.015 0.018 0.066]
-aDepths = [0 17.5 20 60]
-bVals = [0.019 0.019 0.019 0.0 0.0]
-bDepths = [0 4 13.5 17.5 60]
+#aVals = [0.015 0.015 0.018 0.066]
+#aDepths = [0 17.5 20 60]
+#bVals = [0.019 0.019 0.019 0.0 0.0]
+#bDepths = [0 4 13.5 17.5 60]
 
-#aVals = [0.0082 0.0532]
-#aDepths = [0 50]
-#bVals = [-0.0008055 0.0322 -0.0838 -0.0568]
-#bDepths = [0 10 20 50]
+
+# Blanpied 1995 (VS at surface)
+aVals = [0.0091 0.035 0.1350 0.9017]
+aDepths = [0 18.4 23.2 60]
+bVals = [0.0017 0.0381 -0.0221 0.025 0.4083]
+bDepths = [0 11.2 18.4 23.2 60]
+
 
 
 #sigmaNVals = [50 50] # MPa
@@ -53,7 +50,7 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-inputDir = spinUpTests/inputData_Nz601_
+inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpied_Nz701_
 loadICs = 1
 bcLTauQS = 0
 
@@ -119,8 +116,11 @@ rootTol = 1e-9
 
 
 #outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_
-outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_Nz601_
+#outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_Nz601_
+#outputDir = /scratch/kallison/testSpinUp2_Dc8e-3_Nz701_
 
+#outputDir = /data/dunham/kallison/eqcycle/spinUpTests/spinUp_blanpied_Dc8e-3_Nz701_
+outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_
 
 #outputDir = data/linEl_interp_
 #outputDir = data/max_interp_
