@@ -53,13 +53,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     _varIm.push_back(T);
   }
 
-  #if CALCULATE_ENERGY == 1
-    // remove E that was added by SymmLinearElastic
-    Vec  vec = * (_var.end() - 1);
-    VecDestroy(&vec);
-    _var.pop_back();
-  #endif
-
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);

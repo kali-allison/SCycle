@@ -16,17 +16,6 @@ stateLaw = agingLaw
 #bVals = [0.02 0.02 0.0 0.0]
 #bDepths = [0 12 15 60]
 
-# uniformly velocity-weakening
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02]
-#bDepths = [0 60]
-
-# uniformly velocity-strengthening
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.0 0.0]
-#bDepths = [0 60]
 
 
 # from Rice 1993
@@ -47,8 +36,8 @@ bDepths = [0 4 13.5 17.5 60]
 #bDepths = [0 10 20 50]
 
 
-sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.1 588] # MPa
+#sigmaNVals = [50 50] # MPa
+sigmaNVals = [0.0758 1336] # MPa
 sigmaNDepths = [0 60]
 
 # capped gradient sigmaN
@@ -111,9 +100,9 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 50
-stride2D = 50
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0      # s 7e9
 maxTime = 1e15      # s
 minDeltaT = 1e9     # s
@@ -123,7 +112,8 @@ atol = 1e-10
 rootTol = 1e-9
 
 
-outputDir = /scratch/kallison/tauSS_Nz101_
+#outputDir = /scratch/kallison/testSpinUp_
+outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp_
 
 
 

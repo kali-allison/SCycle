@@ -1,6 +1,6 @@
 order = 4
 Ny = 301
-Nz = 301
+Nz = 601
 Ly = 120 # km
 Lz = 30 # km
 
@@ -42,8 +42,8 @@ bDepths = [0 4 13.5 17.5 60]
 #bDepths = [0 10 20 50]
 
 
-sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.1 588] # MPa
+#sigmaNVals = [50 50] # MPa
+sigmaNVals = [0.0758 1336] # MPa
 sigmaNDepths = [0 60]
 
 # capped gradient sigmaN
@@ -53,9 +53,9 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-inputDir = inputData/testBcL/
-loadICs = 0
-bcLTauQS = 1
+inputDir = spinUpTests/inputData_Nz601_
+loadICs = 1
+bcLTauQS = 0
 
 shearDistribution = constant
 {
@@ -106,10 +106,10 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 1
-initTime = 1e11      # s 7e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
+initTime = 0      # s 7e9
 maxTime = 2e14      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
@@ -117,7 +117,9 @@ atol = 1e-10
 
 rootTol = 1e-9
 
-outputDir = /scratch/kallison/testBcL_
+
+#outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_
+outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_Nz601_
 
 
 #outputDir = data/linEl_interp_

@@ -34,7 +34,7 @@ LinearElastic::LinearElastic(Domain&D)
   _tLast(0),_uPPrev(NULL)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in linearElastic.cpp.\n");
 #endif
 
   loadSettings(D._file);
@@ -121,7 +121,7 @@ LinearElastic::LinearElastic(Domain&D)
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in lithosphere.cpp.\n\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
 #endif
 }
 
@@ -129,7 +129,7 @@ LinearElastic::LinearElastic(Domain&D)
 LinearElastic::~LinearElastic()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::~LinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::~LinearElastic in linearElastic.cpp.\n");
 #endif
 
   // boundary conditions
@@ -168,7 +168,7 @@ LinearElastic::~LinearElastic()
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::~LinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::~LinearElastic in linearElastic.cpp.\n");
 #endif
 }
 
@@ -287,7 +287,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
   PetscErrorCode ierr = 0;
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
   //~ierr = KSPSetType(_ksp,KSPGMRES);CHKERRQ(ierr);
@@ -381,7 +381,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
   ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::setupKSP in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -474,7 +474,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   _E(NULL),_eV(NULL),_intEV(NULL)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
   Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
@@ -497,23 +497,19 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   setSurfDisp();
 
-  #if CALCULATE_ENERGY == 1
-    VecCreate(PETSC_COMM_WORLD,&_E);
-    VecSetSizes(_E,PETSC_DECIDE,1);
-    VecSetFromOptions(_E);     PetscObjectSetName((PetscObject) _E, "_E");
-    computeEnergy(_initTime,_E);
 
-    Vec E;
-    VecDuplicate(_E,&E);
-    VecCopy(_E,E);
-    _var.push_back(E);
-
-    VecDuplicate(_uP,&_uPPrev);
-    VecCopy(_uP,_uPPrev);
-  #endif
+  if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
+    PetscInt    Istart,Iend;
+    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+    for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+      PetscScalar tauRS = 1.2*_fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
+      VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
+    }
+    VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
+  }
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in lithosphere.cpp.\n\n\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
 #endif
 }
 
@@ -539,7 +535,7 @@ PetscErrorCode SymmLinearElastic::setShifts()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setShifts in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setShifts in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
   PetscInt Ii,Istart,Iend;
@@ -559,7 +555,7 @@ PetscErrorCode SymmLinearElastic::setShifts()
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setShifts in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setShifts in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -569,8 +565,9 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
+
 
   PetscInt    Ii,Istart,Iend,y;
   PetscScalar u;
@@ -588,7 +585,7 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   ierr = VecAssemblyEnd(_surfDispPlus);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -707,11 +704,11 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"u").c_str(),
                                    FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sxyP").c_str(),
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
               FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"sxyP").c_str(),
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
 
     //~if (_isMMS) {
@@ -747,7 +744,7 @@ PetscErrorCode SymmLinearElastic::integrate()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -783,7 +780,7 @@ PetscErrorCode SymmLinearElastic::integrate()
 
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -808,9 +805,8 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
-
 
   // update boundaries
   if (_bcLTauQS==0) {
@@ -847,7 +843,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   #endif
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -860,7 +856,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
@@ -881,7 +877,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -891,7 +887,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   Vec source,Hxsource;
@@ -929,7 +925,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1010,7 +1006,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 {
   PetscErrorCode ierr = 0;
   string funcName = "SymmLinearElastic::setMMSInitialConditions";
-  string fileName = "lithosphere.cpp";
+  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
@@ -1405,14 +1401,14 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   setSurfDisp(); // extract surface displacement from displacement fields
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::FullLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::FullLinearElastic in linearElastic.cpp.\n");
 #endif
 }
 
 FullLinearElastic::~FullLinearElastic()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::~FullLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::~FullLinearElastic in linearElastic.cpp.\n");
 #endif
 
   // boundary conditions: minus side
@@ -1441,7 +1437,7 @@ FullLinearElastic::~FullLinearElastic()
   //~ PetscViewerDestroy(&_stressxyMV);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::~FullLinearElastic in lithosphere.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::~FullLinearElastic in linearElastic.cpp.\n");
 #endif
 }
 
@@ -1457,7 +1453,7 @@ PetscErrorCode FullLinearElastic::setShifts()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setShifts in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setShifts in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
 
@@ -1488,7 +1484,7 @@ PetscErrorCode FullLinearElastic::setShifts()
   ierr = VecAssemblyEnd(_bcLMShift);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setShifts in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setShifts in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1498,7 +1494,7 @@ PetscErrorCode FullLinearElastic::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
   PetscInt    Ii,Istart,Iend;
@@ -1529,7 +1525,7 @@ PetscErrorCode FullLinearElastic::setSurfDisp()
   ierr = VecAssemblyEnd(_surfDispMinus);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setSurfDisp in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1539,7 +1535,7 @@ PetscErrorCode FullLinearElastic::writeStep1D()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep1D in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep1D in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -1572,7 +1568,7 @@ PetscErrorCode FullLinearElastic::writeStep1D()
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1582,14 +1578,14 @@ PetscErrorCode FullLinearElastic::writeStep2D()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep2D in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::writeStep2D in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
 
   _writeTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::writeStep in lithosphere.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::writeStep in linearElastic.cpp at step %i\n",_stepCount);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1598,7 +1594,7 @@ PetscErrorCode FullLinearElastic::integrate()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -1616,7 +1612,7 @@ PetscErrorCode FullLinearElastic::integrate()
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in lithosphere.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1625,7 +1621,7 @@ PetscErrorCode FullLinearElastic::setU()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setU in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setU in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
 
@@ -1661,7 +1657,7 @@ PetscErrorCode FullLinearElastic::setU()
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setU in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setU in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 return ierr;
 }
@@ -1671,7 +1667,7 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSigmaxy in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::setSigmaxy in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
 
@@ -1691,7 +1687,7 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setSigmaxy in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::setSigmaxy in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 return ierr;
 }
@@ -1700,7 +1696,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   // update boundaries: + side
@@ -1755,7 +1751,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   ierr = setSurfDisp();
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::d_dt in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1767,7 +1763,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   ierr = d_dt(time,varBegin,dvarBegin);CHKERRQ(ierr);
@@ -1787,7 +1783,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in lithosphere.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }

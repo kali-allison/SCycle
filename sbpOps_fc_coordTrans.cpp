@@ -96,6 +96,7 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
   MatDuplicate(tempFactors._qy,MAT_COPY_VALUES,&_qy);
   MatDuplicate(tempFactors._rz,MAT_COPY_VALUES,&_rz);
 
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
