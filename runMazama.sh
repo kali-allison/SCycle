@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N blanpied_Nz701
+#PBS -N blanpiedsVW_Nz701
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/spinUpTests/testSpinUp2_blanpied_Dc8e-3_Nz701.err
-#PBS -o /data/dunham/kallison/eqcycle/spinUpTests/testSpinUp2_blanpied_Dc8e-3_Nz701.out
+#PBS -e /data/dunham/kallison/eqcycle/spinUpTests/testSpinUp2_blanpiedsVW_Dc8e-3_Nz701.err
+#PBS -o /data/dunham/kallison/eqcycle/spinUpTests/testSpinUp2_blanpiedsVW_Dc8e-3_Nz701.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

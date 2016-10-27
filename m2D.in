@@ -32,9 +32,15 @@ stateLaw = agingLaw
 
 
 # Blanpied 1995 (VS at surface)
-aVals = [0.0091 0.035 0.1350 0.9017]
+#aVals = [0.0091 0.035 0.1350 0.9017]
+#aDepths = [0 18.4 23.2 60]
+#bVals = [0.0017 0.0381 -0.0221 0.025 0.4083]
+#bDepths = [0 11.2 18.4 23.2 60]
+
+# Blanpied 1995 (VW at surface)
+aVals = [0.035 0.035 0.1350 0.9017]
 aDepths = [0 18.4 23.2 60]
-bVals = [0.0017 0.0381 -0.0221 0.025 0.4083]
+bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
 bDepths = [0 11.2 18.4 23.2 60]
 
 
@@ -50,7 +56,8 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpied_Nz701_
+#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpied_Nz701_
+inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpiedsVW_Nz701_
 loadICs = 1
 bcLTauQS = 0
 
@@ -120,7 +127,8 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/testSpinUp2_Dc8e-3_Nz701_
 
 #outputDir = /data/dunham/kallison/eqcycle/spinUpTests/spinUp_blanpied_Dc8e-3_Nz701_
-outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_
+#outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_
+outputDir = /scratch/kallison/testSpinUp2_blanpiedsVW_Dc8e-3_Nz701_
 
 #outputDir = data/linEl_interp_
 #outputDir = data/max_interp_
