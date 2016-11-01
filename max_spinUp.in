@@ -1,10 +1,10 @@
 order = 4
-Ny = 301
-Nz = 701
+Ny = 151
+Nz = 151
 Ly = 120 # km
 Lz = 30 # km
 
-DcVals = [8e-3 8e-3] # m
+DcVals = [64e-3 64e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -55,12 +55,9 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpied_Nz701_
-inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_blanpiedsVW_Nz701_
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_linEl_blansVW_Nz301_Ny201_
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_linEl_blansVW_Nz351_Ny201_
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_max_blansVW_Nz351_Ny201_
-loadICs = 1
+#inputDir = /data/dunham/kallison/eqcycle/testIC/inputData_max_blansVW_Nz351_Ny151_
+inputDir = /data/dunham/kallison/eqcycle/testIC/inputData2_max_blansVW_Nz351_Ny151_
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -71,14 +68,14 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 
-# power law properties
-AVals = [1e-9 2.1e-9]
+# power law properties for wet quartz
+AVals = [1e-9 1e-9]
 ADepths = [0 60]
 BVals = [1.44e4 1.44e4]
 BDepths = [0 60]
 nVals = [4 4]
 nDepths = [0 60]
-TVals = [273 1173]
+TVals = [293 893]
 TDepths = [0 30]
 thermalCoupling = no
 
@@ -112,40 +109,22 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 20
+stride2D = 20
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 2e14      # s
-minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
+maxTime = 5e14      # s
+minDeltaT = 1e8     # s
+maxDeltaT = 1e12      # s
 atol = 1e-8
 
 rootTol = 1e-9
 
 
-#outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_
-#outputDir = /data/dunham/kallison/newEqCycle/spinUpTests/testSpinUp2_Dc8e-3_Nz601_
-#outputDir = /scratch/kallison/testSpinUp2_Dc8e-3_Nz701_
+#outputDir = /scratch/kallison/plIC_blanpiedsVW_Dc16e-3_Nz151_
+#outputDir = /data/dunham/kallison/eqcycle/testOut/fullOut_
+outputDir = /scratch/kallison/max_jellySandwich_step1_
 
-#outputDir = /data/dunham/kallison/eqcycle/spinUpTests/spinUp_blanpied_Dc8e-3_Nz701_
-#outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_atol1e-8_
-#outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_
-#outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_atol1e-9_
-#outputDir = /scratch/kallison/testSpinUp2_blanpiedsVW_Dc8e-3_Nz701_atol1e-9_
-#outputDir = /scratch/kallison/testSpinUp2_blanpiedsVW_Dc8e-3_Nz701_atol1e-8_
-#outputDir = /scratch/kallison/testSpinUp2_blanpied_Dc8e-3_Nz701_atol1e-8_
-
-#outputDir = /scratch/kallison/linEl_Dc16e-3_spinUp_
-#outputDir = /scratch/kallison/linEl_Dc16e-3_spinUp_Nz351_Ny201_
-#outputDir = /data/dunham/kallison/eqcycle/spinUpTests/linEl_Dc16e-3_spinUp_
-#outputDir = /scratch/kallison/linEl_Dc16e-3_spinUp_Nz351_Ny201_
-outputDir = /scratch/kallison/linEl_Dc8e-3_spinUp_Nz701_Ny301_
-
-
-
-#outputDir = data/linEl_interp_
-#outputDir = data/max_interp_
 
 #outputDir = data/greensFuncs/b10_Ly60_
 #outputDir = data/greensFuncs/b10_

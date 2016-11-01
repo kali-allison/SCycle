@@ -84,7 +84,7 @@ int runEqCycle(const char * inputFile)
   ierr = obj->writeStep1D();CHKERRQ(ierr);
   ierr = obj->writeStep2D();CHKERRQ(ierr);
   ierr = obj->integrate();CHKERRQ(ierr);
-  //~ierr = obj->view();CHKERRQ(ierr);
+  ierr = obj->view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -100,13 +100,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  runTests(inputFile);
+  //~ runTests(inputFile);
 
   PetscFinalize();
   return ierr;

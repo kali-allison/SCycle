@@ -261,8 +261,10 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   VecCopy(*(varBegin+3),_gxzP);
 
   // update boundaries
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-  ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
+  if (_bcLTauQS==0) {
+    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+    ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
+  } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
@@ -628,9 +630,8 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   }
 
   // deviatoric stress: part 3/3
+  VecScale(_sigmadev,0.5);
   VecSqrtAbs(_sigmadev);
-
-
 
 
 
@@ -1260,9 +1261,25 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_T,_inputDir,_TFile);CHKERRQ(ierr);
   */
 
-  // load gxy
   PetscViewer inv; // in viewer
-  string vecSourceFile = _inputDir + "Gxy";
+
+    // load bcL
+  string vecSourceFile = _inputDir + "bcL";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
+
+  //~ // load bcR
+  vecSourceFile = _inputDir + "bcR";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
+
+
+  // load gxy
+  vecSourceFile = _inputDir + "Gxy";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
@@ -1275,6 +1292,21 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_gxzP,inv);CHKERRQ(ierr);
+
+
+   // load sxy
+  vecSourceFile = _inputDir + "Sxy";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
+
+  // load sxz
+  vecSourceFile = _inputDir + "Sxz";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
 
 
 
