@@ -47,14 +47,14 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 
-# power law properties, creme brulee: wet quartz, dry feldspar, dry olivine
-AVals = [1e-9 1e-9 5e12 5e12 1.5e5 1.5e5]
+# power law properties, jelly sandwich: wet quartz, wet feldspar, dry olivine
+AVals = [1e-9 1e-9 398 398 1.5e5 1.5e5]
 ADepths = [0 15 15 30 30 60]
-BVals = [1.62e4 1.62e4 7.79e4 7.79e4 6.37e4 6.37e4]
+BVals = [1.62e4 1.62e4 4.28e4 4.28e4 6.37e4 6.37e4]
 BDepths = [0 15 15 30 30 60]
 nVals = [4 4 3 3 3.5 3.5]
 nDepths = [0 15 15 30 30 60]
-TVals = [293 1543]
+TVals = [293 1293]
 TDepths = [0 50]
 thermalCoupling = no
 
@@ -100,5 +100,5 @@ atol = 1e-9
 rootTol = 1e-9
 
 
-outputDir = /scratch/kallison/cremeBrulee_blansVW_spinUp1_Ny151_Nz251_
+outputDir = /scratch/kallison/jellySandwich_blansVW_spinUp1_Ny151_Nz251_
 
