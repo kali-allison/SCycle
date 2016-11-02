@@ -1,0 +1,112 @@
+order = 4
+Ny = 201
+Nz = 151
+Ly = 120 # km
+Lz = 50 # km
+
+#DcVals = [16e-3 16e-3] # m
+DcVals = [32e-3 32e-3] # m
+DcDepths = [0 60] # m
+
+stateLaw = agingLaw
+
+
+# Blanpied 1995 for geotherm of 20 C/km (VS at surface)
+#aVals = [0.0091 0.0352 0.1350 0.6517]
+#aDepths = [0 23 29 60]
+#bVals = [0.0017 0.0398 -0.0248 0.025 0.2833]
+#bDepths = [0 14 23 29 60]
+
+# Blanpied 1995 for geotherm of 20 C/km (VW at surface)
+aVals = [0.0352 0.0352 0.1350 0.6517]
+aDepths = [0 23 29 60]
+bVals = [0.0398 0.0398 -0.0248 0.025 0.2833]
+bDepths = [0 14 23 29 60]
+
+
+
+#sigmaNVals = [50 50] # MPa
+sigmaNVals = [0.0758 1336] # MPa
+sigmaNDepths = [0 60]
+
+# capped gradient sigmaN
+#sigmaNVals = [0.1 50 50] # MPa
+#sigmaNDepths = [0 5.12 60]
+
+
+vL = 1e-9    # m/s
+
+#inputDir = /data/dunham/kallison/maxInputData/jellySandwich_blansVW_10_spinUp1IC_Ny201_Nz151_
+#inputDir = /data/dunham/kallison/maxInputData/jellySandwich_blansVW_10_spinUp2IC_Ny201_Nz301_
+inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp1IC_Ny201_Nz151_
+#inputDir = /data/dunham/kallison/maxInputData/lm_blansVW_spinUp1IC_Ny201_Nz151_
+loadICs = 1
+bcLTauQS = 0
+
+shearDistribution = constant
+{
+problem = symmetric
+muPlus = 30 # GPa
+rhoPlus = 3.0 # g/cm^3
+}
+
+
+# power law properties, jelly sandwich: wet quartz, wet feldspar, dry olivine
+AVals = [1e-9 1e-9 398 398 1.5e5 1.5e5]
+ADepths = [0 15 15 30 30 60]
+BVals = [1.62e4 1.62e4 4.28e4 4.28e4 6.37e4 6.37e4]
+BDepths = [0 15 15 30 30 60]
+nVals = [4 4 3 3 3.5 3.5]
+nDepths = [0 15 15 30 30 60]
+TVals = [293 1293]
+TDepths = [0 50]
+thermalCoupling = no
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
+hVals = [0 0]
+hDepths = [0 60]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 60]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60]
+
+
+linSolver = MUMPSCHOLESKY
+bCoordTrans = 10.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+kspTol = 1e-10
+
+
+# Maxwell properties
+#viscDistribution = layered
+#viscVals = [1e25 1e25] # GPa s
+#viscDepths = [0 30]
+
+viscDistribution = effectiveVisc
+strainRate = 1e-14
+
+
+timeIntegrator = RK32
+timeControlType = P
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
+initTime = 0      # s 7e9
+maxTime = 2e14      # s
+minDeltaT = 1e-3     # s
+maxDeltaT = 1e7      # s
+atol = 1e-8
+
+rootTol = 1e-9
+
+
+#outputDir = /scratch/kallison/jellySandwich_varz_blansVW_dc16e-3_cycle_Ny201_Nz151_
+#outputDir = /scratch/kallison/jellySandwich_varz_blansVW_10_dc32e-3_cycle_Ny201_Nz151_
+#outputDir = /scratch/kallison/lmjellySandwich_blansVW_dc32e-3_cycle_Ny201_Nz151_
+
+outputDir = /scratch/kallison/pljellySandwich_blansVW_dc32e-3_cycle_Ny201_Nz151_
+
