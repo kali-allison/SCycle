@@ -72,7 +72,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   #endif
 
 
-  if (_bcLTauQS==1 & D._loadICs==0) { // set bcL to be steady-state shear stress
+  //~ if (_bcLTauQS==1 & D._loadICs==0) { // set bcL to be steady-state shear stress
+  if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
     PetscInt    Istart,Iend;
     PetscScalar v = 0;
     Vec faultVisc; VecDuplicate(_bcLP,&faultVisc);
@@ -97,12 +98,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
-
-  writeVec(_gxyP,"/data/dunham/kallison/eqcycle/testOut/testing_");
-  writeVec(_gxzP,"/data/dunham/kallison/eqcycle/testOut/testing_");
-  writeVec(_bcLP,"/data/dunham/kallison/eqcycle/testOut/testing_");
-  writeVec(_bcRP,"/data/dunham/kallison/eqcycle/testOut/testing_");
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());

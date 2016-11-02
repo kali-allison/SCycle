@@ -834,7 +834,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
 {
   PetscErrorCode ierr = 0;
 
-  _stepCount++;
+  _stepCount = stepCount;
   _currTime = time;
   ierr = setSurfDisp();
   if ( stepCount % _stride1D == 0) {
@@ -1200,14 +1200,6 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_nDepths);
     }
-    //~else if (var.compare("TVals")==0) {
-      //~string str = line.substr(pos+_delim.length(),line.npos);
-      //~loadVectorFromInputFile(str,_TVals);
-    //~}
-    //~else if (var.compare("TDepths")==0) {
-      //~string str = line.substr(pos+_delim.length(),line.npos);
-      //~loadVectorFromInputFile(str,_TDepths);
-    //~}
     else if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
@@ -1295,18 +1287,18 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
 
    // load sxy
-  vecSourceFile = _inputDir + "Sxy";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
+  //~ vecSourceFile = _inputDir + "Sxy";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
 
-  // load sxz
-  vecSourceFile = _inputDir + "Sxz";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
+  //~ // load sxz
+  //~ vecSourceFile = _inputDir + "Sxz";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
 
 
 

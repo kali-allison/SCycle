@@ -838,6 +838,15 @@ PetscErrorCode Domain::setFieldsPlus()
   VecAssemblyEnd(_y);
   VecAssemblyEnd(_z);
 
+  // load depth-variable z instead
+  PetscViewer inv; // in viewer
+  //~ string vecSourceFile = "/data/dunham/kallison/maxInputData/z_varSpacing_Lz50_Nz151_Ny201";
+  string vecSourceFile = _inputDir + "z";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_z,inv);CHKERRQ(ierr);
+
   // set shear modulus, shear wave speed, and density
   // controls on transition in shear modulus
   r = 0;

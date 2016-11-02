@@ -81,8 +81,6 @@ int runEqCycle(const char * inputFile)
   obj = new PowerLaw(domain);
 
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->writeStep1D();CHKERRQ(ierr);
-  ierr = obj->writeStep2D();CHKERRQ(ierr);
   ierr = obj->integrate();CHKERRQ(ierr);
   ierr = obj->view();CHKERRQ(ierr);
 
