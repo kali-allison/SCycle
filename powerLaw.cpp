@@ -1397,8 +1397,9 @@ PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector
   PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setVecFromVectors";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    std::string funcName = "SymmMaxwellViscoelastic::setVecFromVectors";
+    std::string FILENAME = "SymmMaxwellViscoelastic";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
 
@@ -1407,7 +1408,8 @@ PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
         z0 = depths[0+ind];
@@ -1422,7 +1424,7 @@ PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
     CHKERRQ(ierr);
   #endif
   return ierr;
