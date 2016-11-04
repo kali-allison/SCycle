@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N cremeBrulee_blansVW_spinUp3_23_Ny201_Nz451_Ly120_Lz50
+#PBS -N testNov4
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/stdoutFiles/cremeBrulee_blansVW_spinUp3_23_Ny201_Nz451_Ly120_Lz50.err
-#PBS -o /data/dunham/kallison/eqcycle/stdoutFiles/cremeBrulee_blansVW_spinUp3_23_Ny201_Nz451_Ly120_Lz50.out
+#PBS -e /data/dunham/kallison/eqcycle/stdoutFiles/testNov4.err
+#PBS -o /data/dunham/kallison/eqcycle/stdoutFiles/testNov4.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

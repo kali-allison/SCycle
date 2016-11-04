@@ -844,10 +844,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
 
   // left displacement boundary
   if (_bcLTauQS==0) {
-  ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
-  ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
-  VecAXPY(out,1.0,temp1);
-  VecAXPY(out,-1.0,GL);
+    ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
+    ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
+    VecAXPY(out,1.0,temp1);
+    VecAXPY(out,-1.0,GL);
   }
 
   // right displacement boundary
