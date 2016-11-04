@@ -59,7 +59,7 @@ vL = 1e-9    # m/s
 #inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_max_blansVW_Nz351_Ny201_
 #inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp1IC_Ny201_Nz151_
 #inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp1IC_Ny201_Nz351_
-inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp1IC_Ny201_Nz501_
+inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp2IC_Ny201_Nz501_
 loadICs = 1
 bcLTauQS = 0
 
@@ -134,7 +134,8 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/linEl_spinUp_Ny201_Nz251_Ly120_Lz50_
 #outputDir = /scratch/kallison/linEl_cycle_dc8e-3_Ny201_Nz501_Ly120_Lz50_
 #outputDir = /scratch/kallison/linEl_cycle_dc16e-3_Ny201_Nz351_Ly120_Lz50_
-outputDir = /scratch/kallison/linEl_cycle_dc16e-3_Ny201_Nz501_Ly120_Lz50_
+#outputDir = /scratch/kallison/linEl_cycle_dc16e-3_Ny201_Nz501_Ly120_Lz50_
+outputDir = /scratch/kallison/linEl_cycle_cont_dc16e-3_Ny201_Nz501_Ly120_Lz50_
 
 
 

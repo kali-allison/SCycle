@@ -72,8 +72,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   #endif
 
 
-  //~ if (_bcLTauQS==1 & D._loadICs==0) { // set bcL to be steady-state shear stress
-  if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
+  if (_bcLTauQS==1 & D._loadICs==0) { // set bcL to be steady-state shear stress
+  //~ if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
     PetscInt    Istart,Iend;
     PetscScalar v = 0;
     Vec faultVisc; VecDuplicate(_bcLP,&faultVisc);
@@ -182,6 +182,11 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
     if (_isMMS) {
       int arrInds[] = {2}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      ierr = _quadEx->setErrInds(errInds);
+    }
+    else if (_bcLTauQS==1) {
+      int arrInds[] = {2,3}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
@@ -838,10 +843,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscousStrainRateSAT(Vec &u, Vec &gL,
   VecDuplicate(u,&temp1);
 
   // left displacement boundary
+  if (_bcLTauQS==0) {
   ierr = _sbpP->HyinvxE0y(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
   VecAXPY(out,1.0,temp1);
   VecAXPY(out,-1.0,GL);
+  }
 
   // right displacement boundary
   ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
@@ -878,9 +885,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
-  if (_bcLTauQS==1) { VecSet(SAT,0.0); }
-
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
+  VecSet(*(dvarBegin+2),0.0);
   VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -891,7 +897,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecCopy(temp1,*(dvarBegin+2));
     VecDestroy(&temp1);
   }
-  VecSet(*(dvarBegin+2),0.0);
   VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
   VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);
 
@@ -1600,12 +1605,12 @@ PetscErrorCode SymmMaxwellViscoelastic::loadFieldsFromFiles()
   ierr = VecLoad(_gxzP,inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerDestroy(&inv);
 
-  //~ // load viscosity
-  //~ vecSourceFile = _inputDir + "Visc";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_visc,inv);CHKERRQ(ierr);
+  // load viscosity
+  vecSourceFile = _inputDir + "EffVisc";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_visc,inv);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in maxwellViscoelastic.cpp.\n");CHKERRQ(ierr);

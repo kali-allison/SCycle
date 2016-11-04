@@ -6,8 +6,8 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),
-  _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),_loadICs(0),
+  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),
+  _shearDistribution("unspecified"),_problemType("unspecificed"),_loadICs(0),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
   _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
@@ -83,8 +83,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),
-  _shearDistribution("unspecified"),_problemType("unspecificed"),_inputDir("unspecified"),
+  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),
+  _shearDistribution("unspecified"),_problemType("unspecificed"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
   _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
@@ -239,6 +239,9 @@ PetscErrorCode Domain::loadData(const char *file)
     }
     else if (var.compare("inputDir")==0) {
       _inputDir = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("zInputDir")==0) {
+      _zInputDir = line.substr(pos+_delim.length(),line.npos);
     }
     else if (var.compare("loadICs")==0){ _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
@@ -839,13 +842,13 @@ PetscErrorCode Domain::setFieldsPlus()
   VecAssemblyEnd(_z);
 
   // load depth-variable z instead
-  PetscViewer inv; // in viewer
-  //~ string vecSourceFile = "/data/dunham/kallison/maxInputData/z_varSpacing_Lz50_Nz151_Ny201";
-  string vecSourceFile = _inputDir + "z";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_z,inv);CHKERRQ(ierr);
+  if (_zInputDir.compare("unspecified")!=0) {
+    PetscViewer inv; // in viewer
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,_zInputDir.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(_z,inv);CHKERRQ(ierr);
+  }
 
   // set shear modulus, shear wave speed, and density
   // controls on transition in shear modulus

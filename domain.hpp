@@ -31,9 +31,10 @@ class Domain
     std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
 
     // material distribution properties
+    std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)
+    std::string  _zInputDir; // directory to load shear modulus and normal stress from (if above is CVM)
     std::string  _shearDistribution, // options: mms, constant, gradient, basin, CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)
-    std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)
     PetscInt     _loadICs; // whether or not to look in inputDir for initial conditions
     // + side fields (always initiated)
     PetscScalar  _muValPlus,_rhoValPlus; // if constant

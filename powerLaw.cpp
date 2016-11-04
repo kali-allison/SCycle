@@ -55,12 +55,6 @@ PowerLaw::PowerLaw(Domain& D)
   if (D._loadICs==1) { loadFieldsFromFiles(); }
 
 
-  //~ // remove temperature from integration variable
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec  vec = * (_var.end() - 1);
-    //~ VecDestroy(&vec);
-  //~ _var.pop_back();
-  //~ }
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
@@ -69,13 +63,6 @@ PowerLaw::PowerLaw(Domain& D)
 
   if (_isMMS) { setMMSInitialConditions(); }
 
-  //~ // if modeling temperature evolution, coupled or uncoupled
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec T;
-    //~ VecDuplicate(_uP,&T);
-    //~ VecCopy(_he._T,T);
-    //~ _var.push_back(T);
-  //~ }
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
@@ -1287,18 +1274,26 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
 
    // load sxy
-  //~ vecSourceFile = _inputDir + "Sxy";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
+  vecSourceFile = _inputDir + "Sxy";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
 
-  //~ // load sxz
-  //~ vecSourceFile = _inputDir + "Sxz";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
+  // load sxz
+  vecSourceFile = _inputDir + "Sxz";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
+
+
+  // load effective viscosity
+  vecSourceFile = _inputDir + "EffVisc";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_effVisc,inv);CHKERRQ(ierr);
 
 
 
