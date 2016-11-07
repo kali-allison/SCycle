@@ -305,16 +305,21 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
     CHKERRQ(ierr);
   #endif
 
+  _currTime = time;
+
   VecCopy(*(varBegin+2),_gxyP);
   VecCopy(*(varBegin+3),_gxzP);
-  VecCopy(*(varBegin+4),_T);
 
-  //~mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
-  //~mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
+  // force viscous strains to be correct
+  //~ if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
+  //~ else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
+  //~ if (_Nz == 1) { mapToVec(_gxzP,MMS_gxy1D,*_y,time); }
+  //~ else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
   ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&viscSourceMMS);CHKERRQ(ierr);
@@ -323,14 +328,12 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
 
   ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
-  if (_Nz == 1) { mapToVec(viscSource,MMS_gSource1D,*_y,_currTime); }
-  else { mapToVec(viscSource,MMS_gSource,*_y,*_z,_currTime); }
-  //~ mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
+  if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,time); }
+  else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,time); }
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
-  if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,_currTime); }
-  else { mapToVec(uSource,MMS_uSource,*_y,*_z,_currTime); }
-  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
+  if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,time); }
+  else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
@@ -347,13 +350,13 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
+  //~ mapToVec(_uP,MMS_uA,*_y,*_z,_currTime);
 
   // update stresses
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
-  //~mapToVec(_stressxyP,MMS_pl_sigmaxy,_Nz,_dy,_dz,time);
-  //~mapToVec(_stressxzP,MMS_pl_sigmaxz,_Nz,_dy,_dz,time);
-  //~mapToVec(_sigmadev,MMS_sigmadev,_Nz,_dy,_dz,time);
+  //~ mapToVec(_stressxyP,MMS_pl_sigmaxy,*_y,*_z,_currTime);
+  //~ mapToVec(_stressxzP,MMS_pl_sigmaxz,*_y,*_z,_currTime);
+  //~ mapToVec(_sigmadev,MMS_sigmadev,*_y,*_z,_currTime);
 
   // update rates
   ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
@@ -361,11 +364,9 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   VecDuplicate(_uP,&source);
   if (_Nz == 1) { mapToVec(source,MMS_pl_gxy_t_source1D,*_y,_currTime); }
   else { mapToVec(source,MMS_pl_gxy_t_source,*_y,*_z,_currTime); }
-  //~ mapToVec(source,MMS_pl_gxy_t_source,_Nz,_dy,_dz,time);
   VecAXPY(*(dvarBegin+2),1.0,source);
   if (_Nz == 1) { mapToVec(source,MMS_pl_gxz_t_source1D,*_y,_currTime); }
   else { mapToVec(source,MMS_pl_gxz_t_source,*_y,*_z,_currTime); }
-  //~ mapToVec(source,MMS_pl_gxz_t_source,_Nz,_dy,_dz,time);
   VecAXPY(*(dvarBegin+3),1.0,source);
   VecDestroy(&source);
 
@@ -374,8 +375,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   VecSet(*dvarBegin,0.0); // d/dt psi
   VecSet(*(dvarBegin+1),0.0); // slip vel
 
-  //~mapToVec(*(dvarBegin+2),MMS_gxy_t,_Nz,_dy,_dz,time);
-  //~mapToVec(*(dvarBegin+3),MMS_gxz_t,_Nz,_dy,_dz,time);
+  //~ mapToVec(*(dvarBegin+2),MMS_gxy_t,*_y,*_z,_currTime);
+  //~ mapToVec(*(dvarBegin+3),MMS_gxz_t,*_y,*_z,_currTime);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -581,7 +582,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecGetValues(_n,1,&Ii,&n);
     VecGetValues(_T,1,&Ii,&T);
     effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
-    //~ VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
   }
   VecAssemblyBegin(_effVisc);
   VecAssemblyEnd(_effVisc);
@@ -675,13 +676,22 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   #endif
 
   PetscScalar time = _initTime;
-  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,time);
-  //~ mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,time);
-  //~ mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,time);
-  if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,_currTime); }
-  else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,_currTime); }
-  if (_Nz == 1) { mapToVec(_gxzP,MMS_gxy1D,*_y,_currTime); }
-  else { mapToVec(_gxzP,MMS_gxy,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
+  else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
+  if (_Nz == 1) { VecSet(_gxzP,0.0); }
+  else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
+
+  // set material properties
+  if (_Nz == 1) { mapToVec(_muVecP,MMS_mu1D,*_y); }
+  else { mapToVec(_muVecP,MMS_mu,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_A,MMS_A1D,*_y); }
+  else { mapToVec(_A,MMS_A,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_B,MMS_B1D,*_y); }
+  else { mapToVec(_B,MMS_B,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_n,MMS_n1D,*_y); }
+  else { mapToVec(_n,MMS_n,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_T,MMS_T1D,*_y); }
+  else { mapToVec(_T,MMS_T,*_y,*_z); }
 
   VecCopy(_gxyP,*(_var.begin()+2));
   VecCopy(_gxzP,*(_var.begin()+3));
@@ -700,12 +710,10 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,_currTime); }
   else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,_currTime); }
-  //~ mapToVec(viscSourceMMS,MMS_gSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
   if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,_currTime); }
   else { mapToVec(uSource,MMS_uSource,*_y,*_z,_currTime); }
-  //~ mapToVec(uSource,MMS_uSource,_Nz,_dy,_dz,time);
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
 
@@ -746,39 +754,54 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
   PetscScalar y,z,v;
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
-  for(Ii=Istart;Ii<Iend;Ii++) {
-    z = _dz * Ii;
-
+  if (_Nz == 1) {
+    Ii = Istart;
     y = 0;
-    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time) - MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("Neumann")) { v = MMS_mu1D(y) * (MMS_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("Neumann")) { v = MMS_mu1D(y) * (MMS_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  else {
+    for(Ii=Istart;Ii<Iend;Ii++) {
+      z = _dz * Ii;
+
+      y = 0;
+      if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
+      else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time));} // sigma_xy = mu * d/dy u
+      ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+      y = _Ly;
+      if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
+      else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+      ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcRP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
+
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     y = _dy * Ii;
 
     z = 0;
     if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    //~ else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
-    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
+    //~ else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
     if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    //~ else if (!_bcBType.compare("traction")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)- MMS_gxz(y,z,time)); }
-    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time));}
+    //~ else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
@@ -802,7 +825,7 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&uA);
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
-  //~ mapToVec(uA,MMS_uA,_Nz,_dy,_dz,_currTime);
+  //~ mapToVec(uA,MMS_uA,*_y,*_z,_currTime);
   //~ mapToVec(gxyA,MMS_gxy,_Nz,_dy,_dz,_currTime);
   //~ mapToVec(gxzA,MMS_gxz,_Nz,_dy,_dz,_currTime);
 
@@ -811,7 +834,7 @@ PetscErrorCode PowerLaw::measureMMSError()
     if (_Nz == 1) { mapToVec(gxyA,MMS_gxy1D,*_y,_currTime); }
   else { mapToVec(gxyA,MMS_gxy,*_y,*_z,_currTime); }
   if (_Nz == 1) { mapToVec(gxzA,MMS_gxy1D,*_y,_currTime); }
-  else { mapToVec(gxzA,MMS_gxy,*_y,*_z,_currTime); }
+  else { mapToVec(gxzA,MMS_gxz,*_y,*_z,_currTime); }
 
   double err2u = computeNormDiff_2(_uP,uA);
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
