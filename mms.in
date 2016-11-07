@@ -1,4 +1,4 @@
-order = 2
+order = 4
 Ny = 161
 Nz = 1
 Ly = 6.283185307179586
@@ -21,7 +21,7 @@ vL = 1e-9    # m/s
 inputDir = /data/dunham/kallison/maxInputData/pljellySandwich_blansVW_spinUp2IC_Ny201_Nz451_
 #zInputDir = /data/dunham/kallison/maxInputData/pljellySandwich_blansVW_spinUp2IC_Ny201_Nz451_z
 loadICs = 0
-bcLTauQS = 0
+bcLTauQS = 1
 
 shearDistribution = mms
 {
@@ -66,11 +66,11 @@ stride1D = 10000 # how many steps between writing out 1D fields
 stride2D = 10000 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime =   0    # s 3000000
-maxTime =  3e10      # s
+maxTime =  6e10      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-8
+atol = 1e-12
 
 rootTol = 1e-8
 

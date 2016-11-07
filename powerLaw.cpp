@@ -167,8 +167,8 @@ PetscErrorCode PowerLaw::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {0,1,2,3}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+4); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -489,10 +489,14 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
       Vec temp2;
       VecDuplicate(_gxzP,&temp2);
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+
       MatMult(yq,bcB,temp2);
-      VecCopy(temp2,bcB);
+      MatMult(zr,temp2,bcB); // do I need this term?
+      //~ VecCopy(temp2,bcB);
+
       MatMult(yq,bcT,temp2);
-      VecCopy(temp2,bcT);
+      MatMult(zr,temp2,bcT); // do I need this term?
+      //~ VecCopy(temp2,bcT);
       VecDestroy(&temp2);
     }
 
@@ -840,7 +844,7 @@ PetscErrorCode PowerLaw::measureMMSError()
   double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
   double err2epsxz = computeNormDiff_2(*(_var.begin()+3),gxzA);
 
-  PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
+  PetscPrintf(PETSC_COMM_WORLD,"%i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
 
   //~// measure error for stresses as well
