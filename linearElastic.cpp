@@ -100,7 +100,7 @@ LinearElastic::LinearElastic(Domain&D)
   std::string bcTType = "Neumann";
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
-  std::string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann";}
+  std::string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
 
   if (D._sbpType.compare("mc")==0) {
     _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");

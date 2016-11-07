@@ -363,7 +363,7 @@ double MMS_uA_t(const double y,const double z,const double t) {
   return MMS_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
 }
 
-double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
+double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
 double MMS_mu_y(const double y,const double z) { return cos(y)*sin(z); }
 double MMS_mu_z(const double y,const double z) { return sin(y)*cos(z); }
 
@@ -372,10 +372,10 @@ double MMS_sigmaxz(const double y,const double z, const double t) { return MMS_m
 
 
 // specific MMS functions
-double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 20.0; }
-double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 20.0); }
-double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+20.0, 2.0); }
-double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+20.0 ,2.0); }
+double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 2e19; }
+double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 2e19); }
+double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e19, 2.0); }
+double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e19 ,2.0); }
 
 double MMS_gxy(const double y,const double z,const double t)
 {
@@ -491,10 +491,10 @@ double MMS_gSource(const double y,const double z,const double t)
 
 
 // specific to power law
-double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 3.0; }
-double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 2.0; }
-double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 2.0; }
-double MMS_n(const double y,const double z) { return cos(y)*sin(z) + 2.0; }
+double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 1e-9; }
+double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 1.6e4; }
+double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 400; }
+double MMS_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
 double MMS_pl_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*(MMS_uA_y(y,z,t) - MMS_gxy(y,z,t)); }
 double MMS_pl_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*(MMS_uA_z(y,z,t) - MMS_gxz(y,z,t)); }
 double MMS_sigmadev(const double y,const double z,const double t)

@@ -59,17 +59,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
-  if (_isMMS) { setMMSInitialConditions(); }
-
-  #if CALCULATE_ENERGY == 1
-    Vec E;
-    VecDuplicate(_E,&E);
-    VecCopy(_E,E);
-    _var.push_back(E);
-
-    VecDuplicate(_uP,&_uPPrev);
-    VecCopy(_uP,_uPPrev);
-  #endif
 
 
   if (_bcLTauQS==1 & D._loadICs==0) { // set bcL to be steady-state shear stress
@@ -98,6 +87,8 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
+
+  if (_isMMS) { setMMSInitialConditions(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -730,17 +721,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
   VecSet(sourcexy_y,0.0);
   ierr = _sbpP->Dyxmu(_gxyP,sourcexy_y);CHKERRQ(ierr);
 
-  // if bcL is shear stress, then also add Hy^-1 E0y mu gxy
-  if (_bcLTauQS==1) {
-    Vec temp1,bcL;
-    VecDuplicate(_gxyP,&temp1); VecSet(temp1,0.0);
-    VecDuplicate(_gxyP,&bcL);
-    _sbpP->HyinvxE0y(_gxyP,temp1);
-    ierr = VecPointwiseMult(bcL,_muVecP,temp1); CHKERRQ(ierr);
-    VecDestroy(&temp1);
-    ierr = VecAXPY(sourcexy_y,1.0,bcL);CHKERRQ(ierr);
-    VecDestroy(&bcL);
-  }
 
   // apply effects of coordinate transform
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -754,6 +734,32 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecCopy(temp2,sourcexy_y);
     VecDestroy(&temp1);
     VecDestroy(&temp2);
+  }
+
+  // if bcL is shear stress, then also add Hy^-1 E0y mu gxy
+  if (_bcLTauQS==1) {
+    Vec temp1,bcL;
+    VecDuplicate(_gxyP,&temp1); VecSet(temp1,0.0);
+    VecDuplicate(_gxyP,&bcL);
+    _sbpP->HyinvxE0y(_gxyP,temp1);
+    ierr = VecPointwiseMult(bcL,_muVecP,temp1); CHKERRQ(ierr);
+    VecDestroy(&temp1);
+
+    // apply effects of coordinate transform
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1;
+    VecDuplicate(_gxyP,&temp1);
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+
+    MatMult(yq,bcL,temp1);
+    //~ VecCopy(bcL,temp1);
+
+    MatMult(zr,temp1,bcL);
+    VecDestroy(&temp1);
+  }
+    ierr = VecAXPY(sourcexy_y,1.0,bcL);CHKERRQ(ierr);
+    VecDestroy(&bcL);
   }
 
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
@@ -880,13 +886,15 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     CHKERRQ(ierr);
   #endif
 
+  VecSet(*(dvarBegin+2),0.0);
+  VecSet(*(dvarBegin+3),0.0);
+
   // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  VecSet(*(dvarBegin+2),0.0);
   VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -1016,12 +1024,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSBoundaryConditions(const double ti
 
       y = 0;
       if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-      else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)); } // sigma_xy = mu * d/dy u
+      else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time));} // sigma_xy = mu * d/dy u
       ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       y = _Ly;
       if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-      else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)); } // sigma_xy = mu * d/dy u
+      else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
       ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -1498,11 +1506,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       s = pow(_strainRate/(A*exp(-B/T)),1.0/n);
       effVisc =  s/_strainRate* 1e-3; // (GPa s)  in terms of strain rate
       invVisc = 1.0/effVisc;
-
-      //~ PetscScalar z;
-      //~ VecGetValues(*_z,1,&Ii,&z); // !!
-      //~ if (z <= 15) { effVisc = 7.693e11; }
-      //~ if (z <= 20) { effVisc = 1e25; }
 
       VecSetValues(_visc,1,&Ii,&effVisc,INSERT_VALUES);
       assert(!isnan(invVisc));
