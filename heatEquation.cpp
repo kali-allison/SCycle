@@ -124,6 +124,9 @@ HeatEquation::HeatEquation(Domain& D)
   MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
   VecDestroy(&rhoCV);
 
+
+  setVecFromVectors(_T,_TVals,_TDepths); // FIX THIS LATER!!!
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

@@ -1,10 +1,10 @@
 order = 4
-Ny = 151
-Nz = 151
-Ly = 120 # km
+Ny = 101
+Nz = 201
+Ly = 30 # km
 Lz = 30 # km
 
-DcVals = [64e-3 64e-3] # m
+DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -12,10 +12,10 @@ stateLaw = agingLaw
 
 
 # Brittany's rate-and-state values
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 60]
 
 # from Rice 1993
 #aVals = [0.015 0.015 0.018 0.066]
@@ -37,28 +37,26 @@ stateLaw = agingLaw
 #bDepths = [0 11.2 18.4 23.2 60]
 
 # Blanpied 1995 (VW at surface)
-aVals = [0.035 0.035 0.1350 0.9017]
-aDepths = [0 18.4 23.2 60]
-bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
-bDepths = [0 11.2 18.4 23.2 60]
+#aVals = [0.035 0.035 0.1350 0.9017]
+#aDepths = [0 18.4 23.2 60]
+#bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
+#bDepths = [0 11.2 18.4 23.2 60]
 
 
 
-#sigmaNVals = [50 50] # MPa
-sigmaNVals = [0.0758 1336] # MPa
+sigmaNVals = [50 50] # MPa
+#sigmaNVals = [0.0758 1336] # MPa
 sigmaNDepths = [0 60]
-
-# capped gradient sigmaN
 #sigmaNVals = [0.1 50 50] # MPa
 #sigmaNDepths = [0 5.12 60]
 
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/eqcycle/testIC/inputData_max_blansVW_Nz351_Ny151_
-inputDir = /data/dunham/kallison/eqcycle/testIC/inputData2_max_blansVW_Nz351_Ny151_
-loadICs = 0
-bcLTauQS = 0
+inputDir = /data/dunham/kallison/maxInputData/lm_layered2IC_
+zInputDir = /data/dunham/kallison/maxInputData/lm_layered2IC_z
+loadICs = 1
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -68,15 +66,15 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 
-# power law properties for wet quartz
-AVals = [1e-9 1e-9]
-ADepths = [0 60]
-BVals = [1.44e4 1.44e4]
-BDepths = [0 60]
-nVals = [4 4]
-nDepths = [0 60]
-TVals = [293 893]
-TDepths = [0 30]
+# power law properties, jelly sandwich: wet quartz, wet feldspar
+AVals = [1e-9 1e-9 398 398]
+ADepths = [0 15 15 60]
+BVals = [1.62e4 1.62e4 4.28e4 4.28e4]
+BDepths = [0 15 15 60]
+nVals = [4 4 3 3]
+nDepths = [0 15 15 60]
+TVals = [293 1293]
+TDepths = [0 50]
 thermalCoupling = no
 
 # heat equation properties
@@ -92,7 +90,7 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 10.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -100,8 +98,8 @@ kspTol = 1e-10
 
 # Maxwell properties
 #viscDistribution = layered
-#viscVals = [1e25 1e25] # GPa s
-#viscDepths = [0 30]
+#viscVals = [1e11 1e11 1e16 1e16] # GPa s
+#viscDepths = [0 12 15 30]
 
 viscDistribution = effectiveVisc
 strainRate = 1e-14
@@ -112,18 +110,17 @@ timeControlType = P
 stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
-initTime = 0      # s 7e9
-maxTime = 5e14      # s
-minDeltaT = 1e8     # s
-maxDeltaT = 1e12      # s
-atol = 1e-8
+initTime = 0      # s 3e10
+maxTime = 1e26      # s
+initDeltaT = 1e-3     # s
+minDeltaT = 1e-3     # s
+maxDeltaT = 5e10      # s
+atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/plIC_blanpiedsVW_Dc16e-3_Nz151_
-#outputDir = /data/dunham/kallison/eqcycle/testOut/fullOut_
-outputDir = /scratch/kallison/max_jellySandwich_step1_
+outputDir = /scratch/kallison/lm_layered2_
 
 
 #outputDir = data/greensFuncs/b10_Ly60_

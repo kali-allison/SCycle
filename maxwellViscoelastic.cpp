@@ -181,8 +181,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {0,1}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -1495,7 +1495,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
       ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-      //~ ierr = setVecFromVectors(sigmadev,_sigmadevVals,_sigmadevDepths);CHKERRQ(ierr);
     }
 
     // compute effective viscosity using heat equation's computed temperature
@@ -1517,7 +1516,6 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
     }
     VecAssemblyBegin(_visc);
     VecAssemblyEnd(_visc);
-    //~ VecDestroy(&sigmadev);
     VecDestroy(&_A);
     VecDestroy(&_B);
     VecDestroy(&_n);
@@ -1533,7 +1531,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
     size_t vecLen = _viscDepths.size();
     for (Ii=Istart;Ii<Iend;Ii++)
     {
-      z = _dz*(Ii-_Nz*(Ii/_Nz));
+      //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+      VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
       //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
       for (size_t ind = 0; ind < vecLen-1; ind++) {
           z0 = _viscDepths[0+ind];
@@ -1544,6 +1543,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setFields(Domain& D)
           if (z>=z0 && z<=z1) {
             v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
             v = pow(10,v);
+            //~ v = (_viscVals[0+ind+1] - _viscVals[0+ind])/(z1-z0) * (z-z0) + _viscVals[0+ind];
             }
           ierr = VecSetValues(_visc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
       }

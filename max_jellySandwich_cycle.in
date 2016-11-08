@@ -114,6 +114,6 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/pljs_blansVW_cycle_t01e13_Ny201_Nz451_
 #outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01e13_Ny201_Nz451_
 #outputDir = /scratch/kallison/pljs_blansVW_cycle3_dc16e-3_t01e13_Ny201_Nz451_
-outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01.5e14_Ny201_Nz451_
+##outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01.5e14_Ny201_Nz451_
 #outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01.5e14_Ny201_Nz451_
 

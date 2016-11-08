@@ -1,10 +1,10 @@
 order = 4
-Ny = 151
-Nz = 351
-Ly = 120 # km
+Ny = 101
+Nz = 201
+Ly = 30 # km
 Lz = 30 # km
 
-DcVals = [8e-3 8e-3] # m
+DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -12,10 +12,10 @@ stateLaw = agingLaw
 
 
 # Brittany's rate-and-state values
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 60]
 
 # from Rice 1993
 #aVals = [0.015 0.015 0.018 0.066]
@@ -37,27 +37,27 @@ stateLaw = agingLaw
 #bDepths = [0 11.2 18.4 23.2 60]
 
 # Blanpied 1995 (VW at surface)
-aVals = [0.035 0.035 0.1350 0.9017]
-aDepths = [0 18.4 23.2 60]
-bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
-bDepths = [0 11.2 18.4 23.2 60]
+#aVals = [0.035 0.035 0.1350 0.9017]
+#aDepths = [0 18.4 23.2 60]
+#bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
+#bDepths = [0 11.2 18.4 23.2 60]
 
 
 
 sigmaNVals = [50 50] # MPa
 #sigmaNVals = [0.0758 1336] # MPa
 sigmaNDepths = [0 60]
-
-# capped gradient sigmaN
 #sigmaNVals = [0.1 50 50] # MPa
 #sigmaNDepths = [0 5.12 60]
 
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_max_blansVW_Nz151_Ny151_
-#inputDir = /data/dunham/kallison/eqcycle/spinUpTests/inputData_max_blansVW_Nz351_Ny151_
-inputDir = /data/dunham/kallison/eqcycle/testIC/inputData2_max_blansVW_Nz351_Ny151_
+#zInputDir = /data/dunham/kallison/maxInputData/lm_layered_testz_z
+#inputDir = /data/dunham/kallison/maxInputData/lm_layered3IC_
+#zInputDir = /data/dunham/kallison/maxInputData/lm_layered3IC_z
+inputDir = /data/dunham/kallison/maxInputData/lm_layered4IC_
+zInputDir = /data/dunham/kallison/maxInputData/lm_layered4IC_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -69,15 +69,15 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 
-# power law properties
-AVals = [1e-9 2.1e-9]
-ADepths = [0 60]
-BVals = [1.44e4 1.44e4]
-BDepths = [0 60]
-nVals = [4 4]
-nDepths = [0 60]
-TVals = [273 1173]
-TDepths = [0 30]
+# power law properties, jelly sandwich: wet quartz, wet feldspar
+AVals = [1e-9 1e-9 398 398]
+ADepths = [0 15 15 60]
+BVals = [1.62e4 1.62e4 4.28e4 4.28e4]
+BDepths = [0 15 15 60]
+nVals = [4 4 3 3]
+nDepths = [0 15 15 60]
+TVals = [293 1293]
+TDepths = [0 50]
 thermalCoupling = no
 
 # heat equation properties
@@ -93,7 +93,7 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 10.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -101,8 +101,8 @@ kspTol = 1e-10
 
 # Maxwell properties
 #viscDistribution = layered
-#viscVals = [1e25 1e25] # GPa s
-#viscDepths = [0 30]
+#viscVals = [5e21 5e21 1e25 1e25] # GPa s
+#viscDepths = [0 13 18 30]
 
 viscDistribution = effectiveVisc
 strainRate = 1e-14
@@ -113,26 +113,18 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 3e10      # s 7e9
-maxTime = 2e14      # s
+initTime = 0      # s 3e10
+maxTime = 1e19      # s
+initDeltaT = 1     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s
-atol = 1e-9
+maxDeltaT = 1e9      # s
+atol = 1e-8
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/lm_blansVW_Dc16e-3_Nz151_Ny151_
-#outputDir = /scratch/kallison/lm_blansVW_Dc16e-3_Nz351_Ny151_
-#outputDir = /scratch/kallison/pl_blansVW_Dc16e-3_Nz351_Ny151_
-#outputDir = /scratch/kallison/pl_blansVW_Dc64e-3_Nz151_Ny151_
-#outputDir = /scratch/kallison/pl_blansVW_Dc16e-3_Nz251_Ny151_
-#outputDir = /scratch/kallison/test_
-outputDir = /scratch/kallison/testCont_
+#outputDir = /scratch/kallison/lm_layered1_
+#outputDir = /scratch/kallison/lm_layered3_
+outputDir = /scratch/kallison/pl_layered4_
 
-#outputDir = /data/dunham/kallison/eqcycle/testOut/fullOut2_
-
-#outputDir = data/greensFuncs/b10_Ly60_
-#outputDir = data/greensFuncs/b10_
-#outputDir = data/greensFuncs/b15_
-
+#outputDir = /scratch/kallison/lm_dc8e-3_layered3_
