@@ -456,6 +456,10 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   double err2uA = computeNormDiff_2(_uP,uA);
   double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
 
+  //~ Mat H; _sbpP->getH(H);
+  //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
+  //~ double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
+
   PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
 

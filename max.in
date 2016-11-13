@@ -1,9 +1,11 @@
 order = 4
 Ny = 101
-Nz = 201
+Nz = 351
 Ly = 30 # km
 Lz = 30 # km
 
+cohesionVals = [0 0] # m
+cohesionDepths = [0 60] # m
 DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
@@ -47,17 +49,13 @@ bDepths = [0 12 15 60]
 sigmaNVals = [50 50] # MPa
 #sigmaNVals = [0.0758 1336] # MPa
 sigmaNDepths = [0 60]
-#sigmaNVals = [0.1 50 50] # MPa
-#sigmaNDepths = [0 5.12 60]
-
 
 vL = 1e-9    # m/s
 
-#zInputDir = /data/dunham/kallison/maxInputData/lm_layered_testz_z
-#inputDir = /data/dunham/kallison/maxInputData/lm_layered3IC_
-#zInputDir = /data/dunham/kallison/maxInputData/lm_layered3IC_z
-inputDir = /data/dunham/kallison/maxInputData/lm_layered4IC_
-zInputDir = /data/dunham/kallison/maxInputData/lm_layered4IC_z
+#inputDir = /data/dunham/kallison/maxInputData/linEl_b7_1IC_
+#zInputDir = /data/dunham/kallison/maxInputData/linEl_b7_1IC_z
+inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_
+zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -71,11 +69,11 @@ rhoPlus = 3.0 # g/cm^3
 
 # power law properties, jelly sandwich: wet quartz, wet feldspar
 AVals = [1e-9 1e-9 398 398]
-ADepths = [0 15 15 60]
+ADepths = [0 13 13 60]
 BVals = [1.62e4 1.62e4 4.28e4 4.28e4]
-BDepths = [0 15 15 60]
+BDepths = [0 13 13 60]
 nVals = [4 4 3 3]
-nDepths = [0 15 15 60]
+nDepths = [0 13 13 60]
 TVals = [293 1293]
 TDepths = [0 50]
 thermalCoupling = no
@@ -113,9 +111,9 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
-initTime = 0      # s 3e10
+initTime = 0      # s 5e10
 maxTime = 1e19      # s
-initDeltaT = 1     # s
+initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-8
@@ -123,8 +121,9 @@ atol = 1e-8
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/lm_layered1_
 #outputDir = /scratch/kallison/lm_layered3_
-outputDir = /scratch/kallison/pl_layered4_
+#outputDir = /scratch/kallison/pl_layered3_
 
-#outputDir = /scratch/kallison/lm_dc8e-3_layered3_
+#outputDir = /scratch/kallison/smallTests/linEl_
+outputDir = /scratch/kallison/smallTests/pljs_step1_
+

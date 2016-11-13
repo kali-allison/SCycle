@@ -42,6 +42,8 @@ class Fault: public RootFinderContext
    PetscScalar    _f0,_v0,_vL;
    std::vector<double> _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec            _a,_b,_Dc;
+   std::vector<double> _cohesionVals,_cohesionDepths;
+   Vec            _cohesion;
    Vec            _state,_dPsi;
 
 

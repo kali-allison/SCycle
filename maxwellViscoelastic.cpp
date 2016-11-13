@@ -181,8 +181,8 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {0,1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {1}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -752,7 +752,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
-    MatMult(yq,bcL,temp1);
+    MatMult(yq,bcL,temp1); // do I need this term?? YES 11/9/2016
     //~ VecCopy(bcL,temp1);
 
     MatMult(zr,temp1,bcL);

@@ -1273,29 +1273,10 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  /*// load A
-  ierr = VecCreate(PETSC_COMM_WORLD,&_A);CHKERRQ(ierr);
-  ierr = VecSetSizes(_A,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_A);
-  PetscObjectSetName((PetscObject) _A, "_A");
-  ierr = loadVecFromInputFile(_A,_inputDir,_AFile);CHKERRQ(ierr);
+  PetscViewer inv; // in viewer
 
 
-  // load n
-  ierr = VecCreate(PETSC_COMM_WORLD,&_n);CHKERRQ(ierr);
-  ierr = VecSetSizes(_n,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_n);
-  PetscObjectSetName((PetscObject) _n, "_n");
-  ierr = loadVecFromInputFile(_n,_inputDir,_nFile);CHKERRQ(ierr);
-
-    // load B
-  ierr = VecCreate(PETSC_COMM_WORLD,&_B);CHKERRQ(ierr);
-  ierr = VecSetSizes(_B,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_B);
-  PetscObjectSetName((PetscObject) _B, "_B");
-  ierr = loadVecFromInputFile(_B,_inputDir,_BFile);CHKERRQ(ierr);
-
-    // load T (initial condition)
+  /*  // load T (initial condition)
   ierr = VecCreate(PETSC_COMM_WORLD,&_T);CHKERRQ(ierr);
   ierr = VecSetSizes(_T,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
   ierr = VecSetFromOptions(_T);
@@ -1303,7 +1284,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_T,_inputDir,_TFile);CHKERRQ(ierr);
   */
 
-  PetscViewer inv; // in viewer
+
 
     // load bcL
   string vecSourceFile = _inputDir + "bcL";
@@ -1357,6 +1338,27 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,inv);CHKERRQ(ierr);
+
+    // load A
+  vecSourceFile = _inputDir + "A";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_A,inv);CHKERRQ(ierr);
+
+  // load B
+  vecSourceFile = _inputDir + "B";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_B,inv);CHKERRQ(ierr);
+
+    // load B
+  vecSourceFile = _inputDir + "n";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_n,inv);CHKERRQ(ierr);
 
 
 

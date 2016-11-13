@@ -1,6 +1,6 @@
 order = 4
 Ny = 101
-Nz = 201
+Nz = 251
 Ly = 30 # km
 Lz = 30 # km
 
@@ -53,8 +53,11 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxInputData/lm_layered2IC_
-zInputDir = /data/dunham/kallison/maxInputData/lm_layered2IC_z
+#inputDir = /data/dunham/kallison/maxInputData/ytrans_trans5_
+#zInputDir = /data/dunham/kallison/maxInputData/ytrans_trans5_z
+#inputDir = /data/dunham/kallison/maxInputData/ztrans_constVisc_
+inputDir = /data/dunham/kallison/maxInputData/ztransTanh_trans_
+zInputDir = /data/dunham/kallison/maxInputData/ztransTanh_trans_z
 loadICs = 1
 bcLTauQS = 1
 
@@ -67,15 +70,23 @@ rhoPlus = 3.0 # g/cm^3
 
 
 # power law properties, jelly sandwich: wet quartz, wet feldspar
-AVals = [1e-9 1e-9 398 398]
-ADepths = [0 15 15 60]
-BVals = [1.62e4 1.62e4 4.28e4 4.28e4]
-BDepths = [0 15 15 60]
-nVals = [4 4 3 3]
-nDepths = [0 15 15 60]
+#AVals = [1e-9 1e-9 398 398]
+#ADepths = [0 15 15 60]
+#BVals = [1.62e4 1.62e4 4.28e4 4.28e4]
+#BDepths = [0 15 15 60]
+#nVals = [4 4 3 3]
+#nDepths = [0 15 15 60]
 TVals = [293 1293]
 TDepths = [0 50]
 thermalCoupling = no
+
+# power law properties, jelly sandwich: wet quartz
+AVals = [1e-9 1e-9]
+ADepths = [0 60]
+BVals = [1.62e4 1.62e4]
+BDepths = [0 60]
+nVals = [4 4]
+nDepths = [0 60]
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -98,8 +109,8 @@ kspTol = 1e-10
 
 # Maxwell properties
 #viscDistribution = layered
-#viscVals = [1e11 1e11 1e16 1e16] # GPa s
-#viscDepths = [0 12 15 30]
+#viscVals = [1e16 1e14 1e16 2e12] # GPa s
+#viscDepths = [0 10 14 30]
 
 viscDistribution = effectiveVisc
 strainRate = 1e-14
@@ -111,7 +122,7 @@ stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
 initTime = 0      # s 3e10
-maxTime = 1e26      # s
+maxTime = 20e15      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 5e10      # s
@@ -120,10 +131,20 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-outputDir = /scratch/kallison/lm_layered2_
+#outputDir = /scratch/kallison/noTransform/noTransition_
+#outputDir = /scratch/kallison/noTransform/trans10_
+#outputDir = /scratch/kallison/noTransform/trans5_
+
+#outputDir = /scratch/kallison/transform/ytrans_noTransition_
+#outputDir = /scratch/kallison/transform/ytrans_trans10_
+#outputDir = /scratch/kallison/transform/ytrans_trans5_
+
+#outputDir = /scratch/kallison/transform/ztrans_noTransition_
+#outputDir = /scratch/kallison/transform/ztrans_noTransition2_
+#outputDir = /scratch/kallison/transform/ztransTanh_noTransition_
+#outputDir = /scratch/kallison/transform/ztransTanh_trans2_
+#outputDir = /scratch/kallison/transform/ztransTanh_trans_
+#outputDir = /scratch/kallison/transform/ztrans_constVisc_
 
 
-#outputDir = data/greensFuncs/b10_Ly60_
-#outputDir = data/greensFuncs/b10_
-#outputDir = data/greensFuncs/b15_
 

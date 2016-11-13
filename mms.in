@@ -2,6 +2,7 @@ order = 4
 Ny = 161
 Nz = 1
 Ly = 6.283185307179586
+#Ly = 1
 Lz = 1
 
 DcVals = [8e-3 8e-3] # m
@@ -21,7 +22,7 @@ vL = 1e-9    # m/s
 inputDir = /data/dunham/kallison/maxInputData/pljellySandwich_blansVW_spinUp2IC_Ny201_Nz451_
 #zInputDir = /data/dunham/kallison/maxInputData/pljellySandwich_blansVW_spinUp2IC_Ny201_Nz451_z
 loadICs = 0
-bcLTauQS = 1
+bcLTauQS = 0
 
 shearDistribution = mms
 {

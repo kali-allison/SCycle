@@ -1,11 +1,12 @@
 order = 4
 Ny = 201
-Nz = 451
+Nz = 1062
 Ly = 120 # km
 Lz = 50 # km
 
+cohesionVals = [0 0] # m
+cohesionDepths = [0 60] # m
 DcVals = [16e-3 16e-3] # m
-#DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -24,27 +25,19 @@ bVals = [0.0398 0.0398 -0.0248 0.025 0.2833]
 bDepths = [0 14 23 29 60]
 
 
-# Blanpied 1995 for geotherm of 20 C/km (VW at surface) MODIFIED
-#aVals = [0.0352 0.0352 0.1350 0.6517]
-#aDepths = [0 23 29 60]
-#bVals = [0.0398 0.0398 -0.0248 0.025 0.2833]
-#bDepths = [0 12 23 29 60]
-
 
 
 #sigmaNVals = [50 50] # MPa
-sigmaNVals = [0.0758 1336] # MPa
-sigmaNDepths = [0 60]
-
-# capped gradient sigmaN
-#sigmaNVals = [0.1 50 50] # MPa
-#sigmaNDepths = [0 5.12 60]
+#sigmaNVals = [0.0758 1336] # MPa
+#sigmaNDepths = [0 60]
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
 
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxInputData/pljs_blansVW_t01.5e14_spinUp2IC_Ny201_Nz451_
-zInputDir = /data/dunham/kallison/maxInputData/pljs_blansVW_t01.5e14_spinUp2IC_Ny201_Nz451_z
+inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_b7_1IC_
+zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_b7_1IC_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -80,7 +73,7 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 10.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -102,7 +95,7 @@ stride2D = 10
 maxStepCount = 1e8
 initTime = 0      # s 7e9
 maxTime = 2e14      # s
-initDeltaT = 2e-3
+initDeltaT = 1e-3
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s 4e4
 atol = 1e-8
@@ -110,10 +103,10 @@ atol = 1e-8
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/pljellySandwich_blansVW_dc32e-3_cycle_t02e13_atol1e-9_fromSpinUp4_Ny201_Nz451_
-#outputDir = /scratch/kallison/pljs_blansVW_cycle_t01e13_Ny201_Nz451_
-#outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01e13_Ny201_Nz451_
-#outputDir = /scratch/kallison/pljs_blansVW_cycle3_dc16e-3_t01e13_Ny201_Nz451_
-##outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01.5e14_Ny201_Nz451_
-#outputDir = /scratch/kallison/pljs_blansVW_cycle2_dc16e-3_t01.5e14_Ny201_Nz451_
 
+#outputDir = /scratch/kallison/initialCycle/lmjs_
+#outputDir = /scratch/kallison/initialCycle/lmjs_b7_
+outputDir = /scratch/kallison/initialCycle/lmjs_b7_sN6_dc16e-3_Ny201_Nz1062_step1_
+
+
+#outputDir = /scratch/kallison/laterCycles/lmjs_b7_step3_

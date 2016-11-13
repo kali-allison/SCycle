@@ -12,7 +12,7 @@ Fault::Fault(Domain&D)
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _f0(D._f0),_v0(D._v0),_vL(D._vL),
-  _a(NULL),_b(NULL),_Dc(NULL),
+  _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _state(NULL),_dPsi(NULL),
   _sigma_N(NULL),
   _muVecP(&D._muVecP),_csVecP(&D._csVecP),
@@ -48,6 +48,8 @@ Fault::Fault(Domain&D)
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "_zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "_a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "_b");
+  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
+  VecSet(_cohesion,0);
 
   // initialize _z
   VecDuplicate(_tauQSP,&_z);
@@ -86,6 +88,7 @@ PetscErrorCode Fault::checkInput()
   assert(_aVals.size() == _aDepths.size() );
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
+  assert(_cohesionVals.size() == _cohesionDepths.size() );
 
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
@@ -189,12 +192,14 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     VecSet(_a,_aVals[0]);
     VecSet(_sigma_N,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
+    VecSet(_cohesion,_cohesionVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
   }
 
 
@@ -623,7 +628,7 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMin
 PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar    state,a,sigma_N,zPlus,tauQS;
+  PetscScalar    state,a,sigma_N,zPlus,tauQS,Co;
   PetscInt       Istart,Iend;
 
 #if VERBOSE > 3
@@ -638,6 +643,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
   ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
+  ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
 
   // frictional strength of fault
   // in terms of psi
@@ -653,6 +659,9 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     PetscScalar psi = _f0 + b*log(state*_v0/Dc);
     PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   #endif
+
+  // effect of cohesion
+  strength = strength + Co;
 
   // stress on fault
   PetscScalar stress = tauQS - 0.5*zPlus*slipVel;
@@ -921,6 +930,14 @@ PetscErrorCode Fault::loadSettings(const char *file)
     }
     else if (var.compare("stateLaw")==0) {
       _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("cohesionVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_cohesionVals);
+    }
+    else if (var.compare("cohesionDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_cohesionDepths);
     }
   }
 

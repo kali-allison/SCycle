@@ -1,10 +1,13 @@
 order = 4
-Ny = 151
-Nz = 151
+Ny = 201
+Nz = 531
 Ly = 120 # km
 Lz = 50 # km
 
-DcVals = [64e-3 64e-3] # m
+cohesionVals = [0 0] # m
+cohesionDepths = [0 60] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -26,18 +29,17 @@ bDepths = [0 11.2 18.4 23.2 60]
 
 
 #sigmaNVals = [50 50] # MPa
-sigmaNVals = [0.0758 1336] # MPa
-sigmaNDepths = [0 60]
-
-# capped gradient sigmaN
-#sigmaNVals = [0.1 50 50] # MPa
-#sigmaNDepths = [0 5.12 60]
+#sigmaNVals = [0.0758 1336] # MPa
+#sigmaNDepths = [0 60]
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
 
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxInputData/cremeBrulee_blansVW_IC2_Ny151_Nz251_
-loadICs = 0
+inputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_b7_1IC_
+zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_b7_1IC_z
+loadICs = 1
 bcLTauQS = 1
 
 shearDistribution = constant
@@ -72,7 +74,7 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 10.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -92,15 +94,15 @@ timeControlType = P
 stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
-initTime = 3e10      # s 7e9
-maxTime = 1e18      # s
-minDeltaT = 1e9     # s
-maxDeltaT = 1e10      # s
-atol = 1e-8
+initTime = 0      # s 7e9
+maxTime = 5e18      # s
+initDeltaT = 1     # s
+minDeltaT = 1e-3     # s
+maxDeltaT = 1e15      # s
+atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/cremeBrulee_blansVW_spinUp1_Ny151_Nz151_
-outputDir = /scratch/kallison/cremeBrulee_blansVW_spinUp2_Ny151_Nz151_
+outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
 

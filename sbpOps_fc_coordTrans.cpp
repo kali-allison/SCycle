@@ -602,22 +602,18 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
   // include effects of coordinate transform
   Mat mat;
   MatMatMult(tempMats._yq,_rhsT,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._rz,_rhsT,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,_rhsT,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._yq,_rhsB,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._rz,_rhsB,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,_rhsB,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._yq,tempMats._AT,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._rz,tempMats._AT,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,tempMats._AT,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 
   MatMatMult(tempMats._yq,tempMats._AB,MAT_INITIAL_MATRIX,1.0,&mat);
-  //~ MatMatMult(tempMats._rz,tempMats._AB,MAT_INITIAL_MATRIX,1.0,&mat);
   MatCopy(mat,tempMats._AB,SAME_NONZERO_PATTERN);
   MatDestroy(&mat);
 }

@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 151
+Nz = 421
 Ly = 120 # km
 Lz = 50 # km
 
@@ -35,9 +35,9 @@ sigmaNDepths = [0 60]
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/maxInputData/jellySandwich_blansVW_spinUp1IC_Ny201_Nz151_
-inputDir = /data/dunham/kallison/maxInputData/linEl_blansVW_spinUp2IC_Ny201_Nz151_
-loadICs = 0
+inputDir = /data/dunham/kallison/maxInputData/lmjs_b7_2IC_
+zInputDir = /data/dunham/kallison/maxInputData/lmjs_b7_2IC_z
+loadICs = 1
 bcLTauQS = 1
 
 shearDistribution = constant
@@ -59,17 +59,6 @@ TVals = [293 1293]
 TDepths = [0 50]
 thermalCoupling = no
 
-# power law properties, jelly sandwich NO QUARTZ: wet feldspar, dry olivine
-#AVals = [398 398 1.5e5 1.5e5]
-#ADepths = [0 30 30 60]
-#BVals = [4.28e4 4.28e4 6.37e4 6.37e4]
-#BDepths = [0 30 30 60]
-#nVals = [3 3 3.5 3.5]
-#nDepths = [0 30 30 60]
-#TVals = [293 1293]
-#TDepths = [0 50]
-#thermalCoupling = no
-
 # heat equation properties
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
@@ -83,7 +72,7 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 10.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 kspTol = 1e-10
 
@@ -103,18 +92,15 @@ stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 1e19      # s
+maxTime = 5e15      # s
+initDeltaT = 1     # s
 minDeltaT = 2e9     # s
-maxDeltaT = 1e11      # s
-atol = 1e-8
+maxDeltaT = 1e15      # s
+atol = 1e-7
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/jellySandwich_blansVW_spinUp1_Ny151_Nz151_
-#outputDir = /scratch/kallison/jellySandwich_blansVW_spinUp1_Ny151_Nz151_v2_
-#outputDir = /scratch/kallison/jellySandwich_blansVW_spinUp1_Ny151_Nz351_
-#outputDir = /scratch/kallison/jellySandwichNoQuartz_blansVW_spinUp1_Ny151_Nz351_
-#outputDir = /scratch/kallison/js_varz_blansVW_spinUp1_Ny201_Nz151_
-outputDir = /scratch/kallison/js_varz_10_blansVW_spinUp1_Ny201_Nz151_
+#outputDir = /scratch/kallison/spinUp/lmjs_b5_step2_
+#outputDir = /scratch/kallison/spinUp/lmjs_b7_step2_
 
