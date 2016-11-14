@@ -54,10 +54,12 @@ vL = 1e-9    # m/s
 
 #inputDir = /data/dunham/kallison/maxInputData/linEl_b7_1IC_
 #zInputDir = /data/dunham/kallison/maxInputData/linEl_b7_1IC_z
-inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_
-zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_z
+#inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_
+#zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_z
+inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_
+zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_z
 loadICs = 1
-bcLTauQS = 0
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -115,7 +117,7 @@ initTime = 0      # s 5e10
 maxTime = 1e19      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
+maxDeltaT = 1e15      # s
 atol = 1e-8
 
 rootTol = 1e-9
@@ -125,5 +127,6 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/pl_layered3_
 
 #outputDir = /scratch/kallison/smallTests/linEl_
-outputDir = /scratch/kallison/smallTests/pljs_step1_
+#outputDir = /scratch/kallison/smallTests/pljs_step1_
+#outputDir = /scratch/kallison/smallTests/pljs_step2_
 

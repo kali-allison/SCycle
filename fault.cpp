@@ -256,7 +256,7 @@ PetscErrorCode Fault::agingLaw(const PetscInt ind,const PetscScalar state,PetscS
 
   // if in terms of theta
   #if STATE_PSI == 0
-    dstate = 1 - state*slipVel/Dc;
+    dstate = 1 - state*abs(slipVel)/Dc;
   #endif
 
   // if in terms of psi
@@ -456,6 +456,7 @@ PetscErrorCode SymmFault::computeVel()
   // set up boundaries and output for rootfinder algorithm
   ierr = VecDuplicate(_tauQSP,&right);CHKERRQ(ierr);
   ierr = VecCopy(tauQS,right);CHKERRQ(ierr);
+  ierr = VecAXPY(right,-1.0,_cohesion);CHKERRQ(ierr); // add effect of cohesion!
   ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -656,7 +657,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     PetscScalar b,Dc=0;
     ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
-    PetscScalar psi = _f0 + b*log(state*_v0/Dc);
+    PetscScalar psi = _f0 + b*log(abs(state)*_v0/Dc);
     PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   #endif
 
@@ -675,6 +676,12 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
     ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",state,a,sigma_N,zPlus,tauQS,slipVel);
     CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(state/a));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"z*vel=%.9e\n",zPlus*slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"strength=%.9e\n",strength);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"stress=%.9e\n",stress);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(slipVel/2./_v0)*exp(psi/a)=%.9e\n",(slipVel/2./_v0)*exp(state/a));
   }
   else if (isinf(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*out) evaluated to true\n");
@@ -777,6 +784,12 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   str =  outputDir + "Dc";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_Dc,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  // output cohesion
+  str =  outputDir + "cohesion";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_cohesion,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 

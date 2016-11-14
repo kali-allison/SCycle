@@ -1,13 +1,12 @@
 order = 4
 Ny = 201
-Nz = 531
+Nz = 581
 Ly = 120 # km
 Lz = 50 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
-#DcVals = [16e-3 16e-3] # m
-DcVals = [8e-3 8e-3] # m
+DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -37,8 +36,10 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_b7_1IC_
-zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_b7_1IC_z
+#inputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_2IC_
+#zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_2IC_z
+inputDir = /data/dunham/kallison/maxGradsN_InputData/plcb_2IC_
+zInputDir = /data/dunham/kallison/maxGradsN_InputData/plcb_2IC_z
 loadICs = 1
 bcLTauQS = 1
 
@@ -95,14 +96,18 @@ stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 5e18      # s
+maxTime = 5e20      # s
 initDeltaT = 1     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e15      # s
+maxDeltaT = 1e19      # s
 atol = 1e-7
 
 rootTol = 1e-9
 
 
-outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
+#outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
+#outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_dt1e19_step2_
+#outputDir = /scratch/kallison/spinUp/plcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
 
+#outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc16e-3_Ny201_Nz581_step2_
+#outputDir = /scratch/kallison/nov13/plcb_b7_sN6_dc16e-3_Ny201_Nz581_step2_

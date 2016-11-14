@@ -167,8 +167,8 @@ PetscErrorCode PowerLaw::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {0,1,2,3}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+4); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {0,1}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -1359,8 +1359,6 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_n,inv);CHKERRQ(ierr);
-
-
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
