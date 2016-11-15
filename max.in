@@ -1,11 +1,11 @@
 order = 4
 Ny = 101
-Nz = 351
+Nz = 201
 Ly = 30 # km
 Lz = 30 # km
 
-cohesionVals = [0 0] # m
-cohesionDepths = [0 60] # m
+cohesionVals = [5 5 0 0] # m
+cohesionDepths = [0 1 3 60] # m
 DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
@@ -56,10 +56,10 @@ vL = 1e-9    # m/s
 #zInputDir = /data/dunham/kallison/maxInputData/linEl_b7_1IC_z
 #inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_
 #zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_1IC_z
-inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_
-zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_z
-loadICs = 1
-bcLTauQS = 1
+#inputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_
+#zInputDir = /data/dunham/kallison/smallTestInputData/pljs_b5_2IC_z
+loadICs = 0
+bcLTauQS = 0
 
 shearDistribution = constant
 {
@@ -129,4 +129,6 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/smallTests/linEl_
 #outputDir = /scratch/kallison/smallTests/pljs_step1_
 #outputDir = /scratch/kallison/smallTests/pljs_step2_
+
+outputDir = /scratch/kallison/testCo/linEl2D_constsN_Co5_0-1-3_
 

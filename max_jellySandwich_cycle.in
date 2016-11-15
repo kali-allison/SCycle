@@ -4,11 +4,14 @@ Nz = 585
 Ly = 120 # km
 Lz = 50 # km
 
-cohesionVals = [0 0] # m
-cohesionDepths = [0 60] # m
-#DcVals = [16e-3 16e-3] # m
+#cohesionVals = [0 0] # m
+#cohesionDepths = [0 60] # m
+cohesionVals = [5 5 0 0] # m
+cohesionDepths = [0 0.25 3 60] # m
+
+DcVals = [16e-3 16e-3] # m
 #DcVals = [20e-3 20e-3] # m
-DcVals = [32e-3 32e-3] # m
+#DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -30,7 +33,7 @@ bDepths = [0 14 23 29 60]
 
 
 #sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.0758 1336] # MPa
+#sigmaNVals = [0 1336] # MPa
 #sigmaNDepths = [0 60]
 sigmaNVals = [5.668 5.668 1336] # MPa
 sigmaNDepths = [0 0.25 60]
@@ -40,15 +43,14 @@ vL = 1e-9    # m/s
 
 #inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_3IC_
 #zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_3IC_z
-#inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_cont200_3IC_
-#zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_cont200_3IC_z
-inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_TB_3IC_
-zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_TB_3IC_z
+inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_state1e9_3IC_
+zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_state1e9_3IC_z
 
 #inputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_1IC_
 #zInputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_1IC_z
 #inputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_3IC_
 #zInputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_3IC_z
+
 loadICs = 1
 bcLTauQS = 0
 
@@ -127,5 +129,7 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/nov13/lmjs_tol1e-9_12_sN6_dc16e-3_Ny201_Nz585_t2e15_step3_
 #outputDir = /scratch/kallison/nov13/lmjs_cont_tol1e-8_12_sN6_dc32e-3_Ny201_Nz585_t2e15_step3_
 
-outputDir = /scratch/kallison/nov13/lmjs_TB_sN6_dc32e-3_Ny201_Nz585_step3_
+#outputDir = /scratch/kallison/nov13/lmjs_TB_sN6_dc32e-3_Ny201_Nz585_step3_
+#outputDir = /scratch/kallison/nov13/lmjs_TB_sN6_dc16e-3_Ny201_Nz585_step3_
+#outputDir = /scratch/kallison/nov13/lmjs_TB_Co5_sN0_dc16e-3_Ny201_Nz585_step3_
 

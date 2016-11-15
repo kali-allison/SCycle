@@ -5,9 +5,9 @@ Ly = 120 # km
 Lz = 50 # km
 
 cohesionVals = [5 5 0 0] # m
-cohesionDepths = [0 1 3 60] # m
-#DcVals = [12e-3 12e-3] # m
-DcVals = [16e-3 16e-3] # m
+cohesionDepths = [0 0.25 3 60] # m
+DcVals = [32e-3 32e-3] # m
+#DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -148,6 +148,7 @@ rootTol = 1e-9
 
 
 #outputDir = /scratch/kallison/testCo/linEl_Co1_1-3_
-outputDir = /scratch/kallison/testCo/linEl_Co5_0-3_
+#outputDir = /scratch/kallison/testCo/linEl_Co5_0-3_
+outputDir = /scratch/kallison/testCo/linEl2D_Co5_0-0.25-3_
 
 

@@ -806,11 +806,11 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
       MatMult(yq,bcB,temp2);
-      //~ MatMult(zr,temp2,bcB); // do I need this term?
+      //~ MatMult(zr,temp2,bcB); // do I need this term? NO 11/14
       VecCopy(temp2,bcB);
 
       MatMult(yq,bcT,temp2);
-      //~ MatMult(zr,temp2,bcT); // do I need this term?
+      //~ MatMult(zr,temp2,bcT); // do I need this term? NO 11/14
       VecCopy(temp2,bcT);
       VecDestroy(&temp2);
     }

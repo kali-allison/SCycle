@@ -1,9 +1,11 @@
 order = 4
-Ny = 201
+Ny = 40
 Nz = 1
 Ly = 30 # km
 Lz = 30 # km
 
+cohesionVals = [5 5 0 0] # m
+cohesionDepths = [0 1 3 60] # m
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 30] # m
 
@@ -61,9 +63,9 @@ rhoDepths = [0 30]
 
 # linear solve for momentum balance equation
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 7.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 kspTol = 1e-13
 
 
@@ -84,7 +86,7 @@ stride1D = 1
 stride2D = 1
 maxStepCount = 1e8
 initTime = 3e10       # s 4e11
-maxTime = 8e10      # s
+maxTime = 2e11      # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
 atol = 1e-8
@@ -96,5 +98,6 @@ rootTol = 1e-9
 #outputDir = data/lSS_wTherm_
 #outputDir = data/lSS_uChol_TAMG_
 #outputDir = data/lSS_uAMG_TAMG_
-outputDir = data/lSS_uChol_
+#outputDir = data/lSS_uChol_
 #outputDir = data/lSS_uAMG1e-13_
+outputDir = /scratch/kallison/testCo/SS_Co5_

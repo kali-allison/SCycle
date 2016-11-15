@@ -36,10 +36,10 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_2IC_
-zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_2IC_z
-#inputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_2IC_
-#zInputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_2IC_z
+#inputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_2IC_
+#zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmjs_2IC_z
+inputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_2IC_
+zInputDir = /data/dunham/kallison/maxGradsN_InputData/pljs_2IC_z
 loadICs = 1
 bcLTauQS = 1
 
@@ -108,4 +108,5 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/nov13/pljs_b7_sN6_dc16e-3_Ny201_Nz581_step2_
 
 #outputDir = /scratch/kallison/nov13/lmjs_TB_sN6_dc16e-3_Ny201_Nz585_step2_
+outputDir = /scratch/kallison/nov13/pljs_TB_sN6_Ny201_Nz585_step2_
 
