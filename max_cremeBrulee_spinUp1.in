@@ -36,10 +36,10 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-inputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_2IC_
-zInputDir = /data/dunham/kallison/maxGradsN_InputData/lmcb_2IC_z
-#inputDir = /data/dunham/kallison/maxGradsN_InputData/plcb_2IC_
-#zInputDir = /data/dunham/kallison/maxGradsN_InputData/plcb_2IC_z
+#inputDir = /data/dunham/kallison/inputData_nov15/lmcb_cont_2IC_
+#zInputDir = /data/dunham/kallison/inputData_nov15/lmcb_cont_2IC_z
+inputDir = /data/dunham/kallison/inputData_nov15/plcb_cont_2IC_
+zInputDir = /data/dunham/kallison/inputData_nov15/plcb_cont_2IC_z
 loadICs = 1
 bcLTauQS = 1
 
@@ -105,13 +105,14 @@ atol = 1e-7
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
-#outputDir = /scratch/kallison/spinUp/lmcb_b7_sN6_dc16e-3_Ny201_Nz531_dt1e19_step2_
-#outputDir = /scratch/kallison/spinUp/plcb_b7_sN6_dc16e-3_Ny201_Nz531_step2_
-
 #outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc16e-3_Ny201_Nz581_step2_
 #outputDir = /scratch/kallison/nov13/plcb_b7_sN6_dc16e-3_Ny201_Nz581_step2_
 
 
 #outputDir = /scratch/kallison/nov13/lmcb_TB_sN6_Ny201_Nz581_step2_
+#outputDir = /scratch/kallison/nov13/lmcb_nTBcont_sN6_Ny201_Nz581_step2_
 #outputDir = /scratch/kallison/nov13/plcb_TB_sN6_Ny201_Nz581_step2_
+#outputDir = /scratch/kallison/nov13/plcb_nTBcont_sN6_Ny201_Nz581_step2_
+
+#outputDir = /scratch/kallison/nov15/plcb_nTBcont_sN6_Ny201_Nz581_step2_
+#outputDir = /scratch/kallison/nov15/lmcb_nTBcont_sN6_Ny201_Nz581_step2_

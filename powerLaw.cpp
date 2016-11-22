@@ -167,8 +167,8 @@ PetscErrorCode PowerLaw::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {0,1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
+      int arrInds[] = {0}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -491,12 +491,12 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
       MatMult(yq,bcB,temp2);
-      //~ MatMult(zr,temp2,bcB); // do I need this term?
-      VecCopy(temp2,bcB);
+      MatMult(zr,temp2,bcB); // do I need this term?
+      //~ VecCopy(temp2,bcB);
 
       MatMult(yq,bcT,temp2);
-      //~ MatMult(zr,temp2,bcT); // do I need this term?
-      VecCopy(temp2,bcT);
+      MatMult(zr,temp2,bcT); // do I need this term?
+      //~ VecCopy(temp2,bcT);
       VecDestroy(&temp2);
     }
 
