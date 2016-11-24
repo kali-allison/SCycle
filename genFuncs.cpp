@@ -372,10 +372,10 @@ double MMS_sigmaxz(const double y,const double z, const double t) { return MMS_m
 
 
 // specific MMS functions
-double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 2e19; }
-double MMS_invVisc(const double y,const double z) { return 1.0/(cos(y)*cos(z) + 2e19); }
-double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e19, 2.0); }
-double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e19 ,2.0); }
+double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 2e10; }
+double MMS_invVisc(const double y,const double z) { return 1.0/MMS_visc(y,z); }
+double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e10, 2.0); }
+double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e10 ,2.0); }
 
 double MMS_gxy(const double y,const double z,const double t)
 {
@@ -488,12 +488,10 @@ double MMS_gSource(const double y,const double z,const double t)
   return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
 }
 
-
-
 // specific to power law
-double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 1e-9; }
-double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 1.44e4; }
-double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 300; }
+double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 398; }
+double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 4.28e4; }
+double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 800; }
 double MMS_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
 double MMS_pl_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*(MMS_uA_y(y,z,t) - MMS_gxy(y,z,t)); }
 double MMS_pl_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*(MMS_uA_z(y,z,t) - MMS_gxz(y,z,t)); }

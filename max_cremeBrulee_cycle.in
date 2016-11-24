@@ -7,7 +7,8 @@ Lz = 50 # km
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [16e-3 16e-3] # m
-DcVals = [32e-3 32e-3] # m
+#DcVals = [32e-3 32e-3] # m
+DcVals = [10 10] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -37,10 +38,10 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/input_nov21/lmcb_3IC_
-#zInputDir = /data/dunham/kallison/input_nov21/lmcb_3IC_z
-inputDir = /data/dunham/kallison/input_nov21/plcb_3IC_
-zInputDir = /data/dunham/kallison/input_nov21/plcb_3IC_z
+inputDir = /data/dunham/kallison/input_nov21/lmcb_3IC_
+zInputDir = /data/dunham/kallison/input_nov21/lmcb_3IC_z
+#inputDir = /data/dunham/kallison/input_nov21/plcb_3IC_
+#zInputDir = /data/dunham/kallison/input_nov21/plcb_3IC_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -101,7 +102,7 @@ maxTime = 1e19      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-8
+atol = 1e-5
 
 rootTol = 1e-9
 
@@ -120,5 +121,7 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/nov13/lmcb_b7_nTB_sN6_dc16e-3_Ny201_Nz581_t5e15_step3_
 
 #outputDir = /scratch/kallison/nov21/lmcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t2e16_step3_
+outputDir = /scratch/kallison/nov21/lmcb_b7_nTB_sN6_dc10_0_Ny201_Nz581_t2e16_step3_
 #outputDir = /scratch/kallison/nov21/plcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t1e15_step3_
+#outputDir = /scratch/kallison/nov21/plcb_b7_nTB_sN6_dc10_0_Ny201_Nz581_t1e15_step3_
 

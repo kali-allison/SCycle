@@ -10,6 +10,8 @@ DcDepths = [0 48] # m
 
 stateLaw = agingLaw
 
+cohesionVals = [0 0] # m
+cohesionDepths = [0 60] # m
 aVals = [0.015 0.015] # comment
 aDepths = [0 6.283185307179586]
 bVals = [0.02 0.02]
@@ -67,7 +69,7 @@ stride1D = 10000 # how many steps between writing out 1D fields
 stride2D = 10000 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime =   0    # s 3000000
-maxTime =  6e10      # s
+maxTime =  120      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s

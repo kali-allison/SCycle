@@ -76,17 +76,21 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecAssemblyBegin(faultVisc); VecAssemblyEnd(faultVisc);
     VecGetOwnershipRange(_bcLP,&Istart,&Iend);
     for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar tauRS = 1.2*_fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
+      PetscScalar tauRS = _fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
 
       // viscous strength
       VecGetValues(faultVisc,1,&Ii,&v);
-      PetscScalar tauVisc = v*_vL/2.0/14.0; // 14 = seismogenic depth
+      PetscScalar tauVisc = v*_vL/2.0/_Lz; // 14 = seismogenic depth
 
-      PetscScalar tau = min(tauRS,tauVisc);
+      //~ PetscScalar tau = min(tauRS,tauVisc);
+      PetscScalar tau = tauVisc;
       VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
+  //~ VecSet(_bcLP,1e3);
+  //~ VecSet(_bcLP,50);
+  VecSet(_bcLP,43.8033);
 
   if (_isMMS) { setMMSInitialConditions(); }
 
@@ -752,8 +756,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
-    MatMult(yq,bcL,temp1); // do I need this term?? YES 11/9/2016
-    //~ VecCopy(bcL,temp1);
+    MatMult(yq,bcL,temp1);
 
     MatMult(zr,temp1,bcL);
     VecDestroy(&temp1);
@@ -806,12 +809,10 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
       MatMult(yq,bcB,temp2);
-      MatMult(zr,temp2,bcB); // do I need this term?
-      //~ VecCopy(temp2,bcB);
+      MatMult(zr,temp2,bcB);
 
       MatMult(yq,bcT,temp2);
-      MatMult(zr,temp2,bcT); // do I need this term?
-      //~ VecCopy(temp2,bcT);
+      MatMult(zr,temp2,bcT);
       VecDestroy(&temp2);
     }
 

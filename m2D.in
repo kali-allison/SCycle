@@ -1,13 +1,13 @@
 order = 4
-Ny = 201
-Nz = 585
-Ly = 120 # km
-Lz = 50 # km
+Ny = 301
+Nz = 301
+Ly = 30 # km
+Lz = 30 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [16e-3 16e-3] # m
+DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -15,10 +15,10 @@ stateLaw = agingLaw
 
 
 # Brittany's rate-and-state values
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 60]
 
 # from Rice 1993
 #aVals = [0.015 0.015 0.018 0.066]
@@ -52,27 +52,25 @@ stateLaw = agingLaw
 #bDepths = [0 14 23 29 60]
 
 # creme brulee
-aVals = [0.035 0.035 0.1350 0.9017]
-aDepths = [0 18.4 23.2 60]
-bVals = [0.0397 0.0397 -0.0221 0.025 0.4083]
-bDepths = [0 11.2 18.4 23.2 60]
+#aVals = [0.035 0.035 0.1350 0.9017]
+#aDepths = [0 18.4 23.2 60]
+#bVals = [0.0397 0.0397 -0.0221 0.025 0.4083]
+#bDepths = [0 11.2 18.4 23.2 60]
 
 
-#sigmaNVals = [50 50] # MPa
-#sigmaNVals = [0.0758 1336] # MPa
-#sigmaNDepths = [0 60]
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 60]
 #sigmaNVals = [0 1336] # MPa
-#sigmaNDepths = [0 60]
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
+#sigmaNVals = [5.668 5.668 1336] # MPa
+#sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
 #zInputDir = /data/dunham/kallison/maxInputData/linEl_b7_v3_step0_z
-inputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_
-zInputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_z
-loadICs = 1
-bcLTauQS = 0
+#inputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_
+#zInputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_z
+loadICs = 0
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -83,7 +81,7 @@ rhoPlus = 3.0 # g/cm^3
 
 
 # power law properties
-AVals = [1e-9 2.1e-9]
+AVals = [1e-9 1e-9]
 ADepths = [0 60]
 BVals = [1.44e4 1.44e4]
 BDepths = [0 60]
@@ -106,19 +104,19 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 7.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+bCoordTrans = 2.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 kspTol = 1e-10
 
 
 # Maxwell properties
-#viscDistribution = layered
-#viscVals = [1e25 1e25] # GPa s
-#viscDepths = [0 30]
+viscDistribution = layered
+viscVals = [1e11 1e10] # GPa s
+viscDepths = [0 30]
 
-viscDistribution = effectiveVisc
-strainRate = 1e-14
+#viscDistribution = effectiveVisc
+#strainRate = 1e-12
 
 
 timeIntegrator = RK32
@@ -139,6 +137,25 @@ rootTol = 1e-9
 #outputDir = data/greensFuncs/b10_
 #outputDir = data/greensFuncs/b15_
 
+
+#outputDir = /scratch/kallison/stateTests/linEl_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_theta_
+
+#outputDir = /scratch/kallison/stressTests/linEl_constsN_
+#outputDir = /scratch/kallison/stressTests/linEl_constsN_theta_
+
+#outputDir = /scratch/kallison/stressTests/lm_constsN_
+#outputDir = /scratch/kallison/stressTests/lm_v1e35_
+#outputDir = /scratch/kallison/stressTests/lm_v1e11_
+#outputDir = /scratch/kallison/stressTests/lm_v1e11_v1e12_
+#outputDir = /scratch/kallison/stressTests/lm_v1e11_v1e12_coodTrans_
+#outputDir = /scratch/kallison/stressTests/lm_v1e35_v1e10_coodTrans_
+#outputDir = /scratch/kallison/stressTests/lm_s1e-12_
+outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau1e3_
+#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau50_
+#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8667_
+#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8033_
+outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8033_noTrans_
 
 
 #outputDir = /scratch/kallison/linEl/linEl_b7_Ny201_Nz531_Ly120_Lz50_step0_
