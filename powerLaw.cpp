@@ -167,7 +167,7 @@ PetscErrorCode PowerLaw::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {0}; // state: 0, slip: 1
+      int arrInds[] = {1}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }

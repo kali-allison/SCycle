@@ -80,17 +80,17 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 
       // viscous strength
       VecGetValues(faultVisc,1,&Ii,&v);
-      PetscScalar tauVisc = v*_vL/2.0/_Lz; // 14 = seismogenic depth
+      PetscScalar tauVisc = v*_vL/2.0/14.0; // 14 = seismogenic depth
 
-      //~ PetscScalar tau = min(tauRS,tauVisc);
-      PetscScalar tau = tauVisc;
+      PetscScalar tau = min(tauRS,tauVisc);
+      //~ PetscScalar tau = tauVisc;
       VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
   //~ VecSet(_bcLP,1e3);
   //~ VecSet(_bcLP,50);
-  VecSet(_bcLP,43.8033);
+  //~ VecSet(_bcLP,20);
 
   if (_isMMS) { setMMSInitialConditions(); }
 
@@ -185,7 +185,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {0}; // state: 0, slip: 1
+      int arrInds[] = {1}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
@@ -755,9 +755,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainSourceTerms(Vec& out,const_
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-
     MatMult(yq,bcL,temp1);
-
     MatMult(zr,temp1,bcL);
     VecDestroy(&temp1);
   }

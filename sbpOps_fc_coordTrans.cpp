@@ -43,8 +43,8 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string
 
   // reset SAT params
   if (_order==4) {
-    _alphaDy = 4.0 * -48.0/17.0 /_dy;
-    _alphaDz = 4.0 * -48.0/17.0 /_dz;
+    _alphaDy = 1.0 * -48.0/17.0 /_dy;
+    _alphaDz = 1.0 * -48.0/17.0 /_dz;
   }
 
   constructH(tempFactors);

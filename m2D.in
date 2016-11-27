@@ -1,13 +1,13 @@
 order = 4
-Ny = 301
-Nz = 301
-Ly = 30 # km
-Lz = 30 # km
+Ny = 201
+Nz = 351
+Ly = 60 # km
+Lz = 50 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [8e-3 8e-3] # m
+DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
@@ -15,10 +15,10 @@ stateLaw = agingLaw
 
 
 # Brittany's rate-and-state values
-aVals = [0.015 0.015]
-aDepths = [0 60]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 60]
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 12 15 60]
 
 # from Rice 1993
 #aVals = [0.015 0.015 0.018 0.066]
@@ -33,44 +33,33 @@ bDepths = [0 12 15 60]
 #bDepths = [0 4 13.5 17.5 60]
 
 
-# Blanpied 1995 (VS at surface)
-#aVals = [0.0091 0.035 0.1350 0.9017]
-#aDepths = [0 18.4 23.2 60]
-#bVals = [0.0017 0.0381 -0.0221 0.025 0.4083]
-#bDepths = [0 11.2 18.4 23.2 60]
+# jelly sandwich (25 C/km)
+aVals = [0.0135 0.0302 0.1350 0.4995]
+aDepths = [0 12.6000 23.2000 60]
+bVals = [0.0230 0.0395 0.0350 0.0194]
+bDepths = [0 12.6000 23.2000 60]
 
-# Blanpied 1995 (VW at surface)
-#aVals = [0.035 0.035 0.1350 0.9017]
-#aDepths = [0 18.4 23.2 60]
-#bVals = [0.0381 0.0381 -0.0221 0.025 0.4083]
-#bDepths = [0 11.2 18.4 23.2 60]
-
-# jelly sandwich
-#aVals = [0.0352 0.0352 0.1350 0.6517]
-#aDepths = [0 23 29 60]
-#bVals = [0.0398 0.0398 -0.0248 0.025 0.2833]
-#bDepths = [0 14 23 29 60]
-
-# creme brulee
-#aVals = [0.035 0.035 0.1350 0.9017]
-#aDepths = [0 18.4 23.2 60]
-#bVals = [0.0397 0.0397 -0.0221 0.025 0.4083]
-#bDepths = [0 11.2 18.4 23.2 60]
+# creme brulee (30 C/km)
+#aVals = [0.0135 0.0301 0.1350 0.6184]
+#aDepths = [0 10.5000 19.3333 60]
+#bVals = [0.0230 0.0395 0.0350 0.0143]
+#bDepths = [0 10.5000 19.3333 60]
 
 
-sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 60]
+#sigmaNVals = [50 50] # MPa
+#sigmaNDepths = [0 60]
 #sigmaNVals = [0 1336] # MPa
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-#zInputDir = /data/dunham/kallison/maxInputData/linEl_b7_v3_step0_z
-#inputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_
-#zInputDir = /data/dunham/kallison/inputData_nov15/linEl_1IC_z
-loadICs = 0
-bcLTauQS = 1
+#inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_z
+inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_z
+loadICs = 1
+bcLTauQS = 0
 
 shearDistribution = constant
 {
@@ -104,9 +93,9 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 2.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 7.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 kspTol = 1e-10
 
 
@@ -140,28 +129,13 @@ rootTol = 1e-9
 
 #outputDir = /scratch/kallison/stateTests/linEl_psi_
 #outputDir = /scratch/kallison/stateTests/linEl_theta_
+#outputDir = /scratch/kallison/stateTests/linEl_cb_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_cb_dc16_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_cb_dc16_psi_
 
-#outputDir = /scratch/kallison/stressTests/linEl_constsN_
-#outputDir = /scratch/kallison/stressTests/linEl_constsN_theta_
+#outputDir = /scratch/kallison/stateTests/linEl_Nz331_cb_dc16_gradsN_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_Nz301_cb_dc16_gradsN_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_Nz351_cb_dc16_gradsN_psi_
 
-#outputDir = /scratch/kallison/stressTests/lm_constsN_
-#outputDir = /scratch/kallison/stressTests/lm_v1e35_
-#outputDir = /scratch/kallison/stressTests/lm_v1e11_
-#outputDir = /scratch/kallison/stressTests/lm_v1e11_v1e12_
-#outputDir = /scratch/kallison/stressTests/lm_v1e11_v1e12_coodTrans_
-#outputDir = /scratch/kallison/stressTests/lm_v1e35_v1e10_coodTrans_
-#outputDir = /scratch/kallison/stressTests/lm_s1e-12_
-outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau1e3_
-#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau50_
-#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8667_
-#outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8033_
-outputDir = /scratch/kallison/stressTests/lm_s1e-12_tau43.8033_noTrans_
-
-
-#outputDir = /scratch/kallison/linEl/linEl_b7_Ny201_Nz531_Ly120_Lz50_step0_
-
-#outputDir = /scratch/kallison/nov15/linEl_psi_dc32e-3_Ny201_Nz585_Ly120_Lz50_step1_
-#outputDir = /scratch/kallison/nov15/linEl_psi2_dc16e-3_Ny201_Nz585_Ly120_Lz50_step1_
-#outputDir = /scratch/kallison/nov15/linElcb_psi_dc16e-3_Ny201_Nz585_Ly120_Lz50_step1_
-
-
+#outputDir = /scratch/kallison/stateTests/linEl_Nz351_v2_cb_dc16_gradsN_psi_
+outputDir = /scratch/kallison/stateTests/linEl_Nz351_js_dc16_gradsN_psi_
