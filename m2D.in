@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 201
+Nz = 421
 Ly = 60 # km
 Lz = 50 # km
 
@@ -20,24 +20,18 @@ stateLaw = agingLaw
 #bVals = [0.02 0.02 0.0 0.0]
 #bDepths = [0 12 15 60]
 
-# from Rice 1993
-#aVals = [0.015 0.015 0.018 0.066]
-#aDepths = [0 17.5 20 60]
-#bVals = [0.01 0.019 0.019 0.0 0.0]
-#bDepths = [0 4 13.5 17.5 60]
 
-# from Rice 1993, with VW at surface
-#aVals = [0.015 0.015 0.018 0.066]
-#aDepths = [0 17.5 20 60]
-#bVals = [0.019 0.019 0.019 0.0 0.0]
-#bDepths = [0 4 13.5 17.5 60]
-
+# Blanpied 1998 for geotherm of 20 C/km
+aVals = [0.0135 0.0300 0.1350 0.3807]
+aDepths = [0 15.7500 29 60]
+bVals = [0.0230 0.0395 0.0350 0.0245]
+bDepths = [0 15.7500 29 60]
 
 # jelly sandwich (25 C/km)
-aVals = [0.0135 0.0302 0.1350 0.4995]
-aDepths = [0 12.6000 23.2000 60]
-bVals = [0.0230 0.0395 0.0350 0.0194]
-bDepths = [0 12.6000 23.2000 60]
+#aVals = [0.0135 0.0302 0.1350 0.4995]
+#aDepths = [0 12.6000 23.2000 60]
+#bVals = [0.0230 0.0395 0.0350 0.0194]
+#bDepths = [0 12.6000 23.2000 60]
 
 # creme brulee (30 C/km)
 #aVals = [0.0135 0.0301 0.1350 0.6184]
@@ -54,11 +48,9 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_z
-#inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_z
-loadICs = 0
+inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_z
+loadICs = 1
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -110,16 +102,16 @@ viscDepths = [0 30]
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0      # s 7e9
 maxTime = 2e14      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-8
-timeIntInds = [0 1]
+timeIntInds = [1]
 
 rootTol = 1e-9
 
@@ -128,17 +120,7 @@ rootTol = 1e-9
 #outputDir = data/greensFuncs/b15_
 
 
-#outputDir = /scratch/kallison/stateTests/linEl_psi_
-#outputDir = /scratch/kallison/stateTests/linEl_theta_
-#outputDir = /scratch/kallison/stateTests/linEl_cb_psi_
-#outputDir = /scratch/kallison/stateTests/linEl_cb_dc16_psi_
-#outputDir = /scratch/kallison/stateTests/linEl_cb_dc16_psi_
-
-#outputDir = /scratch/kallison/stateTests/linEl_Nz331_cb_dc16_gradsN_psi_
-#outputDir = /scratch/kallison/stateTests/linEl_Nz301_cb_dc16_gradsN_psi_
-#outputDir = /scratch/kallison/stateTests/linEl_Nz351_cb_dc16_gradsN_psi_
+outputDir = /scratch/kallison/aguSims/linEl_g20_js_421_
 
 #outputDir = /scratch/kallison/stateTests/linEl_Nz351_v2_cb_dc16_gradsN_psi_
 #outputDir = /scratch/kallison/stateTests/linEl_Nz351_js_dc16_gradsN_psi_
-
-outputDir = /scratch/kallison/viscTests/testOut_

@@ -317,8 +317,8 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
   int val; // holds values
 
 
-  //~PetscPrintf(PETSC_COMM_WORLD,"About to start loading aVals:\n");
-  //~PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
+  //~ PetscPrintf(PETSC_COMM_WORLD,"About to start loading timeIntInds:\n");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"input str = %s\n\n",str.c_str());
 
   // holds remainder as str is parsed through (with beginning and ending brackets removed)
   pos = str.find("]");
@@ -326,6 +326,9 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
   //~ PetscPrintf(PETSC_COMM_WORLD,"remstr = %s\n",remstr.c_str());
 
   pos = remstr.find(delim);
+  val = atoi( remstr.substr(0,pos).c_str() );
+  vec.push_back(val);
+  remstr = remstr.substr(pos + delim.length());
   while (pos != remstr.npos) {
     pos = remstr.find(delim);
     val = atoi( remstr.substr(0,pos).c_str() );
@@ -334,7 +337,6 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
     vec.push_back(val);
   }
   //~ PetscPrintf(PETSC_COMM_WORLD,"val = %i  |  remstr = %s\n",val,remstr.c_str());
-
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
