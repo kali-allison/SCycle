@@ -23,7 +23,7 @@ LinearElastic::LinearElastic(Domain&D)
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
-  _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),
+  _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
   _thermalCoupling("no"),_he(D),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
@@ -774,9 +774,10 @@ PetscErrorCode SymmLinearElastic::integrate()
     ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    int arrInds[] = {1}; // state: 0, slip: 1
-    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    ierr = _quadEx->setErrInds(errInds);
+    //~ int arrInds[] = {1}; // state: 0, slip: 1
+    //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    //~ ierr = _quadEx->setErrInds(errInds);
+    ierr = _quadEx->setErrInds(_timeIntInds);
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }

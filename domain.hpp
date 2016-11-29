@@ -27,6 +27,7 @@ class Domain
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz,_dy,_dz;
 
+
     // boundary conditions
     std::string _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
 
@@ -64,6 +65,7 @@ class Domain
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
     PetscScalar  _atol;
+    std::vector<int> _timeIntInds; // indices of variables to be used in time integration
 
     // other tolerances
     PetscScalar  _rootTol;
@@ -87,7 +89,6 @@ class Domain
     ~Domain();
 
     PetscErrorCode view(PetscMPIInt rank);
-    string vector2str(const vector<double> vec);
     PetscErrorCode write();
 
 

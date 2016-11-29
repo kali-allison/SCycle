@@ -273,6 +273,10 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("timeIntInds")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_timeIntInds);
+    }
 
     // other tolerances
     else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -376,18 +380,6 @@ PetscErrorCode Domain::loadShearModSettings(ifstream& infile)
   return ierr;
 }
 
-// creates a string containing the contents of C++ std library vector
-string Domain::vector2str(const vector<double> vec)
-{
-  ostringstream ss;
-  for (vector<double>::const_iterator Ii=vec.begin(); Ii != vec.end(); Ii++) {
-    ss << " " << *Ii;
-  }
-  string str = "[" + ss.str() + "]";
-  //~PetscPrintf(PETSC_COMM_WORLD,"%s\n",str.c_str());
-
-  return str;
-}
 
 // Specified processor prints scalar/string data members to stdout.
 PetscErrorCode Domain::view(PetscMPIInt rank)
@@ -486,6 +478,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"minDeltaT = %.15e\n",_minDeltaT);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"maxDeltaT = %.15e\n",_maxDeltaT);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"initDeltaT = %.15e\n",_initDeltaT);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // tolerance nonlinear solve (for vel)
@@ -704,6 +697,7 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // tolerance for nonlinear solve (for vel)

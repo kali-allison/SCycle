@@ -185,9 +185,10 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      int arrInds[] = {1}; // state: 0, slip: 1
-      std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-      ierr = _quadEx->setErrInds(errInds);
+      //~ int arrInds[] = {1}; // state: 0, slip: 1
+      //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+      //~ ierr = _quadEx->setErrInds(errInds);
+      ierr = _quadEx->setErrInds(_timeIntInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }

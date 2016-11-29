@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 351
+Nz = 201
 Ly = 60 # km
 Lz = 50 # km
 
@@ -56,9 +56,9 @@ vL = 1e-9    # m/s
 
 #inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_v2_351_z
-inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_
-zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_z
-loadICs = 1
+#inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_js_351_z
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -110,15 +110,16 @@ viscDepths = [0 30]
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0      # s 7e9
 maxTime = 2e14      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-8
+timeIntInds = [0 1]
 
 rootTol = 1e-9
 
@@ -138,4 +139,6 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/stateTests/linEl_Nz351_cb_dc16_gradsN_psi_
 
 #outputDir = /scratch/kallison/stateTests/linEl_Nz351_v2_cb_dc16_gradsN_psi_
-outputDir = /scratch/kallison/stateTests/linEl_Nz351_js_dc16_gradsN_psi_
+#outputDir = /scratch/kallison/stateTests/linEl_Nz351_js_dc16_gradsN_psi_
+
+outputDir = /scratch/kallison/viscTests/testOut_

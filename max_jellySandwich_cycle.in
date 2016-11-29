@@ -1,31 +1,37 @@
 order = 4
 Ny = 201
-Nz = 351
+Nz = 421
 Ly = 60 # km
 Lz = 50 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 
-DcVals = [16e-3 16e-3] # m
-#DcVals = [32e-3 32e-3] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
 stateLaw = agingLaw
 
 
 
-# jelly sandwich (25 C/km)
+# Blanpied 1998 for geotherm of 20 C/km
+aVals = [0.0135 0.0302 0.1350 0.3807]
+aDepths = [0 15.7500 29 60]
+bVals = [0.0230 0.0395 0.0350 0.0245]
+bDepths = [0 15.7500 29 60]
+
+# Blanpied 1998 for geotherm of 25 C/km
 #aVals = [0.0135 0.0302 0.1350 0.4995]
-#aDepths = [7.5634e-16 12.6000 23.2000 60]
+#aDepths = [0 12.6000 23.2000 60]
 #bVals = [0.0230 0.0395 0.0350 0.0194]
 #bDepths = [0 12.6000 23.2000 60]
 
-# creme brulee (30 C/km)
-aVals = [0.0135 0.0301 0.1350 0.6184]
-aDepths = [0 10.5000 19.3333 60]
-bVals = [0.0230 0.0395 0.0350 0.0143]
-bDepths = [0 10.5000 19.3333 60]
+# Blanpied 1998 for geotherm of 30 C/km
+#aVals = [0.0135 0.0301 0.1350 0.6184]
+#aDepths = [0 10.5000 19.3333 60]
+#bVals = [0.0230 0.0395 0.0350 0.0143]
+#bDepths = [0 10.5000 19.3333 60]
 
 
 #sigmaNVals = [50 50] # MPa
@@ -37,13 +43,10 @@ sigmaNDepths = [0 0.25 60]
 
 vL = 1e-9    # m/s
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_401_lc4_m2_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_401_lc4_m2_z
-inputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_351_lc4_m2_
-zInputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_351_lc4_m2_z
-
-#inputDir = /data/dunham/kallison/input_nov21/pljs_3IC_
-#zInputDir = /data/dunham/kallison/input_nov21/pljs_3IC_z
+#inputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_421_lc2_m2_
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/lmjs_1IC_g20_421_lc2_m2_z
+inputDir = /data/dunham/kallison/eqcycle/inputData/pljs_1IC_g20_421_lc4_m2_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/pljs_1IC_g20_421_lc4_m2_z
 
 loadICs = 1
 bcLTauQS = 0
@@ -106,28 +109,23 @@ initDeltaT = 1e-3
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e12      # s 4e4
 atol = 1e-8
+#timeIntInds = [0 1]
+timeIntInds = [1]
 
 rootTol = 1e-9
 
 
 
-#outputDir = /scratch/kallison/nov13/lmjs_TB_psi_atol1e-8_sN6_dc32e-3_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov13/lmjs_TB_psi_atol1e-8_sN6_dc16e-3_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov13/lmjs_TB_psi_atol1e-9_sN6_dc32e-3_Ny201_Nz585_step3_
+#outputDir = /scratch/kallison/viscTests/lmjs_g20_351_lc4_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_g20_f20_351_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_g20_f20_401_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_dc20_g20_f20_401_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_dc20_g20_f20_351_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_dc16_g20_f20_451_lc2_m2_step1_
 
-#outputDir = /scratch/kallison/nov15/pljs_nTB_psi_sN6_dc32e-3_Ny201_Nz585_step1_
-#outputDir = /scratch/kallison/nov15/lmjs_nTB_psi_sN6_dc32e-3_Ny201_Nz585_step1_
-#outputDir = /scratch/kallison/nov15/lmjs_nTB_psi_sN6_dc32e-3_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov15/lmjs_nTB_psi_sN6_dc16e-3_Ny201_Nz585_step3_
+#outputDir = /scratch/kallison/viscTests/lmjs_g25_401_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_g20_421_lc2_m2_step1_
 
-#outputDir = /scratch/kallison/nov15/lmjs_nTB_psi2_sN6_dc32e-3_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov21/lmjs_nTB_psi_sN6_dc10_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov21/lmjs_nTB_psi_sN6_dc10_0_Ny201_Nz585_step3_
-#outputDir = /scratch/kallison/nov21/pljs_nTB_psi_sN6_dc32e-3_Ny201_Nz585_t1e16_step3_
-#outputDir = /scratch/kallison/nov21/pljs_nTB_psi_sN6_dc10_0_Ny201_Nz585_t1e16_step3_
-
-#outputDir = /scratch/kallison/viscTests/lmjs_351_lc4_m2_step1_
-#outputDir = /scratch/kallison/viscTests/lmjs_401_lc4_m2_step1_
-#outputDir = /scratch/kallison/viscTests/lmjs_g20_401_lc4_m2_step1_
-outputDir = /scratch/kallison/viscTests/lmjs_g20_351_lc4_m2_step1_
+#outputDir = /scratch/kallison/viscTests/lmjs_1_g20_421_lc2_m2_step1_
+outputDir = /scratch/kallison/viscTests/pljs_1_g20_421_lc2_m2_step1_
 

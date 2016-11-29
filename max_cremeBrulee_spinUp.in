@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 351
+Nz = 176
 Ly = 120 # km
 Lz = 50 # km
 
@@ -30,8 +30,10 @@ sigmaNDepths = [0 0.25 60]
 vL = 1e-9    # m/s
 
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_2IC_351_lc2_m2_
-zInputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_2IC_351_lc2_m2_z
+#inputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_2IC_351_lc4_m2_
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_2IC_351_lc4_m2_z
+inputDir = /data/dunham/kallison/eqcycle/inputData/plcb_2IC_351_lc4_m2_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_2IC_351_lc4_m2_z
 loadICs = 1
 bcLTauQS = 1
 
@@ -84,8 +86,8 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 50
+stride2D = 50
 maxStepCount = 1e8
 initTime = 0      # s 7e9
 maxTime = 1e19      # s
@@ -93,6 +95,7 @@ initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e15      # s
 atol = 1e-8
+timeIntInds = [2 3]
 
 rootTol = 1e-9
 
@@ -100,4 +103,14 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/viscTests/lmcb_351_lc4_m2_step1_
 #outputDir = /scratch/kallison/viscTests/lmcb_351_lc4_m2_step2_
 #outputDir = /scratch/kallison/viscTests/lmcb_351_lc2_m2_step2_
+outputDir = /scratch/kallison/viscTests/lmcb_351_lc4_m2_step2_
+#outputDir = /scratch/kallison/viscTests/lmcb_351_lc2_m2_v2_step2_
+#outputDir = /scratch/kallison/viscTests/plcb_351_lc2_m2_step2_
+#outputDir = /scratch/kallison/viscTests/plcb_351_lc3_m2_step2_
 
+#outputDir = /scratch/kallison/viscTests/plcb1_351_lc4_m2_step2_
+
+#outputDir = /scratch/kallison/viscTests/lmcbI_351_lc4_m2_step2_
+
+#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_step2_

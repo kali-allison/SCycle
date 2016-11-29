@@ -32,8 +32,8 @@ vL = 1e-9    # m/s
 
 #inputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_1IC_351_lc4_m2_
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_1IC_351_lc4_m2_z
-inputDir = /data/dunham/kallison/eqcycle/inputData/plcb_1IC_351_lc2_m2_
-zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_1IC_351_lc2_m2_z
+inputDir = /data/dunham/kallison/eqcycle/inputData/plcb_1IC_351_lc4_m2_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_1IC_351_lc4_m2_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -91,36 +91,26 @@ stride2D = 10
 maxStepCount = 1e8
 initTime = 0      # s 7e9
 maxTime = 1e19      # s
-initDeltaT = 1e-3     # s
+initDeltaT = 1     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
 atol = 1e-8
+#timeIntInds = [0 1]
+timeIntInds = [1]
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/nov25/linElcb_sN6_dc16e-3_Ny201_Nz581_step1_
-#outputDir = /scratch/kallison/nov25/linElcb_sN6_dc32e-3_Ny201_Nz581_step1_
-
-
-#outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc16e-3_Ny201_Nz581_step1_
-#outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc16e-3_Ny201_Nz581_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc32e-3_Ny201_Nz581_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_tol1e-8_sN6_dc16e-3_Ny201_Nz581_t1e15_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_tol1e-9_sN6_dc16e-3_Ny201_Nz581_t1e15_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_b7_sN6_dc32e-3_Ny201_Nz581_t1e15_step3_
-#outputDir = /scratch/kallison/nov13/plcb_b7_sN6_dc16e-3_Ny201_Nz581_step1_
-
-#outputDir = /scratch/kallison/nov13/plcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t3e14_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t5e15_step3_
-#outputDir = /scratch/kallison/nov13/plcb_b7_nTB_sN6_dc16e-3_Ny201_Nz581_t3e14_step3_
-#outputDir = /scratch/kallison/nov13/lmcb_b7_nTB_sN6_dc16e-3_Ny201_Nz581_t5e15_step3_
-
-#outputDir = /scratch/kallison/nov21/lmcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t2e16_step3_
-#outputDir = /scratch/kallison/nov21/lmcb_b7_nTB_sN6_dc10_0_Ny201_Nz581_t2e16_step3_
-#outputDir = /scratch/kallison/nov21/plcb_b7_nTB_sN6_dc32e-3_Ny201_Nz581_t1e15_step3_
-#outputDir = /scratch/kallison/nov21/plcb_b7_nTB_sN6_dc10_0_Ny201_Nz581_t1e15_step3_
 
 #outputDir = /scratch/kallison/viscTests/lmcb_351_lc4_m2_step1_
-outputDir = /scratch/kallison/viscTests/plcb_351_lc2_m2_step1_
+#outputDir = /scratch/kallison/viscTests/plcb_351_lc2_m2_step1_
+
+#outputDir = /scratch/kallison/viscTests/lmcb_351_lc2_m2_step3_
+#outputDir = /scratch/kallison/viscTests/lmcb_01_351_lc2_m2_step3_
+#outputDir = /scratch/kallison/viscTests/lmcb_1_351_lc2_m2_step3_
+
+#outputDir = /scratch/kallison/viscTests/lmcbI_351_lc4_m2_step3_
+
+#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_step1_
+#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_step1_
 

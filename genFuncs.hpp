@@ -52,8 +52,10 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
+PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec);
 
-
+string vector2str(const vector<double> vec);
+string vector2str(const vector<int> vec);
 PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 
 
