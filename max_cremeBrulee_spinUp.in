@@ -1,8 +1,8 @@
 order = 4
 Ny = 201
-Nz = 351
+Nz = 371
 Ly = 120 # km
-Lz = 50 # km
+Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -52,7 +52,8 @@ BVals = [1.62e4 1.62e4 7.79e4 7.79e4 6.37e4 6.37e4]
 BDepths = [0 15 15 30 30 60]
 nVals = [4 4 3 3 3.5 3.5]
 nDepths = [0 15 15 30 30 60]
-TVals = [293 1543]
+TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
 TDepths = [0 50]
 thermalCoupling = no
 
@@ -86,25 +87,35 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 20
+stride2D = 20
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 1e19      # s
+maxTime = 2e19      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e15      # s
-atol = 1e-7
+maxDeltaT = 1e16      # s
+atol = 1e-6
 timeIntInds = [2 3]
+#timeIntInds = [1]
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_step2_
-#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_cont4e14_step2_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_step2_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_cont2e14_step2_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_t3e14_step2b_
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_g30_Nz371_1_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_g30_Nz371_1_v2_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_g30_Nz371_1_v0_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_wf_g30_Nz371_1_c15_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_g30_Nz371_1_c15_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_g30_Nz371_v5c8.5_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_g30_Nz371_v5c8.5_step2_
 
-#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_step2b_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_step2b_
+#outputDir = /scratch/kallison/aguSims/plcb_g30_Nz371_v5.5c6_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_g30_Nz371_v5.5c6_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_g30_Nz371_v2.5c6_step2_
+outputDir = /scratch/kallison/aguSims/plcb_g30_Nz371_v1.5_step2_
+
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_step2a_
+#outputDir = /scratch/kallison/aguSims/lmcb_wf_step2b_
+#outputDir = /scratch/kallison/aguSims/plcb_wf_step2a_
+#outputDir = /scratch/kallison/aguSims/plcb_wf_step2b_

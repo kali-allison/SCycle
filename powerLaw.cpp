@@ -437,10 +437,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-
     MatMult(yq,bcL,temp1);
-    //~ VecCopy(bcL,temp1);
-
     MatMult(zr,temp1,bcL);
     VecDestroy(&temp1);
   }
@@ -492,12 +489,10 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
       ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
 
       MatMult(yq,bcB,temp2);
-      MatMult(zr,temp2,bcB); // do I need this term?
-      //~ VecCopy(temp2,bcB);
+      MatMult(zr,temp2,bcB);
 
       MatMult(yq,bcT,temp2);
-      MatMult(zr,temp2,bcT); // do I need this term?
-      //~ VecCopy(temp2,bcT);
+      MatMult(zr,temp2,bcT);
       VecDestroy(&temp2);
     }
 
@@ -511,6 +506,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
 
   ierr = _sbpP->H(source,out); CHKERRQ(ierr);
   VecDestroy(&source);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -592,11 +588,10 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   VecAssemblyBegin(_effVisc);
   VecAssemblyEnd(_effVisc);
 
-  // add SAT terms to strain rate for epsxy
+// add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
-
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
@@ -1027,7 +1022,6 @@ PetscErrorCode PowerLaw::writeStep1D()
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

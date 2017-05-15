@@ -232,8 +232,8 @@ PetscScalar Fault::getTauInf(PetscInt& ind)
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauInf in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
 #endif
-  return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
-  //~ return sigma_N* (_f0 + (b-a) * log(_vL/_v0) );
+  //~ return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
+  return sigma_N* (_f0 + (a-b) * log10(_vL/_v0) );
   //~ return sigma_N;
 }
 

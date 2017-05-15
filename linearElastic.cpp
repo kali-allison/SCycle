@@ -506,7 +506,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     PetscInt    Istart,Iend;
     VecGetOwnershipRange(_bcLP,&Istart,&Iend);
     for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar tauRS = 1.2*_fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
+      PetscScalar tauRS = _fault.getTauInf(Ii);
       VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);

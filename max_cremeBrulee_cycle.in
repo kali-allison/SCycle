@@ -1,8 +1,8 @@
 order = 4
 Ny = 201
-Nz = 351
+Nz = 371
 Ly = 120 # km
-Lz = 50 # km
+Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -12,12 +12,23 @@ DcDepths = [0 60] # m
 
 stateLaw = agingLaw
 
+# Blanpied 1998 for geotherm of 25 C/km
+#aVals = [0.0135 0.0302 0.1350 0.4995]
+#aDepths = [0 12.6000 23.2000 60]
+#bVals = [0.0230 0.0395 0.0350 0.0194]
+#bDepths = [0 12.6000 23.2000 60]
 
 # creme brulee (30 C/km)
-aVals = [0.0135 0.0301 0.1350 0.6184]
-aDepths = [0 10.5000 19.3333 60]
-bVals = [0.0230 0.0395 0.0350 0.0143]
-bDepths = [0 10.5000 19.3333 60]
+#aVals = [0.0135 0.0301 0.1350 0.6184]
+#aDepths = [0 10.5000 19.3333 60]
+#bVals = [0.0230 0.0395 0.0350 0.0143]
+#bDepths = [0 10.5000 19.3333 60]
+
+# creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
 
 #sigmaNVals = [50 50] # MPa
@@ -28,10 +39,10 @@ sigmaNDepths = [0 0.25 60]
 vL = 1e-9    # m/s
 
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_3IC_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/lmcb_3IC_z
-inputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_
-zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_z
+#inputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/linEl_1IC_z
+inputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_20_
+zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_20_z
 loadICs = 1
 bcLTauQS = 0
 
@@ -50,7 +61,9 @@ BVals = [1.62e4 1.62e4 7.79e4 7.79e4 6.37e4 6.37e4]
 BDepths = [0 15 15 30 30 60]
 nVals = [4 4 3 3 3.5 3.5]
 nDepths = [0 15 15 30 30 60]
-TVals = [293 1543]
+#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1293] # 20 C/km
 TDepths = [0 50]
 thermalCoupling = no
 
@@ -84,25 +97,65 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 1
+stride2D = 1
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 1e19      # s
+maxTime = 9.4e8      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e9      # s
+maxDeltaT = 2e6      # s
 atol = 1e-8
 timeIntInds = [0 1]
 #timeIntInds = [1]
+#timeIntInds = [2 3]
 
 rootTol = 1e-9
 
 
+#outputDir = /data/dunham/kallison/aguSims/greensFuncs/b7_Nz371_Ny201_Lz40_Ly120_
 
-#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_step1_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_step1_
-#outputDir = /scratch/kallison/aguSims/lmcb_dc1_176_lc4_m2_t3e14_step3_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_step0_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_step1_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_Nz190_step1_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_Nz190_step1_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_Nz371_step1_
+#outputDir = /scratch/kallison/aguSims/linEl_NF_g30_Nz371_postseismic_
 
-#outputDir = /scratch/kallison/aguSims/lmcb_351_lc4_m2_t4e14_step3_
-#outputDir = /scratch/kallison/aguSims/plcb_351_lc4_m2_t3e14_step3_
+
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_v5.5_step0_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_v5.5_step1_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz190_step1_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz190_step1_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz371_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz371_t1e15_step2_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz371_1_t1e15_step3_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz371_01_t1e15_step3_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz742_01_t1e15_step3_
+#outputDir = /scratch/kallison/aguSims/lmcb_NF_g30_Nz371_1_sR15_step3_
+
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_01_t5e13_postseismic_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_01_t5e13_step3_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_01_t1e15_step3_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_1_t1e13_step3_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz190_t5e13_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz190_step1_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g30_Nz371_t6e11_t1e15_step2_
+
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g25_Nz371_01_t1e13_step1_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g25_Nz371_t1e13_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g25_Nz371_01_t7e16_step3_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g20_Nz371_01_t2e16_step3_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g20_Nz371_t1e13_step2_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g20_Nz371_t1e13_step2_
+
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g20_Nz371_01_t2e16_step1_
+#outputDir = /scratch/kallison/aguSims/plcb_NF_g20_Nz371_01_t2e16_step3_
+
+#outputDir = /scratch/kallison/aguSims/plcb_g30_postseismic3_
+#outputDir = /scratch/kallison/aguSims/plcb_g30_postseismic4_
+#outputDir = /scratch/kallison/aguSims/plcb_g25_postseismic3_
+#outputDir = /scratch/kallison/aguSims/plcb_g25_postseismic4_
+outputDir = /scratch/kallison/aguSims/plcb_g20_postseismic_
+
