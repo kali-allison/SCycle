@@ -521,9 +521,9 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 
     ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
     ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
+    //~ // ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
     ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+    //~ // ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
     ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
@@ -650,6 +650,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecDestroy(&vel);
 
   //~ VecSet(_bcL,0.0);
+  //~ VecSet(_bcL,1);
 
   setupKSP(_sbpT,dt);
 
