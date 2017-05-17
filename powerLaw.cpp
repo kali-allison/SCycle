@@ -54,7 +54,6 @@ PowerLaw::PowerLaw(Domain& D)
 
   if (D._loadICs==1) { loadFieldsFromFiles(); }
 
-
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
@@ -246,6 +245,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
   Vec viscSource;
   ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,varBegin);CHKERRQ(ierr);
 
   // set up rhs vector
@@ -284,8 +284,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
-  //~VecSet(*(dvarBegin+3),0.0);
-  //~VecSet(*(dvarBegin+4),0.0);
+  //~ VecSet(*(dvarBegin+3),0.0);
+  //~ VecSet(*(dvarBegin+4),0.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -573,7 +573,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   // compute effective viscosity
   PetscScalar sigmadev,A,B,n,T,effVisc=0;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(*(dvarBegin+2),&Istart,&Iend);
+  VecGetOwnershipRange(*(dvarBegin+3),&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     VecGetValues(_sigmadev,1,&Ii,&sigmadev);
     VecGetValues(_A,1,&Ii,&A);
@@ -598,12 +598,12 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(qy,*(dvarBegin+2),temp1);
-    VecCopy(temp1,*(dvarBegin+2));
+    MatMult(qy,*(dvarBegin+3),temp1);
+    VecCopy(temp1,*(dvarBegin+3));
     VecDestroy(&temp1);
   }
   VecAXPY(*(dvarBegin+3),1.0,_stressxyP);
-  VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+2),_effVisc);
+  VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_effVisc);
 
   if (_Nz > 1) {
     VecCopy(_stressxzP,*(dvarBegin+4));
@@ -1278,7 +1278,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   */
 
 
-
+/*
     // load bcL
   string vecSourceFile = _inputDir + "bcL";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -1323,14 +1323,15 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_stressxzP,inv);CHKERRQ(ierr);
-
+*/
 
   // load effective viscosity
-  vecSourceFile = _inputDir + "EffVisc";
+  string vecSourceFile = _inputDir + "EffVisc";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,inv);CHKERRQ(ierr);
+
 
     // load A
   vecSourceFile = _inputDir + "A";
@@ -1400,6 +1401,7 @@ PetscErrorCode PowerLaw::setFields()
   ierr = VecDuplicate(_uP,&_A);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&_effVisc);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&_T);CHKERRQ(ierr);
 
 
