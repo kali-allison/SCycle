@@ -481,8 +481,11 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
-  Vec varPsi; VecDuplicate(_fault._state,&varPsi); VecCopy(_fault._state,varPsi);
+  // put variables to be integrated into var
+  Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
   _var.push_back(varPsi);
+  Vec varTheta; VecDuplicate(_fault._theta,&varTheta); VecCopy(_fault._theta,varTheta);
+  _var.push_back(varTheta);
   Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
   _var.push_back(varSlip);
 
@@ -630,7 +633,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-        ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
               FILE_MODE_WRITE,&_bcLPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_bcLPlusV);CHKERRQ(ierr);
@@ -761,9 +764,10 @@ PetscErrorCode SymmLinearElastic::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    int arrInds[] = {1}; // state: 0, slip: 1
-    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    ierr = _quadImex->setErrInds(errInds);
+    //~ int arrInds[] = {1}; // state psi: 0, state theta: 1, slip: 2
+    //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+    //~ ierr = _quadImex->setErrInds(errInds);
+    ierr = _quadImex->setErrInds(_timeIntInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -814,9 +818,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 #endif
 
   // update boundaries
-  if (_bcLTauQS==0) {
-    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
-    ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr); // var holds slip, bcL is displacement at y=0+
+  if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
+    ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
+    ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
@@ -839,8 +843,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
   }
   else {
-    VecSet(*dvarBegin,0.0); // dstate
-    VecSet(*(dvarBegin+1),0.0); // slip vel
+    VecSet(*dvarBegin,0.0); // dstate psi
+    VecSet(*(dvarBegin+1),0.0); // dstate theta
+    VecSet(*(dvarBegin+2),0.0); // slip vel
   }
 
   #if CALCULATE_ENERGY == 1
@@ -870,7 +875,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+    ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_stressxyP,stressxzP,NULL,
       NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     // arguments:
@@ -925,7 +930,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
   // update rates
   VecSet(*dvarBegin,0.0);
-  //~VecSet(*(dvarBegin+1),0.0);
+  VecSet(*(dvarBegin+1),0.0);
   //~ierr = mapToVec(*(dvarBegin+1),MMS_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
 
 
@@ -1071,11 +1076,11 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(*(varBegin+1),1,&Istart,&uVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(varBegin+2),1,&Istart,&uVal);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+1),1,&Istart,&velVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&velVal);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);
@@ -1397,7 +1402,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _fault.setFaultDisp(_bcLP,_bcRMinus);
   _fault.computeVel();
 
-  _var.push_back(_fault._state);
+  _var.push_back(_fault._psi);
   _var.push_back(_fault._uP);
   _var.push_back(_fault._uM);
 

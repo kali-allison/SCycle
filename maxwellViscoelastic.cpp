@@ -160,9 +160,7 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    int arrInds[] = {1}; // state: 0, slip: 1
-    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    ierr = _quadImex->setErrInds(errInds);
+    ierr = _quadEx->setErrInds(_timeIntInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -175,19 +173,16 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 
     // control which fields are used to select step size
     if (_isMMS) {
-      int arrInds[] = {2}; // state: 0, slip: 1
+      int arrInds[] = {3}; // state: 0+1, slip: 2
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else if (_bcLTauQS==1) {
-      int arrInds[] = {2,3}; // state: 0, slip: 1
+      int arrInds[] = {3,4}; // state: 0+1, slip: 2
       std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      //~ int arrInds[] = {1}; // state: 0, slip: 1
-      //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-      //~ ierr = _quadEx->setErrInds(errInds);
       ierr = _quadEx->setErrInds(_timeIntInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -254,13 +249,13 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
     CHKERRQ(ierr);
   #endif
 
-  VecCopy(*(varBegin+2),_gxyP);
-  VecCopy(*(varBegin+3),_gxzP);
+  VecCopy(*(varBegin+3),_gxyP);
+  VecCopy(*(varBegin+4),_gxzP);
 
 
   // update boundaries
   if (_bcLTauQS==0) {
-    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+    ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
     ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
@@ -295,8 +290,9 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
   }
   else {
-    VecSet(*dvarBegin,0.0); // dstate
-    VecSet(*(dvarBegin+1),0.0); // slip vel
+    VecSet(*dvarBegin,0.0); // dstate psi
+    VecSet(*(dvarBegin+1),0.0); // // dstate theta
+    VecSet(*(dvarBegin+2),0.0); // slip vel
   }
   ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
@@ -890,8 +886,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     CHKERRQ(ierr);
   #endif
 
-  VecSet(*(dvarBegin+2),0.0);
   VecSet(*(dvarBegin+3),0.0);
+  VecSet(*(dvarBegin+4),0.0);
 
   // add SAT terms to strain rate for epsxy
   Vec SAT;
@@ -899,22 +895,22 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
+  VecPointwiseMult(*(dvarBegin+3),_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(qy,*(dvarBegin+2),temp1);
-    VecCopy(temp1,*(dvarBegin+2));
+    MatMult(qy,*(dvarBegin+3),temp1);
+    VecCopy(temp1,*(dvarBegin+3));
     VecDestroy(&temp1);
   }
-  VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
-  VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_visc);
+  VecAXPY(*(dvarBegin+3),1.0,_stressxyP);
+  VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);
 
   if (_Nz > 1) {
-    VecCopy(_stressxzP,*(dvarBegin+3));
-    VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);
+    VecCopy(_stressxzP,*(dvarBegin+4));
+    VecPointwiseDivide(*(dvarBegin+4),*(dvarBegin+4),_visc);
   }
 
   VecDestroy(&SAT);
@@ -982,8 +978,8 @@ PetscErrorCode SymmMaxwellViscoelastic::setMMSInitialConditions()
   if (_Nz == 1) { VecSet(_gxzP,0.0); }
   else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
 
-  VecCopy(_gxyP,*(_var.begin()+2));
-  VecCopy(_gxzP,*(_var.begin()+3));
+  VecCopy(_gxyP,*(_var.begin()+3));
+  VecCopy(_gxzP,*(_var.begin()+4));
 
   if (_Nz == 1) { mapToVec(_uP,MMS_uA1D,*_y,time); }
   else { mapToVec(_uP,MMS_uA,*_y,*_z,time); }
@@ -1148,14 +1144,14 @@ PetscErrorCode SymmMaxwellViscoelastic::debug(const PetscReal time,const PetscIn
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(*(varBegin+1),1,&Istart,&uVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(varBegin+2),1,&Istart,&uVal);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+1),1,&Istart,&velVal);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+2,1,&Istart,&velVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(*(varBegin+2),1,&Istart,&epsVxy);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&depsVxy);CHKERRQ(ierr);
+  ierr = VecGetValues(*(varBegin+3),1,&Istart,&epsVxy);CHKERRQ(ierr);
+  ierr = VecGetValues(*(dvarBegin+3),1,&Istart,&depsVxy);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);

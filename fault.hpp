@@ -44,7 +44,7 @@ class Fault: public RootFinderContext
    Vec            _a,_b,_Dc;
    std::vector<double> _cohesionVals,_cohesionDepths;
    Vec            _cohesion;
-   Vec            _state,_dPsi;
+   Vec            _dPsi,_psi,_theta,_dTheta;
 
 
     // fields that differ on the split nodes
@@ -57,7 +57,7 @@ class Fault: public RootFinderContext
     Vec            _slip,_slipVel;
 
     // viewers
-    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_stateViewer;
+    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer,_thetaViewer;
 
 
     PetscErrorCode setFrictionFields(Domain&D);
@@ -78,9 +78,11 @@ class Fault: public RootFinderContext
     Fault(Domain&D);
     ~Fault();
 
-    PetscErrorCode agingLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
-    PetscErrorCode slipLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
-    PetscErrorCode stronglyVWLaw(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode agingLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode agingLaw_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode slipLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode slipLaw_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode stronglyVWLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,it_vec dvarBegin) = 0;

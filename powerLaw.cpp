@@ -142,9 +142,7 @@ PetscErrorCode PowerLaw::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    int arrInds[] = {1}; // state: 0, slip: 1
-    std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    ierr = _quadImex->setErrInds(errInds);
+    ierr = _quadEx->setErrInds(_timeIntInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -157,19 +155,17 @@ PetscErrorCode PowerLaw::integrate()
 
     // control which fields are used to select step size
     if (_isMMS) {
-      int arrInds[] = {2}; // state: 0, slip: 1
+      int arrInds[] = {3}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else if (_bcLTauQS==1) {
-      int arrInds[] = {2,3}; // state: 0, slip: 1
+      int arrInds[] = {3,4}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+2); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
     else  {
-      //~ int arrInds[] = {1}; // state: 0, slip: 1
-      //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-      //~ ierr = _quadEx->setErrInds(errInds);
+
       ierr = _quadEx->setErrInds(_timeIntInds);
     }
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -213,7 +209,7 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
   Vec stressxzP;
   VecDuplicate(_uP,&stressxzP);
   ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-  ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+  ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_stressxyP,stressxzP,NULL,
     NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   VecDestroy(&stressxzP);
   // arguments:
@@ -236,12 +232,12 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     CHKERRQ(ierr);
   #endif
 
-  VecCopy(*(varBegin+2),_gxyP);
-  VecCopy(*(varBegin+3),_gxzP);
+  VecCopy(*(varBegin+3),_gxyP);
+  VecCopy(*(varBegin+4),_gxzP);
 
   // update boundaries
   if (_bcLTauQS==0) {
-    ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+    ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
     ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
@@ -272,8 +268,9 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
   }
   else {
-    VecSet(*dvarBegin,0.0); // dstate
-    VecSet(*(dvarBegin+1),0.0); // slip vel
+    VecSet(*dvarBegin,0.0); // dstate psi
+    VecSet(*(dvarBegin+1),0.0); // // dstate theta
+    VecSet(*(dvarBegin+2),0.0); // slip vel
   }
   ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
@@ -308,8 +305,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
 
   _currTime = time;
 
-  VecCopy(*(varBegin+2),_gxyP);
-  VecCopy(*(varBegin+3),_gxzP);
+  VecCopy(*(varBegin+3),_gxyP);
+  VecCopy(*(varBegin+4),_gxzP);
 
   // force viscous strains to be correct
   //~ if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
@@ -365,16 +362,17 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   VecDuplicate(_uP,&source);
   if (_Nz == 1) { mapToVec(source,MMS_pl_gxy_t_source1D,*_y,_currTime); }
   else { mapToVec(source,MMS_pl_gxy_t_source,*_y,*_z,_currTime); }
-  VecAXPY(*(dvarBegin+2),1.0,source);
+  VecAXPY(*(dvarBegin+3),1.0,source);
   if (_Nz == 1) { mapToVec(source,MMS_pl_gxz_t_source1D,*_y,_currTime); }
   else { mapToVec(source,MMS_pl_gxz_t_source,*_y,*_z,_currTime); }
-  VecAXPY(*(dvarBegin+3),1.0,source);
+  VecAXPY(*(dvarBegin+4),1.0,source);
   VecDestroy(&source);
 
 
   // update rates
   VecSet(*dvarBegin,0.0); // d/dt psi
-  VecSet(*(dvarBegin+1),0.0); // slip vel
+  VecSet(*(dvarBegin+1),0.0); // d/dt theta
+  VecSet(*(dvarBegin+2),0.0); // slip vel
 
   //~ mapToVec(*(dvarBegin+2),MMS_gxy_t,*_y,*_z,_currTime);
   //~ mapToVec(*(dvarBegin+3),MMS_gxz_t,*_y,*_z,_currTime);
@@ -569,8 +567,8 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     CHKERRQ(ierr);
   #endif
 
-  VecSet(*(dvarBegin+2),0.0);
   VecSet(*(dvarBegin+3),0.0);
+  VecSet(*(dvarBegin+4),0.0);
 
   // compute effective viscosity
   PetscScalar sigmadev,A,B,n,T,effVisc=0;
@@ -594,7 +592,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  VecPointwiseMult(*(dvarBegin+2),_muVecP,SAT);
+  VecPointwiseMult(*(dvarBegin+3),_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
     Vec temp1;
@@ -604,12 +602,12 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecCopy(temp1,*(dvarBegin+2));
     VecDestroy(&temp1);
   }
-  VecAXPY(*(dvarBegin+2),1.0,_stressxyP);
-  VecPointwiseDivide(*(dvarBegin+2),*(dvarBegin+2),_effVisc);
+  VecAXPY(*(dvarBegin+3),1.0,_stressxyP);
+  VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+2),_effVisc);
 
   if (_Nz > 1) {
-    VecCopy(_stressxzP,*(dvarBegin+3));
-    VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_effVisc);
+    VecCopy(_stressxzP,*(dvarBegin+4));
+    VecPointwiseDivide(*(dvarBegin+4),*(dvarBegin+4),_effVisc);
   }
 
   VecDestroy(&SAT);

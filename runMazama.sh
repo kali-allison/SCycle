@@ -26,5 +26,5 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/max_cremeBrulee_spinUp.in
 
 
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/max.in
+mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
 
