@@ -700,7 +700,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
     ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
-    PetscScalar psi = _f0 + b*log(abs(state)*_v0/Dc);
+    PetscScalar psi = _f0 + b*log( (double) (abs(state)*_v0)/Dc);
     PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   //~ #endif
 
