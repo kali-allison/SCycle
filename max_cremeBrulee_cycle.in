@@ -101,7 +101,7 @@ stride1D = 1
 stride2D = 1
 maxStepCount = 1e8
 initTime = 0      # s 7e9
-maxTime = 9.4e8      # s
+maxTime = 3.2e9      # s 9.4e8 originall
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 2e6      # s
@@ -157,5 +157,10 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/aguSims/plcb_g30_postseismic4_
 #outputDir = /scratch/kallison/aguSims/plcb_g25_postseismic3_
 #outputDir = /scratch/kallison/aguSims/plcb_g25_postseismic4_
-outputDir = /scratch/kallison/aguSims/plcb_g20_postseismic_
+#outputDir = /scratch/kallison/aguSims/plcb_g20_postseismic_
+
+
+
+# investigate surface deformation with larger postseismic period
+outputDir = /scratch/kallison/surfDef/plcb_g20_postseismic_
 

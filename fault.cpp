@@ -1036,7 +1036,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   PetscViewer inv; // in viewer
 
   // load state: psi
-  string vecSourceFile = inputDir + "psi";
+  string vecSourceFile = inputDir + "psi"; // old data
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);

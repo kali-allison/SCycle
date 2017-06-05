@@ -1,6 +1,6 @@
 
 #!/bin/bash
-#PBS -N le
+#PBS -N g20
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
@@ -20,13 +20,13 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/max.in
 
 
-#~ mpirun $EXEC_DIR/main $INIT_DIR/max_cremeBrulee_cycle.in
+mpirun $EXEC_DIR/main $INIT_DIR/max_cremeBrulee_cycle.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/max_cremeBrulee_spinUp.in
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/max_cremeBrulee_cycle.in
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/max_cremeBrulee_spinUp.in
 
 
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
+#~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he.in
 
