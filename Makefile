@@ -1,4 +1,4 @@
-all: main mainMaxwell mainLinearElastic
+all: mainHeatEquation mainLinearElastic
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DCALCULATE_ENERGY=0 -DLOCK_FAULT=0
 CFLAGS          = $(DEBUG_MODULES)
@@ -27,6 +27,10 @@ mainMaxwell:  mainMaxwell.o $(OBJECTS)
 
 
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
+	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
+#~	-rm mainLinearElastic.o
+
+mainHeatEquation:  mainHeatEquation.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
 #~	-rm mainLinearElastic.o
 

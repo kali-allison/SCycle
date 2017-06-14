@@ -747,6 +747,57 @@ double MMS_uSource1D(const double y,const double t)
 
 
 
+
+
+
+
+
+
+//======================================================================
+// 2D MMS for heat equation
+// version 1
+double MMS_he1_rho(const double y,const double z)
+{
+  return 1.0;
+}
+
+double MMS_he1_c(const double y,const double z)
+{
+  return 1.0;
+}
+
+double MMS_he1_k(const double y,const double z)
+{
+  return 1.0;
+}
+
+double MMS_he1_h(const double y,const double z)
+{
+  return 0.0;
+}
+
+double MMS_he1_T(const double y,const double z, const double t)
+{
+  return sin(y)*cos(z)*exp(-2*t);
+}
+double MMS_he1_T_t(const double y,const double z, const double t)
+{
+  return -2.0*sin(y)*cos(z)*exp(-2.0*t);
+}
+double MMS_he1_T_y(const double y,const double z, const double t)
+{
+  return cos(y)*cos(z)*exp(-2.0*t);
+}
+double MMS_he1_T_z(const double y,const double z, const double t)
+{
+  return -sin(y)*sin(z)*exp(-2.0*t);
+}
+
+
+
+
+
+
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const Vec& yV, const double t)
 {

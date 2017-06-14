@@ -1190,7 +1190,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep1D()
   if (_stepCount==0) {
     // write contextual fields
     ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
-    _he.writeContext(_outputDir);
+    _he.writeContext();
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 
     // output viscosity vector

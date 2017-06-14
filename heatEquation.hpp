@@ -12,12 +12,16 @@
 #include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
+#include "integratorContextEx.hpp"
+#include "integratorContextImex.hpp"
+#include "odeSolver.hpp"
+#include "odeSolverImex.hpp"
 
 
 
-/* Base class for a linear elastic material
+/* Base class for the heat equation
  */
-class HeatEquation
+class HeatEquation: public IntegratorContextEx
 {
   private:
     // disable default copy constructor and assignment operator
@@ -41,8 +45,9 @@ class HeatEquation
 
 
     std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
-    Vec     _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
+    Vec     _k,_kL,_rho,_c,_h;  // thermal conductivity, left bc portion of k, density, heat capacity, heat generation
     PetscViewer  _TV,_vw; // temperature viewer and extra viewer for debugging
+    PetscViewer          _timeV; // time output viewer for debugging
 
     //~ SbpOps_fc* _sbpT;
     SbpOps* _sbpT;
@@ -65,6 +70,7 @@ class HeatEquation
     PetscErrorCode setFields();
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
     PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode setKL();
 
     PetscErrorCode checkInput();     // check input from file
 
@@ -91,9 +97,21 @@ class HeatEquation
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
+    // to test with MMS
+    //~ PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSBoundaryConditions(const double time,
+        std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
+    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                     const_it_vec varBegin,const_it_vec dvarBegin);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                         const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
+
     // IO commands
     PetscErrorCode view();
-    PetscErrorCode writeContext(const string outputDir);
+    PetscErrorCode writeContext();
     PetscErrorCode writeStep2D(const PetscInt stepCount);
 };
 

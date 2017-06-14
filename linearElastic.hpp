@@ -72,7 +72,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     int                  _stepCount;
     PetscScalar          _atol;
     PetscScalar          _initDeltaT;
-    std::vector<int> _timeIntInds; // indices of variables to be used in time integration
+    std::vector<int>     _timeIntInds; // indices of variables to be used in time integration
 
     // thermomechanical coupling
     std::string _thermalCoupling;

@@ -1,8 +1,8 @@
 order = 4
 Ny = 201
 Nz = 201
-Ly = 20 # km
-Lz = 30 # km
+Ly = 24 # km
+Lz = 24 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -63,11 +63,13 @@ nDepths = [0 15 15 30 30 60]
 # geotherm
 #TVals = [293 1793] # 30 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1293] # 20 C/km
+#TVals = [293 1293] # 20 C/km
+TVals = [0 0] # 20 C/km
 TDepths = [0 50]
-thermalCoupling = no
+thermalCoupling = uncoupled
 
 # heat equation properties
+#heatFieldsDistribution = mms
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
@@ -81,8 +83,8 @@ rhoDepths = [0 60]
 
 linSolver = MUMPSCHOLESKY
 bCoordTrans = 3.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#sbpType = mfc_coordTrans
+sbpType = mfc
 kspTol = 1e-10
 
 
@@ -96,13 +98,13 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 4e5 # 3e3
+stride1D = 5
+stride2D = 5
+maxStepCount = 1e5 #
 initTime = 3e10      # s 3e10
-maxTime = 1e13      # s
+maxTime = 1e12      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 2e6      # s
@@ -113,9 +115,6 @@ rootTol = 1e-9
 
 
 #outputDir = /scratch/kallison/heSims/le_theta_
-#outputDir = /scratch/kallison/heSims/pl_theta_
+outputDir = data/he_
 
-# test resolution
-#outputDir = /scratch/kallison/heSims/le_tol1e-8_Ny301_Nz301_
-#outputDir = /scratch/kallison/heSims/le_tol1e-9_Ny201_Nz201_
 

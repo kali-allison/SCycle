@@ -612,7 +612,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
 
 
   if (_stepCount==0) {
-    _he.writeContext(_outputDir);
+    _he.writeContext();
     ierr = _sbpP->writeOps(_outputDir + "u_");CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);

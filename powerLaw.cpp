@@ -990,7 +990,7 @@ PetscErrorCode PowerLaw::writeStep1D()
 
   if (_stepCount==0) {
     // write contextual fields
-    _he.writeContext(_outputDir);
+    _he.writeContext();
     //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
     ierr = writeContext(_outputDir);CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);

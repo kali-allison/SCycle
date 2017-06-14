@@ -12,7 +12,7 @@ HeatEquation::HeatEquation(Domain& D)
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
-  _TV(NULL),_vw(NULL),
+  _TV(NULL),_vw(NULL),_timeV(NULL),
   _sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   //~ _linSolver(D._linSolver),
@@ -50,14 +50,7 @@ HeatEquation::HeatEquation(Domain& D)
   VecSet(_bcL,0.0);
 
   // set fields
-  VecDuplicate(D._muVecP,&_k);
-  VecDuplicate(_k,&_rho);
-  VecDuplicate(_k,&_c);
-  VecDuplicate(_k,&_h);
   setFields();
-
-  VecDuplicate(_k,&_T);
-  VecSet(_T,_TVals[0]);
 
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   // solve for steady state temperature profile
@@ -86,22 +79,8 @@ HeatEquation::HeatEquation(Domain& D)
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
-  }
-  // create identity matrix I
-  //~ MatCreate(PETSC_COMM_WORLD,&_I);
-  //~ MatSetSizes(_I,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
-  //~ MatSetFromOptions(_I);
-  //~ MatMPIAIJSetPreallocation(_I,1,NULL,0,NULL);
-  //~ MatSeqAIJSetPreallocation(_I,1,NULL);
-  //~ MatSetUp(_I);
-  //~ PetscInt Istart,Iend;
-  //~ PetscScalar v = 1;
-  //~ MatGetOwnershipRange(_I,&Istart,&Iend);
-  //~ for(PetscInt Ii=Istart; Ii<Iend; Ii++) {
-    //~ MatSetValues(_I,1,&Ii,1,&Ii,&v,INSERT_VALUES);
-  //~ }
-  //~ MatAssemblyBegin(_I,MAT_FINAL_ASSEMBLY);
-  //~ MatAssemblyEnd(_I,MAT_FINAL_ASSEMBLY);
+  }  // create identity matrix I
+
 
   Mat H;
   _sbpT->getH(H);
@@ -114,6 +93,12 @@ HeatEquation::HeatEquation(Domain& D)
     MatDuplicate(H,MAT_COPY_VALUES,&_I);
   }
 
+  // set material properties to be 1
+  VecSet(_rho,1.0);
+  VecSet(_c,1.0);
+  VecSet(_k,1.0);
+  VecSet(_h,0.0);
+
   // create dt/rho*c matrix
   Vec rhoCV;
   VecDuplicate(_rho,&rhoCV);
@@ -125,7 +110,7 @@ HeatEquation::HeatEquation(Domain& D)
   VecDestroy(&rhoCV);
 
 
-  setVecFromVectors(_T,_TVals,_TDepths); // FIX THIS LATER!!!
+  //~ setVecFromVectors(_T,_TVals,_TDepths); // FIX THIS LATER!!!
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -355,6 +340,12 @@ PetscErrorCode ierr = 0;
     CHKERRQ(ierr);
   #endif
 
+  VecDuplicate(*_y,&_k);
+  VecDuplicate(_k,&_rho);
+  VecDuplicate(_k,&_c);
+  VecDuplicate(_k,&_h);
+  VecDuplicate(_k,&_T);
+  VecDuplicate(_bcL,&_kL);
 
   // set each field using it's vals and depths std::vectors
   if (_Nz == 1) {
@@ -365,12 +356,11 @@ PetscErrorCode ierr = 0;
   }
   else {
     if (_heatFieldsDistribution.compare("mms")==0) {
-      assert(0);
-      //~mapToVec(_k,MMS_A,_Nz,_dy,_dz);
-      //~mapToVec(_rho,MMS_B,_Nz,_dy,_dz);
-      //~mapToVec(_h,MMS_n,_Nz,_dy,_dz);
-      //~mapToVec(_c,MMS_c,_Nz,_dy,_dz);
-      //~mapToVec(_T,MMS_T,_Nz,_dy,_dz);
+      mapToVec(_k,MMS_he1_k,*_y,*_z);
+      mapToVec(_rho,MMS_he1_rho,*_y,*_z);
+      mapToVec(_c,MMS_he1_c,*_y,*_z);
+      mapToVec(_h,MMS_he1_h,*_y,*_z);
+      mapToVec(_T,MMS_he1_T,*_y,*_z,0.0);
     }
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
@@ -381,10 +371,37 @@ PetscErrorCode ierr = 0;
     }
   }
 
+  setKL();
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+  return ierr;
+}
+
+
+// create vector containing the left boundary values of k
+PetscErrorCode HeatEquation::setKL()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::setSurfDisp in heatEquation.cpp\n");CHKERRQ(ierr);
+#endif
+
+  PetscInt    Ii,Istart,Iend;
+  PetscScalar k;
+  ierr = VecGetOwnershipRange(_k,&Istart,&Iend);
+  for (Ii=Istart;Ii<_Nz;Ii++) {
+    ierr = VecGetValues(_k,1,&Ii,&k);CHKERRQ(ierr);
+    ierr = VecSetValue(_kL,Ii,k,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_kL);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_kL);CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending HeatEquation::setSurfDisp in heatEquation.cpp\n");CHKERRQ(ierr);
+#endif
   return ierr;
 }
 
@@ -561,6 +578,157 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 }
 
 
+PetscErrorCode HeatEquation::integrate()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::integrate in HeatEquation.cpp\n");CHKERRQ(ierr);
+#endif
+
+
+  OdeSolver *_quadEx = new RK32(5000,1.0,1e-3,"P"); //(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType
+  ierr = _quadEx->setTolerance(1e-9); CHKERRQ(ierr);
+  ierr = _quadEx->setTimeStepBounds(1e-3,1);CHKERRQ(ierr); // _minDeltaT,_maxDeltaT
+  ierr = _quadEx->setTimeRange(0,1); CHKERRQ(ierr); // _initTime,_maxTime
+
+
+
+  // control which fields are used to select step size
+  int arrInds[] = {0}; // temp
+  std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+  ierr = _quadEx->setErrInds(errInds);
+
+
+  // put variables to be integrated into var
+  std::vector<Vec>    _var; // holds variables for explicit integration in time
+  Vec varT; VecDuplicate(_T,&varT);
+  mapToVec(_T,MMS_he1_T,*_y,*_z,0.0);
+  VecCopy(_T,varT);
+  _var.push_back(varT);
+  ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+
+  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// explicit time stepping for MMS
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting HeatEquation::d_dt in HeatEquation.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+
+    //~ d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sigmaxy,
+      //~ const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt)
+
+    //~ Vec slipVel; VecDuplicate(_bcL,&slipVel); VecSet(slipVel,0.0);
+    //~ Vec tau; VecDuplicate(_bcL,&tau); VecSet(tau,0.0);
+    //~ ierr = d_dt(time,slipVel,tau,NULL,NULL,NULL,NULL,*varBegin,*dvarBegin);
+
+    ierr = d_dt_mms(time,*varBegin,*dvarBegin); CHKERRQ(ierr);
+
+    //~ mapToVec(_T,MMS_he1_T,*_y,*_z,time);
+    //~ VecCopy(*varBegin,_T);
+    //~ mapToVec(*dvarBegin,MMS_he1_T_t,*_y,*_z,time);
+
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+// Outputs data at each time step.
+PetscErrorCode HeatEquation::debug(const PetscReal time,const PetscInt stepCount,
+                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
+{
+  PetscErrorCode ierr = 0;
+  return ierr;
+}
+PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             const_it_vec varBegin,const_it_vec dvarBegin)
+{
+  PetscErrorCode ierr = 0;
+
+  if (stepCount == 0) {
+    writeContext();
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV);CHKERRQ(ierr);
+  }
+  if ( stepCount % 1 == 0) {
+    ierr = writeStep2D(stepCount);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+#if VERBOSE > 0
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,time);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+
+PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
+  std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "HeatEquation::setMMSBoundaryConditions";
+  string fileName = "heatequation.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+
+  // set up boundary conditions: L and R
+  PetscScalar y,z,v;
+  PetscInt Ii,Istart,Iend;
+  ierr = VecGetOwnershipRange(_bcL,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    z = _dz * Ii;
+    y = 0;
+    if (!bcLType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); }
+    else if (!bcLType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_y(y,z,time); }
+    ierr = VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    y = _Ly;
+    if (!bcRType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); }
+    else if (!bcRType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_y(y,z,time); }
+    ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcL);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcL);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
+
+  // set up boundary conditions: T and B
+  ierr = VecGetOwnershipRange(_bcT,&Istart,&Iend);CHKERRQ(ierr);
+  for(Ii=Istart;Ii<Iend;Ii++) {
+    y = _dy * Ii;
+
+    z = 0;
+    if (!bcTType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); } // uAnal(y,z=0)
+    else if (!bcTType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_z(y,z,time); }
+    ierr = VecSetValues(_bcT,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+    z = _Lz;
+    if (!bcBType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); } // uAnal(y,z=Lz)
+    else if (!bcBType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_z(y,z,time); }
+    ierr = VecSetValues(_bcB,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(_bcT);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcB);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcT);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcB);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
+
 
 
 // for thermomechanical coupling with explicity time stepping
@@ -620,6 +788,55 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecPointwiseDivide(dTdt,dTdt,_c);
 
   //~ VecSet(dTdt,0.0);
+  mapToVec(dTdt,MMS_he1_T_t,*_y,*_z,time);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
+// MMS test for thermomechanical coupling with explicity time stepping
+PetscErrorCode HeatEquation::d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::d_dt";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  VecCopy(T,_T); // so that the correct temperature is written out
+
+  // update boundary conditions
+  ierr = setMMSBoundaryConditions(time,"Dirichlet","Dirichlet","Neumann","Dirichlet"); CHKERRQ(ierr);
+
+
+  Mat A;
+  _sbpT->getA(A);
+  ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
+  Vec rhs;
+  VecDuplicate(T,&rhs);
+  ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = VecAXPY(dTdt,-1.0,rhs);CHKERRQ(ierr);
+  VecDestroy(&rhs);
+
+  Vec temp;
+  VecDuplicate(dTdt,&temp);
+  _sbpT->Hinv(dTdt,temp);
+  VecCopy(temp,dTdt);
+  VecDestroy(&temp);
+
+  VecPointwiseDivide(dTdt,dTdt,_rho);
+  VecPointwiseDivide(dTdt,dTdt,_c);
+
+
+  //~ VecSet(dTdt,0.0);
+  //~ mapToVec(dTdt,MMS_he1_T_t,*_y,*_z,time);
 
 
   #if VERBOSE > 1
@@ -646,7 +863,10 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecDuplicate(_bcL,&vel);
   VecCopy(slipVel,vel);
   VecPointwiseMult(_bcL,tau,vel);
-  VecScale(_bcL,0.5);
+
+  VecPointwiseDivide(_bcL,_bcL,_kL); // new
+
+  VecScale(_bcL,-0.5); // negative sign is new
   VecDestroy(&vel);
 
   //~ VecSet(_bcL,0.0);
@@ -814,7 +1034,7 @@ PetscErrorCode HeatEquation::view()
 }
 
 // write out material properties
-PetscErrorCode HeatEquation::writeContext(const string outputDir)
+PetscErrorCode HeatEquation::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -825,22 +1045,22 @@ PetscErrorCode HeatEquation::writeContext(const string outputDir)
 
   PetscViewer    vw;
 
-  std::string str = outputDir + "k";
+  std::string str = _outputDir + "k";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_k,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
-  str = outputDir + "rho";
+  str = _outputDir + "rho";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_rho,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
-  str = outputDir + "c";
+  str = _outputDir + "c";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_c,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
-  str = outputDir + "h";
+  str = _outputDir + "h";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_h,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);

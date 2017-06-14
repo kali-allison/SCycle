@@ -122,6 +122,16 @@ double MMS_pl_gxz_t_source(const double y,const double z,const double t);
 double MMS_uSource(const double y,const double z,const double t);
 
 
+// for heat equation
+double MMS_he1_rho(const double y,const double z);
+double MMS_he1_c(const double y,const double z);
+double MMS_he1_k(const double y,const double z);
+double MMS_he1_h(const double y,const double z);
+double MMS_he1_T(const double y,const double z, const double t);
+double MMS_he1_T_t(const double y,const double z, const double t);
+double MMS_he1_T_y(const double y,const double z, const double t);
+double MMS_he1_T_z(const double y,const double z, const double t);
+
 
 
 // 1D:
