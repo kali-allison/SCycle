@@ -1,4 +1,4 @@
-all: mainHeatEquation mainLinearElastic
+all: mainLinearElastic
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DCALCULATE_ENERGY=0 -DLOCK_FAULT=0
 CFLAGS          = $(DEBUG_MODULES)
@@ -90,6 +90,11 @@ main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  integratorContextEx.hpp odeSolver.hpp sbpOps_c.hpp debuggingFuncs.hpp \
  sbpOps_fc.hpp maxwellViscoelastic.hpp powerLaw.hpp
 mainEx.o: mainEx.cpp
+mainHeatEquation.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
+ domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
+ sbpOps_sc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
+ linearElastic.hpp integratorContextEx.hpp integratorContextImex.hpp \
+ odeSolver.hpp odeSolverImex.hpp sbpOps_fc_coordTrans.hpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \

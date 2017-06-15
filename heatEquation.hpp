@@ -46,7 +46,8 @@ class HeatEquation: public IntegratorContextEx
 
     std::vector<double> _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
     Vec     _k,_kL,_rho,_c,_h;  // thermal conductivity, left bc portion of k, density, heat capacity, heat generation
-    PetscViewer  _TV,_vw; // temperature viewer and extra viewer for debugging
+    PetscViewer  _TV; // temperature viewer
+    PetscViewer  _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
     PetscViewer          _timeV; // time output viewer for debugging
 
     //~ SbpOps_fc* _sbpT;

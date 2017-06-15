@@ -1,7 +1,7 @@
 order = 4
-Ny = 201
+Ny = 301
 Nz = 201
-Ly = 24 # km
+Ly = 20 # km
 Lz = 24 # km
 
 cohesionVals = [0 0] # m
@@ -63,8 +63,8 @@ nDepths = [0 15 15 30 30 60]
 # geotherm
 #TVals = [293 1793] # 30 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1293] # 20 C/km
-TVals = [0 0] # 20 C/km
+TVals = [293 1293] # 20 C/km
+#TVals = [0 0] # 20 C/km
 TDepths = [0 50]
 thermalCoupling = uncoupled
 
@@ -82,9 +82,9 @@ rhoDepths = [0 60]
 
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 3.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 10.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 kspTol = 1e-10
 
 
@@ -100,21 +100,27 @@ strainRate = 1e-14
 
 timeIntegrator = IMEX
 timeControlType = P
-stride1D = 5
-stride2D = 5
-maxStepCount = 1e5 #
+stride1D = 1
+stride2D = 1
+maxStepCount = 5 #1e9
 initTime = 3e10      # s 3e10
 maxTime = 1e12      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 2e6      # s
-atol = 1e-9
+maxDeltaT = 2e9      # s
+atol = 1e-8
 timeIntInds = [0 2]
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/heSims/le_theta_
-outputDir = data/he_
+#outputDir = /scratch/kallison/heSims/he_
+#outputDir = /scratch/kallison/heSims/he_mfc_
+#outputDir = /scratch/kallison/heSims/he_mfc_b7_atol1e-8_
+#outputDir = /scratch/kallison/heSims/he_mfc_b8_N251_atol1e-8_
+#outputDir = /scratch/kallison/heSims/he_mfc_b11_N301_atol1e-8_
+#outputDir = /scratch/kallison/heSims/he_mfc_b10_N301_atol1e-8_
+
+outputDir = /scratch/kallison/heSims/grad_b10_N301_
 
 
