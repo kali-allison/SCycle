@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N grad_b10_N301_atol1e-8
+#PBS -N grad_b12_N301
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/he.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/he.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/grad_b12_N301.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/grad_b12_N301.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

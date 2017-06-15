@@ -93,12 +93,6 @@ HeatEquation::HeatEquation(Domain& D)
     MatDuplicate(H,MAT_COPY_VALUES,&_I);
   }
 
-  // set material properties to be 1
-  VecSet(_rho,1.0);
-  VecSet(_c,1.0);
-  VecSet(_k,1.0);
-  VecSet(_h,0.0);
-
   // create dt/rho*c matrix
   Vec rhoCV;
   VecDuplicate(_rho,&rhoCV);
@@ -869,7 +863,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   VecDestroy(&vel);
 
   //~ VecSet(_bcL,0.0);
-  //~ VecSet(_bcL,1e-6);
+  VecSet(_bcL,1);
 
   setupKSP(_sbpT,dt);
 
@@ -926,7 +920,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   _linSolveCount++;
   if (_linSolveCount==1) { _linSolveTime1 = _linSolveTime; }
 
-  //~ VecCopy(_T,T);
+  VecCopy(_T,T);
 
   VecDestroy(&rhs);
   MatDestroy(&_A);
@@ -997,7 +991,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
                                    FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcR").c_str(),
-                                 FILE_MODE_WRITE,&_bcLVw);CHKERRQ(ierr);
+                                 FILE_MODE_WRITE,&_bcRVw);CHKERRQ(ierr);
     ierr = VecView(_bcR,_bcRVw);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_bcRVw);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcR").c_str(),
