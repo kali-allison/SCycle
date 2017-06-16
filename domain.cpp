@@ -594,7 +594,6 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp
 
 // Save all scalar fields to text file named domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.
-// Also save the shear modulus matrix.
 PetscErrorCode Domain::write()
 {
   PetscErrorCode ierr = 0;

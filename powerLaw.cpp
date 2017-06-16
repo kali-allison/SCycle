@@ -201,18 +201,18 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting PowerLaw::d_dt IMEX in powerLaw.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-  if (_thermalCoupling.compare("coupled")==0) { VecCopy(*varBeginImo,_T); }
+  if (_thermalCoupling.compare("coupled")==0) {
+    //~ VecCopy(*varBeginImo,_T);
+    //~ _he.getTemp(_T);
+    VecWAXPY(_T,1.0,_he._T0,*varBeginImo);
+  }
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
-  Vec stressxzP;
-  VecDuplicate(_uP,&stressxzP);
-  ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-  ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-    NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-  VecDestroy(&stressxzP);
+  ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
+    *(dvarBegin+4),*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   // arguments:
-  // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  // time, slipVel, sigmadev, dgxy, dgxz, T, dTdt
 
 
 #if VERBOSE > 1
@@ -652,7 +652,6 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time,const_it_vec varBegi
   }
 
   // deviatoric stress: part 3/3
-  VecScale(_sigmadev,0.5);
   VecSqrtAbs(_sigmadev);
 
 
@@ -1431,8 +1430,7 @@ PetscErrorCode PowerLaw::setFields()
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
     }
   }
-  VecCopy(_he._T,_T);
-
+  _he.getTemp(_T);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

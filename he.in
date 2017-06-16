@@ -1,5 +1,5 @@
 order = 4
-Ny = 301
+Ny = 401
 Nz = 201
 Ly = 20 # km
 Lz = 24 # km
@@ -11,17 +11,6 @@ DcDepths = [0 60] # m
 
 stateLaw = agingLaw
 
-# Blanpied 1998 for geotherm of 25 C/km
-#aVals = [0.0135 0.0302 0.1350 0.4995]
-#aDepths = [0 12.6000 23.2000 60]
-#bVals = [0.0230 0.0395 0.0350 0.0194]
-#bDepths = [0 12.6000 23.2000 60]
-
-# creme brulee (30 C/km)
-#aVals = [0.0135 0.0301 0.1350 0.6184]
-#aDepths = [0 10.5000 19.3333 60]
-#bVals = [0.0230 0.0395 0.0350 0.0143]
-#bDepths = [0 10.5000 19.3333 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -51,6 +40,12 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
+linSolver = MUMPSCHOLESKY
+bCoordTrans = 15.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+kspTol = 1e-10
+
 
 # power law properties, creme brulee: wet quartz, dry feldspar, dry olivine
 AVals = [1e-9 1e-9 5e12 5e12 1.5e5 1.5e5]
@@ -60,17 +55,12 @@ BDepths = [0 15 15 30 30 60]
 nVals = [4 4 3 3 3.5 3.5]
 nDepths = [0 15 15 30 30 60]
 
-# geotherm
-#TVals = [293 1793] # 30 C/km
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1293] # 20 C/km
-#TVals = [0 0] # 20 C/km
-TDepths = [0 50]
-thermalCoupling = uncoupled
 
 # heat equation properties
 #heatFieldsDistribution = mms
 heatFieldsDistribution = layered
+linSolver_heateq = AMG
+kspTol_heateq = 1e-9
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
 hVals = [0 0]
@@ -80,12 +70,13 @@ cDepths = [0 60]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
+TVals = [293 1293] # 20 C/km
+#TVals = [100 100]
+TDepths = [0 50]
+thermalCoupling = uncoupled
+withShearHeating = no
+withFrictionalHeating = yes
 
-linSolver = MUMPSCHOLESKY
-bCoordTrans = 12.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
-kspTol = 1e-10
 
 
 # Maxwell properties
@@ -104,26 +95,25 @@ stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
 initTime = 3e10      # s 3e10
-maxTime = 1e12      # s
+maxTime = 5.5e10      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1      # s
+maxDeltaT = 2e9      # s
 atol = 1e-8
 timeIntInds = [0 2]
 
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/heSims/he_mfc_b7_atol1e-8_
-#outputDir = /scratch/kallison/heSims/he_mfc_b10_N301_atol1e-8_
-#outputDir = /scratch/kallison/heSims/he_mfc_b11_N301_atol1e-8_
+#outputDir = /scratch/kallison/heSims/T0_b10_N301_
+#outputDir = /scratch/kallison/heSims/T0_b11_N301_
+#outputDir = /scratch/kallison/heSims/T0_b12_N301_
+#outputDir = /scratch/kallison/heSims/T0_b14_N301_
+#outputDir = /scratch/kallison/heSims/T0_b15_N351_
 
+outputDir = /scratch/kallison/heSims/grad_b15_N401_
 
-#outputDir = /scratch/kallison/heSims/grad_b11_N301_
-#outputDir = /scratch/kallison/heSims/grad_b12_N301_
-
-#outputDir = /scratch/kallison/heSims/grad_test_
-
-#outputDir = /scratch/kallison/heSims/grad_mfc_N301_
+#outputDir = /scratch/kallison/heSims/T0_b7_N101_
+#outputDir = /scratch/kallison/heSims/T100_b7_N101_
 
 

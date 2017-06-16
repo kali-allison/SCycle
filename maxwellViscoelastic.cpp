@@ -10,7 +10,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   _gxzPV(NULL),_dgxzPV(NULL),
   _gTxyP(NULL),_gTxzP(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
-  _stressxzP(NULL),_stressxyPV(NULL),_stressxzPV(NULL)
+  _stressxzP(NULL),_sigmadev(NULL),_stressxyPV(NULL),_stressxzPV(NULL)
 {
   #if VERBOSE > 1
     string funcName = "SymmMaxwellViscoelastic::SymmMaxwellViscoelastic";
@@ -42,6 +42,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
   VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
+  VecDuplicate(_uP,&_sigmadev); VecSet(_sigmadev,0.0);
 
   if (D._loadICs==1) { loadFieldsFromFiles(); }
 
@@ -125,6 +126,7 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
 
   VecDestroy(&_stressxyP);
   VecDestroy(&_stressxzP);
+  VecDestroy(&_sigmadev);
 
   PetscViewerDestroy(&_gTxyPV);
   PetscViewerDestroy(&_gTxzPV);
@@ -222,14 +224,10 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
-  Vec stressxzP;
-  VecDuplicate(_uP,&stressxzP);
-  ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-  ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
-    NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-  VecDestroy(&stressxzP);
+  ierr = _he.be(time,*(dvarBegin+1),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
+    *(dvarBegin+4),*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   // arguments:
-  // time, slipVel, txy, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+  // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
 
 
 #if VERBOSE > 1
@@ -933,6 +931,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
     CHKERRQ(ierr);
   #endif
 
+  /*
   // compute strains
   _sbpP->Dy(_uP,_gTxyP);
   VecCopy(_gTxyP,_stressxyP);
@@ -944,7 +943,33 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
     VecCopy(_gTxzP,_stressxzP);
     VecAXPY(_stressxzP,-1.0,_gxzP);
     VecPointwiseMult(_stressxzP,_stressxzP,_muVecP);
+  }*/
+
+
+  _sbpP->Dy(_uP,_gTxyP);
+  VecCopy(_gTxyP,_stressxyP);
+  VecAXPY(_stressxyP,-1.0,_gxyP);
+  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
+
+  // deviatoric stress: part 1/3
+  VecPointwiseMult(_sigmadev,_stressxyP,_stressxyP);
+
+  if (_Nz > 1) {
+    _sbpP->Dz(_uP,_gTxzP);
+    VecCopy(_gTxzP,_stressxzP);
+    VecAXPY(_stressxzP,-1.0,_gxzP);
+    VecPointwiseMult(_stressxzP,_stressxzP,_muVecP);
+
+  // deviatoric stress: part 2/3
+  Vec temp;
+  VecDuplicate(_stressxzP,&temp);
+  VecPointwiseMult(temp,_stressxzP,_stressxzP);
+  VecAXPY(_sigmadev,1.0,temp);
+  VecDestroy(&temp);
   }
+
+  // deviatoric stress: part 3/3
+  VecSqrtAbs(_sigmadev);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),fileName.c_str(),time);

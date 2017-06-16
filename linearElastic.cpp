@@ -24,7 +24,7 @@ LinearElastic::LinearElastic(Domain&D)
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
-  _thermalCoupling("no"),_he(D),
+  _thermalCoupling("no"),_he(D),_T(NULL),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
@@ -495,6 +495,9 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     VecDuplicate(_uP,&T);
     VecCopy(_he._T,T);
     _varIm.push_back(T);
+
+    VecDuplicate(_uP,&_T);
+    VecCopy(_he._T0,_T);
   }
 
   if (_isMMS) {
@@ -718,6 +721,15 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
 
+    if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
+              FILE_MODE_WRITE,&_tempViewer);CHKERRQ(ierr);
+    ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_tempViewer);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
+                                   FILE_MODE_APPEND,&_tempViewer);CHKERRQ(ierr);
+    }
+
     //~if (_isMMS) {
       //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                 //~FILE_MODE_WRITE,&_uAnalV);CHKERRQ(ierr);
@@ -733,7 +745,11 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+
+    if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     _he.writeStep2D(_stepCount);
+    ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
+    }
 
   }
 
@@ -875,11 +891,13 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     Vec stressxzP;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+    ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,NULL,NULL,
       NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     // arguments:
-    // time, slipVel, txy, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
+    // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
+
+    _he.getTemp(_T);
   }
   else {
     ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);

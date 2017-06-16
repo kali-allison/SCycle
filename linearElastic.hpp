@@ -77,6 +77,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     // thermomechanical coupling
     std::string _thermalCoupling;
     HeatEquation _he;
+    Vec          _T; // temperature
+    PetscViewer  _tempViewer;
 
     // viewers
     PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
