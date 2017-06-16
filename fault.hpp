@@ -39,22 +39,21 @@ class Fault: public RootFinderContext
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
    // fields that are identical on split nodes
-   PetscScalar    _f0,_v0,_vL;
-   std::vector<double> _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
-   Vec            _a,_b,_Dc;
-   std::vector<double> _cohesionVals,_cohesionDepths;
-   Vec            _cohesion;
-   Vec            _dPsi,_psi,_theta,_dTheta;
+   PetscScalar           _f0,_v0,_vL;
+   std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
+   Vec                   _a,_b,_Dc;
+   std::vector<double>   _cohesionVals,_cohesionDepths;
+   Vec                   _cohesion;
+   Vec                   _dPsi,_psi,_theta,_dTheta;
 
 
     // fields that differ on the split nodes
-    std::vector<double> _sigmaNVals,_sigmaNDepths;
-    Vec            _sigma_N;
-
-    Vec            _zP;
+    std::vector<double>  _sigmaNVals,_sigmaNDepths;
+    Vec                  _sigma_N;
+    Vec                  _zP;
     //~ PetscScalar   *_muArrPlus,*_csArrPlus;
-    Vec           *_muVecP,*_csVecP;
-    Vec            _slip,_slipVel;
+    Vec                 *_muVecP,*_csVecP;
+    Vec                  _slip,_slipVel;
 
     // viewers
     PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer,_thetaViewer;
@@ -90,7 +89,7 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
 
-    PetscScalar getTauInf(PetscInt& ind);
+    PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
     PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
     PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
@@ -98,9 +97,7 @@ class Fault: public RootFinderContext
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode loadFieldsFromFiles(std::string inputDir);
-
-    // check input from file
-    PetscErrorCode checkInput();
+    PetscErrorCode checkInput(); // check input from file
 };
 
 

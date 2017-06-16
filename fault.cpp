@@ -212,11 +212,11 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
 
 
-PetscScalar Fault::getTauInf(PetscInt& ind)
+PetscScalar Fault::getTauSS(PetscInt& ind)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 2
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::getTauInf in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::getTauSS in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
 #endif
 
   PetscInt       Istart,Iend;
@@ -231,10 +231,10 @@ PetscScalar Fault::getTauInf(PetscInt& ind)
   ierr =  VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
 
 #if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauInf in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauSS in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
 #endif
-  //~ return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
-  return sigma_N* (_f0 + (a-b) * log10(_vL/_v0) );
+  return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
+  //~ return sigma_N* (_f0 + (a-b) * log10(_vL/_v0) );
   //~ return sigma_N;
 }
 
@@ -318,8 +318,6 @@ PetscErrorCode Fault::slipLaw_theta(const PetscInt ind,const PetscScalar state,P
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
-    //~PetscScalar fss = _f0 + log(slipVel/_v0);
-
     PetscScalar A = state*slipVel/Dc;
     dstate = -A*log(A);
 
@@ -338,21 +336,21 @@ PetscErrorCode Fault::slipLaw_psi(const PetscInt ind,const PetscScalar state,Pet
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
-  PetscScalar    b,slipVel,Dc;
+  PetscScalar    a,b,slipVel,Dc,sN;
 
 
   ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
   assert( ind>=Istart && ind<Iend);
   ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+  ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_sigma_N,1,&ind,&sN);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
-    //~PetscScalar fss = _f0 + log(slipVel/_v0);
-
-
-    PetscPrintf(PETSC_COMM_WORLD,"WARNING: Fault::slipLaw not written for state variable psi!\n\n");
-    assert(0);
+  PetscScalar fss = _f0 + log(slipVel/_v0);
+  PetscScalar f = (PetscScalar) a*sN*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
+  dstate = -slipVel/Dc *(f - fss);
 
   if (isnan(dstate)) {
     PetscPrintf(PETSC_COMM_WORLD,"state = %e, slipVel=%e,Dc = %e\n",state,slipVel,Dc);
@@ -689,20 +687,16 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 
   // frictional strength of fault
   //~ // in terms of psi
-  //~ #if STATE_PSI == 1
   //~ ierr = VecGetValues(_psi,1,&ind,&state);CHKERRQ(ierr);
     //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
-  //~ #endif
 
   //~ // in terms of theta
-  //~ #if STATE_PSI == 0
     PetscScalar b,Dc=0;
     ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
     ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
     PetscScalar psi = _f0 + b*log( (double) (abs(state)*_v0)/Dc);
     PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-  //~ #endif
 
   // effect of cohesion
   strength = strength + Co;

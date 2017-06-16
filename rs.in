@@ -1,6 +1,6 @@
 order = 4
-Ny = 501
-Nz = 201
+Ny = 101
+Nz = 101
 Ly = 20 # km
 Lz = 24 # km
 
@@ -28,8 +28,6 @@ sigmaNDepths = [0 60]
 vL = 1e-9    # m/s
 
 
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_20_z
 loadICs = 0
 bcLTauQS = 0
 
@@ -41,7 +39,7 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -73,9 +71,9 @@ rhoDepths = [0 60]
 TVals = [293 1293] # 20 C/km
 #TVals = [100 100]
 TDepths = [0 50]
-thermalCoupling = uncoupled
+thermalCoupling = no
 withShearHeating = no
-withFrictionalHeating = yes
+withFrictionalHeating = no
 
 
 
@@ -89,11 +87,11 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e9 #1e9
+stride1D = 1
+stride2D = 1
+maxStepCount = 5 #1e9
 initTime = 3e10      # s 3e10
 maxTime = 5.5e10      # s
 initDeltaT = 1e-3     # s
@@ -105,16 +103,6 @@ timeIntInds = [0 2]
 rootTol = 1e-9
 
 
-#outputDir = /scratch/kallison/heSims/T0_b10_N301_
-#outputDir = /scratch/kallison/heSims/T0_b11_N301_
-#outputDir = /scratch/kallison/heSims/T0_b12_N301_
-#outputDir = /scratch/kallison/heSims/T0_b14_N301_
-#outputDir = /scratch/kallison/heSims/T0_b15_N351_
-
-#outputDir = /scratch/kallison/heSims/grad_b15_N401_
-outputDir = /scratch/kallison/heSims/grad_b15_N501_
-
-#outputDir = /scratch/kallison/heSims/T0_b7_N101_
-#outputDir = /scratch/kallison/heSims/T100_b7_N101_
+outputDir = /scratch/kallison/agingLaw_
 
 

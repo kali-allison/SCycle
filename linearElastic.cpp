@@ -500,9 +500,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     VecCopy(_he._T0,_T);
   }
 
-  if (_isMMS) {
-    setMMSInitialConditions();
-  }
+  if (_isMMS) { setMMSInitialConditions(); }
   VecAXPY(_bcRP,1.0,_bcRPShift);
 
   setSurfDisp();
@@ -512,7 +510,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     PetscInt    Istart,Iend;
     VecGetOwnershipRange(_bcLP,&Istart,&Iend);
     for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar tauRS = _fault.getTauInf(Ii);
+      PetscScalar tauRS = _fault.getTauSS(Ii);
       VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
@@ -1489,7 +1487,7 @@ PetscErrorCode FullLinearElastic::setShifts()
   PetscScalar v,bcRshift = 0;
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault.getTauInf(Ii);
+    v = _fault.getTauSS(Ii);
     v = 0;
     //~v = 0.8*v;
     //~ bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
@@ -1502,7 +1500,7 @@ PetscErrorCode FullLinearElastic::setShifts()
 
   ierr = VecGetOwnershipRange(_bcLMShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault.getTauInf(Ii);
+    v = _fault.getTauSS(Ii);
      //~v = 0;
      v = 0.8*v;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr

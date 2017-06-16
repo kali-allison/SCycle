@@ -77,7 +77,7 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     VecAssemblyBegin(faultVisc); VecAssemblyEnd(faultVisc);
     VecGetOwnershipRange(_bcLP,&Istart,&Iend);
     for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar tauRS = _fault.getTauInf(Ii); // rate-and-state strength, 1.2 is a heuristic factor
+      PetscScalar tauRS = _fault.getTauSS(Ii); // rate-and-state strength
 
       // viscous strength
       VecGetValues(faultVisc,1,&Ii,&v);
