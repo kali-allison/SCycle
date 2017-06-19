@@ -40,6 +40,7 @@ class Fault: public RootFinderContext
 
    // fields that are identical on split nodes
    PetscScalar           _f0,_v0,_vL;
+   PetscScalar           _fw,_Vw; // flash heating parameters
    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec                   _a,_b,_Dc;
    std::vector<double>   _cohesionVals,_cohesionDepths;
@@ -77,11 +78,16 @@ class Fault: public RootFinderContext
     Fault(Domain&D);
     ~Fault();
 
+
+    // state evolution equations
     PetscErrorCode agingLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode agingLaw_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode slipLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode slipLaw_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+    PetscErrorCode flashHeating_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode stronglyVWLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
+
+
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,it_vec dvarBegin) = 0;

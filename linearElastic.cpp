@@ -12,7 +12,7 @@ LinearElastic::LinearElastic(Domain&D)
   _isMMS(!D._shearDistribution.compare("mms")),
   _bcLTauQS(0),
   _outputDir(D._outputDir),
-  _v0(D._v0),_vL(D._vL),
+  _vL(D._vL),
   _muVecP(D._muVecP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
@@ -38,6 +38,7 @@ LinearElastic::LinearElastic(Domain&D)
 #endif
 
   loadSettings(D._file);
+  checkInput();
 
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
@@ -290,26 +291,14 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
-  //~ierr = KSPSetType(_ksp,KSPGMRES);CHKERRQ(ierr);
-  //~ierr = KSPSetOperators(_ksp,_A,_A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-  //~ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-
-
-  // use PETSc's direct LU - only available on 1 processor!!!
-  //~ierr = PCSetType(D.pc,PCLU);CHKERRQ(ierr);
-
   Mat A;
   sbp->getA(A);
 
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-//~#if VERSION < 6
-    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-//~#elif VERSION == 6
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
-//~#endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
@@ -335,24 +324,16 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     //~PCSetType(pc,PCHYPRE);
     //~ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
     //~ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
-//~#if VERSION < 6
-    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-//~#elif VERSION == 6
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
-//~#endif
     ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
     // use direct LU from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
-//~#if VERSION < 6
-    //~ierr = KSPSetOperators(ksp,A,A,SAME_PRECONDITIONER);CHKERRQ(ierr);
-//~#elif VERSION == 6
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
-//~#endif
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCLU);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
@@ -371,7 +352,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
-    assert(0>1);
+    assert(0);
   }
 
   // finish setting up KSP context using options defined above
@@ -536,7 +517,24 @@ SymmLinearElastic::~SymmLinearElastic()
 };
 
 
-// destructor is covered by base class
+// Check that required fields have been set by the input file
+PetscErrorCode LinearElastic::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  if (_timeIntegrator.compare("IMEX")==0) {
+    assert(_thermalCoupling.compare("uncoupled")==0
+      || _thermalCoupling.compare("coupled")==0);
+  }
+
+  #if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 
 PetscErrorCode SymmLinearElastic::setShifts()

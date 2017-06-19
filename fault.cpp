@@ -12,6 +12,7 @@ Fault::Fault(Domain&D)
   _depth(D._depth),_width(D._width),
   _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
   _f0(D._f0),_v0(D._v0),_vL(D._vL),
+  _fw(0.64),_Vw(0.12),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
   _sigma_N(NULL),
@@ -94,6 +95,7 @@ PetscErrorCode Fault::checkInput()
 
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
+    || _stateLaw.compare("flashHeating")==0
     || _stateLaw.compare("stronglyVWLaw")==0);
 
 
@@ -185,8 +187,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
   // set depth-independent fields
     ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
-    //~ ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
-    ierr = VecSet(_theta,_f0);CHKERRQ(ierr); // correct
+    ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
+    //~ ierr = VecSet(_theta,_f0);CHKERRQ(ierr); // incorrect
   // set a using a vals
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
@@ -320,9 +322,10 @@ PetscErrorCode Fault::slipLaw_theta(const PetscInt ind,const PetscScalar state,P
   //~ slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
     PetscScalar A = state*slipVel/Dc;
-    dstate = -A*log(A);
+    if (A == 0) { dstate = 0; }
+    else {dstate = -A*log(A); }
 
-  if (isnan(dstate)) {
+  if (isnan(dstate) || isinf(dstate)) {
     PetscPrintf(PETSC_COMM_WORLD,"state = %e, slipVel=%e,Dc = %e\n",state,slipVel,Dc);
   }
   assert(!isnan(dstate));
@@ -350,7 +353,41 @@ PetscErrorCode Fault::slipLaw_psi(const PetscInt ind,const PetscScalar state,Pet
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
   PetscScalar fss = _f0 + (a-b)*log(slipVel/_v0);
-  PetscScalar f = (PetscScalar) a*sN*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
+  PetscScalar f = state + a*log(slipVel/_v0);
+  //~ PetscScalar f = (PetscScalar) a*sN*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
+  dstate = -slipVel/Dc *(f - fss);
+
+  if (isnan(dstate)) {
+    PetscPrintf(PETSC_COMM_WORLD,"state = %e, slipVel=%e,Dc = %e\n",state,slipVel,Dc);
+  }
+  assert(!isnan(dstate));
+  assert(!isinf(dstate));
+
+  return ierr;
+}
+
+PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    a,b,slipVel,Dc,sN;
+
+
+  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
+  assert( ind>=Istart && ind<Iend);
+  ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+  ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_sigma_N,1,&ind,&sN);CHKERRQ(ierr);
+  ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
+  slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
+
+  // flash heating parameters
+  //~ PetscScalar Vw = 0.1, fw = 0.12, f0 = 0.6;
+  PetscScalar fLV = _f0 + (a-b)*log(slipVel/_v0);
+  PetscScalar fss = fLV;
+  if (abs(slipVel) > _Vw) { fss = _fw + (fLV + _fw)*_Vw/slipVel; }
+  PetscScalar f = state + a*log(slipVel/_v0);
   dstate = -slipVel/Dc *(f - fss);
 
   if (isnan(dstate)) {
@@ -680,13 +717,14 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
 
   // in terms of theta
-  /*PetscScalar b,Dc=0;
-  ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
-  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-  ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
-  PetscScalar psi = _f0 + b*log( (double) (abs(state)*_v0)/Dc);
-  PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-    */
+  //~ PetscScalar b,Dc=0;
+  //~ ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
+  //~ ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  //~ ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+  //~ PetscScalar psi = _f0 + b*log( (double) (state*_v0)/Dc);
+  //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+
+
 
   // effect of cohesion
   strength = strength + Co;
@@ -757,9 +795,12 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("slipLaw")) {
-      //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr); // correct
-      ierr = slipLaw_psi(Ii,theta,dtheta);CHKERRQ(ierr); // deliberately incorrect
+      ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+      }
+    else if (!_stateLaw.compare("flashHeating")) {
+      ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+      ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       }
     //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
@@ -988,9 +1029,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_bDepths);
     }
-    else if (var.compare("stateLaw")==0) {
-      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+
     else if (var.compare("cohesionVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cohesionVals);
@@ -998,6 +1037,26 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("cohesionDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cohesionDepths);
+    }
+
+    else if (var.compare("stateLaw")==0) {
+      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+
+    // friction parameters
+    else if (var.compare("f0")==0) {
+      _f0 = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("v0")==0) {
+      _v0 = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    // flash heating parameters
+    else if (var.compare("fw")==0) {
+      _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("Vw")==0) {
+      _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
   }
 

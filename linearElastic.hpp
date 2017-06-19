@@ -48,7 +48,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     // output data
     std::string          _outputDir;
 
-    const PetscScalar    _v0,_vL;
+    const PetscScalar    _vL;
 
     // off-fault material fields: + side
     Vec                  _muVecP;
@@ -92,6 +92,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
 
     PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput();
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
 
@@ -156,7 +157,6 @@ class SymmLinearElastic: public LinearElastic
 
   //~ protected:
   public:
-
 
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();

@@ -1,6 +1,6 @@
 order = 4
-Ny = 501
-Nz = 201
+Ny = 201
+Nz = 1
 Ly = 20 # km
 Lz = 24 # km
 
@@ -8,9 +8,6 @@ cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
-
-stateLaw = agingLaw
-
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -70,10 +67,11 @@ cDepths = [0 60]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
-TVals = [293 1293] # 20 C/km
-#TVals = [100 100]
+#TVals = [293 1293] # 20 C/km
+TVals = [0 0]
 TDepths = [0 50]
 thermalCoupling = uncoupled
+#thermalCoupling = no
 withShearHeating = no
 withFrictionalHeating = yes
 
@@ -94,15 +92,23 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
-initTime = 3e10      # s 3e10
-maxTime = 5.5e10      # s
+initTime = 1e9      # s 3e10
+maxTime = 1e11      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 2e9      # s
+maxDeltaT = 1e10      # s
 atol = 1e-8
 timeIntInds = [0 2]
 
 rootTol = 1e-9
+
+
+#stateLaw = slipLaw
+stateLaw = flashHeating
+v0 = 1e-6
+f0 = 0.6
+fw = 0.12
+Vw = 0.1
 
 
 #outputDir = /scratch/kallison/heSims/T0_b10_N301_
@@ -116,5 +122,16 @@ rootTol = 1e-9
 
 #outputDir = /scratch/kallison/heSims/T0_b7_N101_
 #outputDir = /scratch/kallison/heSims/T100_b7_N101_
+
+
+#outputDir = data/SS_agingLaw_psi_
+#outputDir = data/SS_agingLaw_theta_
+#outputDir = data/SS_slipLaw_psi_
+#outputDir = data/SS_slipLaw_theta_
+
+#outputDir = data/SS_flashHeating_
+outputDir = data/SS_flashHeating_fw0.06_
+
+
 
 
