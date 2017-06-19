@@ -112,7 +112,7 @@ rootTol = 1e-9
 #outputDir = /scratch/kallison/heSims/T0_b15_N351_
 
 #outputDir = /scratch/kallison/heSims/grad_b15_N401_
-outputDir = /scratch/kallison/heSims/grad_b15_N501_
+#outputDir = /scratch/kallison/heSims/grad_b15_N501_
 
 #outputDir = /scratch/kallison/heSims/T0_b7_N101_
 #outputDir = /scratch/kallison/heSims/T100_b7_N101_

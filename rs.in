@@ -1,15 +1,15 @@
 order = 4
-Ny = 101
-Nz = 101
+Ny = 201
+Nz = 501
 Ly = 20 # km
 Lz = 24 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
-DcVals = [16e-3 16e-3] # m
+DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
-stateLaw = agingLaw
+stateLaw = slipLaw
 
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -39,7 +39,7 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 7.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -89,9 +89,9 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 3e10      # s 3e10
 maxTime = 5.5e10      # s
 initDeltaT = 1e-3     # s
@@ -103,6 +103,11 @@ timeIntInds = [0 2]
 rootTol = 1e-9
 
 
-outputDir = /scratch/kallison/agingLaw_
+#outputDir = /scratch/kallison/agingLaw_
+#outputDir = /scratch/kallison/slipLaw_
+outputDir = /scratch/kallison/slipLaw_Dc32_Ny201_Nz501_
+#outputDir = /scratch/kallison/slipLaw_Dc32_Ny101_Nz401_
+
+#outputDir = /scratch/kallison/agingLaw_Ny251_Nz501_
 
 

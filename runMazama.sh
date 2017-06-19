@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N grad_b15_N501
+#PBS -N slipLaw_Dc32_Ny101_Nz501
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/grad_b15_N501.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/grad_b15_N501.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/slipLaw_Dc32_Ny101_Nz501.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/slipLaw_Dc32_Ny101_Nz501.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -25,7 +25,9 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/max_cremeBrulee_spinUp.in
 
 
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
+#~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he.in
+
+mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/rs.in
 

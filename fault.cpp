@@ -185,7 +185,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
   // set depth-independent fields
     ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
-    ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
+    //~ ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
+    ierr = VecSet(_theta,_f0);CHKERRQ(ierr); // correct
   // set a using a vals
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
@@ -316,7 +317,7 @@ PetscErrorCode Fault::slipLaw_theta(const PetscInt ind,const PetscScalar state,P
   ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
-  slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
+  //~ slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
     PetscScalar A = state*slipVel/Dc;
     dstate = -A*log(A);
@@ -348,7 +349,7 @@ PetscErrorCode Fault::slipLaw_psi(const PetscInt ind,const PetscScalar state,Pet
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
-  PetscScalar fss = _f0 + log(slipVel/_v0);
+  PetscScalar fss = _f0 + (a-b)*log(slipVel/_v0);
   PetscScalar f = (PetscScalar) a*sN*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
   dstate = -slipVel/Dc *(f - fss);
 
@@ -357,16 +358,6 @@ PetscErrorCode Fault::slipLaw_psi(const PetscInt ind,const PetscScalar state,Pet
   }
   assert(!isnan(dstate));
   assert(!isinf(dstate));
-
-  /* // if in terms of psi
-  if ( isinf(exp(1/b)) ) { *dPsi = 0; }
-  else if ( b <= 1e-3 ) { *dPsi = 0; }
-  else {
-    *dPsi = (PetscScalar) (b*_v0/Dc)*( exp((double) ( (_f0-psi)/b) ) - (slipVel/_v0) );
-  }
-  assert(!isnan(*dPsi));
-  assert(!isinf(*dPsi));
-  */
 
   return ierr;
 }
@@ -673,11 +664,9 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::getResid in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
-
+    // frictional strength of fault
   ierr = VecGetOwnershipRange(_theta,&Istart,&Iend);
   assert(ind>=Istart && ind<Iend);
-
-
 
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
@@ -685,18 +674,19 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
 
-  // frictional strength of fault
-  //~ // in terms of psi
-  //~ ierr = VecGetValues(_psi,1,&ind,&state);CHKERRQ(ierr);
-    //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
 
-  //~ // in terms of theta
-    PetscScalar b,Dc=0;
-    ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
-    ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-    ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
-    PetscScalar psi = _f0 + b*log( (double) (abs(state)*_v0)/Dc);
-    PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+  // in terms of psi
+  ierr = VecGetValues(_psi,1,&ind,&state);CHKERRQ(ierr);
+  PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(state/a) );
+
+  // in terms of theta
+  /*PetscScalar b,Dc=0;
+  ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
+  ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+  PetscScalar psi = _f0 + b*log( (double) (abs(state)*_v0)/Dc);
+  PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+    */
 
   // effect of cohesion
   strength = strength + Co;
@@ -767,7 +757,8 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("slipLaw")) {
-      ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+      //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr); // correct
+      ierr = slipLaw_psi(Ii,theta,dtheta);CHKERRQ(ierr); // deliberately incorrect
       ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
