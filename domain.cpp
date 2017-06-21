@@ -627,20 +627,20 @@ PetscErrorCode Domain::write()
   {
     ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %.15e # (GPa)\n",_muInPlus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %.15e # (GPa)\n",_muOutPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %.15e\n",_rhoInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %.15e\n",_rhoOutPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %.15e # (g/cm^3)\n",_rhoInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %.15e # (g/cm^3)\n",_rhoOutPlus);CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e\n",_depth);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e\n",_width);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e # (km)\n",_depth);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e # (km)\n",_width);CHKERRQ(ierr);
   }
   else if (_shearDistribution.compare("constant")==0)
   {
     ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %.15e # (GPa)\n",_muValPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e\n",_rhoValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e # (g/cm^3)\n",_rhoValPlus);CHKERRQ(ierr);
   }
   else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e\n",_rhoValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e # (g/cm^3)\n",_rhoValPlus);CHKERRQ(ierr);
   }
   if (_problemType.compare("full")==0)
   {
@@ -648,17 +648,17 @@ PetscErrorCode Domain::write()
     {
       ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %.15e # (GPa)\n",_muInMinus);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %.15e # (GPa)\n",_muOutMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %.15e\n",_rhoInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %.15e\n",_rhoOutMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %.15e # (g/cm^3)\n",_rhoInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %.15e # (g/cm^3)\n",_rhoOutMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
       ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %.15e # (GPa)\n",_muValMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e\n",_rhoValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e # (g/cm^3)\n",_rhoValMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e\n",_rhoValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e # (g/cm^3)\n",_rhoValMinus);CHKERRQ(ierr);
     }
   }
   if (_shearDistribution.compare("CVM")==0 )

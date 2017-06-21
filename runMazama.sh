@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N slipLaw_Dc32_Ny101_Nz501
+#PBS -N shearHeating
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/slipLaw_Dc32_Ny101_Nz501.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/slipLaw_Dc32_Ny101_Nz501.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/shearHeating.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/shearHeating.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -29,5 +29,6 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainMaxwell $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he.in
 
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/rs.in
+#~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/rs.in
+mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
 

@@ -1,5 +1,5 @@
 order = 4
-Ny = 201
+Ny = 401
 Nz = 1
 Ly = 20 # km
 Lz = 24 # km
@@ -16,7 +16,8 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-sigmaNVals = [50 50] # MPa
+#sigmaNVals = [50 50] # MPa
+sigmaNVals = [40 40] # MPa
 sigmaNDepths = [0 60]
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
@@ -58,7 +59,7 @@ nDepths = [0 15 15 30 30 60]
 heatFieldsDistribution = layered
 linSolver_heateq = AMG
 kspTol_heateq = 1e-9
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s) ORIG
 kDepths = [0 60]
 hVals = [0 0]
 hDepths = [0 60]
@@ -69,7 +70,7 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [0 0]
-TVals = [293 293]
+TVals = [300 300]
 TDepths = [0 50]
 thermalCoupling = uncoupled
 #thermalCoupling = no
@@ -92,9 +93,9 @@ timeIntegrator = IMEX
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 10 #1e9
+maxStepCount = 1e9 #1e9
 initTime = 1e9      # s 3e10
-maxTime = 1.5e11      # s 5.5e10
+maxTime = 1e11      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
@@ -104,28 +105,29 @@ timeIntInds = [0 2]
 rootTol = 1e-9
 
 
-#stateLaw = agingLaw
+stateLaw = agingLaw
 #stateLaw = slipLaw
-#v0 = 1e-6
-#f0 = 0.6
-
-stateLaw = flashHeating
 v0 = 1e-6
 f0 = 0.6
-fw = 0.12
-Vw = 0.1
-Tw = 1.1732e+03 # K
-tau_c = 3 # GPa
-D = 5 # um
+
+#stateLaw = flashHeating
+#v0 = 1e-6
+#f0 = 0.6
+#fw = 0.12
+#Vw = 0.1
+#Tw = 1.1732e+03 # K 900 C
+#tau_c = 3 # GPa
+#D = 5 # um
 
 
-outputDir = data/SS_flashHeating_test_
-
-#outputDir = data/SS_flashHeating_VwT_
-#outputDir = data/SS_flashHeating_Vw0.1_
-
-#outputDir = data/SS_slipLaw_
 #outputDir = data/SS_agingLaw_
+#outputDir = data/SS_slipLaw_
 #outputDir = data/SS_agingLaw_psi_
+
+
+outputDir = data/he_agingLaw_shearHeating_uncoupled_
+
+
+
 
 

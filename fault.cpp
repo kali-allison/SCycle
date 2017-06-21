@@ -455,16 +455,15 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   //~ PetscScalar rho = 3; // (g/cm^3)
   //~ PetscScalar c = 900; // m^2/s^2/K = J/g/K
   //~ PetscScalar k = 1.89e-9; // my units ORIG
-  //~ PetscScalar k = 1.89e-9; // my units TRIAL
   //~ PetscScalar D = 5; // micrometers
   //~ PetscScalar Tw = 900 + 273.15; // K
   //~ PetscScalar tau_c = 3; // GPa
 
-  _Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
+  PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
 
 
 
-  if (abs(slipVel) > _Vw) { fss = _fw + (fLV - _fw)*_Vw/slipVel; }
+  if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*Vw/slipVel; }
   PetscScalar f = state + a*log(slipVel/_v0);
   dstate = -slipVel/Dc *(f - fss);
 
