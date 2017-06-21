@@ -11,7 +11,7 @@ PowerLaw::PowerLaw(Domain& D)
   _gxyP(NULL),_dgxyP(NULL),
   _gxzP(NULL),_dgxzP(NULL),
   _gTxyP(NULL),_gTxzP(NULL),
-  _T(NULL),
+  //~ _T(NULL),
   _stressxyPV(NULL),_stressxzPV(NULL),_sigmadevV(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
@@ -31,8 +31,6 @@ PowerLaw::PowerLaw(Domain& D)
 
   VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
   VecDuplicate(_uP,&_sigmadev); VecSet(_sigmadev,0.0);
-  VecDuplicate(_uP,&_effVisc); VecSet(_effVisc,0.0);
-
 
   VecDuplicate(_uP,&_gxyP);
   PetscObjectSetName((PetscObject) _gxyP, "_gxyP");
@@ -52,7 +50,9 @@ PowerLaw::PowerLaw(Domain& D)
   VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
+
   if (D._loadICs==1) { loadFieldsFromFiles(); }
+  else { setInitialConds(D); }
 
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
@@ -60,13 +60,15 @@ PowerLaw::PowerLaw(Domain& D)
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
+
   if (_isMMS) { setMMSInitialConditions(); }
 
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
-    VecCopy(_he._T,T);
+    //~ VecCopy(_he._T,T);
+    _he.setTemp(T);
     _varIm.push_back(T);
   }
 
@@ -78,15 +80,11 @@ PowerLaw::PowerLaw(Domain& D)
 PowerLaw::~PowerLaw()
 {
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::PowerLaw";
+    std::string funcName = "PowerLaw::~PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   VecDestroy(&_bcRPShift);
-  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    VecDestroy(&_var[i]);
-  }
-
   VecDestroy(&_effVisc);
   VecDestroy(&_T);
 
@@ -122,6 +120,154 @@ PowerLaw::~PowerLaw()
   #endif
 }
 
+// try to speed up spin up by starting closer to steady state
+PetscErrorCode PowerLaw::setInitialConds(Domain& D)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::setInitialConds";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  delete _sbpP;
+
+  // set up SBP operators
+  //~ string bcT,string bcR,string bcB, string bcL
+  std::string bcTType = "Neumann";
+  std::string bcBType = "Neumann";
+  std::string bcRType = "Dirichlet";
+  std::string bcLType = "Neumann";
+
+  if (_sbpType.compare("mc")==0) {
+    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
+  KSPDestroy(&_kspP);
+  KSPCreate(PETSC_COMM_WORLD,&_kspP);
+  setupKSP(_sbpP,_kspP,_pcP);
+
+  // set up boundary conditions
+  VecSet(_bcRP,0.0);
+  PetscInt    Istart,Iend;
+  PetscScalar v = 0;
+  Vec faultVisc; VecDuplicate(_bcLP,&faultVisc);
+  VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    if (Ii < _Nz) {
+      VecGetValues(_effVisc,1,&Ii,&v);
+      VecSetValue(faultVisc,Ii,v,INSERT_VALUES);
+    }
+  }
+  VecAssemblyBegin(faultVisc); VecAssemblyEnd(faultVisc);
+
+  VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar tauRS = _fault.getTauSS(Ii); // rate-and-state strength
+
+    // viscous strength
+    VecGetValues(faultVisc,1,&Ii,&v);
+    PetscScalar tauVisc = v*_vL/2.0/10.0; // 10 = seismogenic depth
+
+    //~ PetscScalar tau = min(tauRS,tauVisc);
+    PetscScalar tau = tauRS;
+    VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
+  }
+  VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
+
+  _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  KSPDestroy(&_kspP);
+  delete _sbpP;
+  _sbpP = NULL;
+
+  // extract boundary condition information from u
+  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    if (Ii<_Nz) {
+      ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
+      v = 0.0 - v;
+      ierr = VecSetValues(_bcRPShift,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
+  VecCopy(_bcRPShift,_bcRP);
+  //~ VecSet(_bcRPShift,0);
+  VecSet(_bcLP,0);
+
+  // set up SBP system again
+  //~ string bcT,string bcR,string bcB, string bcL
+  bcTType = "Neumann";
+  bcBType = "Neumann";
+  bcRType = "Dirichlet";
+  bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
+  if (D._sbpType.compare("mc")==0) {
+    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else if (D._sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+  }
+  else if (D._sbpType.compare("mfc_coordTrans")==0) {
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
+
+
+  KSPCreate(PETSC_COMM_WORLD,&_kspP);
+  setupKSP(_sbpP,_kspP,_pcP);
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+
+// inititialize effective viscosity
+PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::guessSteadyStateEffVisc";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar s,A,B,n,T,effVisc;
+  PetscInt Ii,Istart,Iend;
+  PetscScalar strainRate = 1e-12; // guess
+  VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    VecGetValues(_A,1,&Ii,&A);
+    VecGetValues(_B,1,&Ii,&B);
+    VecGetValues(_n,1,&Ii,&n);
+    VecGetValues(_T,1,&Ii,&T);
+    s = pow(strainRate/(A*exp(-B/T)),1.0/n);
+    effVisc =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
+
+    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+    assert(!isnan(effVisc));
+  }
+  VecAssemblyBegin(_effVisc);
+  VecAssemblyEnd(_effVisc);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
 
 PetscErrorCode PowerLaw::integrate()
 {
@@ -141,7 +287,7 @@ PetscErrorCode PowerLaw::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    ierr = _quadEx->setErrInds(_timeIntInds);
+    ierr = _quadImex->setErrInds(_timeIntInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -1162,7 +1308,8 @@ PetscErrorCode PowerLaw::writeStep2D()
 PetscErrorCode PowerLaw::view()
 {
   PetscErrorCode ierr = 0;
-  ierr = _quadEx->view();
+  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); }
+  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
@@ -1401,7 +1548,7 @@ PetscErrorCode PowerLaw::setFields()
   ierr = VecDuplicate(_uP,&_B);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&_n);CHKERRQ(ierr);
   ierr = VecDuplicate(_uP,&_effVisc);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&_T);CHKERRQ(ierr);
+  //~ ierr = VecDuplicate(_uP,&_T);CHKERRQ(ierr);
 
 
   // set each field using it's vals and depths std::vectors
@@ -1431,6 +1578,8 @@ PetscErrorCode PowerLaw::setFields()
     }
   }
   _he.getTemp(_T);
+  guessSteadyStateEffVisc();
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

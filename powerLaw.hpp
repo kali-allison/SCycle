@@ -31,7 +31,7 @@ class PowerLaw: public SymmLinearElastic
     Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
     Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
     Vec         _gTxyP,_gTxzP; // total strain
-    Vec         _T; // temperature (K)
+    //~ Vec         _T; // temperature (K)
 
     // viewers
     PetscViewer _stressxyPV,_stressxzPV,_sigmadevV;
@@ -56,6 +56,7 @@ class PowerLaw: public SymmLinearElastic
     PowerLaw(Domain&D);
     ~PowerLaw();
 
+
     PetscErrorCode resetInitialConds();
 
     PetscErrorCode integrate(); // don't need now that LinearElastic defines this
@@ -79,6 +80,8 @@ class PowerLaw: public SymmLinearElastic
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode setFields();
+    PetscErrorCode setInitialConds(Domain& D); // try to skip some spin up steps
+    PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
     PetscErrorCode loadFieldsFromFiles();
 

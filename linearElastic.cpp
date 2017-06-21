@@ -74,7 +74,8 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_muVecP,&_rhsP);
   VecDuplicate(_rhsP,&_uP);
 
-  VecDuplicate(_rhsP,&_stressxyP);
+  VecDuplicate(_rhsP,&_stressxyP); VecSet(_stressxyP,0);
+  VecDuplicate(_rhsP,&_T); _he.setTemp(_T);
 
 
   if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
@@ -145,6 +146,7 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_uP);
   VecDestroy(&_stressxyP);
   VecDestroy(&_surfDispPlus);
+  VecDestroy(&_T);
 
   KSPDestroy(&_kspP);
 
@@ -474,7 +476,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
-    VecCopy(_he._T,T);
+    VecCopy(_he._T0,T);
     _varIm.push_back(T);
 
     VecDuplicate(_uP,&_T);

@@ -89,9 +89,6 @@ SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
-  //~ VecSet(_bcLP,1e3);
-  //~ VecSet(_bcLP,50);
-  //~ VecSet(_bcLP,20);
 
   if (_isMMS) { setMMSInitialConditions(); }
 
