@@ -19,7 +19,9 @@ Domain::Domain(const char *file)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
+  _atol(-1),_outputDir("unspecified"),
+  //~ _f0(0.6),_v0(1e-6),
+  _vL(-1),
   _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
@@ -96,7 +98,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),_f0(0.6),_v0(1e-6),_vL(-1),
+  _atol(-1),_outputDir("unspecified"),
+  //~ _f0(0.6),_v0(1e-6),
+  _vL(-1),
   _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
@@ -411,7 +415,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // fault properties
-    ierr = PetscPrintf(PETSC_COMM_SELF,"vp = %.15e\n",_vL);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"vL = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     // sedimentary basin properties
@@ -704,10 +708,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %e\n",_f0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %e\n",_v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
 

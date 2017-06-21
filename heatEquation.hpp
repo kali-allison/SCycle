@@ -46,7 +46,7 @@ class HeatEquation: public IntegratorContextEx
     std::string       _heatFieldsDistribution;
     std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
     std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
-    Vec                  _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
+
 
     // viewers
     PetscViewer          _TV; // temperature viewer
@@ -90,6 +90,7 @@ class HeatEquation: public IntegratorContextEx
 
     Vec _T;
     Vec _T0; // initial temperature
+    Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
 
     HeatEquation(Domain&D);
     ~HeatEquation();

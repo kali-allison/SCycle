@@ -74,7 +74,8 @@ class Domain
     std::string  _outputDir;
 
     // values not loaded in input file
-    PetscScalar  _f0,_v0,_vL;
+    //~ PetscScalar  _f0,_v0,_vL;
+    PetscScalar  _vL;
 
 
     // DMDA for all vectors

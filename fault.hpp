@@ -8,6 +8,7 @@
 #include <cmath>
 #include "genFuncs.hpp"
 #include "domain.hpp"
+#include "heatEquation.hpp"
 #include "rootFinderContext.hpp"
 
 // defines if state is in terms of psi (=1) or in terms of theta (=0)
@@ -40,7 +41,8 @@ class Fault: public RootFinderContext
 
    // fields that are identical on split nodes
    PetscScalar           _f0,_v0,_vL;
-   PetscScalar           _fw,_Vw; // flash heating parameters
+   PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
+   Vec                   _T,_k,_rho,_c; // for flash heating
    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec                   _a,_b,_Dc;
    std::vector<double>   _cohesionVals,_cohesionDepths;
@@ -58,6 +60,7 @@ class Fault: public RootFinderContext
 
     // viewers
     PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer,_thetaViewer;
+    PetscViewer    _tempViewer;
 
 
     PetscErrorCode setFrictionFields(Domain&D);
@@ -70,12 +73,13 @@ class Fault: public RootFinderContext
 
   //~public:
     Vec            _tauQSP;
+    Vec            _tauP; // not quasi-static
 
     // iterators for _var
     typedef std::vector<Vec>::iterator it_vec;
     typedef std::vector<Vec>::const_iterator const_it_vec;
 
-    Fault(Domain&D);
+    Fault(Domain& D, HeatEquation& He);
     ~Fault();
 
 
@@ -104,6 +108,7 @@ class Fault: public RootFinderContext
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode loadFieldsFromFiles(std::string inputDir);
     PetscErrorCode checkInput(); // check input from file
+    PetscErrorCode setHeatParams(const Vec& k,const Vec& rho,const Vec& c);
 };
 
 
@@ -127,13 +132,15 @@ class SymmFault: public Fault
 
 
 
-    SymmFault(Domain&D);
+    SymmFault(Domain&D, HeatEquation& He);
     ~SymmFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
     PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
 
     // don't technically need the 2nd argument
+    PetscErrorCode setTemp(const Vec& T);
+    PetscErrorCode getTau(Vec& tau);
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
 
@@ -182,7 +189,7 @@ class FullFault: public Fault
     typedef std::vector<Vec>::iterator it_vec;
     typedef std::vector<Vec>::const_iterator const_it_vec;
 
-    FullFault(Domain&D);
+    FullFault(Domain&D, HeatEquation& He);
     ~FullFault();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);

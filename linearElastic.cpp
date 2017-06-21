@@ -455,7 +455,7 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 //================= Symmetric LinearElastic Functions ==================
 
 SymmLinearElastic::SymmLinearElastic(Domain&D)
-: LinearElastic(D),_fault(D),
+: LinearElastic(D),_fault(D,_he),
   _E(NULL),_eV(NULL),_intEV(NULL)
 {
 #if VERBOSE > 1
@@ -479,6 +479,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
     VecDuplicate(_uP,&_T);
     VecCopy(_he._T0,_T);
+    _fault.setTemp(_T);
   }
 
   if (_isMMS) { setMMSInitialConditions(); }
@@ -884,10 +885,14 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec stressxzP;
+    Vec stressxzP,tau;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,NULL,NULL,
+    VecDuplicate(_fault._tauQSP,&tau);
+    _fault.getTau(tau);
+
+    _fault.setTemp(_T);
+    ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
       NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     // arguments:
@@ -1344,7 +1349,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _rhsM(NULL),_uM(NULL),_sigma_xyMinus(NULL),
   _kspM(NULL),_pcMinus(NULL),_sbpM(NULL),
   _surfDispMinusViewer(NULL),_bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
-  _fault(D)
+  _fault(D,_he)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in linearElastic.cpp.\n");

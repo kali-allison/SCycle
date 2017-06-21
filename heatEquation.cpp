@@ -10,15 +10,14 @@ HeatEquation::HeatEquation(Domain& D)
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
-  _k(NULL),_rho(NULL),_c(NULL),_h(NULL),
   _TV(NULL),_bcRVw(NULL),_bcTVw(NULL),_bcLVw(NULL),_bcBVw(NULL),_timeV(NULL),
   _wShearHeating("yes"),_wFrictionalHeating("yes"),
-  _sbpT(NULL),
+  _sbpType(D._sbpType),_sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
-  _sbpType(D._sbpType),_linSolver("AMG"),_kspTol(1e-10),
+  _linSolver("AMG"),_kspTol(1e-10),
   _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_computePC(0),
   _linSolveTime(0),_linSolveCount(0),_pcRecomputeCount(0),
-  _T(NULL),_T0(NULL)
+  _T(NULL),_T0(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::HeatEquation";
@@ -858,6 +857,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   if (_wFrictionalHeating.compare("yes")==0) {
     VecPointwiseMult(_bcL,tau,slipVel);
     VecScale(_bcL,0.5);
+    //~ VecCopy(tau,_bcL);
+    //~ VecScale(_bcL,1e-10);
   }
   else { VecSet(_bcL,0.0); }
 

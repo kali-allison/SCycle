@@ -361,10 +361,10 @@ int testMemoryLeak(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  SymmFault fault(d);
-  fault.writeContext(d._outputDir);
-  fault.writeStep(d._outputDir,0);
-  fault.writeStep(d._outputDir,1);
+  //~ SymmFault fault(d);
+  //~ fault.writeContext(d._outputDir);
+  //~ fault.writeStep(d._outputDir,0);
+  //~ fault.writeStep(d._outputDir,1);
 
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
