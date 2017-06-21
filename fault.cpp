@@ -8,7 +8,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
   _problemType(D._problemType),
   _depth(D._depth),_width(D._width),
-  _rootTol(D._rootTol),_rootIts(0),_maxNumIts(1e8),
+  _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
@@ -97,6 +97,8 @@ PetscErrorCode Fault::checkInput()
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
   assert(_cohesionVals.size() == _cohesionDepths.size() );
 
+    assert(_rootTol >= 1e-14);
+
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
     || _stateLaw.compare("flashHeating")==0
@@ -106,7 +108,7 @@ PetscErrorCode Fault::checkInput()
   assert(_f0 > 0);
 
   if (!_stateLaw.compare("flashHeating")) {
-    assert(_Vw > 0);
+    //~ assert(_Vw > 0);
     assert(_fw > 0);
     assert(_tau_c > 0);
     assert(_Tw > 0);
@@ -442,22 +444,22 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
 
 
   // if not using constant Vw
-  //~ PetscScalar rho,c,k;
-  //~ ierr = VecGetValues(_rho,1,&ind,&rho);CHKERRQ(ierr);
-  //~ ierr = VecGetValues(_c,1,&ind,&c);CHKERRQ(ierr);
-  //~ ierr = VecGetValues(_k,1,&ind,&k);CHKERRQ(ierr);
-  PetscScalar T;
+  PetscScalar rho,c,k,T;
   ierr = VecGetValues(_T,1,&ind,&T);CHKERRQ(ierr);
-
-  PetscScalar rho = 3; // (g/cm^3)
-  PetscScalar c = 900; // m^2/s^2/K = J/g/K
-  //~ PetscScalar k = 1.89e-9; // my units ORIG
-  PetscScalar k = 1.89e-9; // my units TRIAL
-  PetscScalar D = 5; // micrometers
-  PetscScalar Tw = 900 + 273.15; // K
-  PetscScalar tau_c = 3; // GPa
+  ierr = VecGetValues(_rho,1,&ind,&rho);CHKERRQ(ierr);
+  ierr = VecGetValues(_c,1,&ind,&c);CHKERRQ(ierr);
+  ierr = VecGetValues(_k,1,&ind,&k);CHKERRQ(ierr);
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
+
+  //~ PetscScalar rho = 3; // (g/cm^3)
+  //~ PetscScalar c = 900; // m^2/s^2/K = J/g/K
+  //~ PetscScalar k = 1.89e-9; // my units ORIG
+  //~ PetscScalar k = 1.89e-9; // my units TRIAL
+  //~ PetscScalar D = 5; // micrometers
+  //~ PetscScalar Tw = 900 + 273.15; // K
+  //~ PetscScalar tau_c = 3; // GPa
+
   _Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
 
 
@@ -979,15 +981,16 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
 
-  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %.15e\n",_f0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %.15e\n",_rootTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
   if (!_stateLaw.compare("flashHeating")) {
     ierr = PetscViewerASCIIPrintf(viewer,"fw = %.15e\n",_fw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e\n",_tau_c);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Tw = %.15e\n",_Tw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e\n",_D);CHKERRQ(ierr);
+    //~ ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"Tw = %.15e # (K)\n",_Tw);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
   }
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
@@ -1202,6 +1205,11 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
     else if (var.compare("stateLaw")==0) {
       _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+
+    // tolerance for nonlinear solve
+    else if (var.compare("rootTol")==0) {
+      _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     // friction parameters

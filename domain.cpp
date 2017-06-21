@@ -20,7 +20,6 @@ Domain::Domain(const char *file)
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),
-  //~ _f0(0.6),_v0(1e-6),
   _vL(-1),
   _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
@@ -282,9 +281,6 @@ PetscErrorCode Domain::loadData(const char *file)
       loadVectorFromInputFile(str,_timeIntInds);
     }
 
-    // other tolerances
-    else if (var.compare("rootTol")==0) { _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-
     // output directory
     else if (var.compare("outputDir")==0) {
       _outputDir =  line.substr(pos+_delim.length(),line.npos);
@@ -485,10 +481,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    // tolerance nonlinear solve (for vel)
-    ierr = PetscPrintf(PETSC_COMM_SELF,"rootTol = %.15e\n",_rootTol);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
     ierr = PetscPrintf(PETSC_COMM_SELF,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
@@ -538,8 +530,6 @@ PetscErrorCode Domain::checkInput()
   assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-
-  assert(_rootTol >= 1e-14);
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
@@ -618,15 +608,15 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"order = %i\n",_order);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Ny = %i\n",_Ny);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Nz = %i\n",_Nz);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Ly = %g\n",_Ly);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g\n",_Lz);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dy = %.15e\n",_dy);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dz = %.15e\n",_dz);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Ly = %g # (km)\n",_Ly);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g # (km)\n",_Lz);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"dy = %.15e # (km)\n",_dy);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"dz = %.15e # (km)\n",_dz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
 
   // fault properties
-  ierr = PetscViewerASCIIPrintf(viewer,"vL = %.15e\n",_vL);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"vL = %.15e # (m/s)\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // material properties
@@ -635,8 +625,8 @@ PetscErrorCode Domain::write()
   // y>0 properties
   if (_shearDistribution.compare("basin")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %.15e\n",_muInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %.15e\n",_muOutPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %.15e # (GPa)\n",_muInPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %.15e # (GPa)\n",_muOutPlus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %.15e\n",_rhoInPlus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %.15e\n",_rhoOutPlus);CHKERRQ(ierr);
 
@@ -645,7 +635,7 @@ PetscErrorCode Domain::write()
   }
   else if (_shearDistribution.compare("constant")==0)
   {
-    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %.15e\n",_muValPlus);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %.15e # (GPa)\n",_muValPlus);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e\n",_rhoValPlus);CHKERRQ(ierr);
   }
   else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
@@ -656,14 +646,14 @@ PetscErrorCode Domain::write()
   {
     if (_shearDistribution.compare("basin")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %.15e\n",_muInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %.15e\n",_muOutMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %.15e # (GPa)\n",_muInMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %.15e # (GPa)\n",_muOutMinus);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %.15e\n",_rhoInMinus);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %.15e\n",_rhoOutMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("constant")==0)
     {
-      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %.15e\n",_muValMinus);CHKERRQ(ierr);
+      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %.15e # (GPa)\n",_muValMinus);CHKERRQ(ierr);
       ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e\n",_rhoValMinus);CHKERRQ(ierr);
     }
     else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
@@ -694,17 +684,13 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e\n",_initTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e\n",_maxTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e\n",_minDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e\n",_maxDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e\n",_initDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-  // tolerance for nonlinear solve (for vel)
-  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %e\n",_rootTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);

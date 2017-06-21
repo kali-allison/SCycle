@@ -68,7 +68,6 @@ class Domain
     std::vector<int> _timeIntInds; // indices of variables to be used in time integration
 
     // other tolerances
-    PetscScalar  _rootTol;
 
     // directory for output
     std::string  _outputDir;

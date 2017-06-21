@@ -1109,7 +1109,7 @@ PetscErrorCode HeatEquation::writeDomain()
   #endif
 
   // output scalar fields
-  std::string str = _outputDir + "he_domain.txt";
+  std::string str = _outputDir + "he_context.txt";
   PetscViewer    viewer;
 
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
