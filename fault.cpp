@@ -33,7 +33,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecSetSizes(_tauQSP,PETSC_DECIDE,_N);
   VecSetFromOptions(_tauQSP);      PetscObjectSetName((PetscObject) _tauQSP, "tauQS");  VecSet(_tauQSP,0.0);
   VecDuplicate(_tauQSP,&_tauP);     PetscObjectSetName((PetscObject) _tauP, "tau");  VecSet(_tauP,0.0);
-  VecDuplicate(_tauQSP,&_T);     PetscObjectSetName((PetscObject) _T, "faultTemp");  VecSet(_T,273.15);
+  VecDuplicate(_tauQSP,&_T);     PetscObjectSetName((PetscObject) _T, "faultTemp");  VecSet(_T,293.15);
   VecDuplicate(_tauQSP,&_psi);     PetscObjectSetName((PetscObject) _psi, "psi"); VecSet(_psi,0.0);
   VecDuplicate(_tauQSP,&_theta);   PetscObjectSetName((PetscObject) _theta, "theta"); VecSet(_theta,0.0);
   VecDuplicate(_tauQSP,&_dPsi);    PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
@@ -57,6 +57,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecDuplicate(_tauQSP,&_k);   PetscObjectSetName((PetscObject) _k, "faultRho"); VecSet(_k,1.89e-9);
   VecDuplicate(_tauQSP,&_c);   PetscObjectSetName((PetscObject) _c, "faultC"); VecSet(_c,900);
   setHeatParams(He._k,He._rho,He._c);
+
 
   // initialize _z
   VecDuplicate(_tauQSP,&_z);
@@ -109,7 +110,7 @@ PetscErrorCode Fault::checkInput()
 
   if (!_stateLaw.compare("flashHeating")) {
     //~ assert(_Vw > 0);
-    assert(_fw > 0);
+    assert(_fw >= 0);
     assert(_tau_c > 0);
     assert(_Tw > 0);
     }
@@ -452,18 +453,9 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
 
-  //~ PetscScalar rho = 3; // (g/cm^3)
-  //~ PetscScalar c = 900; // m^2/s^2/K = J/g/K
-  //~ PetscScalar k = 1.89e-9; // my units ORIG
-  //~ PetscScalar D = 5; // micrometers
-  //~ PetscScalar Tw = 900 + 273.15; // K
-  //~ PetscScalar tau_c = 3; // GPa
-
   PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
 
-
-
-  if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*Vw/slipVel; }
+  if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*(Vw/slipVel); }
   PetscScalar f = state + a*log(slipVel/_v0);
   dstate = -slipVel/Dc *(f - fss);
 
@@ -544,6 +536,12 @@ SymmFault::SymmFault(Domain&D, HeatEquation& He)
 
   // vectors were allocated in Fault constructor, just need to set values.
   setSplitNodeFields();
+
+  Vec Temp;
+  VecDuplicate(He._T0,&Temp);
+  He.getTemp(Temp);
+  setTemp(Temp);
+  VecDestroy(&Temp);
 
   if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
@@ -1224,7 +1222,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
       _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("Vw")==0) {
-      _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _Vw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("Tw")==0) {
       _Tw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );

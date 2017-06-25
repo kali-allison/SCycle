@@ -88,7 +88,7 @@ class HeatEquation: public IntegratorContextEx
 
   public:
 
-    Vec _T;
+    Vec _T; // actually change in temperature
     Vec _T0; // initial temperature
     Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
 

@@ -75,7 +75,7 @@ LinearElastic::LinearElastic(Domain&D)
   VecDuplicate(_rhsP,&_uP);
 
   VecDuplicate(_rhsP,&_stressxyP); VecSet(_stressxyP,0);
-  VecDuplicate(_rhsP,&_T); _he.setTemp(_T);
+  VecDuplicate(_rhsP,&_T); _he.getTemp(_T);
 
 
   if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
@@ -120,7 +120,6 @@ LinearElastic::LinearElastic(Domain&D)
 
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
-
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
@@ -476,11 +475,12 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
-    VecCopy(_he._T0,T);
+    VecSet(T,0);
+    //~ VecCopy(_he._T,T);
     _varIm.push_back(T);
 
     VecDuplicate(_uP,&_T);
-    VecCopy(_he._T0,_T);
+    _he.getTemp(_T);
     _fault.setTemp(_T);
   }
 
