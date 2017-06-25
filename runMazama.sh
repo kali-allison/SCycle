@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N shearHeating
+#PBS -N spinUp1
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/shearHeating.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/shearHeating.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/spinUp1.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/spinUp1.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
