@@ -68,9 +68,9 @@ cDepths = [0 60]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
-TVals = [293 1793] # 30 C/km
+#TVals = [293 1793] # 30 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1293] # 20 C/km
+TVals = [293 1293] # 20 C/km
 #TVals = [0 0]
 #TVals = [300 300]
 TDepths = [0 50]
