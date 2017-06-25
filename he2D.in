@@ -2,7 +2,7 @@ order = 4
 Ny = 201
 Nz = 201
 Ly = 24 # km
-Lz = 24 # km
+Lz = 30 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -25,8 +25,8 @@ sigmaNDepths = [0 60]
 vL = 1e-9    # m/s
 
 
-inputDir = /Users/kallison/eqcycle/inputData/he_
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_
+#inputDir = /Users/kallison/eqcycle/inputData/he_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_20_z
 loadICs = 0
 bcLTauQS = 0
@@ -39,7 +39,7 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -74,8 +74,9 @@ TVals = [293 1793] # 30 C/km
 #TVals = [0 0]
 #TVals = [300 300]
 TDepths = [0 50]
-thermalCoupling = uncoupled
-#thermalCoupling = no
+#thermalCoupling = coupled
+#thermalCoupling = uncoupled
+thermalCoupling = no
 withShearHeating = yes
 withFrictionalHeating = no
 
@@ -91,7 +92,7 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
@@ -100,7 +101,7 @@ initTime = 0      # s 3e10
 maxTime = 1e11      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s
+maxDeltaT = 1e6      # s
 atol = 1e-8
 timeIntInds = [0 2]
 
@@ -122,12 +123,10 @@ f0 = 0.6
 #D = 5 # um
 
 
-#outputDir = data/SS_agingLaw_
-#outputDir = data/SS_slipLaw_
-#outputDir = data/SS_agingLaw_psi_
-
-
-outputDir = data/he_agingLaw_shearHeating_uncoupled_
+#outputDir = /scratch/kallison/heSims/he_agingLaw_shearHeating_uncoupled_
+#outputDir = /scratch/kallison/heSims/he_agingLaw_shearHeating_coupled_
+#outputDir = /scratch/kallison/heSims/he_agingLaw_spinUp1_
+outputDir = /scratch/kallison/heSims/he_agingLaw_theta_spinUp1_
 
 
 

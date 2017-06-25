@@ -842,16 +842,16 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") ) {
     // in terms of psi
     ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
-    //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+    //PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   }
   else { // if aging law
-    // in terms of theta
+    //~ // in terms of theta
     PetscScalar state,b,Dc=0;
     ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
     ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
     psi = _f0 + b*log( (double) (state*_v0)/Dc);
-    //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+    PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   }
   PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
 
