@@ -97,6 +97,7 @@ LinearElastic::LinearElastic(Domain&D)
     assert(0); // automatically fail
   }
 
+  /*
   // set up SBP operators
   //~ string bcT,string bcR,string bcB, string bcL
   std::string bcTType = "Neumann";
@@ -120,6 +121,7 @@ LinearElastic::LinearElastic(Domain&D)
 
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
+  */
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
@@ -463,6 +465,8 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
+  setInitialConds(D);
+
   // put variables to be integrated into var
   Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
   _var.push_back(varPsi);
@@ -537,6 +541,138 @@ PetscErrorCode LinearElastic::checkInput()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
   #endif
   return ierr;
+}
+
+
+// try to speed up spin up by starting closer to steady state
+PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmLinearElastic::setInitialConds";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  delete _sbpP;
+
+  // set up SBP operators
+  //~ string bcT,string bcR,string bcB, string bcL
+  std::string bcTType = "Neumann";
+  std::string bcBType = "Neumann";
+  std::string bcRType = "Dirichlet";
+  std::string bcLType = "Neumann";
+
+  if (_sbpType.compare("mc")==0) {
+    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
+  KSPDestroy(&_kspP);
+  KSPCreate(PETSC_COMM_WORLD,&_kspP);
+  setupKSP(_sbpP,_kspP,_pcP);
+
+  // set up boundary conditions
+  VecSet(_bcRP,0.0);
+  VecSet(_bcLP,0.0);
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(_bcLP,&Istart,&Iend);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar tauRS = _fault.getTauSS(Ii); // rate-and-state strength
+    VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
+  }
+  VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
+
+  writeVec(_bcLP,(_outputDir+"init1_bcL").c_str());
+  writeVec(_bcRP,(_outputDir+"init1_bcR").c_str());
+  writeVec(_bcTP,(_outputDir+"init1_bcT").c_str());
+  writeVec(_bcBP,(_outputDir+"init1_bcB").c_str());
+
+  _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  KSPDestroy(&_kspP);
+  delete _sbpP;
+  _sbpP = NULL;
+
+  // extract boundary condition information from u
+
+  PetscScalar minVal = 0;
+  VecMin(_uP,NULL,&minVal);
+  PetscScalar v = 0.0;
+  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    // put left boundary info into fault slip vector
+    if ( Ii < _Nz ) {
+      ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
+      v = 2.0*(v + abs(minVal));
+      ierr = VecSetValues(_fault._slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+
+    // put right boundary data into bcR
+    if ( Ii > (_Ny*_Nz - _Nz - 1) ) {
+      PetscInt zI =  Ii - (_Ny*_Nz - _Nz);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
+      ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
+      v = v + abs(minVal);
+      ierr = VecSetValues(_bcRPShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
+  VecCopy(_bcRPShift,_bcRP);
+  VecCopy(_fault._slip,_bcLP);
+  VecScale(_bcLP,0.5);
+
+  //~ writeVec(_bcLP,(_outputDir+"init2_bcL").c_str());
+  //~ writeVec(_bcRP,(_outputDir+"init2_bcR").c_str());
+  //~ writeVec(_bcTP,(_outputDir+"init2_bcT").c_str());
+  //~ writeVec(_bcBP,(_outputDir+"init2_bcB").c_str());
+  //~ writeVec(_uP,(_outputDir+"init2_u").c_str());
+  //~ writeVec(_bcRPShift,(_outputDir+"init2_bcRPShift").c_str());
+
+  // reset this stuff
+  //~ VecSet(_bcTP,0.0);
+  //~ VecSet(_bcBP,0.0);
+  //~ VecSet(_bcLP,0.0);
+  //~ VecSet(_bcRP,0.0);
+
+  // set up SBP system again
+  //~ string bcT,string bcR,string bcB, string bcL
+  bcTType = "Neumann";
+  bcBType = "Neumann";
+  bcRType = "Dirichlet";
+  bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
+  if (D._sbpType.compare("mc")==0) {
+    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else if (D._sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+  }
+  else if (D._sbpType.compare("mfc_coordTrans")==0) {
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
+
+
+  KSPCreate(PETSC_COMM_WORLD,&_kspP);
+  setupKSP(_sbpP,_kspP,_pcP);
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 

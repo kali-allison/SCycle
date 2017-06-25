@@ -28,29 +28,6 @@ PowerLaw::PowerLaw(Domain& D)
   checkInput();
   setFields();
 
-
-  VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
-  VecDuplicate(_uP,&_sigmadev); VecSet(_sigmadev,0.0);
-
-  VecDuplicate(_uP,&_gxyP);
-  PetscObjectSetName((PetscObject) _gxyP, "_gxyP");
-  VecSet(_gxyP,0.0);
-  VecDuplicate(_uP,&_dgxyP);
-  PetscObjectSetName((PetscObject) _dgxyP, "_dgxyP");
-  VecSet(_dgxyP,0.0);
-
-  VecDuplicate(_uP,&_gxzP);
-  PetscObjectSetName((PetscObject) _gxzP, "_gxzP");
-  VecSet(_gxzP,0.0);
-  VecDuplicate(_uP,&_dgxzP);
-  PetscObjectSetName((PetscObject) _dgxzP, "_dgxzP");
-  VecSet(_dgxzP,0.0);
-
-
-  VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
-  VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
-
-
   if (D._loadICs==1) { loadFieldsFromFiles(); }
   else { setInitialConds(D); }
 
@@ -203,6 +180,12 @@ PetscErrorCode PowerLaw::setInitialConds(Domain& D)
   VecCopy(_bcRPShift,_bcRP);
   //~ VecSet(_bcRPShift,0);
   VecSet(_bcLP,0);
+
+  // reset this stuff
+  VecSet(_bcTP,0.0);
+  VecSet(_bcBP,0.0);
+  VecSet(_bcLP,0.0);
+  VecSet(_bcRP,0.0);
 
   // set up SBP system again
   //~ string bcT,string bcR,string bcB, string bcL
@@ -673,9 +656,9 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecSet(out,0.0);
 
   Vec GL, GR,temp1;
-  VecDuplicate(u,&GL);
-  VecDuplicate(u,&GR);
-  VecDuplicate(u,&temp1);
+  VecDuplicate(u,&GL); VecSet(GL,0.0);
+  VecDuplicate(u,&GR); VecSet(GR,0.0);
+  VecDuplicate(u,&temp1); VecSet(temp1,0.0);
 
   // left displacement boundary
   if (_bcLTauQS==0) {
@@ -1580,6 +1563,28 @@ PetscErrorCode PowerLaw::setFields()
   _he.getTemp(_T);
   guessSteadyStateEffVisc();
 
+
+
+  // allocate space for stress and strain vectors
+  VecDuplicate(_uP,&_stressxzP); VecSet(_stressxzP,0.0);
+  VecDuplicate(_uP,&_sigmadev); VecSet(_sigmadev,0.0);
+
+  VecDuplicate(_uP,&_gxyP);
+  PetscObjectSetName((PetscObject) _gxyP, "_gxyP");
+  VecSet(_gxyP,0.0);
+  VecDuplicate(_uP,&_dgxyP);
+  PetscObjectSetName((PetscObject) _dgxyP, "_dgxyP");
+  VecSet(_dgxyP,0.0);
+
+  VecDuplicate(_uP,&_gxzP);
+  PetscObjectSetName((PetscObject) _gxzP, "_gxzP");
+  VecSet(_gxzP,0.0);
+  VecDuplicate(_uP,&_dgxzP);
+  PetscObjectSetName((PetscObject) _dgxzP, "_dgxzP");
+  VecSet(_dgxzP,0.0);
+
+  VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
+  VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

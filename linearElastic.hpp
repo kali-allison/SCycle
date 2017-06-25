@@ -157,6 +157,7 @@ class SymmLinearElastic: public LinearElastic
 
   //~ protected:
   public:
+    PetscErrorCode setInitialConds(Domain& D);
 
     PetscErrorCode setShifts();
     PetscErrorCode setSurfDisp();
