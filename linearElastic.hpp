@@ -135,8 +135,6 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscErrorCode virtual writeStep2D() = 0;
 
     PetscErrorCode virtual measureMMSError() = 0;
-
-    PetscErrorCode loadFieldsFromFiles();
 };
 
 
@@ -155,12 +153,16 @@ class SymmLinearElastic: public LinearElastic
     SymmLinearElastic(const SymmLinearElastic &that);
     SymmLinearElastic& operator=(const SymmLinearElastic &rhs);
 
-  //~ protected:
-  public:
+  protected:
+  //~ public:
+
+    // initialize data
+    PetscErrorCode allocateFields(); // allocate space for member fields
+    PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setInitialConds(Domain& D);
+    PetscErrorCode setUpSBPContext(Domain& D);
 
     PetscErrorCode setShifts();
-    PetscErrorCode setSurfDisp();
     PetscErrorCode computeShearStress();
 
     PetscErrorCode setMMSInitialConditions();
@@ -171,7 +173,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
 
 
-  //~ public:
+  public:
 
     SymmFault           _fault;
     std::vector<Vec>    _var; // holds variables for explicit integration in time
@@ -201,6 +203,8 @@ class SymmLinearElastic: public LinearElastic
     // IO commands
     PetscErrorCode writeStep1D(); // write out 1D fields
     PetscErrorCode writeStep2D(); // write out 2D fields
+
+    PetscErrorCode setSurfDisp();
 };
 
 

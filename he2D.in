@@ -1,6 +1,6 @@
 order = 4
 Ny = 201
-Nz = 251
+Nz = 211
 Ly = 24 # km
 Lz = 30 # km
 
@@ -16,19 +16,22 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-#sigmaNVals = [50 50] # MPa
-#sigmaNDepths = [0 60]
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 60]
+#sigmaNVals = [5.668 5.668 1336] # MPa
+#sigmaNDepths = [0 0.25 60]
 
 
 vL = 1e-9    # m/s
 
 
-#inputDir = /Users/kallison/eqcycle/inputData/he_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/plcb_3IC_20_z
-loadICs = 0
+# just effective viscosity data
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
+
+# from linear elastic that actually worked
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
+zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
+loadICs = 1
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -102,14 +105,14 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 10 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e11      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s
+maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
 timeIntInds = [0 2]
 
@@ -140,7 +143,8 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heSims/he_agingLaw_g30_Nz301_spinUp1_
 
 
-outputDir = /scratch/kallison/heSims/le_spinUp1_
+#outputDir = /scratch/kallison/heSims/le_spinUp1_
+outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
 
 
 

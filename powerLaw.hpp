@@ -41,10 +41,21 @@ class PowerLaw: public SymmLinearElastic
     PetscViewer _TV;
     PetscViewer _effViscV;
 
+    // initialize and set data
+    PetscErrorCode loadSettings(const char *file); // load settings from input file
+    PetscErrorCode allocateFields(); // allocate space for member fields
+    PetscErrorCode setFields();
+    PetscErrorCode setInitialConds(Domain& D); // try to skip some spin up steps
+    PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
+    PetscErrorCode loadEffViscFromFiles();
+    PetscErrorCode loadFieldsFromFiles();
+
+    // functions needed each time step
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
-    PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin);
+    PetscErrorCode setStresses(const PetscScalar time);
 
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
                      const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
@@ -77,13 +88,6 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode measureMMSError();
 
-    // load settings from input file
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode setFields();
-    PetscErrorCode setInitialConds(Domain& D); // try to skip some spin up steps
-    PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
-    PetscErrorCode loadFieldsFromFiles();
 
     // check input from file
     PetscErrorCode checkInput();

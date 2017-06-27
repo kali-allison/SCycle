@@ -1,5 +1,6 @@
 #include "linearElastic.hpp"
 
+#define FILENAME "linearElastic.cpp"
 
 using namespace std;
 
@@ -40,48 +41,6 @@ LinearElastic::LinearElastic(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  // boundary conditions
-  VecCreate(PETSC_COMM_WORLD,&_bcLP);
-  VecSetSizes(_bcLP,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
-  VecSet(_bcLP,0.0);
-
-   #if LOCK_FAULT == 1
-    PetscInt Ii,Istart,Iend;
-    VecGetOwnershipRange(_bcLP,&Istart,&Iend);
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar z = _dz*(Ii-_Nz*(Ii/_Nz));
-      PetscScalar v = 3e-4 * (tanh((z-14.8)*10.0) + 1.0) * 0.5;
-      VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);
-    }
-    VecAssemblyBegin(_bcLP);
-    VecAssemblyEnd(_bcLP);
-  #endif
-
-  VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRplusShift");
-  VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "_bcRP");
-  VecSet(_bcRP,_vL*_initTime/2.0);
-
-
-  VecCreate(PETSC_COMM_WORLD,&_bcTP);
-  VecSetSizes(_bcTP,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_bcTP);     PetscObjectSetName((PetscObject) _bcTP, "_bcTP");
-  VecSet(_bcTP,0.0);
-
-  VecDuplicate(_bcTP,&_bcBP); PetscObjectSetName((PetscObject) _bcBP, "_bcBP");
-  VecSet(_bcBP,0.0);
-
-  VecDuplicate(_muVecP,&_rhsP);
-  VecDuplicate(_rhsP,&_uP);
-
-  VecDuplicate(_rhsP,&_stressxyP); VecSet(_stressxyP,0);
-  VecDuplicate(_rhsP,&_T); _he.getTemp(_T);
-
-
-  if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
-
-
-  VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDispPlus");
 
   if (_timeIntegrator.compare("FEuler")==0) {
     _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
@@ -183,8 +142,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
     std::string funcName = "LinearElastic::loadSettings()";
-    std::string FILENAME = "linearElastic.cpp()";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   PetscMPIInt rank,size;
@@ -211,55 +169,13 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
 }
 
-// parse input file and load values into data members
-PetscErrorCode LinearElastic::loadFieldsFromFiles()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
-#endif
 
-//~// load normal stress: _sigma_N
-  //~string vecSourceFile = _inputDir + "sigma_N";
-  PetscViewer inv; // in viewer
-
-
-  // load bcL
-  string vecSourceFile = _inputDir + "bcL";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&inv);
-
-  // load bcR
-  vecSourceFile = _inputDir + "bcR";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&inv);
-
-  // load u
-  //~ vecSourceFile = _inputDir + "u";
-  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  //~ ierr = VecLoad(_uP,inv);CHKERRQ(ierr);
-
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-}
 
 
 
@@ -465,7 +381,11 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
-  setInitialConds(D);
+  allocateFields();
+  if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
+  else { setInitialConds(D); } // guess at steady-state configuration
+  setUpSBPContext(D); // set up matrix operators
+
 
   // put variables to be integrated into var
   Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
@@ -543,6 +463,89 @@ PetscErrorCode LinearElastic::checkInput()
   return ierr;
 }
 
+// allocate space for member fields
+PetscErrorCode SymmLinearElastic::allocateFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmLinearElastic::allocateFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // boundary conditions
+  VecCreate(PETSC_COMM_WORLD,&_bcLP);
+  VecSetSizes(_bcLP,PETSC_DECIDE,_Nz);
+  VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
+  VecSet(_bcLP,0.0);
+
+  VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRplusShift");
+  VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "_bcRP");
+  VecSet(_bcRP,_vL*_initTime/2.0);
+
+
+  VecCreate(PETSC_COMM_WORLD,&_bcTP);
+  VecSetSizes(_bcTP,PETSC_DECIDE,_Ny);
+  VecSetFromOptions(_bcTP);     PetscObjectSetName((PetscObject) _bcTP, "_bcTP");
+  VecSet(_bcTP,0.0);
+
+  VecDuplicate(_bcTP,&_bcBP); PetscObjectSetName((PetscObject) _bcBP, "_bcBP");
+  VecSet(_bcBP,0.0);
+
+
+  // other fieds
+  VecDuplicate(_muVecP,&_rhsP);
+  VecDuplicate(_rhsP,&_uP);
+  VecDuplicate(_rhsP,&_stressxyP); VecSet(_stressxyP,0.0);
+  VecDuplicate(_rhsP,&_T); _he.getTemp(_T);
+  VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDisp");
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+#endif
+  return ierr;
+}
+
+
+// parse input file and load values into data members
+PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
+#endif
+
+//~// load normal stress: _sigma_N
+  //~string vecSourceFile = _inputDir + "sigma_N";
+  PetscViewer inv; // input viewer
+
+
+  // load bcL
+  string vecSourceFile = _inputDir + "bcL";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcLP,inv);CHKERRQ(ierr);
+
+  // load bcR
+  vecSourceFile = _inputDir + "bcR";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_bcRPShift,inv);CHKERRQ(ierr);
+
+  // load u
+  vecSourceFile = _inputDir + "u";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_uP,inv);CHKERRQ(ierr);
+
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+#endif
+  return ierr;
+}
 
 // try to speed up spin up by starting closer to steady state
 PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
@@ -590,11 +593,6 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   }
   VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
 
-  writeVec(_bcLP,(_outputDir+"init1_bcL").c_str());
-  writeVec(_bcRP,(_outputDir+"init1_bcR").c_str());
-  writeVec(_bcTP,(_outputDir+"init1_bcT").c_str());
-  writeVec(_bcBP,(_outputDir+"init1_bcB").c_str());
-
   _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   KSPDestroy(&_kspP);
@@ -602,7 +600,6 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   _sbpP = NULL;
 
   // extract boundary condition information from u
-
   PetscScalar minVal = 0;
   VecMin(_uP,NULL,&minVal);
   PetscScalar v = 0.0;
@@ -632,25 +629,28 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   VecCopy(_fault._slip,_bcLP);
   VecScale(_bcLP,0.5);
 
-  //~ writeVec(_bcLP,(_outputDir+"init2_bcL").c_str());
-  //~ writeVec(_bcRP,(_outputDir+"init2_bcR").c_str());
-  //~ writeVec(_bcTP,(_outputDir+"init2_bcT").c_str());
-  //~ writeVec(_bcBP,(_outputDir+"init2_bcB").c_str());
-  //~ writeVec(_uP,(_outputDir+"init2_u").c_str());
-  //~ writeVec(_bcRPShift,(_outputDir+"init2_bcRPShift").c_str());
 
-  // reset this stuff
-  //~ VecSet(_bcTP,0.0);
-  //~ VecSet(_bcBP,0.0);
-  //~ VecSet(_bcLP,0.0);
-  //~ VecSet(_bcRP,0.0);
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+
+PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmLinearElastic::setUpSBPContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // set up SBP system again
   //~ string bcT,string bcR,string bcB, string bcL
-  bcTType = "Neumann";
-  bcBType = "Neumann";
-  bcRType = "Dirichlet";
-  bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
+  string bcTType = "Neumann";
+  string bcBType = "Neumann";
+  string bcRType = "Dirichlet";
+  string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
   if (D._sbpType.compare("mc")==0) {
     _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
@@ -665,16 +665,14 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
     assert(0); // automatically fail
   }
 
-
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
 
   return ierr;
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
   #endif
 }
-
 
 PetscErrorCode SymmLinearElastic::setShifts()
 {
