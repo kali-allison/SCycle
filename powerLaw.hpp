@@ -27,7 +27,7 @@ class PowerLaw: public SymmLinearElastic
     Vec         _A,_n,_B;
     Vec         _effVisc;
 
-    Vec         _stressxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec         _sxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
     Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
     Vec         _gTxyP,_gTxzP; // total strain
