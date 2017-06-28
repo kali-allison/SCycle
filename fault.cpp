@@ -1,5 +1,7 @@
 #include "fault.hpp"
 
+#define FILENAME "fault.cpp"
+
 using namespace std;
 
 
@@ -20,9 +22,10 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _psiViewer(NULL),_thetaViewer(NULL),
   _tauQSP(NULL),_tauP(NULL)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::Fault(Domain&) in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Fault::Fault";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // set a, b, normal stress, and Dc
   loadSettings(_file);
@@ -69,9 +72,9 @@ Fault::Fault(Domain&D, HeatEquation& He)
 
   //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault(Domain&) in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 
@@ -81,7 +84,8 @@ PetscErrorCode Fault::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::checkInput in fault.cpp.\n");CHKERRQ(ierr);
+    std::string funcName = "Fault::checkInput";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   assert(_DcVals.size() == _DcDepths.size() );
@@ -109,9 +113,9 @@ PetscErrorCode Fault::checkInput()
 
 
 
-#if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::checkInput in fault.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   //~}
   return ierr;
 }
@@ -120,9 +124,10 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::checkInput in fault.cpp.\n");
 PetscErrorCode Fault::setHeatParams(const Vec& k,const Vec& rho,const Vec& c)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setHeatParams in fault.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Fault::setHeatParams";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v = 0;
@@ -150,7 +155,7 @@ PetscErrorCode Fault::setHeatParams(const Vec& k,const Vec& rho,const Vec& c)
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setHeatParams in fault.cpp\n");CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
   return ierr;
 }
@@ -158,9 +163,10 @@ PetscErrorCode Fault::setHeatParams(const Vec& k,const Vec& rho,const Vec& c)
 
 Fault::~Fault()
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::~Fault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Fault::~Fault";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // fields that exist on the fault
   VecDestroy(&_tauQSP);
@@ -186,9 +192,9 @@ Fault::~Fault()
   PetscViewerDestroy(&_psiViewer);
   PetscViewerDestroy(&_thetaViewer);
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::~Fault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 // Fills vec with the linear interpolation between the pairs of points (vals,depths).
@@ -197,9 +203,10 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Fault::setVecFromVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // build structure from generalized input
   size_t vecLen = depths.size();
@@ -221,18 +228,19 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setVecFromVectors in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
 PetscErrorCode Fault::setFrictionFields(Domain&D)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Fault::setFrictionFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // frictional fields
   VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "Dc");
@@ -264,10 +272,9 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   }
 
 
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -276,9 +283,10 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 PetscScalar Fault::getTauSS(PetscInt& ind)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 2
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::getTauSS in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 2
+    std::string funcName = "Fault::getTauSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscInt       Istart,Iend;
   PetscScalar    a,b,sigma_N;
@@ -291,12 +299,11 @@ PetscScalar Fault::getTauSS(PetscInt& ind)
   ierr =  VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr =  VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
 
-#if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::getTauSS in fault.cpp for ind=%i\n",ind);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
   //~ return sigma_N* (_f0 + (a-b) * log10(_vL/_v0) );
-  //~ return sigma_N;
 }
 
 // aging law in terms of theta
@@ -531,9 +538,10 @@ PetscErrorCode Fault::stronglyVWLaw_theta(const PetscInt ind,const PetscScalar s
 SymmFault::SymmFault(Domain&D, HeatEquation& He)
 : Fault(D,He)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::SymmFault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::SymmFault";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // vectors were allocated in Fault constructor, just need to set values.
   setSplitNodeFields();
@@ -546,22 +554,23 @@ SymmFault::SymmFault(Domain&D, HeatEquation& He)
 
   if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::SymmFault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 SymmFault::~SymmFault()
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::~SymmFault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::~SymmFault";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // this is covered by the Fault destructor.
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::~SymmFault in fault.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 // assumes right-lateral fault
@@ -573,9 +582,10 @@ PetscErrorCode SymmFault::computeVel()
   PetscScalar    outVal,leftVal,rightVal,temp;
   PetscInt       Ii,Istart,Iend;
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::computeVel";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   //~ierr = VecDuplicate(_tauQSP,&right);CHKERRQ(ierr);
   //~ierr = VecCopy(_tauQSP,right);CHKERRQ(ierr);
@@ -641,9 +651,9 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecDestroy(&right);CHKERRQ(ierr);
   ierr = VecDestroy(&out);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::computeVel in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -654,9 +664,10 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 {
   PetscErrorCode ierr = 0;
   PetscInt       Ii,Istart,Iend;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setSplitNodeFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // create properly sized vectors for mu and cs
   Vec muV; VecDuplicate(_a,&muV);
@@ -707,27 +718,28 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   VecDestroy(&muV);
   VecDestroy(&csV);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
-// what is this function for??
+// deprecated, no longer useful
 PetscErrorCode SymmFault::setFaultDisp(Vec const &bcF, Vec const &bcFminus)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setSymmFaultDisp in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setFaultDisp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // bcF holds displacement at y=0+
   ierr = VecCopy(bcF,_slip);CHKERRQ(ierr);
   ierr = VecScale(_slip,2.0);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSymmFault in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -735,9 +747,10 @@ PetscErrorCode SymmFault::setFaultDisp(Vec const &bcF, Vec const &bcFminus)
 PetscErrorCode SymmFault::setTemp(const Vec& T)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setTemp in fault.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setTemp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v = 0;
@@ -753,23 +766,21 @@ PetscErrorCode SymmFault::setTemp(const Vec& T)
   ierr = VecAssemblyEnd(_T);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setTemp in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
-
-
-
 
 
 
 PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMinus)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::setTauQS in fault.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setTauQS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v;
@@ -785,9 +796,9 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMin
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setTauQS in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -795,17 +806,18 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMin
 PetscErrorCode SymmFault::getTau(Vec& tau)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::getTau in fault.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::getTau";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // tau = tauQS - 0.5*zP*slipVel
   VecPointwiseMult(tau,_zP,_slipVel);
   VecAYPX(tau,-0.5,_tauQSP);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::getTau in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -817,9 +829,10 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   PetscScalar    psi,a,sigma_N,zPlus,tauQS,Co;
   PetscInt       Istart,Iend;
 
-#if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::getResid in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 3
+    std::string funcName = "SymmFault::getResid";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
     // frictional strength of fault
   ierr = VecGetOwnershipRange(_theta,&Istart,&Iend);
@@ -883,9 +896,9 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   assert(!isnan(*out));
   assert(!isinf(*out));
 
-#if VERBOSE > 3
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::getResid in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 3
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -896,9 +909,10 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::d_dt in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::d_dt";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   //~ PetscScalar    val,psiVal,thetaVal;
   PetscScalar    theta,dtheta,psi,dpsi,vel;
@@ -949,9 +963,9 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   //~ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::d_dt in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -959,9 +973,10 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
 PetscErrorCode SymmFault::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscViewer    viewer;
 
@@ -1022,9 +1037,9 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeContext in fault.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -1032,9 +1047,10 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
 PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"starting SymmFault::writeStep in fault.cpp at step %i\n",step);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::writeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
 
 
@@ -1084,9 +1100,9 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
     ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
   }
 
-#if VERBOSE > 1
-   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::writeStep in fault.cpp at step %i\n",step);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 

@@ -46,10 +46,9 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode allocateFields(); // allocate space for member fields
     PetscErrorCode setMaterialParameters();
+    PetscErrorCode loadEffViscFromFiles();
     PetscErrorCode setSSInitialConds(Domain& D); // try to skip some spin up steps
     PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
-    PetscErrorCode loadEffViscFromFiles();
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
 
     // functions needed each time step
@@ -64,6 +63,8 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
+
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
   public:
     PowerLaw(Domain&D);

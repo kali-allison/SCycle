@@ -33,9 +33,9 @@ vL = 1e-9    # m/s
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
 
 # on my laptop
-#inputDir = /Users/kallison/eqcycle/inputData/le_
-#zInputDir = /Users/kallison/eqcycle/inputData/le_z
-loadICs = 0
+inputDir = /Users/kallison/eqcycle/inputData/le_
+zInputDir = /Users/kallison/eqcycle/inputData/le_z
+loadICs = 1
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -149,9 +149,9 @@ f0 = 0.6
 
 #outputDir = /scratch/kallison/heSims/le_spinUp1_
 #outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
-outputDir = data/le_
+#outputDir = data/le_
 #outputDir = data/g30_
-#outputDir = data/g30_v2_
+outputDir = data/g30_v2_
 
 
 

@@ -55,9 +55,9 @@ PowerLaw::PowerLaw(Domain& D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec T;
     VecDuplicate(_uP,&T);
-    _he.setTemp(T);
+    _he.getTemp(T);
     _varIm.push_back(T);
-    _he.setTemp(_T);
+    _he.getTemp(_T);
   }
 
   #if VERBOSE > 1
