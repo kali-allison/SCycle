@@ -38,19 +38,11 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecDuplicate(_tauQSP,&_theta);   PetscObjectSetName((PetscObject) _theta, "theta"); VecSet(_theta,0.0);
   VecDuplicate(_tauQSP,&_dPsi);    PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
   VecDuplicate(_tauQSP,&_dTheta);  PetscObjectSetName((PetscObject) _dTheta, "dTheta"); VecSet(_dTheta,0.0);
-  VecDuplicate(_tauQSP,&_slip);    PetscObjectSetName((PetscObject) _slip, "_slip"); VecSet(_slip,0.0);
-  VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "_slipVel");
+  VecDuplicate(_tauQSP,&_slip);    PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
+  VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "slipVel");
   VecSet(_slipVel,0.0);
 
 
-  // frictional fields
-  VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "_Dc");
-  VecDuplicate(_tauQSP,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
-  VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "_zP");
-  VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "_a");
-  VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "_b");
-  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
-  VecSet(_cohesion,0);
 
   // flash heating parameters
   VecDuplicate(_tauQSP,&_rho);   PetscObjectSetName((PetscObject) _rho, "faultRho"); VecSet(_rho,3.0);
@@ -75,7 +67,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
 
   setFrictionFields(D);
 
-  if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
+  //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::Fault(Domain&) in fault.cpp.\n");
@@ -98,7 +90,7 @@ PetscErrorCode Fault::checkInput()
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
   assert(_cohesionVals.size() == _cohesionDepths.size() );
 
-    assert(_rootTol >= 1e-14);
+  assert(_rootTol >= 1e-14);
 
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
@@ -113,7 +105,7 @@ PetscErrorCode Fault::checkInput()
     assert(_fw >= 0);
     assert(_tau_c > 0);
     assert(_Tw > 0);
-    }
+  }
 
 
 
@@ -242,10 +234,19 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::setFrictionFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
 
+  // frictional fields
+  VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "Dc");
+  VecDuplicate(_tauQSP,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
+  VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "zP");
+  VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
+  VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
+  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
+  VecSet(_cohesion,0);
+
   // set depth-independent fields
     ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
     ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
-    //~ ierr = VecSet(_theta,_f0);CHKERRQ(ierr); // incorrect
+
   // set a using a vals
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
@@ -706,13 +707,6 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   VecDestroy(&muV);
   VecDestroy(&csV);
 
-  //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(*_muVecP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(*_csVecP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_zP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmFault::setSplitNodeFields in fault.cpp\n");CHKERRQ(ierr);
 #endif
@@ -837,7 +831,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
 
-  if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") ) {
+  if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
     // in terms of psi
     ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
     //PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
@@ -849,7 +843,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
     psi = _f0 + b*log( (double) (state*_v0)/Dc);
-    PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+    //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
   }
   PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
 

@@ -56,32 +56,6 @@ LinearElastic::LinearElastic(Domain&D)
     assert(0); // automatically fail
   }
 
-  /*
-  // set up SBP operators
-  //~ string bcT,string bcR,string bcB, string bcL
-  std::string bcTType = "Neumann";
-  std::string bcBType = "Neumann";
-  std::string bcRType = "Dirichlet";
-  std::string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
-
-  if (D._sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
-  }
-  else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
-  }
-  else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    assert(0); // automatically fail
-  }
-
-  KSPCreate(PETSC_COMM_WORLD,&_kspP);
-  setupKSP(_sbpP,_kspP,_pcP);
-  */
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
 #endif
@@ -636,7 +610,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   #endif
 }
 
-
+// try to speed up spin up by starting closer to steady state
 PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
 {
   PetscErrorCode ierr = 0;
@@ -645,32 +619,36 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // set up SBP system again
+  delete _sbpP;
+
+  // set up SBP operators
   //~ string bcT,string bcR,string bcB, string bcL
-  string bcTType = "Neumann";
-  string bcBType = "Neumann";
-  string bcRType = "Dirichlet";
-  string bcLType = "Dirichlet"; if (_bcLTauQS==1) { bcLType = "Neumann"; _bcLType="Neumann";}
-  if (D._sbpType.compare("mc")==0) {
+  std::string bcTType = "Neumann";
+  std::string bcBType = "Neumann";
+  std::string bcRType = "Dirichlet";
+  std::string bcLType = "Dirichlet";
+
+  if (_sbpType.compare("mc")==0) {
     _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
-  else if (D._sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
-  else if (D._sbpType.compare("mfc_coordTrans")==0) {
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-
+  KSPDestroy(&_kspP);
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
 
+
   return ierr;
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 }
 

@@ -101,6 +101,7 @@ class Fault: public RootFinderContext
 
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
+    // IO
     PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
     PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
 
@@ -122,7 +123,7 @@ class SymmFault: public Fault
   public:
 
     PetscErrorCode setSplitNodeFields();
-    PetscErrorCode computeVel();
+
 
     // disable default copy constructor and assignment operator
     SymmFault(const SymmFault & that);
@@ -137,6 +138,7 @@ class SymmFault: public Fault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
     PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode computeVel();
 
     // don't technically need the 2nd argument
     PetscErrorCode setTemp(const Vec& T);

@@ -43,15 +43,17 @@ class PowerLaw: public SymmLinearElastic
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
+    PetscErrorCode checkInput(); // check input from file
     PetscErrorCode allocateFields(); // allocate space for member fields
-    PetscErrorCode setFields();
-    PetscErrorCode setInitialConds(Domain& D); // try to skip some spin up steps
+    PetscErrorCode setMaterialParameters();
+    PetscErrorCode setSSInitialConds(Domain& D); // try to skip some spin up steps
     PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
     PetscErrorCode loadEffViscFromFiles();
-    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
 
     // functions needed each time step
+    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
@@ -89,8 +91,7 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode measureMMSError();
 
 
-    // check input from file
-    PetscErrorCode checkInput();
+
 };
 
 #endif

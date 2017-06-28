@@ -1,8 +1,8 @@
 order = 4
-Ny = 201
-Nz = 211
+Ny = 101
+Nz = 101
 Ly = 24 # km
-Lz = 30 # km
+Lz = 24 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -29,9 +29,13 @@ vL = 1e-9    # m/s
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
 
 # from linear elastic that actually worked
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
-zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
-loadICs = 1
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
+
+# on my laptop
+#inputDir = /Users/kallison/eqcycle/inputData/le_
+#zInputDir = /Users/kallison/eqcycle/inputData/le_z
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -144,8 +148,10 @@ f0 = 0.6
 
 
 #outputDir = /scratch/kallison/heSims/le_spinUp1_
-outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
-
+#outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
+outputDir = data/le_
+#outputDir = data/g30_
+#outputDir = data/g30_v2_
 
 
 
