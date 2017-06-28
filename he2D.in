@@ -10,14 +10,22 @@ DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
+aVals = [0.025 0.0300 0.0700 0.2652]
 aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
+# SHALLOW VS: creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0079 0.0242 0.0325 0.0301 0.0375 0.0737]
+#bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
-sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 60]
+
+sigmaNVals = [50 50] # (MPa) constant
+sigmaNDepths = [0 60] #(km) constant
+#sigmaNVals = [5.668 5.668 50 50] # totally artificial
+#sigmaNDepths = [0 0.25 2.5 60] # totally artificial
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
 
@@ -33,6 +41,7 @@ vL = 1e-9    # m/s
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
 
 # on my laptop: g = 30
+#inputDir = /Users/kallison/eqcycle/inputData/he_g30_Nz251_
 #inputDir = /Users/kallison/eqcycle/inputData/le_
 #zInputDir = /Users/kallison/eqcycle/inputData/le_z
 
@@ -93,9 +102,9 @@ TVals = [293 1543] # 25 C/km
 #TVals = [300 300]
 TDepths = [0 50]
 #thermalCoupling = coupled
-#thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+thermalCoupling = uncoupled
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -110,7 +119,7 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 10
 stride2D = 10
@@ -141,21 +150,13 @@ f0 = 0.6
 #D = 5 # um
 
 
-#outputDir = /scratch/kallison/heSims/he_agingLaw_shearHeating_uncoupled_
-#outputDir = /scratch/kallison/heSims/he_agingLaw_shearHeating_coupled_
-
-#outputDir = /scratch/kallison/heSims/he_agingLaw_spinUp1_
-#outputDir = /scratch/kallison/heSims/he_agingLaw_Nz201_spinUp1_
-#outputDir = /scratch/kallison/heSims/he_agingLaw_g30_Nz201_spinUp1_
-#outputDir = /scratch/kallison/heSims/he_agingLaw_g30_Nz301_spinUp1_
-
-
-#outputDir = /scratch/kallison/heSims/le_spinUp1_
-#outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
 #outputDir = data/le_
-#outputDir = data/g30_v1_
-outputDir = data/g25_nsh_
-#outputDir = data/g30_v2_
+#outputDir = data/le_vs_
+
+
+#outputDir = data/g25_nsh_
+outputDir = data/g25_wsh_
+#outputDir = data/g30_v2_Ny201_Nz251_
 
 
 

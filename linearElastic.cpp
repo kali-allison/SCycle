@@ -487,7 +487,8 @@ PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::loadFieldsFromFiles in linearElastic.cpp.\n");CHKERRQ(ierr);
+  std::string funcName = "SymmLinearElastic::loadFieldsFromFiles";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
 
 //~// load normal stress: _sigma_N

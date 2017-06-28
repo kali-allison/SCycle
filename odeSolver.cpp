@@ -448,7 +448,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     }
   }
 
-
   // set initial condition
   ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
   ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"IC");CHKERRQ(ierr);

@@ -906,7 +906,6 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   MatDestroy(&_A);
   KSPDestroy(&_ksp);
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);

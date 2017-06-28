@@ -52,7 +52,7 @@ PowerLaw::PowerLaw(Domain& D)
 
   // should already be done from linear elastic
   //~ _he.getTemp(_T);
-  // if also solving heat equation
+  //~ // if also solving heat equation
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ Vec T;
     //~ VecDuplicate(_uP,&T);
@@ -576,7 +576,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
   VecAssemblyBegin(_effVisc);
   VecAssemblyEnd(_effVisc);
 
-
+  return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -666,6 +666,7 @@ PetscErrorCode PowerLaw::integrate()
     CHKERRQ(ierr);
   #endif
   double startTime = MPI_Wtime();
+
 
   PetscScalar maxTimeStep;
   computeMaxTimeStep(maxTimeStep);
@@ -761,13 +762,15 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
   const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting PowerLaw::d_dt IMEX in powerLaw.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    string funcName = "PowerLaw::d_dt IMEX";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
 
   if (_thermalCoupling.compare("coupled")==0) {
-    //~ VecCopy(*varBeginImo,_T);
-    //~ _he.getTemp(_T);
+    VecCopy(*varBeginImo,_T);
+    _he.setTemp(_T);
     VecWAXPY(_T,1.0,_he._T0,*varBeginImo);
   }
 
@@ -780,7 +783,8 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending PowerLaw::d_dt IMEX in powerLaw.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1326,12 +1330,13 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
   }
 
   if (stepCount % 10 == 0) {
-    PetscScalar maxTimeStep;
-    computeMaxTimeStep(maxTimeStep);
+    PetscScalar maxTimeStep_tot, maxDeltaT_Tmax;
+    computeMaxTimeStep(maxDeltaT_Tmax);
+    maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_Tmax);
     if (_timeIntegrator.compare("IMEX")==0) {
-        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
+        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
-    else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr); }
+    else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
   }
 
 #if VERBOSE > 0
