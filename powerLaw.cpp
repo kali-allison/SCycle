@@ -410,7 +410,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_stressxyP,inv);CHKERRQ(ierr);
+  ierr = VecLoad(_sxyP,inv);CHKERRQ(ierr);
 
   // load sxz
   vecSourceFile = _inputDir + "Sxz";
@@ -820,7 +820,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
 
   // set shear traction on fault
   ierr = setStresses(time);CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
   // set rates
   if (_bcLTauQS==0) {
@@ -834,7 +834,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr); // sets viscous strain rates
 
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,_stressxzP,*(dvarBegin+2),
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_sxyP,_stressxzP,*(dvarBegin+2),
       //~ *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
       //~ // arguments:
       //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
@@ -911,7 +911,7 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
 
   // update stresses
   ierr = setStresses(time);CHKERRQ(ierr);
-  //~ mapToVec(_stressxyP,MMS_pl_sigmaxy,*_y,*_z,_currTime);
+  //~ mapToVec(_sxyP,MMS_pl_sigmaxy,*_y,*_z,_currTime);
   //~ mapToVec(_stressxzP,MMS_pl_sigmaxz,*_y,*_z,_currTime);
   //~ mapToVec(_sigmadev,MMS_sigmadev,*_y,*_z,_currTime);
 
@@ -1121,7 +1121,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     VecCopy(temp1,*(dvarBegin+3));
     VecDestroy(&temp1);
   }
-  VecAXPY(*(dvarBegin+3),1.0,_stressxyP);
+  VecAXPY(*(dvarBegin+3),1.0,_sxyP);
   VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_effVisc);
 
   if (_Nz > 1) {
@@ -1190,12 +1190,12 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
   #endif
 
   _sbpP->Dy(_uP,_gTxyP);
-  VecCopy(_gTxyP,_stressxyP);
-  VecAXPY(_stressxyP,-1.0,_gxyP);
-  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
+  VecCopy(_gTxyP,_sxyP);
+  VecAXPY(_sxyP,-1.0,_gxyP);
+  VecPointwiseMult(_sxyP,_sxyP,_muVecP);
 
   // deviatoric stress: part 1/3
-  VecPointwiseMult(_sigmadev,_stressxyP,_stressxyP);
+  VecPointwiseMult(_sigmadev,_sxyP,_sxyP);
 
   if (_Nz > 1) {
     _sbpP->Dz(_uP,_gTxzP);
@@ -1422,7 +1422,7 @@ PetscErrorCode PowerLaw::measureMMSError()
   //~mapToVec(sigmaxyA,MMS_pl_sigmaxy,_Nz,_dy,_dz,_currTime);
   //~mapToVec(sigmaxzA,MMS_pl_sigmaxz,_Nz,_dy,_dz,_currTime);
   //~mapToVec(sigmadevA,MMS_sigmadev,_Nz,_dy,_dz,_currTime);
-  //~double err2sigmaxyA = computeNormDiff_2(_stressxyP,sigmaxyA);
+  //~double err2sigmaxyA = computeNormDiff_2(_sxyP,sigmaxyA);
   //~double err2sigmaxzA = computeNormDiff_2(_stressxzP,sigmaxzA);
   //~double err2sigmadevA = computeNormDiff_2(_sigmadev,sigmadevA);
   //~VecDestroy(&sigmaxyA);
@@ -1570,7 +1570,7 @@ PetscErrorCode PowerLaw::writeStep2D()
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
               FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
@@ -1645,7 +1645,7 @@ PetscErrorCode PowerLaw::writeStep2D()
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}

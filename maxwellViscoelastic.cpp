@@ -121,7 +121,7 @@ SymmMaxwellViscoelastic::~SymmMaxwellViscoelastic()
   VecDestroy(&_dgxyP);
   VecDestroy(&_dgxzP);
 
-  VecDestroy(&_stressxyP);
+  VecDestroy(&_sxyP);
   VecDestroy(&_stressxzP);
   VecDestroy(&_sigmadev);
 
@@ -278,7 +278,7 @@ PetscErrorCode SymmMaxwellViscoelastic::d_dt_eqCycle(const PetscScalar time,cons
 
   // set shear traction on fault
   ierr = setStresses(time,varBegin);CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
   // set rates
   if (_bcLTauQS==0) {
@@ -900,7 +900,7 @@ PetscErrorCode SymmMaxwellViscoelastic::setViscStrainRates(const PetscScalar tim
     VecCopy(temp1,*(dvarBegin+3));
     VecDestroy(&temp1);
   }
-  VecAXPY(*(dvarBegin+3),1.0,_stressxyP);
+  VecAXPY(*(dvarBegin+3),1.0,_sxyP);
   VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_visc);
 
   if (_Nz > 1) {
@@ -931,9 +931,9 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
   /*
   // compute strains
   _sbpP->Dy(_uP,_gTxyP);
-  VecCopy(_gTxyP,_stressxyP);
-  VecAXPY(_stressxyP,-1.0,_gxyP);
-  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
+  VecCopy(_gTxyP,_sxyP);
+  VecAXPY(_sxyP,-1.0,_gxyP);
+  VecPointwiseMult(_sxyP,_sxyP,_muVecP);
 
   if (_Nz > 1) {
     _sbpP->Dz(_uP,_gTxzP);
@@ -944,12 +944,12 @@ PetscErrorCode SymmMaxwellViscoelastic::setStresses(const PetscScalar time,const
 
 
   _sbpP->Dy(_uP,_gTxyP);
-  VecCopy(_gTxyP,_stressxyP);
-  VecAXPY(_stressxyP,-1.0,_gxyP);
-  VecPointwiseMult(_stressxyP,_stressxyP,_muVecP);
+  VecCopy(_gTxyP,_sxyP);
+  VecAXPY(_sxyP,-1.0,_gxyP);
+  VecPointwiseMult(_sxyP,_sxyP,_muVecP);
 
   // deviatoric stress: part 1/3
-  VecPointwiseMult(_sigmadev,_stressxyP,_stressxyP);
+  VecPointwiseMult(_sigmadev,_sxyP,_sxyP);
 
   if (_Nz > 1) {
     _sbpP->Dz(_uP,_gTxzP);
@@ -1325,7 +1325,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
               FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
@@ -1373,7 +1373,7 @@ PetscErrorCode SymmMaxwellViscoelastic::writeStep2D()
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)

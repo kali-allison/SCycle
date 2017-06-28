@@ -53,7 +53,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     // off-fault material fields: + side
     Vec                  _muVecP;
     Vec                  _bcRPShift,_surfDispPlus;
-    Vec                  _rhsP,_uP,_stressxyP;
+    Vec                  _rhsP,_uP,_sxyP;
 
     // linear system data
     std::string          _linSolver;

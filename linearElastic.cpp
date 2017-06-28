@@ -16,7 +16,7 @@ LinearElastic::LinearElastic(Domain&D)
   _vL(D._vL),
   _muVecP(D._muVecP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
-  _rhsP(NULL),_uP(NULL),_stressxyP(NULL),
+  _rhsP(NULL),_uP(NULL),_sxyP(NULL),
   _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
   _kspTol(D._kspTol),
   _sbpP(NULL),_sbpType(D._sbpType),
@@ -78,7 +78,7 @@ LinearElastic::~LinearElastic()
   // body fields
   VecDestroy(&_rhsP);
   VecDestroy(&_uP);
-  VecDestroy(&_stressxyP);
+  VecDestroy(&_sxyP);
   VecDestroy(&_surfDispPlus);
   VecDestroy(&_T);
 
@@ -328,11 +328,11 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 
 
   double err2uA = computeNormDiff_2(_uP,uA);
-  double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
+  double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
 
   //~ Mat H; _sbpP->getH(H);
   //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
-  //~ double err2sigmaxy = computeNormDiff_2(_stressxyP,sigmaxyA);
+  //~ double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
@@ -469,7 +469,7 @@ PetscErrorCode SymmLinearElastic::allocateFields()
   // other fieds
   VecDuplicate(_muVecP,&_rhsP);
   VecDuplicate(_rhsP,&_uP);
-  VecDuplicate(_rhsP,&_stressxyP); VecSet(_stressxyP,0.0);
+  VecDuplicate(_rhsP,&_sxyP); VecSet(_sxyP,0.0);
   VecDuplicate(_rhsP,&_T); _he.getTemp(_T);
   VecDuplicate(_bcTP,&_surfDispPlus); PetscObjectSetName((PetscObject) _surfDispPlus, "_surfDisp");
 
@@ -827,7 +827,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
               FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
@@ -855,7 +855,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    ierr = VecView(_stressxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
 
     if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     _he.writeStep2D(_stepCount);
@@ -961,10 +961,10 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  ierr = _sbpP->muxDy(_uP,_stressxyP); CHKERRQ(ierr);
+  ierr = _sbpP->muxDy(_uP,_sxyP); CHKERRQ(ierr);
 
   // update fields on fault
-  ierr = _fault.setTauQS(_stressxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
   if (_bcLTauQS==0) {
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
@@ -1058,7 +1058,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   ierr = setSurfDisp();
 
   // solve for shear stress
-  _sbpP->muxDy(_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_sxyP);
 
 
   // update rates
@@ -1183,7 +1183,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = setSurfDisp();
 
   // solve for shear stress
-  _sbpP->muxDy(_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_sxyP);
 
 
   #if VERBOSE > 1
@@ -1498,7 +1498,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   double startTime;
 
   VecDuplicate(_rhsP,&_uP);
-  VecDuplicate(_rhsP,&_stressxyP);
+  VecDuplicate(_rhsP,&_sxyP);
 
   VecCreate(PETSC_COMM_WORLD,&_rhsM);
   VecSetSizes(_rhsM,PETSC_DECIDE,_Ny*_Nz);
@@ -1525,13 +1525,13 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   startTime = MPI_Wtime();
   KSPSolve(_kspP,_rhsP,_uP);
   _factorTime += MPI_Wtime() - startTime;
-  //~MatMult(_sbpP->_muxDy_Iz,_uP,_stressxyP);
-  _sbpP->muxDy(_uP,_stressxyP);
+  //~MatMult(_sbpP->_muxDy_Iz,_uP,_sxyP);
+  _sbpP->muxDy(_uP,_sxyP);
 
 
 
   // set up fault
-  _fault.setTauQS(_stressxyP,_sigma_xyMinus);
+  _fault.setTauQS(_sxyP,_sigma_xyMinus);
   _fault.setFaultDisp(_bcLP,_bcRMinus);
   _fault.computeVel();
 
@@ -1826,7 +1826,7 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
   muM = muP; // !!! NOT RIGHT
 
   ierr = VecSet(_sigma_xyMinus,muM*(bcRMinus - bcLMinus)/_Ly);CHKERRQ(ierr);
-  ierr = VecSet(_stressxyP,muP*(bcRPlus - bcLPlus)/_Ly);CHKERRQ(ierr);
+  ierr = VecSet(_sxyP,muP*(bcRPlus - bcLPlus)/_Ly);CHKERRQ(ierr);
 
 
 #if VERBOSE > 1
@@ -1873,9 +1873,9 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
   // solve for shear stress
   //~ierr = MatMult(_sbpM->_muxDy_Iz,_uM,_sigma_xyMinus);CHKERRQ(ierr);
-  //~ierr = MatMult(_sbpP->_muxDy_Iz,_uP,_stressxyP);CHKERRQ(ierr);
+  //~ierr = MatMult(_sbpP->_muxDy_Iz,_uP,_sxyP);CHKERRQ(ierr);
   _sbpM->muxDy(_uM,_sigma_xyMinus);
-  _sbpP->muxDy(_uP,_stressxyP);
+  _sbpP->muxDy(_uP,_sxyP);
 
 
 
@@ -1884,11 +1884,11 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 
   //~PetscPrintf(PETSC_COMM_WORLD,"_sigma_xyMinus = \n");
   //~printVec(_sigma_xyMinus);
-  //~PetscPrintf(PETSC_COMM_WORLD,"_stressxyP = \n");
-  //~printVec(_stressxyP);
+  //~PetscPrintf(PETSC_COMM_WORLD,"_sxyP = \n");
+  //~printVec(_sxyP);
   //~assert(0>1);
 
-  ierr = _fault.setTauQS(_stressxyP,_sigma_xyMinus);CHKERRQ(ierr);
+  ierr = _fault.setTauQS(_sxyP,_sigma_xyMinus);CHKERRQ(ierr);
   ierr = _fault.d_dt(varBegin,dvarBegin);
 
   ierr = setSurfDisp();
@@ -1915,7 +1915,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
     //~ Vec stressxzP;
     //~ VecDuplicate(_uP,&stressxzP);
     //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_stressxyP,stressxzP,NULL,
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_sxyP,stressxzP,NULL,
       //~ NULL,*(varBegin+2),*(dvarBegin+2),dt);CHKERRQ(ierr);
     //~ VecDestroy(&stressxzP);
       //~ // arguments:
