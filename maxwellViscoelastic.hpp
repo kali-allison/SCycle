@@ -36,7 +36,7 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     Vec         _gTxyP,_gTxzP; // total strain
     PetscViewer _gTxyPV,_gTxzPV;
     Vec         _sxzP,_sigmadev;
-    PetscViewer _stressxyPV,_stressxzPV;
+    PetscViewer _sxyPV,_sxzPV;
 
     PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);

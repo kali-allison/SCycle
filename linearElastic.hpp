@@ -88,7 +88,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscInt             _linSolveCount;
 
     PetscViewer          _bcRPlusV,_bcRPShiftV,_bcLPlusV,
-                         _uPV,_uAnalV,_rhsPlusV,_stressxyPV;
+                         _uPV,_uAnalV,_rhsPlusV,_sxyPV;
 
 
     PetscErrorCode loadSettings(const char *file);

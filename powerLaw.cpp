@@ -12,7 +12,7 @@ PowerLaw::PowerLaw(Domain& D)
   _gxzP(NULL),_dgxzP(NULL),
   _gTxyP(NULL),_gTxzP(NULL),
   //~ _T(NULL),
-  _stressxyPV(NULL),_stressxzPV(NULL),_sigmadevV(NULL),
+  _sxyPV(NULL),_sxzPV(NULL),_sigmadevV(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
   _gxzPV(NULL),_dgxzPV(NULL),
@@ -90,8 +90,8 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_dgxyP);
   VecDestroy(&_dgxzP);
 
-  PetscViewerDestroy(&_stressxyPV);
-  PetscViewerDestroy(&_stressxzPV);
+  PetscViewerDestroy(&_sxyPV);
+  PetscViewerDestroy(&_sxzPV);
   PetscViewerDestroy(&_sigmadevV);
   PetscViewerDestroy(&_gTxyPV);
   PetscViewerDestroy(&_gTxzPV);
@@ -1569,11 +1569,11 @@ PetscErrorCode PowerLaw::writeStep2D()
                                    FILE_MODE_APPEND,&_gTxyPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-              FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
+              FILE_MODE_WRITE,&_sxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_sxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_sxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-                                   FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_sxyPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gxyP").c_str(),
               FILE_MODE_WRITE,&_gxyPV);CHKERRQ(ierr);
@@ -1622,11 +1622,11 @@ PetscErrorCode PowerLaw::writeStep2D()
                                      FILE_MODE_APPEND,&_gTxzPV);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxzP").c_str(),
-               FILE_MODE_WRITE,&_stressxzPV);CHKERRQ(ierr);
-      ierr = VecView(_sxzP,_stressxzPV);CHKERRQ(ierr);
-      ierr = PetscViewerDestroy(&_stressxzPV);CHKERRQ(ierr);
+               FILE_MODE_WRITE,&_sxzPV);CHKERRQ(ierr);
+      ierr = VecView(_sxzP,_sxzPV);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_sxzPV);CHKERRQ(ierr);
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxzP").c_str(),
-                                     FILE_MODE_APPEND,&_stressxzPV);CHKERRQ(ierr);
+                                     FILE_MODE_APPEND,&_sxzPV);CHKERRQ(ierr);
 
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"gxzP").c_str(),
                FILE_MODE_WRITE,&_gxzPV);CHKERRQ(ierr);
@@ -1645,14 +1645,14 @@ PetscErrorCode PowerLaw::writeStep2D()
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
     ierr = VecView(_gTxyP,_gTxyPV);CHKERRQ(ierr);
-    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_sxyPV);CHKERRQ(ierr);
     ierr = VecView(_gxyP,_gxyPV);CHKERRQ(ierr);
     ierr = VecView(_effVisc,_effViscV);CHKERRQ(ierr);
     //~if (_isMMS) {ierr = VecView(_uAnal,_uAnalV);CHKERRQ(ierr);}
     if (_Nz>1)
     {
       ierr = VecView(_gTxzP,_gTxzPV);CHKERRQ(ierr);
-      ierr = VecView(_sxzP,_stressxzPV);CHKERRQ(ierr);
+      ierr = VecView(_sxzP,_sxzPV);CHKERRQ(ierr);
       ierr = VecView(_gxzP,_gxzPV);CHKERRQ(ierr);
     }
   }

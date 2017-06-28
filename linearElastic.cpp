@@ -29,7 +29,7 @@ LinearElastic::LinearElastic(Domain&D)
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
-  _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_stressxyPV(NULL),
+  _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_sxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcTP(NULL),_bcRP(NULL),_bcBP(NULL),_bcLP(NULL),_quadEx(NULL),_quadImex(NULL),
   _tLast(0),_uPPrev(NULL)
@@ -98,7 +98,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_bcLPlusV);
   PetscViewerDestroy(&_uAnalV);
   PetscViewerDestroy(&_rhsPlusV);
-  PetscViewerDestroy(&_stressxyPV);
+  PetscViewerDestroy(&_sxyPV);
 
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
@@ -826,11 +826,11 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
                                    FILE_MODE_APPEND,&_uPV);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-              FILE_MODE_WRITE,&_stressxyPV);CHKERRQ(ierr);
-    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_stressxyPV);CHKERRQ(ierr);
+              FILE_MODE_WRITE,&_sxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_sxyPV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_sxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-                                   FILE_MODE_APPEND,&_stressxyPV);CHKERRQ(ierr);
+                                   FILE_MODE_APPEND,&_sxyPV);CHKERRQ(ierr);
 
     if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
@@ -855,7 +855,7 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
     ierr = VecView(_uP,_uPV);CHKERRQ(ierr);
-    ierr = VecView(_sxyP,_stressxyPV);CHKERRQ(ierr);
+    ierr = VecView(_sxyP,_sxyPV);CHKERRQ(ierr);
 
     if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     _he.writeStep2D(_stepCount);
