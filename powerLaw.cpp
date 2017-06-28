@@ -50,15 +50,16 @@ PowerLaw::PowerLaw(Domain& D)
   _var.push_back(vargxzP);
 
 
-  _he.getTemp(_T); // should already be done from linear elastic
+  // should already be done from linear elastic
+  //~ _he.getTemp(_T);
   // if also solving heat equation
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec T;
-    VecDuplicate(_uP,&T);
-    _he.getTemp(T);
-    _varIm.push_back(T);
-    _he.getTemp(_T);
-  }
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ Vec T;
+    //~ VecDuplicate(_uP,&T);
+    //~ _he.getTemp(T);
+    //~ _varIm.push_back(T);
+    //~ _he.getTemp(_T);
+  //~ }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -665,6 +666,10 @@ PetscErrorCode PowerLaw::integrate()
     CHKERRQ(ierr);
   #endif
   double startTime = MPI_Wtime();
+
+  PetscScalar maxTimeStep;
+  computeMaxTimeStep(maxTimeStep);
+  if (maxTimeStep < _maxDeltaT) {_maxDeltaT = maxTimeStep; }
 
   _stepCount++;
   if (_timeIntegrator.compare("IMEX")==0) {
@@ -1323,14 +1328,10 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
   if (stepCount % 10 == 0) {
     PetscScalar maxTimeStep;
     computeMaxTimeStep(maxTimeStep);
-
-  if (_timeIntegrator.compare("IMEX")==0) {
-     _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
-  }
-  else {
-    _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
-  }
-
+    if (_timeIntegrator.compare("IMEX")==0) {
+        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
+    }
+    else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr); }
   }
 
 #if VERBOSE > 0

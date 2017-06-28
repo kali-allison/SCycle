@@ -1,6 +1,6 @@
 order = 4
-Ny = 101
-Nz = 101
+Ny = 151
+Nz = 151
 Ly = 24 # km
 Lz = 24 # km
 
@@ -32,10 +32,13 @@ vL = 1e-9    # m/s
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
 
-# on my laptop
-inputDir = /Users/kallison/eqcycle/inputData/le_
-zInputDir = /Users/kallison/eqcycle/inputData/le_z
-loadICs = 1
+# on my laptop: g = 30
+#inputDir = /Users/kallison/eqcycle/inputData/le_
+#zInputDir = /Users/kallison/eqcycle/inputData/le_z
+
+# on my laptop: g = 25
+inputDir = /Users/kallison/eqcycle/inputData/he_g25_Nz151_
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -85,8 +88,8 @@ rhoDepths = [0 60]
 
 
 #TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
 #thermalCoupling = coupled
@@ -113,7 +116,7 @@ stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
-maxTime = 1e11      # s 5.5e10
+maxTime = 6e10      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
@@ -150,8 +153,9 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heSims/le_spinUp1_
 #outputDir = /scratch/kallison/heSims/g30_agingLaw_Nz301_spinUp1_
 #outputDir = data/le_
-#outputDir = data/g30_
-outputDir = data/g30_v2_
+#outputDir = data/g30_v1_
+outputDir = data/g25_nsh_
+#outputDir = data/g30_v2_
 
 
 

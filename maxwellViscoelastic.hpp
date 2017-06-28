@@ -42,13 +42,19 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setStresses(const PetscScalar time,const_it_vec varBegin);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                           const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
 
+    // avoid taking an unstable time step
+    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep);
+
+    // MMS tests
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode addMMSViscStrainsAndRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setMMSBoundaryConditions(const double time);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+                           const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
 
+
+    // check energy conservation
     PetscErrorCode computeEnergy(const PetscScalar time,Vec& out);
     PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
 
@@ -82,12 +88,12 @@ class SymmMaxwellViscoelastic: public SymmLinearElastic
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput(); // check input from file
     PetscErrorCode setFields(Domain& D);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
-    // check input from file
-    PetscErrorCode checkInput();
+
 };
 
 #endif

@@ -322,7 +322,7 @@ PetscErrorCode Fault::agingLaw_theta(const PetscInt ind,const PetscScalar state,
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
 
-  dstate = 1 - state*abs(slipVel)/Dc;
+  dstate = 1 - state*slipVel/Dc;
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));

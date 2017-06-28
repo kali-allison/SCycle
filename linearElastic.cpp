@@ -149,6 +149,26 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   return ierr;
 }
 
+// Check that required fields have been set by the input file
+PetscErrorCode LinearElastic::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+  #endif
+
+  if (_timeIntegrator.compare("IMEX")==0) {
+    assert(_thermalCoupling.compare("uncoupled")==0
+      || _thermalCoupling.compare("coupled")==0);
+  }
+
+  #if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
 
 
 
@@ -345,7 +365,8 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
 
 
 //======================================================================
-//================= Symmetric LinearElastic Functions ==================
+// Symmetric LinearElastic Functions
+//======================================================================
 
 SymmLinearElastic::SymmLinearElastic(Domain&D)
 : LinearElastic(D),_fault(D,_he),
@@ -371,11 +392,10 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec T;
-    VecDuplicate(_uP,&T);
-    VecSet(T,0);
-    //~ VecCopy(_he._T,T);
-    _varIm.push_back(T);
+    Vec deltaT; // change in temperature relative to background
+    VecDuplicate(_uP,&deltaT);
+    VecSet(deltaT,0);
+    _varIm.push_back(deltaT);
 
     VecDuplicate(_uP,&_T);
     _he.getTemp(_T);
@@ -386,7 +406,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   VecAXPY(_bcRP,1.0,_bcRPShift);
 
   setSurfDisp();
-
 
   if (_bcLTauQS==1) { // set bcL to be steady-state shear stress
     PetscInt    Istart,Iend;
@@ -417,26 +436,6 @@ SymmLinearElastic::~SymmLinearElastic()
   PetscViewerDestroy(&_intEV);
 };
 
-
-// Check that required fields have been set by the input file
-PetscErrorCode LinearElastic::checkInput()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
-  #endif
-
-  if (_timeIntegrator.compare("IMEX")==0) {
-    assert(_thermalCoupling.compare("uncoupled")==0
-      || _thermalCoupling.compare("coupled")==0);
-  }
-
-  #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
 // allocate space for member fields
 PetscErrorCode SymmLinearElastic::allocateFields()
 {
@@ -452,7 +451,7 @@ PetscErrorCode SymmLinearElastic::allocateFields()
   VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
   VecSet(_bcLP,0.0);
 
-  VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRplusShift");
+  VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRPShift");
   VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "_bcRP");
   VecSet(_bcRP,_vL*_initTime/2.0);
 
@@ -478,6 +477,9 @@ PetscErrorCode SymmLinearElastic::allocateFields()
 #endif
   return ierr;
 }
+
+
+
 
 
 // parse input file and load values into data members

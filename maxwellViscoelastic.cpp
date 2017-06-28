@@ -1,5 +1,7 @@
 #include "maxwellViscoelastic.hpp"
 
+#define FILENAME "powerLaw.cpp"
+
 
 SymmMaxwellViscoelastic::SymmMaxwellViscoelastic(Domain& D)
 : SymmLinearElastic(D), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
@@ -151,6 +153,10 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
   #endif
   double startTime = MPI_Wtime();
 
+  PetscScalar maxTimeStep;
+  computeMaxTimeStep(maxTimeStep);
+  if (maxTimeStep < _maxDeltaT) {_maxDeltaT = maxTimeStep; }
+
   _stepCount++;
   if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
@@ -194,6 +200,33 @@ PetscErrorCode SymmMaxwellViscoelastic::integrate()
 #endif
   return ierr;
 }
+
+// limited by Maxwell time
+PetscErrorCode SymmMaxwellViscoelastic::computeMaxTimeStep(PetscScalar& maxTimeStep)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SymmMaxwellViscoelastic::computeMaxTimeStep";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  Vec Tmax;
+  VecDuplicate(_uP,&Tmax);
+  VecSet(Tmax,0.0);
+  VecPointwiseDivide(Tmax,_visc,_muVecP);
+  PetscScalar min_Tmax;
+  VecMin(Tmax,NULL,&min_Tmax);
+
+  maxTimeStep = 0.3 * min_Tmax;
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 
 
 PetscErrorCode SymmMaxwellViscoelastic::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
@@ -1144,6 +1177,17 @@ PetscErrorCode SymmMaxwellViscoelastic::timeMonitor(const PetscReal time,const P
   if ( stepCount % _stride2D == 0) {
     //ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep2D();CHKERRQ(ierr);
+  }
+
+  if (stepCount % 10 == 0) {
+    PetscScalar maxTimeStep;
+    computeMaxTimeStep(maxTimeStep);
+    if (_timeIntegrator.compare("IMEX")==0) {
+       _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
+    }
+    else {
+      _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep);CHKERRQ(ierr);
+    }
   }
 
 #if VERBOSE > 0
