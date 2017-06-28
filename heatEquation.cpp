@@ -868,7 +868,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
-    VecAXPY(rhs,1.0,shearHeat);
+    VecAXPY(temp,1.0,shearHeat);
     VecDestroy(&shearHeat);
   }
 

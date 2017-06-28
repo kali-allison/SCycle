@@ -10,7 +10,7 @@ DcVals = [16e-3 16e-3] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.025 0.0300 0.0700 0.2652]
+aVals = [0.0135 0.0300 0.0700 0.2652]
 aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
@@ -46,8 +46,10 @@ vL = 1e-9    # m/s
 #zInputDir = /Users/kallison/eqcycle/inputData/le_z
 
 # on my laptop: g = 25
-inputDir = /Users/kallison/eqcycle/inputData/he_g25_Nz151_
-loadICs = 0
+#inputDir = /Users/kallison/eqcycle/inputData/he_g25_Nz151_
+inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
+zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
+loadICs = 1
 bcLTauQS = 0
 
 shearDistribution = constant
