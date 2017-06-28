@@ -252,9 +252,9 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_uP,&_gTxyP); VecSet(_gTxyP,0.0);
   VecDuplicate(_uP,&_gTxzP); VecSet(_gTxzP,0.0);
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -586,7 +586,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-  string funcName = "PowerLaw::setMMSInitialConditions()";
+    string funcName = "PowerLaw::setMMSInitialConditions()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
@@ -651,7 +651,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -704,10 +704,10 @@ PetscErrorCode PowerLaw::integrate()
   }
 
   _integrateTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -732,7 +732,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -1066,7 +1066,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,const_it_vec varBegin
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
+    CHKERRQ(ierr);
   #endif
   return ierr = 0;
 }
@@ -1133,7 +1133,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
+    CHKERRQ(ierr);
   #endif
   return ierr = 0;
 }
@@ -1174,7 +1174,7 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-      CHKERRQ(ierr);
+    CHKERRQ(ierr);
   #endif
   return ierr = 0;
 }
@@ -1184,7 +1184,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-  string funcName = "PowerLaw::setStresses";
+    string funcName = "PowerLaw::setStresses";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1217,7 +1217,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
+    CHKERRQ(ierr);
   #endif
   return ierr = 0;
 }
@@ -1293,7 +1293,7 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
   #endif
   return ierr;
 }
@@ -1433,8 +1433,6 @@ PetscErrorCode PowerLaw::measureMMSError()
               //~_order,_Ny,_dy,err2sigmaxyA,log2(err2sigmaxyA),err2sigmaxzA,log2(err2sigmaxzA));
 
 
-
-
   VecDestroy(&uA);
   VecDestroy(&gxyA);
   VecDestroy(&gxzA);
@@ -1474,7 +1472,7 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
 
-#if VERBOSE > 1
+  #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
