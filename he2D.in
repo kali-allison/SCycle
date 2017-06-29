@@ -2,7 +2,7 @@ order = 4
 Ny = 151
 Nz = 151
 Ly = 24 # km
-Lz = 24 # km
+Lz = 30 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -24,13 +24,12 @@ bDepths = [0 10 11 19.3333 60]
 
 sigmaNVals = [50 50] # (MPa) constant
 sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 50 50] # totally artificial
-#sigmaNDepths = [0 0.25 2.5 60] # totally artificial
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
 
 
 vL = 1e-9    # m/s
+#vL = -1e-9    # m/s
 
 
 # just effective viscosity data
@@ -46,10 +45,10 @@ vL = 1e-9    # m/s
 #zInputDir = /Users/kallison/eqcycle/inputData/le_z
 
 # on my laptop: g = 25
-#inputDir = /Users/kallison/eqcycle/inputData/he_g25_Nz151_
-inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
-zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
-loadICs = 1
+inputDir = /Users/kallison/eqcycle/inputData/he_g30_Ny151_Nz151_
+#inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
+#zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -99,14 +98,14 @@ rhoDepths = [0 60]
 
 
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
 #thermalCoupling = coupled
-thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+#thermalCoupling = uncoupled
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -121,7 +120,7 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
@@ -153,11 +152,12 @@ f0 = 0.6
 
 
 #outputDir = data/le_
-#outputDir = data/le_vs_
+#outputDir = data/le_neg_
 
 
 #outputDir = data/g25_nsh_
-outputDir = data/g25_wsh_
+#outputDir = data/g25_wsh_
+outputDir = data/g30_nsh_
 #outputDir = data/g30_v2_Ny201_Nz251_
 
 

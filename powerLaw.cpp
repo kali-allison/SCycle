@@ -492,8 +492,9 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     VecGetValues(faultVisc,1,&Ii,&v);
     PetscScalar tauVisc = v*_vL/2.0/10.0; // 10 = seismogenic depth
 
-    //~ PetscScalar tau = min(tauRS,tauVisc);
-    PetscScalar tau = tauRS;
+    PetscScalar tau = min(tauRS*1.3,tauVisc);
+    //~ PetscScalar tau = tauRS;
+    //~ PetscScalar tau = tauVisc;
     VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
   }
   VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);

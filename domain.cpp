@@ -20,7 +20,7 @@ Domain::Domain(const char *file)
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
   _atol(-1),_outputDir("unspecified"),
-  _vL(-1),
+  _vL(1e-9),
   _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
 {
 #if VERBOSE > 1
@@ -511,7 +511,7 @@ PetscErrorCode Domain::checkInput()
   assert( _dz > 0 && !isnan(_dz) );
 
 
-  assert(_vL > 0);
+  //~ assert(_vL > 0);
 
 
   assert(_timeIntegrator.compare("FEuler")==0

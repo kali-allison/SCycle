@@ -610,6 +610,7 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecAXPY(right,-1.0,_cohesion);CHKERRQ(ierr); // add effect of cohesion!
   ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
+
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
@@ -620,6 +621,7 @@ PetscErrorCode SymmFault::computeVel()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g\n",Ii,leftVal,rightVal);
 
     if (isnan(leftVal) || isnan(rightVal)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError:left or right evaluated to nan.\n");
@@ -627,10 +629,14 @@ PetscErrorCode SymmFault::computeVel()
     }
     // correct for left-lateral fault motion
     if (leftVal>rightVal) {
-      temp = leftVal;
+      //~ PetscPrintf(PETSC_COMM_WORLD,"1 left>right!: left = %g, right = %g\n",Ii,leftVal,rightVal);
+      temp = rightVal;
       rightVal = leftVal;
       leftVal = temp;
+      //~ PetscPrintf(PETSC_COMM_WORLD,"2 left>right!: left = %g, right = %g\n",Ii,leftVal,rightVal);
     }
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g\n",Ii,leftVal,rightVal);
+    //~ assert(0);
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
@@ -640,6 +646,7 @@ PetscErrorCode SymmFault::computeVel()
       _rootIts += rootAlg.getNumIts();
     }
     ierr = VecSetValue(_slipVel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Ii,leftVal,rightVal,outVal);
   }
   ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
