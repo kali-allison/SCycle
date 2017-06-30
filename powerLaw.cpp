@@ -492,7 +492,7 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     VecGetValues(faultVisc,1,&Ii,&v);
     PetscScalar tauVisc = v*_vL/2.0/10.0; // 10 = seismogenic depth
 
-    PetscScalar tau = min(tauRS*1.3,tauVisc);
+    PetscScalar tau = min(tauRS,tauVisc);
     //~ PetscScalar tau = tauRS;
     //~ PetscScalar tau = tauVisc;
     VecSetValue(_bcLP,Ii,tau,INSERT_VALUES);
@@ -668,15 +668,15 @@ PetscErrorCode PowerLaw::integrate()
   #endif
   double startTime = MPI_Wtime();
 
-
-  PetscScalar maxTimeStep;
-  computeMaxTimeStep(maxTimeStep);
-  if (maxTimeStep < _maxDeltaT) {_maxDeltaT = maxTimeStep; }
+  // ensure max time step is limited by Maxwell time
+  PetscScalar maxTimeStep_tot, maxDeltaT_Tmax;
+  computeMaxTimeStep(maxDeltaT_Tmax);
+  maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_Tmax);
 
   _stepCount++;
   if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
-    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
@@ -688,7 +688,7 @@ PetscErrorCode PowerLaw::integrate()
   else { // fully explicit time integration
     // call odeSolver routine integrate here
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
-    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
@@ -853,8 +853,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
-  //~ VecSet(*(dvarBegin+3),0.0);
-  //~ VecSet(*(dvarBegin+4),0.0);
+  VecSet(*(dvarBegin+3),0.0);
+  VecSet(*(dvarBegin+4),0.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1330,7 +1330,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
     ierr = writeStep2D();CHKERRQ(ierr);
   }
 
-  if (stepCount % 10 == 0) {
+  if (stepCount % 1 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_Tmax;
     computeMaxTimeStep(maxDeltaT_Tmax);
     maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_Tmax);

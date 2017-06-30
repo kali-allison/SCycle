@@ -1,8 +1,8 @@
 order = 4
-Ny = 151
+Ny = 101
 Nz = 151
 Ly = 24 # km
-Lz = 30 # km
+Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -45,10 +45,10 @@ vL = 1e-9    # m/s
 #zInputDir = /Users/kallison/eqcycle/inputData/le_z
 
 # on my laptop: g = 25
-inputDir = /Users/kallison/eqcycle/inputData/he_g30_Ny151_Nz151_
+inputDir = /Users/kallison/eqcycle/inputData/he_g25_Ny151_Nz151_
 #inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
 #zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
-loadICs = 0
+loadICs = 1
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -98,8 +98,8 @@ rhoDepths = [0 60]
 
 
 #TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
 #thermalCoupling = coupled
@@ -152,12 +152,11 @@ f0 = 0.6
 
 
 #outputDir = data/le_
-#outputDir = data/le_neg_
 
+outputDir = data/g25_nsh_
 
-#outputDir = data/g25_nsh_
 #outputDir = data/g25_wsh_
-outputDir = data/g30_nsh_
+#outputDir = data/g30_nsh_
 #outputDir = data/g30_v2_Ny201_Nz251_
 
 
