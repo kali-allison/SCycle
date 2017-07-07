@@ -34,7 +34,7 @@ PowerLaw::PowerLaw(Domain& D)
     setStresses(_initTime);
     }
   else {
-    setSSInitialConds(D);
+    //~ setSSInitialConds(D);
     setUpSBPContext(D); // set up matrix operators
     setStresses(_initTime);
     guessSteadyStateEffVisc();

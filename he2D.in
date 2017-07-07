@@ -48,7 +48,7 @@ vL = 1e-9    # m/s
 inputDir = /Users/kallison/eqcycle/inputData/he_g25_Ny151_Nz151_
 #inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
 #zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
-loadICs = 1
+loadICs = 0
 bcLTauQS = 0
 
 shearDistribution = constant
@@ -125,7 +125,7 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
-initTime = 0      # s 3e10
+initTime = 1e10      # s 3e10
 maxTime = 6e10      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
