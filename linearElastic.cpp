@@ -452,6 +452,7 @@ PetscErrorCode SymmLinearElastic::allocateFields()
   VecSet(_bcLP,0.0);
 
   VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRPShift");
+  VecSet(_bcRPShift,0.0);
   VecDuplicate(_bcLP,&_bcRP); PetscObjectSetName((PetscObject) _bcRP, "_bcRP");
   VecSet(_bcRP,_vL*_initTime/2.0);
 

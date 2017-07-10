@@ -34,7 +34,7 @@ PowerLaw::PowerLaw(Domain& D)
     setStresses(_initTime);
     }
   else {
-    //~ setSSInitialConds(D);
+    setSSInitialConds(D);
     setUpSBPContext(D); // set up matrix operators
     setStresses(_initTime);
     guessSteadyStateEffVisc();
@@ -543,6 +543,15 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
   writeVec(_uP,(_outputDir+"init2_u").c_str());
 
 
+  // reset all BCs
+  VecSet(_bcRPShift,0.0);
+  VecSet(_bcRP,_vL*_initTime/2.0);
+  VecSet(_bcLP,0.0);
+  VecSet(_fault._slip,0.0);
+  VecCopy(_fault._slip,*(_var.begin()+2));
+  VecSet(_uP,0.0);
+
+
   return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -853,8 +862,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
   //~VecSet(*(dvarBegin+2),0.0);
-  VecSet(*(dvarBegin+3),0.0);
-  VecSet(*(dvarBegin+4),0.0);
+  //~ VecSet(*(dvarBegin+3),0.0);
+  //~ VecSet(*(dvarBegin+4),0.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

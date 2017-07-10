@@ -1,6 +1,6 @@
 order = 4
 Ny = 101
-Nz = 151
+Nz = 201
 Ly = 24 # km
 Lz = 40 # km
 
@@ -28,12 +28,12 @@ sigmaNDepths = [0 60] #(km) constant
 #sigmaNDepths = [0 0.25 60]
 
 
-vL = 1e-9    # m/s
-#vL = -1e-9    # m/s
+vL = 1e-9    # (m/s)
 
 
 # just effective viscosity data
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny101_Nz151_
 
 # from linear elastic that actually worked
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
@@ -45,7 +45,7 @@ vL = 1e-9    # m/s
 #zInputDir = /Users/kallison/eqcycle/inputData/le_z
 
 # on my laptop: g = 25
-inputDir = /Users/kallison/eqcycle/inputData/he_g25_Ny151_Nz151_
+#inputDir = /Users/kallison/eqcycle/inputData/he_g25_Ny101_Nz151_
 #inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
 #zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
 loadICs = 0
@@ -98,8 +98,8 @@ rhoDepths = [0 60]
 
 
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
 #thermalCoupling = coupled
@@ -125,8 +125,8 @@ timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
-initTime = 1e10      # s 3e10
-maxTime = 6e10      # s 5.5e10
+initTime = 0      # s 3e10
+maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
@@ -151,9 +151,8 @@ f0 = 0.6
 #D = 5 # um
 
 
-#outputDir = data/le_
-
-outputDir = data/g25_nsh_
+#outputDir = /scratch/kallison/heSims/le_nhe_
+outputDir = /scratch/kallison/heSims/g30_nsh_
 
 #outputDir = data/g25_wsh_
 #outputDir = data/g30_nsh_

@@ -32,6 +32,7 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/rs.in
 rm -f /data/dunham/kallison/eqcycle/heOutFiles/*.err
 rm -f /data/dunham/kallison/eqcycle/heOutFiles/*.out
+rm -f /scratch/kallison/heSims/*
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
 mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he2D.in
 
