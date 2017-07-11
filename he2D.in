@@ -33,7 +33,7 @@ vL = 1e-9    # (m/s)
 
 # just effective viscosity data
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny101_Nz151_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny101_Nz201_
 
 # from linear elastic that actually worked
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
@@ -82,6 +82,14 @@ BDepths = [0 60]
 nVals = [2.4 2.4]
 nDepths = [0 60]
 
+# power law properties: constant
+#AVals = [1e-30 1e-30]
+#ADepths = [0 60]
+#BVals = [0.0 0.0]
+#BDepths = [0 60]
+#nVals = [1.0 1.0]
+#nDepths = [0 60]
+
 # heat equation properties
 #heatFieldsDistribution = mms
 heatFieldsDistribution = layered
@@ -115,8 +123,8 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
@@ -152,7 +160,10 @@ f0 = 0.6
 
 
 #outputDir = /scratch/kallison/heSims/le_nhe_
-outputDir = /scratch/kallison/heSims/g30_nsh_
+#outputDir = /scratch/kallison/heSims/le_PID_
+#outputDir = /scratch/kallison/heSims/g30_nsh_
+#outputDir = /scratch/kallison/heSims/g30_spinup_
+outputDir = /scratch/kallison/heSims/g30_test_
 
 #outputDir = data/g25_wsh_
 #outputDir = data/g30_nsh_
