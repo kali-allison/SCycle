@@ -137,7 +137,7 @@ initTime = 0      # s 3e10
 maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s 1e10
+maxDeltaT = 1e6      # s 1e10
 atol = 1e-8
 timeIntInds = [0 2]
 
@@ -163,7 +163,9 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heSims/le_PID_
 #outputDir = /scratch/kallison/heSims/g30_nsh_
 #outputDir = /scratch/kallison/heSims/g30_spinup_
-outputDir = /scratch/kallison/heSims/g30_test_
+#outputDir = /scratch/kallison/heSims/g30_Jul11_
+#outputDir = /scratch/kallison/heSims/g30_Jul11_test_
+outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
 
 #outputDir = data/g25_wsh_
 #outputDir = data/g30_nsh_

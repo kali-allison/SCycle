@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N g30_spinup
+#PBS -N g30_Jul11_Ny101
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/g30_spinup.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/g30_spinup.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/g30_Jul11_Ny101.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/g30_Jul11_Ny101.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

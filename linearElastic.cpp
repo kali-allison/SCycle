@@ -535,6 +535,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   #endif
 
   delete _sbpP;
+  KSPDestroy(&_kspP);
 
   // set up SBP operators
   //~ string bcT,string bcR,string bcB, string bcL
@@ -624,6 +625,7 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
   #endif
 
   delete _sbpP;
+  KSPDestroy(&_kspP);
 
   // set up SBP operators
   //~ string bcT,string bcR,string bcB, string bcL
@@ -645,7 +647,6 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  KSPDestroy(&_kspP);
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
 

@@ -520,7 +520,9 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
     // accept 3rd order solution as update
     for (int ind=0;ind<_lenVar;ind++) {
+      VecSet(_var[ind],0.0);
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
+      VecSet(_dvar[ind],0.0);
     }
     ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
     ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"F");CHKERRQ(ierr);

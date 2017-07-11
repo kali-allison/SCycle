@@ -34,10 +34,10 @@ PowerLaw::PowerLaw(Domain& D)
     setStresses(_initTime);
     }
   else {
-    //~ setSSInitialConds(D);
-    //~ setUpSBPContext(D); // set up matrix operators
-    setStresses(_initTime);
     guessSteadyStateEffVisc();
+    setSSInitialConds(D);
+    setUpSBPContext(D); // set up matrix operators
+    setStresses(_initTime);
     //~ assert(0);
   }
 
@@ -519,33 +519,32 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     if ( Ii < _Nz ) {
       ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
       v += abs(minVal) + 1.0;
-      //~ v = 2.0*(v + abs(minVal));
-      v = 2.0*v;
-      ierr = VecSetValues(_fault._slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
     // put right boundary data into bcR
     if ( Ii > (_Ny*_Nz - _Nz - 1) ) {
       PetscInt zI =  Ii - (_Ny*_Nz - _Nz);
       ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
-      //~ v = v + abs(minVal);
       v += abs(minVal) + 1.0;
       ierr = VecSetValues(_bcRPShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
-  VecCopy(_fault._slip,_bcLP);
-  VecScale(_bcLP,0.5);
+  VecCopy(_bcLP,_fault._slip);
+  VecScale(_fault._slip,2.0);
   VecCopy(_fault._slip,*(_var.begin()+2));
 
-  writeVec(_bcLP,(_outputDir+"init2_bcL").c_str());
-  writeVec(_bcRP,(_outputDir+"init2_bcR").c_str());
-  writeVec(_bcRPShift,(_outputDir+"init2_bcRPShift").c_str());
-  writeVec(_uP,(_outputDir+"init2_u").c_str());
+  //~ writeVec(_bcLP,(_outputDir+"init2_bcL").c_str());
+  //~ writeVec(_bcRP,(_outputDir+"init2_bcR").c_str());
+  //~ writeVec(_bcRPShift,(_outputDir+"init2_bcRPShift").c_str());
+  //~ writeVec(_uP,(_outputDir+"init2_u").c_str());
 
 
   // reset all BCs
