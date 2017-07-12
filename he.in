@@ -1,5 +1,5 @@
 order = 4
-Ny = 501
+Ny = 401
 Nz = 1
 Ly = 20 # km
 Lz = 24 # km
@@ -16,8 +16,7 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-#sigmaNVals = [50 50] # MPa
-sigmaNVals = [40 40] # MPa
+sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 60]
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
@@ -58,7 +57,7 @@ nDepths = [0 15 15 30 30 60]
 #heatFieldsDistribution = mms
 heatFieldsDistribution = layered
 linSolver_heateq = AMG
-kspTol_heateq = 1e-12
+kspTol_heateq = 1e-10
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
 hVals = [0 0]
@@ -96,46 +95,39 @@ stride1D = 1
 stride2D = 1
 maxStepCount = 1e9 #1e9
 initTime = 1e9      # s 3e10
-maxTime = 7e10      # s 5.5e10
+maxTime = 2e11      # s 5.5e10
 initDeltaT = 1e-3     # s
-minDeltaT = 1e-4     # s
+minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s
-atol = 1e-9
+atol = 1e-8
 timeIntInds = [0 2]
 
 rootTol = 1e-9
 
 
 #stateLaw = agingLaw
-#stateLaw = slipLaw
-#v0 = 1e-6
-#f0 = 0.6
+stateLaw = slipLaw
+v0 = 1e-6
+f0 = 0.6
 
 
 # flash heating for granite
-stateLaw = flashHeating
-v0 = 1e-6
-f0 = 0.6
+#stateLaw = flashHeating
+#v0 = 1e-6
+#f0 = 0.6
 #fw = 0.12
-fw = 0.0
-Vw = 0.1
-Tw = 1.1732e+03 # K 900 C
-tau_c = 3 # GPa
-D = 5 # um
+#fw = 0.0
+#Vw = 0.1
+#Tw = 1.1732e+03 # K 900 C
+#tau_c = 3 # GPa
+#D = 5 # um
 
 
-#outputDir = data/SS_agingLaw_
-#outputDir = data/SS_slipLaw_
-#outputDir = data/SS_flashHeating_fw0.12_
-#outputDir = data/SS_flashHeating_fw0.06_
-#outputDir = data/SS_flashHeating_fw0.01_
-#outputDir = data/SS_flashHeating_fw0_
-#outputDir = data/SS_flashHeating_T0_
-#outputDir = data/SS_flashHeating_T0300_
-#outputDir = data/SS_flashHeating_minDeltat1e-4_T0300_
-#outputDir = data/SS_flashHeating_T0600_
+#outputDir = data/SS_flashHeating_test_
 
-outputDir = data/SS_flashHeating_test_
+#outputDir = /scratch/kallison/SS/le_flashHeating_test_
+#outputDir = /scratch/kallison/SS/le_slipLaw_
+
 
 
 

@@ -1,5 +1,5 @@
 order = 4
-Ny = 101
+Ny = 201
 Nz = 201
 Ly = 24 # km
 Lz = 40 # km
@@ -7,6 +7,7 @@ Lz = 40 # km
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 DcVals = [16e-3 16e-3] # m
+#DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -22,10 +23,12 @@ bDepths = [0 10 11 19.3333 60]
 #bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
+#sigmaNVals = [50 50] # (MPa) constant
+#sigmaNVals = [30 30] # (MPa) constant
+#sigmaNDepths = [0 60] #(km) constant
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
+sigmaN_cap = 30; # MPa
 
 
 vL = 1e-9    # (m/s)
@@ -59,8 +62,8 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-#bCoordTrans = 15.0
-bCoordTrans = 7.0
+bCoordTrans = 15.0
+#bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -130,22 +133,22 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e9 #1e9
+stride1D = 1
+stride2D = 1
+maxStepCount = 10 #1e9
 initTime = 0      # s 3e10
 maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e6      # s 1e10
+maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
 timeIntInds = [0 2]
 
 rootTol = 1e-9
 
 
-stateLaw = agingLaw
-#stateLaw = slipLaw
+#stateLaw = agingLaw
+stateLaw = slipLaw
 v0 = 1e-6
 f0 = 0.6
 
@@ -160,17 +163,26 @@ f0 = 0.6
 
 
 #outputDir = /scratch/kallison/heSims/le_nhe_
-#outputDir = /scratch/kallison/heSims/le_PID_
-#outputDir = /scratch/kallison/heSims/g30_nsh_
-#outputDir = /scratch/kallison/heSims/g30_spinup_
 #outputDir = /scratch/kallison/heSims/g30_Jul11_
 #outputDir = /scratch/kallison/heSims/g30_Jul11_test_
-outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
+#outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
 
-#outputDir = data/g25_wsh_
-#outputDir = data/g30_nsh_
-#outputDir = data/g30_v2_Ny201_Nz251_
 
+#outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
+
+#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz301_
+#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz401_
+#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz501_
+#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz1001_
+
+#outputDir = /scratch/kallison/le/le_slipLaw_Dc32_sN20_Ny201_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc32_sN20_Ny201_Nz801_
+
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN20_Ny301_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz801_
+
+outputDir = /scratch/kallison/le/test_
 
 
 

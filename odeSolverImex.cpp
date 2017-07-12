@@ -396,6 +396,8 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
     // accept 3rd order solution as update
     for (int ind=0;ind<_lenVar;ind++) {
+      VecSet(_var[ind],0.0);
+      VecSet(_dvar[ind],0.0);
       ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
     }
     VecCopy(_vardTIm[0],_varIm[0]);

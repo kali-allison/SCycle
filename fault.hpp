@@ -52,6 +52,7 @@ class Fault: public RootFinderContext
 
     // fields that differ on the split nodes
     std::vector<double>  _sigmaNVals,_sigmaNDepths;
+    PetscScalar          _sigmaN_cap; // allow cap on normal stress
     Vec                  _sigma_N;
     Vec                  _zP;
     //~ PetscScalar   *_muArrPlus,*_csArrPlus;
@@ -70,6 +71,8 @@ class Fault: public RootFinderContext
     Fault& operator=( const Fault& rhs);
 
     PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
+    PetscErrorCode  setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
+      const PetscScalar maxVal);
 
   //~public:
     Vec            _tauQSP;

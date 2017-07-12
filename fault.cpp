@@ -15,7 +15,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
-  _sigma_N(NULL),
+  _sigmaN_cap(1e14),_sigma_N(NULL),
   _muVecP(&D._muVecP),_csVecP(&D._csVecP),
   _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
@@ -234,6 +234,45 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
   return ierr;
 }
 
+// Fills vec with the linear interpolation between the pairs of points (vals,depths), but always below the specified max value
+PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
+  const PetscScalar maxVal)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    std::string funcName = "Fault::setVecFromVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+      z0 = depths[0+ind];
+      z1 = depths[0+ind+1];
+      v0 = vals[0+ind];
+      v1 = vals[0+ind+1];
+      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+      v = min(maxVal,v);
+      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode Fault::setFrictionFields(Domain&D)
 {
   PetscErrorCode ierr = 0;
@@ -266,7 +305,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
   }
@@ -1189,6 +1228,9 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("sigmaNDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNDepths);
+    }
+    else if (var.compare("sigmaN_cap")==0) {
+      _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     else if (var.compare("aVals")==0) {
