@@ -47,11 +47,15 @@ class HeatEquation: public IntegratorContextEx
     std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
     std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
 
+    // heat fluxes
+    Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
+
 
     // viewers
     PetscViewer          _TV; // temperature viewer
     PetscViewer          _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
     PetscViewer          _timeV; // time output viewer for debugging
+    PetscViewer          _heatFluxV,_surfaceHeatFluxV; // time output viewer for debugging
 
     // which factors to include
     std::string          _wShearHeating,_wFrictionalHeating;
@@ -70,6 +74,7 @@ class HeatEquation: public IntegratorContextEx
     // runtime data
     double               _linSolveTime,_linSolveTime1,_factorTime;
     PetscInt             _linSolveCount,_pcRecomputeCount;
+    PetscInt             _stride1D,_stride2D; // stride
 
 
     // load settings from input file
@@ -84,6 +89,7 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
+    PetscErrorCode computeHeatFlux();
 
 
   public:
@@ -122,6 +128,7 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode view();
     PetscErrorCode writeDomain();
     PetscErrorCode writeContext();
+    PetscErrorCode writeStep1D(const PetscInt stepCount);
     PetscErrorCode writeStep2D(const PetscInt stepCount);
 };
 

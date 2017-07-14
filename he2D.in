@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 201
+Ny = 301
+Nz = 401
 Ly = 24 # km
 Lz = 40 # km
 
@@ -28,7 +28,7 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaNDepths = [0 60] #(km) constant
 sigmaNVals = [5.668 5.668 1336] # MPa
 sigmaNDepths = [0 0.25 60]
-sigmaN_cap = 30; # MPa
+sigmaN_cap = 50; # MPa
 
 
 vL = 1e-9    # (m/s)
@@ -113,11 +113,11 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
-withFrictionalHeating = no
+#thermalCoupling = no
+withShearHeating = yes
+withFrictionalHeating = yes
 
 
 
@@ -131,11 +131,11 @@ viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 10 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
@@ -156,6 +156,7 @@ f0 = 0.6
 #v0 = 1e-6
 #f0 = 0.6
 #fw = 0.12
+#fw = 0.0
 #Vw = 0.1
 #Tw = 1.1732e+03 # K 900 C
 #tau_c = 3 # GPa
@@ -181,8 +182,34 @@ f0 = 0.6
 
 #outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN20_Ny301_Nz801_
 #outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz1201_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1201_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN50_Ny301_Nz1201_
 
-outputDir = /scratch/kallison/le/test_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz1501_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1501_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN50_Ny301_Nz1501_
+#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1601_
+#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN40_Ny301_Nz1601_
+#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN40_Ny301_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN50_Ny301_Nz801_
+#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN50_Ny301_Nz401_
+
+
+
+# checking heat flux at surface
+#outputDir = /scratch/kallison/heFlux/le_sN20_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_sN30_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_sN40_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz801_
+#outputDir = /scratch/kallison/heFlux/le_sN50_slipLaw_g30_Ny301_Nz401_
+
+
+
+
+
+
 
 
 

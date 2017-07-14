@@ -979,8 +979,9 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("slipLaw")) {
-      ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+      //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+      theta = psi; dtheta = dpsi;
       }
     else if (!_stateLaw.compare("flashHeating")) {
       ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);

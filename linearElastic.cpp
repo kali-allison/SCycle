@@ -292,6 +292,7 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
   #if CALCULATE_ENERGY == 1
     VecCopy(_uP,_uPPrev);
   #endif
+
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
@@ -760,6 +761,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
                                    FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
 
   ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
 
   #if CALCULATE_ENERGY == 1
   // write out calculated energy
@@ -793,6 +795,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
     #endif
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

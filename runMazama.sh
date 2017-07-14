@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N test
+#PBS -N le_sN50_slipLaw_g30_Ny301_Nz401
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/test.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/test.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/le_sN50_slipLaw_g30_Ny301_Nz401.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/le_sN50_slipLaw_g30_Ny301_Nz401.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
