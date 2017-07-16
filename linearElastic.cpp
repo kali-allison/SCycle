@@ -610,6 +610,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   VecScale(_bcLP,0.5);
 
 
+
   return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -857,7 +858,6 @@ PetscErrorCode SymmLinearElastic::writeStep2D()
       //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"uAnal").c_str(),
                                      //~FILE_MODE_APPEND,&_uAnalV);CHKERRQ(ierr);
       //~}
-
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",_currTime);CHKERRQ(ierr);

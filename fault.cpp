@@ -69,6 +69,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecAssemblyEnd(_z);
 
   setFrictionFields(D);
+  VecCopy(_psi,_theta);
 
   //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
@@ -474,7 +475,7 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
-  PetscScalar    a,b,slipVel,Dc,sN;
+  PetscScalar    a,b,slipVel,Dc,sN,z;
 
 
   ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
@@ -482,9 +483,13 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+  ierr = VecGetValues(_z,1,&ind,&z);CHKERRQ(ierr);
   ierr = VecGetValues(_sigma_N,1,&ind,&sN);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
+
+  //~ if (slipVel == 0.0) { PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); }
+  if (slipVel == 0.0) { slipVel += 1e-14; }
 
   // flash heating parameters
   PetscScalar fLV = _f0 + (a-b)*log(slipVel/_v0);
@@ -503,6 +508,7 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
 
   if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*(Vw/slipVel); }
+  if (a-b > 0.0) { fss = fLV; }
   PetscScalar f = state + a*log(slipVel/_v0);
   dstate = -slipVel/Dc *(f - fss);
 

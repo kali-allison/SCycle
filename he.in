@@ -72,9 +72,9 @@ rhoDepths = [0 60]
 #TVals = [600 600] # K, ~ eq nucleation depth
 TVals = [300 300] # K, ~ surface behavior
 TDepths = [0 50]
-thermalCoupling = uncoupled
+thermalCoupling = coupled
 #thermalCoupling = no
-withShearHeating = no
+withShearHeating = yes
 withFrictionalHeating = yes
 
 
@@ -126,7 +126,7 @@ f0 = 0.6
 #outputDir = data/SS_flashHeating_test_
 
 #outputDir = /scratch/kallison/SS/le_flashHeating_test_
-#outputDir = /scratch/kallison/SS/le_slipLaw_
+outputDir = /scratch/kallison/SS/le_slipLaw_
 
 
 

@@ -1344,9 +1344,9 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecSet(out,0.0);
 
   Vec GL, GR,temp1;
-  VecDuplicate(u,&GL);
-  VecDuplicate(u,&GR);
-  VecDuplicate(u,&temp1);
+  VecDuplicate(u,&GL); VecSet(GL,0.0);
+  VecDuplicate(u,&GR); VecSet(GR,0.0);
+  VecDuplicate(u,&temp1); VecSet(temp1,0.0);
 
   // left displacement boundary
   if (_bcLTauQS==0) {
@@ -1357,6 +1357,7 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   }
 
   // right displacement boundary
+  VecSet(temp1,0.0);
   ierr = _sbpP->HyinvxENy(u,temp1);CHKERRQ(ierr);
   ierr = _sbpP->HyinvxeNy(gR,GR);CHKERRQ(ierr);
   VecAXPY(out,-1.0,temp1);
@@ -1707,10 +1708,12 @@ PetscErrorCode PowerLaw::writeStep1D()
                                    //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     //~ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);

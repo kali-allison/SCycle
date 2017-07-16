@@ -1,5 +1,5 @@
 order = 4
-Ny = 301
+Ny = 201
 Nz = 401
 Ly = 24 # km
 Lz = 40 # km
@@ -36,21 +36,8 @@ vL = 1e-9    # (m/s)
 
 # just effective viscosity data
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny101_Nz201_
-
-# from linear elastic that actually worked
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_3IC_z
-
-# on my laptop: g = 30
-#inputDir = /Users/kallison/eqcycle/inputData/he_g30_Nz251_
-#inputDir = /Users/kallison/eqcycle/inputData/le_
-#zInputDir = /Users/kallison/eqcycle/inputData/le_z
-
-# on my laptop: g = 25
-#inputDir = /Users/kallison/eqcycle/inputData/he_g25_Ny101_Nz151_
-#inputDir = /Users/kallison/eqcycle/inputData/g25_IC_
-#zinputDir = /Users/kallison/eqcycle/inputData/g25_IC_z
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny201_Nz401_
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/le_Ny201_Nz931_z
 loadICs = 0
 bcLTauQS = 0
 
@@ -62,8 +49,8 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
-#bCoordTrans = 7.0
+#bCoordTrans = 15.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -84,14 +71,6 @@ BVals = [2.6341e+04 2.6341e+04]
 BDepths = [0 60]
 nVals = [2.4 2.4]
 nDepths = [0 60]
-
-# power law properties: constant
-#AVals = [1e-30 1e-30]
-#ADepths = [0 60]
-#BVals = [0.0 0.0]
-#BDepths = [0 60]
-#nVals = [1.0 1.0]
-#nDepths = [0 60]
 
 # heat equation properties
 #heatFieldsDistribution = mms
@@ -117,7 +96,7 @@ thermalCoupling = coupled
 #thermalCoupling = uncoupled
 #thermalCoupling = no
 withShearHeating = yes
-withFrictionalHeating = yes
+withFrictionalHeating = no
 
 
 
@@ -126,8 +105,8 @@ withFrictionalHeating = yes
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
@@ -147,8 +126,8 @@ timeIntInds = [0 2]
 rootTol = 1e-9
 
 
-#stateLaw = agingLaw
-stateLaw = slipLaw
+stateLaw = agingLaw
+#stateLaw = slipLaw
 v0 = 1e-6
 f0 = 0.6
 
@@ -169,42 +148,36 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
 
 
-#outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
-
-#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz301_
-#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz401_
-#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz501_
-#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLaw_Ny201_Nz1001_
-
-#outputDir = /scratch/kallison/le/le_slipLaw_Dc32_sN20_Ny201_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc32_sN20_Ny201_Nz801_
-
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN20_Ny301_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz1201_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1201_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN50_Ny301_Nz1201_
-
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN30_Ny301_Nz1501_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1501_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN50_Ny301_Nz1501_
-#outputDir = /scratch/kallison/le/le_slipLaw_nhe_Dc16_sN40_Ny301_Nz1601_
-#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN40_Ny301_Nz1601_
-#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN40_Ny301_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN50_Ny301_Nz801_
-#outputDir = /scratch/kallison/le/le_slipLawPsi_nhe_Dc16_sN50_Ny301_Nz401_
-
-
-
 # checking heat flux at surface
 #outputDir = /scratch/kallison/heFlux/le_sN20_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_sN30_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_sN40_flashHeating_g30_Ny301_Nz401_
 #outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz401_
 #outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz801_
 #outputDir = /scratch/kallison/heFlux/le_sN50_slipLaw_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_sN50_slipLaw_g30_Ny301_Nz801_
 
+#outputDir = /scratch/kallison/heFlux/le_b15_sN50_slipLaw_g30_Ny301_Nz401_
+
+#outputDir = /scratch/kallison/heFlux/pl_sN50_fw0.0_g30_Ny301_Nz501_
+#outputDir = /scratch/kallison/heFlux/pl_sN50_fw0.12_g30_Ny301_Nz501_
+#outputDir = /scratch/kallison/heFlux/pl_sN50_aL_g30_Ny301_Nz401_
+
+#outputDir = /scratch/kallison/heFlux/le_v2_sN50_flashHeating_g30_Ny301_Nz801_
+#outputDir = /scratch/kallison/heFlux/le_v2_sN50_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_v3_sN50_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_v4_sN50_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_v4_b15_sN50_flashHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/le_v3_sN50_flashHeating_g30_Ny101_Nz101_
+#outputDir = /scratch/kallison/heFlux/pl_shearHeating_g30_Ny301_Nz401_
+#outputDir = /scratch/kallison/heFlux/pl_shearHeating_g30_Ny301_Nz801_
+
+
+#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz851_
+#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz801_
+#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz783_
+#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz832_
+#outputDir = /scratch/kallison/heFlux/le_sl_Ny201_Nz931_
+
+outputDir = /scratch/kallison/heFlux/pl_al_b7_Ny201_Nz401_
 
 
 

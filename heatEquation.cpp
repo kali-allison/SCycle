@@ -988,10 +988,10 @@ PetscErrorCode HeatEquation::computeShearHeating(Vec& shearHeat,const Vec& sigma
     ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
     MatMult(yq,temp1,temp2);
     MatMult(zr,temp2,shearHeat);
-    VecDestroy(&temp1);
     VecDestroy(&temp2);
   }
   else{ VecCopy(temp1,shearHeat); }
+  VecDestroy(&temp1);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
