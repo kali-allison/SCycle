@@ -1009,20 +1009,21 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec stressxzP,tau;
-    //~ VecDuplicate(_uP,&stressxzP);
-    //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    //~ VecDuplicate(_fault._tauQSP,&tau);
-    //~ _fault.getTau(tau);
+    Vec stressxzP,tau;
+    VecDuplicate(_uP,&stressxzP);
+    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+    VecDuplicate(_fault._tauQSP,&tau);
+    _fault.getTau(tau);
 
-    //~ _fault.setTemp(_T);
-    //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
-      //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-    //~ VecDestroy(&stressxzP);
-    //~ // arguments:
-    //~ // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
+    _fault.setTemp(_T);
+    ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
+      NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+    VecDestroy(&stressxzP);
+    VecDestroy(&tau);
+    // arguments:
+    // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
 
-    //~ _he.getTemp(_T);
+    _he.getTemp(_T);
   }
   else {
     ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);

@@ -1,6 +1,6 @@
 order = 4
-Ny = 51
-Nz = 61
+Ny = 201
+Nz = 401
 Ly = 24 # km
 Lz = 40 # km
 
@@ -92,10 +92,10 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -105,16 +105,16 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 10 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
@@ -145,10 +145,8 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz832_
 #outputDir = /scratch/kallison/heFlux/le_sl_Ny201_Nz931_
 
-outputDir = /scratch/kallison/heFlux/pl_memTest_
-
 #outputDir = /scratch/kallison/heFlux/pl_al_nsh_b7_Ny201_Nz401_
-#outputDir = /scratch/kallison/heFlux/pl_al_wsh_b7_Ny201_Nz401_
+outputDir = /scratch/kallison/heFlux/pl_al_wsh_b7_Ny201_Nz401_
 
 
 

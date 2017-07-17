@@ -930,14 +930,14 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
-  VecCopy(_T,T);
-
   VecDestroy(&rhs);
   MatDestroy(&_A);
   KSPDestroy(&_ksp);
 
+
+  VecCopy(_T,T);
   computeHeatFlux();
-  assert(0);
+  //~ assert(0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
