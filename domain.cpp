@@ -169,9 +169,6 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-  //~ PetscFree(_sigmaNArr);
-  //~ PetscFree(_muArrMinus);
-  //~ PetscFree(_csArrMinus);
 
   VecDestroy(&_muVecP);
   VecDestroy(&_csVecP);
@@ -182,7 +179,7 @@ Domain::~Domain()
   VecDestroy(&_y);
   VecDestroy(&_z);
 
-  //~ DMDestroy(&_da);
+  DMDestroy(&_da);
 
   //~ VecDestroy(&_muVecM);
 

@@ -75,10 +75,10 @@ int runEqCycle(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  //~ PowerLaw pl(d);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = pl.integrate();CHKERRQ(ierr);
-  //~ ierr = pl.view();CHKERRQ(ierr);
+  PowerLaw pl(d);
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = pl.integrate();CHKERRQ(ierr);
+  ierr = pl.view();CHKERRQ(ierr);
 
   //~ PowerLaw *obj;
   //~ obj = new PowerLaw(domain);

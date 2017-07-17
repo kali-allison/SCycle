@@ -509,16 +509,16 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "test.in"; }
 
-  //~ {
+  {
     //~ PetscMPIInt localRank;
     //~ MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
     //~ PetscPrintf(PETSC_COMM_SELF,"%i: hi!\n", localRank);
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  testMemoryLeak(inputFile);
+  //~ testMemoryLeak(inputFile);
 
   //~ computeGreensFunction(inputFile);
 

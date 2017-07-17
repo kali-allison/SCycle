@@ -25,7 +25,7 @@ LinearElastic::LinearElastic(Domain&D)
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
-  _thermalCoupling("no"),_he(D),_T(NULL),
+  _thermalCoupling("no"),_he(D),_T(NULL),_tempViewer(NULL),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
   _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
@@ -64,9 +64,10 @@ LinearElastic::LinearElastic(Domain&D)
 
 LinearElastic::~LinearElastic()
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::~LinearElastic in linearElastic.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::~LinearElastic()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // boundary conditions
   VecDestroy(&_bcLP);
@@ -107,7 +108,7 @@ LinearElastic::~LinearElastic()
 
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::~LinearElastic in linearElastic.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
 }
 
@@ -435,11 +436,6 @@ SymmLinearElastic::~SymmLinearElastic()
   for(std::vector<Vec>::size_type i = 0; i != _varIm.size(); i++) {
     VecDestroy(&_varIm[i]);
   }
-
-  //~ if (_quadImex != NULL) {_quadImex.~_quadImex(); _quadImex = NULL; }
-  //~ if (_quadEx != NULL) {_quadEx->~OdeSolver(); _quadEx = NULL; }
-  delete _quadImex; _quadImex = NULL;
-  delete _quadEx; _quadEx = NULL;
 
   VecDestroy(&_E);
   PetscViewerDestroy(&_eV);
