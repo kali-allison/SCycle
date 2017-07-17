@@ -84,7 +84,7 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec dvarBegin);
 
-    PetscErrorCode writeContext(const string outputDir);
+    PetscErrorCode writeContext();
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();
     PetscErrorCode view();

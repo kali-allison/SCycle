@@ -90,7 +90,9 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_uPV);
   PetscViewerDestroy(&_tempViewer);
 
-  delete _sbpP;
+  delete _sbpP; _sbpP = NULL;
+  delete _quadImex; _quadImex = NULL;
+  delete _quadEx; _quadEx = NULL;
 
 
   PetscViewerDestroy(&_bcRPlusV);
@@ -434,8 +436,10 @@ SymmLinearElastic::~SymmLinearElastic()
     VecDestroy(&_varIm[i]);
   }
 
-  delete _quadImex;
-  delete _quadEx;
+  //~ if (_quadImex != NULL) {_quadImex.~_quadImex(); _quadImex = NULL; }
+  //~ if (_quadEx != NULL) {_quadEx->~OdeSolver(); _quadEx = NULL; }
+  delete _quadImex; _quadImex = NULL;
+  delete _quadEx; _quadEx = NULL;
 
   VecDestroy(&_E);
   PetscViewerDestroy(&_eV);

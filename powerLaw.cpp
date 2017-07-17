@@ -32,7 +32,7 @@ PowerLaw::PowerLaw(Domain& D)
     loadFieldsFromFiles();
     setUpSBPContext(D); // set up matrix operators
     setStresses(_initTime);
-    }
+  }
   else {
     guessSteadyStateEffVisc();
     setSSInitialConds(D);
@@ -71,34 +71,34 @@ PowerLaw::~PowerLaw()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ VecDestroy(&_T);
-  //~ VecDestroy(&_A);
-  //~ VecDestroy(&_n);
-  //~ VecDestroy(&_B);
-  //~ VecDestroy(&_effVisc);
+  VecDestroy(&_T);
+  VecDestroy(&_A);
+  VecDestroy(&_n);
+  VecDestroy(&_B);
+  VecDestroy(&_effVisc);
 
-  //~ VecDestroy(&_sxzP);
-  //~ VecDestroy(&_sigmadev);
+  VecDestroy(&_sxzP);
+  VecDestroy(&_sigmadev);
 
-  //~ VecDestroy(&_gTxyP);
-  //~ VecDestroy(&_gTxzP);
-  //~ VecDestroy(&_gxyP);
-  //~ VecDestroy(&_gxzP);
-  //~ VecDestroy(&_dgxyP);
-  //~ VecDestroy(&_dgxzP);
+  VecDestroy(&_gTxyP);
+  VecDestroy(&_gTxzP);
+  VecDestroy(&_gxyP);
+  VecDestroy(&_gxzP);
+  VecDestroy(&_dgxyP);
+  VecDestroy(&_dgxzP);
 
-  //~ PetscViewerDestroy(&_sxyPV);
-  //~ PetscViewerDestroy(&_sxzPV);
-  //~ PetscViewerDestroy(&_sigmadevV);
-  //~ PetscViewerDestroy(&_gTxyPV);
-  //~ PetscViewerDestroy(&_gTxzPV);
-  //~ PetscViewerDestroy(&_gxyPV);
-  //~ PetscViewerDestroy(&_gxzPV);
-  //~ PetscViewerDestroy(&_dgxyPV);
-  //~ PetscViewerDestroy(&_dgxzPV);
-  //~ PetscViewerDestroy(&_effViscV);
+  PetscViewerDestroy(&_sxyPV);
+  PetscViewerDestroy(&_sxzPV);
+  PetscViewerDestroy(&_sigmadevV);
+  PetscViewerDestroy(&_gTxyPV);
+  PetscViewerDestroy(&_gTxzPV);
+  PetscViewerDestroy(&_gxyPV);
+  PetscViewerDestroy(&_gxzPV);
+  PetscViewerDestroy(&_dgxyPV);
+  PetscViewerDestroy(&_dgxzPV);
+  PetscViewerDestroy(&_effViscV);
 
-  //~ PetscViewerDestroy(&_timeV2D);
+  PetscViewerDestroy(&_timeV2D);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -744,6 +744,8 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   VecMin(Tmax,NULL,&min_Tmax);
 
   maxTimeStep = 0.3 * min_Tmax;
+
+  VecDestroy(&Tmax);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1631,7 +1633,7 @@ PetscErrorCode PowerLaw::measureMMSError()
 // IO functions
 //======================================================================
 
-PetscErrorCode PowerLaw::writeContext(const string outputDir)
+PetscErrorCode PowerLaw::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1642,18 +1644,17 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
 
   PetscViewer    vw;
 
-  std::string str = outputDir + "powerLawA";
+  std::string str = _outputDir + "powerLawA";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_A,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
-  assert(0);
 
-  str = outputDir + "powerLawB";
+  str = _outputDir + "powerLawB";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_B,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
-  str = outputDir + "n";
+  str = _outputDir + "n";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_n,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
@@ -1682,7 +1683,7 @@ PetscErrorCode PowerLaw::writeStep1D()
     // write contextual fields
     _he.writeContext();
     //~ierr = _sbpP->writeOps(_outputDir);CHKERRQ(ierr);
-    ierr = writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = writeContext();CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);

@@ -70,7 +70,7 @@ class OdeSolver
     //~ typedef vector<Vec>::const_iterator const_it_vec;
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~OdeSolver();
+    virtual ~OdeSolver() {};
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
@@ -95,6 +95,7 @@ class FEuler : public OdeSolver
 {
   public:
     FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    ~FEuler() {};
     PetscErrorCode view();
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};

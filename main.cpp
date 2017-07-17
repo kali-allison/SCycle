@@ -22,7 +22,6 @@ int runTests(const char * inputFile)
   PetscErrorCode ierr = 0;
 
   Domain d(inputFile);
-  //~Domain domain(inputFile,5,4);
   d.write();
 
 
@@ -38,7 +37,7 @@ int runTests(const char * inputFile)
   //~ lith.view();
 
   PowerLaw pl(d);
-  pl.writeContext(d._outputDir);
+  //~ pl.writeContext();
   //~ pl.writeStep1D();
   //~ pl.writeStep2D();
   //~ pl.integrate();
@@ -73,15 +72,21 @@ int runEqCycle(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  Domain domain(inputFile);
-  domain.write();
+  Domain d(inputFile);
+  d.write();
 
-  PowerLaw *obj;
-  obj = new PowerLaw(domain);
+  //~ PowerLaw pl(d);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = pl.integrate();CHKERRQ(ierr);
+  //~ ierr = pl.view();CHKERRQ(ierr);
 
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = obj->integrate();CHKERRQ(ierr);
-  ierr = obj->view();CHKERRQ(ierr);
+  //~ PowerLaw *obj;
+  //~ obj = new PowerLaw(domain);
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = obj->integrate();CHKERRQ(ierr);
+  //~ ierr = obj->view();CHKERRQ(ierr);
+  //~ delete obj;
 
   return ierr;
 }
@@ -97,13 +102,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.txt"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  runTests(inputFile);
+  //~ runTests(inputFile);
 
   PetscFinalize();
   return ierr;

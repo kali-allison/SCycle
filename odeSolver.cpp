@@ -20,19 +20,6 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,stri
 #endif
 }
 
-OdeSolver::~OdeSolver()
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver destructor in odeSolver.cpp.\n");
-#endif
-
-  // because I don't allocate the contents of _var, I don't delete them in this class either
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver destructor in odeSolver.cpp.\n");
-#endif
-}
-
 
 PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
@@ -44,6 +31,7 @@ PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal fin
   _initT = initT;
   _currT = initT;
   _finalT = finalT;
+
 
   _runTime += MPI_Wtime() - startTime;
   return 0;
@@ -190,6 +178,7 @@ RK32::~RK32()
   destroyVector(_var2nd);
   destroyVector(_dvar2nd);
   destroyVector(_var3rd);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
@@ -535,16 +524,16 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
   }
 
-    // destruct temporary containers
-  for (int ind=0;ind<_lenVar;ind++) {
-    VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
-    VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
-    VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
-    VecDestroy(&_var3rd[ind]);
-  }
-  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    VecDestroy(&_dvar[i]);
-  }
+    //~ // destruct temporary containers
+  //~ for (int ind=0;ind<_lenVar;ind++) {
+    //~ VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
+    //~ VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
+    //~ VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
+    //~ VecDestroy(&_var3rd[ind]);
+  //~ }
+  //~ for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    //~ VecDestroy(&_dvar[i]);
+  //~ }
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
