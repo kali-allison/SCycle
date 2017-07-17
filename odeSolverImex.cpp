@@ -31,6 +31,20 @@ OdeSolverImex::~OdeSolverImex()
 
   // because I don't allocate the contents of _var, I don't delete them in this class either
 
+  // destruct temporary containers
+  destroyVector(_dvar);
+  destroyVector(_varHalfdT);
+  destroyVector(_dvarHalfdT);
+  destroyVector(_vardT);
+  destroyVector(_dvardT);
+  destroyVector(_var2nd);
+  destroyVector(_dvar2nd);
+  destroyVector(_var3rd);
+
+  destroyVector(_varHalfdTIm);
+  destroyVector(_vardTIm);
+  destroyVector(_varIm_half);
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex destructor in OdeSolverImex.cpp.\n");
 #endif
@@ -140,9 +154,10 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vecto
   _lenVar = varEx.size();
 
   _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
-  _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
-  _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
-  _var3rd   .reserve(_lenVar);
+  _vardT.reserve(_lenVar);     _dvardT.reserve(_lenVar);
+  _var2nd.reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
+  _var3rd.reserve(_lenVar);
+  _dvar.reserve(_lenVar);
 
   _dvar.reserve(_lenVar);
   for (int ind=0;ind<_lenVar;ind++) {
@@ -181,7 +196,6 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vecto
   VecDuplicate(*varIm.begin(),&temp2);
   VecSet(temp2,0.0);
   _varIm_half.push_back(temp2);
-
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -411,19 +425,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
   }
 
-    // destruct temporary containers
-  for (int ind=0;ind<_lenVar;ind++) {
-    VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
-    VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
-    VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
-    VecDestroy(&_var3rd[ind]);
-  }
-  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    VecDestroy(&_dvar[i]);
-  }
-  VecDestroy(&_varHalfdTIm[0]);
-  VecDestroy(&_vardTIm[0]);
-  VecDestroy(&_varIm_half[0]);
+
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1

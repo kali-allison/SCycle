@@ -88,9 +88,9 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_timeV2D);
   PetscViewerDestroy(&_surfDispPlusViewer);
   PetscViewerDestroy(&_uPV);
+  PetscViewerDestroy(&_tempViewer);
 
   delete _sbpP;
-  //delete _quadEx;
 
 
   PetscViewerDestroy(&_bcRPlusV);
@@ -398,7 +398,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     VecSet(deltaT,0);
     _varIm.push_back(deltaT);
 
-    VecDuplicate(_uP,&_T);
     _he.getTemp(_T);
     _fault.setTemp(_T);
   }
@@ -431,6 +430,12 @@ SymmLinearElastic::~SymmLinearElastic()
     VecDestroy(&_var[i]);
   }
 
+  for(std::vector<Vec>::size_type i = 0; i != _varIm.size(); i++) {
+    VecDestroy(&_varIm[i]);
+  }
+
+  delete _quadImex;
+  delete _quadEx;
 
   VecDestroy(&_E);
   PetscViewerDestroy(&_eV);
@@ -899,9 +904,6 @@ PetscErrorCode SymmLinearElastic::integrate()
     ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    //~ int arrInds[] = {1}; // state psi: 0, state theta: 1, slip: 2
-    //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    //~ ierr = _quadImex->setErrInds(errInds);
     ierr = _quadImex->setErrInds(_timeIntInds);
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
@@ -1007,20 +1009,20 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec stressxzP,tau;
-    VecDuplicate(_uP,&stressxzP);
-    ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    VecDuplicate(_fault._tauQSP,&tau);
-    _fault.getTau(tau);
+    //~ Vec stressxzP,tau;
+    //~ VecDuplicate(_uP,&stressxzP);
+    //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
+    //~ VecDuplicate(_fault._tauQSP,&tau);
+    //~ _fault.getTau(tau);
 
-    _fault.setTemp(_T);
-    ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
-      NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-    VecDestroy(&stressxzP);
-    // arguments:
-    // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
+    //~ _fault.setTemp(_T);
+    //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
+      //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+    //~ VecDestroy(&stressxzP);
+    //~ // arguments:
+    //~ // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
 
-    _he.getTemp(_T);
+    //~ _he.getTemp(_T);
   }
   else {
     ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);

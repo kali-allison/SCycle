@@ -177,22 +177,23 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 
 RK32::~RK32()
 {
-//~ #if VERBOSE > 1
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
-//~ #endif
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::destructor in odeSolver.cpp.\n");
+#endif
 
-//~ PetscPrintf(PETSC_COMM_WORLD,"%i\n\n",_lenVar);
-//~ assert(0);
-  //~ // destruct temporary containers
-  //~ for (int ind=0;ind<_lenVar;ind++) {
-    //~ VecDestroy(&_varHalfdT[ind]); VecDestroy(&_dvarHalfdT[ind]);
-    //~ VecDestroy(&_vardT[ind]);     VecDestroy(&_dvardT[ind]);
-    //~ VecDestroy(&_var2nd[ind]);    VecDestroy(&_dvar2nd[ind]);
-    //~ VecDestroy(&_var3rd[ind]);
-  //~ }
-//~ #if VERBOSE > 1
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
-//~ #endif
+  // destruct temporary containers
+  destroyVector(_dvar);
+  destroyVector(_varHalfdT);
+  destroyVector(_dvarHalfdT);
+  destroyVector(_vardT);
+  destroyVector(_dvardT);
+  destroyVector(_var2nd);
+  destroyVector(_dvar2nd);
+  destroyVector(_var3rd);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::destructor in odeSolver.cpp.\n");
+  #endif
 }
 
 PetscErrorCode RK32::view()

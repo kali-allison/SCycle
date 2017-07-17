@@ -31,10 +31,10 @@ HeatEquation::HeatEquation(Domain& D)
   checkInput();
   {
     setFields(D);
-
-    //~ delete _sbpT;
+    delete _sbpT;
+    _sbpT = NULL;
   }
-  /*
+
 
   // set up linear system for time integration
   setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
@@ -75,13 +75,11 @@ HeatEquation::HeatEquation(Domain& D)
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  */
+
 }
 
 HeatEquation::~HeatEquation()
 {
-
-//~ _I,_rhoC,_A,_pcMat
 
   KSPDestroy(&_ksp);
   MatDestroy(&_A);
@@ -666,12 +664,8 @@ PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt ste
 
   if (stepCount == 0) {
     writeContext();
-    //~ ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV);CHKERRQ(ierr);
   }
-  //~ if ( stepCount % 1 == 0) {
-    //~ ierr = writeStep2D(stepCount);CHKERRQ(ierr);
-    //~ ierr = PetscViewerASCIIPrintf(_timeV, "%.15e\n",time);CHKERRQ(ierr);
-  //~ }
+
   #if CALCULATE_ENERGY == 1
     VecCopy(_uP,_uPPrev);
   #endif
@@ -879,6 +873,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     CHKERRQ(ierr);
   #endif
 
+/*
   // set up matrix
   setupKSP(_sbpT,dt);
 
@@ -942,6 +937,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   KSPDestroy(&_ksp);
 
   computeHeatFlux();
+  */
+  VecCopy(_T,T);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

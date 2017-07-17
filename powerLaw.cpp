@@ -38,18 +38,15 @@ PowerLaw::PowerLaw(Domain& D)
     setSSInitialConds(D);
     setUpSBPContext(D); // set up matrix operators
     setStresses(_initTime);
-    //~ assert(0);
   }
 
   if (_isMMS) { setMMSInitialConditions(); }
-
 
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
-
 
   // should already be done from linear elastic
   //~ _he.getTemp(_T);
@@ -74,34 +71,32 @@ PowerLaw::~PowerLaw()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecDestroy(&_bcRPShift);
-  VecDestroy(&_effVisc);
-  VecDestroy(&_T);
+  //~ VecDestroy(&_T);
+  //~ VecDestroy(&_A);
+  //~ VecDestroy(&_n);
+  //~ VecDestroy(&_B);
+  //~ VecDestroy(&_effVisc);
 
-  VecDestroy(&_A);
-  VecDestroy(&_n);
-  VecDestroy(&_B);
+  //~ VecDestroy(&_sxzP);
+  //~ VecDestroy(&_sigmadev);
 
-  VecDestroy(&_sxzP);
-  VecDestroy(&_sigmadev);
+  //~ VecDestroy(&_gTxyP);
+  //~ VecDestroy(&_gTxzP);
+  //~ VecDestroy(&_gxyP);
+  //~ VecDestroy(&_gxzP);
+  //~ VecDestroy(&_dgxyP);
+  //~ VecDestroy(&_dgxzP);
 
-  VecDestroy(&_gTxyP);
-  VecDestroy(&_gTxzP);
-  VecDestroy(&_gxyP);
-  VecDestroy(&_gxzP);
-  VecDestroy(&_dgxyP);
-  VecDestroy(&_dgxzP);
-
-  PetscViewerDestroy(&_sxyPV);
-  PetscViewerDestroy(&_sxzPV);
-  PetscViewerDestroy(&_sigmadevV);
-  PetscViewerDestroy(&_gTxyPV);
-  PetscViewerDestroy(&_gTxzPV);
-  PetscViewerDestroy(&_gxyPV);
-  PetscViewerDestroy(&_gxzPV);
-  PetscViewerDestroy(&_dgxyPV);
-  PetscViewerDestroy(&_dgxzPV);
-  PetscViewerDestroy(&_effViscV);
+  //~ PetscViewerDestroy(&_sxyPV);
+  //~ PetscViewerDestroy(&_sxzPV);
+  //~ PetscViewerDestroy(&_sigmadevV);
+  //~ PetscViewerDestroy(&_gTxyPV);
+  //~ PetscViewerDestroy(&_gTxzPV);
+  //~ PetscViewerDestroy(&_gxyPV);
+  //~ PetscViewerDestroy(&_gxzPV);
+  //~ PetscViewerDestroy(&_dgxyPV);
+  //~ PetscViewerDestroy(&_dgxzPV);
+  //~ PetscViewerDestroy(&_effViscV);
 
   //~ PetscViewerDestroy(&_timeV2D);
 
@@ -501,12 +496,13 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
   }
   VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
 
-  writeVec(_bcLP,(_outputDir+"init1_bcL").c_str());
-  writeVec(_bcRP,(_outputDir+"init1_bcR").c_str());
+  //~ writeVec(_bcLP,(_outputDir+"init1_bcL").c_str());
+  //~ writeVec(_bcRP,(_outputDir+"init1_bcR").c_str());
 
   _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   KSPDestroy(&_kspP);
+  VecDestroy(&faultVisc);
   delete _sbpP;
   _sbpP = NULL;
 
@@ -532,10 +528,8 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
   VecCopy(_bcLP,_fault._slip);
   VecScale(_fault._slip,2.0);
@@ -1652,6 +1646,7 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
   ierr = VecView(_A,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
+  assert(0);
 
   str = outputDir + "powerLawB";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);

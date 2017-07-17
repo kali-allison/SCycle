@@ -1,5 +1,13 @@
 #include "genFuncs.hpp"
 
+// clean up a C++ std library vector of PETSc Vecs
+void destroyVector(std::vector<Vec>& vec)
+{
+  for(std::vector<Vec>::size_type i = 0; i != vec.capacity(); i++) {
+      VecDestroy(&vec[i]);
+  }
+}
+
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec)
 {
