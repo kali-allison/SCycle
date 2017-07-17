@@ -873,7 +873,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     CHKERRQ(ierr);
   #endif
 
-/*
+
   // set up matrix
   setupKSP(_sbpT,dt);
 
@@ -937,8 +937,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   KSPDestroy(&_ksp);
 
   computeHeatFlux();
-  */
-  VecCopy(_T,T);
+  assert(0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
