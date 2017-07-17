@@ -26,13 +26,15 @@ HeatEquation::HeatEquation(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+
   loadSettings(_file);
   checkInput();
   {
     setFields(D);
 
-    delete _sbpT;
+    //~ delete _sbpT;
   }
+  /*
 
   // set up linear system for time integration
   setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
@@ -73,12 +75,16 @@ HeatEquation::HeatEquation(Domain& D)
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  */
 }
 
 HeatEquation::~HeatEquation()
 {
 
+//~ _I,_rhoC,_A,_pcMat
+
   KSPDestroy(&_ksp);
+  MatDestroy(&_A);
   MatDestroy(&_rhoC);
   MatDestroy(&_I);
 
@@ -103,6 +109,7 @@ HeatEquation::~HeatEquation()
   PetscViewerDestroy(&_bcTVw);
   PetscViewerDestroy(&_bcLVw);
   PetscViewerDestroy(&_bcBVw);
+  PetscViewerDestroy(&_timeV);
   PetscViewerDestroy(&_heatFluxV);
   PetscViewerDestroy(&_surfaceHeatFluxV);
 
@@ -887,8 +894,6 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   if (_wFrictionalHeating.compare("yes")==0) {
     VecPointwiseMult(_bcL,tau,slipVel);
     VecScale(_bcL,0.5);
-    //~ VecCopy(tau,_bcL);
-    //~ VecScale(_bcL,1e-10);
   }
   else { VecSet(_bcL,0.0); }
 
@@ -1243,6 +1248,8 @@ PetscErrorCode HeatEquation::writeDomain()
   PetscMPIInt size;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);

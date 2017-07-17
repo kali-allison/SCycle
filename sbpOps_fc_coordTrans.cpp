@@ -2255,6 +2255,8 @@ TempMats_fc_coordTrans::~TempMats_fc_coordTrans()
   MatDestroy(&_rz);
   MatDestroy(&_muqy);
   MatDestroy(&_murz);
+  MatDestroy(&_yq);
+  MatDestroy(&_zr);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N pl_al_b7_Ny201_Nz401
+#PBS -N pl_al_nsh_b7_Ny201_Nz401
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/pl_al_b7_Ny201_Nz401.err
-#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/pl_al_b7_Ny201_Nz401.out
+#PBS -e /data/dunham/kallison/eqcycle/heOutFiles/pl_al_nsh_b7_Ny201_Nz401.err
+#PBS -o /data/dunham/kallison/eqcycle/heOutFiles/pl_al_nsh_b7_Ny201_Nz401.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

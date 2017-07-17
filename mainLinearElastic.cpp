@@ -361,10 +361,16 @@ int testMemoryLeak(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  //~ SymmFault fault(d);
+  //~ HeatEquation he(d);
+  //~ he.writeContext();
+  //~ he.writeStep2D(0);
+  //~ he.writeStep2D(1);
+
+  //~ SymmFault fault(d,he);
   //~ fault.writeContext(d._outputDir);
   //~ fault.writeStep(d._outputDir,0);
   //~ fault.writeStep(d._outputDir,1);
+  //~ fault.writeStep(d._outputDir,2);
 
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   //~ SbpOps_fc sbp(d,d._muVecP,"Neumann","Neumann","Neumann","Neumann","yz");
@@ -373,14 +379,9 @@ int testMemoryLeak(const char * inputFile)
   //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","yz");
   //~ SbpOps_fc_coordTrans sbp(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
 
-  //~ HeatEquation he(d);
-  //~ he.writeContext(d._outputDir);
-  //~ he.writeStep2D(0);
-  //~ he.writeStep2D(1);
-
   SymmLinearElastic sle(d);
-  sle.writeStep1D();
-  sle.writeStep2D();
+  //~ sle.writeStep1D();
+  //~ sle.writeStep2D();
   ierr = sle.integrate();CHKERRQ(ierr);
 
 
@@ -512,12 +513,12 @@ int main(int argc,char **args)
     //~ PetscMPIInt localRank;
     //~ MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
     //~ PetscPrintf(PETSC_COMM_SELF,"%i: hi!\n", localRank);
-    Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
+    //~ Domain domain(inputFile);
+    //~ if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
   }
 
-  //~ testMemoryLeak(inputFile);
+  testMemoryLeak(inputFile);
 
   //~ computeGreensFunction(inputFile);
 

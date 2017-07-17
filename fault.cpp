@@ -171,6 +171,7 @@ Fault::~Fault()
 
   // fields that exist on the fault
   VecDestroy(&_tauQSP);
+  VecDestroy(&_tauP);
   VecDestroy(&_psi);
   VecDestroy(&_dPsi);
   VecDestroy(&_theta);
@@ -178,6 +179,7 @@ Fault::~Fault()
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
   VecDestroy(&_T);
+  VecDestroy(&_z);
 
   // frictional fields
   VecDestroy(&_Dc);
@@ -185,6 +187,13 @@ Fault::~Fault()
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sigma_N);
+  VecDestroy(&_cohesion);
+
+  // for flash heating
+  VecDestroy(&_T);
+  VecDestroy(&_k);
+  VecDestroy(&_rho);
+  VecDestroy(&_c);
 
 
   PetscViewerDestroy(&_slipViewer);
@@ -192,6 +201,7 @@ Fault::~Fault()
   PetscViewerDestroy(&_tauQSPlusViewer);
   PetscViewerDestroy(&_psiViewer);
   PetscViewerDestroy(&_thetaViewer);
+  PetscViewerDestroy(&_tempViewer);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 401
+Ny = 51
+Nz = 61
 Ly = 24 # km
 Lz = 40 # km
 
@@ -36,7 +36,7 @@ vL = 1e-9    # (m/s)
 
 # just effective viscosity data
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny201_Nz401_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny201_Nz401_
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/le_Ny201_Nz931_z
 loadICs = 0
 bcLTauQS = 0
@@ -92,10 +92,10 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -105,16 +105,16 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e9 #1e9
+stride1D = 1
+stride2D = 1
+maxStepCount = 10 #1e9
 initTime = 0      # s 3e10
 maxTime = 9e10      # s 5.5e10
 initDeltaT = 1e-3     # s
@@ -142,42 +142,14 @@ f0 = 0.6
 #D = 5 # um
 
 
-#outputDir = /scratch/kallison/heSims/le_nhe_
-#outputDir = /scratch/kallison/heSims/g30_Jul11_
-#outputDir = /scratch/kallison/heSims/g30_Jul11_test_
-#outputDir = /scratch/kallison/heSims/g30_Jul11_Ny101_
-
-
-# checking heat flux at surface
-#outputDir = /scratch/kallison/heFlux/le_sN20_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_sN50_flashHeating_g30_Ny301_Nz801_
-#outputDir = /scratch/kallison/heFlux/le_sN50_slipLaw_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_sN50_slipLaw_g30_Ny301_Nz801_
-
-#outputDir = /scratch/kallison/heFlux/le_b15_sN50_slipLaw_g30_Ny301_Nz401_
-
-#outputDir = /scratch/kallison/heFlux/pl_sN50_fw0.0_g30_Ny301_Nz501_
-#outputDir = /scratch/kallison/heFlux/pl_sN50_fw0.12_g30_Ny301_Nz501_
-#outputDir = /scratch/kallison/heFlux/pl_sN50_aL_g30_Ny301_Nz401_
-
-#outputDir = /scratch/kallison/heFlux/le_v2_sN50_flashHeating_g30_Ny301_Nz801_
-#outputDir = /scratch/kallison/heFlux/le_v2_sN50_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_v3_sN50_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_v4_sN50_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_v4_b15_sN50_flashHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/le_v3_sN50_flashHeating_g30_Ny101_Nz101_
-#outputDir = /scratch/kallison/heFlux/pl_shearHeating_g30_Ny301_Nz401_
-#outputDir = /scratch/kallison/heFlux/pl_shearHeating_g30_Ny301_Nz801_
-
-
-#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz851_
-#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz801_
-#outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz783_
 #outputDir = /scratch/kallison/heFlux/le_sl_Ny301_Nz832_
 #outputDir = /scratch/kallison/heFlux/le_sl_Ny201_Nz931_
 
-outputDir = /scratch/kallison/heFlux/pl_al_b7_Ny201_Nz401_
+#outputDir = /scratch/kallison/heFlux/pl_al_b7_Ny201_Nz401_
+#outputDir = /scratch/kallison/heFlux/pl_al_nsh_b7_Ny201_Nz401_
+
+
+outputDir = /scratch/kallison/heFlux/pl_memTest_
 
 
 
