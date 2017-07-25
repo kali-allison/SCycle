@@ -1054,3 +1054,78 @@ void printVec(const Vec vec,const DM da)
   VecAssemblyBegin(vec);
   VecAssemblyEnd(vec);
 }
+
+
+
+// repmat for vecs (i.e. vec -> [vec vec])
+// Note: out must already be allocated onto processors
+// n = # of repeats
+PetscErrorCode repVec(Vec& out, const Vec& in, const PetscInt n)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt N,Istart,Iend;
+  PetscScalar v = 0.0;
+  PetscScalar vals[n];
+  PetscInt    inds[n];
+
+  VecGetSize(in,&N);
+  VecGetOwnershipRange(in,&Istart,&Iend);
+  for (PetscInt Ii=Istart; Ii<Iend; Ii++ ) {
+    ierr = VecGetValues(in,1,&Ii,&v);CHKERRQ(ierr);
+    for (int i=0; i<n; i++) {
+      vals[i] = v;
+      inds[i] = Ii + i*N;
+    }
+    ierr = VecSetValues(out,n,inds,vals,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
+
+  return ierr;
+}
+
+// undoes repmat for vecs (i.e. [vec vec] -> vec)
+// Note: out must already be allocated onto processors
+// gIstart,gIend = global indices of in to store in out
+PetscErrorCode sepVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar v = 0.0;
+
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(in,&Istart,&Iend);
+  for (PetscInt Ii=Istart; Ii<Iend; Ii++ ) {
+    if (Ii >= gIstart && Ii < gIend) {
+      ierr = VecGetValues(in,1,&Ii,&v);CHKERRQ(ierr);
+      PetscInt Jj = Ii - gIstart;
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, Jj = %i\n",Ii,Jj);
+      ierr = VecSetValue(out,Jj,v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
+
+  return ierr;
+}
+
+// maps vec to bigger vec (i.e. vec -> [0 0 0, vec, 0 0 0])
+// Note: out must already be allocated onto processors
+// Istart,Iend = global indices of out to put the values of in into
+PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar v = 0.0;
+
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(in,&Istart,&Iend);
+  for (PetscInt Ii=Istart; Ii<Iend; Ii++ ) {
+      ierr = VecGetValues(in,1,&Ii,&v);CHKERRQ(ierr);
+      PetscInt Jj = Ii + gIstart;
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, Jj = %i\n",Ii,Jj);
+      ierr = VecSetValue(out,Jj,v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
+
+  return ierr;
+}

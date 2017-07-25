@@ -106,27 +106,30 @@ rootTol = 1e-9
 
 
 #stateLaw = agingLaw
-stateLaw = slipLaw
-v0 = 1e-6
-f0 = 0.6
+#stateLaw = slipLaw
+#v0 = 1e-6
+#f0 = 0.6
 
 
 # flash heating for granite
-#stateLaw = flashHeating
-#v0 = 1e-6
-#f0 = 0.6
+stateLaw = flashHeating
+v0 = 1e-6
+f0 = 0.6
 #fw = 0.12
-#fw = 0.0
-#Vw = 0.1
-#Tw = 1.1732e+03 # K 900 C
-#tau_c = 3 # GPa
-#D = 5 # um
+fw = 0.0
+Vw = 0.1
+Tw = 1.1732e+03 # K 900 C
+tau_c = 3 # GPa
+D = 5 # um
 
 
 #outputDir = data/SS_flashHeating_test_
 
 #outputDir = /scratch/kallison/SS/le_flashHeating_test_
-outputDir = /scratch/kallison/SS/le_slipLaw_
+#outputDir = /scratch/kallison/SS/le_slipLaw_
+
+#outputDir = /Users/kallison/heTests/SS/le_fh_VwT_
+outputDir = /Users/kallison/heTests/SS/le_fh_Vwconst_
 
 
 

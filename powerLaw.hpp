@@ -15,7 +15,8 @@
 // on the fault.
 class PowerLaw: public SymmLinearElastic
 {
-  protected:
+  //~ protected:
+  public:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load viscosity from
@@ -27,10 +28,7 @@ class PowerLaw: public SymmLinearElastic
     Vec         _A,_n,_B;
     Vec         _effVisc;
 
-    Vec         _sxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
-    Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
-    Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
-    Vec         _gTxyP,_gTxzP; // total strain
+
     //~ Vec         _T; // temperature (K)
 
     // viewers
@@ -53,10 +51,12 @@ class PowerLaw: public SymmLinearElastic
 
     // functions needed each time step
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
-    PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
+    //~ PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
+    PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode setStresses(const PetscScalar time);
+    PetscErrorCode computeViscosity();
 
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
                      const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
@@ -66,7 +66,13 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
-  public:
+  //~ public:
+
+    Vec         _sxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
+    Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
+    Vec         _gTxyP,_gTxzP; // total strain
+
     PowerLaw(Domain&D);
     ~PowerLaw();
 
@@ -91,8 +97,15 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode measureMMSError();
 
+    // currently investigating utility
+    PetscErrorCode psuedoTS_main();
+    PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t);
+    PetscErrorCode psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g,Vec g_t);
 
 
 };
+
+PetscErrorCode computeJacobian(TS ts,PetscReal t,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);
+PetscErrorCode evaluateIRHS(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,void *ptr);
 
 #endif

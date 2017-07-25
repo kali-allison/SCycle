@@ -209,5 +209,10 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   const int N, const double dy, const double dz,const double t,const DM da);
 
 
+// repmat for vecs (i.e. vec -> [vec vec]
+PetscErrorCode repVec(Vec& out, const Vec& in, const PetscInt n);
+PetscErrorCode sepVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend);
+PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend);
+
 
 #endif

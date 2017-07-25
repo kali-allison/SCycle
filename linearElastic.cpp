@@ -611,10 +611,11 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
-  VecCopy(_fault._slip,_bcLP);
-  VecScale(_bcLP,0.5);
 
-
+  if (_bcLTauQS==0) {
+    VecCopy(_fault._slip,_bcLP);
+    VecScale(_bcLP,0.5);
+  }
 
   return ierr;
   #if VERBOSE > 1
@@ -640,6 +641,7 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Dirichlet";
+  if (_bcLTauQS==1) { bcLType = "Neumann"; }
 
   if (_sbpType.compare("mc")==0) {
     _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
@@ -739,7 +741,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
 
   if (_stepCount==0) {
     _he.writeContext();
-    ierr = _sbpP->writeOps(_outputDir + "u_");CHKERRQ(ierr);
+    ierr = _sbpP->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);
     ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
