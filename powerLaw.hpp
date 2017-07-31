@@ -15,8 +15,7 @@
 // on the fault.
 class PowerLaw: public SymmLinearElastic
 {
-  //~ protected:
-  public:
+  protected:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load viscosity from
@@ -53,7 +52,9 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     //~ PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
-    PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    //~ PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode setViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
+      Vec& gVxy_t, Vec& gVxz_t);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode setStresses(const PetscScalar time);
     PetscErrorCode computeViscosity();
@@ -66,7 +67,7 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
-  //~ public:
+  public:
 
     Vec         _sxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
@@ -89,6 +90,7 @@ class PowerLaw: public SymmLinearElastic
       it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
                              const_it_vec varBegin,const_it_vec dvarBegin);
+    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount);
 
     PetscErrorCode writeContext();
     PetscErrorCode writeStep1D();
@@ -99,13 +101,17 @@ class PowerLaw: public SymmLinearElastic
 
     // currently investigating utility
     PetscErrorCode psuedoTS_main();
-    PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t);
-    PetscErrorCode psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g,Vec g_t);
-
+    PetscErrorCode psuedoTS_computeIJacobian(Mat& J,PetscReal time,Vec& g,Vec& g_t);
+    PetscErrorCode psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec& g);
+    PetscErrorCode psuedoTS_evaluateIRHS(Vec&F,PetscReal time,Vec& g,Vec& g_t);
+    PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec& g);
 
 };
 
-PetscErrorCode computeJacobian(TS ts,PetscReal t,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);
-PetscErrorCode evaluateIRHS(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,void *ptr);
+PetscErrorCode computeIJacobian(TS ts,PetscReal t,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);
+PetscErrorCode computeJacobian(TS ts,PetscReal t,Vec g,Mat Amat,Mat Pmat,void *ctx);
+PetscErrorCode evaluateIRHS(TS ts,PetscReal t,Vec g,Vec g_t,Vec F,void *ptr);
+PetscErrorCode evaluateRHS(TS ts,PetscReal t,Vec g,Vec F,void *ptr);
+PetscErrorCode monitor(TS ts,PetscInt stepCount,PetscReal time,Vec g,void *ptr);
 
 #endif

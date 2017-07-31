@@ -855,7 +855,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     VecSet(*(dvarBegin+1),0.0); // // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
-  ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr);
+  //~ ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr);
+  ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
 
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_sxyP,_sxzP,*(dvarBegin+2),
@@ -941,7 +942,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   //~ mapToVec(_sigmadev,MMS_sigmadev,*_y,*_z,_currTime);
 
   // update rates
-  ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
+  //~ ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
+  ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
   Vec source;
   VecDuplicate(_uP,&source);
   if (_Nz == 1) { mapToVec(source,MMS_pl_gxy_t_source1D,*_y,_currTime); }
@@ -1133,7 +1135,9 @@ PetscErrorCode PowerLaw::computeViscosity()
 }
 
 
-PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+//~ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
+  Vec& gVxy_t, Vec& gVxz_t)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1142,24 +1146,8 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
     CHKERRQ(ierr);
   #endif
 
-  VecSet(*(dvarBegin+3),0.0);
-  VecSet(*(dvarBegin+4),0.0);
-
-  //~ // compute effective viscosity
-  //~ PetscScalar sigmadev,A,B,n,T,effVisc=0;
-  //~ PetscInt Ii,Istart,Iend;
-  //~ VecGetOwnershipRange(*(dvarBegin+3),&Istart,&Iend);
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ VecGetValues(_sigmadev,1,&Ii,&sigmadev);
-    //~ VecGetValues(_A,1,&Ii,&A);
-    //~ VecGetValues(_B,1,&Ii,&B);
-    //~ VecGetValues(_n,1,&Ii,&n);
-    //~ VecGetValues(_T,1,&Ii,&T);
-    //~ effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
-    //~ VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
-  //~ }
-  //~ VecAssemblyBegin(_effVisc);
-  //~ VecAssemblyEnd(_effVisc);
+  //~ VecSet(*(dvarBegin+3),0.0);
+  //~ VecSet(*(dvarBegin+4),0.0);
 
 // add SAT terms to strain rate for epsxy
   Vec SAT;
@@ -1168,22 +1156,23 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const_it_vec 
   //~ VecSet(SAT,0.0);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  VecPointwiseMult(*(dvarBegin+3),_muVecP,SAT);
+  //~ VecPointwiseMult(*(dvarBegin+3),_muVecP,SAT);
+  VecPointwiseMult(gVxy_t,_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(qy,*(dvarBegin+3),temp1);
-    VecCopy(temp1,*(dvarBegin+3));
+    MatMult(qy,gVxy_t,temp1);
+    VecCopy(temp1,gVxy_t);
     VecDestroy(&temp1);
   }
-  VecAXPY(*(dvarBegin+3),1.0,_sxyP);
-  VecPointwiseDivide(*(dvarBegin+3),*(dvarBegin+3),_effVisc);
+  VecAXPY(gVxy_t,1.0,_sxyP);
+  VecPointwiseDivide(gVxy_t,gVxy_t,_effVisc);
 
   if (_Nz > 1) {
-    VecCopy(_sxzP,*(dvarBegin+4));
-    VecPointwiseDivide(*(dvarBegin+4),*(dvarBegin+4),_effVisc);
+    VecCopy(_sxzP,gVxz_t);
+    VecPointwiseDivide(gVxz_t,gVxz_t,_effVisc);
   }
 
   VecDestroy(&SAT);
@@ -1395,6 +1384,31 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
   return ierr;
 }
 
+PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCount)
+{
+  PetscErrorCode ierr = 0;
+
+  _stepCount = stepCount;
+  _currTime = time;
+  ierr = setSurfDisp();
+  if ( stepCount % _stride1D == 0) {
+    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    ierr = writeStep1D();CHKERRQ(ierr);
+  }
+
+  if ( stepCount % _stride2D == 0) {
+    //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
+    ierr = writeStep2D();CHKERRQ(ierr);
+  }
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+
+#if VERBOSE > 0
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
 // Outputs data at each time step.
 PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
                      const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
@@ -1534,7 +1548,7 @@ PetscErrorCode PowerLaw::writeContext()
 
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1757,7 +1771,7 @@ PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::setVecFromVectors";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);
   #endif
 
@@ -1797,22 +1811,23 @@ PetscErrorCode PowerLaw::psuedoTS_main()
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::psuedoTS";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);
   #endif
 
+  VecSet(_effVisc,1e11);
 
-  Vec mu,effVisc,muDivVisc;
-  ierr = VecCreate(PETSC_COMM_WORLD,&mu);CHKERRQ(ierr);
-  ierr = VecSetSizes(mu,PETSC_DECIDE,2*_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(mu);CHKERRQ(ierr);
-  VecSet(mu,0.0);
-  ierr = VecDuplicate(mu,&effVisc); CHKERRQ(ierr);
-  ierr = VecDuplicate(mu,&muDivVisc); CHKERRQ(ierr);
+  // compute mu*effVisc^(-1) for Jacobian
+  Vec muDivVisc;
+  ierr = VecCreate(PETSC_COMM_WORLD,&muDivVisc);CHKERRQ(ierr);
+  ierr = VecSetSizes(muDivVisc,PETSC_DECIDE,2*_Ny*_Nz);CHKERRQ(ierr);
+  ierr = VecSetFromOptions(muDivVisc);CHKERRQ(ierr);
+  VecSet(muDivVisc,0.0);
+  Vec temp; VecDuplicate(_muVecP,&temp);
+  VecPointwiseDivide(temp, _muVecP, _effVisc);
+  repVec(muDivVisc,temp, 2);
+  VecDestroy(&temp);
 
-  repVec( mu,_muVecP, 2);
-  repVec(effVisc,_effVisc, 2);
-  VecPointwiseDivide(muDivVisc, mu, effVisc);
 
   // create Jacobian
   Mat J;
@@ -1826,24 +1841,38 @@ PetscErrorCode PowerLaw::psuedoTS_main()
 
   // create Vec to contain output
   Vec g;
-  VecDuplicate(mu,&g);
+  VecDuplicate(muDivVisc,&g);
   VecSet(g,0.);
+  VecDestroy(&muDivVisc);
 
   // create time stepper context
   TS ts;
   TSCreate(PETSC_COMM_WORLD,&ts);
   TSSetProblemType(ts,TS_NONLINEAR);
   TSSetSolution(ts,g); // where to compute solution
-  void* ctx = this;
-  TSSetIJacobian(ts,J,J,computeJacobian,ctx);
-  TSSetIFunction(ts,NULL,evaluateIRHS,ctx); // provide call-back for nonlinear function to evaluate
-  TSSetInitialTimeStep(ts,0.0,_initDeltaT); // set initial time (meaningless), and time step
+  TSSetInitialTimeStep(ts,0.0,1e-3); // set initial time (meaningless), and time step
   TSPseudoSetTimeStep(ts,TSPseudoTimeStepDefault,0); // strategy for increasing time step
-  //~ TSSetDuration(ts,_maxStepCount,_maxTime); // # of timesteps and final time
-  TSSetDuration(ts,1e3,1e12); // # of timesteps and final time
+  TSSetDuration(ts,1e5,1e10); // # of timesteps and final time
   TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
+
+  // provide call-back functions
+  void* ctx = this;
+  TSSetIJacobian(ts,J,J,computeIJacobian,ctx);
+  TSSetIFunction(ts,NULL,evaluateIRHS,ctx);
+  //~ TSSetRHSJacobian(ts,J,J,computeJacobian,ctx);
+  //~ TSSetRHSFunction(ts,NULL,evaluateRHS,ctx);
+  TSMonitorSet(ts,monitor,ctx,NULL);
+
+
   TSSetFromOptions(ts);
   TSSetUp(ts);
+
+  //~ TSGetTolerances(TS ts,PetscReal *atol,Vec *vatol,PetscReal *rtol,Vec *vrtol)
+  //~ PetscReal atol, rtol;
+  //~ TSGetTolerances(ts,&atol,NULL,&rtol,NULL);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"atol = %g, %rtol = %g\n",atol,rtol);
+
+
   TSSolve(ts,g);
 
 
@@ -1872,9 +1901,9 @@ PetscErrorCode PowerLaw::psuedoTS_main()
 
 
 
-  VecDestroy(&mu);
-  VecDestroy(&effVisc);
-  VecDestroy(&muDivVisc);
+  //~ VecDestroy(&mu);
+  //~ VecDestroy(&effVisc);
+  //~ VecDestroy(&muDivVisc);
   MatDestroy(&J);
 
   PetscPrintf(PETSC_COMM_WORLD,"hello world!\n");
@@ -1886,13 +1915,13 @@ PetscErrorCode PowerLaw::psuedoTS_main()
 }
 
 // returns F(X,Xdot)
-PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t)
+PetscErrorCode PowerLaw::psuedoTS_evaluateIRHS(Vec&F,PetscReal time,Vec& g,Vec& g_t)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::psuedoTS_evaluateRHS";
+    std::string funcName = "PowerLaw::psuedoTS_evaluateIRHS";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
     CHKERRQ(ierr);
   #endif
 
@@ -1917,8 +1946,8 @@ PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t
   ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP);CHKERRQ(ierr);
 
   // set up rhs vector
-  ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+  //~ ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
+  //~ ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
 
@@ -1934,7 +1963,8 @@ PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t
   Vec bcL;
   VecDuplicate(_bcRP,&bcL);
   VecSet(bcL,0.0);
-  VecSet(_bcRP,_vL/2.0);
+  //~ VecSet(_bcRP,_vL/2.0);
+  VecSet(_bcRP,0);
   ierr = _sbpP->setRhs(_rhsP,bcL,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
   ierr = setViscStrainSourceTerms(viscSource,_gxy_t,_gxz_t);CHKERRQ(ierr);
   ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
@@ -1952,7 +1982,8 @@ PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t
 
   // evaluate RHS
   ierr = setStresses(time);CHKERRQ(ierr); // also computes gTxy, gTxz
-  computeViscosity();
+  //~ computeViscosity();
+  VecSet(_effVisc,1e11);
   Vec _gTxy_t, _gTxz_t;
   VecDuplicate(_gxyP,&_gTxy_t); VecSet(_gTxy_t,0.0);
   VecDuplicate(_gxyP,&_gTxz_t); VecSet(_gTxz_t,0.0);
@@ -2007,18 +2038,210 @@ PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec g,Vec g_t
   return ierr;
 }
 
-// returns Jacobian
-PetscErrorCode PowerLaw::psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g,Vec g_t)
+// returns F(X,Xdot)
+PetscErrorCode PowerLaw::psuedoTS_evaluateRHS(Vec& F,PetscReal time,Vec& g)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::psuedoTS_computeJacobian";
+    std::string funcName = "PowerLaw::psuedoTS_evaluateRHS";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
     CHKERRQ(ierr);
   #endif
 
 
+  // extract gxy and gxz from g
+  sepVec(_gxyP,g,0,_Ny*_Nz);
+  sepVec(_gxzP,g,_Ny*_Nz,2*_Ny*_Nz);
+
+  // extract _gxy_t and _gxz_t from g_t
+  Vec _gxy_t, _gxz_t;
+  VecDuplicate(_gxyP,&_gxy_t); VecSet(_gxy_t,0.0);
+  VecDuplicate(_gxzP,&_gxz_t); VecSet(_gxz_t,0.0);
+  //~ sepVec(_gxy_t,g_t,0,_Ny*_Nz);
+  //~ sepVec(_gxz_t,g_t,_Ny*_Nz,2*_Ny*_Nz);
+
+
+  // solve for u
+  // add source terms to rhs: d/dy( 2*mu*gVxy ) + d/dz( 2*mu*gVxz )
+  Vec viscSource;
+  ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP);CHKERRQ(ierr);
+
+  // set up rhs vector
+  ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
+
+
+  // solve for displacement u
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+
+  // compute intermediate fields
+  ierr = setStresses(time);CHKERRQ(ierr); // also computes gTxy, gTxz
+  //~ computeViscosity();
+  Vec _gTxy_t, _gTxz_t;
+  VecDuplicate(_gxyP,&_gTxy_t); VecSet(_gTxy_t,0.0);
+  VecDuplicate(_gxyP,&_gTxz_t); VecSet(_gTxz_t,0.0);
+  _sbpP->Dy(_uP,_gTxyP);
+  _sbpP->Dz(_uP,_gTxzP);
+
+  // compute viscous strains
+
+
+  // solve for u_t
+  Vec bcL;
+  VecDuplicate(_bcRP,&bcL);
+  VecSet(bcL,0.0);
+  VecSet(_bcRP,_vL/2.0);
+  ierr = _sbpP->setRhs(_rhsP,bcL,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = setViscStrainSourceTerms(viscSource,_gxy_t,_gxz_t);CHKERRQ(ierr);
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
+
+  // solve for u_t
+  Vec u_t;
+  VecDuplicate(_uP,&u_t);
+  startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,u_t);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+  VecDestroy(&viscSource);
+  VecDestroy(&bcL);
+
+
+
+
+  // evaluate RHS
+  Vec _gExy_t, _gExz_t;
+  VecDuplicate(_gxyP,&_gExy_t); VecSet(_gExy_t,0.0);
+  VecDuplicate(_gxzP,&_gExz_t); VecSet(_gExz_t,0.0);
+  PetscInt Istart,Iend;
+  PetscScalar mu,effVisc,gTxy_t,gTxy,gVxy,gExy_t = 0.;
+  PetscScalar gTxz_t,gTxz,gVxz,gExz_t = 0.;
+  VecGetOwnershipRange(_gExy_t,&Istart,&Iend);
+  for( PetscInt Ii=Istart; Ii<Iend; Ii++) {
+    ierr = VecGetValues(_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
+    ierr = VecGetValues(_effVisc,1,&Ii,&effVisc);CHKERRQ(ierr);
+    ierr = VecGetValues(_gTxyP,1,&Ii,&gTxy);CHKERRQ(ierr);
+    ierr = VecGetValues(_gTxzP,1,&Ii,&gTxz);CHKERRQ(ierr);
+    ierr = VecGetValues(_gxyP,1,&Ii,&gVxy);CHKERRQ(ierr);
+    ierr = VecGetValues(_gxzP,1,&Ii,&gVxz);CHKERRQ(ierr);
+    ierr = VecGetValues(_gTxy_t,1,&Ii,&gTxy_t);CHKERRQ(ierr);
+    ierr = VecGetValues(_gTxz_t,1,&Ii,&gTxz_t);CHKERRQ(ierr);
+
+    gExy_t = gTxy_t - mu/effVisc*(gTxy - gVxy);
+    gExz_t = gTxz_t - mu/effVisc*(gTxz - gVxz);
+
+    VecSetValue(_gExy_t,Ii,gExy_t,INSERT_VALUES);
+    VecSetValue(_gExz_t,Ii,gExz_t,INSERT_VALUES);
+  }
+  ierr = VecAssemblyBegin(_gExy_t);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_gExz_t);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_gExy_t);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_gExz_t);CHKERRQ(ierr);
+
+  // place elastic strain rates into output vector
+  distributeVec(F,_gExy_t,0,_Ny*_Nz);
+  distributeVec(F,_gExz_t,_Ny*_Nz,2*_Ny*_Nz);
+
+
+  VecDestroy(&_gxy_t);
+  VecDestroy(&_gxz_t);
+  VecDestroy(&u_t);
+  VecDestroy(&_gTxy_t);
+  VecDestroy(&_gTxz_t);
+  VecDestroy(&_gExy_t);
+  VecDestroy(&_gExz_t);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// returns Jacobian for explicit solve
+PetscErrorCode PowerLaw::psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec& g)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g)";
+    std::string fileName = "PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
+    CHKERRQ(ierr);
+  #endif
+
+  // for now assume effective viscosity is constant
+/*
+  // extract gxy and gxz from g
+  sepVec(_gxyP,g,0,_Ny*_Nz);
+  sepVec(_gxzP,g,_Ny*_Nz,2*_Ny*_Nz);
+
+  // solve for u
+  // add source terms to rhs: d/dy( 2*mu*gVxy ) + d/dz( 2*mu*gVxz )
+  Vec viscSource;
+  ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP);CHKERRQ(ierr);
+
+  // set up rhs vector
+  ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
+  VecDestroy(&viscSource);
+
+
+  // solve for displacement u
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  // evaluate RHS
+  ierr = setStresses(time);CHKERRQ(ierr);
+  computeViscosity();
+  * */
+
+
+  Vec muDivVisc;
+  VecDuplicate(g,&muDivVisc);
+  Vec temp; VecDuplicate(_muVecP,&temp);
+  VecPointwiseDivide(temp, _muVecP, _effVisc);
+  repVec(muDivVisc,temp, 2);
+  MatDiagonalSet(J,muDivVisc,INSERT_VALUES);
+
+
+  VecDestroy(&temp);
+  VecDestroy(&muDivVisc);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// returns Jacobian for implicit
+PetscErrorCode PowerLaw::psuedoTS_computeIJacobian(Mat& J,PetscReal time,Vec& g,Vec& g_t)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::psuedoTS_computeIJacobian";
+    std::string fileName = "PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %f\n",funcName.c_str(),fileName.c_str(),time);
+    CHKERRQ(ierr);
+  #endif
+
+/*
   // extract gxy and gxz from g
   sepVec(_gxyP,g,0,_Ny*_Nz);
   sepVec(_gxzP,g,_Ny*_Nz,2*_Ny*_Nz);
@@ -2048,17 +2271,19 @@ PetscErrorCode PowerLaw::psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g,Ve
   // evaluate RHS
   ierr = setStresses(time);CHKERRQ(ierr);
   computeViscosity();
+  */
 
 
   Vec muDivVisc;
   VecDuplicate(g,&muDivVisc);
-  Vec temp; VecDuplicate(_muVecP,&temp);
-  VecPointwiseDivide(temp, _muVecP, _effVisc);
-  repVec(muDivVisc,temp, 2);
+  VecSet(muDivVisc,-30./1e11);
+  //~ Vec temp; VecDuplicate(_muVecP,&temp);
+  //~ VecPointwiseDivide(temp, _muVecP, _effVisc);
+  //~ repVec(muDivVisc,temp, 2);
   MatDiagonalSet(J,muDivVisc,INSERT_VALUES);
 
 
-  VecDestroy(&temp);
+  //~ VecDestroy(&temp);
   VecDestroy(&muDivVisc);
 
   #if VERBOSE > 1
@@ -2069,21 +2294,47 @@ PetscErrorCode PowerLaw::psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec g,Ve
 }
 
 
-// call-back function that returns Jacobian for PETSc'c TSSetRHSJacobian
-// f(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,ctx);
-PetscErrorCode computeJacobian(TS ts,PetscReal time,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ptr)
+//======================================================================
+//======================================================================
+
+// call-back function that returns Jacobian for PETSc'c TSSetIJacobian
+PetscErrorCode computeIJacobian(TS ts,PetscReal time,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ptr)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "evaluateIRHS";
+    std::string funcName = "computeIJacobian";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);
   #endif
   PowerLaw *pl = (PowerLaw*) ptr; // from PETSc tutorial
   //~ PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
 
-  pl->psuedoTS_computeJacobian(Amat,time,g,g_t);
+  pl->psuedoTS_computeIJacobian(Amat,time,g,g_t);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// call-back function that returns Jacobian for PETSc'c TSSetRHSJacobian
+PetscErrorCode computeJacobian(TS ts,PetscReal time,Vec g,Mat Amat,Mat Pmat,void *ptr)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "computeJacobian";
+    std::string fileName = "PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  //~ PowerLaw *pl = (PowerLaw*) ptrTSPSU; // from PETSc tutorial
+  PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
+
+  pl->psuedoTS_computeJacobian(Amat,time,g);
 
 
   #if VERBOSE > 1
@@ -2094,24 +2345,72 @@ PetscErrorCode computeJacobian(TS ts,PetscReal time,Vec g,Vec g_t,PetscReal a,Ma
 }
 
 // call-back function that returns F(X,Xdot) for PETSc'c TSSetIFunction
-// f(TS ts,PetscReal t,Vec u,Vec u_t,Vec F,ctx);
 PetscErrorCode evaluateIRHS(TS ts,PetscReal time,Vec g,Vec g_t,Vec F,void *ptr)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "evaluateIRHS";
     std::string fileName = "PowerLaw";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);
   #endif
-  PowerLaw *pl = (PowerLaw*) ptr; // from PETSc tutorial
-  //~ PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
+  //~ PowerLaw *pl = (PowerLaw*) ptr; // from PETSc tutorial
+  PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
 
-  pl->psuedoTS_evaluateRHS(F,time,g,g_t);
+  pl->psuedoTS_evaluateIRHS(F,time,g,g_t);
 
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// call-back function that returns F(X,Xdot) for PETSc'c TSSetRHSFunction
+PetscErrorCode evaluateRHS(TS ts,PetscReal time,Vec g,Vec F,void *ptr)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "evaluateRHS";
+    std::string fileName = "PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  //~ PowerLaw *pl = (PowerLaw*) ptr; // from PETSc tutorial
+  PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
+
+  pl->psuedoTS_evaluateRHS(F,time,g);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// call-back function that writes relevent data to memory
+PetscErrorCode monitor(TS ts,PetscInt stepCount,PetscReal time,Vec g,void *ptr)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "monitor";
+    std::string fileName = "PowerLaw";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %.15e\n",funcName.c_str(),fileName.c_str(),time);
+    CHKERRQ(ierr);
+  #endif
+  //~ PowerLaw *pl = (PowerLaw*) ptr; // from PETSc tutorial
+  PowerLaw *pl = static_cast<PowerLaw*> (ptr); // from stack overflow
+
+  sepVec(pl->_gxyP,g,0,pl->_Ny*pl->_Nz);
+  sepVec(pl->_gxzP,g,pl->_Ny*pl->_Nz,2*pl->_Ny*pl->_Nz);
+  pl->timeMonitor(time,stepCount);
+
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %.15e\n",funcName.c_str(),fileName.c_str(),time);
     CHKERRQ(ierr);
   #endif
   return ierr;
