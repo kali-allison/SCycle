@@ -60,22 +60,24 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 24]
 
 linSolver = MUMPSCHOLESKY
-sbpType = mfc
+#sbpType = mfc
+sbpType = mfc_coordTrans
+bCoordTrans = 1.0
 kspTol = 1e-10
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10000 # how many steps between writing out 1D fields
-stride2D = 10000 # how many steps between writing out 2D fields
+stride1D = 1 # how many steps between writing out 1D fields
+stride2D = 1 # how many steps between writing out 2D fields
 maxStepCount = 1e8
 initTime =   0    # s 3000000
 maxTime =  120      # s
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e9      # s
-atol = 1e-12
+atol = 1e-10
 
 rootTol = 1e-8
 
-#outputDir = data/mms_lm_
-outputDir = data/mms_pow_
+outputDir = data/mms_lm_
+#outputDir = data/mms_pow_

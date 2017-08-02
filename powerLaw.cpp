@@ -514,8 +514,9 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     // put left boundary info into fault slip vector
     if ( Ii < _Nz ) {
       ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
-      v += abs(minVal) + 1.0;
-      ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      v += 2.*(abs(minVal) + 1.0);
+      //~ ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_fault._slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
     // put right boundary data into bcR
@@ -527,13 +528,19 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     }
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcLP);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
-  VecCopy(_bcLP,_fault._slip);
-  VecScale(_fault._slip,2.0);
+
+  //~ VecCopy(_bcLP,_fault._slip);
+  //~ VecScale(_fault._slip,2.0);
+  //~ VecCopy(_fault._slip,*(_var.begin()+2));
   VecCopy(_fault._slip,*(_var.begin()+2));
+  if (_bcLTauQS==0) {
+    VecCopy(_fault._slip,_bcLP);
+    VecScale(_bcLP,0.5);
+  }
 
   //~ writeVec(_bcLP,(_outputDir+"init2_bcL").c_str());
   //~ writeVec(_bcRP,(_outputDir+"init2_bcR").c_str());
@@ -580,6 +587,14 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
     effVisc =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
 
     VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+
+    if (isnan(effVisc)) {
+      PetscPrintf(PETSC_COMM_WORLD,"n = %f\n",n);
+      PetscPrintf(PETSC_COMM_WORLD,"A = %f\n",A);
+      PetscPrintf(PETSC_COMM_WORLD,"B = %f\n",B);
+      PetscPrintf(PETSC_COMM_WORLD,"T = %f\n",T);
+      PetscPrintf(PETSC_COMM_WORLD,"s = %f\n",s);
+    }
     assert(!isnan(effVisc));
   }
   VecAssemblyBegin(_effVisc);
@@ -1146,9 +1161,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
     CHKERRQ(ierr);
   #endif
 
-  //~ VecSet(*(dvarBegin+3),0.0);
-  //~ VecSet(*(dvarBegin+4),0.0);
-
 // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
@@ -1156,7 +1168,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   //~ VecSet(SAT,0.0);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  //~ VecPointwiseMult(*(dvarBegin+3),_muVecP,SAT);
   VecPointwiseMult(gVxy_t,_muVecP,SAT);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -1169,6 +1180,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   }
   VecAXPY(gVxy_t,1.0,_sxyP);
   VecPointwiseDivide(gVxy_t,gVxy_t,_effVisc);
+
 
   if (_Nz > 1) {
     VecCopy(_sxzP,gVxz_t);

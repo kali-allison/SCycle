@@ -6,7 +6,7 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),
+  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),_yInputDir("unspecified"),
   _shearDistribution("unspecified"),_problemType("unspecificed"),_loadICs(0),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -84,7 +84,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
   _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),
+  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),_yInputDir("unspecified"),
   _shearDistribution("unspecified"),_problemType("unspecificed"),
   _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
   _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
@@ -242,6 +242,9 @@ PetscErrorCode Domain::loadData(const char *file)
     }
     else if (var.compare("zInputDir")==0) {
       _zInputDir = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("yInputDir")==0) {
+      _yInputDir = line.substr(pos+_delim.length(),line.npos);
     }
     else if (var.compare("loadICs")==0){ _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
@@ -795,10 +798,10 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     else {
       // no transformation
-      //~ y = q*_Ly;
+      y = q*_Ly;
       z = r*_Lz;
 
-      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans);
+      //~ y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
       //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
       //~ z = _Lz*(r+exp(r/0.125)-1.0)/exp(1.0/0.125);
 
@@ -817,6 +820,14 @@ PetscErrorCode Domain::setFieldsPlus()
   VecAssemblyEnd(_y);
   VecAssemblyEnd(_z);
 
+  // load y instead
+  if (_yInputDir.compare("unspecified")!=0) {
+    PetscViewer inv; // in viewer
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,_yInputDir.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(_y,inv);CHKERRQ(ierr);
+  }
   // load depth-variable z instead
   if (_zInputDir.compare("unspecified")!=0) {
     PetscViewer inv; // in viewer

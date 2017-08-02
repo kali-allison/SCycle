@@ -56,6 +56,11 @@ void printVecsSum(Vec vec1,Vec vec2)
 // Write vec to the file loc in binary format.
 // Note that due to a memory problem in PETSc, looping over this many
 // times will result in an error.
+PetscErrorCode writeVec(Vec vec,std::string str)
+{
+return writeVec(vec,str.c_str());
+}
+
 PetscErrorCode writeVec(Vec vec,const char * loc)
 {
   PetscErrorCode ierr = 0;

@@ -334,35 +334,7 @@ PetscErrorCode LinearElastic::view()
 
 
 
-PetscErrorCode SymmLinearElastic::measureMMSError()
-{
-  PetscErrorCode ierr = 0;
 
-  // measure error between analytical and numerical solution
-  Vec uA;
-  VecDuplicate(_uP,&uA);
-  if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
-  else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
-
-  Vec sigmaxyA;
-  VecDuplicate(_uP,&sigmaxyA);
-  //~ mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
-    if (_Nz == 1) { mapToVec(sigmaxyA,MMS_sigmaxy1D,*_y,_currTime); }
-  else { mapToVec(sigmaxyA,MMS_sigmaxy,*_y,*_z,_currTime); }
-
-
-  double err2uA = computeNormDiff_2(_uP,uA);
-  double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
-
-  //~ Mat H; _sbpP->getH(H);
-  //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
-  //~ double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
-
-  PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
-              _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
-
-  return ierr;
-}
 
 
 
@@ -1115,7 +1087,8 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   }
   else {
     for(Ii=Istart;Ii<Iend;Ii++) {
-      z = _dz * Ii;
+      ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+      //~ z = _dz * Ii;
       y = 0;
       if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
       else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
@@ -1135,7 +1108,8 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   // set up boundary conditions: T and B
   ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy * Ii;
+    //~ y = _dy * Ii;
+    ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
 
     z = 0;
     if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
@@ -1246,6 +1220,39 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
 
   //~VecView(_fault._tauQSP,PETSC_VIEWER_STDOUT_WORLD);
 #endif
+  return ierr;
+}
+
+PetscErrorCode SymmLinearElastic::measureMMSError()
+{
+  PetscErrorCode ierr = 0;
+
+  // measure error between analytical and numerical solution
+  Vec uA;
+  VecDuplicate(_uP,&uA);
+  if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
+  else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
+
+  Vec sigmaxyA;
+  VecDuplicate(_uP,&sigmaxyA);
+  //~ mapToVec(sigmaxyA,MMS_sigmaxy,_Nz,_dy,_dz,_currTime);
+    if (_Nz == 1) { mapToVec(sigmaxyA,MMS_sigmaxy1D,*_y,_currTime); }
+  else { mapToVec(sigmaxyA,MMS_sigmaxy,*_y,*_z,_currTime); }
+
+
+  double err2uA = computeNormDiff_2(_uP,uA);
+  double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
+
+  //~ std::str = _outputDir = "uA";
+  writeVec(uA,_outputDir+"uA");
+
+  //~ Mat H; _sbpP->getH(H);
+  //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
+  //~ double err2sigmaxy = computeNormDiff_2(_sxyP,sigmaxyA);
+
+  PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
+              _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
+
   return ierr;
 }
 

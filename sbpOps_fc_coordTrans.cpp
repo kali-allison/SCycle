@@ -362,7 +362,7 @@ PetscErrorCode SbpOps_fc_coordTrans::satBoundaries(TempMats_fc_coordTrans& tempM
     ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
 
     ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
+    ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
     ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
     MatDestroy(&temp3); //!!!
     ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
@@ -651,7 +651,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
   }
 
 
-  // mu*kron(Hy,Iz)
+  // mu*qy*kron(Hy,Iz)
   Mat muxHy_Iz;
   {
     Mat temp;
@@ -2266,12 +2266,12 @@ TempMats_fc_coordTrans::~TempMats_fc_coordTrans()
 
 PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
 {
-  PetscErrorCode ierr;
-#if VERBOSE > 1
-  string funcName = "TempMats_fc_coordTrans::computeJacobian";
-  string fileName = "SbpOps_fc_coordTrans.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
-#endif
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "TempMats_fc_coordTrans::computeJacobian";
+    string fileName = "SbpOps_fc_coordTrans.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
   Vec ones;
   VecDuplicate(*_y,&ones);
   VecSet(ones,1.0);
@@ -2295,25 +2295,19 @@ PetscErrorCode TempMats_fc_coordTrans::computeJacobian(Mat& mu)
   MatMult(_Iy_Dz,*_z,temp); // temp = Dr * z
   ierr = MatDiagonalSet(_zr,temp,INSERT_VALUES);CHKERRQ(ierr);
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
-  ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr); // invert values
+  ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES);CHKERRQ(ierr);
   if (_Nz == 1) {
     ierr = MatDiagonalSet(_zr,ones,INSERT_VALUES);CHKERRQ(ierr);
     ierr = MatDiagonalSet(_rz,ones,INSERT_VALUES);CHKERRQ(ierr);
-    }
+  }
 
   VecDestroy(&temp);
   VecDestroy(&ones);
 
-  //~ MatView(_zr,PETSC_VIEWER_STDOUT_WORLD);
-  //~ MatView(_rz,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-
   return ierr;
-
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
 }
 
 

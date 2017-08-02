@@ -33,7 +33,8 @@ class Domain
 
     // material distribution properties
     std::string  _inputDir; // directory to load shear modulus and normal stress from (if above is CVM)
-    std::string  _zInputDir; // directory to load shear modulus and normal stress from (if above is CVM)
+    std::string  _zInputDir; // directory to load z from
+    std::string  _yInputDir; // directory to load y from
     std::string  _shearDistribution, // options: mms, constant, gradient, basin, CVM
                  _problemType; // options: full, symmetric (only solve y>0 portion)
     PetscInt     _loadICs; // whether or not to look in inputDir for initial conditions

@@ -1,12 +1,12 @@
 order = 4
-Ny = 201
-Nz = 401
-Ly = 24 # km
+Ny = 301
+Nz = 301
+Ly = 60 # km
 Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
-DcVals = [16e-3 16e-3] # m
+DcVals = [8e-3 8e-3] # m
 #DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
 
@@ -35,8 +35,9 @@ vL = 1e-9    # (m/s)
 
 
 # just effective viscosity data
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Nz301_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/he_g30_Ny201_Nz401_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny301_Nz301_
+#yInputDir = /data/dunham/kallison/eqcycle/heInputFiles/pl_bv1_y
+#yInputDir = /data/dunham/kallison/eqcycle/heInputFiles/pl_bv2_y
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/le_Ny201_Nz931_z
 loadICs = 0
 bcLTauQS = 0
@@ -50,7 +51,7 @@ rhoPlus = 3.0 # g/cm^3
 
 linSolver = MUMPSCHOLESKY
 #bCoordTrans = 15.0
-bCoordTrans = 7.0
+bCoordTrans = 8.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -92,10 +93,10 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [300 300]
 TDepths = [0 50]
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -110,13 +111,13 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
-maxTime = 9e10      # s 5.5e10
+maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
@@ -146,7 +147,35 @@ f0 = 0.6
 #outputDir = /scratch/kallison/heFlux/le_sl_Ny201_Nz931_
 
 #outputDir = /scratch/kallison/heFlux/pl_al_nsh_b7_Ny201_Nz401_
-outputDir = /scratch/kallison/heFlux/pl_al_wsh_b7_Ny201_Nz401_
+#outputDir = /scratch/kallison/heFlux/pl_al_wsh_b7_Ny201_Nz401_
+#outputDir = /scratch/kallison/heFlux/pl_al_wsh_v2_b7_Ny201_Nz401_
+
+#outputDir = /scratch/kallison/pl_b7_
+#outputDir = /data/dunham/kallison/testData/pl_b7_
+#outputDir = /data/dunham/kallison/testData/pl_b8_
+#outputDir = /data/dunham/kallison/testData/pl_b9_
+
+#outputDir = /data/dunham/kallison/testData/pl_b8+7_
+#outputDir = /data/dunham/kallison/testData/le_b8+7_
+
+#outputDir = /data/dunham/kallison/testData/pl_b15+8_
+#outputDir = /data/dunham/kallison/testData/pl_bv1_
+#outputDir = /data/dunham/kallison/testData/pl_bv2_
+
+# AMG simulations
+#outputDir = /data/dunham/kallison/testData/pl_AMG_b9_
+#outputDir = /data/dunham/kallison/testData/pl_AMG_b8_
+
+#outputDir = /data/dunham/kallison/testData/pl_bcLtauv2_b8_
+#outputDir = /data/dunham/kallison/testData/pl_bcLtauv2_b9_
+#outputDir = /data/dunham/kallison/testData/pl_bcLtau_b8_
+#outputDir = /data/dunham/kallison/testData/pl_bcLtau_b9_
+#outputDir = /data/dunham/kallison/testData/pl_bcLtau_b15_
+
+
+#outputDir = /data/dunham/kallison/heData/pl_sh_b8_
+#outputDir = /data/dunham/kallison/heData/pl_sh_al_b8_
+outputDir = /data/dunham/kallison/heData/pl_nsh_al_b8_
 
 
 

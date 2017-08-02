@@ -34,7 +34,7 @@ HeatEquation::HeatEquation(Domain& D)
     delete _sbpT;
     _sbpT = NULL;
   }
-
+  if (D._loadICs==1) { loadFieldsFromFiles(); }
 
   // set up linear system for time integration
   setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
@@ -276,35 +276,37 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   #endif
 
   // load k
-  ierr = VecCreate(PETSC_COMM_WORLD,&_k);CHKERRQ(ierr);
-  ierr = VecSetSizes(_k,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_k);
-  PetscObjectSetName((PetscObject) _k, "_k");
-  ierr = loadVecFromInputFile(_k,_inputDir,_kFile);CHKERRQ(ierr);
+  //~ string vecSourceFile = _inputDir + "_k";
+  //~ ierr = loadVecFromInputFile(_k,_inputDir,_kFile);CHKERRQ(ierr);
 
 
-  // load rho
-  ierr = VecCreate(PETSC_COMM_WORLD,&_rho);CHKERRQ(ierr);
-  ierr = VecSetSizes(_rho,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_rho);
-  PetscObjectSetName((PetscObject) _rho, "_rho");
-  ierr = loadVecFromInputFile(_rho,_inputDir,_rhoFile);CHKERRQ(ierr);
+  //~ // load rho
+  //~ ierr = VecCreate(PETSC_COMM_WORLD,&_rho);CHKERRQ(ierr);
+  //~ ierr = VecSetSizes(_rho,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = VecSetFromOptions(_rho);
+  //~ PetscObjectSetName((PetscObject) _rho, "_rho");
+  //~ ierr = loadVecFromInputFile(_rho,_inputDir,_rhoFile);CHKERRQ(ierr);
 
-  // load h
-  ierr = VecCreate(PETSC_COMM_WORLD,&_h);CHKERRQ(ierr);
-  ierr = VecSetSizes(_h,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_h);
-  PetscObjectSetName((PetscObject) _h, "_h");
-  ierr = loadVecFromInputFile(_h,_inputDir,_hFile);CHKERRQ(ierr);
+  //~ // load h
+  //~ ierr = VecCreate(PETSC_COMM_WORLD,&_h);CHKERRQ(ierr);
+  //~ ierr = VecSetSizes(_h,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = VecSetFromOptions(_h);
+  //~ PetscObjectSetName((PetscObject) _h, "_h");
+  //~ ierr = loadVecFromInputFile(_h,_inputDir,_hFile);CHKERRQ(ierr);
 
-  // load c
-  ierr = VecCreate(PETSC_COMM_WORLD,&_c);CHKERRQ(ierr);
-  ierr = VecSetSizes(_c,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_c);
-  PetscObjectSetName((PetscObject) _c, "_c");
-  ierr = loadVecFromInputFile(_c,_inputDir,_cFile);CHKERRQ(ierr);
+  //~ // load c
+  //~ ierr = VecCreate(PETSC_COMM_WORLD,&_c);CHKERRQ(ierr);
+  //~ ierr = VecSetSizes(_c,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
+  //~ ierr = VecSetFromOptions(_c);
+  //~ PetscObjectSetName((PetscObject) _c, "_c");
+  //~ ierr = loadVecFromInputFile(_c,_inputDir,_cFile);CHKERRQ(ierr);
 
 
+  // load T0 (background geotherm)
+  ierr = loadVecFromInputFile(_T0,_inputDir,"T0");CHKERRQ(ierr);
+
+  // load dT (perturbation)
+  ierr = loadVecFromInputFile(_T,_inputDir,"dT");CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -381,6 +383,7 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
+      //~ ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
       computeSteadyStateTemp(D);
     }
   }
