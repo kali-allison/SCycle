@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N pl_nsh_al_b8
+#PBS -N pl_nsh_slDc16_b8
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/pl_nsh_al_b8.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/pl_nsh_al_b8.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/pl_nsh_slDc16_b8.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/pl_nsh_slDc16_b8.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

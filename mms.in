@@ -1,9 +1,11 @@
 order = 4
 Ny = 161
 Nz = 1
-Ly = 6.283185307179586
-#Ly = 1
-Lz = 1
+Ly = 2
+#Ly = 1.570796326794897
+#Ly = 6.283185307179586
+Lz = 2.5
+#Lz = 6.283185307179586
 
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 48] # m
@@ -62,7 +64,7 @@ rhoDepths = [0 24]
 linSolver = MUMPSCHOLESKY
 #sbpType = mfc
 sbpType = mfc_coordTrans
-bCoordTrans = 1.0
+bCoordTrans = 5.0
 kspTol = 1e-10
 
 timeIntegrator = RK32
@@ -79,5 +81,5 @@ atol = 1e-10
 
 rootTol = 1e-8
 
-outputDir = data/mms_lm_
+outputDir = data/mms_le_
 #outputDir = data/mms_pow_

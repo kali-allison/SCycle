@@ -609,20 +609,26 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
 
   // set up SBP operators
   //~ string bcT,string bcR,string bcB, string bcL
-  std::string bcTType = "Neumann";
-  std::string bcBType = "Neumann";
-  std::string bcRType = "Dirichlet";
-  std::string bcLType = "Dirichlet";
-  if (_bcLTauQS==1) { bcLType = "Neumann"; }
+  _bcTType = "Neumann";
+  _bcBType = "Neumann";
+  _bcRType = "Dirichlet";
+  _bcLType = "Dirichlet";
+  if (_bcLTauQS==1) { _bcLType = "Neumann"; }
+
+  // for MMS tests
+  //~ _bcTType = "Dirichlet";
+  //~ _bcBType = "Dirichlet";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
 
   if (_sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_c(D,D._muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_fc(D,D._muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1023,6 +1029,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   VecDuplicate(_uP,&Hxsource);
   if (_Nz==1) { mapToVec(source,MMS_uSource1D,*_y,time); }
   else { mapToVec(source,MMS_uSource,*_y,*_z,time); }
+  writeVec(source,_outputDir + "mms_source");
 
   ierr = _sbpP->H(source,Hxsource);
   VecDestroy(&source);
@@ -1072,7 +1079,6 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   PetscScalar y,z,v;
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcLP,&Istart,&Iend);CHKERRQ(ierr);
-
   if (_Nz == 1) {
     Ii = Istart;
     y = 0;
@@ -1098,6 +1104,7 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
       if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
       else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_y(y,z,time); } // sigma_xy = mu * d/dy u
       ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ly = %f, y = %f, z = %f, bcR = %f\n",_Ly,y,z,v);
     }
   }
   ierr = VecAssemblyBegin(_bcLP);CHKERRQ(ierr);
@@ -1106,25 +1113,34 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
+  //~ ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(*_y,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
-    //~ y = _dy * Ii;
-    ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+    if (Ii % _Nz == 0) {
+      //~ y = _dy * Ii;
+      ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+      PetscInt Jj = Ii / _Nz;
 
-    z = 0;
-    if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
-    ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      z = 0;
+      if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
+      else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+      ierr = VecSetValues(_bcTP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
 
-    z = _Lz;
-    if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); }
-    ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      z = _Lz;
+      if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
+      else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * MMS_uA_z(y,z,time); }
+      ierr = VecSetValues(_bcBP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
   ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+
+  writeVec(_bcLP,_outputDir+"mms_bcL");
+  writeVec(_bcRP,_outputDir+"mms_bcR");
+  writeVec(_bcTP,_outputDir+"mms_bcT");
+  writeVec(_bcBP,_outputDir+"mms_bcB");
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1141,6 +1157,8 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
+  VecSet(_bcRPShift,0.0);
+
   PetscScalar time = _initTime;
 
   Vec source,Hxsource;
@@ -1150,7 +1168,17 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   if (_Nz == 1) { mapToVec(source,MMS_uSource1D,*_y,_currTime); }
   else { mapToVec(source,MMS_uSource,*_y,*_z,_currTime); }
   //~ ierr = mapToVec(source,MMS_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  writeVec(source,_outputDir + "mms_source");
   ierr = _sbpP->H(source,Hxsource); CHKERRQ(ierr);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1;
+    VecDuplicate(_uP,&temp1);
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(yq,Hxsource,temp1);
+    MatMult(zr,temp1,Hxsource);
+    VecDestroy(&temp1);
+  }
   VecDestroy(&source);
 
 

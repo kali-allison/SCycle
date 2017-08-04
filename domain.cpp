@@ -798,10 +798,12 @@ PetscErrorCode Domain::setFieldsPlus()
     }
     else {
       // no transformation
-      y = q*_Ly;
-      z = r*_Lz;
+      //~ y = q*_Ly;
+      //~ z = r*_Lz;
+      //~ y = _dy*(Ii/_Nz);
+      z = _dz*(Ii-_Nz*(Ii/_Nz));
 
-      //~ y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
+      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
       //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
       //~ z = _Lz*(r+exp(r/0.125)-1.0)/exp(1.0/0.125);
 
