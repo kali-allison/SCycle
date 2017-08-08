@@ -250,6 +250,39 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
   return out;
 }
 
+// out = A x B x vecR; assumes vecR is DIFFERENT from out
+PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+
+  Mat AB;
+  MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+
+  ierr = MatMult(AB,vecR,out); CHKERRQ(ierr);
+
+  MatDestroy(&AB);
+  return ierr;
+}
+
+// out = A x B x vecR; assumes vecR is IDENTICAL to out
+PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
+{
+  PetscErrorCode ierr = 0;
+
+  Mat AB;
+  MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+
+  Vec temp;
+  VecDuplicate(vecR,&temp);
+
+  ierr = MatMult(AB,vecR,temp); CHKERRQ(ierr);
+  ierr = VecCopy(temp,vecR); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+  MatDestroy(&AB);
+  return ierr;
+}
+
 
 // loads a PETSc Vec from a binary file
 // Note: memory for out MUST be allocated before calling this function
@@ -575,7 +608,7 @@ double MMS_pl_sigmaxy(const double y,const double z,const double t) { return MMS
 double MMS_pl_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*(MMS_uA_z(y,z,t) - MMS_gxz(y,z,t)); }
 double MMS_sigmadev(const double y,const double z,const double t)
 {
-  return sqrt( pow(MMS_pl_sigmaxy(y,z,t),2.0) + pow(MMS_pl_sigmaxz(y,z,t),2.0) )/sqrt(2.0);
+  return sqrt( pow(MMS_pl_sigmaxy(y,z,t),2.0) + pow(MMS_pl_sigmaxz(y,z,t),2.0) );
 }
 
 

@@ -685,14 +685,10 @@ PetscErrorCode SymmFault::computeVel()
     }
     // correct for left-lateral fault motion
     if (leftVal>rightVal) {
-      //~ PetscPrintf(PETSC_COMM_WORLD,"1 left>right!: left = %g, right = %g\n",Ii,leftVal,rightVal);
       temp = rightVal;
       rightVal = leftVal;
       leftVal = temp;
-      //~ PetscPrintf(PETSC_COMM_WORLD,"2 left>right!: left = %g, right = %g\n",Ii,leftVal,rightVal);
     }
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g\n",Ii,leftVal,rightVal);
-    //~ assert(0);
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {

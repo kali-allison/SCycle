@@ -54,6 +54,8 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR);
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR);
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR);
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Mat& D, const Vec& vecR);
+PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR);
+PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR);
 
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);

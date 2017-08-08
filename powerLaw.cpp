@@ -32,6 +32,7 @@ PowerLaw::PowerLaw(Domain& D)
     loadFieldsFromFiles();
     setUpSBPContext(D); // set up matrix operators
     setStresses(_initTime);
+    computeViscosity();
   }
   else {
     guessSteadyStateEffVisc();
@@ -40,24 +41,13 @@ PowerLaw::PowerLaw(Domain& D)
     setStresses(_initTime);
   }
 
-  if (_isMMS) { setMMSInitialConditions(); }
-
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
   _var.push_back(vargxyP);
   _var.push_back(vargxzP);
 
-  // should already be done from linear elastic
-  //~ _he.getTemp(_T);
-  //~ // if also solving heat equation
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ Vec T;
-    //~ VecDuplicate(_uP,&T);
-    //~ _he.getTemp(T);
-    //~ _varIm.push_back(T);
-    //~ _he.getTemp(_T);
-  //~ }
+  if (_isMMS) { setMMSInitialConditions(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -425,6 +415,32 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_effVisc,inv);CHKERRQ(ierr);
 
+  // load temperature
+  vecSourceFile = _inputDir + "T";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_T,inv);CHKERRQ(ierr);
+
+  // load power law parameters
+  vecSourceFile = _inputDir + "A";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_A,inv);CHKERRQ(ierr);
+
+  vecSourceFile = _inputDir + "B";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_B,inv);CHKERRQ(ierr);
+
+  vecSourceFile = _inputDir + "n";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = VecLoad(_n,inv);CHKERRQ(ierr);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -621,6 +637,9 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   if (_Nz == 1) { VecSet(_gxzP,0.0); }
   else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
 
+  ierr = VecCopy(_gxyP,*(_var.begin()+3)); CHKERRQ(ierr);
+  ierr = VecCopy(_gxzP,*(_var.begin()+4)); CHKERRQ(ierr);
+
   // set material properties
   if (_Nz == 1) { mapToVec(_muVecP,MMS_mu1D,*_y); }
   else { mapToVec(_muVecP,MMS_mu,*_y,*_z); }
@@ -633,47 +652,52 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   if (_Nz == 1) { mapToVec(_T,MMS_T1D,*_y); }
   else { mapToVec(_T,MMS_T,*_y,*_z); }
 
-  VecCopy(_gxyP,*(_var.begin()+2));
-  VecCopy(_gxzP,*(_var.begin()+3));
-
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
 
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
-  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&viscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxviscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&viscSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&viscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource); CHKERRQ(ierr);
 
   //~ ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,*(_var.begin()+3),*(_var.begin()+4));CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,_currTime); }
   else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,_currTime); }
-  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
+  ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS); CHKERRQ(ierr);
   VecDestroy(&viscSourceMMS);
   if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,_currTime); }
   else { mapToVec(uSource,MMS_uSource,*_y,*_z,_currTime); }
-  ierr = _sbpP->H(uSource,HxuSource);
+  ierr = _sbpP->H(uSource,HxuSource); CHKERRQ(ierr);
   VecDestroy(&uSource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,viscSource); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxuSource); CHKERRQ(ierr);
+  }
 
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
-  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
-  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
+  ierr = VecAXPY(_rhsP,1.0,viscSource); CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
+  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS); CHKERRQ(ierr); // add MMS source for viscous strains
+  ierr = VecAXPY(_rhsP,1.0,HxuSource); CHKERRQ(ierr); // add MMS source for u
+  VecDestroy(&viscSource);
   VecDestroy(&HxviscSourceMMS);
   VecDestroy(&HxuSource);
 
 
   // solve for displacement
   double startTime = MPI_Wtime();
-  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  ierr = KSPSolve(_kspP,_rhsP,_uP); CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
-  ierr = setSurfDisp();
+  ierr = setSurfDisp(); CHKERRQ(ierr);
 
   // set stresses
-  ierr = setStresses(time);CHKERRQ(ierr);
+  ierr = setStresses(time); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -706,6 +730,11 @@ PetscErrorCode PowerLaw::integrate()
 
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds);
+    if (_bcLTauQS==1) {
+      int arrInds[] = {3,4}; // state: 0, slip: 1
+      std::vector<int> errInds(arrInds,arrInds+2);
+      ierr = _quadImex->setErrInds(errInds);
+    }
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -718,7 +747,7 @@ PetscErrorCode PowerLaw::integrate()
 
     // control which fields are used to select step size
     if (_isMMS) {
-      int arrInds[] = {3}; // state: 0, slip: 1
+      int arrInds[] = {3,4}; // state: 0, slip: 1
       std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
       ierr = _quadEx->setErrInds(errInds);
     }
@@ -841,7 +870,6 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   Vec viscSource;
   ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
   ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  //~ ierr = setViscStrainSourceTerms(viscSource,varBegin);CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP);CHKERRQ(ierr);
 
   // set up rhs vector
@@ -870,15 +898,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     VecSet(*(dvarBegin+1),0.0); // // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
-  //~ ierr = setViscStrainRates(time,varBegin,dvarBegin); CHKERRQ(ierr);
   ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
-
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_sxyP,_sxzP,*(dvarBegin+2),
-      //~ *(dvarBegin+3),*(varBegin+4),*(dvarBegin+4),dt);CHKERRQ(ierr);
-      //~ // arguments:
-      //~ // time, slipVel, sigmaxy, sigmaxz, dgxy, dgxz, T, dTdt
-  //~ }
 
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
@@ -904,8 +924,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
 
   _currTime = time;
 
-  VecCopy(*(varBegin+3),_gxyP);
-  VecCopy(*(varBegin+4),_gxzP);
+  ierr = VecCopy(*(varBegin+3),_gxyP); CHKERRQ(ierr);
+  ierr = VecCopy(*(varBegin+4),_gxzP); CHKERRQ(ierr);
 
   // force viscous strains to be correct
   //~ if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
@@ -914,18 +934,18 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   //~ else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
 
   // create rhs: set boundary conditions, set rhs, add source terms
-  ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
-  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP); CHKERRQ(ierr);
 
   Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
-  ierr = VecDuplicate(_uP,&viscSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&viscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxviscSourceMMS);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&uSource);CHKERRQ(ierr);
-  ierr = VecDuplicate(_uP,&HxuSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&viscSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&viscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxviscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&uSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_uP,&HxuSource); CHKERRQ(ierr);
 
   //~ ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
-  ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP);CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP); CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,time); }
   else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,time); }
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
@@ -934,30 +954,36 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxuSource); CHKERRQ(ierr);
+  }
 
-  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
-  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS);CHKERRQ(ierr); // add MMS source for viscous strains
-  ierr = VecAXPY(_rhsP,1.0,HxuSource);CHKERRQ(ierr); // add MMS source for u
+  ierr = VecAXPY(_rhsP,1.0,viscSource); CHKERRQ(ierr); // add d/dy mu*epsVxy + d/dz mu*epsVxz
+  ierr = VecAXPY(_rhsP,1.0,HxviscSourceMMS); CHKERRQ(ierr); // add MMS source for viscous strains
+  ierr = VecAXPY(_rhsP,1.0,HxuSource); CHKERRQ(ierr); // add MMS source for u
   VecDestroy(&HxviscSourceMMS);
   VecDestroy(&HxuSource);
 
 
   double startTime = MPI_Wtime();
-  ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
+  ierr = KSPSolve(_kspP,_rhsP,_uP); CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~ mapToVec(_uP,MMS_uA,*_y,*_z,_currTime);
+  //~ mapToVec(_uP,MMS_uA,*_y,*_z,time);
 
   // update stresses
-  ierr = setStresses(time);CHKERRQ(ierr);
+  ierr = setStresses(time); CHKERRQ(ierr);
   //~ mapToVec(_sxyP,MMS_pl_sigmaxy,*_y,*_z,_currTime);
   //~ mapToVec(_sxzP,MMS_pl_sigmaxz,*_y,*_z,_currTime);
   //~ mapToVec(_sigmadev,MMS_sigmadev,*_y,*_z,_currTime);
+  computeViscosity();
 
   // update rates
-  //~ ierr = setViscStrainRates(time,varBegin,dvarBegin);CHKERRQ(ierr); // set viscous strain rates
   ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
   Vec source;
   VecDuplicate(_uP,&source);
@@ -975,8 +1001,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const_it_vec varBegin,i
   VecSet(*(dvarBegin+1),0.0); // d/dt theta
   VecSet(*(dvarBegin+2),0.0); // slip vel
 
-  //~ mapToVec(*(dvarBegin+2),MMS_gxy_t,*_y,*_z,_currTime);
-  //~ mapToVec(*(dvarBegin+3),MMS_gxz_t,*_y,*_z,_currTime);
+  //~ mapToVec(*(dvarBegin+3),MMS_gxy_t,*_y,*_z,time);
+  //~ mapToVec(*(dvarBegin+4),MMS_gxz_t,*_y,*_z,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1139,9 +1165,13 @@ PetscErrorCode PowerLaw::computeViscosity()
     VecGetValues(_T,1,&Ii,&T);
     effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
     VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+
+    assert(~isnan(effVisc));
+    assert(~isinf(effVisc));
   }
   VecAssemblyBegin(_effVisc);
   VecAssemblyEnd(_effVisc);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -1311,7 +1341,8 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
   }
   else {
     for(Ii=Istart;Ii<Iend;Ii++) {
-      z = _dz * Ii;
+      //~ z = _dz * Ii;
+      ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
 
       y = 0;
       if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
@@ -1331,26 +1362,30 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
 
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(*_y,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
-    y = _dy * Ii;
+    if (Ii % _Nz == 0) {
+    //~ y = _dy * Ii;
+    ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+    PetscInt Jj = Ii / _Nz;
 
     z = 0;
     if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
     else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
     //~ else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
-    ierr = VecSetValues(_bcTP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_bcTP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
     if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
     else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time));}
     //~ else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
-    ierr = VecSetValues(_bcBP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_bcBP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
-  ierr = VecAssemblyBegin(_bcTP);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_bcBP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcTP); CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcBP); CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcTP); CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcBP); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1474,9 +1509,6 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&uA);
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
-  //~ mapToVec(uA,MMS_uA,*_y,*_z,_currTime);
-  //~ mapToVec(gxyA,MMS_gxy,_Nz,_dy,_dz,_currTime);
-  //~ mapToVec(gxzA,MMS_gxz,_Nz,_dy,_dz,_currTime);
 
   if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
   else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
@@ -1485,35 +1517,20 @@ PetscErrorCode PowerLaw::measureMMSError()
   if (_Nz == 1) { mapToVec(gxzA,MMS_gxy1D,*_y,_currTime); }
   else { mapToVec(gxzA,MMS_gxz,*_y,*_z,_currTime); }
 
+  writeVec(uA,_outputDir+"mms_uA");
+  writeVec(gxyA,_outputDir+"mms_gxyA");
+  writeVec(gxzA,_outputDir+"mms_gxzA");
+  writeVec(_bcLP,_outputDir+"mms_bcL");
+  writeVec(_bcRP,_outputDir+"mms_bcR");
+  writeVec(_bcTP,_outputDir+"mms_bcT");
+  writeVec(_bcBP,_outputDir+"mms_bcB");
+
   double err2u = computeNormDiff_2(_uP,uA);
-  double err2epsxy = computeNormDiff_2(*(_var.begin()+2),gxyA);
-  double err2epsxz = computeNormDiff_2(*(_var.begin()+3),gxzA);
+  double err2epsxy = computeNormDiff_2(*(_var.begin()+3),gxyA);
+  double err2epsxz = computeNormDiff_2(*(_var.begin()+4),gxzA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%i %3i %.4e %.4e % .15e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2u,log2(err2u),err2epsxy,log2(err2epsxy),err2epsxz,log2(err2epsxz));
-
-  //~// measure error for stresses as well
-  //~mapToVec(_gxyP,MMS_gxy,_Nz,_dy,_dz,_currTime);
-  //~mapToVec(_gxzP,MMS_gxz,_Nz,_dy,_dz,_currTime);
-  //~mapToVec(_uP,MMS_uA,_Nz,_dy,_dz,_currTime);
-  //~ierr = setStresses(_currTime,_var.begin(),_var.end());CHKERRQ(ierr); // numerical solution
-  //~Vec sigmaxyA, sigmaxzA, sigmadevA;
-  //~VecDuplicate(_uP,&sigmaxyA);
-  //~VecDuplicate(_uP,&sigmaxzA);
-  //~VecDuplicate(_uP,&sigmadevA);
-  //~mapToVec(sigmaxyA,MMS_pl_sigmaxy,_Nz,_dy,_dz,_currTime);
-  //~mapToVec(sigmaxzA,MMS_pl_sigmaxz,_Nz,_dy,_dz,_currTime);
-  //~mapToVec(sigmadevA,MMS_sigmadev,_Nz,_dy,_dz,_currTime);
-  //~double err2sigmaxyA = computeNormDiff_2(_sxyP,sigmaxyA);
-  //~double err2sigmaxzA = computeNormDiff_2(_sxzP,sigmaxzA);
-  //~double err2sigmadevA = computeNormDiff_2(_sigmadev,sigmadevA);
-  //~VecDestroy(&sigmaxyA);
-  //~VecDestroy(&sigmaxzA);
-  //~VecDestroy(&sigmadevA);
-
-  //~PetscPrintf(PETSC_COMM_WORLD,"%3i %3i %.4e %.4e % .15e %.4e % .15e\n",
-              //~_order,_Ny,_dy,err2sigmaxyA,log2(err2sigmaxyA),err2sigmaxzA,log2(err2sigmaxzA));
-
 
   VecDestroy(&uA);
   VecDestroy(&gxyA);

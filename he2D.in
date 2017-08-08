@@ -1,6 +1,6 @@
 order = 4
-Ny = 201
-Nz = 501
+Ny = 51
+Nz = 51
 Ly = 60 # km
 Lz = 40 # km
 
@@ -9,6 +9,12 @@ cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
 DcVals = [32e-3 32e-3] # m
 DcDepths = [0 60] # m
+
+# uniformly VS
+#aVals = [0.2652 0.2652]
+#aDepths = [0 60]
+#bVals = [0.0497 0.0497]
+#bDepths = [0 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -34,14 +40,16 @@ sigmaN_cap = 50; # MPa
 vL = 1e-9    # (m/s)
 
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_nsh_al_b8_1IC_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/he/interp_Ny202_Nz202_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/he/interp_step2_Ny202_Nz202_
 
 # just effective viscosity data
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz501_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny151_Nz201_
 #yInputDir = /data/dunham/kallison/eqcycle/heInputFiles/pl_bv1_y
 #yInputDir = /data/dunham/kallison/eqcycle/heInputFiles/pl_bv2_y
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/le_Ny201_Nz931_z
 loadICs = 0
-bcLTauQS = 0
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -52,7 +60,7 @@ rhoPlus = 3.0 # g/cm^3
 
 linSolver = MUMPSCHOLESKY
 #bCoordTrans = 15.0
-bCoordTrans = 8.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -92,12 +100,12 @@ rhoDepths = [0 60]
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 TVals = [293 1793] # 30 C/km
-#TVals = [300 300]
+#TVals = [1300 1300]
 TDepths = [0 50]
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -107,29 +115,30 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 10 #1e9
+maxStepCount = 20 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
-timeIntInds = [0 2]
+#timeIntInds = [0 2]
+timeIntInds = [3 4]
 
 rootTol = 1e-9
 
 
-#stateLaw = agingLaw
-stateLaw = slipLaw
+stateLaw = agingLaw
+#stateLaw = slipLaw
 v0 = 1e-6
 f0 = 0.6
 
@@ -144,18 +153,26 @@ f0 = 0.6
 #D = 5 # um
 
 
+
 #outputDir = /data/dunham/kallison/heData/pl_sh_b8_
 #outputDir = /data/dunham/kallison/heData/pl_sh_al_b8_
 #outputDir = /data/dunham/kallison/heData/pl_nsh_sl_b8_
-outputDir = /data/dunham/kallison/heData/pl_nsh_slDc16_b8_
+#outputDir = /data/dunham/kallison/heData/pl_nsh_slDc16_b8_
 #outputDir = /data/dunham/kallison/heData/pl_nsh_al_b8_
 #outputDir = /data/dunham/kallison/heData/pl_nsh_al_b8_1cont_
 
 
+#outputDir = /data/dunham/kallison/heData/b_constVS_T1000_b8_
+#outputDir = /data/dunham/kallison/heData/b_VWVS_T1000_b15_
 
-#outputDir = /data/dunham/kallison/heData/memTest_
+#outputDir = /data/dunham/kallison/heData/interp_step0_
+#outputDir = /data/dunham/kallison/heData/interp_step0_Ny201_Nz201_
+#outputDir = /data/dunham/kallison/heData/interp_step0_sh_Ny201_Nz201_
+#outputDir = /data/dunham/kallison/heData/interp_step1_
+#outputDir = /data/dunham/kallison/heData/interp_step2_
+#outputDir = /data/dunham/kallison/heData/interp_sh_step0_
 
-
+outputDir = /data/dunham/kallison/heData/memTest_
 
 
 

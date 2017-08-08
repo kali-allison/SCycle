@@ -914,13 +914,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   _sbpT->H(To,temp);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
-    Vec temp1;
-    VecDuplicate(To,&temp1);
-    VecSet(temp1,0.0);
     ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(yq,temp,temp1);
-    MatMult(zr,temp1,temp);
-    VecDestroy(&temp1);
+    ierr = multMatsVec(yq,zr,temp); CHKERRQ(ierr);
   }
   VecAXPY(rhs,1.0,temp);
   VecDestroy(&temp);

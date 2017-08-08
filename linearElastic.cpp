@@ -1029,9 +1029,12 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
   VecDuplicate(_uP,&Hxsource);
   if (_Nz==1) { mapToVec(source,MMS_uSource1D,*_y,time); }
   else { mapToVec(source,MMS_uSource,*_y,*_z,time); }
-  writeVec(source,_outputDir + "mms_source");
-
   ierr = _sbpP->H(source,Hxsource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    multMatsVec(yq,zr,Hxsource);
+  }
   VecDestroy(&source);
 
 
@@ -1172,12 +1175,8 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   ierr = _sbpP->H(source,Hxsource); CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
-    Vec temp1;
-    VecDuplicate(_uP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(yq,Hxsource,temp1);
-    MatMult(zr,temp1,Hxsource);
-    VecDestroy(&temp1);
+    multMatsVec(yq,zr,Hxsource);
   }
   VecDestroy(&source);
 

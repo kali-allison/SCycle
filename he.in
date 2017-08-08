@@ -1,5 +1,5 @@
 order = 4
-Ny = 401
+Ny = 201
 Nz = 1
 Ly = 20 # km
 Lz = 24 # km
@@ -9,11 +9,17 @@ cohesionDepths = [0 60] # m
 DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
 
+# uniformly VS
+aVals = [0.2652 0.2652]
+aDepths = [0 60]
+bVals = [0.0497 0.0497]
+bDepths = [0 60]
+
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
 
 
 sigmaNVals = [50 50] # MPa
@@ -70,12 +76,12 @@ rhoDepths = [0 60]
 #TVals = [293 1293] # 20 C/km
 #TVals = [0 0]
 #TVals = [600 600] # K, ~ eq nucleation depth
-TVals = [300 300] # K, ~ surface behavior
+TVals = [1300 1300] # K, ~ surface behavior
 TDepths = [0 50]
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = no
-withShearHeating = yes
-withFrictionalHeating = yes
+withShearHeating = no
+withFrictionalHeating = no
 
 
 
@@ -84,17 +90,17 @@ withFrictionalHeating = yes
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e9 #1e9
-initTime = 1e9      # s 3e10
+initTime = 0      # s 3e10
 maxTime = 2e11      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
@@ -105,22 +111,22 @@ timeIntInds = [0 2]
 rootTol = 1e-9
 
 
-#stateLaw = agingLaw
+stateLaw = agingLaw
 #stateLaw = slipLaw
-#v0 = 1e-6
-#f0 = 0.6
+v0 = 1e-6
+f0 = 0.6
 
 
 # flash heating for granite
-stateLaw = flashHeating
-v0 = 1e-6
-f0 = 0.6
+#stateLaw = flashHeating
+#v0 = 1e-6
+#f0 = 0.6
 #fw = 0.12
-fw = 0.0
-Vw = 0.1
-Tw = 1.1732e+03 # K 900 C
-tau_c = 3 # GPa
-D = 5 # um
+#fw = 0.0
+#Vw = 0.1
+#Tw = 1.1732e+03 # K 900 C
+#tau_c = 3 # GPa
+#D = 5 # um
 
 
 #outputDir = data/SS_flashHeating_test_
@@ -129,8 +135,9 @@ D = 5 # um
 #outputDir = /scratch/kallison/SS/le_slipLaw_
 
 #outputDir = /Users/kallison/heTests/SS/le_fh_VwT_
-outputDir = /Users/kallison/heTests/SS/le_fh_Vwconst_
+#outputDir = /Users/kallison/heTests/SS/le_fh_Vwconst_
 
+outputDir = /data/dunham/kallison/heData/SS/T1300_slipLaw_
 
 
 
