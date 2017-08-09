@@ -102,8 +102,8 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [1300 1300]
 TDepths = [0 50]
-#thermalCoupling = coupled
-thermalCoupling = uncoupled
+thermalCoupling = coupled
+#thermalCoupling = uncoupled
 #thermalCoupling = no
 withShearHeating = yes
 withFrictionalHeating = no
@@ -173,23 +173,6 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/heData/interp_sh_step0_
 
 
-#outputDir = /data/dunham/kallison/heData/memTest_cnksp_
-#outputDir = /data/dunham/kallison/heData/memTest_nhe_
-#outputDir = /data/dunham/kallison/heData/memTest_cwfh_
-#outputDir = /data/dunham/kallison/heData/memTest_uwfh_
-#outputDir = /data/dunham/kallison/heData/memTest_uwsh_
-#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v0_
-#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v0_
-#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v1_
-
-
-#outputDir = /data/dunham/kallison/heData/memTest_v0_
-#outputDir = /data/dunham/kallison/heData/memTest_v1_
-#outputDir = /data/dunham/kallison/heData/memTest_v2_
-#outputDir = /data/dunham/kallison/heData/memTest_v3_
-#outputDir = /data/dunham/kallison/heData/memTest_v4_
-#outputDir = /data/dunham/kallison/heData/memTest_v5_
-#outputDir = /data/dunham/kallison/heData/memTest_v6_
-outputDir = /data/dunham/kallison/heData/memTest_v7_
+outputDir = /data/dunham/kallison/heData/b5_csh_
 
 

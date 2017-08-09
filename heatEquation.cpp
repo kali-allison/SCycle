@@ -549,7 +549,8 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 
   // new version
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
-  MatShift(_A,-dt);
+  MatScale(_A,-dt);
+  MatShift(_A,1.0);
 
 
   // set up KSP
@@ -894,7 +895,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   // set up matrix
   //~ setupKSP(_sbpT,dt);
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
-  MatShift(_A,-dt);
+  MatScale(_A,-dt);
+  MatShift(_A,1.0);
   ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
 
   // set up boundary conditions and source terms
@@ -976,6 +978,23 @@ PetscErrorCode HeatEquation::computeShearHeating(Vec& shearHeat,const Vec& sigma
   // dgv = sqrt(dgVxy^2 + dgVxz^2)
   VecDuplicate(sigmadev,&shearHeat);
   VecSet(shearHeat,0.0);
+
+
+  //~ PetscInt Istart,Iend;
+  //~ PetscScalar h,sdev,dgxyV,dgxzV = 0;
+  //~ VecGetOwnershipRange(shearHeat,&Istart,&Iend);
+  //~ for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    //~ ierr = VecGetValues(dgxy,1,&Ii,&dgxyV);CHKERRQ(ierr);
+    //~ ierr = VecGetValues(dgxz,1,&Ii,&dgxzV);CHKERRQ(ierr);
+    //~ ierr = VecGetValues(sigmadev,1,&Ii,&sdev);CHKERRQ(ierr);
+    //~ h = sdev * sqrt( dgxyV*dgxyV + dgxzV*dgxzV);
+    //~ VecSetValues(shearHeat,1,&Ii,&h,INSERT_VALUES);
+    //~ assert(~isnan(h));
+    //~ assert(~isinf(h));
+  //~ }
+  //~ VecAssemblyBegin(shearHeat);
+  //~ VecAssemblyEnd(shearHeat);
+
 
   // compute dgv (use shearHeat to store values)
   VecPointwiseMult(shearHeat,dgxy,dgxy);

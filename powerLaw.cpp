@@ -1552,6 +1552,42 @@ PetscErrorCode PowerLaw::measureMMSError()
 // IO functions
 //======================================================================
 
+// Save all scalar fields to text file named pl_domain.txt in output directory.
+// Note that only the rank 0 processor's values will be saved.
+PetscErrorCode PowerLaw::writeDomain()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "PowerLaw::writeDomain";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // output scalar fields
+  std::string str = _outputDir + "pl_context.txt";
+  PetscViewer    viewer;
+
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+
+  ierr = PetscViewerASCIIPrintf(viewer,"viscDistribution = %s\n",_viscDistribution.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
+
+  PetscMPIInt size;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode PowerLaw::writeContext()
 {
   PetscErrorCode ierr = 0;
@@ -1560,6 +1596,8 @@ PetscErrorCode PowerLaw::writeContext()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
+  writeDomain();
 
   PetscViewer    vw;
 
