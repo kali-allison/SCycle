@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N memTest_nhe
+#PBS -N v7
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/memTest_nhe.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/memTest_nhe.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/v7.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/v7.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

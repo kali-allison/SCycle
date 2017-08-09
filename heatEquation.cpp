@@ -17,7 +17,7 @@ HeatEquation::HeatEquation(Domain& D)
   _sbpType(D._sbpType),_sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   _linSolver("AMG"),_kspTol(1e-10),
-  _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_computePC(0),
+  _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_computePC(0),_D2divRhoC(NULL),
   _linSolveTime(0),_linSolveCount(0),_pcRecomputeCount(0),_stride1D(D._stride1D),_stride2D(D._stride2D),
   _T(NULL),_T0(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL)
 {
@@ -72,6 +72,23 @@ HeatEquation::HeatEquation(Domain& D)
   MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
   VecDestroy(&rhoCV);
 
+  // create D2 / rho / c _D2divrhoC
+  Mat D2;
+  _sbpT->getA(D2);
+  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_D2divRhoC);
+  // ensure diagonal has been allocated, even if 0
+  PetscScalar v=0.0;
+  PetscInt Ii,Istart,Iend=0;
+  MatGetOwnershipRange(_D2divRhoC,&Istart,&Iend);
+  for (Ii = Istart; Ii < Iend; Ii++) {
+    MatSetValues(_D2divRhoC,1,&Ii,1,&Ii,&v,ADD_VALUES);
+  }
+  MatAssemblyBegin(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+  MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
+
+   setupKSP(_sbpT,D._initDeltaT);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -85,6 +102,7 @@ HeatEquation::~HeatEquation()
   MatDestroy(&_A);
   MatDestroy(&_rhoC);
   MatDestroy(&_I);
+  MatDestroy(&_D2divRhoC);
 
   VecDestroy(&_k);
   VecDestroy(&_rho);
@@ -521,12 +539,18 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 
 
 
+
   // create: A = I - dt/rho*c D2
-  Mat D2;
-  sbp->getA(D2);
-  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
-  MatScale(_A,-dt);
-  MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  //~ Mat D2;
+  //~ sbp->getA(D2);
+  //~ MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
+  //~ MatScale(_A,-dt);
+  //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+
+  // new version
+  MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
+  MatShift(_A,-dt);
+
 
   // set up KSP
 
@@ -537,21 +561,12 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
   //~ else {
     //~ if (_computePC==0) { ierr = MatConvert(_A,MATSAME,MAT_INITIAL_MATRIX,&_pcMat); CHKERRQ(ierr); }
 
-    //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
-    //~ ierr = KSPSetType(_ksp,KSPCG); CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(_ksp,_A,_pcMat); CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-    //~ ierr = PCSetType(_pc,PCICC); CHKERRQ(ierr);
-
 
     ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
     ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
     //~ // ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
     ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
     //~ // ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
-
     ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
@@ -876,10 +891,11 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     CHKERRQ(ierr);
   #endif
 
-
   // set up matrix
-  setupKSP(_sbpT,dt);
-
+  //~ setupKSP(_sbpT,dt);
+  MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
+  MatShift(_A,-dt);
+  ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
 
   // set up boundary conditions and source terms
   Vec rhs,temp;
@@ -901,6 +917,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
+    //~ VecScale(shearHeat,0.0);
     VecAXPY(temp,1.0,shearHeat);
     VecDestroy(&shearHeat);
   }
@@ -929,9 +946,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   _linSolveCount++;
 
   VecDestroy(&rhs);
-  MatDestroy(&_A);
-  KSPDestroy(&_ksp);
-
+  //~ MatDestroy(&_A);
+  //~ KSPDestroy(&_ksp);
 
   VecCopy(_T,T);
   computeHeatFlux();

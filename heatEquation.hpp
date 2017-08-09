@@ -70,6 +70,7 @@ class HeatEquation: public IntegratorContextEx
     PC                   _pc;
     Mat                  _I,_rhoC,_A,_pcMat; // intermediates for Backward Euler
     int                  _computePC; // # of steps since PC was last computed
+    Mat                  _D2divRhoC;
 
     // runtime data
     double               _linSolveTime,_linSolveTime1,_factorTime;

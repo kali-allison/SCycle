@@ -1,6 +1,6 @@
 order = 4
-Ny = 51
-Nz = 51
+Ny = 151
+Nz = 201
 Ly = 60 # km
 Lz = 40 # km
 
@@ -103,9 +103,9 @@ TVals = [293 1793] # 30 C/km
 #TVals = [1300 1300]
 TDepths = [0 50]
 #thermalCoupling = coupled
-#thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+thermalCoupling = uncoupled
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -115,16 +115,16 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 20 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
@@ -183,6 +183,13 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/heData/memTest_uwsh_v1_
 
 
-outputDir = /data/dunham/kallison/heData/memTest_small_
+#outputDir = /data/dunham/kallison/heData/memTest_v0_
+#outputDir = /data/dunham/kallison/heData/memTest_v1_
+#outputDir = /data/dunham/kallison/heData/memTest_v2_
+#outputDir = /data/dunham/kallison/heData/memTest_v3_
+#outputDir = /data/dunham/kallison/heData/memTest_v4_
+#outputDir = /data/dunham/kallison/heData/memTest_v5_
+#outputDir = /data/dunham/kallison/heData/memTest_v6_
+outputDir = /data/dunham/kallison/heData/memTest_v7_
 
 
