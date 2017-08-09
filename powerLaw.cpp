@@ -23,6 +23,8 @@ PowerLaw::PowerLaw(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  PetscMemorySetGetMaximumUsage();
+
   loadSettings(_file);
   checkInput();
   allocateFields(); // initialize fields
@@ -1424,6 +1426,12 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
     }
     else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
   }
+
+  PetscLogDouble mem;
+  ierr = PetscMemoryGetMaximumUsage(&mem); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"%f\n",mem);
+  PetscPrintf(PETSC_COMM_WORLD,"%g\n",mem);
+  //~ assert(0);
 
 #if VERBOSE > 0
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);

@@ -102,10 +102,10 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [1300 1300]
 TDepths = [0 50]
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -120,7 +120,7 @@ viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
@@ -172,7 +172,17 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/heData/interp_step2_
 #outputDir = /data/dunham/kallison/heData/interp_sh_step0_
 
-outputDir = /data/dunham/kallison/heData/memTest_
 
+#outputDir = /data/dunham/kallison/heData/memTest_cnksp_
+#outputDir = /data/dunham/kallison/heData/memTest_nhe_
+#outputDir = /data/dunham/kallison/heData/memTest_cwfh_
+#outputDir = /data/dunham/kallison/heData/memTest_uwfh_
+#outputDir = /data/dunham/kallison/heData/memTest_uwsh_
+#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v0_
+#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v0_
+#outputDir = /data/dunham/kallison/heData/memTest_uwsh_v1_
+
+
+outputDir = /data/dunham/kallison/heData/memTest_small_
 
 

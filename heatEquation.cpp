@@ -935,7 +935,6 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   VecCopy(_T,T);
   computeHeatFlux();
-  //~ assert(0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -980,14 +979,9 @@ PetscErrorCode HeatEquation::computeShearHeating(Vec& shearHeat,const Vec& sigma
   VecSet(temp1,0.0);
   _sbpT->H(shearHeat,temp1);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Vec temp2;
-    VecDuplicate(shearHeat,&temp2);
-    VecSet(temp2,0.0);
     Mat qy,rz,yq,zr;
     ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(yq,temp1,temp2);
-    MatMult(zr,temp2,shearHeat);
-    VecDestroy(&temp2);
+    ierr = multMatsVec(shearHeat,yq,zr,temp1); CHKERRQ(ierr);
   }
   else{ VecCopy(temp1,shearHeat); }
   VecDestroy(&temp1);
