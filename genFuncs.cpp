@@ -255,12 +255,17 @@ PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR
 {
   PetscErrorCode ierr = 0;
 
-  Mat AB;
-  MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+  //~ Mat AB;
+  //~ MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB); // has memory leak!!
+  //~ ierr = MatMult(AB,vecR,out); CHKERRQ(ierr);
+  //~ MatDestroy(&AB);
 
-  ierr = MatMult(AB,vecR,out); CHKERRQ(ierr);
+  Vec BvecR;
+  VecDuplicate(vecR,&BvecR);
+  ierr = MatMult(B,vecR,BvecR); CHKERRQ(ierr);
+  ierr = MatMult(A,BvecR,out); CHKERRQ(ierr);
+  ierr = VecDestroy(&BvecR);
 
-  MatDestroy(&AB);
   return ierr;
 }
 
@@ -269,17 +274,21 @@ PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
 {
   PetscErrorCode ierr = 0;
 
-  Mat AB;
-  MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+  //~ Mat AB;
+  //~ MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
+  //~ Vec temp;
+  //~ VecDuplicate(vecR,&temp);
+  //~ ierr = MatMult(AB,vecR,temp); CHKERRQ(ierr);
+  //~ ierr = VecCopy(temp,vecR); CHKERRQ(ierr);
+  //~ VecDestroy(&temp);
+  //~ MatDestroy(&AB);
 
-  Vec temp;
-  VecDuplicate(vecR,&temp);
+  Vec BvecR;
+  VecDuplicate(vecR,&BvecR);
+  ierr = MatMult(B,vecR,BvecR); CHKERRQ(ierr);
+  ierr = MatMult(A,BvecR,vecR); CHKERRQ(ierr);
+  ierr = VecDestroy(&BvecR);
 
-  ierr = MatMult(AB,vecR,temp); CHKERRQ(ierr);
-  ierr = VecCopy(temp,vecR); CHKERRQ(ierr);
-
-  VecDestroy(&temp);
-  MatDestroy(&AB);
   return ierr;
 }
 

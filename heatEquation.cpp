@@ -87,7 +87,7 @@ HeatEquation::HeatEquation(Domain& D)
   MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
   MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
 
-   setupKSP(_sbpT,D._initDeltaT);
+  setupKSP(_sbpT,D._initDeltaT);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -539,18 +539,20 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 
 
 
-
   // create: A = I - dt/rho*c D2
   //~ Mat D2;
   //~ sbp->getA(D2);
   //~ MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
   //~ MatScale(_A,-dt);
   //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  //~ MatAXPY(_A,1.0,_I,SAME_NONZERO_PATTERN);
 
   // new version
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
   MatScale(_A,-dt);
-  MatShift(_A,1.0);
+  //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
+  //~ MatShift(_A,1.0);
 
 
   // set up KSP
@@ -896,7 +898,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   //~ setupKSP(_sbpT,dt);
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
   MatScale(_A,-dt);
-  MatShift(_A,1.0);
+  //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
+  MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
   ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
 
   // set up boundary conditions and source terms

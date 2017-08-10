@@ -173,6 +173,8 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/heData/interp_sh_step0_
 
 
-outputDir = /data/dunham/kallison/heData/b5_csh_
+#outputDir = /data/dunham/kallison/heData/b5_csh_
+#outputDir = /data/dunham/kallison/heData/b5_csh_v2_
+outputDir = /data/dunham/kallison/heData/b5_csh_v3_
 
 
