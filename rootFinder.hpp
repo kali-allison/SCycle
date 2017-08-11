@@ -31,13 +31,14 @@ class RootFinder
     RootFinder(const PetscInt maxNumIts,const PetscScalar atol);
 
     virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out) = 0;
+    virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out) = 0;
     virtual PetscErrorCode setBounds(PetscScalar left,PetscScalar right) = 0;
 
     PetscInt getNumIts() const;
 };
 
 
-
+// bisection method
 class Bisect : public RootFinder
 {
   private:
@@ -52,6 +53,29 @@ class Bisect : public RootFinder
     ~Bisect();
 
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
+    PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
+};
+
+
+// Bracketed Newton solver
+class BracketedNewton : public RootFinder
+{
+  private:
+
+    PetscScalar _left,_fLeft;
+    PetscScalar _right,_fRight;
+    //~ PetscScalar _mid,_fMid;
+    PetscScalar _prev,_x,_f,_fPrime;
+    PetscScalar _tolX,_tolF;
+
+  public:
+
+    BracketedNewton(const PetscInt maxNumIts,const PetscScalar atol);
+    ~BracketedNewton();
+
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
 };
 

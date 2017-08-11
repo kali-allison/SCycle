@@ -84,7 +84,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
 
     // runtime data
-    double               _integrateTime,_writeTime,_linSolveTime,_factorTime;
+    double               _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
     PetscInt             _linSolveCount;
 
     PetscViewer          _bcRPlusV,_bcRPShiftV,_bcLPlusV,
@@ -104,7 +104,6 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
-    //~Fault               *_fault;
 
     PetscScalar _tLast; // time of last earthquake
 
@@ -115,7 +114,6 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
 
 
-    //~PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
 
     // explicit time-stepping methods
@@ -130,7 +128,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
                       it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt) = 0; // IMEX backward Euler
 
     // IO commands
-    PetscErrorCode view();
+    PetscErrorCode virtual view() = 0;
     PetscErrorCode virtual writeStep1D() = 0;
     PetscErrorCode virtual writeStep2D() = 0;
 
@@ -201,6 +199,7 @@ class SymmLinearElastic: public LinearElastic
       it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
 
     // IO commands
+    PetscErrorCode view();
     PetscErrorCode writeStep1D(); // write out 1D fields
     PetscErrorCode writeStep2D(); // write out 2D fields
 
@@ -269,6 +268,7 @@ class FullLinearElastic: public LinearElastic
                       it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
 
     // IO commands
+    PetscErrorCode view(){};
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();
 

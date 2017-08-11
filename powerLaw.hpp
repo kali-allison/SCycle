@@ -50,9 +50,7 @@ class PowerLaw: public SymmLinearElastic
 
     // functions needed each time step
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
-    //~ PetscErrorCode setViscStrainSourceTerms(Vec& source,const_it_vec varBegin);
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
-    //~ PetscErrorCode setViscStrainRates(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
       Vec& gVxy_t, Vec& gVxz_t);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);

@@ -89,7 +89,7 @@ PetscErrorCode OdeSolverImex::view()
   PetscErrorCode ierr = 0;
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: IMEX runge-kutta (3,2)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: ");CHKERRQ(ierr);
   if (_controlType.compare("P") == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"P\n");CHKERRQ(ierr);

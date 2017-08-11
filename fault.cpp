@@ -20,6 +20,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
   _psiViewer(NULL),_thetaViewer(NULL),_tempViewer(NULL),
+  _computeVelTime(0),_stateLawTime(0),
   _tauQSP(NULL),_tauP(NULL)
 {
   #if VERBOSE > 1
@@ -158,6 +159,20 @@ PetscErrorCode Fault::setHeatParams(const Vec& k,const Vec& rho,const Vec& c)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
+  return ierr;
+}
+
+
+PetscErrorCode Fault::view()
+{
+  PetscErrorCode ierr = 0;
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Fault Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   compute slip vel time (s): %g\n",_computeVelTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   state law time (s): %g\n",_stateLawTime);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
 }
 
@@ -692,9 +707,16 @@ PetscErrorCode SymmFault::computeVel()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      Bisect rootAlg(_maxNumIts,_rootTol);
+      //~ Bisect rootAlg(_maxNumIts,_rootTol);
+      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      //~ ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      //~ _rootIts += rootAlg.getNumIts();
+
+      PetscScalar x0;
+      ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
+      BracketedNewton rootAlg(_maxNumIts,_rootTol);
       ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     ierr = VecSetValue(_slipVel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
@@ -961,6 +983,91 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   return ierr;
 }
 
+// final argument is Jacobian
+PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar    psi,a,sigma_N,zPlus,tauQS,Co;
+  PetscInt       Istart,Iend;
+
+  #if VERBOSE > 3
+    std::string funcName = "SymmFault::getResid";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+    // frictional strength of fault
+  ierr = VecGetOwnershipRange(_theta,&Istart,&Iend);
+  assert(ind>=Istart && ind<Iend);
+
+  ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
+  ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
+
+  if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
+    // in terms of psi
+    ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
+    //PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+  }
+  else { // if aging law
+    //~ // in terms of theta
+    PetscScalar state,b,Dc=0;
+    ierr = VecGetValues(_theta,1,&ind,&state);CHKERRQ(ierr);
+    ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
+    ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
+    psi = _f0 + b*log( (double) (state*_v0)/Dc);
+    //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+  }
+  PetscScalar A = a*sigma_N;
+  PetscScalar B = exp(psi/a)/(2.*_v0);
+  //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+  PetscScalar strength = (PetscScalar) A*asinh( (double) B * slipVel );
+
+
+
+  // effect of cohesion
+  strength = strength + Co;
+
+  // stress on fault
+  PetscScalar stress = tauQS - 0.5*zPlus*slipVel;
+
+  *out = strength - stress;
+
+  *J = A*B/sqrt(B*B*slipVel*slipVel + 1.) + 0.5*zPlus; // derivative with respect to slipVel
+
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+#endif
+  if (isnan(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"z*vel=%.9e\n",zPlus*slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"strength=%.9e\n",strength);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"stress=%.9e\n",stress);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(slipVel/2./_v0)*exp(psi/a)=%.9e\n",(slipVel/2./_v0)*exp(psi/a));
+  }
+  else if (isinf(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*out) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,z=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQS,slipVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"z*vel=%.9e\n",zPlus*slipVel);
+    CHKERRQ(ierr);
+  }
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+
+  #if VERBOSE > 3
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 
 
 
@@ -981,8 +1088,12 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   ierr = VecCopy(*(varBegin+1),_theta);CHKERRQ(ierr);
   ierr = VecCopy(*(varBegin+2),_slip);CHKERRQ(ierr);
 
+double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
+_computeVelTime += MPI_Wtime() - startTime;
 
+
+startTime = MPI_Wtime();
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(*(varBegin),1,&Ii,&psi);
@@ -1017,10 +1128,7 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+2));CHKERRQ(ierr);
-
-  // force fault to remain locked
-  //~ierr = VecSet(*dvarBegin,0.0);CHKERRQ(ierr);
-  //~ierr = VecSet(*(dvarBegin+1),0.0);CHKERRQ(ierr);
+_stateLawTime += MPI_Wtime() - startTime;
 
 
   #if VERBOSE > 1
@@ -1028,6 +1136,7 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   #endif
   return ierr;
 }
+
 
 
 PetscErrorCode SymmFault::writeContext(const string outputDir)
@@ -1461,8 +1570,14 @@ PetscErrorCode FullFault::computeVel()
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
+      //~ // construct fresh each time so the boundaries etc are correct
+      //~ Bisect rootAlg(_maxNumIts,_rootTol);
+      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      //~ ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      //~ _rootIts += rootAlg.getNumIts();
+
       // construct fresh each time so the boundaries etc are correct
-      Bisect rootAlg(_maxNumIts,_rootTol);
+      BracketedNewton rootAlg(_maxNumIts,_rootTol);
       ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
       ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
@@ -1660,6 +1775,68 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   //~stress = tauQSplus - 0.5*zPlus*slipVel; // stress on fault
 
   *out = strength - stress;
+
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,zPlus=%g,tau=%g,vel=%g,out=%g\n",psi,a,sigma_N,zPlus,tauQSplus,vel,out);
+#endif
+  if (isnan(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQSplus,slipVel);
+    CHKERRQ(ierr);
+  }
+  else if (isinf(*out)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"isinf(*out) evaluated to true\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"psi=%g,a=%g,sigma_n=%g,eta=%g,tau=%g,vel=%g\n",psi,a,sigma_N,zPlus,tauQSplus,slipVel);
+    CHKERRQ(ierr);
+  }
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+
+#if VERBOSE > 3
+   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::getResid in fault.cpp\n");CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar    psi,a,sigma_N,zPlus,zMinus,tauQSplus,tauQSminus;
+  PetscInt       Istart,Iend;
+
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting FullFault::getResid in fault.cpp\n");CHKERRQ(ierr);
+#endif
+
+  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend);
+  assert( ind>=Istart && ind<Iend );
+
+  //~ierr = VecGetValues(_tempPsi,1,&ind,&psi);CHKERRQ(ierr);
+  ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
+  ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
+  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+
+  ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_tauQSP,1,&ind,&tauQSplus);CHKERRQ(ierr);
+
+  ierr = VecGetValues(_tauQSMinus,1,&ind,&tauQSminus);CHKERRQ(ierr);
+  ierr = VecGetValues(_zM,1,&ind,&zMinus);CHKERRQ(ierr);
+
+  // frictional strength of fault
+  PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2/_v0)*exp(psi/a) );
+
+  // stress on fault
+  PetscScalar stress = (zMinus/(zPlus+zMinus)*tauQSplus
+                       + zPlus/(zPlus+zMinus)*tauQSminus)
+                       - zPlus*zMinus/(zPlus+zMinus)*slipVel;
+
+  // from symmetric fault (here for debugging purposes)
+  //~stress = tauQSplus - 0.5*zPlus*slipVel; // stress on fault
+
+  *out = strength - stress;
+
+  *J = 0.; // for now
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    psi=%g,a=%g,sigma_n=%g,zPlus=%g,tau=%g,vel=%g,out=%g\n",psi,a,sigma_N,zPlus,tauQSplus,vel,out);

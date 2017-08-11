@@ -27,7 +27,8 @@ LinearElastic::LinearElastic(Domain&D)
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
   _thermalCoupling("no"),_he(D),_T(NULL),_tempViewer(NULL),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),_startTime(MPI_Wtime()),
+  _miscTime(0),
   _bcRPlusV(NULL),_bcRPShiftV(NULL),_bcLPlusV(NULL),
   _uPV(NULL),_uAnalV(NULL),_rhsPlusV(NULL),_sxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
@@ -296,6 +297,7 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
     VecCopy(_uP,_uPPrev);
   #endif
 
+
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
@@ -306,31 +308,14 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
     ierr = writeStep2D();CHKERRQ(ierr);
   }
 
+
 #if VERBOSE > 0
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
-PetscErrorCode LinearElastic::view()
-{
-  PetscErrorCode ierr = 0;
-  //~ ierr = _quadEx->view();
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Runtime Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    _he.view();
-  }
-  return ierr;
-}
 
 
 
@@ -704,6 +689,36 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
 }
 
 
+PetscErrorCode SymmLinearElastic::view()
+{
+  PetscErrorCode ierr = 0;
+
+  double totRunTime = MPI_Wtime() - _startTime;
+
+  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
+  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Linear Elastic Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent until now (s): %g\n",totRunTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/_integrateTime*100.);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+
+  _fault.view();
+
+  //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  return ierr;
+}
+
 
 PetscErrorCode SymmLinearElastic::writeStep1D()
 {
@@ -930,9 +945,9 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
 
   // update boundaries
   if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
@@ -941,9 +956,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
+  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
 
   // solve for displacement
-  ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_kspP,_rhsP,_uP);CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
@@ -956,6 +971,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   // update fields on fault
   ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
+double startMiscTime = MPI_Wtime();
   if (_bcLTauQS==0) {
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
   }
@@ -964,14 +980,14 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
     VecSet(*(dvarBegin+1),0.0); // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
+_miscTime += MPI_Wtime() - startMiscTime;
 
   #if CALCULATE_ENERGY == 1
     computeEnergyRate(time,varBegin,dvarBegin);
   #endif
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 

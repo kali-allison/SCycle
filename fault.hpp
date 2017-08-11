@@ -63,6 +63,9 @@ class Fault: public RootFinderContext
     PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer,_thetaViewer;
     PetscViewer    _tempViewer;
 
+    // runtime data
+    double               _computeVelTime,_stateLawTime;
+
 
     PetscErrorCode setFrictionFields(Domain&D);
 
@@ -97,6 +100,7 @@ class Fault: public RootFinderContext
 
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
+    PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out,PetscScalar *J) = 0;
     PetscErrorCode virtual d_dt(const_it_vec varBegin,it_vec dvarBegin) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
@@ -105,6 +109,7 @@ class Fault: public RootFinderContext
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
     // IO
+    PetscErrorCode view();
     PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
     PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
 
@@ -139,7 +144,8 @@ class SymmFault: public Fault
     SymmFault(Domain&D, HeatEquation& He);
     ~SymmFault();
 
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
     PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
     PetscErrorCode computeVel();
 
@@ -197,7 +203,8 @@ class FullFault: public Fault
     FullFault(Domain&D, HeatEquation& He);
     ~FullFault();
 
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
 
     PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
 

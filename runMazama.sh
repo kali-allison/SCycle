@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N csh_v3
+#PBS -N le_bracket
 #PBS -l nodes=1:ppn=24
-#PBS -q tgp
+#PBS -q default
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/csh_v3.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/csh_v3.out
+#PBS -e /data/dunham/kallison/eqcycle/timeOutFiles/le_bracket.err
+#PBS -o /data/dunham/kallison/eqcycle/timeOutFiles/le_bracket.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

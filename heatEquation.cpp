@@ -545,14 +545,11 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
   //~ MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_A);
   //~ MatScale(_A,-dt);
   //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
-  //~ MatAXPY(_A,1.0,_I,SAME_NONZERO_PATTERN);
 
   // new version
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
   MatScale(_A,-dt);
-  //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
   MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
-  //~ MatShift(_A,1.0);
 
 
   // set up KSP
@@ -577,8 +574,7 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
     ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
-
-
+    ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);
 
     // use MUMPSCHOLESKY
     //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
@@ -898,7 +894,6 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   //~ setupKSP(_sbpT,dt);
   MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
   MatScale(_A,-dt);
-  //~ MatAXPY(_A,1.0,_I,DIFFERENT_NONZERO_PATTERN);
   MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
   ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
 
@@ -1233,7 +1228,6 @@ PetscErrorCode HeatEquation::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Heat Equation Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system 1st time (s): %g\n",_linSolveTime1);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
