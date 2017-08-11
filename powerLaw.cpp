@@ -590,31 +590,26 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscScalar s,A,B,n,T,effVisc;
+  PetscScalar strainRate = 1e-12,s=0.; // guess
+  PetscScalar *A,*B,*n,*T,*effVisc;
   PetscInt Ii,Istart,Iend;
-  PetscScalar strainRate = 1e-12; // guess
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  VecGetArray(_A,&A);
+  VecGetArray(_B,&B);
+  VecGetArray(_n,&n);
+  VecGetArray(_T,&T);
+  VecGetArray(_effVisc,&effVisc);
+  PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_A,1,&Ii,&A);
-    VecGetValues(_B,1,&Ii,&B);
-    VecGetValues(_n,1,&Ii,&n);
-    VecGetValues(_T,1,&Ii,&T);
-    s = pow(strainRate/(A*exp(-B/T)),1.0/n);
-    effVisc =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
-
-    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
-
-    if (isnan(effVisc)) {
-      PetscPrintf(PETSC_COMM_WORLD,"n = %f\n",n);
-      PetscPrintf(PETSC_COMM_WORLD,"A = %f\n",A);
-      PetscPrintf(PETSC_COMM_WORLD,"B = %f\n",B);
-      PetscPrintf(PETSC_COMM_WORLD,"T = %f\n",T);
-      PetscPrintf(PETSC_COMM_WORLD,"s = %f\n",s);
-    }
-    assert(!isnan(effVisc));
+    s = pow(strainRate/(A[Jj]*exp(-B[Jj]/T[Jj])),1.0/n[Jj]);
+    effVisc[Jj] =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
+    Jj++;
   }
-  VecAssemblyBegin(_effVisc);
-  VecAssemblyEnd(_effVisc);
+  VecRestoreArray(_A,&A);
+  VecRestoreArray(_B,&B);
+  VecRestoreArray(_n,&n);
+  VecRestoreArray(_T,&T);
+  VecRestoreArray(_effVisc,&effVisc);
 
   return ierr;
   #if VERBOSE > 1
@@ -853,6 +848,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
+//~ double startMiscTime = MPI_Wtime();
+//~ _miscTime += MPI_Wtime() - startMiscTime;
 
   VecCopy(*(varBegin+3),_gxyP);
   VecCopy(*(varBegin+4),_gxzP);
@@ -889,6 +886,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
   ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
   computeViscosity();
 
+
+
   // set rates
   if (_bcLTauQS==0) {
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
@@ -898,7 +897,9 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     VecSet(*(dvarBegin+1),0.0); // // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
+
   ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
+
 
   //~VecSet(*dvarBegin,0.0);
   //~VecSet(*(dvarBegin+1),0.0);
@@ -1033,21 +1034,6 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
   VecSet(sourcexy_y,0.0);
   ierr = _sbpP->Dyxmu(gxy,sourcexy_y);CHKERRQ(ierr);
 
-
-  // apply effects of coordinate transform
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    Vec temp1,temp2;
-    VecDuplicate(gxy,&temp1);
-    VecDuplicate(gxy,&temp2);
-    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(yq,sourcexy_y,temp1);
-    MatMult(zr,temp1,temp2);
-    VecCopy(temp2,sourcexy_y);
-    VecDestroy(&temp1);
-    VecDestroy(&temp2);
-  }
-
   // if bcL is shear stress, then also add Hy^-1 E0y mu gxy
   if (_bcLTauQS==1) {
     Vec temp1,bcL;
@@ -1056,18 +1042,6 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
     _sbpP->HyinvxE0y(gxy,temp1);
     ierr = VecPointwiseMult(bcL,_muVecP,temp1); CHKERRQ(ierr);
     VecDestroy(&temp1);
-    //~ writeVec(bcL,"data/ttt_bcL");
-
-    // apply effects of coordinate transform
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    Vec temp1;
-    VecDuplicate(gxy,&temp1);
-    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(yq,bcL,temp1);
-    MatMult(zr,temp1,bcL);
-    VecDestroy(&temp1);
-  }
     ierr = VecAXPY(sourcexy_y,1.0,bcL);CHKERRQ(ierr);
     VecDestroy(&bcL);
   }
@@ -1075,25 +1049,11 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
 
-
-
   if (_Nz > 1)
   {
     Vec sourcexz_z;
     VecDuplicate(gxz,&sourcexz_z);
     ierr = _sbpP->Dzxmu(gxz,sourcexz_z);CHKERRQ(ierr);
-    if (_sbpType.compare("mfc_coordTrans")==0) {
-      Mat qy,rz,yq,zr;
-      Vec temp1,temp2;
-      VecDuplicate(gxz,&temp1);
-      VecDuplicate(gxz,&temp2);
-      ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-      MatMult(zr,sourcexz_z,temp1);
-      MatMult(yq,temp1,temp2);
-      VecCopy(temp2,sourcexz_z);
-      VecDestroy(&temp1);
-      VecDestroy(&temp2);
-    }
     ierr = VecAXPY(source,1.0,sourcexz_z);CHKERRQ(ierr); // source += Hxsourcexz_z
     VecDestroy(&sourcexz_z);
 
@@ -1109,20 +1069,6 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
     _sbpP->HzinvxENz(gxz,temp1);
     ierr = VecPointwiseMult(bcB,_muVecP,temp1); CHKERRQ(ierr);
 
-    if (_sbpType.compare("mfc_coordTrans")==0) {
-      Mat qy,rz,yq,zr;
-      Vec temp2;
-      VecDuplicate(gxz,&temp2);
-      ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-
-      MatMult(yq,bcB,temp2);
-      MatMult(zr,temp2,bcB);
-
-      MatMult(yq,bcT,temp2);
-      MatMult(zr,temp2,bcT);
-      VecDestroy(&temp2);
-    }
-
     ierr = VecAXPY(source,1.0,bcT);CHKERRQ(ierr);
     ierr = VecAXPY(source,-1.0,bcB);CHKERRQ(ierr);
 
@@ -1131,10 +1077,14 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
     VecDestroy(&bcB);
   }
 
+  // apply effects of coordinate transform
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,source); CHKERRQ(ierr);
+  }
   ierr = _sbpP->H(source,out); CHKERRQ(ierr);
-  //~ writeVec(source,"data/ttt_source");
   VecDestroy(&source);
-
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1153,24 +1103,50 @@ PetscErrorCode PowerLaw::computeViscosity()
     CHKERRQ(ierr);
   #endif
 
+  //~ // compute effective viscosity
+  //~ PetscScalar sigmadev,A,B,n,T,effVisc=0;
+  //~ PetscInt Ii,Istart,Iend;
+  //~ VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ VecGetValues(_sigmadev,1,&Ii,&sigmadev);
+    //~ VecGetValues(_A,1,&Ii,&A);
+    //~ VecGetValues(_B,1,&Ii,&B);
+    //~ VecGetValues(_n,1,&Ii,&n);
+    //~ VecGetValues(_T,1,&Ii,&T);
+    //~ effVisc = 1e-3 / ( A*pow(sigmadev,n-1.0)*exp(-B/T) ) ;
+    //~ VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+
+    //~ assert(~isnan(effVisc));
+    //~ assert(~isinf(effVisc));
+  //~ }
+  //~ VecAssemblyBegin(_effVisc);
+  //~ VecAssemblyEnd(_effVisc);
+
+
   // compute effective viscosity
-  PetscScalar sigmadev,A,B,n,T,effVisc=0;
+  PetscScalar *sigmadev,*A,*B,*n,*T,*effVisc=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  VecGetArray(_sigmadev,&sigmadev);
+  VecGetArray(_A,&A);
+  VecGetArray(_B,&B);
+  VecGetArray(_n,&n);
+  VecGetArray(_T,&T);
+  VecGetArray(_effVisc,&effVisc);
+  PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    VecGetValues(_sigmadev,1,&Ii,&sigmadev);
-    VecGetValues(_A,1,&Ii,&A);
-    VecGetValues(_B,1,&Ii,&B);
-    VecGetValues(_n,1,&Ii,&n);
-    VecGetValues(_T,1,&Ii,&T);
-    effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
-    VecSetValues(_effVisc,1,&Ii,&effVisc,INSERT_VALUES);
+    effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
 
-    assert(~isnan(effVisc));
-    assert(~isinf(effVisc));
+    assert(~isnan(effVisc[Jj]));
+    assert(~isinf(effVisc[Jj]));
+    Jj++;
   }
-  VecAssemblyBegin(_effVisc);
-  VecAssemblyEnd(_effVisc);
+  VecRestoreArray(_sigmadev,&sigmadev);
+  VecRestoreArray(_A,&A);
+  VecRestoreArray(_B,&B);
+  VecRestoreArray(_n,&n);
+  VecRestoreArray(_T,&T);
+  VecRestoreArray(_effVisc,&effVisc);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1405,6 +1381,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
   _stepCount = stepCount;
   _currTime = time;
   ierr = setSurfDisp();
+
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep1D();CHKERRQ(ierr);
@@ -1424,6 +1401,7 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
     }
     else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
   }
+
 
 #if VERBOSE > 0
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
@@ -1447,8 +1425,6 @@ PetscErrorCode PowerLaw::timeMonitor(const PetscReal time,const PetscInt stepCou
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
     ierr = writeStep2D();CHKERRQ(ierr);
   }
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
 
 #if VERBOSE > 0
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
@@ -1810,14 +1786,20 @@ PetscErrorCode PowerLaw::writeStep2D()
 PetscErrorCode PowerLaw::view()
 {
   PetscErrorCode ierr = 0;
-  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
-  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  //~ if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
+  //~ if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Power Law Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/_integrateTime*100.);CHKERRQ(ierr);
+
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime*100.);CHKERRQ(ierr);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
 }

@@ -88,6 +88,7 @@ PetscErrorCode OdeSolverImex::view()
 {
   PetscErrorCode ierr = 0;
 
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: IMEX runge-kutta (3,2)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: ");CHKERRQ(ierr);
@@ -122,6 +123,7 @@ PetscErrorCode OdeSolverImex::view()
                      _numMaxSteps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time: %g\n",
                      _runTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
   return 0;
 }

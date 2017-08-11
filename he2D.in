@@ -1,6 +1,6 @@
-order = 4
-Ny = 201
-Nz = 201
+order = 2
+Ny = 10
+Nz = 11
 Ly = 120 # km
 Lz = 40 # km
 
@@ -123,9 +123,9 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 20 #1e9
+maxStepCount = 50 #1e9
 initTime = 0      # s 3e10
-maxTime = 1e28      # s 5.5e10
+maxTime = 1e8      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
@@ -180,6 +180,9 @@ f0 = 0.6
 
 #outputDir = /data/dunham/kallison/heData/timeTest_IMEX_3
 #outputDir = /data/dunham/kallison/heData/timeTest_NHE_2
-outputDir = /data/dunham/kallison/heData/le_bracket_
+#outputDir = /data/dunham/kallison/heData/le_bracket_
+#outputDir = /data/dunham/kallison/heData/he_reusePC_
+#outputDir = /data/dunham/kallison/heData/he_newPC_
+outputDir = /data/dunham/kallison/heData/timeTest_
 
 

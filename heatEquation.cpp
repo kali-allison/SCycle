@@ -17,8 +17,9 @@ HeatEquation::HeatEquation(Domain& D)
   _sbpType(D._sbpType),_sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   _linSolver("AMG"),_kspTol(1e-10),
-  _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_computePC(0),_D2divRhoC(NULL),
-  _linSolveTime(0),_linSolveCount(0),_pcRecomputeCount(0),_stride1D(D._stride1D),_stride2D(D._stride2D),
+  _ksp(NULL),_pc(NULL),_I(NULL),_rhoC(NULL),_A(NULL),_pcMat(NULL),_D2divRhoC(NULL),
+  _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
+  _linSolveCount(0),_stride1D(D._stride1D),_stride2D(D._stride2D),
   _T(NULL),_T0(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL)
 {
   #if VERBOSE > 1
@@ -103,6 +104,7 @@ HeatEquation::~HeatEquation()
   MatDestroy(&_rhoC);
   MatDestroy(&_I);
   MatDestroy(&_D2divRhoC);
+  MatDestroy(&_pcMat);
 
   VecDestroy(&_k);
   VecDestroy(&_rho);
@@ -347,7 +349,8 @@ PetscErrorCode ierr = 0;
   // set boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcT);
   VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_bcT);     PetscObjectSetName((PetscObject) _bcT, "_bcT");
+  VecSetFromOptions(_bcT);
+  PetscObjectSetName((PetscObject) _bcT, "_bcT");
   PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
   VecSet(_bcT,bcTval);
 
@@ -357,7 +360,8 @@ PetscErrorCode ierr = 0;
 
   VecCreate(PETSC_COMM_WORLD,&_bcR);
   VecSetSizes(_bcR,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_bcR);     PetscObjectSetName((PetscObject) _bcR, "_bcR");
+  VecSetFromOptions(_bcR);
+  PetscObjectSetName((PetscObject) _bcR, "_bcR");
   VecSet(_bcR,0.0);
 
   VecDuplicate(_bcR,&_bcL); PetscObjectSetName((PetscObject) _bcL, "_bcL");
@@ -554,19 +558,23 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
 
   // set up KSP
 
-  // reuse old PC
-  //~ if (_computePC>0) {
-    //~ KSPSetOperators(_ksp,_A,_pcMat);
-  //~ }
-  //~ else {
-    //~ if (_computePC==0) { ierr = MatConvert(_A,MATSAME,MAT_INITIAL_MATRIX,&_pcMat); CHKERRQ(ierr); }
+    // don't reuse preconditioner
+    //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+    //~ ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
+    //~ ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
+    //~ ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+    //~ ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+    //~ ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+    //~ ierr = KSPSetTolerances(_ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    //~ ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+    //~ ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
 
+    // reuse preconditioner at each time step
     ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
     ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    //~ // ierr = KSPSetOperators(_ksp,_A,_pcMat);CHKERRQ(ierr);
     ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
-    //~ // ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
     ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
@@ -574,6 +582,10 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
     ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
+
+
+
+    // accept command line options
     ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);
 
     // use MUMPSCHOLESKY
@@ -587,8 +599,6 @@ PetscErrorCode HeatEquation::setupKSP(SbpOps* sbp, const PetscScalar dt)
     //~ PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     //~ PCFactorSetUpMatSolverPackage(pc);
   //~ }
-  _computePC++;
-
 
   // perform computation of preconditioners now, rather than on first use
   double startTime = MPI_Wtime();
@@ -889,6 +899,9 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
+  double beStartTime = MPI_Wtime();
+double startMiscTime = MPI_Wtime();
+_miscTime += MPI_Wtime() - startMiscTime;
 
   // set up matrix
   //~ setupKSP(_sbpT,dt);
@@ -896,6 +909,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
   MatScale(_A,-dt);
   MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
   ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
+
 
   // set up boundary conditions and source terms
   Vec rhs,temp;
@@ -913,18 +927,17 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
 
+
   // compute shear heating component
   if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
-    //~ VecScale(shearHeat,0.0);
     VecAXPY(temp,1.0,shearHeat);
     VecDestroy(&shearHeat);
   }
 
   MatMult(_rhoC,temp,rhs);
   VecScale(rhs,dt);
-
 
   // add H * Tn to rhs
   VecSet(temp,0.0);
@@ -951,6 +964,8 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   VecCopy(_T,T);
   computeHeatFlux();
+
+  _beTime += MPI_Wtime() - beStartTime;
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1123,6 +1138,8 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
     CHKERRQ(ierr);
   #endif
 
+  double startTime = MPI_Wtime();
+
   if (stepCount==0) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfaceHeatFlux").c_str(),
                                  FILE_MODE_WRITE,&_surfaceHeatFluxV);CHKERRQ(ierr);
@@ -1169,6 +1186,7 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
     ierr = VecView(_bcB,_bcBVw);CHKERRQ(ierr);
   }
 
+  _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);
@@ -1185,6 +1203,8 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);
   #endif
+
+  double startTime = MPI_Wtime();
 
   if (stepCount==0) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T0").c_str(),
@@ -1213,6 +1233,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
     ierr = VecView(_heatFlux,_heatFluxV);CHKERRQ(ierr);
   }
 
+  _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);
@@ -1224,11 +1245,18 @@ PetscErrorCode HeatEquation::view()
 {
   PetscErrorCode ierr = 0;
   //~ ierr = _quadEx->view();
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Heat Equation Runtime Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in be (s): %g\n",_beTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% be time spent solving linear system: %g\n",_linSolveTime/_beTime*100.);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_beTime*100.);CHKERRQ(ierr);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
   return ierr;

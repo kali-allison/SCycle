@@ -69,12 +69,11 @@ class HeatEquation: public IntegratorContextEx
     KSP                  _ksp;
     PC                   _pc;
     Mat                  _I,_rhoC,_A,_pcMat; // intermediates for Backward Euler
-    int                  _computePC; // # of steps since PC was last computed
     Mat                  _D2divRhoC;
 
     // runtime data
-    double               _linSolveTime,_linSolveTime1,_factorTime;
-    PetscInt             _linSolveCount,_pcRecomputeCount;
+    double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
+    PetscInt             _linSolveCount;
     PetscInt             _stride1D,_stride2D; // stride
 
 

@@ -215,13 +215,15 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
+
+    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
   else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
     // use built in preconditioned conjugate gradient
@@ -411,7 +413,8 @@ PetscErrorCode SymmLinearElastic::allocateFields()
   // boundary conditions
   VecCreate(PETSC_COMM_WORLD,&_bcLP);
   VecSetSizes(_bcLP,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_bcLP);     PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
+  VecSetFromOptions(_bcLP);
+  PetscObjectSetName((PetscObject) _bcLP, "_bcLP");
   VecSet(_bcLP,0.0);
 
   VecDuplicate(_bcLP,&_bcRPShift); PetscObjectSetName((PetscObject) _bcRPShift, "bcRPShift");
@@ -422,7 +425,8 @@ PetscErrorCode SymmLinearElastic::allocateFields()
 
   VecCreate(PETSC_COMM_WORLD,&_bcTP);
   VecSetSizes(_bcTP,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_bcTP);     PetscObjectSetName((PetscObject) _bcTP, "_bcTP");
+  VecSetFromOptions(_bcTP);
+  PetscObjectSetName((PetscObject) _bcTP, "_bcTP");
   VecSet(_bcTP,0.0);
 
   VecDuplicate(_bcTP,&_bcBP); PetscObjectSetName((PetscObject) _bcBP, "_bcBP");
@@ -506,7 +510,6 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
-
   if (_sbpType.compare("mc")==0) {
     _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
@@ -520,7 +523,6 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  KSPDestroy(&_kspP);
   KSPCreate(PETSC_COMM_WORLD,&_kspP);
   setupKSP(_sbpP,_kspP,_pcP);
 
@@ -708,13 +710,12 @@ PetscErrorCode SymmLinearElastic::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/_integrateTime*100.);CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  _fault.view();
-
+  //~ _fault.view();
   //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
@@ -971,7 +972,7 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
   // update fields on fault
   ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
-double startMiscTime = MPI_Wtime();
+
   if (_bcLTauQS==0) {
     ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
   }
@@ -980,7 +981,6 @@ double startMiscTime = MPI_Wtime();
     VecSet(*(dvarBegin+1),0.0); // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
-_miscTime += MPI_Wtime() - startMiscTime;
 
   #if CALCULATE_ENERGY == 1
     computeEnergyRate(time,varBegin,dvarBegin);
