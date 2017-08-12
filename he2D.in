@@ -1,6 +1,6 @@
-order = 2
-Ny = 10
-Nz = 11
+order = 4
+Ny = 201
+Nz = 201
 Ly = 120 # km
 Lz = 40 # km
 
@@ -40,14 +40,14 @@ sigmaN_cap = 50; # MPa
 
 vL = 1e-9    # (m/s)
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_2IC_
+inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_2ICb_
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
 
 # just effective viscosity data
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz201_
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v1_Ny201_Nz201_z
-loadICs = 0
-bcLTauQS = 0
+zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v1_Ny201_Nz201_z
+loadICs = 1
+bcLTauQS = 1
 
 shearDistribution = constant
 {
@@ -56,8 +56,8 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
 
-#linSolver = MUMPSCHOLESKY
-linSolver = AMG
+linSolver = MUMPSCHOLESKY
+#linSolver = AMG
 #bCoordTrans = 15.0
 bCoordTrans = 8.0
 sbpType = mfc_coordTrans
@@ -101,10 +101,10 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [1300 1300]
 TDepths = [0 50]
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -114,24 +114,24 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 50 #1e9
+stride1D = 1000
+stride2D = 1000
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
-maxTime = 1e8      # s 5.5e10
+maxTime = 1e18      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
-timeIntInds = [0 2]
-#timeIntInds = [3 4]
+#timeIntInds = [0 2]
+timeIntInds = [3 4]
 
 rootTol = 1e-9
 
@@ -177,12 +177,4 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_nhe_Dc16_
 #outputDir = /data/dunham/kallison/shearHeat/pl_al_b8_csh_Dc16_
 #outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_csh_Dc16_
-
-#outputDir = /data/dunham/kallison/heData/timeTest_IMEX_3
-#outputDir = /data/dunham/kallison/heData/timeTest_NHE_2
-#outputDir = /data/dunham/kallison/heData/le_bracket_
-#outputDir = /data/dunham/kallison/heData/he_reusePC_
-#outputDir = /data/dunham/kallison/heData/he_newPC_
-outputDir = /data/dunham/kallison/heData/timeTest_
-
-
+outputDir = /data/dunham/kallison/shearHeat/pl2b_al_b8_csh_Dc16_

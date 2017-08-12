@@ -1786,8 +1786,8 @@ PetscErrorCode PowerLaw::writeStep2D()
 PetscErrorCode PowerLaw::view()
 {
   PetscErrorCode ierr = 0;
-  //~ if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
-  //~ if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
+  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
+  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Power Law Runtime Summary:\n");CHKERRQ(ierr);

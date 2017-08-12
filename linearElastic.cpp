@@ -225,29 +225,6 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
 
     //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
-  else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
-    // use built in preconditioned conjugate gradient
-    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-
-    // preconditioned with PCGAMG
-    PCSetType(pc,PCGAMG); // default?
-
-
-    // preconditioned with HYPRE's AMG
-    //~PCSetType(pc,PCHYPRE);
-    //~ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    //~ierr = PCFactorSetLevels(pc,3);CHKERRQ(ierr);
-
-    // preconditioned with HYPRE
-    //~PCSetType(pc,PCHYPRE);
-    //~ierr = PCHYPRESetType(pc,"euclid");CHKERRQ(ierr);
-    //~ierr = PetscOptionsSetValue("-pc_hypre_euclid_levels","1");CHKERRQ(ierr); // this appears to be fastest
-    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
-  }
   else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
     // use direct LU from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
@@ -258,7 +235,6 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
   }
-
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
@@ -357,7 +333,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec deltaT; // change in temperature relative to background
     VecDuplicate(_uP,&deltaT);
-    VecSet(deltaT,0);
+    VecCopy(_he._T,deltaT);
     _varIm.push_back(deltaT);
 
     _he.getTemp(_T);
