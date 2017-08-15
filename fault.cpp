@@ -68,6 +68,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   }
   VecAssemblyBegin(_z);
   VecAssemblyEnd(_z);
+  assert(0);
 
   setFrictionFields(D);
   VecCopy(_psi,_theta);
