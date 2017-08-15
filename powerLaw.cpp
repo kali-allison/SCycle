@@ -167,6 +167,9 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+    else if (var.compare("heatEquationType")==0) {
+      _heatEquationType = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
 
   }
 
@@ -191,6 +194,9 @@ PetscErrorCode PowerLaw::checkInput()
       _viscDistribution.compare("mms")==0 ||
       _viscDistribution.compare("loadFromFile")==0 ||
       _viscDistribution.compare("effectiveVisc")==0 );
+
+  assert(_heatEquationType.compare("transient")==0 ||
+      _heatEquationType.compare("steadyState")==0 );
 
   assert(_AVals.size() == _ADepths.size() );
   assert(_BVals.size() == _BDepths.size() );
@@ -803,6 +809,12 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const_it_vec varBegin,it_ve
   else {
     ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
   }
+
+  if (_heatEquationType.compare("steadyState")==0 ) {
+    ierr = _he.computeSteadyStateTemp(time,*(dvarBegin+2),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
+    *(dvarBegin+4),_T);
+  }
+
   return ierr;
 }
 
@@ -818,7 +830,7 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
     CHKERRQ(ierr);
   #endif
 
-  if (_thermalCoupling.compare("coupled")==0) {
+  if (_thermalCoupling.compare("coupled")==0 ) {
     VecCopy(*varBeginImo,_T);
     _he.setTemp(_T);
     VecWAXPY(_T,1.0,_he._T0,*varBeginImo);
@@ -826,10 +838,13 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,
 
   ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
+  //~ if (_heatEquationType.compare("transient")==0 ) {
   ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
     *(dvarBegin+4),*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   // arguments:
   // time, slipVel, sigmadev, dgxy, dgxz, T, dTdt
+
+
 
 
 #if VERBOSE > 1

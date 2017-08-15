@@ -103,6 +103,8 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [1300 1300]
 TDepths = [0 50]
+heatEquationType = steadyState
+#heatEquationType = transient
 thermalCoupling = coupled
 #thermalCoupling = uncoupled
 #thermalCoupling = no
@@ -121,18 +123,19 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 1000
-stride2D = 1000
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e18      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s 1e10
+maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
-timeIntInds = [0 2]
+timeIntInds = [2]
+#timeIntInds = [0 2]
 #timeIntInds = [3 4]
 
 rootTol = 1e-9
@@ -155,25 +158,6 @@ f0 = 0.6
 
 
 
-#outputDir = /data/dunham/kallison/heData/pl_sh_b8_
-#outputDir = /data/dunham/kallison/heData/pl_sh_al_b8_
-#outputDir = /data/dunham/kallison/heData/pl_nsh_sl_b8_
-#outputDir = /data/dunham/kallison/heData/pl_nsh_slDc16_b8_
-#outputDir = /data/dunham/kallison/heData/pl_nsh_al_b8_
-#outputDir = /data/dunham/kallison/heData/pl_nsh_al_b8_1cont_
-
-
-#outputDir = /data/dunham/kallison/heData/b_constVS_T1000_b8_
-#outputDir = /data/dunham/kallison/heData/b_VWVS_T1000_b15_
-
-#outputDir = /data/dunham/kallison/heData/interp_step0_
-#outputDir = /data/dunham/kallison/heData/interp_step0_Ny201_Nz201_
-#outputDir = /data/dunham/kallison/heData/interp_step0_sh_Ny201_Nz201_
-#outputDir = /data/dunham/kallison/heData/interp_step1_
-#outputDir = /data/dunham/kallison/heData/interp_step2_
-#outputDir = /data/dunham/kallison/heData/interp_sh_step0_
-
-
 #outputDir = /data/dunham/kallison/heData/b5_csh_
 #outputDir = /data/dunham/kallison/shearHeat/pl_al_b8_nhe_Dc16_
 #outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_nhe_Dc16_
@@ -192,9 +176,14 @@ f0 = 0.6
 
 #outputDir = /data/dunham/kallison/shearHeat/plv3_step1_al_b8_csh_Dc8_
 #outputDir = /data/dunham/kallison/shearHeat/plv3_step1_34_al_b8_csh_Dc1_
-outputDir = /data/dunham/kallison/shearHeat/plv3_step1_02_al_b8_csh_Dc1_
+#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_02_al_b8_csh_Dc1_
 
 #outputDir = /data/dunham/kallison/timingTests/pl_Ny201_Nz201_
 #outputDir = /data/dunham/kallison/timingTests/pl_Ny401_Nz401_
 #outputDir = /data/dunham/kallison/timingTests/pl_Ny801_Nz801_
 #outputDir = /data/dunham/kallison/timingTests/pl_Ny1201_Nz1201_
+
+
+#outputDir = /data/dunham/kallison/testData/ss_
+#outputDir = /data/dunham/kallison/testData/ss_0_
+outputDir = /data/dunham/kallison/testData/ss_2_

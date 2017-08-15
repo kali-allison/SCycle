@@ -25,7 +25,7 @@ LinearElastic::LinearElastic(Domain&D)
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
-  _thermalCoupling("no"),_he(D),_T(NULL),_tempViewer(NULL),
+  _thermalCoupling("no"),_heatEquationType("transient"),_he(D),_T(NULL),_tempViewer(NULL),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),_startTime(MPI_Wtime()),
   _miscTime(0),

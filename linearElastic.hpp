@@ -75,7 +75,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     std::vector<int>     _timeIntInds; // indices of variables to be used in time integration
 
     // thermomechanical coupling
-    std::string _thermalCoupling;
+    std::string _thermalCoupling,_heatEquationType;
     HeatEquation _he;
     Vec          _T; // temperature
     PetscViewer  _tempViewer;

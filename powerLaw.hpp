@@ -28,8 +28,6 @@ class PowerLaw: public SymmLinearElastic
     Vec         _effVisc;
 
 
-    //~ Vec         _T; // temperature (K)
-
     // viewers
     PetscViewer _sxyPV,_sxzPV,_sigmadevV;
     PetscViewer _gTxyPV,_gTxzPV;

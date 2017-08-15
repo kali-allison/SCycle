@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N plv3_step1_02_al_b8_csh_Dc1
+#PBS -N ss_2
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/plv3_step1_02_al_b8_csh_Dc1.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/plv3_step1_02_al_b8_csh_Dc1.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/ss_2.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/ss_2.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

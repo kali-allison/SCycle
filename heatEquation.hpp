@@ -85,10 +85,11 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode checkInput();     // check input from file
 
 
-    PetscErrorCode computeSteadyStateTemp(Domain& D);
+    PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
+    PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();
 
 
@@ -104,6 +105,9 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode getTemp(Vec& T); // return total temperature
     PetscErrorCode setTemp(Vec& T); // set temperature
 
+    PetscErrorCode computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T);
+
     // compute rate
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
@@ -112,8 +116,6 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
-
-    // to test with MMS
     PetscErrorCode setMMSBoundaryConditions(const double time,
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
