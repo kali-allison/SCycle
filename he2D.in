@@ -133,7 +133,7 @@ initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e8      # s 1e10
 atol = 1e-8
-timeIntInds = [0 2]
+timeIntInds = [0 2 3]
 #timeIntInds = [3 4]
 
 rootTol = 1e-9
