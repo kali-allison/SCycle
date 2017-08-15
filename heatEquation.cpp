@@ -6,6 +6,7 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
+  _heatEquationType("transient"),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
@@ -74,6 +75,7 @@ HeatEquation::HeatEquation(Domain& D)
   MatDiagonalSet(_rhoC,rhoCV,INSERT_VALUES);
   VecDestroy(&rhoCV);
 
+  if (_heatEquationType.compare("transient")==0 ) {
   // create D2 / rho / c _D2divrhoC
   Mat D2;
   _sbpT->getA(D2);
@@ -90,6 +92,10 @@ HeatEquation::HeatEquation(Domain& D)
   MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
 
   setupKSP(_sbpT,D._initDeltaT);
+  }
+  else if (_heatEquationType.compare("steadyState")==0 ) {
+    setupKSP_SS(_sbpT);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -197,6 +203,9 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
 
+    if (var.compare("heatEquationType")==0) {
+      _heatEquationType = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
     if (var.compare("heatFieldsDistribution")==0) {
       _heatFieldsDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }

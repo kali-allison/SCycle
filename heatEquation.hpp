@@ -34,13 +34,13 @@ class HeatEquation: public IntegratorContextEx
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
+    std::string _heatEquationType;
 
     // IO information
     const char       *_file; // input ASCII file location
     std::string       _outputDir; // output file location
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _inputDir; // directory to load fields from
-
 
     // material parameters
     std::string       _heatFieldsDistribution;

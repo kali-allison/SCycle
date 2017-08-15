@@ -268,7 +268,7 @@ class FullLinearElastic: public LinearElastic
                       it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt); // IMEX backward Euler
 
     // IO commands
-    PetscErrorCode view(){};
+    PetscErrorCode view(){ return 0; };
     PetscErrorCode writeStep1D();
     PetscErrorCode writeStep2D();
 
