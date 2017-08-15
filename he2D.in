@@ -1,14 +1,15 @@
 order = 4
 Ny = 201
-Nz = 201
+Nz = 101
 Ly = 120 # km
-Lz = 40 # km
+Lz = 30 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
+#DcVals = [16e-3 16e-3] # m
 #DcVals = [32e-3 32e-3] # m
+DcVals = [100 100] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -40,14 +41,16 @@ sigmaN_cap = 50; # MPa
 
 vL = 1e-9    # (m/s)
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_2ICb_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/he/plv1_al_b8_csh_Dc16_2IC_
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
 
 # just effective viscosity data
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz201_
-zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v1_Ny201_Nz201_z
-loadICs = 1
-bcLTauQS = 1
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz101_
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
+#zInputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
+loadICs = 0
+bcLTauQS = 0
 
 shearDistribution = constant
 {
@@ -57,7 +60,6 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-#linSolver = AMG
 #bCoordTrans = 15.0
 bCoordTrans = 8.0
 sbpType = mfc_coordTrans
@@ -128,10 +130,10 @@ initTime = 0      # s 3e10
 maxTime = 1e18      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s 1e10
+maxDeltaT = 1e8      # s 1e10
 atol = 1e-8
-#timeIntInds = [0 2]
-timeIntInds = [3 4]
+timeIntInds = [0 2]
+#timeIntInds = [3 4]
 
 rootTol = 1e-9
 
@@ -177,4 +179,22 @@ f0 = 0.6
 #outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_nhe_Dc16_
 #outputDir = /data/dunham/kallison/shearHeat/pl_al_b8_csh_Dc16_
 #outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_csh_Dc16_
-outputDir = /data/dunham/kallison/shearHeat/pl2b_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/pl2b_al_b8_csh_Dc16_
+
+#outputDir = /data/dunham/kallison/shearHeat/plv2_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_al_b8_csh_Dc8_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_step2_al_b8_csh_Dc8_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_step2_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/plv1_step2_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI39_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI20_al_b8_csh_Dc16_
+#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI1_al_b8_csh_Dc1_
+
+#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_al_b8_csh_Dc8_
+#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_34_al_b8_csh_Dc1_
+outputDir = /data/dunham/kallison/shearHeat/plv3_step1_02_al_b8_csh_Dc1_
+
+#outputDir = /data/dunham/kallison/timingTests/pl_Ny201_Nz201_
+#outputDir = /data/dunham/kallison/timingTests/pl_Ny401_Nz401_
+#outputDir = /data/dunham/kallison/timingTests/pl_Ny801_Nz801_
+#outputDir = /data/dunham/kallison/timingTests/pl_Ny1201_Nz1201_

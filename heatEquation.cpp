@@ -36,6 +36,7 @@ HeatEquation::HeatEquation(Domain& D)
     _sbpT = NULL;
   }
   if (D._loadICs==1) { loadFieldsFromFiles(); }
+  else { computeSteadyStateTemp(D); }
 
   // set up linear system for time integration
   setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
@@ -406,7 +407,7 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
       //~ ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
-      computeSteadyStateTemp(D);
+
     }
   }
 
@@ -1247,6 +1248,7 @@ PetscErrorCode HeatEquation::view()
   //~ ierr = _quadEx->view();
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Heat Equation Runtime Summary:\n");CHKERRQ(ierr);
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   solver algorithm = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent setting up linear solve context (e.g. factoring) (s): %g\n",_factorTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in be (s): %g\n",_beTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);

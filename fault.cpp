@@ -707,16 +707,16 @@ PetscErrorCode SymmFault::computeVel()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      //~ Bisect rootAlg(_maxNumIts,_rootTol);
-      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      //~ ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
-      //~ _rootIts += rootAlg.getNumIts();
-
-      PetscScalar x0;
-      ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
-      BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      Bisect rootAlg(_maxNumIts,_rootTol);
       ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      _rootIts += rootAlg.getNumIts();
+
+      //~ PetscScalar x0;
+      //~ ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
+      //~ BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      //~ ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     ierr = VecSetValue(_slipVel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
@@ -1442,6 +1442,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_psi,inv);CHKERRQ(ierr);
+  //~ VecSet(_psi,0.6);
 
   // load state: theta
   vecSourceFile = inputDir + "theta";
@@ -1450,6 +1451,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_theta,inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerDestroy(&inv);
+  //~ VecSet(_theta,0.6);
 
   // load state
   vecSourceFile = inputDir + "slip";
