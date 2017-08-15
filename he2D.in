@@ -1,6 +1,6 @@
 order = 4
 Ny = 51
-Nz = 52
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 
@@ -60,7 +60,7 @@ rhoPlus = 3.0 # g/cm^3
 
 linSolver = MUMPSCHOLESKY
 bCoordTrans = 15.0
-#bCoordTrans = 8.0
+#bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -99,8 +99,8 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [1300 1300]
+#TVals = [293 1793] # 30 C/km
+TVals = [1000 1100]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
@@ -126,12 +126,12 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 1e5 #1e9
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
-maxTime = 1e18      # s 5.5e10
+maxTime = 7e8      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s 1e10
+maxDeltaT = 1e8      # s 1e10
 atol = 1e-8
 timeIntInds = [0 2]
 #timeIntInds = [3 4]
