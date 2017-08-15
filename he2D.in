@@ -1,28 +1,27 @@
 order = 4
-Ny = 201
-Nz = 101
-Ly = 120 # km
+Ny = 21
+Nz = 22
+Ly = 30 # km
 Lz = 30 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
+DcVals = [16e-3 16e-3] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [100 100] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
-#aVals = [0.2652 0.2652]
-#aDepths = [0 60]
-#bVals = [0.0497 0.0497]
-#bDepths = [0 60]
+aVals = [0.2652 0.2652]
+aDepths = [0 60]
+bVals = [0.0497 0.0497]
+bDepths = [0 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
 
 # SHALLOW VS: creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 #aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -31,11 +30,11 @@ bDepths = [0 10 11 19.3333 60]
 #bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
-#sigmaNVals = [50 50] # (MPa) constant
+sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
-#sigmaNDepths = [0 60] #(km) constant
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
+sigmaNDepths = [0 60] #(km) constant
+#sigmaNVals = [5.668 5.668 1336] # MPa
+#sigmaNDepths = [0 0.25 60]
 sigmaN_cap = 50; # MPa
 
 
@@ -46,7 +45,7 @@ vL = 1e-9    # (m/s)
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
 
 # just effective viscosity data
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz101_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz101_
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
 loadICs = 0
@@ -62,8 +61,8 @@ rhoPlus = 3.0 # g/cm^3
 linSolver = MUMPSCHOLESKY
 #bCoordTrans = 15.0
 bCoordTrans = 8.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#sbpType = mfc_coordTrans
+sbpType = mfc
 kspTol = 1e-10
 
 
@@ -105,10 +104,10 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -118,24 +117,23 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e9 #1e9
+stride1D = 1
+stride2D = 1
+maxStepCount = 10 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e18      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
 maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
-timeIntInds = [2]
-#timeIntInds = [0 2]
+timeIntInds = [0 2]
 #timeIntInds = [3 4]
 
 rootTol = 1e-9
@@ -186,4 +184,4 @@ f0 = 0.6
 
 #outputDir = /data/dunham/kallison/testData/ss_
 #outputDir = /data/dunham/kallison/testData/ss_0_
-outputDir = /data/dunham/kallison/testData/ss_2_
+outputDir = /data/dunham/kallison/testData/test_
