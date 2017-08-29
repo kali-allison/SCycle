@@ -1,27 +1,28 @@
 order = 4
-Ny = 51
-Nz = 51
-Ly = 30 # km
-Lz = 30 # km
+Ny = 251
+Nz = 201
+Ly = 60 # km
+Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
 DcVals = [16e-3 16e-3] # m
 #DcVals = [32e-3 32e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
-aVals = [0.2652 0.2652]
-aDepths = [0 60]
-bVals = [0.0497 0.0497]
-bDepths = [0 60]
+#aVals = [0.2652 0.2652]
+#aDepths = [0 60]
+#bVals = [0.0497 0.0497]
+#bDepths = [0 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
 # SHALLOW VS: creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 #aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -30,11 +31,11 @@ bDepths = [0 60]
 #bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
+#sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
+#sigmaNDepths = [0 60] #(km) constant
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
 sigmaN_cap = 50; # MPa
 
 
@@ -45,7 +46,7 @@ vL = 1e-9    # (m/s)
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
 
 # just effective viscosity data
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz101_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
 loadICs = 0
@@ -99,16 +100,16 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [1000 1100]
+TVals = [293 1793] # 30 C/km
+#TVals = [1000 1100]
 TDepths = [0 50]
-heatEquationType = steadyState
-#heatEquationType = transient
-#thermalCoupling = coupled
+#heatEquationType = steadyState
+heatEquationType = transient
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
+#thermalCoupling = no
 withShearHeating = no
-withFrictionalHeating = no
+withFrictionalHeating = yes
 
 
 
@@ -122,68 +123,51 @@ viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 1e9 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e5 #1e9
 initTime = 0      # s 3e10
-maxTime = 7e8      # s 5.5e10
+maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
 minDeltaT = 1e-3     # s
-maxDeltaT = 1e8      # s 1e10
+maxDeltaT = 1e10      # s 1e10
 atol = 1e-8
-timeIntInds = [0 2 3]
-#timeIntInds = [3 4]
+timeIntInds = [0 2]
+#timeIntInds = [2 3 4]
 
 rootTol = 1e-9
 
 
-stateLaw = agingLaw
+#stateLaw = agingLaw
 #stateLaw = slipLaw
-v0 = 1e-6
-f0 = 0.6
-
-#stateLaw = flashHeating
 #v0 = 1e-6
 #f0 = 0.6
+
+stateLaw = flashHeating
+#v0 = 1e-6
+v0 = 100
+f0 = 0.6
 #fw = 0.12
-#fw = 0.0
-#Vw = 0.1
-#Tw = 1.1732e+03 # K 900 C
-#tau_c = 3 # GPa
-#D = 5 # um
+fw = 0.0
+Vw = 0.1
+Tw = 1.1732e+03 # K 900 C
+tau_c = 3 # GPa
+D = 5 # um
 
 
 
-#outputDir = /data/dunham/kallison/heData/b5_csh_
-#outputDir = /data/dunham/kallison/shearHeat/pl_al_b8_nhe_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_nhe_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/pl_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/pl2_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/pl2b_al_b8_csh_Dc16_
-
-#outputDir = /data/dunham/kallison/shearHeat/plv2_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_al_b8_csh_Dc8_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_step2_al_b8_csh_Dc8_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_step2_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/plv1_step2_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI39_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI20_al_b8_csh_Dc16_
-#outputDir = /data/dunham/kallison/shearHeat/plv2_step3_tI1_al_b8_csh_Dc1_
+#outputDir = /data/dunham/kallison/heData/le_cfh_
+outputDir = /data/dunham/kallison/heData/le_abT_cfh_
 
 #outputDir = /data/dunham/kallison/shearHeat/plv3_step1_al_b8_csh_Dc8_
 #outputDir = /data/dunham/kallison/shearHeat/plv3_step1_34_al_b8_csh_Dc1_
 #outputDir = /data/dunham/kallison/shearHeat/plv3_step1_02_al_b8_csh_Dc1_
 
-#outputDir = /data/dunham/kallison/timingTests/pl_Ny201_Nz201_
-#outputDir = /data/dunham/kallison/timingTests/pl_Ny401_Nz401_
-#outputDir = /data/dunham/kallison/timingTests/pl_Ny801_Nz801_
-#outputDir = /data/dunham/kallison/timingTests/pl_Ny1201_Nz1201_
-
-
-#outputDir = /data/dunham/kallison/testData/ss_
-#outputDir = /data/dunham/kallison/testData/ss_0_
-#outputDir = /data/dunham/kallison/testData/test_
-
-outputDir = data/test_
+#outputDir = /data/dunham/kallison/eqcycle/data/testSS_bcLtau_34_
+#outputDir = /data/dunham/kallison/eqcycle/data/testSS_PID_234_
+#outputDir = /data/dunham/kallison/eqcycle/data/testSS_PID_34_
+#outputDir = /data/dunham/kallison/eqcycle/data/testSS_34_
+#outputDir = /data/dunham/kallison/eqcycle/data/testSS_02_
+#outputDir = /data/dunham/kallison/eqcycle/data/test_02_

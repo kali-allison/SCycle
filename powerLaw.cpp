@@ -912,6 +912,8 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const_it_vec varBeg
     VecSet(*(dvarBegin+1),0.0); // // dstate theta
     VecSet(*(dvarBegin+2),0.0); // slip vel
   }
+  //~ VecSet(*dvarBegin,0.0); // dstate psi
+  //~ VecSet(*(dvarBegin+1),0.0);
 
   ierr = setViscStrainRates(time,_gxyP,_gxzP,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
 
@@ -1186,7 +1188,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   Vec SAT;
   VecDuplicate(_gTxyP,&SAT);
   ierr = setViscousStrainRateSAT(_uP,_bcLP,_bcRP,SAT);CHKERRQ(ierr);
-  //~ VecSet(SAT,0.0);
+  VecSet(SAT,0.0);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(gVxy_t,_muVecP,SAT);
@@ -1195,7 +1197,8 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
     Vec temp1;
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(qy,gVxy_t,temp1);
+    MatMult(qy,gVxy_t,temp1); // correct
+    //~ MatMult(yq,gVxy_t,temp1); // incorrect
     VecCopy(temp1,gVxy_t);
     VecDestroy(&temp1);
   }
@@ -1604,6 +1607,17 @@ PetscErrorCode PowerLaw::writeContext()
   ierr = _fault.writeContext(_outputDir); CHKERRQ(ierr);
   ierr = _he.writeContext(); CHKERRQ(ierr);
 
+  // write out scalar info
+  PetscViewer viewer;
+  str = _outputDir + "powerLaw_context.txt";
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+
+  ierr = PetscViewerASCIIPrintf(viewer,"SAT term set to 0\n");CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Imposing SS on state variable\n");CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

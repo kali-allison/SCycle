@@ -694,8 +694,12 @@ PetscErrorCode SymmFault::computeVel()
     ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g\n",Ii,leftVal,rightVal);
 
-    if (isnan(leftVal) || isnan(rightVal)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError:left or right evaluated to nan.\n");
+    if (isnan(leftVal)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError:left evaluated to nan.\n");
+      assert(0);
+    }
+    if (isnan(rightVal)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError:right evaluated to nan.\n");
       assert(0);
     }
     // correct for left-lateral fault motion
@@ -836,15 +840,28 @@ PetscErrorCode SymmFault::setTemp(const Vec& T)
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v = 0;
 
+  PetscScalar a0 = 0.005, b0 = 0.008; // Beeler et al. 2016
+
   ierr = VecGetOwnershipRange(T,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
       ierr = VecGetValues(T,1,&Ii,&v);CHKERRQ(ierr);
       ierr = VecSetValues(_T,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+
+      // also set a and b
+      PetscScalar a = a0*v/298.;
+      PetscScalar b = b0*v/298.;
+      ierr = VecSetValues(_a,1,&Ii,&a,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_b,1,&Ii,&b,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_T);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_T);CHKERRQ(ierr);
+
+  ierr = VecAssemblyBegin(_a);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_a);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
