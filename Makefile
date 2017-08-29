@@ -9,7 +9,7 @@ CLINKER		      = openmpicc
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
  maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
  spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
- odeSolverImex.o
+ odeSolverImex.o fault_hydraulic.o
 
 
 

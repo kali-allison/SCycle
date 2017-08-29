@@ -326,7 +326,7 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadVectorFromInputFile in genFuncs.cpp.\n");CHKERRQ(ierr);
   #endif
 
   size_t pos = 0; // position of delimiter in string
@@ -354,7 +354,7 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
 
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::loadVectorFromInputFile in domain.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadVectorFromInputFile in genFuncs.cpp.\n");CHKERRQ(ierr);
   #endif
   return ierr;
 }
