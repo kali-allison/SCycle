@@ -1,14 +1,14 @@
 order = 4
-Ny = 41
-Nz = 51
+Ny = 251
+Nz = 201
 Ly = 60 # km
 Lz = 40 # km
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
-#DcVals = [32e-3 32e-3] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [32e-3 32e-3] # m
 #DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
@@ -46,7 +46,7 @@ vL = 1e-9    # (m/s)
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
 
 # just effective viscosity data
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
 #zInputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
 loadICs = 0
@@ -60,8 +60,8 @@ rhoPlus = 3.0 # g/cm^3
 }
 
 linSolver = MUMPSCHOLESKY
-bCoordTrans = 15.0
-#bCoordTrans = 10.0
+#bCoordTrans = 15.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 kspTol = 1e-10
@@ -106,10 +106,10 @@ TDepths = [0 50]
 #heatEquationType = steadyState
 heatEquationType = transient
 #thermalCoupling = coupled
-thermalCoupling = uncoupled
-#thermalCoupling = no
+#thermalCoupling = uncoupled
+thermalCoupling = no
 withShearHeating = no
-withFrictionalHeating = yes
+withFrictionalHeating = no
 
 # hyraulic fault inputs
 hydraulicCoupling = no
@@ -129,11 +129,11 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 15 #1e9
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e9 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
