@@ -507,7 +507,7 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
 
   VecGetOwnershipRange(_bcLP,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar tauRS = _fault.getTauSS(Ii); // rate-and-state strength
+    PetscScalar tauRS = _fault->getTauSS(Ii); // rate-and-state strength
 
     // viscous strength
     VecGetValues(faultVisc,1,&Ii,&v);
@@ -537,7 +537,7 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
       ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
       v += 2.*(abs(minVal) + 1.0);
       //~ ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_fault._slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_fault->_slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
     // put right boundary data into bcR
@@ -549,15 +549,15 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
     }
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_fault->_slip);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_fault->_slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
 
-  //~ VecCopy(_fault._slip,*(_var.begin()+2));
-  VecCopy(_fault._slip,_varEx["slip"]);
+  //~ VecCopy(_fault->_slip,*(_var.begin()+2));
+  VecCopy(_fault->_slip,_varEx["slip"]);
   if (_bcLTauQS==0) {
-    VecCopy(_fault._slip,_bcLP);
+    VecCopy(_fault->_slip,_bcLP);
     VecScale(_bcLP,0.5);
   }
 
@@ -566,8 +566,8 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
   //~ VecSet(_bcRPShift,13.0);
   //~ VecSet(_bcRP,_vL*_initTime/2.0);
   //~ VecSet(_bcLP,0.0);
-  //~ VecSet(_fault._slip,0.0);
-  //~ VecCopy(_fault._slip,*(_var.begin()+2));
+  //~ VecSet(_fault->_slip,0.0);
+  //~ VecCopy(_fault->_slip,*(_var.begin()+2));
   //~ VecSet(_uP,0.0);
 
 
@@ -809,9 +809,9 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   if (_heatEquationType.compare("steadyState")==0 ) {
-    //~ ierr = _he.computeSteadyStateTemp(time,*(dvarBegin+2),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
+    //~ ierr = _he.computeSteadyStateTemp(time,*(dvarBegin+2),_fault->_tauQSP,_sigmadev,*(dvarBegin+3),
     //~ *(dvarBegin+4),_T);
-    ierr = _he.computeSteadyStateTemp(time,dvarEx["slip"],_fault._tauQSP,_sigmadev,dvarEx["gVxy"],
+    ierr = _he.computeSteadyStateTemp(time,dvarEx["slip"],_fault->_tauQSP,_sigmadev,dvarEx["gVxy"],
     dvarEx["gVxz"],_T);
   }
 
@@ -839,11 +839,11 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const map<string,Vec>& varE
   ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
 
   //~ if (_heatEquationType.compare("transient")==0 ) {
-  //~ ierr = _he.be(time,*(dvarBegin+2),_fault._tauQSP,_sigmadev,*(dvarBegin+3),
+  //~ ierr = _he.be(time,*(dvarBegin+2),_fault->_tauQSP,_sigmadev,*(dvarBegin+3),
     //~ *(dvarBegin+4),*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
   // arguments:
   // time, slipVel, sigmadev, dgxy, dgxz, T, dTdt
-  ierr = _he.be(time,dvarEx.find("slip")->second,_fault._tauQSP,_sigmadev,dvarEx.find("gVxy")->second,
+  ierr = _he.be(time,dvarEx.find("slip")->second,_fault->_tauQSP,_sigmadev,dvarEx.find("gVxy")->second,
     dvarEx.find("gVxz")->second,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
 
 
@@ -902,14 +902,14 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
 
   // update stresses, viscosity, and set shear traction on fault
   ierr = setStresses(time);CHKERRQ(ierr);
-  ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault->setTauQS(_sxyP,NULL);CHKERRQ(ierr);
   computeViscosity();
 
 
 
   // set rates
   if (_bcLTauQS==0) {
-    ierr = _fault.d_dt(varEx,dvarEx); // sets rates for slip and state
+    ierr = _fault->d_dt(varEx,dvarEx); // sets rates for slip and state
   }
   else {
     //~ VecSet(*dvarBegin,0.0); // dstate psi
@@ -1492,7 +1492,7 @@ PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
   ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault._tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
 
   if (stepCount == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s  | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
@@ -1505,7 +1505,7 @@ PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
 
 
-  //~VecView(_fault._tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
 #endif
 */
   return ierr;
@@ -1600,6 +1600,8 @@ PetscErrorCode PowerLaw::writeContext()
     CHKERRQ(ierr);
   #endif
 
+  SymmLinearElastic::writeContext();
+
   writeDomain();
 
   PetscViewer    vw;
@@ -1621,7 +1623,7 @@ PetscErrorCode PowerLaw::writeContext()
 
   // contextual fields of members
   ierr = _sbpP->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
-  ierr = _fault.writeContext(_outputDir); CHKERRQ(ierr);
+  ierr = _fault->writeContext(_outputDir); CHKERRQ(ierr);
   ierr = _he.writeContext(); CHKERRQ(ierr);
 
   // write out scalar info
@@ -1679,12 +1681,12 @@ PetscErrorCode PowerLaw::writeStep1D()
     //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
                                    //~FILE_MODE_APPEND,&_bcRPlusV);CHKERRQ(ierr);
 
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
     ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
     ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
 
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);

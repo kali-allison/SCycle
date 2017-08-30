@@ -54,7 +54,7 @@ test: test.o
 
 #.PHONY : clean
 clean::
-	-rm -f *.o main helloWorld mainLinearElastic mainMaxwell
+	-rm -f *.o main helloWorld mainLinearElastic main
 
 depend:
 	-g++ -MM *.c*

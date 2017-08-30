@@ -15,7 +15,8 @@ Domain::Domain(const char *file)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  _linSolver("unspecified"),_sbpType("unspecified"),_bCoordTrans(5.0),_kspTol(-1),
+  //~ _linSolver("unspecified"),_kspTol(-1),
+  _sbpType("unspecified"),_bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -93,7 +94,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _rhoInMinus(-1),_rhoOutMinus(-1),
   _muArrMinus(NULL),_csArrMinus(NULL),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  _linSolver("unspecified"),_sbpType("unspecified"),_bCoordTrans(5.0),_kspTol(-1),
+  //~ _linSolver("unspecified"),_kspTol(-1),
+  _sbpType("unspecified"),_bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
@@ -255,10 +257,10 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("bCoordTrans")==0) {
        _bCoordTrans = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("linSolver")==0) {
-      _linSolver = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    //~ else if (var.compare("linSolver")==0) {
+      //~ _linSolver = line.substr(pos+_delim.length(),line.npos);
+    //~ }
+    //~ else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) {
@@ -462,11 +464,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    // linear solve settings
-    ierr = PetscPrintf(PETSC_COMM_SELF,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
     // time monitering
     ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
@@ -530,12 +527,6 @@ PetscErrorCode Domain::checkInput()
   assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-
-  assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
-         _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("PCG") == 0 ||
-         _linSolver.compare("AMG") == 0 );
-  assert(_kspTol >= 1e-14);
 
 
     assert(_problemType.compare("full")==0 || _problemType.compare("symmetric")==0);
@@ -671,8 +662,6 @@ PetscErrorCode Domain::write()
 
 
   // linear solve settings
-  ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bCoordTrans = %.15e\n",_bCoordTrans);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -703,11 +692,11 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  // output shear modulus
-  str =  _outputDir + "muPlus";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_muVecP,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ // output shear modulus
+  //~ str =  _outputDir + "muPlus";
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  //~ ierr = VecView(_muVecP,viewer);CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output q
   str =  _outputDir + "q";

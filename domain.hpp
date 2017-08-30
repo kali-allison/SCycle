@@ -55,10 +55,10 @@ class Domain
 
 
     // linear solver settings
-    std::string _linSolver; // type of linear solver used: MUMPSCHOLESKY, MUMPSLU, AMG
+    //~ std::string _linSolver; // type of linear solver used: MUMPSCHOLESKY, MUMPSLU, AMG
     std::string _sbpType; // matrix or matrix-free, compatible or fully compatible
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
-    PetscScalar _kspTol; // tolerance for iterative solver
+    //~ PetscScalar _kspTol; // tolerance for iterative solver
 
     // time integration settings
     std::string  _timeControlType,_timeIntegrator;

@@ -17,8 +17,8 @@ LinearElastic::LinearElastic(Domain&D)
   _muVecP(D._muVecP),
   _bcRPShift(NULL),_surfDispPlus(NULL),
   _rhsP(NULL),_uP(NULL),_sxyP(NULL),
-  _linSolver(D._linSolver),_kspP(NULL),_pcP(NULL),
-  _kspTol(D._kspTol),
+  _linSolver("unspecified"),_kspP(NULL),_pcP(NULL),
+  _kspTol(1e-10),
   _sbpP(NULL),_sbpType(D._sbpType),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
@@ -26,6 +26,7 @@ LinearElastic::LinearElastic(Domain&D)
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
   _thermalCoupling("no"),_heatEquationType("transient"),_he(D),_T(NULL),_tempViewer(NULL),
+  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispPlusViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_linSolveCount(0),_startTime(MPI_Wtime()),
   _miscTime(0),
@@ -137,11 +138,26 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
 
-    if (var.compare("thermalCoupling")==0) {
+
+    if (var.compare("linSolver")==0) {
+      _linSolver = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("kspTol")==0) {
+      _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("bcLTauQS")==0) {
       _bcLTauQS = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("hydraulicCoupling")==0) {
+      _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("hydraulicTimeIntType")==0) {
+      _hydraulicTimeIntType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
   }
@@ -164,6 +180,15 @@ PetscErrorCode LinearElastic::checkInput()
   if (_timeIntegrator.compare("IMEX")==0) {
     assert(_thermalCoupling.compare("uncoupled")==0
       || _thermalCoupling.compare("coupled")==0);
+  }
+
+  assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
+         _linSolver.compare("MUMPSLU") == 0 ||
+         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("AMG") == 0 );
+
+  if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
+    assert(_kspTol >= 1e-14);
   }
 
   #if VERBOSE > 1
@@ -308,27 +333,41 @@ PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt st
 //======================================================================
 
 SymmLinearElastic::SymmLinearElastic(Domain&D)
-: LinearElastic(D),_fault(D,_he),
+: LinearElastic(D),
   _E(NULL),_eV(NULL),_intEV(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
+  if (_hydraulicCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    _fault = new SymmFault_Hydr(D,_he);
+
+    if (_hydraulicTimeIntType.compare("explicit")==0) {
+      Vec temp;
+      VecDuplicate(_fault->_dp,&temp);
+      VecCopy(_fault->_dp,temp);
+      _varEx["porePressure"] = temp;
+    }
+    else if (_hydraulicTimeIntType.compare("implicit")==0) {
+      Vec temp;
+      VecDuplicate(_fault->_dp,&temp);
+      VecCopy(_fault->_dp,temp);
+      _varIm["porePressure"] = temp;
+    }
+  }
+  else {
+    _fault = new SymmFault(D,_he);
+  }
+
   allocateFields();
   if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
   else { setInitialConds(D); } // guess at steady-state configuration
   setUpSBPContext(D); // set up matrix operators
 
-
   // put variables to be integrated into var
-  Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
-  //~ _var.push_back(varPsi);
-  //~ Vec varTheta; VecDuplicate(_fault._theta,&varTheta); VecCopy(_fault._theta,varTheta);
-  //~ _var.push_back(varTheta);
-  Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
-  //~ _var.push_back(varSlip);
-
+  Vec varPsi; VecDuplicate(_fault->_psi,&varPsi); VecCopy(_fault->_psi,varPsi);
+  Vec varSlip; VecDuplicate(_fault->_slip,&varSlip); VecCopy(_fault->_slip,varSlip);
   _varEx["psi"] = varPsi;
   _varEx["slip"] = varSlip;
 
@@ -337,11 +376,10 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     Vec deltaT; // change in temperature relative to background
     VecDuplicate(_uP,&deltaT);
     VecCopy(_he._T,deltaT);
-    //~ _varIm.push_back(deltaT);
     _varIm["deltaT"] = deltaT;
 
     _he.getTemp(_T);
-    _fault.setTemp(_T);
+    _fault->setTemp(_T);
   }
 
   if (_isMMS) { setMMSInitialConditions(); }
@@ -353,20 +391,11 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     PetscInt    Istart,Iend;
     VecGetOwnershipRange(_bcLP,&Istart,&Iend);
     for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar tauRS = _fault.getTauSS(Ii);
+      PetscScalar tauRS = _fault->getTauSS(Ii);
       VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
     }
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
-
-
-
-  //~ map<string,Vec>::iterator it;
-  //~ for (it = temp.begin(); it!=temp.end(); it++ )
-//~ {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"key = %s\n",(it->first).c_str());
-    //~ VecView(it->second,PETSC_VIEWER_STDOUT_WORLD);
-//~ }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
@@ -527,7 +556,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
   PetscInt Istart, Iend;
   VecGetOwnershipRange(_bcLP,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar tauRS = _fault.getTauSS(Ii); // rate-and-state strength
+    PetscScalar tauRS = _fault->getTauSS(Ii); // rate-and-state strength
     VecSetValue(_bcLP,Ii,tauRS,INSERT_VALUES);
   }
   VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
@@ -548,7 +577,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
     if ( Ii < _Nz ) {
       ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
       v = 2.0*(v + abs(minVal));
-      ierr = VecSetValues(_fault._slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_fault->_slip,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
     // put right boundary data into bcR
@@ -561,13 +590,13 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D)
     }
   }
   ierr = VecAssemblyBegin(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_fault->_slip);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcRPShift);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_fault._slip);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_fault->_slip);CHKERRQ(ierr);
   VecCopy(_bcRPShift,_bcRP);
 
   if (_bcLTauQS==0) {
-    VecCopy(_fault._slip,_bcLP);
+    VecCopy(_fault->_slip,_bcLP);
     VecScale(_bcLP,0.5);
   }
 
@@ -637,12 +666,12 @@ PetscErrorCode SymmLinearElastic::setShifts()
   PetscScalar bcRshift;
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ v = _fault.getTauInf(Ii);
+    //~ v = _fault->getTauInf(Ii);
     //~bcRshift = 0.8*  v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
     //~bcRshift = v*_Ly/_muArrPlus[Ii]; // use first values of muArr
     //~ bcRshift = 0. * v;
     PetscScalar z;
-    ierr =  VecGetValues(_fault._z,1,&Ii,&z);CHKERRQ(ierr);
+    ierr =  VecGetValues(_fault->_z,1,&Ii,&z);CHKERRQ(ierr);
     bcRshift = 0.25*2.0*9.8*z *0;
     ierr = VecSetValue(_bcRPShift,Ii,bcRshift,INSERT_VALUES);CHKERRQ(ierr);
   }
@@ -710,8 +739,46 @@ PetscErrorCode SymmLinearElastic::view()
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  //~ _fault.view();
+  //~ _fault->view();
   //~ierr = KSPView(_kspP,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode SymmLinearElastic::writeContext()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmLinearElastic::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscViewer    viewer;
+
+  // write out scalar info
+  std::string str = _outputDir + "linEl_context.txt";
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+
+  // linear solve settings
+  ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
+
+  // hydraulic fault type
+  ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+  if (_hydraulicCoupling.compare("coupled") == 0 || _hydraulicCoupling.compare("uncoupled") == 0) {
+    ierr = PetscViewerASCIIPrintf(viewer,"hydraulicTimeIntType = %s\n",_hydraulicTimeIntType.c_str());CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+
+  ierr = writeVec(_muVecP,_outputDir + "_muPlus"); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -728,9 +795,10 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
   double startTime = MPI_Wtime();
 
   if (_stepCount==0) {
+    writeContext();
     _he.writeContext();
     ierr = _sbpP->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);
-    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = _fault->writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
@@ -756,7 +824,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
                                    FILE_MODE_APPEND,&_bcLPlusV);CHKERRQ(ierr);
 
-  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
 
   #if CALCULATE_ENERGY == 1
@@ -789,7 +857,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
       ierr = VecView(*(_var.end()-1),_intEV);CHKERRQ(ierr);
     #endif
 
-    ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+    ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
     ierr = _he.writeStep1D(_stepCount);CHKERRQ(ierr);
   }
 
@@ -984,12 +1052,12 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<
   ierr = _sbpP->muxDy(_uP,_sxyP); CHKERRQ(ierr);
 
   // update fields on fault
-  ierr = _fault.setTauQS(_sxyP,NULL);CHKERRQ(ierr);
+  ierr = _fault->setTauQS(_sxyP,NULL);CHKERRQ(ierr);
 
 
   if (_bcLTauQS==0) {
-    //~ ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
-    ierr = _fault.d_dt(varEx,dvarEx); // sets rates for slip and state
+    //~ ierr = _fault->d_dt(varBegin,dvarBegin); // sets rates for slip and state
+    ierr = _fault->d_dt(varEx,dvarEx); // sets rates for slip and state
   }
   else {
     //~ VecSet(*dvarBegin,0.0); // dstate psi
@@ -1024,10 +1092,10 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
     Vec stressxzP,tau;
     VecDuplicate(_uP,&stressxzP);
     ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    VecDuplicate(_fault._tauQSP,&tau);
-    _fault.getTau(tau);
+    VecDuplicate(_fault->_tauQSP,&tau);
+    _fault->getTau(tau);
 
-    _fault.setTemp(_T);
+    _fault->setTemp(_T);
     //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
       //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     ierr = _he.be(time,varEx.find("slip")->second,tau,NULL,NULL,
@@ -1270,7 +1338,7 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault._tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
 
   if (stepCount == 0) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
@@ -1283,7 +1351,7 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
 
 
-  //~VecView(_fault._tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+  //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
 #endif
   return ierr;
 }
@@ -1550,8 +1618,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
   _bcLMShift(NULL),_surfDispMinus(NULL),
   _rhsM(NULL),_uM(NULL),_sigma_xyMinus(NULL),
   _kspM(NULL),_pcMinus(NULL),_sbpM(NULL),
-  _surfDispMinusViewer(NULL),_bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL),
-  _fault(D,_he)
+  _surfDispMinusViewer(NULL),_bcTMinus(NULL),_bcRMinus(NULL),_bcBMinus(NULL),_bcLMinus(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FullLinearElastic::FullLinearElastic in linearElastic.cpp.\n");
@@ -1559,7 +1626,7 @@ FullLinearElastic::FullLinearElastic(Domain&D)
 
   _sbpM = new SbpOps_c(D,D._muVecM,"Neumann","Dirichlet","Neumann","Dirichlet","yx");
 
-  //~_fault = new FullFault(D);
+  _fault = new  FullFault(D,_he);
 
   // initialize y<0 boundary conditions
   VecDuplicate(_bcLP,&_bcLMShift);
@@ -1619,13 +1686,13 @@ FullLinearElastic::FullLinearElastic(Domain&D)
 
 
   // set up fault
-  _fault.setTauQS(_sxyP,_sigma_xyMinus);
-  _fault.setFaultDisp(_bcLP,_bcRMinus);
-  _fault.computeVel();
+  _fault->setTauQS(_sxyP,_sigma_xyMinus);
+  _fault->setFaultDisp(_bcLP,_bcRMinus);
+  _fault->computeVel();
 
-  _var.push_back(_fault._psi);
-  _var.push_back(_fault._uP);
-  _var.push_back(_fault._uM);
+  _var.push_back(_fault->_psi);
+  _var.push_back(_fault->_uP);
+  _var.push_back(_fault->_uM);
 
 
   VecDuplicate(_bcTMinus,&_surfDispMinus); PetscObjectSetName((PetscObject) _surfDispMinus, "_surfDispMinus");
@@ -1692,7 +1759,7 @@ PetscErrorCode FullLinearElastic::setShifts()
   PetscScalar v,bcRshift = 0;
   ierr = VecGetOwnershipRange(_bcRPShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault.getTauSS(Ii);
+    v = _fault->getTauSS(Ii);
     v = 0;
     //~v = 0.8*v;
     //~ bcRshift = v*_Ly/_muArrPlus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
@@ -1705,7 +1772,7 @@ PetscErrorCode FullLinearElastic::setShifts()
 
   ierr = VecGetOwnershipRange(_bcLMShift,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    v = _fault.getTauSS(Ii);
+    v = _fault->getTauSS(Ii);
      //~v = 0;
      v = 0.8*v;
     bcRshift = -v*_Ly/_muArrMinus[_Ny*_Nz-_Nz+Ii]; // use last values of muArr
@@ -1773,7 +1840,7 @@ PetscErrorCode FullLinearElastic::writeStep1D()
   if (_stepCount==0) {
     //~ierr = _sbpP->writeOps(_outputDir+"plus_");CHKERRQ(ierr);
     //~if (_problemType.compare("full")==0) { ierr = _sbpM->writeOps(_outputDir+"minus_");CHKERRQ(ierr); }
-    ierr = _fault.writeContext(_outputDir);CHKERRQ(ierr);
+    ierr = _fault->writeContext(_outputDir);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
 
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
@@ -1794,7 +1861,7 @@ PetscErrorCode FullLinearElastic::writeStep1D()
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
     ierr = VecView(_surfDispMinus,_surfDispMinusViewer);CHKERRQ(ierr);
   }
-  ierr = _fault.writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
+  ierr = _fault->writeStep(_outputDir,_stepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
 
   _writeTime += MPI_Wtime() - startTime;
@@ -1977,8 +2044,8 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const map<string,V
   //~printVec(_sxyP);
   //~assert(0>1);
 
-  ierr = _fault.setTauQS(_sxyP,_sigma_xyMinus);CHKERRQ(ierr);
-  //~ ierr = _fault.d_dt(varBegin,dvarBegin);
+  ierr = _fault->setTauQS(_sxyP,_sigma_xyMinus);CHKERRQ(ierr);
+  //~ ierr = _fault->d_dt(varBegin,dvarBegin);
 
   ierr = setSurfDisp();
 
@@ -2003,7 +2070,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const map<string,V
     //~ Vec stressxzP;
     //~ VecDuplicate(_uP,&stressxzP);
     //~ ierr = _sbpP->muxDz(_uP,stressxzP); CHKERRQ(ierr);
-    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault._tauQSP,_sxyP,stressxzP,NULL,
+    //~ ierr = _he.d_dt(time,*(dvarBegin+1),_fault->_tauQSP,_sxyP,stressxzP,NULL,
       //~ NULL,*(varBegin+2),*(dvarBegin+2),dt);CHKERRQ(ierr);
     //~ VecDestroy(&stressxzP);
       //~ // arguments:
@@ -2046,8 +2113,8 @@ PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt step
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_bcLMinus,1,&Istart,&bcLMinus);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault._tauQSP,1,&Istart,&tauQSPlus);CHKERRQ(ierr);
-  ierr = VecGetValues(_fault._tauQSMinus,1,&Istart,&tauQSMinus);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQSPlus);CHKERRQ(ierr);
+  ierr = VecGetValues(_fault->_tauQSMinus,1,&Istart,&tauQSMinus);CHKERRQ(ierr);
 
   if (stepCount == 0) {
     //~ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s|| %-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",

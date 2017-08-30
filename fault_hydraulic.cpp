@@ -44,8 +44,20 @@ PetscErrorCode SymmFault_Hydr::checkInput()
   assert(_k_pVals.size() == _k_pDepths.size() );
   assert(_eta_pVals.size() == _eta_pDepths.size() );
   assert(_rho_fVals.size() == _rho_fDepths.size() );
-
   assert(_pVals.size() == _pDepths.size() );
+
+  assert(_n_pVals.size() != 0 );
+  assert(_n_pDepths.size() != 0 );
+  assert(_beta_pVals.size() != 0 );
+  assert(_beta_pDepths.size() != 0 );
+  assert(_k_pVals.size() != 0 );
+  assert(_k_pDepths.size() != 0 );
+  assert(_eta_pVals.size() != 0 );
+  assert(_eta_pDepths.size() != 0 );
+  assert(_rho_fVals.size() != 0 );
+  assert(_rho_fDepths.size() != 0 );
+  assert(_pVals.size() != 0 );
+  assert(_pDepths.size() != 0 );
 
   assert(_g >= 0);
 
@@ -149,12 +161,13 @@ PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-    // allocate memory and partition accross processors
+  // allocate memory and partition accross processors
   VecDuplicate(_tauQSP,&_n_p);  PetscObjectSetName((PetscObject) _n_p, "n_p");  VecSet(_n_p,0.0);
   VecDuplicate(_tauQSP,&_beta_p);  PetscObjectSetName((PetscObject) _beta_p, "beta_p");  VecSet(_beta_p,0.0);
   VecDuplicate(_tauQSP,&_k_p);  PetscObjectSetName((PetscObject) _k_p, "k_p");  VecSet(_k_p,0.0);
   VecDuplicate(_tauQSP,&_eta_p);  PetscObjectSetName((PetscObject) _eta_p, "eta_p");  VecSet(_eta_p,0.0);
   VecDuplicate(_tauQSP,&_rho_f);  PetscObjectSetName((PetscObject) _rho_f, "rho_f");  VecSet(_rho_f,0.0);
+  VecDuplicate(_sNEff,&_sN);  PetscObjectSetName((PetscObject) _sN, "sN");  VecCopy(_sNEff,_sN);
 
   VecDuplicate(_tauQSP,&_p);  PetscObjectSetName((PetscObject) _p, "p");  VecSet(_p,0.0);
   VecDuplicate(_tauQSP,&_dp);  PetscObjectSetName((PetscObject) _dp, "dp");  VecSet(_dp,0.0);
@@ -177,6 +190,27 @@ PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
     ierr = setVecFromVectors(_p,_pVals,_pDepths);CHKERRQ(ierr);
   }
 
+  // initialize sN based on sNEff
+  PetscScalar *sNEff,*sN,*dp,*rho_f,*z=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetArray(_sNEff,&sNEff);
+  VecGetArray(_sN,&sN);
+  VecGetArray(_dp,&dp);
+  VecGetArray(_rho_f,&rho_f);
+  VecGetArray(_z,&z);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    sN[Jj] = sNEff[Jj] + dp[Jj] + _g*rho_f[Jj]*z[Jj];
+
+    assert(~isnan(sNEff[Jj]));
+    assert(~isinf(sNEff[Jj]));
+    Jj++;
+  }
+  VecRestoreArray(_sNEff,&sNEff);
+  VecRestoreArray(_sN,&sN);
+  VecRestoreArray(_rho_f,&rho_f);
+  VecRestoreArray(_z,&z);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -199,7 +233,6 @@ PetscErrorCode SymmFault_Hydr::setSNEff()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-    // compute effective viscosity
   PetscScalar *sNEff,*sN,*dp,*rho_f,*z=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_sNEff,&Istart,&Iend);
@@ -247,7 +280,8 @@ SymmFault_Hydr::~SymmFault_Hydr()
   VecDestroy(&_p);
   VecDestroy(&_dp);
 
-  //~ PetscViewerDestroy(&_slipViewer);
+  PetscViewerDestroy(&_pViewer);
+  PetscViewerDestroy(&_dpViewer);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -311,13 +345,13 @@ PetscErrorCode SymmFault_Hydr::writeStep(const string outputDir,const PetscInt s
   SymmFault::writeStep(outputDir,step);
 
   if (step==0) {
-      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_p").c_str(),FILE_MODE_WRITE,&_slipViewer);
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_p").c_str(),FILE_MODE_WRITE,&_pViewer);
       ierr = VecView(_p,_pViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_pViewer);CHKERRQ(ierr);
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_p").c_str(),
                                    FILE_MODE_APPEND,&_pViewer);CHKERRQ(ierr);
 
-      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_dp").c_str(),FILE_MODE_WRITE,&_slipViewer);
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_dp").c_str(),FILE_MODE_WRITE,&_dpViewer);
       ierr = VecView(_dp,_dpViewer);CHKERRQ(ierr);
       ierr = PetscViewerDestroy(&_dpViewer);CHKERRQ(ierr);
       ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_dp").c_str(),

@@ -18,6 +18,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
+#include "fault_hydraulic.hpp"
 #include "heatEquation.hpp"
 
 
@@ -81,6 +82,9 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     HeatEquation _he;
     Vec          _T; // temperature
     PetscViewer  _tempViewer;
+
+    // coupling to hydraulic fault
+    std::string _hydraulicCoupling,_hydraulicTimeIntType;
 
     // viewers
     PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
@@ -176,10 +180,9 @@ class SymmLinearElastic: public LinearElastic
 
   public:
 
-    SymmFault           _fault;
-    //~ std::vector<Vec>    _var; // holds variables for explicit integration in time
-    //~ std::vector<Vec>    _varIm; // holds variables for implicit integration in time
-
+    //~ Fault           *_fault;
+    SymmFault           *_fault;
+    //~ SymmFault_Hydr           _fault;
     std::map <string,Vec> _varEx; // holds variables for explicit integration in time
     std::map <string,Vec> _varIm; // holds variables for implicit integration in time
 
@@ -206,6 +209,7 @@ class SymmLinearElastic: public LinearElastic
 
     // IO commands
     PetscErrorCode view();
+    PetscErrorCode writeContext();
     PetscErrorCode writeStep1D(); // write out 1D fields
     PetscErrorCode writeStep2D(); // write out 2D fields
 
@@ -259,7 +263,7 @@ class FullLinearElastic: public LinearElastic
     // boundary conditions
     Vec                  _bcTMinus,_bcRMinus,_bcBMinus,_bcLMinus;
 
-    FullFault            _fault;
+    FullFault            *_fault;
     std::vector<Vec>    _var; // holds variables to integrate
 
 
