@@ -111,6 +111,12 @@ thermalCoupling = coupled
 withShearHeating = no
 withFrictionalHeating = yes
 
+# hyraulic fault inputs
+hydraulicCoupling = no
+#hydraulicCoupling = uncoupled
+#hydraulicCoupling = coupled
+hydraulicTimeIntType = explicit
+#hydraulicTimeIntType = implicit
 
 
 # Maxwell properties

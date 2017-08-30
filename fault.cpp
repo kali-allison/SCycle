@@ -15,7 +15,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
-  _sigmaN_cap(1e14),_sigma_N(NULL),
+  _sigmaN_cap(1e14),_sNEff(NULL),
   _muVecP(&D._muVecP),_csVecP(&D._csVecP),
   _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
@@ -201,7 +201,7 @@ Fault::~Fault()
   VecDestroy(&_zP);
   VecDestroy(&_a);
   VecDestroy(&_b);
-  VecDestroy(&_sigma_N);
+  VecDestroy(&_sNEff);
   VecDestroy(&_cohesion);
 
   // for flash heating
@@ -309,7 +309,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
   // frictional fields
   VecDuplicate(_tauQSP,&_Dc); PetscObjectSetName((PetscObject) _Dc, "Dc");
-  VecDuplicate(_tauQSP,&_sigma_N); PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
+  VecDuplicate(_tauQSP,&_sNEff); PetscObjectSetName((PetscObject) _sNEff, "_sNEff");
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
@@ -324,14 +324,14 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
-    VecSet(_sigma_N,_sigmaNVals[0]);
+    VecSet(_sNEff,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
     VecSet(_cohesion,_cohesionVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sigma_N,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
   }
@@ -362,7 +362,7 @@ PetscScalar Fault::getTauSS(PetscInt& ind)
 
   ierr =  VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr =  VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-  ierr =  VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr =  VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
 
   #if VERBOSE > 3
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -478,7 +478,7 @@ PetscErrorCode Fault::slipLaw_psi(const PetscInt ind,const PetscScalar state,Pet
   ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sN);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sN);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
@@ -509,7 +509,7 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_b,1,&ind,&b);CHKERRQ(ierr);
   ierr = VecGetValues(_z,1,&ind,&z);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sN);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sN);CHKERRQ(ierr);
   ierr = VecGetValues(_slipVel,1,&ind,&slipVel);CHKERRQ(ierr);
   slipVel = abs(slipVel); // state evolution is not sensitive to direction of slip
 
@@ -781,7 +781,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
-    ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
+    ierr =  VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     //~ zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
@@ -937,7 +937,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   assert(ind>=Istart && ind<Iend);
 
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
   ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
@@ -1017,7 +1017,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   assert(ind>=Istart && ind<Iend);
 
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
   ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
@@ -1207,7 +1207,7 @@ PetscErrorCode SymmFault::writeContext(const string outputDir)
   // output normal stress vector
   str =  outputDir + "sigma_N";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output critical distance
@@ -1449,7 +1449,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
 
-//~// load normal stress: _sigma_N
+//~// load normal stress: _sNEff
   //~string vecSourceFile = _inputDir + "sigma_N";
   PetscViewer inv; // in viewer
 
@@ -1663,7 +1663,7 @@ PetscErrorCode FullFault::setSplitNodeFields()
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
     ierr =  VecGetValues(_b,1,&Ii,&b);CHKERRQ(ierr);
-    ierr =  VecGetValues(_sigma_N,1,&Ii,&sigma_N);CHKERRQ(ierr);
+    ierr =  VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
     ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
@@ -1678,20 +1678,20 @@ PetscErrorCode FullFault::setSplitNodeFields()
     ierr = VecSetValue(_tauQSMinus,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValue(_zM,Ii,zMinus,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(_sigma_N,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(_sNEff,Ii,sigma_N,INSERT_VALUES);CHKERRQ(ierr);
   }
 
   ierr = VecAssemblyBegin(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_tauQSMinus);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_zM);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_sNEff);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_tauQSMinus);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_zM);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_sNEff);CHKERRQ(ierr);
 
 
 
@@ -1774,7 +1774,7 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   //~ierr = VecGetValues(_tempPsi,1,&ind,&psi);CHKERRQ(ierr);
   ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
 
   ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQSplus);CHKERRQ(ierr);
@@ -1834,7 +1834,7 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   //~ierr = VecGetValues(_tempPsi,1,&ind,&psi);CHKERRQ(ierr);
   ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
-  ierr = VecGetValues(_sigma_N,1,&ind,&sigma_N);CHKERRQ(ierr);
+  ierr = VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
 
   ierr = VecGetValues(_zP,1,&ind,&zPlus);CHKERRQ(ierr);
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQSplus);CHKERRQ(ierr);
@@ -1968,7 +1968,7 @@ PetscErrorCode FullFault::writeContext(const string outputDir)
   // output normal stress vector
   str =  outputDir + "sigma_N";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1

@@ -1,16 +1,18 @@
-#include "fault.hpp"
+#include "fault_hydraulic.hpp"
 
-#define FILENAME "fault.cpp"
+#define FILENAME "fault_hydraulic.cpp"
 
 using namespace std;
 
 
-Fault_p::Fault_p(Domain&D)
-: _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(10.),
+SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
+: SymmFault(D,He),
+  _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(10.),
+  _pViewer(NULL),_dpViewer(NULL),
   _p(NULL),_dp(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_p::Fault_p";
+    std::string funcName = "SymmFault_Hydr::SymmFault_Hydr";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -29,11 +31,11 @@ Fault_p::Fault_p(Domain&D)
 
 
 // Check that required fields have been set by the input file
-PetscErrorCode Fault_p::checkInput()
+PetscErrorCode SymmFault_Hydr::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_p::checkInput";
+    std::string funcName = "SymmFault_Hydr::checkInput";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -53,11 +55,11 @@ PetscErrorCode Fault_p::checkInput()
   return ierr;
 }
 
-PetscErrorCode Fault_p::loadSettings(const char *file)
+PetscErrorCode SymmFault_Hydr::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-      std::string funcName = "Fault_p::loadSettings";
+      std::string funcName = "SymmFault_Hydr::loadSettings";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
   PetscMPIInt rank,size;
@@ -139,11 +141,11 @@ PetscErrorCode Fault_p::loadSettings(const char *file)
   return ierr;
 }
 
-PetscErrorCode Fault_p::setFields(Domain&D)
+PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_p::setFields";
+    std::string funcName = "SymmFault_Hydr::setFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -182,10 +184,56 @@ PetscErrorCode Fault_p::setFields(Domain&D)
   return ierr;
 }
 
-Fault_p::~Fault_p()
+
+
+
+// time stepping functions
+
+// compute effective normal stress from total and pore pressure:
+// sNEff = sN - rho*g*z - dp
+PetscErrorCode SymmFault_Hydr::setSNEff()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault_Hydr::setSNEff";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+
+    // compute effective viscosity
+  PetscScalar *sNEff,*sN,*dp,*rho_f,*z=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetArray(_sNEff,&sNEff);
+  VecGetArray(_sN,&sN);
+  VecGetArray(_dp,&dp);
+  VecGetArray(_rho_f,&rho_f);
+  VecGetArray(_z,&z);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    sNEff[Jj] = sN[Jj] - dp[Jj] - _g*rho_f[Jj]*z[Jj];
+
+    assert(~isnan(sNEff[Jj]));
+    assert(~isinf(sNEff[Jj]));
+    Jj++;
+  }
+  VecRestoreArray(_sNEff,&sNEff);
+  VecRestoreArray(_sN,&sN);
+  VecRestoreArray(_rho_f,&rho_f);
+  VecRestoreArray(_z,&z);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
+
+SymmFault_Hydr::~SymmFault_Hydr()
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_p::~Fault_p";
+    std::string funcName = "SymmFault_Hydr::~SymmFault_Hydr";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -205,3 +253,88 @@ Fault_p::~Fault_p()
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 }
+
+
+
+// =====================================================================
+// IO commands
+
+
+// extends SymmFault's writeContext
+PetscErrorCode SymmFault_Hydr::writeContext(const string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault_Hydr::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  SymmFault::writeContext(outputDir);
+
+  PetscViewer    viewer;
+
+  // write out scalar info
+  std::string str = outputDir + "fault_hydr_context.txt";
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+
+  ierr = PetscViewerASCIIPrintf(viewer,"g = %.15e\n",_g); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+
+  //~ PetscErrorCode writeVec(Vec vec,std::string str)
+  ierr = writeVec(_n_p,outputDir + "fault_hydr_n"); CHKERRQ(ierr);
+  ierr = writeVec(_beta_p,outputDir + "fault_hydr_beta"); CHKERRQ(ierr);
+  ierr = writeVec(_k_p,outputDir + "fault_hydr_k"); CHKERRQ(ierr);
+  ierr = writeVec(_eta_p,outputDir + "fault_hydr_eta"); CHKERRQ(ierr);
+  ierr = writeVec(_rho_f,outputDir + "fault_hydr_rho_f"); CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// extends SymmFault's writeContext
+PetscErrorCode SymmFault_Hydr::writeStep(const string outputDir,const PetscInt step)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault_Hydr::writeStep";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+
+  SymmFault::writeStep(outputDir,step);
+
+  if (step==0) {
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_p").c_str(),FILE_MODE_WRITE,&_slipViewer);
+      ierr = VecView(_p,_pViewer);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_pViewer);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_p").c_str(),
+                                   FILE_MODE_APPEND,&_pViewer);CHKERRQ(ierr);
+
+      PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_dp").c_str(),FILE_MODE_WRITE,&_slipViewer);
+      ierr = VecView(_dp,_dpViewer);CHKERRQ(ierr);
+      ierr = PetscViewerDestroy(&_dpViewer);CHKERRQ(ierr);
+      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(outputDir+"fault_hydr_dp").c_str(),
+                                   FILE_MODE_APPEND,&_dpViewer);CHKERRQ(ierr);
+  }
+  else {
+    ierr = VecView(_p,_pViewer);CHKERRQ(ierr);
+    ierr = VecView(_dp,_dpViewer);CHKERRQ(ierr);
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
+
+

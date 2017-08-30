@@ -6,6 +6,7 @@
 #include <cmath>
 #include <assert.h>
 #include <vector>
+#include <map>
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "odeSolver.hpp"
@@ -139,7 +140,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
 
 
-/* Contains all the fields and methods needed to model an elastic lithosphere
+/*
+ * Contains all the fields and methods needed to model an elastic lithosphere
  * whose material properties are *symmetric* about the fault. The algorithm
  * is described in Brittany Erickson's paper on the earthquake cycle in
  * sedimentary basins.
@@ -215,7 +217,8 @@ class SymmLinearElastic: public LinearElastic
 
 
 
-/* Contains all the fields and methods needed to model an elastic lithosphere
+/*
+ * Contains all the fields and methods needed to model an elastic lithosphere
  * whose material properties are *not* necessarily symmetric about the fault.
  * The algorithm is described is based on Brittany Erickson's paper on
  * the earthquake cycle in sedimentary basins, with modifications to the

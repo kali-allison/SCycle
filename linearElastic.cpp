@@ -355,6 +355,12 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
 
+  // try setting up map instead of C++ vector for _var
+  std::map <string,Vec> temp;
+  temp["psi"] = varPsi;
+  temp["slip"] = varSlip;
+
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
 #endif
@@ -435,10 +441,7 @@ PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
   PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
 
-//~// load normal stress: _sigma_N
-  //~string vecSourceFile = _inputDir + "sigma_N";
   PetscViewer inv; // input viewer
-
 
   // load bcL
   string vecSourceFile = _inputDir + "bcL";

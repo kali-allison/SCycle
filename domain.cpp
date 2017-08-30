@@ -736,7 +736,7 @@ PetscErrorCode Domain::write()
   //~// output normal stress vector
   //~str =  _outputDir + "sigma_N";
   //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = VecView(_sigma_N,viewer);CHKERRQ(ierr);
+  //~ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
   //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   if (_problemType.compare("full")==0)
@@ -1046,14 +1046,14 @@ PetscErrorCode Domain::setNormalStress()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  VecCreate(PETSC_COMM_WORLD,&_sigma_N);
-  VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
+  VecCreate(PETSC_COMM_WORLD,&_sNEff);
+  VecSetSizes(_sNEff,PETSC_DECIDE,_Nz);
+  VecSetFromOptions(_sNEff);     PetscObjectSetName((PetscObject) _sNEff, "_sNEff");
 
   if (!_shearDistribution.compare("mms")) {
-    //~PetscPrintf(PETSC_COMM_WORLD,"sigma_N_max = %g\n",_sigma_N_max);
-    ierr = VecSet(_sigma_N,_sigma_N_max);CHKERRQ(ierr);
-    //~ierr = VecView(_sigma_N,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+    //~PetscPrintf(PETSC_COMM_WORLD,"sigma_N_max = %g\n",_sNEff_max);
+    ierr = VecSet(_sNEff,_sNEff_max);CHKERRQ(ierr);
+    //~ierr = VecView(_sNEff,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
   else {
 
@@ -1078,15 +1078,15 @@ PetscErrorCode Domain::setNormalStress()
       }
 
       // normal stress is > 0 at Earth's surface
-      _sigmaNArr[Ii] += _sigma_N_min;
+      _sigmaNArr[Ii] += _sNEff_min;
 
       // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
       // (in the paper, the max is 50 MPa)
-      _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sigma_N_max);
+      _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sNEff_max);
     }
-    ierr = VecSetValues(_sigma_N,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecAssemblyBegin(_sigma_N);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(_sigma_N);CHKERRQ(ierr);
+    ierr = VecSetValues(_sNEff,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecAssemblyBegin(_sNEff);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(_sNEff);CHKERRQ(ierr);
   }
 
 #if VERBOSE > 1
@@ -1110,17 +1110,10 @@ PetscErrorCode Domain::loadFieldsFromFiles()
   ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
 
 
-  //~// load normal stress: _sigma_N
-  //~string vecSourceFile = _inputDir + "sigma_N";
   PetscViewer inv;
   //~ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   //~ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-
-  //~ierr = VecCreate(PETSC_COMM_WORLD,&_sigma_N);CHKERRQ(ierr);
-  //~ierr = VecSetSizes(_sigma_N,PETSC_DECIDE,_Nz);CHKERRQ(ierr);
-  //~ierr = VecSetFromOptions(_sigma_N);     PetscObjectSetName((PetscObject) _sigma_N, "_sigma_N");
-  //~ierr = VecLoad(_sigma_N,inv);CHKERRQ(ierr);
 
 
   // Create a local vector containing cs on each processor (may not work in parallel!!)
