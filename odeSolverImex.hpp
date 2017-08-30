@@ -5,6 +5,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <assert.h>
 #include "integratorContextImex.hpp"
@@ -57,9 +58,9 @@ class OdeSolverImex
 
     PetscReal           _initT,_finalT,_currT,_deltaT;
     PetscInt            _maxNumSteps,_stepCount;
-    std::vector<Vec>    _var,_dvar; // explicit integration variable and rate
-    std::vector<Vec>    _varIm; // implicit integration variable
-    std::vector<int>    _errInds; // which inds of _var to use for error control
+    std::map<string,Vec>    _var,_dvar; // explicit integration variable and rate
+    std::map<string,Vec>    _varIm; // implicit integration variable
+    std::vector<string>    _errInds; // which inds of _var to use for error control
     int                 _lenVar;
     double              _runTime;
     string              _controlType;
@@ -73,8 +74,8 @@ class OdeSolverImex
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     // intermediate values for time stepping for the explicit variable
-    std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
-    std::vector<Vec> _varHalfdTIm,_vardTIm,_varIm_half;
+    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    std::map<string,Vec> _varHalfdTIm,_vardTIm,_varIm_half;
 
 
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
@@ -85,8 +86,10 @@ class OdeSolverImex
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm);
-    PetscErrorCode setErrInds(std::vector<int>& errInds);
+    //~ PetscErrorCode setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm);
+    //~ PetscErrorCode setErrInds(std::vector<int>& errInds);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm);
+    PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
 

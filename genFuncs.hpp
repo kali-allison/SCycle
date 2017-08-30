@@ -8,6 +8,7 @@
 #include <fstream>
 #include <assert.h>
 #include <vector>
+#include <map>
 #include <iostream>
 
 using namespace std;
@@ -17,6 +18,9 @@ typedef std::vector<Vec>::const_iterator const_it_vec;
 
 // clean up a C++ std library vector of PETSc Vecs
 void destroyVector(std::vector<Vec>& vec);
+
+// clean up a C++ std library map of PETSc Vecs
+void destroyVector(std::map<string,Vec>& vec);
 
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec);
@@ -61,9 +65,11 @@ PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR);
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec);
+PetscErrorCode loadVectorFromInputFile(const string& str,vector<string>& vec);
 
 string vector2str(const vector<double> vec);
 string vector2str(const vector<int> vec);
+string vector2str(const vector<string> vec);
 PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len);
 
 

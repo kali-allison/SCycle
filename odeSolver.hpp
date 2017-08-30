@@ -57,8 +57,10 @@ class OdeSolver
 
     PetscReal           _initT,_finalT,_currT,_deltaT;
     PetscInt            _maxNumSteps,_stepCount;
-    std::vector<Vec>    _var,_dvar; // integration variable and rate
-    std::vector<int>    _errInds; // which inds of _var to use for error control
+    //~ std::vector<Vec>    _var,_dvar; // integration variable and rate
+    //~ std::vector<int>    _errInds; // which inds of _var to use for error control
+    std::map<string,Vec>    _var,_dvar; // integration variable and rate
+    std::vector<string>     _errInds; // which keys of _var to use for error control
     int                 _lenVar;
     double              _runTime;
     string              _controlType;
@@ -79,9 +81,12 @@ class OdeSolver
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
-    virtual PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) = 0;
-    virtual PetscErrorCode setErrInds(std::vector<int>& errInds) = 0;
+    //~ virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
+    //~ virtual PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) = 0;
+    //~ virtual PetscErrorCode setErrInds(std::vector<int>& errInds) = 0;
+    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& var) = 0;
+    virtual PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) = 0;
+    virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextEx *obj) = 0;
 };
@@ -100,9 +105,12 @@ class FEuler : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(std::vector<Vec>& var);
-    PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
-    PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
+    //~ PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    //~ PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
+    //~ PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
+    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
+    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
+    PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
@@ -119,7 +127,8 @@ class RK32 : public OdeSolver
 
     //~Vec *_varHalfdT,*_dvarHalfdT,*_vardT,*_dvardT,*_var2nd,*_dvar2nd,*_var3rd;
     //~Vec *_errVec;
-    std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    //~ std::vector<Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
 
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
@@ -131,9 +140,12 @@ class RK32 : public OdeSolver
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::vector<Vec>& var);
-    PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
-    PetscErrorCode setErrInds(std::vector<int>& errInds);
+    //~ PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    //~ PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
+    //~ PetscErrorCode setErrInds(std::vector<int>& errInds);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
+    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
+    PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContextEx *obj);

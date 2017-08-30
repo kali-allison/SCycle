@@ -265,7 +265,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
 
 
 PetscErrorCode LinearElastic::timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec dvarBegin)
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   //~ _stepCount++;
@@ -323,18 +323,22 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
 
   // put variables to be integrated into var
   Vec varPsi; VecDuplicate(_fault._psi,&varPsi); VecCopy(_fault._psi,varPsi);
-  _var.push_back(varPsi);
-  Vec varTheta; VecDuplicate(_fault._theta,&varTheta); VecCopy(_fault._theta,varTheta);
-  _var.push_back(varTheta);
+  //~ _var.push_back(varPsi);
+  //~ Vec varTheta; VecDuplicate(_fault._theta,&varTheta); VecCopy(_fault._theta,varTheta);
+  //~ _var.push_back(varTheta);
   Vec varSlip; VecDuplicate(_fault._slip,&varSlip); VecCopy(_fault._slip,varSlip);
-  _var.push_back(varSlip);
+  //~ _var.push_back(varSlip);
+
+  _varEx["psi"] = varPsi;
+  _varEx["slip"] = varSlip;
 
   // if also solving heat equation
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec deltaT; // change in temperature relative to background
     VecDuplicate(_uP,&deltaT);
     VecCopy(_he._T,deltaT);
-    _varIm.push_back(deltaT);
+    //~ _varIm.push_back(deltaT);
+    _varIm["deltaT"] = deltaT;
 
     _he.getTemp(_T);
     _fault.setTemp(_T);
@@ -355,11 +359,14 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
     VecAssemblyBegin(_bcLP); VecAssemblyEnd(_bcLP);
   }
 
-  // try setting up map instead of C++ vector for _var
-  std::map <string,Vec> temp;
-  temp["psi"] = varPsi;
-  temp["slip"] = varSlip;
 
+
+  //~ map<string,Vec>::iterator it;
+  //~ for (it = temp.begin(); it!=temp.end(); it++ )
+//~ {
+    //~ PetscPrintf(PETSC_COMM_WORLD,"key = %s\n",(it->first).c_str());
+    //~ VecView(it->second,PETSC_VIEWER_STDOUT_WORLD);
+//~ }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
@@ -370,13 +377,22 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_bcRPShift);
-  for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    VecDestroy(&_var[i]);
-  }
+  //~ for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
+    //~ VecDestroy(&_var[i]);
+  //~ }
 
-  for(std::vector<Vec>::size_type i = 0; i != _varIm.size(); i++) {
-    VecDestroy(&_varIm[i]);
+  //~ for(std::vector<Vec>::size_type i = 0; i != _varIm.size(); i++) {
+    //~ VecDestroy(&_varIm[i]);
+  //~ }
+
+  map<string,Vec>::iterator it;
+  for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+    VecDestroy(&it->second);
   }
+  for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  _varIm.clear(); // erase all keys
 
   VecDestroy(&_E);
   PetscViewerDestroy(&_eV);
@@ -711,7 +727,6 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
   #endif
   double startTime = MPI_Wtime();
 
-
   if (_stepCount==0) {
     _he.writeContext();
     ierr = _sbpP->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);
@@ -766,7 +781,6 @@ PetscErrorCode SymmLinearElastic::writeStep1D()
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",_currTime);CHKERRQ(ierr);
     ierr = VecView(_surfDispPlus,_surfDispPlusViewer);CHKERRQ(ierr);
-
     ierr = VecView(_bcLP,_bcLPlusV);CHKERRQ(ierr);
     ierr = VecView(_bcRP,_bcRPlusV);CHKERRQ(ierr);
 
@@ -872,11 +886,34 @@ PetscErrorCode SymmLinearElastic::integrate()
 
   _stepCount++;
 
+  //~ if (_timeIntegrator.compare("IMEX")==0) {
+    //~ _quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    //~ _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    //~ ierr = _quadImex->setTimeRange(_initTime,_maxTime);
+    //~ ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
+
+    //~ // control which fields are used to select step size
+    //~ ierr = _quadImex->setErrInds(_timeIntInds);
+
+    //~ ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+  //~ }
+  //~ else {
+    //~ _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    //~ _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    //~ ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+    //~ ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+
+    //~ // control which fields are used to select step size
+    //~ ierr = _quadEx->setErrInds(_timeIntInds);
+
+    //~ ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  //~ }
+
   if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
 
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds);
@@ -887,12 +924,9 @@ PetscErrorCode SymmLinearElastic::integrate()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-    ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
 
     // control which fields are used to select step size
-    //~ int arrInds[] = {1}; // state: 0, slip: 1
-    //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
-    //~ ierr = _quadEx->setErrInds(errInds);
     ierr = _quadEx->setErrInds(_timeIntInds);
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -908,21 +942,21 @@ PetscErrorCode SymmLinearElastic::integrate()
 
 
 // explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
-    ierr = d_dt_mms(time,varBegin,dvarBegin);CHKERRQ(ierr);
+    ierr = d_dt_mms(time,varEx,dvarEx);CHKERRQ(ierr);
   }
   else {
-    ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
+    ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
   }
   return ierr;
 }
 
 
 // explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -931,7 +965,8 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
   // update boundaries
   if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
-    ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
+    //~ ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
+    ierr = VecCopy(varEx.find("slip")->second,_bcLP);CHKERRQ(ierr);
     ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   } // else do nothing
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
@@ -953,12 +988,15 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
 
   if (_bcLTauQS==0) {
-    ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+    //~ ierr = _fault.d_dt(varBegin,dvarBegin); // sets rates for slip and state
+    ierr = _fault.d_dt(varEx,dvarEx); // sets rates for slip and state
   }
   else {
-    VecSet(*dvarBegin,0.0); // dstate psi
-    VecSet(*(dvarBegin+1),0.0); // dstate theta
-    VecSet(*(dvarBegin+2),0.0); // slip vel
+    //~ VecSet(*dvarBegin,0.0); // dstate psi
+    //~ VecSet(*(dvarBegin+1),0.0); // dstate theta
+    //~ VecSet(*(dvarBegin+2),0.0); // slip vel
+    VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
+    VecSet(dvarEx.find("slip")->second,0.0); // slip vel
   }
 
   #if CALCULATE_ENERGY == 1
@@ -972,16 +1010,15 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const_it_v
 
 
 // implicit/explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
-  const_it_vec varBegin,it_vec dvarBegin,it_vec varBeginIm,const_it_vec varBeginImo,
-  const PetscScalar dt)
+PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-  ierr = d_dt_eqCycle(time,varBegin,dvarBegin);CHKERRQ(ierr);
+  ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec stressxzP,tau;
@@ -991,8 +1028,10 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     _fault.getTau(tau);
 
     _fault.setTemp(_T);
-    ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
-      NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+    //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
+      //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
+    ierr = _he.be(time,varEx.find("slip")->second,tau,NULL,NULL,
+      NULL,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     VecDestroy(&tau);
     // arguments:
@@ -1001,7 +1040,8 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
     _he.getTemp(_T);
   }
   else {
-    ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
+    //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
+    ierr = VecSet(varImo.find("deltaT")->second,0.0);CHKERRQ(ierr);
   }
 
 
@@ -1012,7 +1052,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,
 }
 
 
-PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -1052,9 +1092,12 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const_it_vec v
 
 
   // update rates
-  VecSet(*dvarBegin,0.0);
-  VecSet(*(dvarBegin+1),0.0);
+  //~ VecSet(*dvarBegin,0.0);
+  //~ VecSet(*(dvarBegin+1),0.0);
   //~ierr = mapToVec(*(dvarBegin+1),MMS_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  VecSet(dvarEx.find("psi")->second,0.0);
+  VecSet(dvarEx.find("slip")->second,0.0);
+
 
 
 #if VERBOSE > 1
@@ -1205,7 +1248,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
 // Outputs data at each time step.
 PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
+                         const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage)
 {
   PetscErrorCode ierr = 0;
 
@@ -1215,14 +1258,14 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
 
   //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
-  ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
+  ierr= VecGetOwnershipRange(varEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(varEx.find("psi"),1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(*(varBegin+2),1,&Istart,&uVal);CHKERRQ(ierr);
+  ierr = VecGetValues(varEx.find("slip"),1,&Istart,&uVal);CHKERRQ(ierr);
 
-  ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&velVal);CHKERRQ(ierr);
+  ierr= VecGetOwnershipRange(dvarEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetValues(dvarEx.find("psi"),1,&Istart,&dQVal);CHKERRQ(ierr);
+  ierr = VecGetValues(dvarEx.find("slip"),1,&Istart,&velVal);CHKERRQ(ierr);
 
   ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);
@@ -1278,6 +1321,7 @@ PetscErrorCode SymmLinearElastic::measureMMSError()
   return ierr;
 }
 
+/*
 PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
 {
   PetscErrorCode ierr = 0;
@@ -1383,7 +1427,9 @@ PetscErrorCode SymmLinearElastic::computeEnergy(const PetscScalar time,Vec& out)
   #endif
   return ierr = 0;
 }
+*/
 
+/*
 PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
 {
   PetscErrorCode ierr = 0;
@@ -1493,7 +1539,7 @@ PetscErrorCode SymmLinearElastic::computeEnergyRate(const PetscScalar time,const
   #endif
   return ierr = 0;
 }
-
+*/
 
 
 
@@ -1782,7 +1828,7 @@ PetscErrorCode FullLinearElastic::integrate()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
-
+/*
   // call odeSolver routine integrate here
   _quadEx->setTolerance(_atol);CHKERRQ(ierr);
   _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
@@ -1790,11 +1836,12 @@ PetscErrorCode FullLinearElastic::integrate()
   ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
   // control which fields are used to select step size
-  int arrInds[] = {1}; // state: 0, slip: 1
-  std::vector<int> errInds(arrInds,arrInds+1);
-  ierr = _quadEx->setErrInds(errInds);
+  //~ int arrInds[] = {1}; // state: 0, slip: 1
+  //~ std::vector<int> errInds(arrInds,arrInds+1);
+  //~ ierr = _quadEx->setErrInds(errInds);
+  */
 
-  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  //~ ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   _integrateTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::integrate in linearElastic.cpp\n");CHKERRQ(ierr);
@@ -1877,7 +1924,7 @@ PetscErrorCode FullLinearElastic::setSigmaxy()
 return ierr;
 }
 
-PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -1885,12 +1932,12 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 #endif
 
   // update boundaries: + side
-  ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin+1),_bcLP);CHKERRQ(ierr);
   ierr = VecSet(_bcRP,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcRP,1.0,_bcRPShift);CHKERRQ(ierr);
 
   // update boundaries: - side
-  ierr = VecCopy(*(varBegin+2),_bcRMinus);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin+2),_bcRMinus);CHKERRQ(ierr);
   ierr = VecSet(_bcLMinus,-_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcLMinus,1.0,_bcLMShift);CHKERRQ(ierr);
 
@@ -1931,7 +1978,7 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
   //~assert(0>1);
 
   ierr = _fault.setTauQS(_sxyP,_sigma_xyMinus);CHKERRQ(ierr);
-  ierr = _fault.d_dt(varBegin,dvarBegin);
+  //~ ierr = _fault.d_dt(varBegin,dvarBegin);
 
   ierr = setSurfDisp();
 
@@ -1942,16 +1989,15 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const_it_vec varBe
 }
 
 // implicit/explicit time stepping
-PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
-  const_it_vec varBegin,it_vec dvarBegin,it_vec varBeginIm,const_it_vec varBeginImo,
-  const PetscScalar dt)
+PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
-  ierr = d_dt(time,varBegin,dvarBegin);CHKERRQ(ierr);
+  //~ ierr = d_dt(time,varBegin,dvarBegin);CHKERRQ(ierr);
 
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ Vec stressxzP;
@@ -1977,14 +2023,14 @@ PetscErrorCode FullLinearElastic::d_dt(const PetscScalar time,
 
 // Outputs data at each time step.
 PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
+                         const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage)
 {
   PetscErrorCode ierr = 0;
 #if ODEPRINT > 0
   PetscInt       Istart,Iend;
   PetscScalar    bcRPlus,bcLMinus,uMinus,uPlus,psi,velMinus,velPlus,dPsi,
                  tauQSPlus,tauQSMinus;
-
+/*
   ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetValues(*varBegin,1,&Istart,&psi);CHKERRQ(ierr);
 
@@ -2010,7 +2056,7 @@ PetscErrorCode FullLinearElastic::debug(const PetscReal time,const PetscInt step
   }
   ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %-6s | %.9e %.9e | %.9e %.9e | %.9e\n",stepCount,stage,
               uPlus-uMinus,psi,velPlus-velMinus,dPsi,time);CHKERRQ(ierr);
-
+*/
 #if ODEPRINT > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"    y>0 |  %.9e  %.9e %.9e  %.9e \n",
               bcRPlus,uPlus,tauQSPlus,velPlus);CHKERRQ(ierr);

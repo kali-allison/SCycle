@@ -83,7 +83,7 @@ PetscErrorCode FEuler::view()
 #endif
 }
 
-PetscErrorCode FEuler::setInitialConds(vector<Vec>& var)
+PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -94,10 +94,17 @@ PetscErrorCode FEuler::setInitialConds(vector<Vec>& var)
   _var = var; // shallow copy
   _lenVar = var.size();
 
-  _dvar.reserve(_lenVar);
-  for (int ind=0;ind<_lenVar;ind++) {
-    ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
+  //~ _dvar.reserve(_lenVar);
+  //~ for (int ind=0;ind<_lenVar;ind++) {
+    //~ ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
+    //~ ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
+  //~ }
+
+  for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+    Vec temp;
+    ierr = VecDuplicate(_var[it->first],&temp); CHKERRQ(ierr);
+    ierr = VecSet(temp,0.0); CHKERRQ(ierr);
+    _dvar[it->first] = temp;
   }
 
 
@@ -119,18 +126,28 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
+  // set initial condition
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write first step
+
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
-    ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    //~ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"FE");CHKERRQ(ierr);
-    for (int varInd=0;varInd<_lenVar;varInd++) {
-      ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
+    //~ ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+    //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"FE");CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
+    //~ for (int varInd=0;varInd<_lenVar;varInd++) {
+      //~ ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
+    //~ }
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      ierr = VecAXPY(_var[it->first],_deltaT,_dvar[it->first]);CHKERRQ(ierr); // var = var + deltaT*dvar
     }
+
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -242,7 +259,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
+PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
@@ -250,9 +267,10 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  _var = var;
-  _lenVar = var.size();
+  //~ _var = var;
+  //~ _lenVar = var.size();
 
+  /*
   _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
   _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
   _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
@@ -278,7 +296,50 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
     ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
         ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
   }
+  */
 
+  _var = var;
+  for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
+    Vec dvar;
+    ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
+    ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
+    _dvar[it->first] = dvar;
+
+    Vec varHalfdT;
+    ierr = VecDuplicate(_var[it->first],&varHalfdT); CHKERRQ(ierr);
+    ierr = VecSet(varHalfdT,0.0); CHKERRQ(ierr);
+    _varHalfdT[it->first] = varHalfdT;
+
+    Vec dvarHalfdT;
+    ierr = VecDuplicate(_var[it->first],&dvarHalfdT); CHKERRQ(ierr);
+    ierr = VecSet(dvarHalfdT,0.0); CHKERRQ(ierr);
+    _dvarHalfdT[it->first] = dvarHalfdT;
+
+    Vec vardT;
+    ierr = VecDuplicate(_var[it->first],&vardT); CHKERRQ(ierr);
+    ierr = VecSet(vardT,0.0); CHKERRQ(ierr);
+    _vardT[it->first] = vardT;
+
+    Vec dvardT;
+    ierr = VecDuplicate(_var[it->first],&dvardT); CHKERRQ(ierr);
+    ierr = VecSet(dvardT,0.0); CHKERRQ(ierr);
+    _dvardT[it->first] = dvardT;
+
+    Vec var2nd;
+    ierr = VecDuplicate(_var[it->first],&var2nd); CHKERRQ(ierr);
+    ierr = VecSet(var2nd,0.0); CHKERRQ(ierr);
+    _var2nd[it->first] = var2nd;
+
+    Vec dvar2nd;
+    ierr = VecDuplicate(_var[it->first],&dvar2nd); CHKERRQ(ierr);
+    ierr = VecSet(dvar2nd,0.0); CHKERRQ(ierr);
+    _dvar2nd[it->first] = dvar2nd;
+
+    Vec var3rd;
+    ierr = VecDuplicate(_var[it->first],&var3rd); CHKERRQ(ierr);
+    ierr = VecSet(var3rd,0.0); CHKERRQ(ierr);
+    _var3rd[it->first] = var3rd;
+  }
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -287,7 +348,7 @@ PetscErrorCode RK32::setInitialConds(vector<Vec>& var)
   return ierr;
 }
 
-PetscErrorCode RK32::setErrInds(std::vector<int>& errInds)
+PetscErrorCode RK32::setErrInds(std::vector<string>& errInds)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setErrInds in odeSolver.cpp.\n");
@@ -382,32 +443,33 @@ PetscReal RK32::computeError()
   PetscReal      err,totErr=0.0;
 
 
-  // absolute error scaled by length of vector
+  //~ // relative error
   //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     //~ PetscInt ind = _errInds[i];
 
     //~ // error based on weighted 2 norm
     //~ Vec errVec;
-    //~ PetscInt       size;
+    //~ PetscScalar    size;
     //~ VecDuplicate(_var2nd[ind],&errVec);
     //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-    //~ VecDot(errVec,errVec,&err);
-    //~ VecGetSize(errVec,&size);
-    //~ totErr += sqrt(err/size);
+    //~ VecNorm(errVec,NORM_2,&err);
+    //~ VecNorm(_var3rd[ind],NORM_2,&size);
+    //~ totErr += err/(size+1.0);
     //~ VecDestroy(&errVec);
   //~ }
 
   // relative error
+
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    PetscInt ind = _errInds[i];
+    std::string key = _errInds[i];
 
     // error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
-    VecDuplicate(_var2nd[ind],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+    VecDuplicate(_var2nd[key],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_var2nd[key],_var3rd[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
-    VecNorm(_var3rd[ind],NORM_2,&size);
+    VecNorm(_var3rd[key],NORM_2,&size);
     totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
@@ -433,20 +495,23 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
-    for(std::vector<int>::size_type i = 0; i != _var.size(); i++) {
-      _errInds.push_back(i);
+    //~ for(std::vector<int>::size_type i = 0; i != _var.size(); i++) {
+      //~ _errInds.push_back(i);
+    //~ }
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      _errInds.push_back(it->first);
     }
   }
 
+
   // set initial condition
-  ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-  ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"IC");CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr); // write first step
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->debug(_currT,_stepCount,_var,_dvar,"IC");CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write first step
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
   if (_maxNumSteps == 0) { return ierr; }
-
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -459,40 +524,59 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       // set fields to 0
-      for (int ind=0;ind<_lenVar;ind++) {
-        VecSet(_varHalfdT[ind],0.0); VecSet(_dvarHalfdT[ind],0.0);
-        VecSet(_vardT[ind],0.0);     VecSet(_dvardT[ind],0.0);
-        VecSet(_var2nd[ind],0.0);    VecSet(_dvar2nd[ind],0.0);
-        VecSet(_var3rd[ind],0.0);
+      //~ for (int ind=0;ind<_lenVar;ind++) {
+        //~ VecSet(_varHalfdT[ind],0.0); VecSet(_dvarHalfdT[ind],0.0);
+        //~ VecSet(_vardT[ind],0.0);     VecSet(_dvardT[ind],0.0);
+        //~ VecSet(_var2nd[ind],0.0);    VecSet(_dvar2nd[ind],0.0);
+        //~ VecSet(_var3rd[ind],0.0);
+      //~ }
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
+        VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
+        VecSet(_var2nd[it->first],0.0);    VecSet(_dvar2nd[it->first],0.0);
+        VecSet(_var3rd[it->first],0.0);
       }
-
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+      //~ for (int ind=0;ind<_lenVar;ind++) {
+        //~ ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+      //~ }
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin());CHKERRQ(ierr);
-      ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT.begin(),_dvarHalfdT.begin(),"t+dt/2");CHKERRQ(ierr);
-
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
+      ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT,_dvarHalfdT,"t+dt/2");CHKERRQ(ierr);
       // stage 2: integrate fields to _currT + _deltaT
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
+      //~ for (int ind=0;ind<_lenVar;ind++) {
+        //~ ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
+      //~ }
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin());CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT.begin(),_dvardT.begin(),"t+dt");CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
+      ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT,_dvardT,"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_var2nd[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var2nd[ind],0.5*_deltaT,_dvardT[ind]);CHKERRQ(ierr);
+      //~ for (int ind=0;ind<_lenVar;ind++) {
+        //~ ierr = VecWAXPY(_var2nd[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_var2nd[ind],0.5*_deltaT,_dvardT[ind]);CHKERRQ(ierr);
 
-        ierr = VecWAXPY(_var3rd[ind],_deltaT/6.0,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
+        //~ ierr = VecWAXPY(_var3rd[ind],_deltaT/6.0,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
+      //~ }
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
+
+        ierr = VecWAXPY(_var3rd[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd.begin(),_dvardT.begin(),"2nd");CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd.begin(),_dvardT.begin(),"3rd");CHKERRQ(ierr);
+      ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd,_dvardT,"2nd");CHKERRQ(ierr);
+      ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd,_dvardT,"3rd");CHKERRQ(ierr);
 
 
       // calculate error
@@ -509,19 +593,24 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
-    for (int ind=0;ind<_lenVar;ind++) {
-      VecSet(_var[ind],0.0);
-      ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
-      VecSet(_dvar[ind],0.0);
+    //~ for (int ind=0;ind<_lenVar;ind++) {
+      //~ VecSet(_var[ind],0.0);
+      //~ ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
+      //~ VecSet(_dvar[ind],0.0);
+    //~ }
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      VecSet(_var[it->first],0.0);
+      ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);
+      VecSet(_dvar[it->first],0.0);
     }
-    ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"F");CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->debug(_currT,_stepCount,_var,_dvar,"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;

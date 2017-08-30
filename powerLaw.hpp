@@ -79,13 +79,13 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode integrate(); // don't need now that LinearElastic defines this
 
     // methods for explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin,
-      it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec dvarBegin);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount);
 
     PetscErrorCode writeDomain();

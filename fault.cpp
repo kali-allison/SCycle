@@ -849,19 +849,19 @@ PetscErrorCode SymmFault::setTemp(const Vec& T)
       ierr = VecSetValues(_T,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       // also set a and b
-      PetscScalar a = a0*v/298.;
-      PetscScalar b = b0*v/298.;
-      ierr = VecSetValues(_a,1,&Ii,&a,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_b,1,&Ii,&b,INSERT_VALUES);CHKERRQ(ierr);
+      //~ PetscScalar a = a0*v/298.;
+      //~ PetscScalar b = b0*v/298.;
+      //~ ierr = VecSetValues(_a,1,&Ii,&a,INSERT_VALUES);CHKERRQ(ierr);
+      //~ ierr = VecSetValues(_b,1,&Ii,&b,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_T);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_T);CHKERRQ(ierr);
 
-  ierr = VecAssemblyBegin(_a);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_a);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyBegin(_a);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyBegin(_b);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_a);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_b);CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1089,7 +1089,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 
 
 
-PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode SymmFault::d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1101,53 +1101,48 @@ PetscErrorCode SymmFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   PetscScalar    theta,dtheta,psi,dpsi,vel;
   PetscInt       Ii,Istart,Iend;
 
-  ierr = VecCopy(*(varBegin),_psi);CHKERRQ(ierr);
-  ierr = VecCopy(*(varBegin+1),_theta);CHKERRQ(ierr);
-  ierr = VecCopy(*(varBegin+2),_slip);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin),_psi);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin+1),_theta);CHKERRQ(ierr);
+  //~ ierr = VecCopy(*(varBegin+2),_slip);CHKERRQ(ierr);
+  ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
+  ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
 
 double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
 _computeVelTime += MPI_Wtime() - startTime;
 
 
-startTime = MPI_Wtime();
+  startTime = MPI_Wtime();
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(*(varBegin),1,&Ii,&psi);
-    ierr = VecGetValues(*(varBegin+1),1,&Ii,&theta);
+    ierr = VecGetValues(varEx.find("psi")->second,1,&Ii,&psi);
     if (!_stateLaw.compare("agingLaw")) {
-      ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+      //~ ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("slipLaw")) {
       ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
-      theta = psi; dtheta = dpsi;
       }
     else if (!_stateLaw.compare("flashHeating")) {
       ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-      theta = psi; dtheta = dpsi;
       //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       }
     //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
 
-    ierr = VecSetValue(*(dvarBegin),Ii,dpsi,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(*(dvarBegin+1),Ii,dtheta,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(dvarEx.find("psi")->second,Ii,dpsi,INSERT_VALUES);CHKERRQ(ierr);
 
     ierr = VecGetValues(_slipVel,1,&Ii,&vel);CHKERRQ(ierr);
-    ierr = VecSetValue(*(dvarBegin+2),Ii,vel,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValue(dvarEx.find("slip")->second,Ii,vel,INSERT_VALUES);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(*dvarBegin);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(*(dvarBegin+1));CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(*(dvarBegin+2));CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(dvarEx.find("psi")->second);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(dvarEx.find("slip")->second);CHKERRQ(ierr);
 
-  ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(*(dvarBegin+2));CHKERRQ(ierr);
-_stateLawTime += MPI_Wtime() - startTime;
+  ierr = VecAssemblyEnd(dvarEx.find("psi")->second);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(dvarEx.find("slip")->second);CHKERRQ(ierr);
 
-
+  _stateLawTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1886,7 +1881,7 @@ PetscErrorCode FullFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 
 
 
-PetscErrorCode FullFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode FullFault::d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
@@ -1895,7 +1890,7 @@ PetscErrorCode FullFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
 
   PetscScalar    val,stateVal;
   PetscInt       Ii,Istart,Iend;
-
+/*
   ierr = computeVel();CHKERRQ(ierr);
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
@@ -1917,7 +1912,7 @@ PetscErrorCode FullFault::d_dt(const_it_vec varBegin,it_vec dvarBegin)
   ierr = VecAssemblyEnd(*dvarBegin);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+1));CHKERRQ(ierr);
   ierr = VecAssemblyEnd(*(dvarBegin+2));CHKERRQ(ierr);
-
+*/
   return ierr;
 #if VERBOSE > 3
    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending FullFault::d_dt in fault.cpp\n");CHKERRQ(ierr);

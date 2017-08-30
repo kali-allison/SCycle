@@ -66,7 +66,8 @@ class Domain
     PetscScalar  _initTime,_maxTime;
     PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
     PetscScalar  _atol;
-    std::vector<int> _timeIntInds; // indices of variables to be used in time integration
+    //~ std::vector<int> _timeIntInds; // indices of variables to be used in time integration
+    std::vector<string> _timeIntInds; // keys of variables to be used in time integration
 
     // other tolerances
 

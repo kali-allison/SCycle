@@ -101,7 +101,7 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out,PetscScalar *J) = 0;
-    PetscErrorCode virtual d_dt(const_it_vec varBegin,it_vec dvarBegin) = 0;
+    PetscErrorCode virtual d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
@@ -146,7 +146,7 @@ class SymmFault: public Fault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
-    PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode computeVel();
 
     // don't technically need the 2nd argument
@@ -206,7 +206,7 @@ class FullFault: public Fault
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
 
-    PetscErrorCode d_dt(const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
 
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);

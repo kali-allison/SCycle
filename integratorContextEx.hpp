@@ -3,6 +3,7 @@
 
 #include <petscksp.h>
 #include <vector>
+#include <map>
 #include "genFuncs.hpp"
 
 /*
@@ -16,15 +17,17 @@ class IntegratorContextEx
 {
   public:
 
-    typedef std::vector<Vec>::iterator it_vec;
-    typedef std::vector<Vec>::const_iterator const_it_vec;
+    //~ typedef std::vector<Vec>::iterator it_vec;
+    //~ typedef std::vector<Vec>::const_iterator const_it_vec;
+    //~ typedef std::map<string,Vec>::iterator it_vec;
+    //~ typedef std::map<string,Vec>::const_iterator const_it_vec;
 
-    virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin) = 0;
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec dvarBegin) = 0;
+      const map<string,Vec>& var,const map<string,Vec>& dvar) = 0;
     virtual PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec dvarBegin, const char *stage) = 0;
+      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage) = 0;
 };
 
 #include "odeSolver.hpp"

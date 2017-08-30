@@ -119,11 +119,11 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode setMMSBoundaryConditions(const double time,
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
-    PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                         const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
+      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage);
     PetscErrorCode integrate(); // will call OdeSolver method by same name
 
     // IO commands

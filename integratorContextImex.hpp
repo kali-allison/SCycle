@@ -21,15 +21,27 @@ class IntegratorContextImex
 
     virtual PetscErrorCode integrate() = 0;
 
-     // explicit only
-    virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin) = 0;
+     //~ // explicit only
+    //~ virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin) = 0;
+
+    //~ // backward Euler
+    //~ virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBeginEx,it_vec dvarBeginEx,
+                             //~ it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt) = 0;
+
+    //~ virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+                             //~ const_it_vec varBeginEx,const_it_vec dvarBeginEx) = 0;
+    //~ // virtual PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,const_it_vec varBeginEx,
+                             //~ const_it_vec dvarBeginEx,const_it_vec varBeginIm,const char *stage) = 0;
+
+
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
 
     // backward Euler
-    virtual PetscErrorCode d_dt(const PetscScalar time,const_it_vec varBeginEx,it_vec dvarBeginEx,
-                             it_vec varBeginIm,const_it_vec varBeginImo,const PetscScalar dt) = 0;
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+                             map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0;
 
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBeginEx,const_it_vec dvarBeginEx) = 0;
+                             const map<string,Vec>& varEx,const map<string,Vec>& dvarEx) = 0;
     //~ virtual PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,const_it_vec varBeginEx,
                              //~ const_it_vec dvarBeginEx,const_it_vec varBeginIm,const char *stage) = 0;
 };

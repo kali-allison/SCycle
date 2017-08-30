@@ -143,7 +143,7 @@ PetscErrorCode OdeSolverImex::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm)
+PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setInitialConds in OdeSolverImex.cpp.\n");
@@ -153,51 +153,87 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vecto
 
   // explicit part
   _var = varEx;
-  _lenVar = varEx.size();
+  for (map<string,Vec>::iterator it=_var.begin(); it!=_var.end(); it++ ) {
+    Vec dvar;
+    ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
+    ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
+    _dvar[it->first] = dvar;
 
-  _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
-  _vardT.reserve(_lenVar);     _dvardT.reserve(_lenVar);
-  _var2nd.reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
-  _var3rd.reserve(_lenVar);
-  _dvar.reserve(_lenVar);
+    Vec varHalfdT;
+    ierr = VecDuplicate(_var[it->first],&varHalfdT); CHKERRQ(ierr);
+    ierr = VecSet(varHalfdT,0.0); CHKERRQ(ierr);
+    _varHalfdT[it->first] = varHalfdT;
 
-  _dvar.reserve(_lenVar);
-  for (int ind=0;ind<_lenVar;ind++) {
-    ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
+    Vec dvarHalfdT;
+    ierr = VecDuplicate(_var[it->first],&dvarHalfdT); CHKERRQ(ierr);
+    ierr = VecSet(dvarHalfdT,0.0); CHKERRQ(ierr);
+    _dvarHalfdT[it->first] = dvarHalfdT;
 
-    ierr = VecDuplicate(_var[ind],&_varHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_varHalfdT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvarHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvarHalfdT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_vardT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_vardT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvardT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvardT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_var2nd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_var2nd[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvar2nd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvar2nd[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
+    Vec vardT;
+    ierr = VecDuplicate(_var[it->first],&vardT); CHKERRQ(ierr);
+    ierr = VecSet(vardT,0.0); CHKERRQ(ierr);
+    _vardT[it->first] = vardT;
+
+    Vec dvardT;
+    ierr = VecDuplicate(_var[it->first],&dvardT); CHKERRQ(ierr);
+    ierr = VecSet(dvardT,0.0); CHKERRQ(ierr);
+    _dvardT[it->first] = dvardT;
+
+    Vec var2nd;
+    ierr = VecDuplicate(_var[it->first],&var2nd); CHKERRQ(ierr);
+    ierr = VecSet(var2nd,0.0); CHKERRQ(ierr);
+    _var2nd[it->first] = var2nd;
+
+    Vec dvar2nd;
+    ierr = VecDuplicate(_var[it->first],&dvar2nd); CHKERRQ(ierr);
+    ierr = VecSet(dvar2nd,0.0); CHKERRQ(ierr);
+    _dvar2nd[it->first] = dvar2nd;
+
+    Vec var3rd;
+    ierr = VecDuplicate(_var[it->first],&var3rd); CHKERRQ(ierr);
+    ierr = VecSet(var3rd,0.0); CHKERRQ(ierr);
+    _var3rd[it->first] = var3rd;
   }
 
   // implicit part
   _varIm = varIm;
-  Vec temp;
-  VecDuplicate(*varIm.begin(),&temp);
-  VecSet(temp,0.0);
-  _varHalfdTIm.push_back(temp);
+  for (map<string,Vec>::iterator it=_varIm.begin(); it!=_varIm.end(); it++ ) {
+    Vec varIm;
+    ierr = VecDuplicate(_varIm[it->first],&varIm); CHKERRQ(ierr);
+    ierr = VecSet(varIm,0.0); CHKERRQ(ierr);
+    _varIm[it->first] = varIm;
 
-  Vec temp1;
-  VecDuplicate(*varIm.begin(),&temp1);
-  VecSet(temp1,0.0);
-  _vardTIm.push_back(temp1);
+    Vec varHalfdTIm;
+    ierr = VecDuplicate(_varIm[it->first],&varHalfdTIm); CHKERRQ(ierr);
+    ierr = VecSet(varHalfdTIm,0.0); CHKERRQ(ierr);
+    _varHalfdTIm[it->first] = varHalfdTIm;
 
-  Vec temp2;
-  VecDuplicate(*varIm.begin(),&temp2);
-  VecSet(temp2,0.0);
-  _varIm_half.push_back(temp2);
+    Vec vardTIm;
+    ierr = VecDuplicate(_varIm[it->first],&vardTIm); CHKERRQ(ierr);
+    ierr = VecSet(vardTIm,0.0); CHKERRQ(ierr);
+    _vardTIm[it->first] = vardTIm;
+
+    Vec varIm_half;
+    ierr = VecDuplicate(_varIm[it->first],&varIm_half); CHKERRQ(ierr);
+    ierr = VecSet(varIm_half,0.0); CHKERRQ(ierr);
+    _varIm_half[it->first] = varIm_half;
+  }
+
+
+  //~ Vec temp;
+  //~ VecDuplicate(*varIm.begin(),&temp);
+  //~ VecSet(temp,0.0);
+  //~ _varHalfdTIm.push_back(temp);
+
+  //~ Vec temp1;
+  //~ VecDuplicate(*varIm.begin(),&temp1);
+  //~ VecSet(temp1,0.0);
+  //~ _vardTIm.push_back(temp1);
+
+  //~ Vec temp2;
+  //~ VecDuplicate(*varIm.begin(),&temp2);
+  //~ VecSet(temp2,0.0);
+  //~ _varIm_half.push_back(temp2);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -206,7 +242,7 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::vector<Vec>& varEx,std::vecto
   return ierr;
 }
 
-PetscErrorCode OdeSolverImex::setErrInds(std::vector<int>& errInds)
+PetscErrorCode OdeSolverImex::setErrInds(std::vector<string>& errInds)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setErrInds in OdeSolverImex.cpp.\n");
@@ -301,17 +337,31 @@ PetscReal OdeSolverImex::computeError()
   PetscReal      err,totErr=0.0;
 
 
+  //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    //~ PetscInt ind = _errInds[i];
+
+    //~ // error based on weighted 2 norm
+    //~ Vec errVec;
+    //~ PetscInt       size;
+    //~ VecDuplicate(_var2nd[ind],&errVec);
+    //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+    //~ VecDot(errVec,errVec,&err);
+    //~ VecGetSize(errVec,&size);
+    //~ totErr += sqrt(err/size);
+    //~ VecDestroy(&errVec);
+  //~ }
+
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    PetscInt ind = _errInds[i];
+    std::string key = _errInds[i];
 
     // error based on weighted 2 norm
     Vec errVec;
-    PetscInt       size;
-    VecDuplicate(_var2nd[ind],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-    VecDot(errVec,errVec,&err);
-    VecGetSize(errVec,&size);
-    totErr += sqrt(err/size);
+    PetscScalar    size;
+    VecDuplicate(_var2nd[key],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_var2nd[key],_var3rd[key]);CHKERRQ(ierr);
+    VecNorm(errVec,NORM_2,&err);
+    VecNorm(_var3rd[key],NORM_2,&size);
+    totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
 
@@ -336,8 +386,8 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
-    for(std::vector<int>::size_type i = 0; i != _var.size(); i++) {
-      _errInds.push_back(i);
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      _errInds.push_back(it->first);
     }
   }
 
@@ -348,8 +398,8 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr); // write initial conditions
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write initial conditions
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -361,41 +411,37 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       // set fields to 0
-      for (int ind=0;ind<_lenVar;ind++) {
-        VecSet(_varHalfdT[ind],0.0); VecSet(_dvarHalfdT[ind],0.0);
-        VecSet(_vardT[ind],0.0);     VecSet(_dvardT[ind],0.0);
-        VecSet(_var2nd[ind],0.0);    VecSet(_dvar2nd[ind],0.0);
-        VecSet(_var3rd[ind],0.0);
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
+        VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
+        VecSet(_var2nd[it->first],0.0);    VecSet(_dvar2nd[it->first],0.0);
+        VecSet(_var3rd[it->first],0.0);
       }
 
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
-      //~ ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin());CHKERRQ(ierr);
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT.begin(),_dvarHalfdT.begin(),
-               _varHalfdTIm.begin(),_varIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,
+               _varHalfdTIm,_varIm,0.5*_deltaT);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
       }
-      //~ ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin());CHKERRQ(ierr);
-      ierr = obj->d_dt(_currT+_deltaT,_vardT.begin(),_dvardT.begin(),
-               _vardTIm.begin(),_varHalfdTIm.begin(),0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm,_varHalfdTIm,0.5*_deltaT);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
-      for (int ind=0;ind<_lenVar;ind++) {
-        ierr = VecWAXPY(_var2nd[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var2nd[ind],0.5*_deltaT,_dvardT[ind]);CHKERRQ(ierr);
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
 
-        ierr = VecWAXPY(_var3rd[ind],_deltaT/6.0,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_var3rd[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
       }
-
 
       // calculate error
       totErr = computeError();
@@ -411,23 +457,23 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
-    for (int ind=0;ind<_lenVar;ind++) {
-      VecSet(_var[ind],0.0);
-      VecSet(_dvar[ind],0.0);
-      ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      VecSet(_var[it->first],0.0);
+      ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);
+      VecSet(_dvar[it->first],0.0);
     }
-    VecCopy(_vardTIm[0],_varIm[0]);
-    VecCopy(_varHalfdTIm[0],_varIm_half[0]);
-    ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+    for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
+      VecCopy(_vardTIm[it->first],_varIm[it->first]);
+      VecCopy(_varHalfdTIm[it->first],_varIm_half[it->first]);
+    }
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var.begin(),_dvar.begin());CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
   }
-
-
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1

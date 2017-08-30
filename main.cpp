@@ -9,7 +9,6 @@
 #include "sbpOps.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
-#include "maxwellViscoelastic.hpp"
 #include "powerLaw.hpp"
 
 

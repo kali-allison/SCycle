@@ -678,7 +678,7 @@ PetscErrorCode HeatEquation::integrate()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
+/*
   OdeSolver *_quadEx = new RK32(5000,1.0,1e-3,"P"); //(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType
   ierr = _quadEx->setTolerance(1e-9); CHKERRQ(ierr);
   ierr = _quadEx->setTimeStepBounds(1e-3,1);CHKERRQ(ierr); // _minDeltaT,_maxDeltaT
@@ -687,8 +687,9 @@ PetscErrorCode HeatEquation::integrate()
 
 
   // control which fields are used to select step size
-  int arrInds[] = {0}; // temp
-  std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+  //~ int arrInds[] = {0}; // temp
+  //~ std::vector<int> errInds(arrInds,arrInds+1); // !! UPDATE THIS LINE TOO
+  std::vector<string> errInds("deltaT");
   ierr = _quadEx->setErrInds(errInds);
 
 
@@ -701,7 +702,7 @@ PetscErrorCode HeatEquation::integrate()
   ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
-
+*/
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -711,7 +712,7 @@ PetscErrorCode HeatEquation::integrate()
 }
 
 // explicit time stepping for MMS
-PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin)
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -726,7 +727,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const_it_vec varBegin,i
     //~ Vec tau; VecDuplicate(_bcL,&tau); VecSet(tau,0.0);
     //~ ierr = d_dt(time,slipVel,tau,NULL,NULL,NULL,NULL,*varBegin,*dvarBegin);
 
-    ierr = d_dt_mms(time,*varBegin,*dvarBegin); CHKERRQ(ierr);
+    //~ ierr = d_dt_mms(time,*varBegin,*dvarBegin); CHKERRQ(ierr);
 
     //~ mapToVec(_T,MMS_he1_T,*_y,*_z,time);
     //~ VecCopy(*varBegin,_T);
@@ -741,14 +742,14 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const_it_vec varBegin,i
 }
 // Outputs data at each time step.
 PetscErrorCode HeatEquation::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
+      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage)
 {
   PetscErrorCode ierr = 0;
   return ierr;
 }
 
 PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt stepCount,
-                             const_it_vec varBegin,const_it_vec dvarBegin)
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 

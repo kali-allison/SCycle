@@ -1,13 +1,13 @@
-all: main
+all: mainLinearElastic
 
-DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DCALCULATE_ENERGY=0 -DLOCK_FAULT=0
+DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0 -DCALCULATE_ENERGY=0 -DLOCK_FAULT=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
 OBJECTS := domain.o debuggingFuncs.o fault.o genFuncs.o linearElastic.o\
- maxwellViscoelastic.o odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
+ odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
  spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
  odeSolverImex.o fault_hydraulic.o
 
@@ -20,11 +20,6 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
-
-mainMaxwell:  mainMaxwell.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm mainMaxwell.o
-
 
 mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
@@ -76,11 +71,11 @@ fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp heatEquation.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
  rootFinder.hpp
-fault_hydraulic.o: fault_hydraulic.cpp fault.hpp genFuncs.hpp domain.hpp \
- heatEquation.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp \
- sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp integratorContextEx.hpp \
- odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp \
- rootFinderContext.hpp rootFinder.hpp
+fault_hydraulic.o: fault_hydraulic.cpp fault_hydraulic.hpp genFuncs.hpp \
+ domain.hpp fault.hpp heatEquation.hpp sbpOps.hpp sbpOps_c.hpp \
+ debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
+ integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
+ odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
 heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
@@ -93,28 +88,11 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
  rootFinderContext.hpp rootFinder.hpp
-main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
- heatEquation.hpp sbpOps_c.hpp debuggingFuncs.hpp sbpOps_fc.hpp \
- sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
- integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
- rootFinder.hpp linearElastic.hpp maxwellViscoelastic.hpp powerLaw.hpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp linearElastic.hpp
-mainMaxwell.o: mainMaxwell.cpp genFuncs.hpp spmat.hpp domain.hpp \
- sbpOps.hpp fault.hpp heatEquation.hpp sbpOps_c.hpp debuggingFuncs.hpp \
- sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp integratorContextEx.hpp \
- odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp \
- rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- maxwellViscoelastic.hpp powerLaw.hpp
-maxwellViscoelastic.o: maxwellViscoelastic.cpp maxwellViscoelastic.hpp \
- integratorContextEx.hpp genFuncs.hpp odeSolver.hpp domain.hpp \
- linearElastic.hpp integratorContextImex.hpp odeSolverImex.hpp sbpOps.hpp \
- sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
- sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
- rootFinderContext.hpp rootFinder.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContextEx.hpp \
  genFuncs.hpp
 odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp \
