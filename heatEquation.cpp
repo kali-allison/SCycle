@@ -998,6 +998,7 @@ _miscTime += MPI_Wtime() - startMiscTime;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
     VecAXPY(temp,1.0,shearHeat);
     VecDestroy(&shearHeat);
+    assert(0);
   }
 
   MatMult(_rhoC,temp,rhs);

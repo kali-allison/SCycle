@@ -1,8 +1,36 @@
 order = 4
 Ny = 251
 Nz = 201
-Ly = 60 # km
-Lz = 40 # km
+Ly = 30 # km
+Lz = 30 # km
+vL = 1e-9    # (m/s)
+
+
+#======================================================================
+# linear system
+
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
+loadICs = 0
+bcLTauQS = 0
+
+
+# coordinate transformation
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
+bCoordTrans = 15.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+#kspTol = 1e-10
+
+# algorithm for heat equation
+linSolver_heateq = AMG
+kspTol_heateq = 1e-9
+
+#======================================================================
+# rate-and-state parameters
+rootTol = 1e-9
 
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
@@ -39,18 +67,26 @@ sigmaNDepths = [0 0.25 60]
 sigmaN_cap = 50; # MPa
 
 
-vL = 1e-9    # (m/s)
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/plv1_al_b8_csh_Dc16_2IC_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_nhe_Dc16_2IC_
+#stateLaw = agingLaw
+#stateLaw = slipLaw
+#v0 = 1e-6
+#f0 = 0.6
 
-# just effective viscosity data
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
-#zInputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
-loadICs = 0
-bcLTauQS = 0
+stateLaw = flashHeating
+v0 = 1e-6
+#v0 = 100
+f0 = 0.6
+#fw = 0.12
+fw = 0.0
+Vw = 0.1
+Tw = 1.1732e+03 # K 900 C
+tau_c = 3 # GPa
+D = 5 # um
+
+
+#======================================================================
+# off-fault material parameters
 
 shearDistribution = constant
 {
@@ -58,22 +94,6 @@ problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 }
-
-linSolver = MUMPSCHOLESKY
-#bCoordTrans = 15.0
-bCoordTrans = 7.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
-kspTol = 1e-10
-
-
-# power law properties, creme brulee: wet quartz, dry feldspar, dry olivine
-#AVals = [1e-9 1e-9 5e12 5e12 1.5e5 1.5e5]
-#ADepths = [0 15 15 30 30 60]
-#BVals = [1.62e4 1.62e4 7.79e4 7.79e4 6.37e4 6.37e4]
-#BDepths = [0 15 15 30 30 60]
-#nVals = [4 4 3 3 3.5 3.5]
-#nDepths = [0 15 15 30 30 60]
 
 # power law properties: quartz-diorite
 AVals = [1.3e-3 1.3e-3]
@@ -86,8 +106,6 @@ nDepths = [0 60]
 # heat equation properties
 #heatFieldsDistribution = mms
 heatFieldsDistribution = layered
-linSolver_heateq = AMG
-kspTol_heateq = 1e-9
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
 hVals = [0 0]
@@ -106,17 +124,10 @@ TDepths = [0 50]
 #heatEquationType = steadyState
 heatEquationType = transient
 #thermalCoupling = coupled
-#thermalCoupling = uncoupled
-thermalCoupling = no
+thermalCoupling = uncoupled
+#thermalCoupling = no
 withShearHeating = no
-withFrictionalHeating = no
-
-# hyraulic fault inputs
-hydraulicCoupling = no
-#hydraulicCoupling = uncoupled
-#hydraulicCoupling = coupled
-hydraulicTimeIntType = explicit
-#hydraulicTimeIntType = implicit
+withFrictionalHeating = yes
 
 
 # Maxwell properties
@@ -129,11 +140,14 @@ viscDistribution = loadFromFile
 strainRate = 1e-14
 
 
-timeIntegrator = RK32
+#======================================================================
+# settings for time integration # options: FEuler, RK32, IMEX
+
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e9 #1e9
+stride1D = 1
+stride2D = 1
+maxStepCount = 50 #1e9
 initTime = 0      # s 3e10
 maxTime = 1e28      # s 5.5e10
 initDeltaT = 1e-3     # s
@@ -144,38 +158,8 @@ timeIntInds = [psi slip]
 #timeIntInds = [0 2]
 #timeIntInds = [2 3 4]
 
-rootTol = 1e-9
 
-
-stateLaw = agingLaw
-#stateLaw = slipLaw
-v0 = 1e-6
-f0 = 0.6
-
-#stateLaw = flashHeating
-#v0 = 1e-6
-#v0 = 100
-#f0 = 0.6
-#fw = 0.12
-#fw = 0.0
-#Vw = 0.1
-#Tw = 1.1732e+03 # K 900 C
-#tau_c = 3 # GPa
-#D = 5 # um
+outputDir = /scratch/kallison/he/le_wfh_
 
 
 
-#outputDir = /data/dunham/kallison/heData/le_cfh_
-#outputDir = /data/dunham/kallison/heData/le_abT_cfh_
-outputDir = /data/dunham/kallison/heData/test_
-
-#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_al_b8_csh_Dc8_
-#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_34_al_b8_csh_Dc1_
-#outputDir = /data/dunham/kallison/shearHeat/plv3_step1_02_al_b8_csh_Dc1_
-
-#outputDir = /data/dunham/kallison/eqcycle/data/testSS_bcLtau_34_
-#outputDir = /data/dunham/kallison/eqcycle/data/testSS_PID_234_
-#outputDir = /data/dunham/kallison/eqcycle/data/testSS_PID_34_
-#outputDir = /data/dunham/kallison/eqcycle/data/testSS_34_
-#outputDir = /data/dunham/kallison/eqcycle/data/testSS_02_
-#outputDir = /data/dunham/kallison/eqcycle/data/test_02_

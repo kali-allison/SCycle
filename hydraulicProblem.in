@@ -108,7 +108,7 @@ thermalCoupling = no
 withShearHeating = no
 withFrictionalHeating = no
 
-
+#======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 timeIntegrator = RK32
 timeControlType = P

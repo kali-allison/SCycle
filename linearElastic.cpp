@@ -340,25 +340,25 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
 #endif
 
-  if (_hydraulicCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    _fault = new SymmFault_Hydr(D,_he);
+  //~ if (_hydraulicCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ _fault = new SymmFault_Hydr(D,_he);
 
-    if (_hydraulicTimeIntType.compare("explicit")==0) {
-      Vec temp;
-      VecDuplicate(_fault->_dp,&temp);
-      VecCopy(_fault->_dp,temp);
-      _varEx["porePressure"] = temp;
-    }
-    else if (_hydraulicTimeIntType.compare("implicit")==0) {
-      Vec temp;
-      VecDuplicate(_fault->_dp,&temp);
-      VecCopy(_fault->_dp,temp);
-      _varIm["porePressure"] = temp;
-    }
-  }
-  else {
+    //~ if (_hydraulicTimeIntType.compare("explicit")==0) {
+      //~ Vec temp;
+      //~ VecDuplicate(_fault->_dp,&temp);
+      //~ VecCopy(_fault->_dp,temp);
+      //~ _varEx["porePressure"] = temp;
+    //~ }
+    //~ else if (_hydraulicTimeIntType.compare("implicit")==0) {
+      //~ Vec temp;
+      //~ VecDuplicate(_fault->_dp,&temp);
+      //~ VecCopy(_fault->_dp,temp);
+      //~ _varIm["porePressure"] = temp;
+    //~ }
+  //~ }
+  //~ else {
     _fault = new SymmFault(D,_he);
-  }
+  //~ }
 
   allocateFields();
   if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
@@ -1033,7 +1033,6 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<
 
   // update boundaries
   if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
-    //~ ierr = VecCopy(*(varBegin+2),_bcLP);CHKERRQ(ierr);
     ierr = VecCopy(varEx.find("slip")->second,_bcLP);CHKERRQ(ierr);
     ierr = VecScale(_bcLP,0.5);CHKERRQ(ierr);
   } // else do nothing
@@ -1056,13 +1055,9 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<
 
 
   if (_bcLTauQS==0) {
-    //~ ierr = _fault->d_dt(varBegin,dvarBegin); // sets rates for slip and state
     ierr = _fault->d_dt(varEx,dvarEx); // sets rates for slip and state
   }
   else {
-    //~ VecSet(*dvarBegin,0.0); // dstate psi
-    //~ VecSet(*(dvarBegin+1),0.0); // dstate theta
-    //~ VecSet(*(dvarBegin+2),0.0); // slip vel
     VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
     VecSet(dvarEx.find("slip")->second,0.0); // slip vel
   }
@@ -1098,7 +1093,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
     _fault->setTemp(_T);
     //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
       //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-    ierr = _he.be(time,varEx.find("slip")->second,tau,NULL,NULL,
+    ierr = _he.be(time,dvarEx.find("slip")->second,tau,NULL,NULL,
       NULL,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     VecDestroy(&tau);
