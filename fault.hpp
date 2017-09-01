@@ -33,7 +33,6 @@ class Fault: public RootFinderContext
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
     const std::string  _problemType; // symmetric (only y>0) or full
-    const PetscScalar  _depth,_width; // basin dimensions needed for fault properties (sigma_N, b)
 
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
@@ -51,6 +50,7 @@ class Fault: public RootFinderContext
 
 
     // fields that differ on the split nodes
+    std::vector<double>  _impedanceVals,_impedanceDepths;
     std::vector<double>  _sigmaNVals,_sigmaNDepths;
     PetscScalar          _sigmaN_cap; // allow cap on normal stress
     Vec                  _sNEff;

@@ -3,26 +3,19 @@
 using namespace std;
 
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
-  _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),_yInputDir("unspecified"),
-  _shearDistribution("unspecified"),_problemType("unspecificed"),_loadICs(0),
-  _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
-  _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
-  _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
-  _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  //~ _linSolver("unspecified"),_kspTol(-1),
-  _sbpType("unspecified"),_bCoordTrans(5.0),
+: _file(file),_delim(" = "),_outputDir("unspecificed"),
+  _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
+  _zInputDir("unspecified"),_yInputDir("unspecified"),
+  _vL(1e-9),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dz(-1),
+  _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),
-  _vL(1e-9),
-  _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
+  _atol(-1),
+  _da(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -49,31 +42,14 @@ Domain::Domain(const char *file)
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
+  setFields();
 
-  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
-    DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
-  PetscInt zn,yn;
-  DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
-  _zE = _zS + zn;
-  _yE = _yS + yn;
-
-  // if loading fields from source vecs
-  if (_shearDistribution.compare("CVM")==0 ) {
-    loadFieldsFromFiles();
-  }
-
-  // if setting fields from input values
-  if (_shearDistribution.compare("basin")==0 ||
-         _shearDistribution.compare("constant")==0 ||
-         _shearDistribution.compare("gradient")==0 ||
-         _shearDistribution.compare("mms")==0 )
-  {
-    setFieldsPlus();
-    if (_problemType.compare("full")==0) {
-      setFieldsMinus();
-    }
-  }
-
+  //~ DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
+    //~ DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
+  //~ PetscInt zn,yn;
+  //~ DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
+  //~ _zE = _zS + zn;
+  //~ _yE = _yS + yn;
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
 #endif
@@ -82,27 +58,19 @@ Domain::Domain(const char *file)
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_startBlock("{"),_endBlock("}"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_dy(-1),_dz(-1),
-  _bcTType("unspecified"),_bcRType("unspecified"),_bcBType("unspecified"),
-  _bcLType("unspecified"),_inputDir("unspecified"),_zInputDir("unspecified"),_yInputDir("unspecified"),
-  _shearDistribution("unspecified"),_problemType("unspecificed"),
-  _muValPlus(-1),_rhoValPlus(-1),_muInPlus(-1),_muOutPlus(-1),
-  _rhoInPlus(-1),_rhoOutPlus(-1),_depth(-1),_width(-1),
-  _muArrPlus(NULL),_csArrPlus(NULL),_sigmaNArr(NULL),
-  _muValMinus(-1),_rhoValMinus(-1),_muInMinus(-1),_muOutMinus(-1),
-  _rhoInMinus(-1),_rhoOutMinus(-1),
-  _muArrMinus(NULL),_csArrMinus(NULL),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),
-  //~ _linSolver("unspecified"),_kspTol(-1),
-  _sbpType("unspecified"),_bCoordTrans(5.0),
+: _file(file),_delim(" = "),_outputDir("unspecificed"),
+  _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
+  _order(0),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
+  _zInputDir("unspecified"),_yInputDir("unspecified"),
+  _vL(1e-9),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dz(-1),
+  _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
   _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),_outputDir("unspecified"),
-  //~ _f0(0.6),_v0(1e-6),
-  _vL(-1),
-  _da(NULL),_muVecP(NULL),_csVecP(NULL),_muVecM(NULL)
+  _atol(-1),
+  _da(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
@@ -132,30 +100,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
-
-  DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
-    DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
-  PetscInt zn,yn;
-  DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
-  _zE = _zS + zn;
-  _yE = _yS + yn;
-
-  // if loading fields from source vecs
-  if (_shearDistribution.compare("CVM")==0 ) {
-    loadFieldsFromFiles();
-  }
-
-  // if setting fields from input values
-  if (_shearDistribution.compare("basin")==0 ||
-         _shearDistribution.compare("constant")==0 ||
-         _shearDistribution.compare("gradient")==0 ||
-         _shearDistribution.compare("mms")==0 )
-  {
-    setFieldsPlus();
-    if (_problemType.compare("full")==0) {
-      setFieldsMinus();
-    }
-  }
+  setFields();
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
@@ -171,24 +116,12 @@ Domain::~Domain()
   PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
 #endif
 
-
-  VecDestroy(&_muVecP);
-  VecDestroy(&_csVecP);
-  //~ //VecDestroy(&_rhoVecP);
-
   VecDestroy(&_q);
   VecDestroy(&_r);
   VecDestroy(&_y);
   VecDestroy(&_z);
 
   DMDestroy(&_da);
-
-  //~ VecDestroy(&_muVecM);
-
-  //~ DM _da;
-    //~ Vec _muVecP; // vector version of shear modulus
-    //~ Vec _csVecP,_rhoVecP;
-    //~ Vec          _muVecM;
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
@@ -219,48 +152,43 @@ PetscErrorCode Domain::loadData(const char *file)
     var = line.substr(0,pos);
 
     if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Ny")==0) { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Nz")==0) { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Ny")==0 && _Ny < 0)
+    { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Nz")==0 && _Ny < 0)
+    { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-
-    // boundary condition types
-    else if (var.compare("bcT")==0) { _bcTType = line.substr(pos+_delim.length(),line.npos); }
-    else if (var.compare("bcR")==0) { _bcRType = line.substr(pos+_delim.length(),line.npos); }
-    else if (var.compare("bcB")==0) { _bcBType = line.substr(pos+_delim.length(),line.npos); }
-    else if (var.compare("bcL")==0) { _bcLType = line.substr(pos+_delim.length(),line.npos); }
-
-    //fault properties
-
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-    // material properties
-    else if (var.compare("shearDistribution")==0) {
-      _shearDistribution = line.substr(pos+_delim.length(),line.npos);
-      loadShearModSettings(infile);
+    else if (var.compare("isMMS")==0) {
+      _isMMS = 0;
+      std::string temp = line.substr(pos+_delim.length(),line.npos);
+      if (temp.compare("yes")==0 || temp.compare("y")==0) { _isMMS = 1; }
     }
-    else if (var.compare("inputDir")==0) {
-      _inputDir = line.substr(pos+_delim.length(),line.npos);
+    else if (var.compare("sbpType")==0) {
+      _sbpType = line.substr(pos+_delim.length(),line.npos);
     }
+    else if (var.compare("bulkDeformationType")==0) {
+      _bulkDeformationType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("geometry")==0) {
+      _geometry = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("loadICs")==0) {
+      _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+
     else if (var.compare("zInputDir")==0) {
       _zInputDir = line.substr(pos+_delim.length(),line.npos);
     }
     else if (var.compare("yInputDir")==0) {
       _yInputDir = line.substr(pos+_delim.length(),line.npos);
     }
-    else if (var.compare("loadICs")==0){ _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-    // linear solver settings
-    else if (var.compare("sbpType")==0) {
-      _sbpType = line.substr(pos+_delim.length(),line.npos);
-    }
     else if (var.compare("bCoordTrans")==0) {
        _bCoordTrans = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    //~ else if (var.compare("linSolver")==0) {
-      //~ _linSolver = line.substr(pos+_delim.length(),line.npos);
-    //~ }
-    //~ else if (var.compare("kspTol")==0) { _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) {
@@ -297,6 +225,7 @@ PetscErrorCode Domain::loadData(const char *file)
 
 
 
+/*
 // load shear modulus structure from input file
 PetscErrorCode Domain::loadShearModSettings(ifstream& infile)
 {
@@ -381,6 +310,7 @@ PetscErrorCode Domain::loadShearModSettings(ifstream& infile)
   #endif
   return ierr;
 }
+*/
 
 
 // Specified processor prints scalar/string data members to stdout.
@@ -404,65 +334,14 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"dz = %.15e\n",_dz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-
-    // boundary conditions
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bcR = %s\n",_bcRType.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
-    // fault properties
     ierr = PetscPrintf(PETSC_COMM_SELF,"vL = %.15e\n",_vL);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    // sedimentary basin properties
-    ierr = PetscPrintf(PETSC_COMM_SELF,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
-    // y>0 properties
-    if (_shearDistribution.compare("basin")==0)
-    {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"muInPlus = %f\n",_muInPlus);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"muOutPlus = %f\n",_muOutPlus);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoInPlus = %f\n",_rhoInPlus);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOutPlus = %f\n",_rhoOutPlus);CHKERRQ(ierr);
-    }
-    else if (_shearDistribution.compare("constant")==0)
-    {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"muPlus = %f\n",_muValPlus);CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
-    }
-    else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
-    {
-      ierr = PetscPrintf(PETSC_COMM_SELF,"rhoPlus = %f\n",_rhoValPlus);CHKERRQ(ierr);
-    }
-    if (_problemType.compare("full")==0)
-    {
-      if (_shearDistribution.compare("basin")==0)
-      {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"muInMinus = %f\n",_muInMinus);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_SELF,"muOutMinus = %f\n",_muOutMinus);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoInMinus = %f\n",_rhoInMinus);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoOutMinus = %f\n",_rhoOutMinus);CHKERRQ(ierr);
-      }
-      else if (_shearDistribution.compare("constant")==0)
-      {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"muMinus = %f\n",_muValMinus);CHKERRQ(ierr);
-        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
-      }
-      else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
-      {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"rhoMinus = %f\n",_rhoValMinus);CHKERRQ(ierr);
-      }
-      else if (_shearDistribution.compare("CVM")==0 )
-      {
-        ierr = PetscPrintf(PETSC_COMM_SELF,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
-      }
-    }
-    ierr = PetscPrintf(PETSC_COMM_SELF,"depth = %f\n",_depth);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"width = %f\n",_width);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"geometry = %s\n",_geometry.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
+
 
     // time monitering
     ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
@@ -528,45 +407,6 @@ PetscErrorCode Domain::checkInput()
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
-
-    assert(_problemType.compare("full")==0 || _problemType.compare("symmetric")==0);
-    assert(_shearDistribution.compare("basin")==0 ||
-         _shearDistribution.compare("constant")==0 ||
-         _shearDistribution.compare("gradient")==0 ||
-         _shearDistribution.compare("mms")==0 ||
-         _shearDistribution.compare("CVM")==0 );
-
-  if (_shearDistribution.compare("constant")==0 ||
-      _shearDistribution.compare("gradient")==0 )
-  {
-    assert(_muValPlus>=1e-14);
-    assert(_rhoValPlus>=1e-14);
-    if (_problemType.compare("full")==0) {
-      assert(_muValMinus>=1e-14);
-      assert(_rhoValMinus>=1e-14);
-    }
-  }
-  else if (_shearDistribution.compare("basin")==0) {
-    assert(_muInPlus>=1e-14);
-    assert(_muOutPlus>=1e-14);
-    assert(_rhoInPlus>=1e-14);
-    assert(_rhoOutPlus>=1e-14);
-    assert(_depth>=1e-14);
-    assert(_width>=1e-14);
-    if (_problemType.compare("full")==0) {
-      assert(_muInMinus>=1e-14);
-      assert(_muOutMinus>=1e-14);
-      assert(_rhoInMinus>=1e-14);
-      assert(_rhoOutMinus>=1e-14);
-    }
-  }
-  else if (_shearDistribution.compare("CVM")==0) {
-    assert(_inputDir.compare("unspecified") != 0); // input dir must be specified
-  }
-
-
-  assert(_shearDistribution.compare("CVM")!=0 || _problemType.compare("full")!=0 );
-
 #if VERBOSE > 1
 ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -605,67 +445,19 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"dz = %.15e # (km)\n",_dz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"geometry = %s\n",_geometry.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
+
 
   // fault properties
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %.15e # (m/s)\n",_vL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-  // material properties
-  ierr = PetscViewerASCIIPrintf(viewer,"shearDistribution = %s\n",_shearDistribution.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
-  // y>0 properties
-  if (_shearDistribution.compare("basin")==0)
-  {
-    ierr = PetscViewerASCIIPrintf(viewer,"muInPlus = %.15e # (GPa)\n",_muInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"muOutPlus = %.15e # (GPa)\n",_muOutPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoInPlus = %.15e # (g/cm^3)\n",_rhoInPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoOutPlus = %.15e # (g/cm^3)\n",_rhoOutPlus);CHKERRQ(ierr);
-
-    ierr = PetscViewerASCIIPrintf(viewer,"depth = %.15e # (km)\n",_depth);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"width = %.15e # (km)\n",_width);CHKERRQ(ierr);
-  }
-  else if (_shearDistribution.compare("constant")==0)
-  {
-    ierr = PetscViewerASCIIPrintf(viewer,"muPlus = %.15e # (GPa)\n",_muValPlus);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e # (g/cm^3)\n",_rhoValPlus);CHKERRQ(ierr);
-  }
-  else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
-  {
-    ierr = PetscViewerASCIIPrintf(viewer,"rhoPlus = %.15e # (g/cm^3)\n",_rhoValPlus);CHKERRQ(ierr);
-  }
-  if (_problemType.compare("full")==0)
-  {
-    if (_shearDistribution.compare("basin")==0)
-    {
-      ierr = PetscViewerASCIIPrintf(viewer,"muInMinus = %.15e # (GPa)\n",_muInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"muOutMinus = %.15e # (GPa)\n",_muOutMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoInMinus = %.15e # (g/cm^3)\n",_rhoInMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoOutMinus = %.15e # (g/cm^3)\n",_rhoOutMinus);CHKERRQ(ierr);
-    }
-    else if (_shearDistribution.compare("constant")==0)
-    {
-      ierr = PetscViewerASCIIPrintf(viewer,"muMinus = %.15e # (GPa)\n",_muValMinus);CHKERRQ(ierr);
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e # (g/cm^3)\n",_rhoValMinus);CHKERRQ(ierr);
-    }
-    else if (_shearDistribution.compare("gradient")==0 || _shearDistribution.compare("mms")==0)
-    {
-      ierr = PetscViewerASCIIPrintf(viewer,"rhoMinus = %.15e # (g/cm^3)\n",_rhoValMinus);CHKERRQ(ierr);
-    }
-  }
-  if (_shearDistribution.compare("CVM")==0 )
-  {
-    ierr = PetscViewerASCIIPrintf(viewer,"inputDir = %s\n",_inputDir.c_str());CHKERRQ(ierr);
-  }
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-  ierr = PetscViewerASCIIPrintf(viewer,"loadICs = %i\n",_loadICs);CHKERRQ(ierr);
-
-
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"bCoordTrans = %.15e\n",_bCoordTrans);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-
 
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
@@ -722,20 +514,6 @@ PetscErrorCode Domain::write()
   ierr = VecView(_z,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  //~// output normal stress vector
-  //~str =  _outputDir + "sigma_N";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  if (_problemType.compare("full")==0)
-  {
-    //~ str =  _outputDir + "muMinus";
-    //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-    //~ ierr = MatView(_muM,viewer);CHKERRQ(ierr);
-    //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  }
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending write in domain.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -746,7 +524,7 @@ PetscErrorCode Domain::write()
 
 
 
-PetscErrorCode Domain::setFieldsPlus()
+PetscErrorCode Domain::setFields()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -755,16 +533,14 @@ PetscErrorCode Domain::setFieldsPlus()
 
   PetscScalar    y,z,r,q,csIn,csOut = 0;
 
-  ierr = VecCreate(PETSC_COMM_WORLD,&_muVecP);CHKERRQ(ierr);
-  ierr = VecSetSizes(_muVecP,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_muVecP);CHKERRQ(ierr);
+  ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
+  ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_y); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _y, "y"); CHKERRQ(ierr);
 
-  VecDuplicate(_muVecP,&_csVecP);
-
-  VecDuplicate(_muVecP,&_y); PetscObjectSetName((PetscObject) _y, "y");
-  VecDuplicate(_muVecP,&_z); PetscObjectSetName((PetscObject) _z, "z");
-  VecDuplicate(_muVecP,&_q); PetscObjectSetName((PetscObject) _q, "q");
-  VecDuplicate(_muVecP,&_r); PetscObjectSetName((PetscObject) _r, "r");
+  VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
+  VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
+  VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
 
   // construct coordinate transform
   PetscInt Ii,Istart,Iend;
@@ -819,7 +595,7 @@ PetscErrorCode Domain::setFieldsPlus()
     ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
     ierr = VecLoad(_y,inv);CHKERRQ(ierr);
   }
-  // load depth-variable z instead
+  // load  z instead
   if (_zInputDir.compare("unspecified")!=0) {
     PetscViewer inv; // in viewer
     ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -828,348 +604,8 @@ PetscErrorCode Domain::setFieldsPlus()
     ierr = VecLoad(_z,inv);CHKERRQ(ierr);
   }
 
-  // set shear modulus, shear wave speed, and density
-  // controls on transition in shear modulus
-  r = 0;
-  PetscScalar rbar = 0.25*_width*_width;
-  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
-  //~ PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(_muVecP,&Istart,&Iend);CHKERRQ(ierr);
-  PetscScalar mu,cs = 0;
-  //~ for (Ii=0;Ii<_Ny*_Nz;Ii++) {
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ y = _dy*(Ii/_Nz);
-    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
-    ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
-    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-
-    r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
-
-    if (_shearDistribution.compare("basin")==0) {
-      //~ v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
-
-      csIn = sqrt(_muInPlus/_rhoInPlus);
-      csOut = sqrt(_muOutPlus/_rhoOutPlus);
-      //~ v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
-      //~ _csArrPlus[Ii] = v;
-      cs =  0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
-
-      //~ v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
-      mu = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
-    }
-    else if (_shearDistribution.compare("constant")==0) {
-      //~ _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
-      //~ v = _muValPlus;
-      cs = sqrt(_muValPlus/_rhoValPlus);
-      mu = _muValPlus;
-    }
-    else if (_shearDistribution.compare("gradient")==0) {
-      //~ _csArrPlus[Ii] = sqrt(_muValPlus/_rhoValPlus);
-      //~ v = Ii+2;
-      cs = sqrt(_muValPlus/_rhoValPlus);
-      mu = Ii+2;
-    }
-    else if (_shearDistribution.compare("mms")==0) {
-      //~ v = MMS_mu(y,z);
-      //~ _csArrPlus[Ii] = sqrt(v/_rhoValPlus);
-      if (_Nz == 1) { mu = MMS_mu1D(y); }
-      else { mu = MMS_mu(y,z); }
-      cs = sqrt(mu/_rhoValPlus);
-    }
-    else {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
-      assert(0); // automatically fail
-    }
-    ierr = VecSetValues(_muVecP,1,&Ii,&mu,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValues(_csVecP,1,&Ii,&cs,INSERT_VALUES);CHKERRQ(ierr);
-  }
-  ierr = VecAssemblyBegin(_muVecP);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_csVecP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_muVecP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_csVecP);CHKERRQ(ierr);
-
-  //~ VecView(_csVecP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_muVecP,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_q,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_r,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_y,PETSC_VIEWER_STDOUT_WORLD);
-  //~ VecView(_z,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-
-/*
-  // set DMDA version of shear modulus
-  DMCreateGlobalVector(_da,&_muVecP); PetscObjectSetName((PetscObject) _muVecP, "_muVecP");
-  VecSet(_muVecP,0.0);
-  Vec loutVec, linVec;
-  PetscScalar** lout;
-  PetscScalar** lin;
-  ierr = DMCreateLocalVector(_da, &loutVec);CHKERRQ(ierr);
-  ierr = DMCreateLocalVector(_da, &linVec);CHKERRQ(ierr);
-
-  ierr = DMDAVecGetArray(_da, loutVec, &lout);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalBegin(_da, _muVecP, INSERT_VALUES, linVec);CHKERRQ(ierr);
-  ierr = DMGlobalToLocalEnd(_da, _muVecP, INSERT_VALUES, linVec);CHKERRQ(ierr);
-  ierr = DMDAVecGetArray(_da, linVec, &lin); CHKERRQ(ierr);
-
-  PetscInt yI,zI;
-  //~PetscScalar y,z;
-  for (yI = _yS; yI < _yE; yI++) {
-    for (zI = _zS; zI < _zE; zI++) {
-      if (yI > 0 && yI < _Ny - 1) { lout[yI][zI] = 0.5*(lin[yI+1][zI] - lin[yI-1][zI]); }
-
-      z = zI * _dz;
-      y = yI * _dy;
-      r=y*y + (0.25*_width*_width/_depth/_depth)*z*z;
-
-      if (_shearDistribution.compare("basin")==0) {
-        v = 0.5*(_rhoOutPlus-_rhoInPlus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInPlus;
-
-        csIn = sqrt(_muInPlus/_rhoInPlus);
-        csOut = sqrt(_muOutPlus/_rhoOutPlus);
-        v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
-
-        v = 0.5*(_muOutPlus-_muInPlus)*(tanh((double)(r-rbar)/rw)+1) + _muInPlus;
-      }
-      else if (_shearDistribution.compare("constant")==0) {
-        v = _muValPlus;
-      }
-      else if (_shearDistribution.compare("mms")==0) {
-        v = MMS_mu(y,z);
-      }
-      lout[yI][zI] = v;
-    }
-  }
-
-  ierr = DMDAVecRestoreArray(_da, loutVec, &lout);CHKERRQ(ierr);
-  ierr = DMDAVecRestoreArray(_da, linVec, &lin);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalBegin(_da, loutVec, INSERT_VALUES, _muVecP);CHKERRQ(ierr);
-  ierr = DMLocalToGlobalEnd(_da, loutVec, INSERT_VALUES, _muVecP);CHKERRQ(ierr);
-
-  VecDestroy(&loutVec);
-  VecDestroy(&linVec);
-  */
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
 #endif
 return ierr;
 }
-
-
-// Arrays start at fault and move out to remote boundaries.
-PetscErrorCode Domain::setFieldsMinus()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFields in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  PetscInt       Ii;
-  PetscScalar    v,y,z,csIn,csOut;
-
-  PetscInt *muInds;
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrMinus);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrMinus);CHKERRQ(ierr);
-
-
-  ierr = VecCreate(PETSC_COMM_WORLD,&_muVecM);CHKERRQ(ierr);
-  ierr = VecSetSizes(_muVecM,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_muVecM);CHKERRQ(ierr);
-
-  PetscScalar r = 0;
-  PetscScalar rbar = 0.25*_width*_width;
-  PetscScalar rw = 1+0.25*_width*_width/_depth/_depth;
-  for (Ii=0;Ii<_Ny*_Nz;Ii++) {
-    z = _dz*(Ii-_Nz*(Ii/_Nz));
-    y = -_Ly + _dy*(Ii/_Nz);
-    //~y = - _dy*(Ii/_Nz);
-    r=y*y+(0.25*_width*_width/_depth/_depth)*z*z;
-
-    if (_shearDistribution.compare("basin")==0) {
-      v = 0.5*(_rhoOutMinus-_rhoInMinus)*(tanh((double)(r-rbar)/rw)+1) + _rhoInMinus;
-
-      csIn = sqrt(_muInMinus/_rhoInMinus);
-      csOut = sqrt(_muOutMinus/_rhoOutMinus);
-      v = 0.5*(csOut-csIn)*(tanh((double)(r-rbar)/rw)+1) + csIn;
-      _csArrMinus[Ii] = v;
-
-      v = 0.5*(_muOutMinus-_muInMinus)*(tanh((double)(r-rbar)/rw)+1) + _muInMinus;
-    }
-    else if (_shearDistribution.compare("constant")==0) {
-      _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
-      v = _muValMinus;
-    }
-    else if (_shearDistribution.compare("gradient")==0) {
-       _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
-      v = Ii+2;
-    }
-    else if (_shearDistribution.compare("mms")==0) {
-       _csArrMinus[Ii] = sqrt(_muValMinus/_rhoValMinus);
-      v = sin(y+z) + 2.0;
-    }
-    else {
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: shearDistribution type not understood\n");CHKERRQ(ierr);
-      assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
-    }
-    _muArrMinus[Ii] = v;
-    muInds[Ii] = Ii;
-  }
-  ierr = VecSetValues(_muVecM,_Ny*_Nz,muInds,_muArrMinus,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_muVecM);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_muVecM);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFields in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-return ierr;
-}
-
-
-/*
-PetscErrorCode Domain::setNormalStress()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  VecCreate(PETSC_COMM_WORLD,&_sNEff);
-  VecSetSizes(_sNEff,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_sNEff);     PetscObjectSetName((PetscObject) _sNEff, "_sNEff");
-
-  if (!_shearDistribution.compare("mms")) {
-    //~PetscPrintf(PETSC_COMM_WORLD,"sigma_N_max = %g\n",_sNEff_max);
-    ierr = VecSet(_sNEff,_sNEff_max);CHKERRQ(ierr);
-    //~ierr = VecView(_sNEff,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  }
-  else {
-
-    PetscInt       Ii;
-    PetscScalar z = 0, g=9.8;
-    PetscScalar rhoIn = _muArrPlus[0]/(_csArrPlus[0]*_csArrPlus[0]);
-    PetscScalar rhoOut = _muArrPlus[_Nz-1]/(_csArrPlus[_Nz-1]*_csArrPlus[_Nz-1]);
-    PetscInt    *sigmaInds;
-    ierr = PetscMalloc(_Nz*sizeof(PetscScalar),&_sigmaNArr);CHKERRQ(ierr);
-    ierr = PetscMalloc(_Nz*sizeof(PetscInt),&sigmaInds);CHKERRQ(ierr);
-    for (Ii=0;Ii<_Nz;Ii++)
-    {
-      sigmaInds[Ii] = Ii;
-
-      z = ((double) Ii)*_dz;
-      // gradient following lithostatic - hydrostatic
-      if (Ii<=_depth/_dz) {
-        _sigmaNArr[Ii] = rhoIn*g*z - g*z;
-      }
-      else if (Ii>_depth/_dz) {
-        _sigmaNArr[Ii] = rhoOut*g*(z-_depth) + rhoIn*g*_depth - g*z;
-      }
-
-      // normal stress is > 0 at Earth's surface
-      _sigmaNArr[Ii] += _sNEff_min;
-
-      // cap to represent fluid overpressurization (Lapusta and Rice, 2000)
-      // (in the paper, the max is 50 MPa)
-      _sigmaNArr[Ii] =(PetscScalar) min((double) _sigmaNArr[Ii],_sNEff_max);
-    }
-    ierr = VecSetValues(_sNEff,_Nz,sigmaInds,_sigmaNArr,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecAssemblyBegin(_sNEff);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(_sNEff);CHKERRQ(ierr);
-  }
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setNormalStress in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-return ierr;
-}
-*/
-
-// parse input file and load values into data members
-PetscErrorCode Domain::loadFieldsFromFiles()
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadFieldsFromFiles in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  PetscInt *muInds;
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscInt),&muInds);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_muArrPlus);CHKERRQ(ierr);
-  ierr = PetscMalloc(_Ny*_Nz*sizeof(PetscScalar),&_csArrPlus);CHKERRQ(ierr);
-
-
-  PetscViewer inv;
-  //~ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-
-
-  // Create a local vector containing cs on each processor (may not work in parallel!!)
-  // and put resulting data into array.
-  Vec  localCs;
-  PetscScalar cs;
-  string vecSourceFile = _inputDir + "cs";
-  ierr = VecCreateSeq(PETSC_COMM_SELF,_Ny*_Nz,&localCs);CHKERRQ(ierr);
-  ierr = PetscViewerCreate(PETSC_COMM_SELF,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_SELF,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);
-  ierr = VecLoad(localCs,inv);
-
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(localCs,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr =  VecGetValues(localCs,1,&Ii,&cs);CHKERRQ(ierr);
-    _csArrPlus[Ii] = cs;
-  }
-
-
-  // load shear modulus distribution from file, put into _muArrPlus AND _muP
-  Vec  localMu;
-  PetscScalar mu;
-  vecSourceFile = _inputDir + "shear";
-  ierr = VecCreateSeq(PETSC_COMM_SELF,_Ny*_Nz,&localMu);CHKERRQ(ierr);
-  ierr = PetscViewerCreate(PETSC_COMM_SELF,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_SELF,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);
-  ierr = VecLoad(localMu,inv);
-
-  ierr = VecGetOwnershipRange(localMu,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr =  VecGetValues(localMu,1,&Ii,&mu);CHKERRQ(ierr);
-    _muArrPlus[Ii] = mu;
-    muInds[Ii] = Ii;
-  }
-
-  Vec muVec;
-  ierr = VecCreate(PETSC_COMM_WORLD,&muVec);CHKERRQ(ierr);
-  ierr = VecSetSizes(muVec,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(muVec);CHKERRQ(ierr);
-  ierr = VecSetValues(muVec,_Ny*_Nz,muInds,_muArrPlus,INSERT_VALUES);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(muVec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(muVec);CHKERRQ(ierr);
-
-  //~ ierr = MatSetSizes(_muP,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);CHKERRQ(ierr);
-  //~ ierr = MatSetFromOptions(_muP);CHKERRQ(ierr);
-  //~ ierr = MatMPIAIJSetPreallocation(_muP,1,NULL,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSeqAIJSetPreallocation(_muP,1,NULL);CHKERRQ(ierr);
-  //~ ierr = MatSetUp(_muP);CHKERRQ(ierr);
-  //~ ierr = MatDiagonalSet(_muP,muVec,INSERT_VALUES);CHKERRQ(ierr);
-
-
-
-  //~// load viscosity from input file
-  //~ierr = VecCreate(PETSC_COMM_WORLD,&_visc);CHKERRQ(ierr);
-  //~ierr = VecSetSizes(_visc,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  //~ierr = VecSetFromOptions(_visc);
-  //~PetscObjectSetName((PetscObject) _visc, "_visc");
-  //~ierr = loadVecFromInputFile(_visc,_inputDir, "visc");CHKERRQ(ierr);
-
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadFieldsFromFiles in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-

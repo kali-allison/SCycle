@@ -103,6 +103,63 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode psuedoTS_evaluateIRHS(Vec&F,PetscReal time,Vec& g,Vec& g_t);
     PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec& g);
 
+
+
+    // MMS functions
+    static double zzmms_sigmaxz(const double y,const double z,const double t);
+
+    static double zzmms_visc(const double y,const double z);
+    static double zzmms_invVisc(const double y,const double z);
+    static double zzmms_invVisc_y(const double y,const double z);
+    static double zzmms_invVisc_z(const double y,const double z);
+
+    static double zzmms_gxy(const double y,const double z,const double t);
+    static double zzmms_gxy_y(const double y,const double z,const double t);
+    static double zzmms_gxy_t(const double y,const double z,const double t);
+
+    static double zzmms_gxz(const double y,const double z,const double t);
+    static double zzmms_gxz_z(const double y,const double z,const double t);
+    static double zzmms_gxz_t(const double y,const double z,const double t);
+    static double zzmms_max_gxy_t_source(const double y,const double z,const double t);
+    static double zzmms_max_gxz_t_source(const double y,const double z,const double t);
+    static double zzmms_gSource(const double y,const double z,const double t);
+
+    static double zzmms_A(const double y,const double z);
+    static double zzmms_B(const double y,const double z);
+    static double zzmms_T(const double y,const double z);
+    static double zzmms_n(const double y,const double z);
+    static double zzmms_pl_sigmaxy(const double y,const double z,const double t);
+    static double zzmms_pl_sigmaxz(const double y,const double z,const double t);
+    static double zzmms_sigmadev(const double y,const double z,const double t);
+
+    static double zzmms_pl_gSource(const double y,const double z,const double t);
+    static double zzmms_pl_gxy_t_source(const double y,const double z,const double t);
+    static double zzmms_pl_gxz_t_source(const double y,const double z,const double t);
+
+
+    // 1D
+    static double zzmms_visc1D(const double y);
+    static double zzmms_invVisc1D(const double y);
+    static double zzmms_invVisc_y1D(const double y);
+    static double zzmms_invVisc_z1D(const double y);
+
+    static double zzmms_gxy1D(const double y,const double t);
+    static double zzmms_gxy_y1D(const double y,const double t);
+    static double zzmms_gxy_t1D(const double y,const double t);
+    static double zzmms_gSource1D(const double y,const double t);
+
+    static double zzmms_A1D(const double y);
+    static double zzmms_B1D(const double y);
+    static double zzmms_T1D(const double y);
+    static double zzmms_n1D(const double y);
+    static double zzmms_pl_sigmaxy1D(const double y,const double t);
+    static double zzmms_pl_sigmaxz1D(const double y,const double t);
+    static double zzmms_sigmadev1D(const double y,const double t);
+
+    static double zzmms_pl_gSource1D(const double y,const double t);
+    static double zzmms_pl_gxy_t_source1D(const double y,const double t);
+    static double zzmms_pl_gxz_t_source1D(const double y,const double t);
+
 };
 
 PetscErrorCode computeIJacobian(TS ts,PetscReal t,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);

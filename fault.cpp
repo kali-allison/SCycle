@@ -8,15 +8,12 @@ using namespace std;
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_stateLaw("agingLaw"),
   _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
-  _problemType(D._problemType),
-  _depth(D._depth),_width(D._width),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
   _sigmaN_cap(1e14),_sNEff(NULL),
-  _muVecP(&D._muVecP),_csVecP(&D._csVecP),
   _slip(NULL),_slipVel(NULL),
   _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
   _psiViewer(NULL),_thetaViewer(NULL),_tempViewer(NULL),
@@ -334,6 +331,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
   }
 
 
@@ -1299,7 +1297,8 @@ PetscErrorCode SymmFault::writeStep(const string outputDir,const PetscInt step)
 
 //================= FullFault Functions (both + and - sides) ===========
 FullFault::FullFault(Domain&D, HeatEquation& He)
-: Fault(D,He),_zM(NULL),_muArrMinus(D._muArrMinus),_csArrMinus(D._csArrMinus),
+: Fault(D,He),_zM(NULL),
+//~ _muArrMinus(D._muArrMinus),_csArrMinus(D._csArrMinus),
   _arrSize(D._Ny*D._Nz),
   _uP(NULL),_uM(NULL),_velPlus(NULL),_velMinus(NULL),
   _uPlusViewer(NULL),_uMV(NULL),_velPlusViewer(NULL),_velMinusViewer(NULL),
@@ -1356,6 +1355,14 @@ PetscErrorCode Fault::loadSettings(const char *file)
       loadVectorFromInputFile(str,_DcDepths);
     }
 
+    else if (var.compare("impedanceVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_impedanceVals);
+    }
+    else if (var.compare("impedanceDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_impedanceDepths);
+    }
     else if (var.compare("sigmaNVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNVals);

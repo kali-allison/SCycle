@@ -272,16 +272,16 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   }
   else {
     if (_viscDistribution.compare("mms")==0) {
-      //~ mapToVec(_A,MMS_A,_Nz,_dy,_dz);
-      //~ mapToVec(_B,MMS_B,_Nz,_dy,_dz);
-      //~ mapToVec(_n,MMS_n,_Nz,_dy,_dz);
+      //~ mapToVec(_A,zzmms_A,_Nz,_dy,_dz);
+      //~ mapToVec(_B,zzmms_B,_Nz,_dy,_dz);
+      //~ mapToVec(_n,zzmms_n,_Nz,_dy,_dz);
 
-      if (_Nz == 1) { mapToVec(_A,MMS_A1D,*_y); }
-      else { mapToVec(_A,MMS_A,*_y,*_z); }
-      if (_Nz == 1) { mapToVec(_B,MMS_B1D,*_y); }
-      else { mapToVec(_B,MMS_B,*_y,*_z); }
-      if (_Nz == 1) { mapToVec(_n,MMS_n1D,*_y); }
-      else { mapToVec(_n,MMS_n,*_y,*_z); }
+      if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
+      else { mapToVec(_A,zzmms_A,*_y,*_z); }
+      if (_Nz == 1) { mapToVec(_B,zzmms_B1D,*_y); }
+      else { mapToVec(_B,zzmms_B,*_y,*_z); }
+      if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
+      else { mapToVec(_n,zzmms_n,*_y,*_z); }
     }
     else if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
     else {
@@ -475,13 +475,13 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D)
   std::string bcLType = "Neumann";
 
   if (_sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_c(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbpP = new SbpOps_fc(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,D._muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -624,10 +624,10 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   #endif
 
   PetscScalar time = _initTime;
-  if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
-  else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(_gxyP,zzmms_gxy1D,*_y,time); }
+  else { mapToVec(_gxyP,zzmms_gxy,*_y,*_z,time); }
   if (_Nz == 1) { VecSet(_gxzP,0.0); }
-  else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
+  else { mapToVec(_gxzP,zzmms_gxz,*_y,*_z,time); }
 
   //~ ierr = VecCopy(_gxyP,*(_var.begin()+3)); CHKERRQ(ierr);
   //~ ierr = VecCopy(_gxzP,*(_var.begin()+4)); CHKERRQ(ierr);
@@ -635,16 +635,16 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = VecCopy(_gxzP,_varEx["gVxz"]); CHKERRQ(ierr);
 
   // set material properties
-  if (_Nz == 1) { mapToVec(_muVecP,MMS_mu1D,*_y); }
-  else { mapToVec(_muVecP,MMS_mu,*_y,*_z); }
-  if (_Nz == 1) { mapToVec(_A,MMS_A1D,*_y); }
-  else { mapToVec(_A,MMS_A,*_y,*_z); }
-  if (_Nz == 1) { mapToVec(_B,MMS_B1D,*_y); }
-  else { mapToVec(_B,MMS_B,*_y,*_z); }
-  if (_Nz == 1) { mapToVec(_n,MMS_n1D,*_y); }
-  else { mapToVec(_n,MMS_n,*_y,*_z); }
-  if (_Nz == 1) { mapToVec(_T,MMS_T1D,*_y); }
-  else { mapToVec(_T,MMS_T,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_muVecP,zzmms_mu1D,*_y); }
+  else { mapToVec(_muVecP,zzmms_mu,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
+  else { mapToVec(_A,zzmms_A,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_B,zzmms_B1D,*_y); }
+  else { mapToVec(_B,zzmms_B,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
+  else { mapToVec(_n,zzmms_n,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_T,zzmms_T1D,*_y); }
+  else { mapToVec(_T,zzmms_T,*_y,*_z); }
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time);CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
@@ -659,12 +659,12 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
 
   //~ ierr = setViscStrainSourceTerms(viscSource,*(_var.begin()+3),*(_var.begin()+4));CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,_varEx["gVxy"],_varEx["gVxy"]);CHKERRQ(ierr);
-  if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,_currTime); }
-  else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,_currTime); }
+  else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,_currTime); }
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS); CHKERRQ(ierr);
   VecDestroy(&viscSourceMMS);
-  if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,_currTime); }
-  else { mapToVec(uSource,MMS_uSource,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(uSource,zzmms_uSource1D,*_y,_currTime); }
+  else { mapToVec(uSource,zzmms_uSource,*_y,*_z,_currTime); }
   ierr = _sbpP->H(uSource,HxuSource); CHKERRQ(ierr);
   VecDestroy(&uSource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -954,10 +954,10 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   VecCopy(varEx.find("gVxz")->second,_gxzP);
 
   // force viscous strains to be correct
-  //~ if (_Nz == 1) { mapToVec(_gxyP,MMS_gxy1D,*_y,time); }
-  //~ else { mapToVec(_gxyP,MMS_gxy,*_y,*_z,time); }
-  //~ if (_Nz == 1) { mapToVec(_gxzP,MMS_gxy1D,*_y,time); }
-  //~ else { mapToVec(_gxzP,MMS_gxz,*_y,*_z,time); }
+  //~ if (_Nz == 1) { mapToVec(_gxyP,zzmms_gxy1D,*_y,time); }
+  //~ else { mapToVec(_gxyP,zzmms_gxy,*_y,*_z,time); }
+  //~ if (_Nz == 1) { mapToVec(_gxzP,zzmms_gxy1D,*_y,time); }
+  //~ else { mapToVec(_gxzP,zzmms_gxz,*_y,*_z,time); }
 
   // create rhs: set boundary conditions, set rhs, add source terms
   ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
@@ -972,12 +972,12 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
 
   //~ ierr = setViscStrainSourceTerms(viscSource,_var.begin());CHKERRQ(ierr);
   ierr = setViscStrainSourceTerms(viscSource,_gxyP,_gxzP); CHKERRQ(ierr);
-  if (_Nz == 1) { mapToVec(viscSourceMMS,MMS_gSource1D,*_y,time); }
-  else { mapToVec(viscSourceMMS,MMS_gSource,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,time); }
+  else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,time); }
   ierr = _sbpP->H(viscSourceMMS,HxviscSourceMMS);
   VecDestroy(&viscSourceMMS);
-  if (_Nz == 1) { mapToVec(uSource,MMS_uSource1D,*_y,time); }
-  else { mapToVec(uSource,MMS_uSource,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(uSource,zzmms_uSource1D,*_y,time); }
+  else { mapToVec(uSource,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbpP->H(uSource,HxuSource);
   VecDestroy(&uSource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -1000,13 +1000,13 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   _linSolveCount++;
   ierr = setSurfDisp();
 
-  //~ mapToVec(_uP,MMS_uA,*_y,*_z,time);
+  //~ mapToVec(_uP,zzmms_uA,*_y,*_z,time);
 
   // update stresses
   ierr = setStresses(time); CHKERRQ(ierr);
-  //~ mapToVec(_sxyP,MMS_pl_sigmaxy,*_y,*_z,_currTime);
-  //~ mapToVec(_sxzP,MMS_pl_sigmaxz,*_y,*_z,_currTime);
-  //~ mapToVec(_sigmadev,MMS_sigmadev,*_y,*_z,_currTime);
+  //~ mapToVec(_sxyP,zzmms_pl_sigmaxy,*_y,*_z,_currTime);
+  //~ mapToVec(_sxzP,zzmms_pl_sigmaxz,*_y,*_z,_currTime);
+  //~ mapToVec(_sigmadev,zzmms_sigmadev,*_y,*_z,_currTime);
   computeViscosity();
 
   // update rates
@@ -1014,12 +1014,12 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   ierr = setViscStrainRates(time,_gxyP,_gxzP,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
   Vec source;
   VecDuplicate(_uP,&source);
-  if (_Nz == 1) { mapToVec(source,MMS_pl_gxy_t_source1D,*_y,_currTime); }
-  else { mapToVec(source,MMS_pl_gxy_t_source,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxy_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,zzmms_pl_gxy_t_source,*_y,*_z,_currTime); }
   //~ VecAXPY(*(dvarBegin+3),1.0,source);
   VecAXPY(dvarEx["gVxy"],1.0,source);
-  if (_Nz == 1) { mapToVec(source,MMS_pl_gxz_t_source1D,*_y,_currTime); }
-  else { mapToVec(source,MMS_pl_gxz_t_source,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxz_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,zzmms_pl_gxz_t_source,*_y,*_z,_currTime); }
   //~ VecAXPY(*(dvarBegin+4),1.0,source);
   VecAXPY(dvarEx["gVxz"],1.0,source);
   VecDestroy(&source);
@@ -1032,8 +1032,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   VecSet(dvarEx["psi"],0.0); // dstate psi
   VecSet(dvarEx["slip"],0.0); // slip vel
 
-  //~ mapToVec(*(dvarBegin+3),MMS_gxy_t,*_y,*_z,time);
-  //~ mapToVec(*(dvarBegin+4),MMS_gxz_t,*_y,*_z,time);
+  //~ mapToVec(*(dvarBegin+3),zzmms_gxy_t,*_y,*_z,time);
+  //~ mapToVec(*(dvarBegin+4),zzmms_gxz_t,*_y,*_z,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1337,13 +1337,13 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
   if (_Nz == 1) {
     Ii = Istart;
     y = 0;
-    if (!_bcLType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=0,z)
-    else if (!_bcLType.compare("Neumann")) { v = MMS_mu1D(y) * (MMS_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
+    if (!_bcLType.compare("Dirichlet")) { v = zzmms_uA1D(y,time); } // uAnal(y=0,z)
+    else if (!_bcLType.compare("Neumann")) { v = zzmms_mu1D(y) * (zzmms_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!_bcRType.compare("Dirichlet")) { v = MMS_uA1D(y,time); } // uAnal(y=Ly,z)
-    else if (!_bcRType.compare("Neumann")) { v = MMS_mu1D(y) * (MMS_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
+    if (!_bcRType.compare("Dirichlet")) { v = zzmms_uA1D(y,time); } // uAnal(y=Ly,z)
+    else if (!_bcRType.compare("Neumann")) { v = zzmms_mu1D(y) * (zzmms_uA_y1D(y,time)); } // sigma_xy = mu * d/dy u
     ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   else {
@@ -1352,13 +1352,13 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
       ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
 
       y = 0;
-      if (!_bcLType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=0,z)
-      else if (!_bcLType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time));} // sigma_xy = mu * d/dy u
+      if (!_bcLType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); } // uAnal(y=0,z)
+      else if (!_bcLType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_y(y,z,time)- zzmms_gxy(y,z,time));} // sigma_xy = mu * d/dy u
       ierr = VecSetValues(_bcLP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       y = _Ly;
-      if (!_bcRType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y=Ly,z)
-      else if (!_bcRType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_y(y,z,time)- MMS_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
+      if (!_bcRType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); } // uAnal(y=Ly,z)
+      else if (!_bcRType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_y(y,z,time)- zzmms_gxy(y,z,time)); } // sigma_xy = mu * d/dy u
       ierr = VecSetValues(_bcRP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -1377,15 +1377,15 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
     PetscInt Jj = Ii / _Nz;
 
     z = 0;
-    if (!_bcTType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=0)
-    else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time)); }
-    //~ else if (!_bcTType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    if (!_bcTType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); } // uAnal(y,z=0)
+    else if (!_bcTType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time) - zzmms_gxz(y,z,time)); }
+    //~ else if (!_bcTType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcTP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
-    if (!_bcBType.compare("Dirichlet")) { v = MMS_uA(y,z,time); } // uAnal(y,z=Lz)
-    else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time) - MMS_gxz(y,z,time));}
-    //~ else if (!_bcBType.compare("Neumann")) { v = MMS_mu(y,z) * (MMS_uA_z(y,z,time)); }
+    if (!_bcBType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); } // uAnal(y,z=Lz)
+    else if (!_bcBType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time) - zzmms_gxz(y,z,time));}
+    //~ else if (!_bcBType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time)); }
     ierr = VecSetValues(_bcBP,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -1521,12 +1521,12 @@ PetscErrorCode PowerLaw::measureMMSError()
   VecDuplicate(_uP,&gxyA);
   VecDuplicate(_uP,&gxzA);
 
-  if (_Nz == 1) { mapToVec(uA,MMS_uA1D,*_y,_currTime); }
-  else { mapToVec(uA,MMS_uA,*_y,*_z,_currTime); }
-    if (_Nz == 1) { mapToVec(gxyA,MMS_gxy1D,*_y,_currTime); }
-  else { mapToVec(gxyA,MMS_gxy,*_y,*_z,_currTime); }
-  if (_Nz == 1) { mapToVec(gxzA,MMS_gxy1D,*_y,_currTime); }
-  else { mapToVec(gxzA,MMS_gxz,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(uA,zzmms_uA1D,*_y,_currTime); }
+  else { mapToVec(uA,zzmms_uA,*_y,*_z,_currTime); }
+    if (_Nz == 1) { mapToVec(gxyA,zzmms_gxy1D,*_y,_currTime); }
+  else { mapToVec(gxyA,zzmms_gxy,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(gxzA,zzmms_gxy1D,*_y,_currTime); }
+  else { mapToVec(gxzA,zzmms_gxz,*_y,*_z,_currTime); }
 
   writeVec(uA,_outputDir+"mms_uA");
   writeVec(gxyA,_outputDir+"mms_gxyA");
@@ -2392,6 +2392,245 @@ PetscErrorCode PowerLaw::psuedoTS_computeIJacobian(Mat& J,PetscReal time,Vec& g,
   return ierr;
 }
 
+
+// MMS functions
+double PowerLaw::zzmms_sigmaxz(const double y,const double z, const double t)
+{ return zzmms_mu(y,z)*zzmms_uA_z(y,z,t); }
+
+
+// specific MMS functions
+double PowerLaw::zzmms_visc(const double y,const double z) { return cos(y)*cos(z) + 2e10; }
+double PowerLaw::zzmms_invVisc(const double y,const double z) { return 1.0/zzmms_visc(y,z); }
+double PowerLaw::zzmms_invVisc_y(const double y,const double z)
+{ return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e10, 2.0); }
+double PowerLaw::zzmms_invVisc_z(const double y,const double z)
+{ return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e10 ,2.0); }
+
+double PowerLaw::zzmms_gxy(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double fy = zzmms_f_y(y,z);
+  //~ return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  return T1*A*fy/(T1*A-1)*(exp(-t/T1)-exp(-A*t))
+       - T2*A*fy/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
+       + T3*A*fy/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
+}
+double PowerLaw::zzmms_gxy_y(const double y,const double z,const double t)
+{
+  //~return 0.5 * zzmms_uA_yy(y,z,t);
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double Ay = zzmms_mu_y(y,z)*zzmms_invVisc(y,z) + zzmms_mu(y,z)*zzmms_invVisc_y(y,z);
+  double fy = zzmms_f_y(y,z);
+  double fyy = zzmms_f_yy(y,z);
+
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
+  double out1 = -pow(T1,2.0)*A*Ay*fy/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fy*Ay/d1 *(exp(-t/T1)-exp(-A*t))
+      +T1*A*Ay*fy*exp(-A*t)*t/d1 + T1*A*fyy/d1*(exp(-t/T1)-exp(-A*t));
+  double out2 = pow(T2,2.0)*A*Ay*fy/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fy*Ay/d2 *(exp(-t/T2)-exp(-A*t))
+       -T2*A*Ay*fy*exp(-A*t)*t/d2 - T2*A*fyy/d2*(exp(-t/T2)-exp(-A*t));
+  double out3 = -pow(T3,2.0)*A*Ay*fy/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fy*Ay/d3 *(exp(-t/T3)-exp(-A*t))
+       +T3*A*Ay*fy*exp(-A*t)*t/d3 + T3*A*fyy/d3*(exp(-t/T3)-exp(-A*t));
+  return out1 + out2 + out3;
+
+}
+double PowerLaw::zzmms_gxy_t(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double fy = zzmms_f_y(y,z);
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  return T1*A*fy/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
+       - T2*A*fy/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
+       + T3*A*fy/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
+}
+
+double PowerLaw::zzmms_gxz(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double fz = zzmms_f_z(y,z);
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  return T1*A*fz/(T1*A-1)*(exp(-t/T1)-exp(-A*t))
+       - T2*A*fz/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
+       + T3*A*fz/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
+}
+double PowerLaw::zzmms_gxz_z(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double Az = zzmms_mu_z(y,z)*zzmms_invVisc(y,z) + zzmms_mu(y,z)*zzmms_invVisc_z(y,z);
+  double fz = zzmms_f_z(y,z);
+  double fzz = zzmms_f_zz(y,z);
+  //~ double den = A-1.0, B = exp(-t)-exp(-A*t);
+  //~ return t*A*Az*fz*exp(-A*t)/den - A*fz*Az*B/pow(den,2.0) + fz*Az*B/den + A*fzz*B/den;
+
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
+  double out1 = -pow(T1,2.0)*A*Az*fz/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fz*Az/d1 *(exp(-t/T1)-exp(-A*t))
+      +T1*A*Az*fz*exp(-A*t)*t/d1 + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
+  double out2 = pow(T2,2.0)*A*Az*fz/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fz*Az/d2 *(exp(-t/T2)-exp(-A*t))
+       -T2*A*Az*fz*exp(-A*t)*t/d2 - T2*A*fzz/d2*(exp(-t/T2)-exp(-A*t));
+  double out3 = -pow(T3,2.0)*A*Az*fz/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fz*Az/d3 *(exp(-t/T3)-exp(-A*t))
+       +T3*A*Az*fz*exp(-A*t)*t/d3 + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
+  return out1 + out2 + out3;
+}
+double PowerLaw::zzmms_gxz_t(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double fz = zzmms_f_z(y,z);
+  //~ return A*fz/(A-1.0)*(-exp(-t) + A*exp(-A*t));
+  double T1 = 60, T2 = 3e7, T3 = 3e9;
+  return T1*A*fz/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
+       - T2*A*fz/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
+       + T3*A*fz/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
+}
+
+// source terms for viscous strain rates
+double PowerLaw::zzmms_max_gxy_t_source(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double uy = zzmms_uA_y(y,z,t);
+  double g = zzmms_gxy(y,z,t);
+
+  return zzmms_gxy_t(y,z,t) - A*(uy - g);
+}
+double PowerLaw::zzmms_max_gxz_t_source(const double y,const double z,const double t)
+{
+  double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
+  double uz = zzmms_uA_z(y,z,t);
+  double g = zzmms_gxz(y,z,t);
+
+  return zzmms_gxz_t(y,z,t) - A*(uz - g);
+}
+
+double PowerLaw::zzmms_gSource(const double y,const double z,const double t)
+{
+  PetscScalar mu = zzmms_mu(y,z);
+  PetscScalar mu_y = zzmms_mu_y(y,z);
+  PetscScalar mu_z = zzmms_mu_z(y,z);
+  PetscScalar gxy = zzmms_gxy(y,z,t);
+  PetscScalar gxz = zzmms_gxz(y,z,t);
+  PetscScalar gxy_y = zzmms_gxy_y(y,z,t);
+  PetscScalar gxz_z = zzmms_gxz_z(y,z,t);
+  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
+}
+
+double PowerLaw::zzmms_A(const double y,const double z) { return cos(y)*cos(z) + 398; }
+double PowerLaw::zzmms_B(const double y,const double z) { return sin(y)*sin(z) + 4.28e4; }
+double PowerLaw::zzmms_T(const double y,const double z) { return sin(y)*cos(z) + 800; }
+double PowerLaw::zzmms_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
+double PowerLaw::zzmms_pl_sigmaxy(const double y,const double z,const double t) { return zzmms_mu(y,z)*(zzmms_uA_y(y,z,t) - zzmms_gxy(y,z,t)); }
+double PowerLaw::zzmms_pl_sigmaxz(const double y,const double z, const double t) { return zzmms_mu(y,z)*(zzmms_uA_z(y,z,t) - zzmms_gxz(y,z,t)); }
+double PowerLaw::zzmms_sigmadev(const double y,const double z,const double t)
+{
+  return sqrt( pow(zzmms_pl_sigmaxy(y,z,t),2.0) + pow(zzmms_pl_sigmaxz(y,z,t),2.0) );
+}
+
+
+// source terms for viscous strain rates
+double PowerLaw::zzmms_pl_gxy_t_source(const double y,const double z,const double t)
+{
+  double A = zzmms_A(y,z);
+  double B = zzmms_B(y,z);
+  double n = zzmms_n(y,z);
+  double T = zzmms_T(y,z);
+  double sigmadev = zzmms_sigmadev(y,z,t) * 1.0;
+  double sigmaxy = zzmms_pl_sigmaxy(y,z,t);
+  double effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
+  double v = sigmaxy/effVisc;
+
+  return zzmms_gxy_t(y,z,t) - v;
+}
+double PowerLaw::zzmms_pl_gxz_t_source(const double y,const double z,const double t)
+{
+  double A = zzmms_A(y,z);
+  double B = zzmms_B(y,z);
+  double n = zzmms_n(y,z);
+  double T = zzmms_T(y,z);
+  double sigmadev = zzmms_sigmadev(y,z,t);
+  double sigmaxz = zzmms_pl_sigmaxz(y,z,t);
+  double effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
+  double v = sigmaxz/effVisc;
+
+  return zzmms_gxz_t(y,z,t) - v;
+}
+
+
+double PowerLaw::zzmms_visc1D(const double y) { return cos(y) + 20.0; }
+double PowerLaw::zzmms_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
+double PowerLaw::zzmms_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
+double PowerLaw::zzmms_invVisc_z1D(const double y) { return 0; }
+
+double PowerLaw::zzmms_gxy1D(const double y,const double t)
+{
+  double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
+  double fy = zzmms_f_y1D(y);
+  return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
+}
+double PowerLaw::zzmms_gxy_y1D(const double y,const double t)
+{
+  double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
+  double Ay = zzmms_mu_y1D(y)*zzmms_invVisc1D(y) + zzmms_mu1D(y)*zzmms_invVisc_y1D(y);
+  double fy = zzmms_f_y1D(y);
+  double fyy = zzmms_f_yy1D(y);
+  double den = A-1.0, B = exp(-t)-exp(-A*t);
+  return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
+}
+double PowerLaw::zzmms_gxy_t1D(const double y,const double t)
+{
+  double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
+  double fy = zzmms_f_y1D(y);
+  return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
+}
+
+double PowerLaw::zzmms_gSource1D(const double y,const double t)
+{
+  PetscScalar mu = zzmms_mu1D(y);
+  PetscScalar mu_y = zzmms_mu_y1D(y);
+  PetscScalar gxy = zzmms_gxy1D(y,t);
+  PetscScalar gxy_y = zzmms_gxy_y1D(y,t);
+  return -mu*gxy_y - mu_y*gxy;
+}
+
+
+
+// specific to power law
+double PowerLaw::zzmms_A1D(const double y) { return cos(y) + 1e-9; }
+double PowerLaw::zzmms_B1D(const double y) { return sin(y) + 1.44e4; }
+double PowerLaw::zzmms_T1D(const double y) { return sin(y) + 600; }
+double PowerLaw::zzmms_n1D(const double y) { return cos(y) + 3.0; }
+double PowerLaw::zzmms_pl_sigmaxy1D(const double y,const double t)
+{ return zzmms_mu1D(y)*(zzmms_uA_y1D(y,t) - zzmms_gxy1D(y,t)); }
+double PowerLaw::zzmms_pl_sigmaxz1D(const double y,const double t) { return 0; }
+double PowerLaw::zzmms_sigmadev1D(const double y,const double t)
+{ return sqrt( pow(zzmms_pl_sigmaxy1D(y,t),2.0)); }
+
+
+// source terms for viscous strain rates
+double PowerLaw::zzmms_pl_gxy_t_source1D(const double y,const double t)
+{
+  double A = zzmms_A1D(y);
+  double B = zzmms_B1D(y);
+  double n = zzmms_n1D(y);
+  double T = zzmms_T1D(y);
+  double sigmadev = zzmms_sigmadev1D(y,t);
+  double sigmaxy = zzmms_pl_sigmaxy1D(y,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxy*1e-3;
+
+  return zzmms_gxy_t1D(y,t) - v;
+}
+double PowerLaw::zzmms_pl_gxz_t_source1D(const double y,const double t)
+{
+  double A = zzmms_A1D(y);
+  double B = zzmms_B1D(y);
+  double n = zzmms_n1D(y);
+  double T = zzmms_T1D(y);
+  double sigmadev = zzmms_sigmadev1D(y,t);
+  double sigmaxz = zzmms_pl_sigmaxz1D(y,t);
+  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxz*1e-3;
+
+  //~ return zzmms_gxz_t1D(y,t) - v;
+  return  - v;
+}
 
 //======================================================================
 //======================================================================

@@ -400,11 +400,11 @@ PetscErrorCode ierr = 0;
   }
   else {
     if (_heatFieldsDistribution.compare("mms")==0) {
-      mapToVec(_k,MMS_he1_k,*_y,*_z);
-      mapToVec(_rho,MMS_he1_rho,*_y,*_z);
-      mapToVec(_c,MMS_he1_c,*_y,*_z);
-      mapToVec(_h,MMS_he1_h,*_y,*_z);
-      mapToVec(_T,MMS_he1_T,*_y,*_z,0.0);
+      mapToVec(_k,zzmms_he1_k,*_y,*_z);
+      mapToVec(_rho,zzmms_he1_rho,*_y,*_z);
+      mapToVec(_c,zzmms_he1_c,*_y,*_z);
+      mapToVec(_h,zzmms_he1_h,*_y,*_z);
+      mapToVec(_T,zzmms_he1_T,*_y,*_z,0.0);
     }
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
@@ -417,11 +417,11 @@ PetscErrorCode ierr = 0;
   }
 
   {
-  double f = MMS_he_f(1.,2.);
+  double f = zzmms_he_f(1.,2.);
   Vec fV;
   VecDuplicate(_k,&fV);
   VecSet(fV,0.0);
-  mapToVec(fV,MMS_he_f,*_y,*_z);
+  mapToVec(fV,zzmms_he_f,*_y,*_z);
   //~ VecView(fV,PETSC_VIEWER_STDOUT_WORLD);
   assert(0);
   }
@@ -530,9 +530,9 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp(Domain& D)
     if (_Nz == 1) { VecSet(_T,_TVals[0]); }
     else {
       if (_heatFieldsDistribution.compare("mms")==0) {
-        if (_Nz == 1) { mapToVec(_T,MMS_T1D,*_y); }
-        else { mapToVec(_T,MMS_T,*_y,*_z); }
-        //~ mapToVec(_T,MMS_T,_Nz,_dy,_dz);
+        if (_Nz == 1) { mapToVec(_T,zzmms_T1D,*_y); }
+        else { mapToVec(_T,zzmms_T,*_y,*_z); }
+        //~ mapToVec(_T,zzmms_T,_Nz,_dy,_dz);
       }
       else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
       else { ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr); }
@@ -705,7 +705,7 @@ PetscErrorCode HeatEquation::integrate()
   // put variables to be integrated into var
   std::vector<Vec>    _var; // holds variables for explicit integration in time
   Vec varT; VecDuplicate(_T,&varT);
-  mapToVec(_T,MMS_he1_T,*_y,*_z,0.0);
+  mapToVec(_T,zzmms_he1_T,*_y,*_z,0.0);
   VecCopy(_T,varT);
   _var.push_back(varT);
   ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
@@ -738,9 +738,9 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const map<string,Vec>& 
 
     //~ ierr = d_dt_mms(time,*varBegin,*dvarBegin); CHKERRQ(ierr);
 
-    //~ mapToVec(_T,MMS_he1_T,*_y,*_z,time);
+    //~ mapToVec(_T,zzmms_he1_T,*_y,*_z,time);
     //~ VecCopy(*varBegin,_T);
-    //~ mapToVec(*dvarBegin,MMS_he1_T_t,*_y,*_z,time);
+    //~ mapToVec(*dvarBegin,zzmms_he1_T_t,*_y,*_z,time);
 
 
   #if VERBOSE > 1
@@ -803,13 +803,13 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   for(Ii=Istart;Ii<Iend;Ii++) {
     z = _dz * Ii;
     y = 0;
-    if (!bcLType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); }
-    else if (!bcLType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_y(y,z,time); }
+    if (!bcLType.compare("Dirichlet")) { v = zzmms_he1_T(y,z,time); }
+    else if (!bcLType.compare("Neumann")) { v = zzmms_he1_k(y,z)*zzmms_he1_T_y(y,z,time); }
     ierr = VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!bcRType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); }
-    else if (!bcRType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_y(y,z,time); }
+    if (!bcRType.compare("Dirichlet")) { v = zzmms_he1_T(y,z,time); }
+    else if (!bcRType.compare("Neumann")) { v = zzmms_he1_k(y,z)*zzmms_he1_T_y(y,z,time); }
     ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcL);CHKERRQ(ierr);
@@ -823,13 +823,13 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
     y = _dy * Ii;
 
     z = 0;
-    if (!bcTType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); } // uAnal(y,z=0)
-    else if (!bcTType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_z(y,z,time); }
+    if (!bcTType.compare("Dirichlet")) { v = zzmms_he1_T(y,z,time); } // uAnal(y,z=0)
+    else if (!bcTType.compare("Neumann")) { v = zzmms_he1_k(y,z)*zzmms_he1_T_z(y,z,time); }
     ierr = VecSetValues(_bcT,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
-    if (!bcBType.compare("Dirichlet")) { v = MMS_he1_T(y,z,time); } // uAnal(y,z=Lz)
-    else if (!bcBType.compare("Neumann")) { v = MMS_he1_k(y,z)*MMS_he1_T_z(y,z,time); }
+    if (!bcBType.compare("Dirichlet")) { v = zzmms_he1_T(y,z,time); } // uAnal(y,z=Lz)
+    else if (!bcBType.compare("Neumann")) { v = zzmms_he1_k(y,z)*zzmms_he1_T_z(y,z,time); }
     ierr = VecSetValues(_bcB,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcT);CHKERRQ(ierr);
@@ -903,7 +903,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   VecPointwiseDivide(dTdt,dTdt,_c);
 
   //~ VecSet(dTdt,0.0);
-  mapToVec(dTdt,MMS_he1_T_t,*_y,*_z,time);
+  mapToVec(dTdt,zzmms_he1_T_t,*_y,*_z,time);
 
 
   #if VERBOSE > 1
@@ -951,7 +951,7 @@ PetscErrorCode HeatEquation::d_dt_mms(const PetscScalar time,const Vec& T, Vec& 
 
 
   //~ VecSet(dTdt,0.0);
-  //~ mapToVec(dTdt,MMS_he1_T_t,*_y,*_z,time);
+  //~ mapToVec(dTdt,zzmms_he1_T_t,*_y,*_z,time);
 
 
   #if VERBOSE > 1
@@ -1535,8 +1535,44 @@ PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,ve
 //======================================================================
 // MMS  tests
 
-double HeatEquation::MMS_he_f(const double y, const double z) { return sin(y)*cos(z); }
+double HeatEquation::zzmms_he_f(const double y, const double z) { return sin(y)*cos(z); }
 
+double HeatEquation::zzmms_he1_rho(const double y,const double z)
+{
+  return 1.0;
+}
+
+double HeatEquation::zzmms_he1_c(const double y,const double z)
+{
+  return 1.0;
+}
+
+double HeatEquation::zzmms_he1_k(const double y,const double z)
+{
+  return 1.0;
+}
+
+double HeatEquation::zzmms_he1_h(const double y,const double z)
+{
+  return 0.0;
+}
+
+double HeatEquation::zzmms_he1_T(const double y,const double z, const double t)
+{
+  return sin(y)*cos(z)*exp(-2*t);
+}
+double HeatEquation::zzmms_he1_T_t(const double y,const double z, const double t)
+{
+  return -2.0*sin(y)*cos(z)*exp(-2.0*t);
+}
+double HeatEquation::zzmms_he1_T_y(const double y,const double z, const double t)
+{
+  return cos(y)*cos(z)*exp(-2.0*t);
+}
+double HeatEquation::zzmms_he1_T_z(const double y,const double z, const double t)
+{
+  return -sin(y)*sin(z)*exp(-2.0*t);
+}
 
 
 

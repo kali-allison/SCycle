@@ -41,11 +41,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
-    const std::string    _problemType; // symmetric (only y>0) or full
     const bool           _isMMS; // true if running mms test
     bool           _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
-
-
 
     // output data
     std::string          _outputDir;
@@ -54,6 +51,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     // off-fault material fields: + side
     Vec                  _muVecP;
+    PetscScalar  _muValPlus,_rhoValPlus; // if constant
     Vec                  _bcRPShift,_surfDispPlus;
     Vec                  _rhsP,_uP,_sxyP;
 
@@ -133,7 +131,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0; // IMEX backward Euler
 
-    // IO commands
+    // IO functions
     PetscErrorCode virtual view() = 0;
     PetscErrorCode virtual writeStep1D() = 0;
     PetscErrorCode virtual writeStep2D() = 0;
@@ -163,11 +161,11 @@ class SymmLinearElastic: public LinearElastic
 
     // initialize data
     PetscErrorCode allocateFields(); // allocate space for member fields
+    PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setInitialConds(Domain& D);
     PetscErrorCode setUpSBPContext(Domain& D);
 
-    PetscErrorCode setShifts();
     PetscErrorCode computeShearStress();
 
     PetscErrorCode setMMSInitialConditions();
@@ -176,6 +174,7 @@ class SymmLinearElastic: public LinearElastic
 
     //~ PetscErrorCode computeEnergy(const PetscScalar time, Vec& out);
     //~ PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
+
 
 
   public:
@@ -214,6 +213,50 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode writeStep2D(); // write out 2D fields
 
     PetscErrorCode setSurfDisp();
+
+
+
+    // MMS functions
+    static double zzmms_f(const double y,const double z);
+    static double zzmms_f_y(const double y,const double z);
+    static double zzmms_f_yy(const double y,const double z);
+    static double zzmms_f_z(const double y,const double z);
+    static double zzmms_f_zz(const double y,const double z);
+    static double zzmms_g(const double t);
+
+    static double zzmms_mu(const double y,const double z);
+    static double zzmms_mu_y(const double y,const double z);
+    static double zzmms_mu_z(const double y,const double z);
+
+    static double zzmms_uA(const double y,const double z,const double t);
+    static double zzmms_uA_y(const double y,const double z,const double t);
+    static double zzmms_uA_yy(const double y,const double z,const double t);
+    static double zzmms_uA_z(const double y,const double z,const double t);
+    static double zzmms_uA_zz(const double y,const double z,const double t);
+    static double zzmms_uA_t(const double y,const double z,const double t);
+
+    static double zzmms_sigmaxy(const double y,const double z,const double t);
+    static double zzmms_uSource(const double y,const double z,const double t);
+
+
+    // 1D
+    static double zzmms_f1D(const double y);// helper function for uA
+    static double zzmms_f_y1D(const double y);
+    static double zzmms_f_yy1D(const double y);
+
+    static double zzmms_uA1D(const double y,const double t);
+    static double zzmms_uA_y1D(const double y,const double t);
+    static double zzmms_uA_yy1D(const double y,const double t);
+    static double zzmms_uA_z1D(const double y,const double t);
+    static double zzmms_uA_zz1D(const double y,const double t);
+    static double zzmms_uA_t1D(const double y,const double t);
+
+    static double zzmms_mu1D(const double y);
+    static double zzmms_mu_y1D(const double y);
+    static double zzmms_mu_z1D(const double z);
+
+    static double zzmms_sigmaxy1D(const double y,const double t);
+    static double zzmms_uSource1D(const double y,const double t);
 };
 
 
@@ -232,6 +275,7 @@ class SymmLinearElastic: public LinearElastic
  * the earthquake cycle in sedimentary basins, with modifications to the
  * boundary condition on the fault.
  */
+ /*
 class FullLinearElastic: public LinearElastic
 {
   protected:
@@ -289,5 +333,5 @@ class FullLinearElastic: public LinearElastic
 
     PetscErrorCode measureMMSError();
 };
-
+*/
 #endif

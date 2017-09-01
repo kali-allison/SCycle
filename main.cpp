@@ -108,7 +108,7 @@ int main(int argc,char **args)
 
   {
     Domain domain(inputFile);
-    if (!domain._shearDistribution.compare("mms")) { runMMSTests(inputFile); }
+    if (domain._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(inputFile); }
   }
 

@@ -525,7 +525,7 @@ double MMS_test(const double z) { return z; }
 //======================================================================
 //                  MMS Functions
 
-
+/*
 // version 1
 double MMS_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
 double MMS_f_y(const double y,const double z) { return -sin(y)*sin(z); }
@@ -720,34 +720,35 @@ double MMS_uSource(const double y,const double z,const double t)
   PetscScalar u_z = MMS_uA_z(y,z,t);
   PetscScalar u_zz = MMS_uA_zz(y,z,t);
   return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
-}
+}*/
 
 
 
 //======================================================================
 // 1D MMS
 // version 1
-double MMS_f1D(const double y) { return cos(y) + 2; } // helper function for uA
-double MMS_f_y1D(const double y) { return -sin(y); }
-double MMS_f_yy1D(const double y) { return -cos(y); }
-double MMS_f_z1D(const double y) { return 0; }
-double MMS_f_zz1D(const double y) { return 0; }
+//~ double MMS_f1D(const double y) { return cos(y) + 2; } // helper function for uA
+//~ double MMS_f_y1D(const double y) { return -sin(y); }
+//~ double MMS_f_yy1D(const double y) { return -cos(y); }
+//~ double MMS_f_z1D(const double y) { return 0; }
+//~ double MMS_f_zz1D(const double y) { return 0; }
 
-double MMS_uA1D(const double y,const double t) { return MMS_f1D(y)*exp(-t); }
-double MMS_uA_y1D(const double y,const double t) { return MMS_f_y1D(y)*exp(-t); }
-double MMS_uA_yy1D(const double y,const double t) { return MMS_f_yy1D(y)*exp(-t); }
-double MMS_uA_z1D(const double y,const double t) { return 0; }
-double MMS_uA_zz1D(const double y,const double t) { return 0; }
-double MMS_uA_t1D(const double y,const double t) { return -MMS_f1D(y)*exp(-t); }
+//~ double MMS_uA1D(const double y,const double t) { return MMS_f1D(y)*exp(-t); }
+//~ double MMS_uA_y1D(const double y,const double t) { return MMS_f_y1D(y)*exp(-t); }
+//~ double MMS_uA_yy1D(const double y,const double t) { return MMS_f_yy1D(y)*exp(-t); }
+//~ double MMS_uA_z1D(const double y,const double t) { return 0; }
+//~ double MMS_uA_zz1D(const double y,const double t) { return 0; }
+//~ double MMS_uA_t1D(const double y,const double t) { return -MMS_f1D(y)*exp(-t); }
 
-double MMS_mu1D(const double y) { return sin(y) + 2.0; }
-double MMS_mu_y1D(const double y) { return cos(y); }
-double MMS_mu_z1D(const double y) { return 0; }
+//~ double MMS_mu1D(const double y) { return sin(y) + 2.0; }
+//~ double MMS_mu_y1D(const double y) { return cos(y); }
+//~ double MMS_mu_z1D(const double y) { return 0; }
 
-double MMS_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*MMS_uA_y1D(y,t); }
+//~ double MMS_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*MMS_uA_y1D(y,t); }
 
 
 // specific MMS functions
+/*
 double MMS_visc1D(const double y) { return cos(y) + 20.0; }
 double MMS_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
 double MMS_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
@@ -848,18 +849,18 @@ double MMS_pl_gxz_t_source1D(const double y,const double t)
   return MMS_gxz_t1D(y,t) - v;
 }
 
-double MMS_uSource1D(const double y,const double t)
-{
-  PetscScalar mu = MMS_mu1D(y);
-  PetscScalar mu_y = MMS_mu_y1D(y);
-  PetscScalar mu_z = MMS_mu_z1D(y);
-  PetscScalar u_y = MMS_uA_y1D(y,t);
-  PetscScalar u_yy = MMS_uA_yy1D(y,t);
-  PetscScalar u_z = MMS_uA_z1D(y,t);
-  PetscScalar u_zz = MMS_uA_zz1D(y,t);
-  return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
-}
-
+//~ double MMS_uSource1D(const double y,const double t)
+//~ {
+  //~ PetscScalar mu = MMS_mu1D(y);
+  //~ PetscScalar mu_y = MMS_mu_y1D(y);
+  //~ PetscScalar mu_z = MMS_mu_z1D(y);
+  //~ PetscScalar u_y = MMS_uA_y1D(y,t);
+  //~ PetscScalar u_yy = MMS_uA_yy1D(y,t);
+  //~ PetscScalar u_z = MMS_uA_z1D(y,t);
+  //~ PetscScalar u_zz = MMS_uA_zz1D(y,t);
+  //~ return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
+//~ }
+*/
 
 
 
@@ -872,42 +873,42 @@ double MMS_uSource1D(const double y,const double t)
 //======================================================================
 // 2D MMS for heat equation
 // version 1
-double MMS_he1_rho(const double y,const double z)
-{
-  return 1.0;
-}
+//~ double MMS_he1_rho(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
 
-double MMS_he1_c(const double y,const double z)
-{
-  return 1.0;
-}
+//~ double MMS_he1_c(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
 
-double MMS_he1_k(const double y,const double z)
-{
-  return 1.0;
-}
+//~ double MMS_he1_k(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
 
-double MMS_he1_h(const double y,const double z)
-{
-  return 0.0;
-}
+//~ double MMS_he1_h(const double y,const double z)
+//~ {
+  //~ return 0.0;
+//~ }
 
-double MMS_he1_T(const double y,const double z, const double t)
-{
-  return sin(y)*cos(z)*exp(-2*t);
-}
-double MMS_he1_T_t(const double y,const double z, const double t)
-{
-  return -2.0*sin(y)*cos(z)*exp(-2.0*t);
-}
-double MMS_he1_T_y(const double y,const double z, const double t)
-{
-  return cos(y)*cos(z)*exp(-2.0*t);
-}
-double MMS_he1_T_z(const double y,const double z, const double t)
-{
-  return -sin(y)*sin(z)*exp(-2.0*t);
-}
+//~ double MMS_he1_T(const double y,const double z, const double t)
+//~ {
+  //~ return sin(y)*cos(z)*exp(-2*t);
+//~ }
+//~ double MMS_he1_T_t(const double y,const double z, const double t)
+//~ {
+  //~ return -2.0*sin(y)*cos(z)*exp(-2.0*t);
+//~ }
+//~ double MMS_he1_T_y(const double y,const double z, const double t)
+//~ {
+  //~ return cos(y)*cos(z)*exp(-2.0*t);
+//~ }
+//~ double MMS_he1_T_z(const double y,const double z, const double t)
+//~ {
+  //~ return -sin(y)*sin(z)*exp(-2.0*t);
+//~ }
 
 
 //~ // version 2

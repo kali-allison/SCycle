@@ -1,3 +1,5 @@
+#======================================================================
+# domain
 order = 4
 Ny = 101
 Nz = 101
@@ -5,20 +7,21 @@ Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
 
-
-#======================================================================
-# linear system
-
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz101_
-loadICs = 0
-bcLTauQS = 0
-
+# symmetric or general
+geometry = symmetric
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
 bCoordTrans = 15.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
+
+#======================================================================
+# linear systems
+
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz101_
+loadICs = 0
+bcLTauQS = 0
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -32,6 +35,8 @@ kspTol_heateq = 1e-9
 # rate-and-state parameters
 rootTol = 1e-9
 
+impedanceVals = [9.4868 9.4868]
+impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
