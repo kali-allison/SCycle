@@ -386,7 +386,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   }
 
   if (_isMMS) { setMMSInitialConditions(); }
-  VecAXPY(_bcRP,1.0,_bcRPShift);
+  //~ VecAXPY(_bcRP,1.0,_bcRPShift);
 
   setSurfDisp();
 
@@ -409,13 +409,6 @@ SymmLinearElastic::~SymmLinearElastic()
 {
 
   VecDestroy(&_bcRPShift);
-  //~ for(std::vector<Vec>::size_type i = 0; i != _var.size(); i++) {
-    //~ VecDestroy(&_var[i]);
-  //~ }
-
-  //~ for(std::vector<Vec>::size_type i = 0; i != _varIm.size(); i++) {
-    //~ VecDestroy(&_varIm[i]);
-  //~ }
 
   map<string,Vec>::iterator it;
   for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -952,29 +945,6 @@ PetscErrorCode SymmLinearElastic::integrate()
   double startTime = MPI_Wtime();
 
   _stepCount++;
-
-  //~ if (_timeIntegrator.compare("IMEX")==0) {
-    //~ _quadImex->setTolerance(_atol);CHKERRQ(ierr);
-    //~ _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    //~ ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    //~ ierr = _quadImex->setInitialConds(_var,_varIm);CHKERRQ(ierr);
-
-    //~ // control which fields are used to select step size
-    //~ ierr = _quadImex->setErrInds(_timeIntInds);
-
-    //~ ierr = _quadImex->integrate(this);CHKERRQ(ierr);
-  //~ }
-  //~ else {
-    //~ _quadEx->setTolerance(_atol);CHKERRQ(ierr);
-    //~ _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    //~ ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-    //~ ierr = _quadEx->setInitialConds(_var);CHKERRQ(ierr);
-
-    //~ // control which fields are used to select step size
-    //~ ierr = _quadEx->setErrInds(_timeIntInds);
-
-    //~ ierr = _quadEx->integrate(this);CHKERRQ(ierr);
-  //~ }
 
   if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);

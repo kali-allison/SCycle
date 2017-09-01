@@ -80,9 +80,9 @@ int runEqCycle(const char * inputFile)
     SymmLinearElastic sle(d);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = sle.integrate();CHKERRQ(ierr);
-    ierr = sle.view();CHKERRQ(ierr);
+    //~ ierr = sle.view();CHKERRQ(ierr);
   }
-  else if (d._bulkDeformationType.compare("linearElastic")==0) {
+  else if (d._bulkDeformationType.compare("powerLaw")==0) {
     PowerLaw pl(d);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = pl.integrate();CHKERRQ(ierr);

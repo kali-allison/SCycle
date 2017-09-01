@@ -414,7 +414,7 @@ PetscErrorCode Domain::checkInput()
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
-    _bulkDeformationType.compare("linearElastic")==0 );
+    _bulkDeformationType.compare("powerLaw")==0 );
   assert(_geometry.compare("symmetric")==0);
 
   #if VERBOSE > 1
