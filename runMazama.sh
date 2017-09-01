@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N le_wfh
+#PBS -N plSS_Dc1_nfh_wsh_VwT_fw0.0
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/le_wfh.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/le_wfh.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/plSS_Dc1_nfh_wsh_VwT_fw0.0.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/plSS_Dc1_nfh_wsh_VwT_fw0.0.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -33,6 +33,6 @@ cd $PBS_O_WORKDIR
 #~ rm -f /data/dunham/kallison/eqcycle/heOutFiles/*.err
 #~ rm -f /data/dunham/kallison/eqcycle/heOutFiles/*.out
 #~ rm -f /scratch/kallison/heSims/*
-#~ mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
-mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he2D.in
+mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
+#~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he2D.in
 

@@ -530,11 +530,11 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
 
-  //~ PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
-  PetscScalar Vw = _Vw;
+  PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
+  //~ PetscScalar Vw = _Vw;
 
   if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*(Vw/slipVel); }
-  if (a-b > 0.0) { fss = fLV; }
+  //~ if (a-b > 0.0) { fss = fLV; }
   PetscScalar f = state + a*log(slipVel/_v0);
   dstate = -slipVel/Dc *(f - fss);
 

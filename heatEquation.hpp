@@ -92,6 +92,24 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();
 
+    //~ static double MMS_he_f(const double y, const double z);
+    //~ static double MMS_f_y(const double y,const double z);
+    //~ static double MMS_f_yy(const double y,const double z);
+    //~ static double MMS_f_z(const double y,const double z);
+    //~ static double MMS_f_zz(const double y,const double z);
+
+    //~ static double MMS_g(const double t);
+    //~ static double MMS_uA(const double y,const double z,const double t);
+    //~ static double MMS_uA_y(const double y,const double z,const double t);
+    //~ static double MMS_uA_yy(const double y,const double z,const double t);
+    //~ static double MMS_uA_z(const double y,const double z,const double t);
+    //~ static double MMS_uA_zz(const double y,const double z,const double t);
+    //~ static double MMS_uA_t(const double y,const double z,const double t);
+
+    //~ static double MMS_mu(const double y,const double z);
+    //~ static double MMS_mu_y(const double y,const double z);
+    //~ static double MMS_mu_z(const double y,const double z);
+
 
   public:
 

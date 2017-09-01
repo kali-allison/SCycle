@@ -1,15 +1,15 @@
 order = 4
-Ny = 251
-Nz = 201
-Ly = 30 # km
-Lz = 30 # km
+Ny = 101
+Nz = 101
+Ly = 60 # km
+Lz = 40 # km
 vL = 1e-9    # (m/s)
 
 
 #======================================================================
 # linear system
 
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny251_Nz201_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz101_
 loadICs = 0
 bcLTauQS = 0
 
@@ -36,8 +36,8 @@ cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
 #DcVals = [16e-3 16e-3] # m
-DcVals = [32e-3 32e-3] # m
-#DcVals = [1 1] # m
+#DcVals = [32e-3 32e-3] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -64,7 +64,7 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaNDepths = [0 60] #(km) constant
 sigmaNVals = [5.668 5.668 1336] # MPa
 sigmaNDepths = [0 0.25 60]
-sigmaN_cap = 50; # MPa
+sigmaN_cap = 30; # MPa
 
 
 
@@ -121,13 +121,13 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [1000 1100]
 TDepths = [0 50]
-#heatEquationType = steadyState
-heatEquationType = transient
-#thermalCoupling = coupled
-thermalCoupling = uncoupled
+heatEquationType = steadyState
+#heatEquationType = transient
+thermalCoupling = coupled
+#thermalCoupling = uncoupled
 #thermalCoupling = no
-withShearHeating = no
-withFrictionalHeating = yes
+withShearHeating = yes
+withFrictionalHeating = no
 
 
 # Maxwell properties
@@ -147,19 +147,26 @@ timeIntegrator = IMEX
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 50 #1e9
-initTime = 0      # s 3e10
-maxTime = 1e28      # s 5.5e10
-initDeltaT = 1e-3     # s
-minDeltaT = 1e-3     # s
-maxDeltaT = 1e10      # s 1e10
+maxStepCount = 10
+initTime = 0
+maxTime = 1e28
+initDeltaT = 1e-3
+minDeltaT = 1e-3
+maxDeltaT = 1e10
 atol = 1e-8
 timeIntInds = [psi slip]
 #timeIntInds = [0 2]
 #timeIntInds = [2 3 4]
 
 
-outputDir = /scratch/kallison/he/le_wfh_
+#outputDir = /scratch/kallison/he/le_wfh_
+#outputDir = /scratch/kallison/he/le_wfh_VwT_fw0.12_
+#outputDir = /scratch/kallison/he/pl_wfh_wsh_fw0.12_
+#outputDir = /scratch/kallison/he/pl_wfh_wsh_VwT_fw0.0_
+#outputDir = /scratch/kallison/he/pl_wfh_wsh_VwT_fw0.12_
+#outputDir = /scratch/kallison/he/pl_wfh_wsh_fw0.0_
 
+#outputDir = /scratch/kallison/he/pl_Dc1_wfh_wsh_VwT_fw0.0_
+outputDir = /scratch/kallison/he/plSS_Dc1_nfh_wsh_VwT_fw0.0_
 
 

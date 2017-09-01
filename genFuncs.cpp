@@ -910,6 +910,65 @@ double MMS_he1_T_z(const double y,const double z, const double t)
 }
 
 
+//~ // version 2
+//~ double MMS_he2_rho(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
+
+//~ double MMS_he2_c(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
+
+//~ double MMS_he2_k(const double y,const double z)
+//~ {
+  //~ return 1.0;
+//~ }
+
+//~ double MMS_he2_h(const double y,const double z)
+//~ {
+  //~ return 0.0;
+//~ }
+
+//~ double MMS_he2_f(const double t)
+//~ {
+  //~ return 5.*sin(y)*cos(z) + 100.;
+//~ }
+//~ double MMS_he2_f_y(const double t)
+//~ {
+  //~ return 5.*cos(y)*cos(z);
+//~ }
+//~ double MMS_he2_f_z(const double t)
+//~ {
+  //~ return -5.*sin(y)*sin(z);
+//~ }
+//~ double MMS_he2_g(const double t)
+//~ {
+  //~ return sin(2.*t);
+//~ }
+//~ double MMS_he2_g_t(const double t)
+//~ {
+  //~ return 2.*cos(2.*t);
+//~ }
+//~ double MMS_he2_T(const double y,const double z, const double t)
+//~ {
+  //~ return MMS_he2_f(y,z)*MMS_he2_g(t);
+//~ }
+//~ double MMS_he2_T_t(const double y,const double z, const double t)
+//~ {
+  //~ return MMS_he2_f(y,z)*MMS_he2_g_t(t);
+//~ }
+//~ double MMS_he2_T_y(const double y,const double z, const double t)
+//~ {
+  //~ return MMS_he2_f_y(y,z)*MMS_he2_g(t);
+//~ }
+//~ double MMS_he2_T_z(const double y,const double z, const double t)
+//~ {
+  //~ return MMS_he2_f_z(y,z)*MMS_he2_g(t);
+//~ }
+
+
 
 
 

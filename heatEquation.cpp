@@ -76,22 +76,22 @@ HeatEquation::HeatEquation(Domain& D)
   VecDestroy(&rhoCV);
 
   if (_heatEquationType.compare("transient")==0 ) {
-  // create D2 / rho / c _D2divrhoC
-  Mat D2;
-  _sbpT->getA(D2);
-  MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_D2divRhoC);
-  // ensure diagonal has been allocated, even if 0
-  PetscScalar v=0.0;
-  PetscInt Ii,Istart,Iend=0;
-  MatGetOwnershipRange(_D2divRhoC,&Istart,&Iend);
-  for (Ii = Istart; Ii < Iend; Ii++) {
-    MatSetValues(_D2divRhoC,1,&Ii,1,&Ii,&v,ADD_VALUES);
-  }
-  MatAssemblyBegin(_D2divRhoC,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
-  MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
+    // create D2 / rho / c = _D2divrhoC
+    Mat D2;
+    _sbpT->getA(D2);
+    MatMatMult(_rhoC,D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_D2divRhoC);
+    // ensure diagonal has been allocated, even if 0
+    PetscScalar v=0.0;
+    PetscInt Ii,Istart,Iend=0;
+    MatGetOwnershipRange(_D2divRhoC,&Istart,&Iend);
+    for (Ii = Istart; Ii < Iend; Ii++) {
+      MatSetValues(_D2divRhoC,1,&Ii,1,&Ii,&v,ADD_VALUES);
+    }
+    MatAssemblyBegin(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+    MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
 
-  setupKSP(_sbpT,D._initDeltaT);
+    setupKSP(_sbpT,D._initDeltaT);
   }
   else if (_heatEquationType.compare("steadyState")==0 ) {
     setupKSP_SS(_sbpT);
@@ -413,8 +413,17 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
       //~ ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
-
     }
+  }
+
+  {
+  double f = MMS_he_f(1.,2.);
+  Vec fV;
+  VecDuplicate(_k,&fV);
+  VecSet(fV,0.0);
+  mapToVec(fV,MMS_he_f,*_y,*_z);
+  //~ VecView(fV,PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
   }
 
   #if VERBOSE > 1
@@ -967,13 +976,15 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 double startMiscTime = MPI_Wtime();
 _miscTime += MPI_Wtime() - startMiscTime;
 
-  // set up matrix
-  //~ setupKSP(_sbpT,dt);
-  MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
-  MatScale(_A,-dt);
-  MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
-  ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
-
+  if (_heatEquationType.compare("transient")==0 ) {
+    // set up matrix
+    //~ setupKSP(_sbpT,dt);
+    MatCopy(_D2divRhoC,_A,SAME_NONZERO_PATTERN);
+    MatScale(_A,-dt);
+    MatAXPY(_A,1.0,_I,SUBSET_NONZERO_PATTERN);
+    ierr = KSPSetOperators(_ksp,_A,_A);CHKERRQ(ierr);
+  }
+  //~ else if (_heatEquationType.compare("steadyState")==0 ) { } // do nothing
 
   // set up boundary conditions and source terms
   Vec rhs,temp;
@@ -996,25 +1007,29 @@ _miscTime += MPI_Wtime() - startMiscTime;
   if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
+    VecSet(shearHeat,0.);
     VecAXPY(temp,1.0,shearHeat);
     VecDestroy(&shearHeat);
-    assert(0);
   }
 
-  MatMult(_rhoC,temp,rhs);
-  VecScale(rhs,dt);
+  if (_heatEquationType.compare("transient")==0 ) {
+    MatMult(_rhoC,temp,rhs);
+    VecScale(rhs,dt);
 
-  // add H * Tn to rhs
-  VecSet(temp,0.0);
-  _sbpT->H(To,temp);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    ierr = multMatsVec(yq,zr,temp); CHKERRQ(ierr);
+    // add H * Tn to rhs
+    VecSet(temp,0.0);
+    _sbpT->H(To,temp);
+    if (_sbpType.compare("mfc_coordTrans")==0) {
+      Mat qy,rz,yq,zr;
+      ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+      ierr = multMatsVec(yq,zr,temp); CHKERRQ(ierr);
+    }
+    VecAXPY(rhs,1.0,temp);
+    VecDestroy(&temp);
   }
-  VecAXPY(rhs,1.0,temp);
-  VecDestroy(&temp);
-
+  //~ else if (_heatEquationType.compare("steadyState")==0 ) {
+    //~ VecScale(rhs,-1.0);
+  //~ }
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
@@ -1515,3 +1530,21 @@ PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,ve
   #endif
   return ierr;
 }
+
+
+//======================================================================
+// MMS  tests
+
+double HeatEquation::MMS_he_f(const double y, const double z) { return sin(y)*cos(z); }
+
+
+
+
+
+
+
+
+
+
+
+
