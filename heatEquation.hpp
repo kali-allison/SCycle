@@ -133,6 +133,10 @@ class HeatEquation: public IntegratorContextEx
     // implicitly solve for temperature using backward Euler
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+    PetscErrorCode be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+    PetscErrorCode steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
     PetscErrorCode setMMSBoundaryConditions(const double time,
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
@@ -151,14 +155,29 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode writeStep1D(const PetscInt stepCount);
     PetscErrorCode writeStep2D(const PetscInt stepCount);
 
-    static double zzmms_he1_rho(const double y,const double z);
-    static double zzmms_he1_c(const double y,const double z);
-    static double zzmms_he1_k(const double y,const double z);
-    static double zzmms_he1_h(const double y,const double z);
-    static double zzmms_he1_T(const double y,const double z, const double t);
-    static double zzmms_he1_T_t(const double y,const double z, const double t);
-    static double zzmms_he1_T_y(const double y,const double z, const double t);
-    static double zzmms_he1_T_z(const double y,const double z, const double t);
+    static double zzmms_rho(const double y,const double z);
+    static double zzmms_c(const double y,const double z);
+    static double zzmms_h(const double y,const double z);
+
+    static double zzmms_k(const double y,const double z);
+    static double zzmms_k_y(const double y,const double z);
+    static double zzmms_k_z(const double y,const double z);
+
+
+    static double zzmms_f(const double y,const double z);
+    static double zzmms_f_y(const double y,const double z);
+    static double zzmms_f_yy(const double y,const double z);
+    static double zzmms_f_z(const double y,const double z);
+    static double zzmms_f_zz(const double y,const double z);
+
+    static double zzmms_g(const double t);
+    static double zzmms_g_t(const double t);
+    static double zzmms_T(const double y,const double z,const double t);
+    static double zzmms_T_y(const double y,const double z,const double t);
+    static double zzmms_T_yy(const double y,const double z,const double t);
+    static double zzmms_T_z(const double y,const double z,const double t);
+    static double zzmms_T_zz(const double y,const double z,const double t);
+    static double zzmms_T_t(const double y,const double z,const double t);
 };
 
 

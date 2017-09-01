@@ -44,8 +44,6 @@ PowerLaw::PowerLaw(Domain& D)
   // add viscous strain to integrated variables, stored in _var
   Vec vargxyP; VecDuplicate(_uP,&vargxyP); VecCopy(_gxyP,vargxyP);
   Vec vargxzP; VecDuplicate(_uP,&vargxzP); VecCopy(_gxzP,vargxzP);
-  //~ _var.push_back(vargxyP);
-  //~ _var.push_back(vargxzP);
   _varEx["gVxy"] = vargxyP;
   _varEx["gVxz"] = vargxzP;
 

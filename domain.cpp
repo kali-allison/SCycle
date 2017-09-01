@@ -186,6 +186,9 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
 
+    else if (var.compare("inputDir")==0) {
+      _inputDir = line.substr(pos+_delim.length(),line.npos);
+    }
     else if (var.compare("zInputDir")==0) {
       _zInputDir = line.substr(pos+_delim.length(),line.npos);
     }

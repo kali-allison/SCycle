@@ -378,7 +378,8 @@ SymmLinearElastic::SymmLinearElastic(Domain&D)
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     Vec deltaT; // change in temperature relative to background
     VecDuplicate(_uP,&deltaT);
-    VecCopy(_he._T,deltaT);
+    //~ VecCopy(_he._T,deltaT);
+    VecSet(deltaT,0.0);
     _varIm["deltaT"] = deltaT;
 
     _he.getTemp(_T);

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N test
+#PBS -N pl_Dc1_cwsh
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/test.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/test.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/pl_Dc1_cwsh.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/pl_Dc1_cwsh.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
