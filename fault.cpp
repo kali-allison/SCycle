@@ -752,24 +752,24 @@ PetscErrorCode SymmFault::setSplitNodeFields()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // create properly sized vectors for mu and cs
-  Vec muV; VecDuplicate(_a,&muV);
-  Vec csV; VecDuplicate(_a,&csV);
-  PetscScalar mu,cs;
-  ierr = VecGetOwnershipRange(*_muVecP,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii < _N) {
-    ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
-    ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
+  //~ // create properly sized vectors for mu and cs
+  //~ Vec muV; VecDuplicate(_a,&muV);
+  //~ Vec csV; VecDuplicate(_a,&csV);
+  //~ PetscScalar mu,cs;
+  //~ ierr = VecGetOwnershipRange(*_muVecP,&Istart,&Iend);CHKERRQ(ierr);
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ if (Ii < _N) {
+    //~ ierr =  VecGetValues(*_muVecP,1,&Ii,&mu);CHKERRQ(ierr);
+    //~ ierr =  VecGetValues(*_csVecP,1,&Ii,&cs);CHKERRQ(ierr);
 
-    ierr = VecSetValue(muV,Ii,mu,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(csV,Ii,cs,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(muV);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(csV);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(muV);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(csV);CHKERRQ(ierr);
+    //~ ierr = VecSetValue(muV,Ii,mu,INSERT_VALUES);CHKERRQ(ierr);
+    //~ ierr = VecSetValue(csV,Ii,cs,INSERT_VALUES);CHKERRQ(ierr);
+    //~ }
+  //~ }
+  //~ ierr = VecAssemblyBegin(muV);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyBegin(csV);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(muV);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(csV);CHKERRQ(ierr);
 
 
 
@@ -783,23 +783,23 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
     //~ zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
-    ierr =  VecGetValues(muV,1,&Ii,&mu);CHKERRQ(ierr);
-    ierr =  VecGetValues(csV,1,&Ii,&cs);CHKERRQ(ierr);
-    zPlus = mu/cs;
+    //~ ierr =  VecGetValues(muV,1,&Ii,&mu);CHKERRQ(ierr);
+    //~ ierr =  VecGetValues(csV,1,&Ii,&cs);CHKERRQ(ierr);
+    //~ zPlus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
 
     ierr = VecSetValue(_tauQSP,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
+    //~ ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_tauQSP);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
 
-  VecDestroy(&muV);
-  VecDestroy(&csV);
+  //~ VecDestroy(&muV);
+  //~ VecDestroy(&csV);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

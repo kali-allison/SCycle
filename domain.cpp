@@ -17,9 +17,11 @@ Domain::Domain(const char *file)
   _atol(-1),
   _da(NULL)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::Domain(const char *file)";
+    std::string fileName = "domain.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
 
   loadData(_file);
 
@@ -50,9 +52,9 @@ Domain::Domain(const char *file)
   //~ DMDAGetCorners(_da, &_zS, &_yS, 0, &zn, &yn, 0);
   //~ _zE = _zS + zn;
   //~ _yE = _yS + yn;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
 
 }
 
@@ -72,9 +74,11 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _atol(-1),
   _da(NULL)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
+    std::string fileName = "domain.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
 
   loadData(_file);
 
@@ -102,9 +106,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   checkInput(); // perform some basic value checking to prevent NaNs
   setFields();
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
 
 }
 
@@ -112,9 +116,11 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
 Domain::~Domain()
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::~Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::~Domain";
+    std::string fileName = "domain.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
 
   VecDestroy(&_q);
   VecDestroy(&_r);
@@ -123,9 +129,9 @@ Domain::~Domain()
 
   DMDestroy(&_da);
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::~Domain in domain.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
 }
 
 
@@ -133,17 +139,18 @@ Domain::~Domain()
 PetscErrorCode Domain::loadData(const char *file)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting loadData in domain.cpp, loading from file: %s.\n", file);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::loadData";
+    std::string fileName = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-
   ifstream infile( file );
   string line,var;
-  //~string delim = " = ";
   size_t pos = 0;
   while (getline(infile, line))
   {
@@ -154,7 +161,7 @@ PetscErrorCode Domain::loadData(const char *file)
     if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Ny")==0 && _Ny < 0)
     { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Nz")==0 && _Ny < 0)
+    else if (var.compare("Nz")==0 && _Nz < 0)
     { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -216,10 +223,10 @@ PetscErrorCode Domain::loadData(const char *file)
       _outputDir =  line.substr(pos+_delim.length(),line.npos);
     }
   }
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending loadData in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -320,10 +327,12 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
   PetscMPIInt localRank;
   MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
   if (localRank==rank) {
-    #if VERBOSE > 1
-      ierr = PetscPrintf(PETSC_COMM_SELF,"Starting view in domain.cpp.\n");CHKERRQ(ierr);
-    #endif
-
+  #if VERBOSE > 1
+    std::string funcName = "Domain::view";
+    std::string fileName = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
     PetscPrintf(PETSC_COMM_SELF,"\n\nrank=%i in Domain::view\n",rank);
     ierr = PetscPrintf(PETSC_COMM_SELF,"order = %i\n",_order);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ny = %i\n",_Ny);CHKERRQ(ierr);
@@ -360,9 +369,10 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-#if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_SELF,"Ending view in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
   }
   return ierr;
 }
@@ -373,21 +383,17 @@ PetscErrorCode Domain::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
+    std::string funcName = "Domain::checkInput";
+    std::string fileName = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
   #endif
-
-  //~ PetscMPIInt localRank;
-  //~ MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
-  //~ PetscPrintf(PETSC_COMM_SELF,"%i: order = %i\n",localRank,_order);
 
   assert( _order==2 || _order==4 );
   //~assert( _Ny > 3 && _Nz > 0 );
   assert( _Ly > 0 && _Lz > 0);
   assert( _dy > 0 && !isnan(_dy) );
   assert( _dz > 0 && !isnan(_dz) );
-
-
-  //~ assert(_vL > 0);
 
 
   assert(_timeIntegrator.compare("FEuler")==0
@@ -407,10 +413,14 @@ PetscErrorCode Domain::checkInput()
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
-#if VERBOSE > 1
-ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp.\n");CHKERRQ(ierr);
-#endif
-  //~}
+  assert(_bulkDeformationType.compare("linearElastic")==0 ||
+    _bulkDeformationType.compare("linearElastic")==0 );
+  assert(_geometry.compare("symmetric")==0);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -422,9 +432,12 @@ ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Domain::checkInputPlus in domain.cpp
 PetscErrorCode Domain::write()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting write in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::write";
+    std::string fileName = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
 
   // output scalar fields
   std::string str = _outputDir + "domain.txt";
@@ -514,9 +527,10 @@ PetscErrorCode Domain::write()
   ierr = VecView(_z,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending write in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -527,11 +541,14 @@ PetscErrorCode Domain::write()
 PetscErrorCode Domain::setFields()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "Domain::setFields";
+    std::string fileName = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
 
-  PetscScalar    y,z,r,q,csIn,csOut = 0;
+  PetscScalar    y,z,r,q= 0;
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
@@ -604,8 +621,9 @@ PetscErrorCode Domain::setFields()
     ierr = VecLoad(_z,inv);CHKERRQ(ierr);
   }
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending setFieldsPlus in domain.cpp.\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
 return ierr;
 }

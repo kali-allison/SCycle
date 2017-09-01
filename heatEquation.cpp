@@ -416,16 +416,6 @@ PetscErrorCode ierr = 0;
     }
   }
 
-  {
-  double f = zzmms_he_f(1.,2.);
-  Vec fV;
-  VecDuplicate(_k,&fV);
-  VecSet(fV,0.0);
-  mapToVec(fV,zzmms_he_f,*_y,*_z);
-  //~ VecView(fV,PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
-  }
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);

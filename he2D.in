@@ -7,8 +7,13 @@ Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
 
+isMMS = no
+
 # symmetric or general
 geometry = symmetric
+
+# linearElastic or powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
@@ -73,21 +78,21 @@ sigmaN_cap = 30; # MPa
 
 
 
-#stateLaw = agingLaw
+stateLaw = agingLaw
 #stateLaw = slipLaw
-#v0 = 1e-6
-#f0 = 0.6
-
-stateLaw = flashHeating
 v0 = 1e-6
-#v0 = 100
 f0 = 0.6
+
+#stateLaw = flashHeating
+#v0 = 1e-6
+#v0 = 100
+#f0 = 0.6
 #fw = 0.12
-fw = 0.0
-Vw = 0.1
-Tw = 1.1732e+03 # K 900 C
-tau_c = 3 # GPa
-D = 5 # um
+#fw = 0.0
+#Vw = 0.1
+#Tw = 1.1732e+03 # K 900 C
+#tau_c = 3 # GPa
+#D = 5 # um
 
 
 #======================================================================
@@ -128,10 +133,10 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -140,15 +145,15 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
@@ -172,6 +177,9 @@ timeIntInds = [psi slip]
 #outputDir = /scratch/kallison/he/pl_wfh_wsh_fw0.0_
 
 #outputDir = /scratch/kallison/he/pl_Dc1_wfh_wsh_VwT_fw0.0_
-outputDir = /scratch/kallison/he/plSS_Dc1_nfh_wsh_VwT_fw0.0_
+#outputDir = /scratch/kallison/he/plSS_Dc1_nfh_wsh_VwT_fw0.0_
+
+
+outputDir = /scratch/kallison/he/test_
 
 

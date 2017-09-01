@@ -76,21 +76,18 @@ int runEqCycle(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  PowerLaw pl(d);
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-
-  //~ ierr = pl.psuedoTS_main(); CHKERRQ(ierr);
-
-  ierr = pl.integrate();CHKERRQ(ierr);
-  ierr = pl.view();CHKERRQ(ierr);
-
-  //~ PowerLaw *obj;
-  //~ obj = new PowerLaw(domain);
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = obj->integrate();CHKERRQ(ierr);
-  //~ ierr = obj->view();CHKERRQ(ierr);
-  //~ delete obj;
+  if (d._bulkDeformationType.compare("linearElastic")==0) {
+    SymmLinearElastic sle(d);
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    ierr = sle.integrate();CHKERRQ(ierr);
+    ierr = sle.view();CHKERRQ(ierr);
+  }
+  else if (d._bulkDeformationType.compare("linearElastic")==0) {
+    PowerLaw pl(d);
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    ierr = pl.integrate();CHKERRQ(ierr);
+    ierr = pl.view();CHKERRQ(ierr);
+  }
 
   return ierr;
 }
@@ -104,7 +101,7 @@ int main(int argc,char **args)
 
   const char * inputFile;
   if (argc > 1) { inputFile = args[1]; }
-  else { inputFile = "init.txt"; }
+  else { inputFile = "init.in"; }
 
   {
     Domain domain(inputFile);
