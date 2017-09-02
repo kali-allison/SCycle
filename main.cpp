@@ -10,6 +10,7 @@
 #include "fault.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
+#include "mediator.hpp"
 
 
 
@@ -35,8 +36,8 @@ int runTests(const char * inputFile)
   //~ lith.integrate();
   //~ lith.view();
 
-  PowerLaw pl(d);
-  pl.writeContext();
+  //~ PowerLaw pl(d);
+  //~ pl.writeContext();
   //~ pl.writeStep1D();
   //~ pl.writeStep2D();
   //~ pl.integrate();
@@ -51,18 +52,25 @@ int runMMSTests(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"%-3s %-2s %-10s %-10s %-22s %-10s %-22s %-10s %-22s\n",
              "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
              "errL2gxz","log2(errL2gxz)");
-  for(PetscInt Ny=41;Ny<162;Ny=(Ny-1)*2+1)
+  //~ for(PetscInt Ny=41;Ny<162;Ny=(Ny-1)*2+1)
+  for(PetscInt Ny=21;Ny<22;Ny=(Ny-1)*2+1)
   {
-    Domain domain(inputFile,Ny,Ny);
-    //~ Domain domain(inputFile,Ny,1);
-    domain.write();
-    PowerLaw *obj;
-    obj = new PowerLaw(domain);
+    Domain d(inputFile,Ny,Ny);
+    //~ Domain d(inputFile,Ny,1);
+    d.write();
 
-    ierr = obj->writeStep1D();CHKERRQ(ierr);
-    ierr = obj->writeStep2D();CHKERRQ(ierr);
-    ierr = obj->integrate();CHKERRQ(ierr);
-    ierr = obj->measureMMSError();CHKERRQ(ierr);
+    //~ SymmLinearElastic *obj;
+    //~ if (d._bulkDeformationType.compare("linearElastic")==0) {
+      //~ obj = new SymmLinearElastic(d);
+    //~ }
+    //~ else if (d._bulkDeformationType.compare("powerLaw")==0) {
+      //~ obj = new PowerLaw(d);
+    //~ }
+
+    //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
+    //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
+    //~ ierr = obj->integrate();CHKERRQ(ierr);
+    //~ ierr = obj->measureMMSError();CHKERRQ(ierr);
   }
 
   return ierr;
@@ -76,18 +84,23 @@ int runEqCycle(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  if (d._bulkDeformationType.compare("linearElastic")==0) {
-    SymmLinearElastic sle(d);
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = sle.integrate();CHKERRQ(ierr);
+  //~ if (d._bulkDeformationType.compare("linearElastic")==0) {
+    //~ SymmLinearElastic sle(d);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    //~ ierr = sle.integrate();CHKERRQ(ierr);
     //~ ierr = sle.view();CHKERRQ(ierr);
-  }
-  else if (d._bulkDeformationType.compare("powerLaw")==0) {
-    PowerLaw pl(d);
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = pl.integrate();CHKERRQ(ierr);
-    ierr = pl.view();CHKERRQ(ierr);
-  }
+  //~ }
+  //~ else if (d._bulkDeformationType.compare("powerLaw")==0) {
+    //~ PowerLaw pl(d);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    //~ ierr = pl.integrate();CHKERRQ(ierr);
+    //~ ierr = pl.view();CHKERRQ(ierr);
+  //~ }
+
+  Mediator m(d);
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = m.integrate();CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }

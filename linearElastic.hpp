@@ -25,7 +25,8 @@
 
 /* Base class for a linear elastic material
  */
-class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
+//~ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
+class LinearElastic
 {
   private:
     // disable default copy constructor and assignment operator
@@ -42,7 +43,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
-    bool           _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
+    bool             _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
+    PetscScalar     _currTime;
 
     // output data
     std::string          _outputDir;
@@ -53,7 +55,7 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
     Vec                  _muVecP;
     PetscScalar  _muValPlus,_rhoValPlus; // if constant
     Vec                  _bcRPShift,_surfDispPlus;
-    Vec                  _rhsP,_uP,_sxyP;
+    Vec                  _rhsP,_uP,_sxy,_sxz;
 
     // linear system data
     std::string          _linSolver;
@@ -63,17 +65,6 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     SbpOps               *_sbpP;
     std::string           _sbpType;
-
-    // time stepping data
-    std::string          _timeIntegrator;
-    PetscInt             _stride1D,_stride2D; // stride
-    PetscInt             _maxStepCount; // largest number of time steps
-    PetscReal            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
-    int                  _stepCount;
-    PetscScalar          _atol;
-    PetscScalar          _initDeltaT;
-    //~ std::vector<int>     _timeIntInds; // indices of variables to be used in time integration
-    std::vector<string>     _timeIntInds; // indices of variables to be used in time integration
 
     // thermomechanical coupling
     std::string _thermalCoupling,_heatEquationType;
@@ -113,12 +104,12 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     Vec _uPPrev;
 
-    LinearElastic(Domain&D);
+    LinearElastic(Domain&D,Vec& tau);
     ~LinearElastic();
 
-
-
-    PetscErrorCode virtual integrate() = 0; // will call OdeSolver method by same name
+    PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
+    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm) = 0;
+    PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep) = 0;
 
     // explicit time-stepping methods
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
@@ -133,8 +124,8 @@ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
 
     // IO functions
     PetscErrorCode virtual view() = 0;
-    PetscErrorCode virtual writeStep1D() = 0;
-    PetscErrorCode virtual writeStep2D() = 0;
+    PetscErrorCode virtual writeStep1D(const PetscScalar time) = 0;
+    PetscErrorCode virtual writeStep2D(const PetscScalar time) = 0;
 
     PetscErrorCode virtual measureMMSError() = 0;
 };
@@ -163,57 +154,44 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode allocateFields(); // allocate space for member fields
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode setInitialConds(Domain& D);
+    PetscErrorCode setInitialConds(Domain& D,Vec& tau);
+    PetscErrorCode setInitialSlip(Vec& out);
     PetscErrorCode setUpSBPContext(Domain& D);
 
     PetscErrorCode computeShearStress();
 
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
-    PetscErrorCode measureMMSError();
-
-    //~ PetscErrorCode computeEnergy(const PetscScalar time, Vec& out);
-    //~ PetscErrorCode computeEnergyRate(const PetscScalar time,const_it_vec varBegin,it_vec dvarBegin);
-
-
 
   public:
 
-    //~ Fault           *_fault;
-    SymmFault           *_fault;
-    //~ SymmFault_Hydr           _fault;
-    std::map <string,Vec> _varEx; // holds variables for explicit integration in time
-    std::map <string,Vec> _varIm; // holds variables for implicit integration in time
-
-    // for energy balance
-    Vec _E;
-    PetscViewer _eV,_intEV; // calculated energy, energy rate, and integrated energy
-
-
-    SymmLinearElastic(Domain&D);
+    SymmLinearElastic(Domain&D,Vec& tau);
     ~SymmLinearElastic();
 
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
+    PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
 
     // methods for explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
                          const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage);
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // IMEX backward Euler
 
+    PetscErrorCode measureMMSError();
+
     // IO commands
-    PetscErrorCode view();
-    PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D(); // write out 1D fields
-    PetscErrorCode writeStep2D(); // write out 2D fields
+    PetscErrorCode virtual view();
+    PetscErrorCode virtual writeContext();
+    PetscErrorCode virtual writeStep1D(const PetscScalar time); // write out 1D fields
+    PetscErrorCode virtual writeStep2D(const PetscScalar time); // write out 2D fields
 
     PetscErrorCode setSurfDisp();
-
 
 
     // MMS functions

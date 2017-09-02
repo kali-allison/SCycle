@@ -34,7 +34,8 @@ class HeatEquation: public IntegratorContextEx
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
-    std::string _heatEquationType;
+    std::string           _heatEquationType;
+    int                   _isMMS;
 
     // IO information
     const char       *_file; // input ASCII file location
@@ -92,24 +93,6 @@ class HeatEquation: public IntegratorContextEx
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();
 
-    static double zzmms_he_f(const double y, const double z);
-    //~ static double zzmms_f_y(const double y,const double z);
-    //~ static double zzmms_f_yy(const double y,const double z);
-    //~ static double zzmms_f_z(const double y,const double z);
-    //~ static double zzmms_f_zz(const double y,const double z);
-
-    //~ static double zzmms_g(const double t);
-    //~ static double zzmms_uA(const double y,const double z,const double t);
-    //~ static double zzmms_uA_y(const double y,const double z,const double t);
-    //~ static double zzmms_uA_yy(const double y,const double z,const double t);
-    //~ static double zzmms_uA_z(const double y,const double z,const double t);
-    //~ static double zzmms_uA_zz(const double y,const double z,const double t);
-    //~ static double zzmms_uA_t(const double y,const double z,const double t);
-
-    //~ static double zzmms_mu(const double y,const double z);
-    //~ static double zzmms_mu_y(const double y,const double z);
-    //~ static double zzmms_mu_z(const double y,const double z);
-
 
   public:
 
@@ -127,6 +110,8 @@ class HeatEquation: public IntegratorContextEx
       const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T);
 
     // compute rate
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& _varIm);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
       const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
 
@@ -142,6 +127,9 @@ class HeatEquation: public IntegratorContextEx
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode steadyState_mms(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
@@ -178,6 +166,15 @@ class HeatEquation: public IntegratorContextEx
     static double zzmms_T_z(const double y,const double z,const double t);
     static double zzmms_T_zz(const double y,const double z,const double t);
     static double zzmms_T_t(const double y,const double z,const double t);
+    static double zzmms_SSTsource(const double y,const double z,const double t);
+
+    static double zzmms_dT(const double y,const double z,const double t);
+    static double zzmms_dT_y(const double y,const double z,const double t);
+    static double zzmms_dT_yy(const double y,const double z,const double t);
+    static double zzmms_dT_z(const double y,const double z,const double t);
+    static double zzmms_dT_zz(const double y,const double z,const double t);
+    static double zzmms_dT_t(const double y,const double z,const double t);
+    static double zzmms_SSdTsource(const double y,const double z,const double t);
 };
 
 

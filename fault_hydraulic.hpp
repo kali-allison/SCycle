@@ -57,8 +57,8 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode setSNEff(); // update effective normal stress to reflect new pore pressure
 
     // IO
-    PetscErrorCode writeContext(const string outputDir);
-    PetscErrorCode writeStep(const string outputDir,const PetscInt step);
+    PetscErrorCode writeContext();
+    PetscErrorCode writeStep(const PetscInt step);
     //~ PetscErrorCode view();
 };
 

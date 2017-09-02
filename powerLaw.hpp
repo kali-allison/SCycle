@@ -42,12 +42,11 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode allocateFields(); // allocate space for member fields
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadEffViscFromFiles();
-    PetscErrorCode setSSInitialConds(Domain& D); // try to skip some spin up steps
+    PetscErrorCode setSSInitialConds(Domain& D,Vec& tauRS); // try to skip some spin up steps
     PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
 
     // functions needed each time step
-    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
     PetscErrorCode setViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
       Vec& gVxy_t, Vec& gVxz_t);
@@ -65,33 +64,35 @@ class PowerLaw: public SymmLinearElastic
 
   public:
 
-    Vec         _sxzP,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec         _sxz,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
     Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
     Vec         _gTxyP,_gTxzP; // total strain
 
-    PowerLaw(Domain&D);
+    PowerLaw(Domain&D,Vec& tau);
     ~PowerLaw();
 
 
-    PetscErrorCode resetInitialConds();
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
 
-    PetscErrorCode integrate(); // don't need now that LinearElastic defines this
+    //~ PetscErrorCode integrate(); // don't need now that LinearElastic defines this
 
     // methods for explicit time stepping
+    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount);
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount);
 
     PetscErrorCode writeDomain();
     PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D();
-    PetscErrorCode writeStep2D();
+    PetscErrorCode writeStep1D(const PetscScalar time);
+    PetscErrorCode writeStep2D(const PetscScalar time);
     PetscErrorCode view();
 
     PetscErrorCode measureMMSError();

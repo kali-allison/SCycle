@@ -23,8 +23,9 @@ class Fault: public RootFinderContext
 
   //~protected:
   public:
-    const char       *_file;
+    const char       *_file; // input file
     std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _outputDir; // directory for output
     std::string       _stateLaw; // state evolution law
 
     // domain properties
@@ -101,7 +102,9 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual computeVel() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out,PetscScalar *J) = 0;
-    PetscErrorCode virtual d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
+    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
+    PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
+    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
@@ -110,8 +113,8 @@ class Fault: public RootFinderContext
 
     // IO
     PetscErrorCode view();
-    PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
-    PetscErrorCode virtual writeStep(const std::string outputDir,const PetscInt step) = 0;
+    PetscErrorCode virtual writeContext() = 0;
+    PetscErrorCode virtual writeStep(const PetscInt step) = 0;
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
@@ -128,7 +131,7 @@ class SymmFault: public Fault
 
   //~protected:
 
-  public:
+  private:
 
     PetscErrorCode setSplitNodeFields();
 
@@ -137,16 +140,23 @@ class SymmFault: public Fault
     SymmFault(const SymmFault & that);
     SymmFault& operator=( const SymmFault& rhs);
 
-  //~public:
+  public:
 
 
 
     SymmFault(Domain&D, HeatEquation& He);
     ~SymmFault();
 
+    // for interaction with mediator
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+
+    PetscErrorCode writeStep(const PetscInt step);
+    PetscErrorCode writeContext();
+
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
-    PetscErrorCode d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode computeVel();
 
     // don't technically need the 2nd argument
@@ -154,16 +164,13 @@ class SymmFault: public Fault
     PetscErrorCode getTau(Vec& tau);
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
-
-    PetscErrorCode writeStep(const std::string outputDir,const PetscInt step);
-    PetscErrorCode writeContext(const std::string outputDir);
 };
 
 
 
 
 
-
+/*
 class FullFault: public Fault
 {
 
@@ -215,7 +222,7 @@ class FullFault: public Fault
     PetscErrorCode writeStep(const std::string outputDir,const PetscInt step);
     PetscErrorCode writeContext(const std::string outputDir);
 };
-
+*/
 
 
 #include "rootFinder.hpp"

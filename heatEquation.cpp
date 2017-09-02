@@ -7,7 +7,7 @@
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
-  _heatEquationType("transient"),
+  _heatEquationType("transient"),_isMMS(D._isMMS),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
@@ -37,7 +37,7 @@ HeatEquation::HeatEquation(Domain& D)
     _sbpT = NULL;
   }
   if (D._loadICs==1) { loadFieldsFromFiles(); }
-  else { computeInitialSteadyStateTemp(D); }
+  else if (!_isMMS) { computeInitialSteadyStateTemp(D); }
 
   // set up linear system for time integration
   setBCsforBE(); // update bcR with geotherm, correct sign for bcT, bcR, bcB
@@ -399,12 +399,12 @@ PetscErrorCode ierr = 0;
     VecSet(_T,_TVals[0]);
   }
   else {
-    if (_heatFieldsDistribution.compare("mms")==0) {
+    if (_isMMS) {
       mapToVec(_k,zzmms_k,*_y,*_z);
       mapToVec(_rho,zzmms_rho,*_y,*_z);
       mapToVec(_c,zzmms_c,*_y,*_z);
       mapToVec(_h,zzmms_h,*_y,*_z);
-      mapToVec(_T,zzmms_T,*_y,*_z,0.0);
+      mapToVec(_T0,zzmms_T,*_y,*_z,0.0);
     }
     else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
@@ -412,7 +412,6 @@ PetscErrorCode ierr = 0;
       ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_h,_hVals,_hDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_c,_cVals,_cDepths);CHKERRQ(ierr);
-      //~ ierr = setVecFromVectors(_T,_TVals,_TDepths);CHKERRQ(ierr);
     }
   }
 
@@ -548,7 +547,6 @@ PetscErrorCode HeatEquation::setupKSP_SS(SbpOps* sbp)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // create: A = I - dt/rho*c D2
   Mat A;
   sbp->getA(A);
 
@@ -775,6 +773,38 @@ PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt ste
   return ierr;
 }
 
+PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+{
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::initiateIntegrand";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // put variables to be integrated implicity into varIm
+  Vec deltaT; // change in temperature relative to background
+  VecCopy(_T,deltaT);
+  varIm["deltaT"] = deltaT;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+PetscErrorCode HeatEquation::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmLinearElastic::updateFields()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecCopy(varIm.find("deltaT")->second,_T);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
@@ -793,13 +823,13 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   for(Ii=Istart;Ii<Iend;Ii++) {
     z = _dz * Ii;
     y = 0;
-    if (!bcLType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
-    else if (!bcLType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_y(y,z,time); }
+    if (!bcLType.compare("Dirichlet")) { v = zzmms_dT(y,z,time); }
+    else if (!bcLType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_dT_y(y,z,time); }
     ierr = VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     y = _Ly;
-    if (!bcRType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
-    else if (!bcRType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_y(y,z,time); }
+    if (!bcRType.compare("Dirichlet")) { v = zzmms_dT(y,z,time); }
+    else if (!bcRType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_dT_y(y,z,time); }
     ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcL);CHKERRQ(ierr);
@@ -813,13 +843,13 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
     y = _dy * Ii;
 
     z = 0;
-    if (!bcTType.compare("Dirichlet")) { v = zzmms_T(y,z,time); } // uAnal(y,z=0)
-    else if (!bcTType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_z(y,z,time); }
+    if (!bcTType.compare("Dirichlet")) { v = zzmms_dT(y,z,time); } // uAnal(y,z=0)
+    else if (!bcTType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_dT_z(y,z,time); }
     ierr = VecSetValues(_bcT,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
     z = _Lz;
-    if (!bcBType.compare("Dirichlet")) { v = zzmms_T(y,z,time); } // uAnal(y,z=Lz)
-    else if (!bcBType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_z(y,z,time); }
+    if (!bcBType.compare("Dirichlet")) { v = zzmms_dT(y,z,time); } // uAnal(y,z=Lz)
+    else if (!bcBType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_dT_z(y,z,time); }
     ierr = VecSetValues(_bcB,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcT);CHKERRQ(ierr);
@@ -966,10 +996,11 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 //~ double startMiscTime = MPI_Wtime();
 //~ _miscTime += MPI_Wtime() - startMiscTime;
 
-  if (_heatEquationType.compare("transient")==0 ) {
+  if (_isMMS) { steadyState_mms(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt); }
+  else if (_heatEquationType.compare("transient")==0 ) {
     be_transient(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);
   }
-  else { steadyState(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);}
+  else { steadyState(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt); }
 
   computeHeatFlux();
 
@@ -1058,6 +1089,7 @@ _miscTime += MPI_Wtime() - startMiscTime;
   #endif
   return ierr;
 }
+
 // for thermomechanical coupling solving only the steady-state heat equation
 PetscErrorCode HeatEquation::steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
@@ -1108,6 +1140,73 @@ _miscTime += MPI_Wtime() - startMiscTime;
   VecDestroy(&rhs);
 
   VecSet(_T,0.0);
+  VecCopy(_T,T);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// for thermomechanical coupling solving only the steady-state heat equation with MMS test
+PetscErrorCode HeatEquation::steadyState_mms(const PetscScalar time,const Vec slipVel,const Vec& tau,
+  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::be_steadyState";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+double startMiscTime = MPI_Wtime();
+_miscTime += MPI_Wtime() - startMiscTime;
+
+
+  // set up boundary conditions and source terms
+  Vec rhs,temp;
+  VecDuplicate(_T,&rhs);
+  VecDuplicate(_T,&temp);
+  VecSet(rhs,0.0);
+  VecSet(temp,0.0);
+  setMMSBoundaryConditions(time,"Dirichlet","Dirichlet","Neumann","Dirichlet");
+
+  ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  Vec source,Hxsource;
+  VecDuplicate(_T,&source);
+  VecDuplicate(_T,&Hxsource);
+  //~ if (_Nz==1) { mapToVec(source,zzmms_T1D,*_y,time); }
+  //~ else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
+  mapToVec(source,zzmms_SSTsource,*_y,*_z,time);
+  ierr = _sbpT->H(source,Hxsource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    multMatsVec(yq,zr,Hxsource);
+  }
+  VecDestroy(&source);
+  ierr = VecAXPY(rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+  VecDestroy(&Hxsource);
+
+
+  //~ // compute shear heating component
+  //~ if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
+    //~ Vec shearHeat;
+    //~ computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
+    //~ VecSet(shearHeat,0.);
+    //~ VecAXPY(temp,1.0,shearHeat);
+    //~ VecDestroy(&shearHeat);
+  //~ }
+
+  // solve for temperature and record run time required
+  double startTime = MPI_Wtime();
+  VecCopy(To,_T); // plausible guess
+  KSPSolve(_ksp,rhs,_T);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  VecDestroy(&rhs);
+
   VecCopy(_T,T);
 
   #if VERBOSE > 1
@@ -1325,7 +1424,7 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
 
   double startTime = MPI_Wtime();
 
-  if (stepCount==0) {
+  if (_surfaceHeatFluxV==NULL) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfaceHeatFlux").c_str(),
                                  FILE_MODE_WRITE,&_surfaceHeatFluxV);CHKERRQ(ierr);
     ierr = VecView(_surfaceHeatFlux,_surfaceHeatFluxV);CHKERRQ(ierr);
@@ -1391,7 +1490,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
 
   double startTime = MPI_Wtime();
 
-  if (stepCount==0) {
+  if (_TV==NULL) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T0").c_str(),
                                  FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
     ierr = VecView(_T0,_TV);CHKERRQ(ierr);
@@ -1607,8 +1706,35 @@ double HeatEquation::zzmms_T_z(const double y,const double z,const double t) { r
 double HeatEquation::zzmms_T_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
 double HeatEquation::zzmms_T_t(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g_t(t); }
 
+double HeatEquation::zzmms_dT(const double y,const double z,const double t) { return zzmms_T(y,z,t) - zzmms_T(y,z,0.); }
+double HeatEquation::zzmms_dT_y(const double y,const double z,const double t) { return zzmms_T_y(y,z,t) - zzmms_T_y(y,z,0.); }
+double HeatEquation::zzmms_dT_yy(const double y,const double z,const double t) { return zzmms_T_yy(y,z,t) - zzmms_T_yy(y,z,0.); }
+double HeatEquation::zzmms_dT_z(const double y,const double z,const double t) { return zzmms_T_z(y,z,t) - zzmms_T_z(y,z,0.); }
+double HeatEquation::zzmms_dT_zz(const double y,const double z,const double t) { return zzmms_T_zz(y,z,t) - zzmms_T_zz(y,z,0.); }
+double HeatEquation::zzmms_dT_t(const double y,const double z,const double t) { return zzmms_T_t(y,z,t) - zzmms_T_t(y,z,0.); }
 
-
+double HeatEquation::zzmms_SSTsource(const double y,const double z,const double t)
+{
+  PetscScalar k = zzmms_k(y,z);
+  PetscScalar k_y = zzmms_k_y(y,z);
+  PetscScalar k_z = zzmms_k_z(y,z);
+  PetscScalar T_y = zzmms_T_y(y,z,t);
+  PetscScalar T_yy = zzmms_T_yy(y,z,t);
+  PetscScalar T_z = zzmms_T_z(y,z,t);
+  PetscScalar T_zz = zzmms_T_zz(y,z,t);
+  return k*(T_yy + T_zz) + k_y*T_y + k_z*T_z;
+}
+double HeatEquation::zzmms_SSdTsource(const double y,const double z,const double t)
+{
+  PetscScalar k = zzmms_k(y,z);
+  PetscScalar k_y = zzmms_k_y(y,z);
+  PetscScalar k_z = zzmms_k_z(y,z);
+  PetscScalar dT_y = zzmms_dT_y(y,z,t);
+  PetscScalar dT_yy = zzmms_dT_yy(y,z,t);
+  PetscScalar dT_z = zzmms_dT_z(y,z,t);
+  PetscScalar dT_zz = zzmms_dT_zz(y,z,t);
+  return k*(dT_yy + dT_zz) + k_y*dT_y + k_z*dT_z;
+}
 
 
 
