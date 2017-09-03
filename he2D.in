@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 151
+Ny = 51
+Nz = 51
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -131,10 +131,10 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 #heatEquationType = steadyState
 heatEquationType = transient
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -151,11 +151,11 @@ strainRate = 1e-14
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 1e8
+maxStepCount = 200
 initTime = 0
 maxTime = 1e28
 initDeltaT = 1e-3

@@ -95,7 +95,7 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode writeStep2D(const PetscScalar time);
     PetscErrorCode view();
 
-    PetscErrorCode measureMMSError();
+    PetscErrorCode measureMMSError(const PetscScalar time);
 
     // currently investigating utility
     PetscErrorCode psuedoTS_main();

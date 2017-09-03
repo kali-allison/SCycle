@@ -122,10 +122,10 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -142,13 +142,13 @@ strainRate = 1e-14
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 1000
+stride2D = 1000
+maxStepCount = 1e8
 initTime = 0
-maxTime = 1e28
+maxTime = 0.5
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10

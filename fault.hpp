@@ -26,6 +26,7 @@ class Fault: public RootFinderContext
     const char       *_file; // input file
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
+    const bool        _isMMS; // true if running mms test
     std::string       _stateLaw; // state evolution law
 
     // domain properties
@@ -151,6 +152,8 @@ class SymmFault: public Fault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     PetscErrorCode writeStep(const PetscInt step);
     PetscErrorCode writeContext();

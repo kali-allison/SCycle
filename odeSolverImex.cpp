@@ -399,7 +399,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write initial conditions
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varIm);CHKERRQ(ierr); // write initial conditions
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -472,7 +472,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varIm);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;

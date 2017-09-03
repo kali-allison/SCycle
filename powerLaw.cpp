@@ -815,8 +815,8 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
   VecCopy(varEx.find("gVxy")->second,_gxyP);
   VecCopy(varEx.find("gVxz")->second,_gxzP);
 
-  if (varIm.find("deltaT") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
-    VecCopy(varIm.find("deltaT")->second,_T);
+  if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
+    VecCopy(varIm.find("Temp")->second,_T);
   }
 
   #if VERBOSE > 1
@@ -863,7 +863,7 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const map<string,Vec>& varE
   assert(0);
 
   //~ if (_thermalCoupling.compare("coupled")==0 ) {
-    //~ VecCopy(varImo.find("deltaT")->second,_T);
+    //~ VecCopy(varImo.find("Temp")->second,_T);
     //~ _he.setTemp(_T);
     //~ _he.getTemp(_T);
   //~ }
@@ -876,7 +876,7 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // arguments:
   // time, slipVel, sigmadev, dgxy, dgxz, T, dTdt
   //~ ierr = _he.be(time,dvarEx.find("slip")->second,_fault->_tauQSP,_sigmadev,dvarEx.find("gVxy")->second,
-    //~ dvarEx.find("gVxz")->second,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
+    //~ dvarEx.find("gVxz")->second,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
 
 
 
@@ -1410,9 +1410,10 @@ PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
   return ierr;
 }
 
-PetscErrorCode PowerLaw::measureMMSError()
+PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
+  _currTime = time;
 
   // measure error between analytical and numerical solution
   Vec uA,gxyA,gxzA;

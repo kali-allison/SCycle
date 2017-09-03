@@ -34,11 +34,16 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     Mediator(const Mediator &that);
     Mediator& operator=(const Mediator &rhs);
 
-    // domain properties
+    // IO information
+    std::string       _delim; // format is: var delim value (without the white space)
+
+    // problem properties
     const bool     _isMMS; // true if running mms test
     bool           _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
     std::string          _outputDir; // output data
     const PetscScalar    _vL;
+    std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -52,15 +57,14 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
 
-
-    std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-
     // runtime data
-    double               _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
 
     // set up integrated variables (_varEx, _varIm)
     PetscErrorCode initiateIntegrand();
+
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput();
 
   public:
     OdeSolver           *_quadEx; // explicit time stepping
@@ -92,6 +96,8 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm);
 
     // debugging and MMS tests
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,

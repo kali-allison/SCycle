@@ -21,7 +21,7 @@
 
 /* Base class for the heat equation
  */
-class HeatEquation: public IntegratorContextEx
+class HeatEquation
 {
   private:
     // disable default copy constructor and assignment operator
@@ -96,7 +96,7 @@ class HeatEquation: public IntegratorContextEx
 
   public:
 
-    Vec _T; // actually change in temperature
+    Vec _dT; // actually change in temperature
     Vec _T0; // initial temperature
     Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
 
@@ -120,14 +120,14 @@ class HeatEquation: public IntegratorContextEx
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
     PetscErrorCode be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-    PetscErrorCode steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
+    PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
     PetscErrorCode setMMSBoundaryConditions(const double time,
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode steadyState_mms(const PetscScalar time,const Vec slipVel,const Vec& tau,
+    PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,

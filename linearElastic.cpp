@@ -935,7 +935,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
     //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
       //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
     ierr = _he.be(time,dvarEx.find("slip")->second,tau,NULL,NULL,
-      NULL,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
+      NULL,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     VecDestroy(&stressxzP);
     VecDestroy(&tau);
     // arguments:
@@ -945,7 +945,7 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
   }
   else {
     //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
-    ierr = VecSet(varImo.find("deltaT")->second,0.0);CHKERRQ(ierr);
+    ierr = VecSet(varImo.find("Temp")->second,0.0);CHKERRQ(ierr);
   }*/
 
 
@@ -959,9 +959,9 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
 PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
 
   Vec source,Hxsource;
   VecDuplicate(_uP,&source);
@@ -994,19 +994,12 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   // solve for shear stress
   _sbpP->muxDy(_uP,_sxy);
 
+  // force u to be correct
+  //~ ierr = mapToVec(_uP,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
 
-  // update rates
-  //~ VecSet(*dvarBegin,0.0);
-  //~ VecSet(*(dvarBegin+1),0.0);
-  //~ierr = mapToVec(*(dvarBegin+1),zzmms_uA_t,_Nz,_dy,_dz,time); CHKERRQ(ierr);
-  //~ VecSet(dvarEx.find("psi")->second,0.0);
-  //~ VecSet(dvarEx.find("slip")->second,0.0);
-
-
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -1102,7 +1095,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
-  VecSet(_bcRPShift,0.0);
 
   PetscScalar time = _currTime;
 
@@ -1124,6 +1116,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
 
   // set rhs, including body source term
+  VecSet(_bcRPShift,0.0);
   ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr);
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
@@ -1140,7 +1133,6 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
   // solve for shear stress
   _sbpP->muxDy(_uP,_sxy);
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1192,9 +1184,10 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::measureMMSError()
+PetscErrorCode SymmLinearElastic::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
+  _currTime = time;
 
   // measure error between analytical and numerical solution
   Vec uA;

@@ -6,7 +6,7 @@ using namespace std;
 
 
 Fault::Fault(Domain&D, HeatEquation& He)
-: _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_stateLaw("agingLaw"),
+: _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_stateLaw("agingLaw"),
   _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
@@ -1134,13 +1134,60 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  double startTime = MPI_Wtime();
+  if (_isMMS) {
+    ierr = d_dt_mms(time,varEx,dvarEx);CHKERRQ(ierr);
+  }
+  else {
+    ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
+  }
+
+  _stateLawTime += MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode SymmFault::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::d_dt_mms";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
   //~ PetscScalar    val,psiVal,thetaVal;
   PetscScalar    theta,dtheta,psi,dpsi,vel;
   PetscInt       Ii,Istart,Iend;
 
-  ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
-  ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
+  VecSet(dvarEx["psi"],0.0);
+  VecSet(dvarEx["slip"],0.0);
 
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+PetscErrorCode SymmFault::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::d_dt_eqCycle";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  //~ PetscScalar    val,psiVal,thetaVal;
+  PetscScalar    theta,dtheta,psi,dpsi,vel;
+  PetscInt       Ii,Istart,Iend;
+
+  //~ ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
+  //~ ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
 double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
   VecCopy(_slipVel,dvarEx.find("slip")->second);
@@ -1171,7 +1218,6 @@ _computeVelTime += MPI_Wtime() - startTime;
   ierr = VecAssemblyBegin(dvarEx.find("psi")->second);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(dvarEx.find("psi")->second);CHKERRQ(ierr);
 
-  _stateLawTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

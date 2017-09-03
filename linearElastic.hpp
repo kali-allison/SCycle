@@ -127,7 +127,7 @@ class LinearElastic
     PetscErrorCode virtual writeStep1D(const PetscScalar time) = 0;
     PetscErrorCode virtual writeStep2D(const PetscScalar time) = 0;
 
-    PetscErrorCode virtual measureMMSError() = 0;
+    PetscErrorCode virtual measureMMSError(const PetscScalar time) = 0;
 };
 
 
@@ -183,7 +183,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // IMEX backward Euler
 
-    PetscErrorCode measureMMSError();
+    PetscErrorCode virtual measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode virtual view();

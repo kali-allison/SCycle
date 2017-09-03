@@ -6,17 +6,17 @@ using namespace std;
 
 
 Mediator::Mediator(Domain&D)
-: _isMMS(D._isMMS),
+: _delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
   _outputDir(D._outputDir),
   _vL(D._vL),
+  _thermalCoupling("no"),_heatEquationType("transient"),
+  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
-  _thermalCoupling("no"),_heatEquationType("transient"),
-  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
@@ -26,6 +26,9 @@ Mediator::Mediator(Domain&D)
     std::string funcName = "Mediator::Mediator()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  loadSettings(D._file);
+  checkInput();
 
   // set up time integration member
   if (_timeIntegrator.compare("FEuler")==0) {
@@ -81,6 +84,65 @@ Mediator::~Mediator()
   #endif
 }
 
+// loads settings from the input text file
+PetscErrorCode Mediator::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "HeatEquation::loadSettings()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  ifstream infile( file );
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+
+    if (var.compare("thermalCoupling")==0) {
+      _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// Check that required fields have been set by the input file
+PetscErrorCode Mediator::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::checkInput";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  assert(_thermalCoupling.compare("coupled")==0 ||
+      _thermalCoupling.compare("uncoupled")==0 ||
+      _thermalCoupling.compare("no")==0 );
+
+  assert(_timeIntegrator.compare("FEuler")==0 ||
+      _timeIntegrator.compare("RK32")==0 ||
+      _timeIntegrator.compare("IMEX")==0 );
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 // initiate variables to be integrated in time
 PetscErrorCode Mediator::initiateIntegrand()
 {
@@ -92,6 +154,7 @@ PetscErrorCode Mediator::initiateIntegrand()
 
   _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
   _fault->initiateIntegrand(_initTime,_varEx,_varIm);
+
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     _he.initiateIntegrand(_initTime,_varEx,_varIm);
   }
@@ -102,7 +165,7 @@ PetscErrorCode Mediator::initiateIntegrand()
   return ierr;
 }
 
-
+// monitoring function for explicit integration
 PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx)
 {
@@ -110,20 +173,18 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
   _stepCount = stepCount;
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "Mediator::timeMonitor()";
+    std::string funcName = "Mediator::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
 
   if ( stepCount % _stride1D == 0) {
     ierr = _momBal->writeStep1D(time); CHKERRQ(ierr);
-    ierr = _he.writeStep1D(_stepCount); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount); CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
     ierr = _momBal->writeStep2D(time);CHKERRQ(ierr);
-    ierr = _he.writeStep2D(_stepCount);CHKERRQ(ierr);
   }
 
   if (stepCount % 50 == 0) {
@@ -138,6 +199,34 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
 
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// monitoring function for IMEX integration
+PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm)
+{
+  PetscErrorCode ierr = 0;
+  _stepCount = stepCount;
+  _currTime = time;
+  #if VERBOSE > 1
+    std::string funcName = "Mediator::timeMonitor for IMEX";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  timeMonitor(time,stepCount,varEx,dvarEx);
+
+  if ( stepCount % _stride1D == 0) {
+    ierr = _he.writeStep1D(_stepCount); CHKERRQ(ierr);
+  }
+
+  if ( stepCount % _stride2D == 0) {
+    ierr = _he.writeStep2D(_stepCount);CHKERRQ(ierr);
+  }
+
+  #if VERBOSE > 0
+    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -196,7 +285,7 @@ PetscErrorCode Mediator::integrate()
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds);
 
-    //~ ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
   else {
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
@@ -228,12 +317,12 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   _momBal->updateFields(time,varEx,_varIm);
   _fault->updateFields(time,varEx,_varIm);
 
-  ierr = _momBal->d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
+  ierr = _momBal->d_dt(time,varEx,dvarEx);CHKERRQ(ierr);
 
   // update fields on fault
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz);CHKERRQ(ierr);
 
-  if (!_bcLTauQS && !_isMMS) {
+  if (!_bcLTauQS) {
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
@@ -258,19 +347,16 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // update fields based on varEx, varIm
   _momBal->updateFields(time,varEx,varImo);
   _fault->updateFields(time,varEx,varImo);
-  _he.updateFields(time,varEx,varImo);
 
   ierr = d_dt(time,varEx,dvarEx);CHKERRQ(ierr);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-
-    ierr = _he.steadyState(time,dvarEx.find("slip")->second,_fault->_tauQSP,NULL,NULL,
-      NULL,varIm.find("deltaT")->second,varImo.find("deltaT")->second,dt);CHKERRQ(ierr);
-    //~ // arguments:
-    //~ // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
+    ierr = _he.be(time,dvarEx.find("slip")->second,_fault->_tauQSP,NULL,NULL,
+      NULL,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
   }
   else {
-    ierr = VecSet(varImo.find("deltaT")->second,0.0);CHKERRQ(ierr);
+    ierr = VecSet(varImo.find("Temp")->second,0.0);CHKERRQ(ierr);
   }
 
 
@@ -300,7 +386,10 @@ PetscErrorCode Mediator::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-
+  _momBal->measureMMSError(_currTime);
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ ierr = _he.measureMMSError();
+  //~ }
 
   return ierr;
 }
