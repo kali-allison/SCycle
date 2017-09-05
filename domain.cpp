@@ -625,7 +625,7 @@ PetscErrorCode Domain::setFields()
   }
 
   // load y instead
-  if (_inputDir.compare("unspecified")!=0) {
+  if (_inputDir.compare("unspecified")!=0 && _loadICs) {
     PetscViewer inv; // in viewer
     std::string vecSourceFile = _inputDir + "y";
     ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);

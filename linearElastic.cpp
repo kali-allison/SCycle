@@ -529,7 +529,6 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
 
   if (!_bcLTauQS) {
     VecCopy(uL,_bcLP);
-    assert(0);
   }
   VecDestroy(&uL);
 
