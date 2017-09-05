@@ -188,6 +188,8 @@ PetscErrorCode PowerLaw::checkInput()
       _viscDistribution.compare("loadFromFile")==0 ||
       _viscDistribution.compare("effectiveVisc")==0 );
 
+  if (_viscDistribution.compare("loadFromFile")==0) { assert(_inputDir.compare("unspecified")==0); }
+
   assert(_heatEquationType.compare("transient")==0 ||
       _heatEquationType.compare("steadyState")==0 );
 
@@ -830,21 +832,12 @@ PetscErrorCode PowerLaw::d_dt(const PetscScalar time,const map<string,Vec>& varE
 {
   PetscErrorCode ierr = 0;
 
-  assert(0);
-
   if (_isMMS) {
     ierr = d_dt_mms(time,varEx,dvarEx);CHKERRQ(ierr);
   }
   else {
     ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
   }
-
-  //~ if (_heatEquationType.compare("steadyState")==0 ) {
-    //~ ierr = _he.computeSteadyStateTemp(time,*(dvarBegin+2),_fault->_tauQSP,_sigmadev,*(dvarBegin+3),
-    //~ *(dvarBegin+4),_T);
-    //~ ierr = _he.computeSteadyStateTemp(time,dvarEx["slip"],_fault->_tauQSP,_sigmadev,dvarEx["gVxy"],
-    //~ dvarEx["gVxz"],_T);
-  //~ }
 
   return ierr;
 }
@@ -900,8 +893,6 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
 //~ double startMiscTime = MPI_Wtime();
 //~ _miscTime += MPI_Wtime() - startMiscTime;
 
-  //~ VecCopy(varEx.find("gVxy")->second,_gxyP);
-  //~ VecCopy(varEx.find("gVxz")->second,_gxzP);
 
   // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
   Vec viscSource;
@@ -1008,18 +999,16 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   VecDuplicate(_uP,&source);
   if (_Nz == 1) { mapToVec(source,zzmms_pl_gxy_t_source1D,*_y,_currTime); }
   else { mapToVec(source,zzmms_pl_gxy_t_source,*_y,*_z,_currTime); }
-  //~ VecAXPY(*(dvarBegin+3),1.0,source);
   VecAXPY(dvarEx["gVxy"],1.0,source);
   if (_Nz == 1) { mapToVec(source,zzmms_pl_gxz_t_source1D,*_y,_currTime); }
   else { mapToVec(source,zzmms_pl_gxz_t_source,*_y,*_z,_currTime); }
-  //~ VecAXPY(*(dvarBegin+4),1.0,source);
   VecAXPY(dvarEx["gVxz"],1.0,source);
   VecDestroy(&source);
 
 
   // force rates to be correct
-  //~ mapToVec(*(dvarBegin+3),zzmms_gxy_t,*_y,*_z,time);
-  //~ mapToVec(*(dvarBegin+4),zzmms_gxz_t,*_y,*_z,time);
+  //~ mapToVec(dvarEx["gVxy"],zzmms_gxy_t,*_y,*_z,time);
+  //~ mapToVec(dvarEx["gVxz"],zzmms_gxz_t,*_y,*_z,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1176,7 +1165,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
     VecDuplicate(_gxyP,&temp1);
     ierr = _sbpP->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
     MatMult(qy,gVxy_t,temp1); // correct
-    //~ MatMult(yq,gVxy_t,temp1); // incorrect
     VecCopy(temp1,gVxy_t);
     VecDestroy(&temp1);
   }

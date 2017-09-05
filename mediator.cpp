@@ -350,15 +350,11 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 
   ierr = d_dt(time,varEx,dvarEx);CHKERRQ(ierr);
 
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+  if (varIm.find("Temp") != varIm.end()) {
     ierr = _he.be(time,dvarEx.find("slip")->second,_fault->_tauQSP,NULL,NULL,
       NULL,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
   }
-  else {
-    ierr = VecSet(varImo.find("Temp")->second,0.0);CHKERRQ(ierr);
-  }
-
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -387,9 +383,9 @@ PetscErrorCode Mediator::measureMMSError()
   PetscErrorCode ierr = 0;
 
   _momBal->measureMMSError(_currTime);
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ ierr = _he.measureMMSError();
-  //~ }
+  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    ierr = _he.measureMMSError(_currTime);
+  }
 
   return ierr;
 }

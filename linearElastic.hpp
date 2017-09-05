@@ -201,6 +201,7 @@ class SymmLinearElastic: public LinearElastic
     static double zzmms_f_z(const double y,const double z);
     static double zzmms_f_zz(const double y,const double z);
     static double zzmms_g(const double t);
+    static double zzmms_g_t(const double t);
 
     static double zzmms_mu(const double y,const double z);
     static double zzmms_mu_y(const double y,const double z);

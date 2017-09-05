@@ -317,9 +317,6 @@ SymmLinearElastic::SymmLinearElastic(Domain&D, Vec& tau)
 
   setSurfDisp();
 
-  writeVec(_bcLP,"data/test_bcL");
-  writeVec(_bcRP,"data/test_bcR");
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
 #endif
@@ -968,6 +965,7 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   VecDuplicate(_uP,&Hxsource);
   if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
+  writeVec(source,_outputDir+"mms_u_source");
   ierr = _sbpP->H(source,Hxsource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -975,13 +973,16 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
     multMatsVec(yq,zr,Hxsource);
   }
   VecDestroy(&source);
+  writeVec(Hxsource,_outputDir+"mms_u_Hxsource");
 
 
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
+  writeVec(_rhsP,_outputDir+"mms_u_rhs1");
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
+  writeVec(_rhsP,_outputDir+"mms_u_rhs2");
 
 
   // solve for displacement
@@ -990,6 +991,8 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
+
+  writeVec(_rhsP,_outputDir+"mms_u_rhs");
 
   // solve for shear stress
   _sbpP->muxDy(_uP,_sxy);
@@ -1051,7 +1054,6 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcRP);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  //~ ierr = VecGetOwnershipRange(_bcTP,&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(*_y,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     if (Ii % _Nz == 0) {
@@ -1105,7 +1107,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
   if (_Nz == 1) { mapToVec(source,zzmms_uSource1D,*_y,_currTime); }
   else { mapToVec(source,zzmms_uSource,*_y,*_z,_currTime); }
   //~ ierr = mapToVec(source,zzmms_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
-  writeVec(source,_outputDir + "mms_source");
+  writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbpP->H(source,Hxsource); CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -1207,6 +1209,10 @@ PetscErrorCode SymmLinearElastic::measureMMSError(const PetscScalar time)
 
   //~ std::str = _outputDir = "uA";
   writeVec(uA,_outputDir+"uA");
+  writeVec(_bcLP,_outputDir+"mms_u_bcL");
+  writeVec(_bcRP,_outputDir+"mms_u_bcR");
+  writeVec(_bcTP,_outputDir+"mms_u_bcT");
+  writeVec(_bcBP,_outputDir+"mms_u_bcB");
 
   //~ Mat H; _sbpP->getH(H);
   //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
@@ -1226,14 +1232,20 @@ double SymmLinearElastic::zzmms_f_yy(const double y,const double z) { return -co
 double SymmLinearElastic::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
 double SymmLinearElastic::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
-double SymmLinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
+//~ double SymmLinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
+double SymmLinearElastic::zzmms_g(const double t) { return exp(-2.*t); }
+double SymmLinearElastic::zzmms_g_t(const double t) { return -2.*exp(-2.*t); }
+
 double SymmLinearElastic::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
 double SymmLinearElastic::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
 double SymmLinearElastic::zzmms_uA_yy(const double y,const double z,const double t) { return zzmms_f_yy(y,z)*zzmms_g(t); }
 double SymmLinearElastic::zzmms_uA_z(const double y,const double z,const double t) { return zzmms_f_z(y,z)*zzmms_g(t); }
 double SymmLinearElastic::zzmms_uA_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
+//~ double SymmLinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
+  //~ return zzmms_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
+//~ }
 double SymmLinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
-  return zzmms_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
+  return zzmms_f(y,z)*zzmms_g_t(t);
 }
 
 double SymmLinearElastic::zzmms_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }

@@ -33,9 +33,9 @@ class HeatEquation
     // domain dimensions etc
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
-    const Vec            *_y,*_z; // to handle variable grid spacing
-    std::string           _heatEquationType;
-    int                   _isMMS;
+    const Vec           *_y,*_z; // to handle variable grid spacing
+    std::string          _heatEquationType;
+    int                  _isMMS;
 
     // IO information
     const char       *_file; // input ASCII file location
@@ -50,7 +50,6 @@ class HeatEquation
 
     // heat fluxes
     Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
-
 
     // viewers
     PetscViewer          _TV; // temperature viewer
@@ -87,6 +86,8 @@ class HeatEquation
 
 
     PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
+    PetscErrorCode setUpSteadyStateProblem(Domain& D);
+    PetscErrorCode setUpTransientProblem(Domain& D);
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
@@ -100,7 +101,7 @@ class HeatEquation
     Vec _T0; // initial temperature
     Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
 
-    HeatEquation(Domain&D);
+    HeatEquation(Domain& D);
     ~HeatEquation();
 
     PetscErrorCode getTemp(Vec& T); // return total temperature
@@ -134,7 +135,7 @@ class HeatEquation
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage);
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
+    PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode view();
