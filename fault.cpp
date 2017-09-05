@@ -1503,16 +1503,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = VecLoad(_psi,inv);CHKERRQ(ierr);
   //~ VecSet(_psi,0.6);
 
-  // load state: theta
-  vecSourceFile = inputDir + "theta";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_theta,inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&inv);
-  //~ VecSet(_theta,0.6);
-
-  // load state
+  // load slip
   vecSourceFile = inputDir + "slip";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
@@ -1520,14 +1511,13 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = VecLoad(_slip,inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerDestroy(&inv);
 
-  // load state
+  // load quasi-static shear stress
   vecSourceFile = inputDir + "tauQS";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_tauQSP,inv);CHKERRQ(ierr);
   //~ ierr = PetscViewerDestroy(&inv);
-
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);

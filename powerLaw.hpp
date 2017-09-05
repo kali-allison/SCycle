@@ -75,6 +75,7 @@ class PowerLaw: public SymmLinearElastic
 
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode getSigmaDev(Vec& sdev);
 
     //~ PetscErrorCode integrate(); // don't need now that LinearElastic defines this
 

@@ -43,6 +43,7 @@ class LinearElastic
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
+    const bool           _loadICs; // true if running mms test
     bool             _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
     PetscScalar     _currTime;
 
@@ -110,6 +111,7 @@ class LinearElastic
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm) = 0;
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep) = 0;
+    PetscErrorCode virtual getSigmaDev(Vec& sdev) = 0;
 
     // explicit time-stepping methods
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
@@ -171,6 +173,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
+    PetscErrorCode virtual getSigmaDev(Vec& sdev);
 
     // methods for explicit time stepping
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

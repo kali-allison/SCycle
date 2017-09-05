@@ -2,9 +2,10 @@
 # domain
 order = 4
 Ny = 51
-Nz = 51
+Nz = 52
+#Nz = 103
 Ly = 30 # km
-Lz = 30 # km
+Lz = 40 # km
 vL = 1e-9    # (m/s)
 
 isMMS = no
@@ -17,7 +18,9 @@ bulkDeformationType = powerLaw
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
-bCoordTrans = 6.0
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny51_Nz52_z
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_z
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -25,7 +28,9 @@ sbpType = mfc_coordTrans
 # linear systems
 
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz301_
-loadICs = 0
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny51_Nz52_
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_
+loadICs = 1
 bcLTauQS = 0
 
 # algorithm for momentum balance equation
@@ -45,9 +50,9 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
+#DcVals = [16e-3 16e-3] # m
 #DcVals = [32e-3 32e-3] # m
-#DcVals = [1 1] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -126,15 +131,15 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [1000 1100]
+#TVals = [293 1793] # 30 C/km
+TVals = [600 1200]
 TDepths = [0 50]
-#heatEquationType = steadyState
-heatEquationType = transient
-thermalCoupling = coupled
+heatEquationType = steadyState
+#heatEquationType = transient
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -151,36 +156,31 @@ strainRate = 1e-14
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 200
+stride1D = 1
+stride2D = 1
+maxStepCount = 10
 initTime = 0
-maxTime = 1e28
+maxTime = 1e8
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
 timeIntInds = [psi slip]
-#timeIntInds = [0 2]
-#timeIntInds = [2 3 4]
+#timeIntInds = [gVxy gVxz]
 
 
-#outputDir = /scratch/kallison/he/le_wfh_
-#outputDir = /scratch/kallison/he/le_wfh_VwT_fw0.12_
-#outputDir = /scratch/kallison/he/pl_wfh_wsh_fw0.12_
-#outputDir = /scratch/kallison/he/pl_wfh_wsh_VwT_fw0.0_
-#outputDir = /scratch/kallison/he/pl_wfh_wsh_VwT_fw0.12_
-#outputDir = /scratch/kallison/he/pl_wfh_wsh_fw0.0_
-
-#outputDir = /scratch/kallison/he/pl_Dc1_wfh_wsh_VwT_fw0.0_
-#outputDir = /scratch/kallison/he/plSS_Dc1_nfh_wsh_VwT_fw0.0_
+# for SCEC
+#outputDir = /scratch/kallison/scec/pl_Dc1_cwsh_
+#outputDir = /scratch/kallison/scec/pl_Dc1_cwshSS_
 
 
 #outputDir = data/test_
-#outputDir = /scratch/kallison/he/test_
-outputDir = /scratch/kallison/he/pl_
-#outputDir = /scratch/kallison/scec/pl_Dc1_cwsh_
+#outputDir = /scratch/kallison/he/testC_
+outputDir = /scratch/kallison/he/testF_
+
+#outputDir = /scratch/kallison/he/pl_
+
 
 

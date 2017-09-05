@@ -52,8 +52,8 @@ int runMMSTests(const char * inputFile)
   PetscPrintf(PETSC_COMM_WORLD,"%-3s %-2s %-10s %-10s %-22s %-10s %-22s %-10s %-22s\n",
              "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
              "errL2gxz","log2(errL2gxz)");
-  //~ for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
-  for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
+  for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
+  //~ for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
   {
     Domain d(inputFile,Ny,Ny+1);
     //~ Domain d(inputFile,Ny,1);
@@ -62,19 +62,6 @@ int runMMSTests(const char * inputFile)
     Mediator m(d);
     ierr = m.integrate();CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
-
-    //~ SymmLinearElastic *obj;
-    //~ if (d._bulkDeformationType.compare("linearElastic")==0) {
-      //~ obj = new SymmLinearElastic(d);
-    //~ }
-    //~ else if (d._bulkDeformationType.compare("powerLaw")==0) {
-      //~ obj = new PowerLaw(d);
-    //~ }
-
-    //~ ierr = obj->writeStep1D();CHKERRQ(ierr);
-    //~ ierr = obj->writeStep2D();CHKERRQ(ierr);
-    //~ ierr = obj->integrate();CHKERRQ(ierr);
-    //~ ierr = obj->measureMMSError();CHKERRQ(ierr);
   }
 
   return ierr;

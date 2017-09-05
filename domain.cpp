@@ -624,6 +624,22 @@ PetscErrorCode Domain::setFields()
     ierr = VecLoad(_z,inv);CHKERRQ(ierr);
   }
 
+  // load y instead
+  if (_inputDir.compare("unspecified")!=0) {
+    PetscViewer inv; // in viewer
+    std::string vecSourceFile = _inputDir + "y";
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(_y,inv);CHKERRQ(ierr);
+
+    vecSourceFile = _inputDir + "z";
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(_z,inv);CHKERRQ(ierr);
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
     CHKERRQ(ierr);

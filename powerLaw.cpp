@@ -32,6 +32,7 @@ PowerLaw::PowerLaw(Domain& D,Vec& tau)
     setUpSBPContext(D); // set up matrix operators
     setStresses(_currTime);
     computeViscosity();
+    //~ assert(0);
   }
   else {
     guessSteadyStateEffVisc();
@@ -188,7 +189,8 @@ PetscErrorCode PowerLaw::checkInput()
       _viscDistribution.compare("loadFromFile")==0 ||
       _viscDistribution.compare("effectiveVisc")==0 );
 
-  if (_viscDistribution.compare("loadFromFile")==0) { assert(_inputDir.compare("unspecified")==0); }
+  //~ if (_viscDistribution.compare("loadFromFile")==0) { assert(!_inputDir.compare("unspecified")); }
+  if (_viscDistribution.compare("loadFromFile")==0) { assert(_inputDir.compare("unspecified")); }
 
   assert(_heatEquationType.compare("transient")==0 ||
       _heatEquationType.compare("steadyState")==0 );
@@ -350,16 +352,6 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
   PetscViewer inv; // in viewer
 
-
-  /*  // load T (initial condition)
-  ierr = VecCreate(PETSC_COMM_WORLD,&_T);CHKERRQ(ierr);
-  ierr = VecSetSizes(_T,PETSC_DECIDE,_Ny*_Nz);CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_T);
-  PetscObjectSetName((PetscObject) _T, "_T");
-  ierr = loadVecFromInputFile(_T,_inputDir,_TFile);CHKERRQ(ierr);
-  */
-
-
   // load bcL
   string vecSourceFile = _inputDir + "bcL";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -437,6 +429,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_n,inv);CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1132,6 +1125,12 @@ PetscErrorCode PowerLaw::computeViscosity()
   VecRestoreArray(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
 
+  writeVec(_A,_outputDir+"A0");
+  writeVec(_B,_outputDir+"B0");
+  writeVec(_n,_outputDir+"n0");
+  writeVec(_T,_outputDir+"TT0");
+  writeVec(_effVisc,_outputDir+"effVisc0");
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -1243,6 +1242,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
   VecCopy(_gTxyP,_sxy);
   VecAXPY(_sxy,-1.0,_gxyP);
   VecPointwiseMult(_sxy,_sxy,_muVecP);
+  writeVec(_sxy,_outputDir+"sxy0");
 
   // deviatoric stress: part 1/3
   VecPointwiseMult(_sigmadev,_sxy,_sxy);
@@ -1252,6 +1252,7 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
     VecCopy(_gTxzP,_sxz);
     VecAXPY(_sxz,-1.0,_gxzP);
     VecPointwiseMult(_sxz,_sxz,_muVecP);
+    writeVec(_sxz,_outputDir+"sxz0");
 
   // deviatoric stress: part 2/3
   Vec temp;
@@ -1263,13 +1264,19 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
 
   // deviatoric stress: part 3/3
   VecSqrtAbs(_sigmadev);
-
+  writeVec(_sigmadev,_outputDir+"sdev0");
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
   return ierr = 0;
+}
+
+PetscErrorCode PowerLaw::getSigmaDev(Vec& sdev)
+{
+  sdev = _sigmadev;
+  return 0;
 }
 
 

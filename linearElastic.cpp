@@ -9,7 +9,7 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
 : _delim(D._delim),_inputDir(D._inputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),
+  _isMMS(D._isMMS),_loadICs(D._loadICs),
   _bcLTauQS(0),_currTime(D._initTime),
   _outputDir(D._outputDir),
   _vL(D._vL),
@@ -307,7 +307,7 @@ SymmLinearElastic::SymmLinearElastic(Domain&D, Vec& tau)
 
   allocateFields();
   setMaterialParameters();
-  if (D._loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
+  if (_loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
   else { setInitialConds(D,tau); } // guess at steady-state configuration
   setUpSBPContext(D); // set up matrix operators
 
@@ -529,6 +529,7 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
 
   if (!_bcLTauQS) {
     VecCopy(uL,_bcLP);
+    assert(0);
   }
   VecDestroy(&uL);
 
@@ -550,18 +551,29 @@ PetscErrorCode SymmLinearElastic::setInitialSlip(Vec& out)
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v;
 
-  PetscScalar minVal = 0;
-  VecMin(_uP,NULL,&minVal);
-  ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii<_Nz) {
-      ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
-      v = 2. * (v + abs(minVal));
-      ierr = VecSetValues(out,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+  if (!_loadICs) {
+    PetscScalar minVal = 0;
+    VecMin(_uP,NULL,&minVal);
+    ierr = VecGetOwnershipRange(_uP,&Istart,&Iend);CHKERRQ(ierr);
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      if (Ii<_Nz) {
+        ierr = VecGetValues(_uP,1,&Ii,&v);CHKERRQ(ierr);
+        v = 2. * (v + abs(minVal));
+        ierr = VecSetValues(out,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+      }
     }
+    ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
+    ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
   }
-  ierr = VecAssemblyBegin(out);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(out);CHKERRQ(ierr);
+  else {
+    // load slip
+    PetscViewer inv; // in viewer
+    std::string vecSourceFile = _inputDir + "slip";
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(out,inv);CHKERRQ(ierr);
+  }
 
 
   #if VERBOSE > 1
@@ -869,6 +881,11 @@ PetscErrorCode SymmLinearElastic::updateFields(const PetscScalar time,const map<
   return ierr;
 }
 
+PetscErrorCode SymmLinearElastic::getSigmaDev(Vec& sdev)
+{
+  return 0;
+}
+
 // explicit time stepping
 PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
@@ -965,7 +982,6 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   VecDuplicate(_uP,&Hxsource);
   if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
-  writeVec(source,_outputDir+"mms_u_source");
   ierr = _sbpP->H(source,Hxsource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
@@ -973,16 +989,13 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
     multMatsVec(yq,zr,Hxsource);
   }
   VecDestroy(&source);
-  writeVec(Hxsource,_outputDir+"mms_u_Hxsource");
 
 
   // set rhs, including body source term
   setMMSBoundaryConditions(time); // modifies _bcLP,_bcRP,_bcTP, and _bcBP
   ierr = _sbpP->setRhs(_rhsP,_bcLP,_bcRP,_bcTP,_bcBP);CHKERRQ(ierr);
-  writeVec(_rhsP,_outputDir+"mms_u_rhs1");
   ierr = VecAXPY(_rhsP,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
   VecDestroy(&Hxsource);
-  writeVec(_rhsP,_outputDir+"mms_u_rhs2");
 
 
   // solve for displacement
@@ -991,8 +1004,6 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();
-
-  writeVec(_rhsP,_outputDir+"mms_u_rhs");
 
   // solve for shear stress
   _sbpP->muxDy(_uP,_sxy);
@@ -1077,10 +1088,10 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcTP);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcBP);CHKERRQ(ierr);
 
-  writeVec(_bcLP,_outputDir+"mms_bcL");
-  writeVec(_bcRP,_outputDir+"mms_bcR");
-  writeVec(_bcTP,_outputDir+"mms_bcT");
-  writeVec(_bcBP,_outputDir+"mms_bcB");
+  //~ writeVec(_bcLP,_outputDir+"mms_bcL");
+  //~ writeVec(_bcRP,_outputDir+"mms_bcR");
+  //~ writeVec(_bcTP,_outputDir+"mms_bcT");
+  //~ writeVec(_bcBP,_outputDir+"mms_bcB");
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1209,10 +1220,10 @@ PetscErrorCode SymmLinearElastic::measureMMSError(const PetscScalar time)
 
   //~ std::str = _outputDir = "uA";
   writeVec(uA,_outputDir+"uA");
-  writeVec(_bcLP,_outputDir+"mms_u_bcL");
-  writeVec(_bcRP,_outputDir+"mms_u_bcR");
-  writeVec(_bcTP,_outputDir+"mms_u_bcT");
-  writeVec(_bcBP,_outputDir+"mms_u_bcB");
+  //~ writeVec(_bcLP,_outputDir+"mms_u_bcL");
+  //~ writeVec(_bcRP,_outputDir+"mms_u_bcR");
+  //~ writeVec(_bcTP,_outputDir+"mms_u_bcT");
+  //~ writeVec(_bcBP,_outputDir+"mms_u_bcB");
 
   //~ Mat H; _sbpP->getH(H);
   //~ double err2uA = computeNormDiff_Mat(H,_uP,uA);
@@ -1232,9 +1243,10 @@ double SymmLinearElastic::zzmms_f_yy(const double y,const double z) { return -co
 double SymmLinearElastic::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
 double SymmLinearElastic::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
-//~ double SymmLinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
-double SymmLinearElastic::zzmms_g(const double t) { return exp(-2.*t); }
-double SymmLinearElastic::zzmms_g_t(const double t) { return -2.*exp(-2.*t); }
+double SymmLinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
+double SymmLinearElastic::zzmms_g_t(const double t) {
+  return (-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9);
+}
 
 double SymmLinearElastic::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
 double SymmLinearElastic::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
