@@ -11,7 +11,7 @@ SbpOps_sc::SbpOps_sc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
   _muVec(muVec),
   _da(D._da),
-  _bcTType(_bcTType),_bcRType(_bcRType),_bcBType(_bcBType),_bcLType(_bcLType),
+  _bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0)
 
 {

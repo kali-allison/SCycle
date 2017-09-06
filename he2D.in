@@ -1,10 +1,13 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
+Ny = 51
+Nz = 51
+
+#Ny = 101
 #Ny = 201
 #Nz = 101
-Nz = 201
+#Nz = 201
 Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -137,10 +140,10 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -149,19 +152,19 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 100
-stride2D = 100
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 10
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
@@ -179,12 +182,13 @@ timeIntInds = [psi slip]
 #outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_nhe_
 #outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_nhe_
 #outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_cwshSS_
-outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
+#outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
 
 
 #outputDir = data/test_
 #outputDir = /scratch/kallison/he/testC_
 #outputDir = /scratch/kallison/he/testF_
+outputDir = /scratch/kallison/he/testMat_
 
 #outputDir = /scratch/kallison/he/pl_
 

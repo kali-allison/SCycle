@@ -1351,51 +1351,6 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
   return ierr;
 }
 
-// Outputs data at each time step.
-PetscErrorCode PowerLaw::debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage)
-{
-  PetscErrorCode ierr = 0;
-/*
-#if ODEPRINT > 0
-  PetscInt       Istart,Iend;
-  PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
-  PetscScalar    epsVxy,depsVxy;
-
-  ierr= VecGetOwnershipRange(*varBegin,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(*varBegin,1,&Istart,&psiVal);CHKERRQ(ierr);
-
-  ierr = VecGetValues(*(varBegin+1),1,&Istart,&uVal);CHKERRQ(ierr);
-
-  ierr= VecGetOwnershipRange(*dvarBegin,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(*dvarBegin,1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+1),1,&Istart,&velVal);CHKERRQ(ierr);
-
-  ierr = VecGetValues(*(varBegin+2),1,&Istart,&epsVxy);CHKERRQ(ierr);
-  ierr = VecGetValues(*(dvarBegin+2),1,&Istart,&depsVxy);CHKERRQ(ierr);
-
-  ierr= VecGetOwnershipRange(_bcRP,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(_bcRP,1,&Istart,&bcRval);CHKERRQ(ierr);
-
-  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
-
-  if (stepCount == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s  | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
-                       "Step","Stage", "bcR","D","eVxy", "tauQS","V","deVxy","time");
-    CHKERRQ(ierr);
-  }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,epsVxy);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,depsVxy);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
-
-
-  //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-#endif
-*/
-  return ierr;
-}
-
 PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
