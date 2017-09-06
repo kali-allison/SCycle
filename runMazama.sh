@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N testC
+#PBS -N g30_sNgrad_Ny101_Nz201_Dc1_cwshSS
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/testC.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/testC.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

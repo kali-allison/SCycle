@@ -1,10 +1,11 @@
 #======================================================================
 # domain
 order = 4
-Ny = 51
-#Nz = 52
-Nz = 103
-Ly = 30 # km
+Ny = 101
+#Ny = 201
+#Nz = 101
+Nz = 201
+Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
 
@@ -18,9 +19,9 @@ bulkDeformationType = powerLaw
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny51_Nz52_z
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny101_Nz101_z
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_z
-bCoordTrans = 5.0
+bCoordTrans = 6.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -28,9 +29,9 @@ sbpType = mfc_coordTrans
 # linear systems
 
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz301_
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny51_Nz52_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_
-loadICs = 1
+inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_
+loadICs = 0
 bcLTauQS = 0
 
 # algorithm for momentum balance equation
@@ -79,7 +80,7 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaNDepths = [0 60] #(km) constant
 sigmaNVals = [5.668 5.668 1336] # MPa
 sigmaNDepths = [0 0.25 60]
-sigmaN_cap = 50; # MPa
+#sigmaN_cap = 50; # MPa
 
 
 
@@ -131,15 +132,15 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [600 1200]
+TVals = [293 1793] # 30 C/km
+#TVals = [600 1200]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -148,21 +149,21 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 10
-stride2D = 10
+stride1D = 100
+stride2D = 100
 maxStepCount = 1e8
 initTime = 0
-maxTime = 1e11
+maxTime = 1e18
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -174,11 +175,16 @@ timeIntInds = [psi slip]
 # for SCEC
 #outputDir = /scratch/kallison/scec/pl_Dc1_cwsh_
 #outputDir = /scratch/kallison/scec/pl_Dc1_cwshSS_
+#outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_cwshSS_
+#outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_nhe_
+#outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_nhe_
+#outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_cwshSS_
+outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
 
 
 #outputDir = data/test_
 #outputDir = /scratch/kallison/he/testC_
-outputDir = /scratch/kallison/he/testF_
+#outputDir = /scratch/kallison/he/testF_
 
 #outputDir = /scratch/kallison/he/pl_
 

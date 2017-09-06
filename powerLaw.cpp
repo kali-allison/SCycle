@@ -32,7 +32,6 @@ PowerLaw::PowerLaw(Domain& D,Vec& tau)
     setUpSBPContext(D); // set up matrix operators
     setStresses(_currTime);
     computeViscosity();
-    //~ assert(0);
   }
   else {
     guessSteadyStateEffVisc();
@@ -1113,6 +1112,7 @@ PetscErrorCode PowerLaw::computeViscosity()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
+    effVisc[Jj] = min(effVisc[Jj],1e30);
 
     assert(~isnan(effVisc[Jj]));
     assert(~isinf(effVisc[Jj]));
@@ -1124,12 +1124,6 @@ PetscErrorCode PowerLaw::computeViscosity()
   VecRestoreArray(_n,&n);
   VecRestoreArray(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
-
-  writeVec(_A,_outputDir+"A0");
-  writeVec(_B,_outputDir+"B0");
-  writeVec(_n,_outputDir+"n0");
-  writeVec(_T,_outputDir+"TT0");
-  writeVec(_effVisc,_outputDir+"effVisc0");
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1242,7 +1236,6 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
   VecCopy(_gTxyP,_sxy);
   VecAXPY(_sxy,-1.0,_gxyP);
   VecPointwiseMult(_sxy,_sxy,_muVecP);
-  writeVec(_sxy,_outputDir+"sxy0");
 
   // deviatoric stress: part 1/3
   VecPointwiseMult(_sigmadev,_sxy,_sxy);
@@ -1252,7 +1245,6 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
     VecCopy(_gTxzP,_sxz);
     VecAXPY(_sxz,-1.0,_gxzP);
     VecPointwiseMult(_sxz,_sxz,_muVecP);
-    writeVec(_sxz,_outputDir+"sxz0");
 
   // deviatoric stress: part 2/3
   Vec temp;
@@ -1264,7 +1256,6 @@ PetscErrorCode PowerLaw::setStresses(const PetscScalar time)
 
   // deviatoric stress: part 3/3
   VecSqrtAbs(_sigmadev);
-  writeVec(_sigmadev,_outputDir+"sdev0");
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
