@@ -54,8 +54,6 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode setStresses(const PetscScalar time);
     PetscErrorCode computeViscosity();
 
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                     const_it_vec varBegin,const_it_vec dvarBegin,const char *stage);
 
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);

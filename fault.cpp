@@ -644,6 +644,7 @@ SymmFault::~SymmFault()
 
 PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
+  PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "SymmFault::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -658,6 +659,7 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
@@ -813,7 +815,8 @@ PetscErrorCode SymmFault::setSplitNodeFields()
 
 
   // tau, eta, bcRShift, sigma_N
-  PetscScalar a,b,zPlus,tau_inf,sigma_N;
+  //~ PetscScalar a,b,zPlus,tau_inf,sigma_N;
+  PetscScalar a,b,tau_inf,sigma_N;
   ierr = VecGetOwnershipRange(_a,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     ierr =  VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
@@ -877,7 +880,7 @@ PetscErrorCode SymmFault::setTemp(const Vec& T)
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v = 0;
 
-  PetscScalar a0 = 0.005, b0 = 0.008; // Beeler et al. 2016
+  //~ PetscScalar a0 = 0.005, b0 = 0.008; // Beeler et al. 2016
 
   ierr = VecGetOwnershipRange(T,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -1159,8 +1162,8 @@ PetscErrorCode SymmFault::d_dt_mms(const PetscScalar time,const map<string,Vec>&
   #endif
 
   //~ PetscScalar    val,psiVal,thetaVal;
-  PetscScalar    theta,dtheta,psi,dpsi,vel;
-  PetscInt       Ii,Istart,Iend;
+  //~ PetscScalar    theta,dtheta,psi,dpsi,vel;
+  //~ PetscInt       Ii,Istart,Iend;
 
   VecSet(dvarEx["psi"],0.0);
   VecSet(dvarEx["slip"],0.0);
@@ -1183,7 +1186,7 @@ PetscErrorCode SymmFault::d_dt_eqCycle(const PetscScalar time,const map<string,V
   #endif
 
   //~ PetscScalar    val,psiVal,thetaVal;
-  PetscScalar    theta,dtheta,psi,dpsi,vel;
+  PetscScalar    psi,dpsi;
   PetscInt       Ii,Istart,Iend;
 
   //~ ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);

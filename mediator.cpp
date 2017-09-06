@@ -51,6 +51,7 @@ Mediator::Mediator(Domain&D)
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new SymmLinearElastic(D,_fault->_tauQSP); }
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_fault->_tauQSP); }
 
+
   writeContext();
 
   #if VERBOSE > 1
@@ -76,8 +77,8 @@ Mediator::~Mediator()
 
   delete _quadImex; _quadImex = NULL;
   delete _quadEx;   _quadEx = NULL;
-  delete _momBal;   _momBal = NULL;
-  delete _fault;    _fault = NULL;
+  //~ delete _momBal;   _momBal = NULL;
+  //~ delete _fault;    _fault = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

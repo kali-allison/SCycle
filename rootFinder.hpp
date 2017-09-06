@@ -66,8 +66,8 @@ class BracketedNewton : public RootFinder
     PetscScalar _left,_fLeft;
     PetscScalar _right,_fRight;
     //~ PetscScalar _mid,_fMid;
-    PetscScalar _prev,_x,_f,_fPrime;
-    PetscScalar _tolX,_tolF;
+    //~ PetscScalar _prev,_x,_f,_fPrime;
+    PetscScalar _x,_f,_fPrime;
 
   public:
 

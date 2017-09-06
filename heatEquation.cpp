@@ -666,6 +666,7 @@ PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt ste
 
 PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
+  PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -680,6 +681,7 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 PetscErrorCode HeatEquation::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)

@@ -88,7 +88,7 @@ class Fault: public RootFinderContext
     typedef std::vector<Vec>::const_iterator const_it_vec;
 
     Fault(Domain& D, HeatEquation& He);
-    ~Fault();
+    virtual ~Fault();
 
 
     // state evolution equations
