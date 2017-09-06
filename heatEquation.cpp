@@ -675,7 +675,8 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   // put variables to be integrated implicity into varIm
   Vec T;
   VecDuplicate(_T0,&T);
-  VecCopy(_T0,T);
+  //~ VecCopy(_T0,T);
+  VecWAXPY(T,1.0,_T0,_dT);
   varIm["Temp"] = T;
 
   #if VERBOSE > 1
@@ -991,20 +992,24 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
 
   // compute shear heating component
-  if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
+  if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sigmadev!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
     VecAXPY(temp,1.0,shearHeat);
+    writeVec(shearHeat,_outputDir+"test_shearHeat");
     VecDestroy(&shearHeat);
   }
 
   MatMult(_rhoC,temp,rhs);
   VecScale(rhs,dt);
 
-  // add H * (Tno - T0) to rhs
-  VecWAXPY(_dT,-1.0,_T0,To); // _dT = To - _T0
+  // add H * (To - T0) to rhs
   VecSet(temp,0.0);
+  VecWAXPY(_dT,-1.0,_T0,To); // _dT =  -_T0 + To
   _sbpT->H(_dT,temp);
+
+  // add H * To to rhs
+  //~ _sbpT->H(To,temp);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat qy,rz,yq,zr;
     ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1016,14 +1021,17 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  KSPSolve(_ksp,rhs,_dT);
+  //~ KSPSolve(_ksp,rhs,_dT);
+  KSPSolve(_ksp,rhs,T);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
   VecDestroy(&rhs);
+  //~ VecWAXPY(_dT,-1.0,_T0,T); // dT = -T0 + T
 
   VecWAXPY(T,1.0,_dT,_T0); // T = dT + T0
   //~ VecCopy(_T0,T); // mimic no effect
+  //~ VecCopy(_dT,T);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

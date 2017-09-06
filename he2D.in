@@ -1,13 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 51
-Nz = 51
-
-#Ny = 101
-#Ny = 201
-#Nz = 101
-#Nz = 201
+Ny = 101
+Nz = 101
 Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -31,11 +26,12 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz301_
-inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_
-loadICs = 0
-bcLTauQS = 1
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
+#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step2_Dc1_Ny201_Nz201_
+#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step2_Dc1_Ny201_Nz401_
+inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step3_Dc1_Ny201_Nz401_
+loadICs = 1
+bcLTauQS = 0
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -54,9 +50,8 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
-#DcVals = [32e-3 32e-3] # m
-DcVals = [1 1] # m
+DcVals = [16e-3 16e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -78,12 +73,12 @@ bDepths = [0 10 11 19.3333 60]
 #bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
+#sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
-#sigmaN_cap = 50; # MPa
+#sigmaNDepths = [0 60] #(km) constant
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
+sigmaN_cap = 50; # MPa
 
 
 
@@ -121,7 +116,6 @@ nVals = [2.4 2.4]
 nDepths = [0 60]
 
 # heat equation properties
-#heatFieldsDistribution = mms
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
@@ -138,12 +132,12 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [600 1200]
 TDepths = [0 50]
-heatEquationType = steadyState
-#heatEquationType = transient
-#thermalCoupling = coupled
+#heatEquationType = steadyState
+heatEquationType = transient
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -152,15 +146,15 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
+viscDistribution = loadFromFile
+#viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 1
 stride2D = 1
@@ -184,8 +178,12 @@ timeIntInds = [psi slip]
 #outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_cwshSS_
 #outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
 
+#outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz201_
+#outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz401_
+outputDir = /scratch/kallison/scec/g30_cwshSS_Dc16e-3_Ny201_Nz401_
+#outputDir = /scratch/kallison/scec/g30_cwshSS_Dc8e-3_Ny201_Nz401_
 
-outputDir = data/test_
+#outputDir = data/test_
 #outputDir = /scratch/kallison/he/testC_
 #outputDir = /scratch/kallison/he/testF_
 #outputDir = /scratch/kallison/he/testMat_

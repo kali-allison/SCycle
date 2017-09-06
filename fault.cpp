@@ -231,6 +231,8 @@ PetscErrorCode Fault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<do
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  VecSet(vec,vals[0]);
+
   // build structure from generalized input
   size_t vecLen = depths.size();
   ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);

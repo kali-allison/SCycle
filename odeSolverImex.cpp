@@ -198,10 +198,6 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::m
   // implicit part
   _varIm = varIm;
   for (map<string,Vec>::iterator it=_varIm.begin(); it!=_varIm.end(); it++ ) {
-    Vec varIm;
-    ierr = VecDuplicate(_varIm[it->first],&varIm); CHKERRQ(ierr);
-    ierr = VecSet(varIm,0.0); CHKERRQ(ierr);
-    _varIm[it->first] = varIm;
 
     Vec varHalfdTIm;
     ierr = VecDuplicate(_varIm[it->first],&varHalfdTIm); CHKERRQ(ierr);
@@ -218,7 +214,6 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::m
     ierr = VecSet(varIm_half,0.0); CHKERRQ(ierr);
     _varIm_half[it->first] = varIm_half;
   }
-
 
   //~ Vec temp;
   //~ VecDuplicate(*varIm.begin(),&temp);
@@ -425,6 +420,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,
                _varHalfdTIm,_varIm,0.5*_deltaT);CHKERRQ(ierr);
+
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
