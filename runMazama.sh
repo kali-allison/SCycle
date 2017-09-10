@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N g30_cwshSS_Dc16e-3_Ny201_Nz401
+#PBS -N sNgrad_v2_cwshSS
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/g30_cwshSS_Dc16e-3_Ny201_Nz401.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/g30_cwshSS_Dc16e-3_Ny201_Nz401.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/sNgrad_v2_cwshSS.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/sNgrad_v2_cwshSS.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -25,5 +25,6 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/mainLinearElastic $INIT_DIR/he.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he.in
 
-mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
+#~ mpirun $EXEC_DIR/main $INIT_DIR/he2D.in
+mpirun $EXEC_DIR/main $INIT_DIR/he2D_sNgrad.in
 

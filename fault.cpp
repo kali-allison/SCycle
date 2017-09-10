@@ -6,7 +6,7 @@ using namespace std;
 
 
 Fault::Fault(Domain&D, HeatEquation& He)
-: _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_stateLaw("agingLaw"),
+: _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
   _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
@@ -1143,7 +1143,7 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
   if (_isMMS) {
     ierr = d_dt_mms(time,varEx,dvarEx);CHKERRQ(ierr);
   }
-  else {
+  else if (!_bcLTauQS) {
     ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
   }
 
@@ -1391,7 +1391,11 @@ PetscErrorCode Fault::loadSettings(const char *file)
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
 
-    if (var.compare("DcVals")==0) {
+    if (var.compare("bcLTauQS")==0) {
+      _bcLTauQS = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("DcVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_DcVals);
     }

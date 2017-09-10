@@ -46,6 +46,7 @@ class LinearElastic
     const bool           _loadICs; // true if running mms test
     bool             _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
     PetscScalar     _currTime;
+    PetscInt        _stepCount;
 
     // output data
     std::string          _outputDir;

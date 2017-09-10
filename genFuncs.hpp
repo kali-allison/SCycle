@@ -40,6 +40,13 @@ PetscErrorCode writeVec(Vec vec,const char * loc);
 // Write vec to the file loc in binary format.
 PetscErrorCode writeVec(Vec vec,std::string str);
 
+
+// Write vec to the file loc in binary format.
+PetscErrorCode writeVecAppend(Vec vec,const char * loc);
+
+// Write vec to the file loc in binary format.
+PetscErrorCode writeVecAppend(Vec vec,std::string str);
+
 // Write mat to the file loc in binary format.
 PetscErrorCode writeMat(Mat mat,const char * loc);
 

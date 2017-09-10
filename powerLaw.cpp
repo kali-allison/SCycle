@@ -488,7 +488,6 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D,Vec& tauRS)
 
   VecGetOwnershipRange(_bcLP,&Istart,&Iend);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    //~ PetscScalar tauRS = _fault->getTauSS(Ii); // rate-and-state strength
     PetscScalar tauRSV = 0;
     ierr = VecGetValues(tauRS,1,&Ii,&tauRSV);CHKERRQ(ierr);
 
@@ -809,8 +808,11 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
   VecCopy(varEx.find("gVxy")->second,_gxyP);
   VecCopy(varEx.find("gVxz")->second,_gxzP);
 
-  if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
-    VecCopy(varIm.find("Temp")->second,_T);
+  if (_stepCount % 20 == 0) {
+    PetscPrintf(PETSC_COMM_WORLD,"_stepCount = %i\n",_stepCount);
+  //~ if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
+    //~ VecCopy(varIm.find("Temp")->second,_T);
+  //~ }
   }
 
   #if VERBOSE > 1

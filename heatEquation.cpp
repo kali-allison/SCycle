@@ -996,7 +996,6 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
     VecAXPY(temp,1.0,shearHeat);
-    writeVec(shearHeat,_outputDir+"test_shearHeat");
     VecDestroy(&shearHeat);
   }
 
@@ -1021,8 +1020,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  //~ KSPSolve(_ksp,rhs,_dT);
-  KSPSolve(_ksp,rhs,T);
+  KSPSolve(_ksp,rhs,_dT);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
@@ -1068,13 +1066,14 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
   ierr = _sbpT->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
 
-
   // compute shear heating component
   if (_wShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sigmadev!=NULL) {
     Vec shearHeat;
     computeShearHeating(shearHeat,sigmadev, dgxy, dgxz);
     //~ VecSet(shearHeat,0.);
     VecAXPY(rhs,-1.0,shearHeat);
+    //~ if (time > 0.0) { writeVecAppend(shearHeat,_outputDir + "test_shearHeat"); }
+    //~ else { writeVec(shearHeat,_outputDir + "test_shearHeat"); }
     VecDestroy(&shearHeat);
   }
 
@@ -1085,11 +1084,10 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
-  VecDestroy(&rhs);
-
   //~ VecCopy(_dT,T);
   VecWAXPY(T,1.0,_dT,_T0); // T = dT + T0
 
+  VecDestroy(&rhs);
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);

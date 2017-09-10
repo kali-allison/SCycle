@@ -10,7 +10,7 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _bcLTauQS(0),_currTime(D._initTime),
+  _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
   _outputDir(D._outputDir),
   _vL(D._vL),
   _muVecP(NULL),_muValPlus(30.0),_rhoValPlus(3.0),
@@ -737,6 +737,7 @@ PetscErrorCode SymmLinearElastic::writeStep1D(const PetscScalar time)
     CHKERRQ(ierr);
   #endif
   double startTime = MPI_Wtime();
+  _stepCount++;
 
   if (_timeV1D==NULL) {
     ierr = _sbpP->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);

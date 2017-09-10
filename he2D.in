@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 101
+Ny = 201
+Nz = 401
 Ly = 60 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -16,9 +16,7 @@ geometry = symmetric
 bulkDeformationType = powerLaw
 
 # coordinate transformation
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny201_Nz301_z
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v2_Ny101_Nz101_z
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/test1_z
+#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
 bCoordTrans = 6.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
@@ -26,12 +24,11 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
-#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step2_Dc1_Ny201_Nz201_
-#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step2_Dc1_Ny201_Nz401_
-inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_step3_Dc1_Ny201_Nz401_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz401_
+#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_
+inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_nhe_
 loadICs = 1
-bcLTauQS = 0
+bcLTauQS = 1
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -50,8 +47,8 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
-#DcVals = [1 1] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -132,8 +129,8 @@ rhoDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 #TVals = [600 1200]
 TDepths = [0 50]
-#heatEquationType = steadyState
-heatEquationType = transient
+heatEquationType = steadyState
+#heatEquationType = transient
 thermalCoupling = coupled
 #thermalCoupling = uncoupled
 #thermalCoupling = no
@@ -156,17 +153,17 @@ strainRate = 1e-14
 
 timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 10
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
-timeIntInds = [psi slip]
-#timeIntInds = [gVxy gVxz]
+#timeIntInds = [psi slip]
+timeIntInds = [gVxy gVxz]
 
 
 # for SCEC
@@ -176,19 +173,26 @@ timeIntInds = [psi slip]
 #outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_nhe_
 #outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_nhe_
 #outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_cwshSS_
+
+#outputDir = /scratch/kallison/scec/g30_sNgrad_trans_Ny101_Nz201_Dc1_cwshSS_
+#outputDir = /scratch/kallison/scec/g30_sNgrad_trans2_Ny101_Nz201_Dc1_cwshSS_
 #outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
+
 
 #outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz201_
 #outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz401_
-outputDir = /scratch/kallison/scec/g30_cwshSS_Dc16e-3_Ny201_Nz401_
+
+# real earthquakes!!
+#outputDir = /scratch/kallison/scec/g30_cwshSS_Dc16e-3_Ny201_Nz401_
 #outputDir = /scratch/kallison/scec/g30_cwshSS_Dc8e-3_Ny201_Nz401_
+#outputDir = /scratch/kallison/scecFinal/g30_cwshSS_Dc16e-3_Ny201_Nz401_
+#outputDir = /scratch/kallison/scecFinal/le_Dc16e-3_Ny201_Nz401_
 
-#outputDir = data/test_
-#outputDir = /scratch/kallison/he/testC_
-#outputDir = /scratch/kallison/he/testF_
-#outputDir = /scratch/kallison/he/testMat_
 
-#outputDir = /scratch/kallison/he/pl_
+#outputDir = /scratch/kallison/scec/g30_nhe_Dc1_Ny201_Nz401_
+#outputDir = /scratch/kallison/scec/g30_nhe_bcLTau_Ny201_Nz401_
+#outputDir = /scratch/kallison/scec/g30_nhe_Dc16e-3_Ny201_Nz401_
 
+outputDir = /scratch/kallison/scec/test_
 
 

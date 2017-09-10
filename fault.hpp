@@ -27,6 +27,7 @@ class Fault: public RootFinderContext
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
     const bool        _isMMS; // true if running mms test
+    bool        _bcLTauQS; // true if running mms test
     std::string       _stateLaw; // state evolution law
 
     // domain properties

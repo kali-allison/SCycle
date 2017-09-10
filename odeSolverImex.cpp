@@ -359,6 +359,15 @@ PetscReal OdeSolverImex::computeError()
     totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
+  //~ // include effect of implicit variable
+  //~ Vec errVec;
+  //~ PetscScalar    size;
+  //~ VecDuplicate(_vardTIm["Temp"],&errVec);
+  //~ ierr = VecWAXPY(errVec,-1.0,_varHalfdTIm["Temp"],_vardTIm["Temp"]);CHKERRQ(ierr);
+  //~ VecNorm(errVec,NORM_2,&err);
+  //~ VecNorm(_vardTIm["Temp"],NORM_2,&size);
+  //~ totErr += err/(size+1.0);
+
 
 
 #if VERBOSE > 1

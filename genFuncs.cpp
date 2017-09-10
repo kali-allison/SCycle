@@ -68,12 +68,26 @@ PetscErrorCode writeVec(Vec vec,std::string str)
 {
 return writeVec(vec,str.c_str());
 }
+PetscErrorCode writeVecAppend(Vec vec,std::string str)
+{
+return writeVecAppend(vec,str.c_str());
+}
 
 PetscErrorCode writeVec(Vec vec,const char * loc)
 {
   PetscErrorCode ierr = 0;
   PetscViewer    viewer;
   PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer);
+  ierr = VecView(vec,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
+
+PetscErrorCode writeVecAppend(Vec vec,const char * loc)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_APPEND,&viewer);
   ierr = VecView(vec,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   return ierr;
