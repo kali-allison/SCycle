@@ -126,7 +126,7 @@ class LinearElastic
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0; // IMEX backward Euler
 
     // IO functions
-    PetscErrorCode virtual view() = 0;
+    PetscErrorCode virtual view(const double totRunTime) = 0;
     PetscErrorCode virtual writeStep1D(const PetscScalar time) = 0;
     PetscErrorCode virtual writeStep2D(const PetscScalar time) = 0;
 
@@ -190,7 +190,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode virtual measureMMSError(const PetscScalar time);
 
     // IO commands
-    PetscErrorCode virtual view();
+    PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext();
     PetscErrorCode virtual writeStep1D(const PetscScalar time); // write out 1D fields
     PetscErrorCode virtual writeStep2D(const PetscScalar time); // write out 2D fields

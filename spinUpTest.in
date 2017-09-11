@@ -4,14 +4,14 @@ order = 4
 Ny = 30
 Nz = 31
 Ly = 30 # km
-Lz = 40 # km
+Lz = 10 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 #bCoordTrans = 6.0
@@ -23,7 +23,7 @@ sbpType = mfc
 
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
 loadICs = 0
-bcLTauQS = 1
+bcLTauQS = 0
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -100,8 +100,8 @@ rhoDepths = [0 60]
 
 
 #TVals = [293 1793] # 30 C/km
-TVals = [400 900]
-TDepths = [0 50]
+TVals = [800 900]
+TDepths = [0 10]
 heatEquationType = steadyState
 thermalCoupling = no
 withShearHeating = no
@@ -120,19 +120,19 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 10
+maxStepCount = 20
 initTime = 0
-maxTime = 1e18
+maxTime = 1e14
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-8
+atol = 5e-9
 timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
 
-outputDir = data/test_
+outputDir = data/spinUpTest_
 
 
 

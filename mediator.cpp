@@ -27,6 +27,8 @@ Mediator::Mediator(Domain&D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  _startTime = MPI_Wtime();
+
   loadSettings(D._file);
   checkInput();
 
@@ -177,7 +179,7 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
     std::string funcName = "Mediator::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
+double startTime = MPI_Wtime();
 
   if ( stepCount % _stride1D == 0) {
     ierr = _momBal->writeStep1D(time); CHKERRQ(ierr);
@@ -198,6 +200,7 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
     else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
   }
 
+_writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
@@ -215,7 +218,7 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
     std::string funcName = "Mediator::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
+double startTime = MPI_Wtime();
   timeMonitor(time,stepCount,varEx,dvarEx);
 
   if ( stepCount % _stride1D == 0) {
@@ -226,6 +229,7 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
     ierr = _he.writeStep2D(_stepCount);CHKERRQ(ierr);
   }
 
+_writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
@@ -242,8 +246,14 @@ PetscErrorCode Mediator::view()
   if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
   if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
 
-  _momBal->view();
-  _fault->view();
+  _momBal->view(_integrateTime);
+  _fault->view(_integrateTime);
+
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Mediator Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
   return ierr;
 }
 

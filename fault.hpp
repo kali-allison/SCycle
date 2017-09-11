@@ -114,7 +114,7 @@ class Fault: public RootFinderContext
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
     // IO
-    PetscErrorCode view();
+    PetscErrorCode view(const double totRunTime);
     PetscErrorCode virtual writeContext() = 0;
     PetscErrorCode virtual writeStep(const PetscInt step) = 0;
 

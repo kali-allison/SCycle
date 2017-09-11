@@ -160,7 +160,7 @@ PetscErrorCode Fault::setHeatParams(const Vec& k,const Vec& rho,const Vec& c)
 }
 
 
-PetscErrorCode Fault::view()
+PetscErrorCode Fault::view(const double totRunTime)
 {
   PetscErrorCode ierr = 0;
 
@@ -168,6 +168,8 @@ PetscErrorCode Fault::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Fault Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   compute slip vel time (s): %g\n",_computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   state law time (s): %g\n",_stateLawTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",_computeVelTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",_stateLawTime/totRunTime*100.);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
@@ -728,6 +730,32 @@ PetscErrorCode SymmFault::computeVel()
 
   ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
 
+  //~ // compute effective viscosity
+  //~ PetscScalar *sigmadev,*A,*B,*n,*T,*effVisc=0;
+  //~ PetscInt Ii,Istart,Iend;
+  //~ VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  //~ VecGetArray(_sigmadev,&sigmadev);
+  //~ VecGetArray(_A,&A);
+  //~ VecGetArray(_B,&B);
+  //~ VecGetArray(_n,&n);
+  //~ VecGetArray(_T,&T);
+  //~ VecGetArray(_effVisc,&effVisc);
+  //~ PetscInt Jj = 0;
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
+    //~ effVisc[Jj] = min(effVisc[Jj],1e30);
+
+    //~ assert(~isnan(effVisc[Jj]));
+    //~ assert(~isinf(effVisc[Jj]));
+    //~ Jj++;
+  //~ }
+  //~ VecRestoreArray(_sigmadev,&sigmadev);
+  //~ VecRestoreArray(_A,&A);
+  //~ VecRestoreArray(_B,&B);
+  //~ VecRestoreArray(_n,&n);
+  //~ VecRestoreArray(_T,&T);
+  //~ VecRestoreArray(_effVisc,&effVisc);
+
 
   ierr = VecGetOwnershipRange(left,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -752,16 +780,16 @@ PetscErrorCode SymmFault::computeVel()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      Bisect rootAlg(_maxNumIts,_rootTol);
-      ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
-      _rootIts += rootAlg.getNumIts();
-
-      //~ PetscScalar x0;
-      //~ ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
-      //~ BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      //~ Bisect rootAlg(_maxNumIts,_rootTol);
       //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      //~ ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
+      //~ ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      //~ _rootIts += rootAlg.getNumIts();
+
+      PetscScalar x0;
+      ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
+      BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     ierr = VecSetValue(_slipVel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);

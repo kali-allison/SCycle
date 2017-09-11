@@ -809,10 +809,9 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
   VecCopy(varEx.find("gVxz")->second,_gxzP);
 
   if (_stepCount % 20 == 0) {
-    PetscPrintf(PETSC_COMM_WORLD,"_stepCount = %i\n",_stepCount);
-  //~ if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
-    //~ VecCopy(varIm.find("Temp")->second,_T);
-  //~ }
+    if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
+      VecCopy(varIm.find("Temp")->second,_T);
+    }
   }
 
   #if VERBOSE > 1
@@ -1679,7 +1678,7 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscScalar time)
   return ierr;
 }
 
-PetscErrorCode PowerLaw::view()
+PetscErrorCode PowerLaw::view(const double totRunTime)
 {
   PetscErrorCode ierr = 0;
 
@@ -1691,7 +1690,7 @@ PetscErrorCode PowerLaw::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/_integrateTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.);CHKERRQ(ierr);
 
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime*100.);CHKERRQ(ierr);

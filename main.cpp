@@ -91,7 +91,7 @@ int runEqCycle(const char * inputFile)
   Mediator m(d);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate();CHKERRQ(ierr);
-  //~ ierr = m.view();CHKERRQ(ierr);
+  ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }
