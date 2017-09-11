@@ -11,7 +11,7 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 #bCoordTrans = 6.0
@@ -58,7 +58,6 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-
 sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
 sigmaNDepths = [0 60] #(km) constant
@@ -69,6 +68,8 @@ sigmaNDepths = [0 60] #(km) constant
 stateLaw = agingLaw
 v0 = 1e-6
 f0 = 0.6
+
+
 
 
 #======================================================================

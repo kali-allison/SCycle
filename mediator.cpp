@@ -47,7 +47,8 @@ Mediator::Mediator(Domain&D)
     assert(0); // automatically fail
   }
 
-  _fault = new SymmFault(D,_he);
+  //~ _fault = new SymmFault(D,_he);
+  _fault = new SymmFault_Hydr(D,_he);
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new SymmLinearElastic(D,_fault->_tauQSP); }
@@ -111,6 +112,9 @@ PetscErrorCode Mediator::loadSettings(const char *file)
 
     if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("hydraulicCoupling")==0) {
+      _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }
 

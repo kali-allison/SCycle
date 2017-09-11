@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dz),_z(NULL),
+  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
@@ -92,6 +92,14 @@ PetscErrorCode Fault::checkInput()
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
   assert(_cohesionVals.size() == _cohesionDepths.size() );
+  assert(_impedanceVals.size() == _impedanceVals.size() );
+
+  assert(_DcVals.size() != 0 );
+  assert(_aVals.size() != 0 );
+  assert(_bVals.size() != 0 );
+  assert(_sigmaNVals.size() != 0 );
+  assert(_cohesionVals.size() != 0 );
+  assert(_impedanceVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
 
@@ -691,7 +699,7 @@ PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,V
 PetscErrorCode SymmFault::computeVel()
 {
   PetscErrorCode ierr = 0;
-  Vec            left,right,out;
+  Vec            left,right;
   Vec            tauQS,eta;
   PetscScalar    outVal,leftVal,rightVal,temp;
   PetscInt       Ii,Istart,Iend;

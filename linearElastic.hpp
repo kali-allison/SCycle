@@ -55,7 +55,7 @@ class LinearElastic
 
     // off-fault material fields: + side
     Vec                  _muVecP;
-    PetscScalar  _muValPlus,_rhoValPlus; // if constant
+    PetscScalar          _muValPlus,_rhoValPlus; // if constant
     Vec                  _bcRPShift,_surfDispPlus;
     Vec                  _rhsP,_uP,_sxy,_sxz;
 

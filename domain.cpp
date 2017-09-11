@@ -7,9 +7,9 @@ Domain::Domain(const char *file)
   _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
-  _zInputDir("unspecified"),_yInputDir("unspecified"),
+  _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dz(-1),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -25,9 +25,9 @@ Domain::Domain(const char *file)
 
   loadData(_file);
 
-  _dy = _Ly/(_Ny-1.0);
-  if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
-  else (_dz = 1);
+  //~ _dy = _Ly/(_Ny-1.0);
+  //~ if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
+  //~ else (_dz = 1);
 
   _dq = 1.0/(_Ny-1.0);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
@@ -64,9 +64,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
   _order(0),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
-  _zInputDir("unspecified"),_yInputDir("unspecified"),
+  _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dz(-1),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
   _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
@@ -85,9 +85,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _Ny = Ny;
   _Nz = Nz;
 
-  _dy = _Ly/(_Ny-1.0);
-  if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
-  else (_dz = 1);
+  //~ _dy = _Ly/(_Ny-1.0);
+  //~ if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
+  //~ else (_dz = 1);
 
   _dq = 1.0/(_Ny-1.0);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
@@ -342,8 +342,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"Nz = %i\n",_Nz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ly = %e\n",_Ly);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Lz = %e\n",_Lz);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"dy = %.15e\n",_dy);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"dz = %.15e\n",_dz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     ierr = PetscPrintf(PETSC_COMM_SELF,"vL = %.15e\n",_vL);CHKERRQ(ierr);
@@ -395,8 +393,8 @@ PetscErrorCode Domain::checkInput()
   assert( _order==2 || _order==4 );
   //~assert( _Ny > 3 && _Nz > 0 );
   assert( _Ly > 0 && _Lz > 0);
-  assert( _dy > 0 && !isnan(_dy) );
-  assert( _dz > 0 && !isnan(_dz) );
+  assert( _dq > 0 && !isnan(_dq) );
+  assert( _dr > 0 && !isnan(_dr) );
 
 
   assert(_timeIntegrator.compare("FEuler")==0
@@ -457,8 +455,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"Nz = %i\n",_Nz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Ly = %g # (km)\n",_Ly);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g # (km)\n",_Lz);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dy = %.15e # (km)\n",_dy);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"dz = %.15e # (km)\n",_dz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
@@ -575,8 +571,8 @@ PetscErrorCode Domain::setFields()
       //~ y = q*_Ly;
       //~ z = r*_Lz;
 
-      y = _dy*(Ii/_Nz);
-      z = _dz*(Ii-_Nz*(Ii/_Nz));
+      y = (_dq*_Ly)*(Ii/_Nz);
+      z = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
 
       ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
@@ -586,7 +582,7 @@ PetscErrorCode Domain::setFields()
       //~ y = q*_Ly;
       //~ z = r*_Lz;
       //~ y = _dy*(Ii/_Nz);
-      z = _dz*(Ii-_Nz*(Ii/_Nz));
+      z = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
 
       y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
       //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;

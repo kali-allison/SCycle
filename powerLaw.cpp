@@ -7,15 +7,15 @@ PowerLaw::PowerLaw(Domain& D,Vec& tau)
 : SymmLinearElastic(D,tau), _file(D._file),_delim(D._delim),_inputDir(D._inputDir),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_B(NULL),_effVisc(NULL),
-  _sxz(NULL),_sigmadev(NULL),
-  _gxyP(NULL),_dgxyP(NULL),
-  _gxzP(NULL),_dgxzP(NULL),
-  _gTxyP(NULL),_gTxzP(NULL),
   _sxyPV(NULL),_sxzPV(NULL),_sigmadevV(NULL),
   _gTxyPV(NULL),_gTxzPV(NULL),
   _gxyPV(NULL),_dgxyPV(NULL),
   _gxzPV(NULL),_dgxzPV(NULL),
-  _TV(NULL),_effViscV(NULL)
+  _TV(NULL),_effViscV(NULL),
+  _sxz(NULL),_sigmadev(NULL),
+  _gxyP(NULL),_dgxyP(NULL),
+  _gxzP(NULL),_dgxzP(NULL),
+  _gTxyP(NULL),_gTxzP(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::PowerLaw";
@@ -456,13 +456,13 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D,Vec& tauRS)
   std::string bcLType = "Neumann";
 
   if (_sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_c(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbpP = new SbpOps_fc(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");

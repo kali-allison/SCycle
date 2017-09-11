@@ -7,8 +7,8 @@
 /* SAT params _alphaD,_alphaD set to values that work for both 2nd and
  * 4th order but are not ideal for 4th.
  */
-SbpOps_c::SbpOps_c(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
+SbpOps_c::SbpOps_c(Domain&D,PetscInt Ny,PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
+: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._dq),_dz(D._dr),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),

@@ -4,8 +4,9 @@
 
 
 //================= constructor and destructor ========================
-SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dy),_dz(D._dz),
+SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
+  string bcT,string bcR,string bcB, string bcL, string type)
+: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._dq),_dz(D._dr),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
@@ -36,58 +37,43 @@ SbpOps_fc::SbpOps_fc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, strin
   MatSetUp(_mu);
   MatDiagonalSet(_mu,*_muVec,INSERT_VALUES);
 
-    // NOT a member of this class, contains stuff to be deleted before
-    // end of constructor to save on memory usage.
-    TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+  // NOT a member of this class, contains stuff to be deleted before
+  // end of constructor to save on memory usage.
+  TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-    // reset SAT params
-    if (_order==4) {
-      _alphaDy = 2.0*-48.0/17.0 /_dy;
-      _alphaDz = 2.0*-48.0/17.0 /_dz;
-    }
+  // reset SAT params
+  if (_order==4) {
+    _alphaDy = 2.0*-48.0/17.0 /_dy;
+    _alphaDz = 2.0*-48.0/17.0 /_dz;
+  }
 
-    constructH(tempFactors);
-    constructHinv(tempFactors);
-    construct1stDerivs(tempFactors);
-    satBoundaries(tempFactors);
+  constructH(tempFactors);
+  constructHinv(tempFactors);
+  construct1stDerivs(tempFactors);
+  satBoundaries(tempFactors);
 
-    constructA(tempFactors);
+  constructA(tempFactors);
 
-    MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
-    MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
+  MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
+  MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
 
-    Spmat e0y(_Ny,1); e0y(0,0,1.0);
-    kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
+  Spmat e0y(_Ny,1); e0y(0,0,1.0);
+  kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
 
-    Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
-    kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
+  Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
+  kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
 
-    Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
-    kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
+  Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
+  kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
 
-    Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
-    kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
+  Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
+  kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
 
-    Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
-    kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
+  Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
+  kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
 
-    Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
-    kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
-
-#if CALCULATE_ENERGY == 1
-    Spmat e0z(_Nz,1); e0z(0,0,1.0);
-    kronConvert(tempFactors._Iy,e0z,_Iy_e0z,1,1);
-    Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
-    kronConvert(tempFactors._Iy,eNz,_Iy_eNz,1,1);
-
-    kronConvert(tempFactors._Hy,tempFactors._Iz,_Hy_Iz,1,0);
-    kronConvert(tempFactors._Iy,tempFactors._Hz,_Iy_Hz,1,0);
-
-    Spmat By(_Ny,_Ny); By(0,0,-1.0); By(_Ny-1,_Ny-1,1.0);
-    kronConvert(By,tempFactors._Iz,_By_Iz,1,0);
-    Spmat Bz(_Nz,_Nz); Bz(0,0,-1.0); Bz(_Nz-1,_Nz-1,1.0);
-    kronConvert(tempFactors._Iy,Bz,_Iy_Bz,1,0);
-#endif
+  Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
+  kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -1559,7 +1545,12 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
   }
   else if (_type.compare("y")==0) {
     ierr = VecSet(rhs,0.0);
+
+    PetscInt m,n;
+    MatGetSize(_rhsL,&m,&n);
+    PetscPrintf(PETSC_COMM_WORLD,"rhsL: %i x %i\n",m,n);
     ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    PetscPrintf(PETSC_COMM_WORLD,"and here!\n");
     ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
   }
   else if (_type.compare("z")==0) {

@@ -163,7 +163,7 @@ class SbpOps_fc_coordTrans : public SbpOps
     Mat _muqy, _murz,_yq,_zr,_qy,_rz;
 
     //~SbpOps_fc_coordTrans(Domain&D,PetscScalar& muArr,Mat& mu);
-    SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_fc_coordTrans(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_fc_coordTrans();
 
     // create the vector rhs out of the boundary conditions (_bc*)

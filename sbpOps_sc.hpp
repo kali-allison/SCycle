@@ -74,7 +74,7 @@ class SbpOps_sc
   public:
 
     //~SbpOps_sc(Domain&D,PetscScalar& muArr,Mat& mu);
-    SbpOps_sc(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_sc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_sc();
 
     // create the vector rhs out of the boundary conditions (_bc*)

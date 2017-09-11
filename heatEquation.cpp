@@ -6,7 +6,7 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _heatEquationType("transient"),_isMMS(D._isMMS),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
@@ -407,10 +407,10 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp(Domain& D)
 
   // Set up linear system
   if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -689,12 +689,13 @@ PetscErrorCode HeatEquation::updateFields(const PetscScalar time,const map<strin
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::updateFields()";
+    std::string funcName = "HeatEquation::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   //~ Vec T;
   //~ VecCopy(varIm.find("Temp")->second,_dT);
+  // not needed for implicit solve
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1297,10 +1298,10 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
   // construct matrices
   // BC order: top, right, bottom, left
   if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_k,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_k,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1333,10 +1334,10 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
   // construct matrices
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
   }
   else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");

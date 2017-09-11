@@ -8,7 +8,7 @@ using namespace std;
 LinearElastic::LinearElastic(Domain&D,Vec& tau)
 : _delim(D._delim),_inputDir(D._inputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dy),_dz(D._dz),_y(&D._y),_z(&D._z),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
   _outputDir(D._outputDir),
@@ -461,13 +461,13 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_c(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbpP = new SbpOps_fc(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -608,13 +608,13 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
   //~ _bcLType = "Dirichlet";
 
   if (_sbpType.compare("mc")==0) {
-    _sbpP = new SbpOps_c(D,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbpP = new SbpOps_c(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbpP = new SbpOps_fc(D,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbpP = new SbpOps_fc(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbpP = new SbpOps_fc_coordTrans(D,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbpP = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");

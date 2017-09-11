@@ -15,6 +15,8 @@ class SymmFault_Hydr: public SymmFault
 {
   private:
 
+    std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling and integration type (explicit vs implicit)
+
     // material properties
     Vec _n_p,_beta_p,_k_p,_eta_p,_rho_f;
     PetscScalar _g;
@@ -22,21 +24,36 @@ class SymmFault_Hydr: public SymmFault
     // stress state
     Vec _sN; // TOTAL normal stress (not effective normal stress)
 
+    // linear system
+    std::string          _linSolver;
+    KSP                  _ksp;
+    PetscScalar          _kspTol;
+    SbpOps               *_sbp;
+    std::string           _sbpType;
+    int                   _linSolveCount;
+
+
+    // input fields
     std::vector<double>   _n_pVals,_n_pDepths,_beta_pVals,_beta_pDepths,_k_pVals,_k_pDepths;
     std::vector<double>   _eta_pVals,_eta_pDepths,_rho_fVals,_rho_fDepths;
     std::vector<double>   _pVals,_pDepths,_dpVals,_dpDepths;
 
     // IO viewers
-    PetscViewer _pViewer,_dpViewer;
+    PetscViewer _pViewer;
+
+    // run time monitoring
+    double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
 
     // disable default copy constructor and assignment operator
     SymmFault_Hydr(const SymmFault_Hydr & that);
     SymmFault_Hydr& operator=( const SymmFault_Hydr& rhs);
 
+    PetscErrorCode computeInitialSteadyStatePressure(Domain& D);
+
   public:
 
     // pressure and perturbation from pressure
-    Vec _p,_dp;
+    Vec _p;
 
     SymmFault_Hydr(Domain& D, HeatEquation& He);
     ~SymmFault_Hydr();
@@ -54,6 +71,10 @@ class SymmFault_Hydr: public SymmFault
     //~ PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
       //~ const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
+
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+
     PetscErrorCode setSNEff(); // update effective normal stress to reflect new pore pressure
 
     // IO
@@ -61,12 +82,6 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode writeStep(const PetscInt step);
     //~ PetscErrorCode view();
 };
-
-
-
-//~ #include "rootFinder.hpp"
-
-
 
 
 

@@ -147,7 +147,7 @@ class SbpOps_c : public SbpOps
     Mat _A;
     Mat _Dy_Iz, _Iy_Dz;
 
-    SbpOps_c(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_c(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
     ~SbpOps_c();
 
     // create the vector rhs out of the boundary conditions (_bc*)

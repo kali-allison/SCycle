@@ -3,8 +3,9 @@
 
 
 //================= constructor and destructor ========================
-SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
+SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
+  string bcT,string bcR,string bcB, string bcL, string type)
+: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),

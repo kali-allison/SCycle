@@ -70,9 +70,9 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    Fault              *_fault;
+    //~ Fault              *_fault;
     //~ SymmFault      *_fault;
-    //~ SymmFault_Hydr *_fault;
+    SymmFault_Hydr *_fault;
     SymmLinearElastic  *_momBal; // solves momentum balance equation
     HeatEquation _he;
 
