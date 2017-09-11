@@ -11,7 +11,7 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # coordinate transformation
 #bCoordTrans = 6.0

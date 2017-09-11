@@ -701,19 +701,12 @@ PetscErrorCode SymmFault::computeVel()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ierr = VecDuplicate(_tauQSP,&right);CHKERRQ(ierr);
-  //~ierr = VecCopy(_tauQSP,right);CHKERRQ(ierr);
-  //~ierr = VecPointwiseDivide(right,right,_zP);CHKERRQ(ierr);
-  //~ierr = VecScale(right,2.0);CHKERRQ(ierr);
-  //~ierr = VecAbs(right);CHKERRQ(ierr);
-
   // constructing right boundary: right = tauQS/eta
   //   tauQS = tauQSPlus
   //   eta = zPlus/2
   //   -> right = 2*tauQS/zPlus
   ierr = VecDuplicate(_tauQSP,&tauQS);CHKERRQ(ierr);
   ierr = VecDuplicate(_tauQSP,&eta);CHKERRQ(ierr);
-
   ierr = VecCopy(_tauQSP,tauQS);CHKERRQ(ierr);
   ierr = VecCopy(_zP,eta);
   ierr = VecScale(eta,0.5);CHKERRQ(ierr);
@@ -728,41 +721,18 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
-  ierr = VecDuplicate(left,&out);CHKERRQ(ierr);
-
-  //~ // compute effective viscosity
-  //~ PetscScalar *sigmadev,*A,*B,*n,*T,*effVisc=0;
-  //~ PetscInt Ii,Istart,Iend;
-  //~ VecGetOwnershipRange(_effVisc,&Istart,&Iend);
-  //~ VecGetArray(_sigmadev,&sigmadev);
-  //~ VecGetArray(_A,&A);
-  //~ VecGetArray(_B,&B);
-  //~ VecGetArray(_n,&n);
-  //~ VecGetArray(_T,&T);
-  //~ VecGetArray(_effVisc,&effVisc);
-  //~ PetscInt Jj = 0;
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
-    //~ effVisc[Jj] = min(effVisc[Jj],1e30);
-
-    //~ assert(~isnan(effVisc[Jj]));
-    //~ assert(~isinf(effVisc[Jj]));
-    //~ Jj++;
-  //~ }
-  //~ VecRestoreArray(_sigmadev,&sigmadev);
-  //~ VecRestoreArray(_A,&A);
-  //~ VecRestoreArray(_B,&B);
-  //~ VecRestoreArray(_n,&n);
-  //~ VecRestoreArray(_T,&T);
-  //~ VecRestoreArray(_effVisc,&effVisc);
-
-
+  PetscScalar *leftA,*rightA,*slipVel=0;
+  VecGetArray(left,&leftA);
+  VecGetArray(right,&rightA);
+  VecGetArray(_slipVel,&slipVel);
+  PetscInt Jj = 0; // local index
   ierr = VecGetOwnershipRange(left,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(left,1,&Ii,&leftVal);CHKERRQ(ierr);
-    ierr = VecGetValues(right,1,&Ii,&rightVal);CHKERRQ(ierr);
+    leftVal = leftA[Jj];
+    rightVal = rightA[Jj];
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g\n",Ii,leftVal,rightVal);
 
+    // check bounds
     if (isnan(leftVal)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError:left evaluated to nan.\n");
       assert(0);
@@ -792,18 +762,19 @@ PetscErrorCode SymmFault::computeVel()
       ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
-    ierr = VecSetValue(_slipVel,Ii,outVal,INSERT_VALUES);CHKERRQ(ierr);
+    slipVel[Jj] = outVal;
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Ii,leftVal,rightVal,outVal);
+    Jj++;
   }
-  ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
+  VecRestoreArray(left,&leftA);
+  VecRestoreArray(right,&rightA);
+  VecRestoreArray(_slipVel,&slipVel);
 
 
   ierr = VecDestroy(&tauQS);CHKERRQ(ierr);
   ierr = VecDestroy(&eta);CHKERRQ(ierr);
   ierr = VecDestroy(&left);CHKERRQ(ierr);
   ierr = VecDestroy(&right);CHKERRQ(ierr);
-  ierr = VecDestroy(&out);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1221,35 +1192,43 @@ PetscErrorCode SymmFault::d_dt_eqCycle(const PetscScalar time,const map<string,V
 
   //~ ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
   //~ ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
+
+  // compute slip velocity
 double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
   VecCopy(_slipVel,dvarEx.find("slip")->second);
 _computeVelTime += MPI_Wtime() - startTime;
 
 
+  // compute rate of state variable
   startTime = MPI_Wtime();
-  ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);
+  PetscScalar *psiA,*dpsiA = 0;
+  VecGetArray(_psi,&psiA);
+  VecGetArray(dvarEx.find("psi")->second,&dpsiA);
+  PetscInt Jj = 0; // local array index
+  ierr = VecGetOwnershipRange(_psi,&Istart,&Iend); // local portion of global Vec index
   for (Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(varEx.find("psi")->second,1,&Ii,&psi);
+    psi = psiA[Jj];
+
     if (!_stateLaw.compare("agingLaw")) {
       //~ ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("slipLaw")) {
-      ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+      ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
       }
     else if (!_stateLaw.compare("flashHeating")) {
       ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-      //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       }
     //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
 
-    ierr = VecSetValue(dvarEx.find("psi")->second,Ii,dpsi,INSERT_VALUES);CHKERRQ(ierr);
+    dpsiA[Jj] = dpsi;
+    Jj++;
   }
-  ierr = VecAssemblyBegin(dvarEx.find("psi")->second);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(dvarEx.find("psi")->second);CHKERRQ(ierr);
+  VecRestoreArray(_psi,&psiA);
+  VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
