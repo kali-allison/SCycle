@@ -724,7 +724,8 @@ switch ( _order ) {
     {
       Spmat D2z(_Nz,_Nz);
       Spmat C2z(_Nz,_Nz);
-      if (_Nz > 1) { sbp_fc_coordTrans_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
+      sbp_fc_coordTrans_Spmat2(_Nz,1.0/_dz,D2z,C2z);
+      //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
 
 
       // kron(Iy,C2z)
@@ -776,7 +777,8 @@ switch ( _order ) {
       Spmat D4z(_Nz,_Nz);
       Spmat C3z(_Nz,_Nz);
       Spmat C4z(_Nz,_Nz);
-      if (_Nz > 1) { sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
+      sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
+      //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
       Mat mu3;
       {
@@ -1299,6 +1301,14 @@ PetscErrorCode ierr = 0;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
+  assert(N > 2 || N == 1);
+
+  if (N == 1) {
+    D2.eye();
+    C2.eye();
+    return ierr;
+  }
+
   assert(N > 2);
 
   PetscInt Ii=0;
@@ -1348,7 +1358,15 @@ PetscErrorCode ierr = 0;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  assert(N > 8);
+  assert(N > 8 || N == 1);
+
+  if (N==1) {
+    D3.eye();
+    D4.eye();
+    C3.eye();
+    C4.eye();
+    return ierr;
+  }
 
   PetscInt Ii = 0;
 
@@ -1437,6 +1455,16 @@ PetscErrorCode ierr = 0;
   string fileName = "sbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
+
+
+  if (N == 1) {
+    H.eye();
+    Hinv.eye();
+    D1.eye();
+    D1int.eye();
+    BS.eye();
+    return ierr;
+  }
 
 PetscInt Ii=0;
 
@@ -2150,8 +2178,9 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
   sbp_fc_coordTrans_Spmat(order,Ny,1.0/dy,_Hy,Hyinv,_D1y,_D1yint,BSy);
 
   Spmat Hzinv(_Nz,_Nz),BSz(_Nz,_Nz);
-  if (Nz > 1) { sbp_fc_coordTrans_Spmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,BSz); }
-  else { _Hz.eye(); }
+  sbp_fc_coordTrans_Spmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,BSz);
+  //~ if (Nz > 1) { sbp_fc_coordTrans_Spmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,BSz); }
+  //~ else { _Hz.eye(); }
 
   // set up 1st derivatives, qy, and rz
   kronConvert(_D1y,_Iz,_Dy_Iz,5,5);

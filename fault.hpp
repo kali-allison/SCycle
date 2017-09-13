@@ -114,7 +114,7 @@ class Fault: public RootFinderContext
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
     // IO
-    PetscErrorCode view(const double totRunTime);
+    PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext() = 0;
     PetscErrorCode virtual writeStep(const PetscInt step) = 0;
 
@@ -153,11 +153,11 @@ class SymmFault: public Fault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    PetscErrorCode writeStep(const PetscInt step);
-    PetscErrorCode writeContext();
+    PetscErrorCode virtual writeStep(const PetscInt step);
+    PetscErrorCode virtual writeContext();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);

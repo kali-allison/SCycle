@@ -47,13 +47,14 @@ Mediator::Mediator(Domain&D)
     assert(0); // automatically fail
   }
 
-  //~ _fault = new SymmFault(D,_he);
-  _fault = new SymmFault_Hydr(D,_he);
+  if (_hydraulicCoupling.compare("coupled")==0 || _hydraulicCoupling.compare("uncoupled")==0) {
+    _fault = new SymmFault_Hydr(D,_he);
+  }
+  else { _fault = new SymmFault(D,_he); }
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new SymmLinearElastic(D,_fault->_tauQSP); }
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_fault->_tauQSP); }
-
 
   writeContext();
 

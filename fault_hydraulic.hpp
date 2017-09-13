@@ -31,6 +31,7 @@ class SymmFault_Hydr: public SymmFault
     SbpOps               *_sbp;
     std::string           _sbpType;
     int                   _linSolveCount;
+    Vec                   _bcL,_bcT,_bcB;
 
 
     // input fields
@@ -39,15 +40,16 @@ class SymmFault_Hydr: public SymmFault
     std::vector<double>   _pVals,_pDepths,_dpVals,_dpDepths;
 
     // IO viewers
-    PetscViewer _pViewer;
+    PetscViewer _pViewer,_sNEffviewer;
 
     // run time monitoring
-    double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    double       _writeTime,_linSolveTime,_ptTime,_startTime,_miscTime;
 
     // disable default copy constructor and assignment operator
     SymmFault_Hydr(const SymmFault_Hydr & that);
     SymmFault_Hydr& operator=( const SymmFault_Hydr& rhs);
 
+    PetscErrorCode computeVariableCoefficient(const Vec& p,Vec& coeff);
     PetscErrorCode computeInitialSteadyStatePressure(Domain& D);
 
   public:
@@ -75,9 +77,23 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
 
+    // explicit time integration
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+
+    // implicit time integration
+    PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+    PetscErrorCode be_eqCycle(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+    PetscErrorCode be_MMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+
+
     PetscErrorCode setSNEff(); // update effective normal stress to reflect new pore pressure
 
     // IO
+    PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode writeContext();
     PetscErrorCode writeStep(const PetscInt step);
     //~ PetscErrorCode view();

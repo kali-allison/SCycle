@@ -1,10 +1,10 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 401
-Ly = 60 # km
-Lz = 40 # km
+Ny = 51
+Nz = 51
+Ly = 30 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 isMMS = no
@@ -26,9 +26,9 @@ sbpType = mfc_coordTrans
 
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz401_
 #inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_
-inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_nhe_
-loadICs = 1
-bcLTauQS = 1
+#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_nhe_
+loadICs = 0
+bcLTauQS = 0
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -52,16 +52,16 @@ DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
-#aVals = [0.2652 0.2652]
-#aDepths = [0 60]
-#bVals = [0.0497 0.0497]
-#bDepths = [0 60]
+aVals = [0.2652 0.2652]
+aDepths = [0 60]
+bVals = [0.0497 0.0497]
+bDepths = [0 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
 
 # SHALLOW VS: creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 #aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -70,13 +70,12 @@ bDepths = [0 10 11 19.3333 60]
 #bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
-#sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
-#sigmaNDepths = [0 60] #(km) constant
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
-sigmaN_cap = 50; # MPa
-
+sigmaNVals = [50 50] # (MPa) constant
+sigmaNDepths = [0 60] #(km) constant
+#sigmaNVals = [5.668 5.668 1336] # MPa
+#sigmaNDepths = [0 0.25 60]
+#sigmaN_cap = 50; # MPa
 
 
 stateLaw = agingLaw
@@ -126,15 +125,15 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [600 1200]
+#TVals = [293 1793] # 30 C/km
+TVals = [800 1100]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-thermalCoupling = coupled
+#thermalCoupling = coupled
 #thermalCoupling = uncoupled
-#thermalCoupling = no
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -143,27 +142,27 @@ withFrictionalHeating = no
 #viscVals = [1e20 1e20] # GPa s
 #viscDepths = [0 30]
 
-viscDistribution = loadFromFile
-#viscDistribution = effectiveVisc
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
 strainRate = 1e-14
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 1e8
+maxStepCount = 500
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
-#timeIntInds = [psi slip]
-timeIntInds = [gVxy gVxz]
+timeIntInds = [psi slip]
+#timeIntInds = [gVxy gVxz]
 
 
 # for SCEC
@@ -193,6 +192,7 @@ timeIntInds = [gVxy gVxz]
 #outputDir = /scratch/kallison/scec/g30_nhe_bcLTau_Ny201_Nz401_
 #outputDir = /scratch/kallison/scec/g30_nhe_Dc16e-3_Ny201_Nz401_
 
-outputDir = /scratch/kallison/scec/test_
+#outputDir = /scratch/kallison/scec/test_
+outputDir = data/stabilityTest_
 
 

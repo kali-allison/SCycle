@@ -668,6 +668,9 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   varEx["psi"] = varPsi;
   //~ varEx["slip"] = varSlip;
 
+  Vec tauRS; VecDuplicate(_tauQSP,&tauRS); VecCopy(_tauQSP,tauRS);
+  varEx["tau"] = tauRS;
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
