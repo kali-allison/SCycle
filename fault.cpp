@@ -664,12 +664,13 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
 
  // put variables to be integrated explicitly into varEx
   Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi);
-  //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
   varEx["psi"] = varPsi;
+
+  //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
   //~ varEx["slip"] = varSlip;
 
-  Vec tauRS; VecDuplicate(_tauQSP,&tauRS); VecCopy(_tauQSP,tauRS);
-  varEx["tau"] = tauRS;
+  //~ Vec tauRS; VecDuplicate(_tauQSP,&tauRS); VecCopy(_tauQSP,tauRS);
+  //~ varEx["tau"] = tauRS;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1240,6 +1241,8 @@ _computeVelTime += MPI_Wtime() - startTime;
   }
   VecRestoreArray(_psi,&psiA);
   VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
+
+  //~ dvarEx["tau"] = _tauQSP;
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

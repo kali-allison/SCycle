@@ -474,6 +474,16 @@ PetscReal RK32::computeError()
     VecDestroy(&errVec);
   }
 
+  //~ // use quasi-static stress to determine rate
+  //~ Vec errVec;
+  //~ PetscScalar    size;
+  //~ VecDuplicate(_var2nd["tau"],&errVec);
+  //~ ierr = VecWAXPY(errVec,-1.0,_vardT["tau"],_varHalfdT["tau"]);CHKERRQ(ierr);
+  //~ VecNorm(errVec,NORM_2,&err);
+  //~ VecNorm(_var3rd["tau"],NORM_2,&size);
+  //~ totErr += err/(size+1.0);
+  //~ VecDestroy(&errVec);
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
