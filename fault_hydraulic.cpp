@@ -6,7 +6,7 @@ using namespace std;
 
 SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
 : SymmFault(D,He),
-_hydraulicCoupling("yes"),_hydraulicTimeIntType("explicit"),
+  _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),_sN(NULL),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType("mfc"),_linSolveCount(0),
   _pViewer(NULL),_sNEffviewer(NULL),
@@ -324,6 +324,11 @@ PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
   VecSet(_p,0.);
   computeVariableCoefficient(_p,coeff);
 
+  //~ VecView(_p,PETSC_VIEWER_STDOUT_WORLD);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"put words here");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"N = %i\n",,_N);
+  //~ assert(0);
+
   // Set up linear system
   if (_sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
     _sbp = new SbpOps_fc(D,1,_N,coeff,"Dirichlet","Dirichlet","Neumann","Dirichlet","z");
@@ -538,7 +543,7 @@ PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<str
   VecPointwiseDivide(rhog,rhog,_eta_p);
   VecDuplicate(_p,&rhog_y);
   VecDuplicate(_p,&temp);
-  _sbp->Dy(rhog,temp);
+  _sbp->Dz(rhog,temp); // check that this works!
   _sbp->H(temp,rhog_y);
 
   Vec p_t;

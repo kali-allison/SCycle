@@ -64,16 +64,6 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
 
-    // method for implicit and explicit time stepping
-    //~ // explicit:
-    //~ PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
-      //~ const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
-
-    //~ // implicitly solve for temperature using backward Euler
-    //~ PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
-      //~ const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-
-
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
 
@@ -93,7 +83,7 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode setSNEff(); // update effective normal stress to reflect new pore pressure
 
     // IO
-    PetscErrorCode virtual view(const double totRunTime);
+    PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeContext();
     PetscErrorCode writeStep(const PetscInt step);
     //~ PetscErrorCode view();
