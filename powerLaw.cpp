@@ -6,12 +6,12 @@
 PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_B(NULL),_T(NULL),_effVisc(NULL),
+  _A(NULL),_n(NULL),_B(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),
   _sxyPV(NULL),_sxzPV(NULL),_sdevV(NULL),
   _gTxyV(NULL),_gTxzV(NULL),
   _gxyV(NULL),_dgxyV(NULL),
   _gxzV(NULL),_dgxzV(NULL),
-  _TV(NULL),_effViscV(NULL),
+  _TV(NULL),_effViscV(NULL),_miscV(NULL),
   _sxz(NULL),_sdev(NULL),
   _gxy(NULL),_dgxy(NULL),
   _gxz(NULL),_dgxz(NULL),
@@ -25,7 +25,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
   loadSettings(_file);
   checkInput();
   allocateFields(); // initialize fields
-  he.setTemp(_T);
+  he.getTemp(_T);
   setMaterialParameters();
 
   if (D._loadICs==1) {
@@ -81,6 +81,7 @@ PowerLaw::~PowerLaw()
   PetscViewerDestroy(&_dgxyV);
   PetscViewerDestroy(&_dgxzV);
   PetscViewerDestroy(&_effViscV);
+  PetscViewerDestroy(&_miscV);
 
   PetscViewerDestroy(&_timeV2D);
 
@@ -236,6 +237,8 @@ PetscErrorCode PowerLaw::allocateFields()
 
   VecDuplicate(_u,&_gTxy); VecSet(_gTxy,0.0);
   VecDuplicate(_u,&_gTxz); VecSet(_gTxz,0.0);
+
+  VecDuplicate(_bcL,&SATL); VecSet(SATL,0.0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1548,6 +1551,18 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscScalar time)
   double startTime = MPI_Wtime();
 
   LinearElastic::writeStep1D(time);
+
+  if (_stepCount == 0) {
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"SATL").c_str(),
+              FILE_MODE_WRITE,&_miscV);CHKERRQ(ierr);
+    ierr = VecView(SATL,_miscV);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&_miscV);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"SATL").c_str(),
+                                   FILE_MODE_APPEND,&_miscV);CHKERRQ(ierr);
+  }
+  else {
+    ierr = VecView(SATL,_miscV);CHKERRQ(ierr);
+  }
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1

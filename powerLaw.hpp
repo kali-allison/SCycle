@@ -25,6 +25,7 @@ class PowerLaw: public LinearElastic
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
     Vec         _A,_n,_B,_T;
     Vec         _effVisc;
+    Vec         SATL;
 
     // viewers
     PetscViewer _sxyPV,_sxzPV,_sdevV;
@@ -33,6 +34,7 @@ class PowerLaw: public LinearElastic
     PetscViewer _gxzV,_dgxzV;
     PetscViewer _TV;
     PetscViewer _effViscV;
+    PetscViewer _miscV;
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file

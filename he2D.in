@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 201
+Ny = 101
+Nz = 101
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -162,7 +162,6 @@ minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
 timeIntInds = [psi slip]
-#timeIntInds = [gVxy gVxz gTxy gTxz]
 #timeIntInds = [gVxy gVxz]
 
 
