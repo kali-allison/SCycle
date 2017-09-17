@@ -53,7 +53,7 @@ Mediator::Mediator(Domain&D)
   else { _fault = new SymmFault(D,_he); }
 
   // initiate momentum balance equation
-  if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new SymmLinearElastic(D,_fault->_tauQSP); }
+  if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,_fault->_tauQSP); }
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_fault->_tauQSP); }
 
   writeContext();
@@ -333,10 +333,10 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   _momBal->updateFields(time,varEx,_varIm);
   _fault->updateFields(time,varEx,_varIm);
 
-  ierr = _momBal->d_dt(time,varEx,dvarEx);CHKERRQ(ierr);
+  ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
 
   // update fields on fault
-  ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz);CHKERRQ(ierr);
+  ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
 
   if (!_bcLTauQS) {
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -345,6 +345,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
     VecSet(dvarEx.find("slip")->second,0.0); // slip vel
   }
+  //~ ierr = _momBal->computeTotalStrainRates(time,varEx,dvarEx); CHKERRQ(ierr);
 
   return ierr;
 }
