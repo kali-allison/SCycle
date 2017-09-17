@@ -808,11 +808,11 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
   VecCopy(varEx.find("gVxy")->second,_gxyP);
   VecCopy(varEx.find("gVxz")->second,_gxzP);
 
-  if (_stepCount % 20 == 0) {
+  //~ if (_stepCount % 20 == 0) {
     if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
       VecCopy(varIm.find("Temp")->second,_T);
     }
-  }
+  //~ }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -878,7 +878,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::PowerLaw";
+    std::string funcName = "PowerLaw::d_dt_eqCycle";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -917,6 +917,50 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
   #endif
   return ierr;
 }
+
+/*
+PetscErrorCode PowerLaw::d_dt_totalStrainRate(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::d_dt_totalStrainRate";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
+  Vec viscSource;
+  ierr = VecDuplicate(_gxyP,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = setViscStrainSourceTerms(viscSource,dvarEx["gVxy"],dvarEx["gVxz"]);CHKERRQ(ierr);
+
+  // set up rhs vector
+  Vec bcL, bcR;
+  VecDuplicate(_bcL,&bcL);
+  VecCopy(dvarEx["slip"],bcL);
+  VecDuplicate(_bcL,&bcR);
+  VecSet(bcR,_vL/2.);
+  ierr = _sbpP->setRhs(_rhsP,bcL,bcR,_bcTP,_bcBP);CHKERRQ(ierr); // update rhs from BCs
+  ierr = VecAXPY(_rhsP,1.0,viscSource);CHKERRQ(ierr);
+  VecDestroy(&viscSource);
+  VecDestroy(&bcL);
+  VecDestroy(&bcR);
+
+  // solve for displacement
+  Vec u_t;
+  VecDuplicate(_uP,&u_t);
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_kspP,_rhsP,u_t);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}*/
 
 PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
@@ -1469,18 +1513,6 @@ PetscErrorCode PowerLaw::writeContext()
   //~ ierr = _sbpP->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
   //~ ierr = _fault->writeContext(_outputDir); CHKERRQ(ierr);
   //~ ierr = _he.writeContext(); CHKERRQ(ierr);
-
-  // write out scalar info
-  PetscViewer viewer;
-  str = _outputDir + "powerLaw_context.txt";
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
-
-  ierr = PetscViewerASCIIPrintf(viewer,"SAT term set to 0\n");CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Imposing SS on state variable\n");CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
