@@ -73,7 +73,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     Fault              *_fault;
     //~ SymmFault      *_fault;
     //~ SymmFault_Hydr *_fault;
-    SymmLinearElastic  *_momBal; // solves momentum balance equation
+    LinearElastic  *_momBal; // solves momentum balance equation
     HeatEquation _he;
 
 

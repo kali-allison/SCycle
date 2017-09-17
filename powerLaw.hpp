@@ -13,12 +13,11 @@
 
 // models a 1D Maxwell slider assuming symmetric boundary condition
 // on the fault.
-class PowerLaw: public SymmLinearElastic
+class PowerLaw: public LinearElastic
 {
   protected:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
-    std::string       _inputDir; // directory to load viscosity from
 
     // material properties
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
@@ -27,12 +26,11 @@ class PowerLaw: public SymmLinearElastic
     Vec         _A,_n,_B;
     Vec         _effVisc;
 
-
     // viewers
-    PetscViewer _sxyPV,_sxzPV,_sigmadevV;
-    PetscViewer _gTxyPV,_gTxzPV;
-    PetscViewer _gxyPV,_dgxyPV;
-    PetscViewer _gxzPV,_dgxzPV;
+    PetscViewer _sxyPV,_sxzPV,_sdevV;
+    PetscViewer _gTxyV,_gTxzV;
+    PetscViewer _gxyV,_dgxyV;
+    PetscViewer _gxzV,_dgxzV;
     PetscViewer _TV;
     PetscViewer _effViscV;
 
@@ -54,7 +52,6 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode setStresses(const PetscScalar time);
     PetscErrorCode computeViscosity();
 
-
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
 
@@ -62,20 +59,17 @@ class PowerLaw: public SymmLinearElastic
 
   public:
 
-    Vec         _sxz,_sigmadev; // sigma_xz (MPa), deviatoric stress (MPa)
-    Vec         _gxyP,_dgxyP; // viscoelastic strain, strain rate
-    Vec         _gxzP,_dgxzP; // viscoelastic strain, strain rate
-    Vec         _gTxyP,_gTxzP; // total strain
+    Vec         _sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec         _gxy,_dgxy; // viscoelastic strain and strain rate
+    Vec         _gxz,_dgxz; // viscoelastic strain and strain rate
+    Vec         _gTxy,_gTxz; // total strain
 
     PowerLaw(Domain&D,Vec& tau);
     ~PowerLaw();
 
-
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode getSigmaDev(Vec& sdev);
-
-    //~ PetscErrorCode integrate(); // don't need now that LinearElastic defines this
 
     // methods for explicit time stepping
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
@@ -102,6 +96,9 @@ class PowerLaw: public SymmLinearElastic
     PetscErrorCode psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec& g);
     PetscErrorCode psuedoTS_evaluateIRHS(Vec&F,PetscReal time,Vec& g,Vec& g_t);
     PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec& g);
+
+    // trial
+    PetscErrorCode computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
 
 
@@ -130,7 +127,7 @@ class PowerLaw: public SymmLinearElastic
     static double zzmms_n(const double y,const double z);
     static double zzmms_pl_sigmaxy(const double y,const double z,const double t);
     static double zzmms_pl_sigmaxz(const double y,const double z,const double t);
-    static double zzmms_sigmadev(const double y,const double z,const double t);
+    static double zzmms_sdev(const double y,const double z,const double t);
 
     static double zzmms_pl_gSource(const double y,const double z,const double t);
     static double zzmms_pl_gxy_t_source(const double y,const double z,const double t);
@@ -154,7 +151,7 @@ class PowerLaw: public SymmLinearElastic
     static double zzmms_n1D(const double y);
     static double zzmms_pl_sigmaxy1D(const double y,const double t);
     static double zzmms_pl_sigmaxz1D(const double y,const double t);
-    static double zzmms_sigmadev1D(const double y,const double t);
+    static double zzmms_sdev1D(const double y,const double t);
 
     static double zzmms_pl_gSource1D(const double y,const double t);
     static double zzmms_pl_gxy_t_source1D(const double y,const double t);

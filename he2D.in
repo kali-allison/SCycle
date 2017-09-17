@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 101
+Ny = 201
+Nz = 201
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -17,7 +17,7 @@ bulkDeformationType = powerLaw
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
-bCoordTrans = 6.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -125,8 +125,8 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [800 1100]
+#TVals = [293 1793] # 30 C/km
+TVals = [1400 1400]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
@@ -154,7 +154,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 1e8
+maxStepCount = 1.5e4
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
@@ -162,12 +162,13 @@ minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
 timeIntInds = [psi slip]
+#timeIntInds = [gVxy gVxz gTxy gTxz]
 #timeIntInds = [gVxy gVxz]
 
 
 
-#outputDir = /scratch/kallison/scec/test_
-outputDir = /scratch/kallison/test/nameSpace_
-#outputDir = data/stabilityTest_
+#outputDir = /scratch/kallison/test/nameSpace_
+#outputDir = /scratch/kallison/test/b5_
+outputDir = /scratch/kallison/test/b10_
 
 

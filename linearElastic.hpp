@@ -23,9 +23,7 @@
 
 
 
-/* Base class for a linear elastic material
- */
-//~ class LinearElastic: public IntegratorContextEx, public IntegratorContextImex
+// Class for a linear elastic material
 class LinearElastic
 {
   private:
@@ -33,28 +31,43 @@ class LinearElastic
     LinearElastic(const LinearElastic &that);
     LinearElastic& operator=(const LinearElastic &rhs);
 
-  //~ protected:
+  protected:
+
+    // initialize data members
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput();
+    PetscErrorCode allocateFields(); // allocate space for member fields
+    PetscErrorCode setMaterialParameters();
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode setInitialConds(Domain& D,Vec& tau);
+    PetscErrorCode setInitialSlip(Vec& out);
+    PetscErrorCode setUpSBPContext(Domain& D);
+    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
+
+    PetscErrorCode computeShearStress();
+    PetscErrorCode setSurfDisp();
+
+    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSBoundaryConditions(const double time);
+
   public:
 
     // domain properties
     std::string          _delim; // format is: var delim value (without the white space)
-    std::string          _inputDir; // directory to load viscosity from
+    std::string          _inputDir; // directory to load fields from
+    std::string          _outputDir;  // output data
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     const Vec            *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if running mms test
-    bool             _bcLTauQS; // true if spinning up Maxwell viscoelastic problem from constant stress on left boundary
-    PetscScalar     _currTime;
-    PetscInt        _stepCount;
+    bool                 _bcLTauQS; // true if left boundary is traction
+    PetscScalar          _currTime;
+    PetscInt             _stepCount;
+    const PetscScalar    _vL; // loading velocity
 
-    // output data
-    std::string          _outputDir;
-
-    const PetscScalar    _vL;
-
-    // off-fault material fields: + side
-    Vec                  _muVecP;
+    // off-fault material fields
+    Vec                  _muVec;
     PetscScalar          _muVal,_rhoVal; // if constant
     Vec                  _bcRShift,_surfDisp;
     Vec                  _rhs,_u,_sxy,_sxz;
@@ -64,31 +77,24 @@ class LinearElastic
     KSP                  _ksp;
     PC                   _pc;
     PetscScalar          _kspTol;
-
-    SbpOps               *_sbp;
-    std::string           _sbpType;
+    SbpOps              *_sbp;
+    std::string          _sbpType;
 
     // thermomechanical coupling
-    std::string _thermalCoupling,_heatEquationType;
-    HeatEquation _he;
-    Vec          _T; // temperature
-    PetscViewer  _tempViewer;
+    std::string   _thermalCoupling,_heatEquationType;
+    HeatEquation  _he;
+    Vec           _T; // temperature
+    PetscViewer   _tempViewer;
 
     // viewers
-    PetscViewer          _timeV1D,_timeV2D,_surfDispViewer;
+    PetscViewer      _timeV1D,_timeV2D,_surfDispViewer;
 
     // runtime data
-    double               _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
-    PetscInt             _linSolveCount;
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    PetscInt     _linSolveCount;
 
-    PetscViewer          _bcRlusV,_bcRShiftV,_bcLlusV,
-                         _uV,_uAnalV,_rhslusV,_sxyPV;
-
-
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode checkInput();
-    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
-
+    PetscViewer   _bcRlusV,_bcRShiftV,_bcLlusV,
+                  _uV,_uAnalV,_rhslusV,_sxyPV;
 
   //~ public:
 
@@ -99,75 +105,10 @@ class LinearElastic
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    PetscScalar _tLast; // time of last earthquake
-
-    Vec _uPrev;
-
     LinearElastic(Domain&D,Vec& tau);
     ~LinearElastic();
 
-    PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
-    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm) = 0;
-    PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep) = 0;
-    PetscErrorCode virtual getSigmaDev(Vec& sdev) = 0;
-
-    // explicit time-stepping methods
-    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
-    PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage) = 0;
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
-
-    // methods for implicit/explicit time stepping
-    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0; // IMEX backward Euler
-
-    // IO functions
-    PetscErrorCode virtual view(const double totRunTime) = 0;
-    PetscErrorCode virtual writeStep1D(const PetscScalar time) = 0;
-    PetscErrorCode virtual writeStep2D(const PetscScalar time) = 0;
-
-    PetscErrorCode virtual measureMMSError(const PetscScalar time) = 0;
-};
-
-
-
-
-
-/*
- * Contains all the fields and methods needed to model an elastic lithosphere
- * whose material properties are *symmetric* about the fault. The algorithm
- * is described in Brittany Erickson's paper on the earthquake cycle in
- * sedimentary basins.
- */
-class SymmLinearElastic: public LinearElastic
-{
-  private:
-    // disable default copy constructor and assignment operator
-    SymmLinearElastic(const SymmLinearElastic &that);
-    SymmLinearElastic& operator=(const SymmLinearElastic &rhs);
-
-  protected:
-  //~ public:
-
-    // initialize data
-    PetscErrorCode allocateFields(); // allocate space for member fields
-    PetscErrorCode setMaterialParameters();
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode setInitialConds(Domain& D,Vec& tau);
-    PetscErrorCode setInitialSlip(Vec& out);
-    PetscErrorCode setUpSBPContext(Domain& D);
-
-    PetscErrorCode computeShearStress();
-
-    PetscErrorCode setMMSInitialConditions();
-    PetscErrorCode setMMSBoundaryConditions(const double time);
-
-  public:
-
-    SymmLinearElastic(Domain&D,Vec& tau);
-    ~SymmLinearElastic();
-
+    // time stepping function
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
@@ -178,7 +119,7 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
-                         const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage);
 
     // methods for implicit/explicit time stepping
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
@@ -192,8 +133,8 @@ class SymmLinearElastic: public LinearElastic
     PetscErrorCode virtual writeStep1D(const PetscScalar time); // write out 1D fields
     PetscErrorCode virtual writeStep2D(const PetscScalar time); // write out 2D fields
 
-    PetscErrorCode setSurfDisp();
-
+    // trial
+    PetscErrorCode virtual computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // MMS functions
     static double zzmms_f(const double y,const double z);

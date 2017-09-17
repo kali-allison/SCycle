@@ -6,14 +6,13 @@ using namespace std;
 
 
 LinearElastic::LinearElastic(Domain&D,Vec& tau)
-: _delim(D._delim),_inputDir(D._inputDir),
+: _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
-  _outputDir(D._outputDir),
   _vL(D._vL),
-  _muVecP(NULL),_muVal(30.0),_rhoVal(3.0),
+  _muVec(NULL),_muVal(30.0),_rhoVal(3.0),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
@@ -26,8 +25,7 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _bcRlusV(NULL),_bcRShiftV(NULL),_bcLlusV(NULL),
   _uV(NULL),_uAnalV(NULL),_rhslusV(NULL),_sxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_quadEx(NULL),_quadImex(NULL),
-  _tLast(0),_uPrev(NULL)
+  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_quadEx(NULL),_quadImex(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in linearElastic.cpp.\n");
@@ -35,6 +33,17 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
 
   loadSettings(D._file);
   checkInput();
+  allocateFields();
+  setMaterialParameters();
+  if (_loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
+  else { setInitialConds(D,tau); } // guess at steady-state configuration
+  setUpSBPContext(D); // set up matrix operators
+
+  _sbp->muxDy(_u,_sxy); // initialize for shear stress
+
+  if (_isMMS) { setMMSInitialConditions(); }
+
+  setSurfDisp();
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
@@ -258,7 +267,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
 
 
 // limited by Maxwell time
-PetscErrorCode SymmLinearElastic::computeMaxTimeStep(PetscScalar& maxTimeStep)
+PetscErrorCode LinearElastic::computeMaxTimeStep(PetscScalar& maxTimeStep)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -278,53 +287,12 @@ PetscErrorCode SymmLinearElastic::computeMaxTimeStep(PetscScalar& maxTimeStep)
 
 
 
-
-
-
-
-
-
-
-//======================================================================
-// Symmetric LinearElastic Functions
-//======================================================================
-
-SymmLinearElastic::SymmLinearElastic(Domain&D, Vec& tau)
-: LinearElastic(D,tau)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"\n\nStarting SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n");
-#endif
-
-
-  allocateFields();
-  setMaterialParameters();
-  if (_loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
-  else { setInitialConds(D,tau); } // guess at steady-state configuration
-  setUpSBPContext(D); // set up matrix operators
-
-  _sbp->muxDy(_u,_sxy); // initialize for shear stress
-
-  if (_isMMS) { setMMSInitialConditions(); }
-
-  setSurfDisp();
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::SymmLinearElastic in linearElastic.cpp.\n\n\n");
-#endif
-}
-
-SymmLinearElastic::~SymmLinearElastic()
-{
-  VecDestroy(&_bcRShift);
-};
-
 // allocate space for member fields
-PetscErrorCode SymmLinearElastic::allocateFields()
+PetscErrorCode LinearElastic::allocateFields()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::allocateFields";
+    std::string funcName = "LinearElastic::allocateFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -353,7 +321,7 @@ PetscErrorCode SymmLinearElastic::allocateFields()
 
   // other fieds
   VecDuplicate(*_z,&_rhs);
-  VecDuplicate(*_z,&_muVecP);
+  VecDuplicate(*_z,&_muVec);
   VecDuplicate(_rhs,&_u);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
   VecDuplicate(_rhs,&_T); _he.getTemp(_T);
@@ -366,20 +334,20 @@ PetscErrorCode SymmLinearElastic::allocateFields()
 }
 
 // set off-fault material properties
-PetscErrorCode SymmLinearElastic::setMaterialParameters()
+PetscErrorCode LinearElastic::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::setMaterialParameters";
+    std::string funcName = "LinearElastic::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  VecSet(_muVecP,_muVal);
+  VecSet(_muVec,_muVal);
 
   if (_isMMS) {
-    if (_Nz == 1) { mapToVec(_muVecP,zzmms_mu1D,*_y); }
-    else { mapToVec(_muVecP,zzmms_mu,*_y,*_z); }
+    if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
+    else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   }
 
   #if VERBOSE > 1
@@ -394,11 +362,11 @@ return ierr;
 
 
 // parse input file and load values into data members
-PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
+PetscErrorCode LinearElastic::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  std::string funcName = "SymmLinearElastic::loadFieldsFromFiles";
+  std::string funcName = "LinearElastic::loadFieldsFromFiles";
   PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
 
@@ -408,21 +376,21 @@ PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
   string vecSourceFile = _inputDir + "bcL";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_bcL,inv);CHKERRQ(ierr);
 
   // load bcR
   vecSourceFile = _inputDir + "bcR";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_bcRShift,inv);CHKERRQ(ierr);
 
   // load u
   vecSourceFile = _inputDir + "u";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = VecLoad(_u,inv);CHKERRQ(ierr);
 
 
@@ -433,11 +401,11 @@ PetscErrorCode SymmLinearElastic::loadFieldsFromFiles()
 }
 
 // try to speed up spin up by starting closer to steady state
-PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
+PetscErrorCode LinearElastic::setInitialConds(Domain& D,Vec& tauRS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::setInitialConds";
+    std::string funcName = "LinearElastic::setInitialConds";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -453,13 +421,13 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVecP,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -531,11 +499,11 @@ PetscErrorCode SymmLinearElastic::setInitialConds(Domain& D,Vec& tauRS)
 }
 
 // compute bcL from u so that fault's initial conditions can be set from it
-PetscErrorCode SymmLinearElastic::setInitialSlip(Vec& out)
+PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::setInitialSlip";
+    std::string funcName = "LinearElastic::setInitialSlip";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -562,7 +530,7 @@ PetscErrorCode SymmLinearElastic::setInitialSlip(Vec& out)
     std::string vecSourceFile = _inputDir + "slip";
     ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerSetFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
     ierr = VecLoad(out,inv);CHKERRQ(ierr);
   }
 
@@ -574,11 +542,11 @@ PetscErrorCode SymmLinearElastic::setInitialSlip(Vec& out)
 }
 
 // try to speed up spin up by starting closer to steady state
-PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
+PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::setUpSBPContext";
+    std::string funcName = "LinearElastic::setUpSBPContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -600,13 +568,13 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
   //~ _bcLType = "Dirichlet";
 
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVecP,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -623,11 +591,11 @@ PetscErrorCode SymmLinearElastic::setUpSBPContext(Domain& D)
 }
 
 
-PetscErrorCode SymmLinearElastic::setSurfDisp()
+PetscErrorCode LinearElastic::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
 
@@ -647,13 +615,13 @@ PetscErrorCode SymmLinearElastic::setSurfDisp()
   ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
 
-PetscErrorCode SymmLinearElastic::view(const double totRunTime)
+PetscErrorCode LinearElastic::view(const double totRunTime)
 {
   PetscErrorCode ierr = 0;
 
@@ -674,11 +642,11 @@ PetscErrorCode SymmLinearElastic::view(const double totRunTime)
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::writeContext()
+PetscErrorCode LinearElastic::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::writeContext";
+    std::string funcName = "LinearElastic::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -700,7 +668,7 @@ PetscErrorCode SymmLinearElastic::writeContext()
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
 
-  ierr = writeVec(_muVecP,_outputDir + "_muPlus"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,_outputDir + "_muPlus"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -709,10 +677,10 @@ PetscErrorCode SymmLinearElastic::writeContext()
 }
 
 
-PetscErrorCode SymmLinearElastic::writeStep1D(const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmLinearElastic::writeStep1D";
+  string funcName = "LinearElastic::writeStep1D";
   string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
@@ -765,10 +733,10 @@ PetscErrorCode SymmLinearElastic::writeStep1D(const PetscScalar time)
 
 
 
-PetscErrorCode SymmLinearElastic::writeStep2D(const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep2D(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmLinearElastic::writeStep2D";
+  string funcName = "LinearElastic::writeStep2D";
   string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
@@ -821,11 +789,11 @@ PetscErrorCode SymmLinearElastic::writeStep2D(const PetscScalar time)
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::initiateIntegrand()";
+    std::string funcName = "LinearElastic::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -835,17 +803,27 @@ PetscErrorCode SymmLinearElastic::initiateIntegrand(const PetscScalar time,map<s
   setInitialSlip(slip);
   varEx["slip"] = slip;
 
+  //~ Vec gTxy;
+  //~ VecDuplicate(_u,&gTxy);
+  //~ VecSet(gTxy,0.);
+  //~ varEx["gTxy"] = gTxy;
+
+  //~ Vec gTxz;
+  //~ VecDuplicate(_u,&gTxz);
+  //~ VecSet(gTxz,0.);
+  //~ varEx["gTxz"] = gTxz;
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmLinearElastic::updateFields()";
+    std::string funcName = "LinearElastic::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -863,13 +841,13 @@ PetscErrorCode SymmLinearElastic::updateFields(const PetscScalar time,const map<
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::getSigmaDev(Vec& sdev)
+PetscErrorCode LinearElastic::getSigmaDev(Vec& sdev)
 {
   return 0;
 }
 
 // explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode LinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   if (_isMMS) {
@@ -883,11 +861,11 @@ PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,V
 
 
 // explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode LinearElastic::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
 
   ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
@@ -903,60 +881,70 @@ PetscErrorCode SymmLinearElastic::d_dt_eqCycle(const PetscScalar time,const map<
   ierr = _sbp->muxDy(_u,_sxy); CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// compute total strain rate gTxy
+PetscErrorCode LinearElastic::computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::computeTotalStrainRates in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+
+  Vec bcL_t, bcR_t;
+  VecDuplicate(_bcL,&bcL_t);
+  VecDuplicate(_bcL,&bcR_t);
+  VecSet(bcR_t,_vL/2.);
+  VecCopy(dvarEx["slip"],bcL_t);
+  ierr = _sbp->setRhs(_rhs,bcL_t,bcR_t,_bcT,_bcB);CHKERRQ(ierr);
+  VecDestroy(&bcL_t);
+  VecDestroy(&bcR_t);
+
+  // solve for u_t
+  Vec u_t;
+  VecDuplicate(_u,&u_t);
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_ksp,_rhs,u_t);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  // solve for total strain rate
+  ierr = _sbp->Dy(u_t,dvarEx["gTxy"]); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
   return ierr;
 }
 
 
 // implicit/explicit time stepping
-PetscErrorCode SymmLinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode LinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
 
   ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
-/*
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    Vec stressxzP,tau;
-    VecDuplicate(_u,&stressxzP);
-    ierr = _sbp->muxDz(_u,stressxzP); CHKERRQ(ierr);
-    VecDuplicate(_fault->_tauQSP,&tau);
-    _fault->getTau(tau);
-
-    _fault->setTemp(_T);
-    //~ ierr = _he.be(time,*(dvarBegin+2),tau,NULL,NULL,
-      //~ NULL,*varBeginIm,*varBeginImo,dt);CHKERRQ(ierr);
-    ierr = _he.be(time,dvarEx.find("slip")->second,tau,NULL,NULL,
-      NULL,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
-    VecDestroy(&stressxzP);
-    VecDestroy(&tau);
-    // arguments:
-    // time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
-
-    _he.getTemp(_T);
-  }
-  else {
-    //~ ierr = VecSet(*varBeginIm,0.0);CHKERRQ(ierr);
-    ierr = VecSet(varImo.find("Temp")->second,0.0);CHKERRQ(ierr);
-  }*/
-
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
 #endif
   return ierr;
 }
 
 
-PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode LinearElastic::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
 
   Vec source,Hxsource;
@@ -994,16 +982,16 @@ PetscErrorCode SymmLinearElastic::d_dt_mms(const PetscScalar time,const map<stri
   //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending SymmLinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
   return ierr;
 }
 
 
-PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
+PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmLinearElastic::setMMSBoundaryConditions";
+  string funcName = "LinearElastic::setMMSBoundaryConditions";
   string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -1081,10 +1069,10 @@ PetscErrorCode SymmLinearElastic::setMMSBoundaryConditions(const double time)
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
+PetscErrorCode LinearElastic::setMMSInitialConditions()
 {
   PetscErrorCode ierr = 0;
-  string funcName = "SymmLinearElastic::setMMSInitialConditions";
+  string funcName = "LinearElastic::setMMSInitialConditions";
   string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -1138,7 +1126,7 @@ PetscErrorCode SymmLinearElastic::setMMSInitialConditions()
 
 
 // Outputs data at each time step.
-PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt stepCount,
+PetscErrorCode LinearElastic::debug(const PetscReal time,const PetscInt stepCount,
                          const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage)
 {
   PetscErrorCode ierr = 0;
@@ -1179,7 +1167,7 @@ PetscErrorCode SymmLinearElastic::debug(const PetscReal time,const PetscInt step
   return ierr;
 }
 
-PetscErrorCode SymmLinearElastic::measureMMSError(const PetscScalar time)
+PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   _currTime = time;
@@ -1219,37 +1207,37 @@ PetscErrorCode SymmLinearElastic::measureMMSError(const PetscScalar time)
 
 
 // MMS functions
-double SymmLinearElastic::zzmms_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
-double SymmLinearElastic::zzmms_f_y(const double y,const double z) { return -sin(y)*sin(z); }
-double SymmLinearElastic::zzmms_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
-double SymmLinearElastic::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
-double SymmLinearElastic::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
+double LinearElastic::zzmms_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
+double LinearElastic::zzmms_f_y(const double y,const double z) { return -sin(y)*sin(z); }
+double LinearElastic::zzmms_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
+double LinearElastic::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
+double LinearElastic::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
-double SymmLinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
-double SymmLinearElastic::zzmms_g_t(const double t) {
+double LinearElastic::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
+double LinearElastic::zzmms_g_t(const double t) {
   return (-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9);
 }
 
-double SymmLinearElastic::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
-double SymmLinearElastic::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
-double SymmLinearElastic::zzmms_uA_yy(const double y,const double z,const double t) { return zzmms_f_yy(y,z)*zzmms_g(t); }
-double SymmLinearElastic::zzmms_uA_z(const double y,const double z,const double t) { return zzmms_f_z(y,z)*zzmms_g(t); }
-double SymmLinearElastic::zzmms_uA_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
-//~ double SymmLinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
+double LinearElastic::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
+double LinearElastic::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
+double LinearElastic::zzmms_uA_yy(const double y,const double z,const double t) { return zzmms_f_yy(y,z)*zzmms_g(t); }
+double LinearElastic::zzmms_uA_z(const double y,const double z,const double t) { return zzmms_f_z(y,z)*zzmms_g(t); }
+double LinearElastic::zzmms_uA_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
+//~ double LinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
   //~ return zzmms_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
 //~ }
-double SymmLinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
+double LinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
   return zzmms_f(y,z)*zzmms_g_t(t);
 }
 
-double SymmLinearElastic::zzmms_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
-double SymmLinearElastic::zzmms_mu_y(const double y,const double z) { return cos(y)*sin(z); }
-double SymmLinearElastic::zzmms_mu_z(const double y,const double z) { return sin(y)*cos(z); }
+double LinearElastic::zzmms_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
+double LinearElastic::zzmms_mu_y(const double y,const double z) { return cos(y)*sin(z); }
+double LinearElastic::zzmms_mu_z(const double y,const double z) { return sin(y)*cos(z); }
 
-double SymmLinearElastic::zzmms_sigmaxy(const double y,const double z,const double t)
+double LinearElastic::zzmms_sigmaxy(const double y,const double z,const double t)
 { return zzmms_mu(y,z)*zzmms_uA_y(y,z,t); }
 
-double SymmLinearElastic::zzmms_uSource(const double y,const double z,const double t)
+double LinearElastic::zzmms_uSource(const double y,const double z,const double t)
 {
   PetscScalar mu = zzmms_mu(y,z);
   PetscScalar mu_y = zzmms_mu_y(y,z);
@@ -1263,25 +1251,25 @@ double SymmLinearElastic::zzmms_uSource(const double y,const double z,const doub
 
 
 // 1D
-double SymmLinearElastic::zzmms_f1D(const double y) { return cos(y) + 2; } // helper function for uA
-double SymmLinearElastic::zzmms_f_y1D(const double y) { return -sin(y); }
-double SymmLinearElastic::zzmms_f_yy1D(const double y) { return -cos(y); }
-//~ double SymmLinearElastic::zzmms_f_z1D(const double y) { return 0; }
-//~ double SymmLinearElastic::zzmms_f_zz1D(const double y) { return 0; }
+double LinearElastic::zzmms_f1D(const double y) { return cos(y) + 2; } // helper function for uA
+double LinearElastic::zzmms_f_y1D(const double y) { return -sin(y); }
+double LinearElastic::zzmms_f_yy1D(const double y) { return -cos(y); }
+//~ double LinearElastic::zzmms_f_z1D(const double y) { return 0; }
+//~ double LinearElastic::zzmms_f_zz1D(const double y) { return 0; }
 
-double SymmLinearElastic::zzmms_uA1D(const double y,const double t) { return zzmms_f1D(y)*exp(-t); }
-double SymmLinearElastic::zzmms_uA_y1D(const double y,const double t) { return zzmms_f_y1D(y)*exp(-t); }
-double SymmLinearElastic::zzmms_uA_yy1D(const double y,const double t) { return zzmms_f_yy1D(y)*exp(-t); }
-double SymmLinearElastic::zzmms_uA_z1D(const double y,const double t) { return 0; }
-double SymmLinearElastic::zzmms_uA_zz1D(const double y,const double t) { return 0; }
-double SymmLinearElastic::zzmms_uA_t1D(const double y,const double t) { return -zzmms_f1D(y)*exp(-t); }
+double LinearElastic::zzmms_uA1D(const double y,const double t) { return zzmms_f1D(y)*exp(-t); }
+double LinearElastic::zzmms_uA_y1D(const double y,const double t) { return zzmms_f_y1D(y)*exp(-t); }
+double LinearElastic::zzmms_uA_yy1D(const double y,const double t) { return zzmms_f_yy1D(y)*exp(-t); }
+double LinearElastic::zzmms_uA_z1D(const double y,const double t) { return 0; }
+double LinearElastic::zzmms_uA_zz1D(const double y,const double t) { return 0; }
+double LinearElastic::zzmms_uA_t1D(const double y,const double t) { return -zzmms_f1D(y)*exp(-t); }
 
-double SymmLinearElastic::zzmms_mu1D(const double y) { return sin(y) + 2.0; }
-double SymmLinearElastic::zzmms_mu_y1D(const double y) { return cos(y); }
-//~ double SymmLinearElastic::zzmms_mu_z1D(const double y) { return 0; }
+double LinearElastic::zzmms_mu1D(const double y) { return sin(y) + 2.0; }
+double LinearElastic::zzmms_mu_y1D(const double y) { return cos(y); }
+//~ double LinearElastic::zzmms_mu_z1D(const double y) { return 0; }
 
-double SymmLinearElastic::zzmms_sigmaxy1D(const double y,const double t) { return zzmms_mu1D(y)*zzmms_uA_y1D(y,t); }
-double SymmLinearElastic::zzmms_uSource1D(const double y,const double t)
+double LinearElastic::zzmms_sigmaxy1D(const double y,const double t) { return zzmms_mu1D(y)*zzmms_uA_y1D(y,t); }
+double LinearElastic::zzmms_uSource1D(const double y,const double t)
 {
   PetscScalar mu = zzmms_mu1D(y);
   PetscScalar mu_y = zzmms_mu_y1D(y);
