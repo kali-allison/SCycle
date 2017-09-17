@@ -3,10 +3,10 @@
 #define FILENAME "powerLaw.cpp"
 
 
-PowerLaw::PowerLaw(Domain& D,Vec& tau)
+PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_B(NULL),_effVisc(NULL),
+  _A(NULL),_n(NULL),_B(NULL),_T(NULL),_effVisc(NULL),
   _sxyPV(NULL),_sxzPV(NULL),_sdevV(NULL),
   _gTxyV(NULL),_gTxzV(NULL),
   _gxyV(NULL),_dgxyV(NULL),
@@ -25,6 +25,7 @@ PowerLaw::PowerLaw(Domain& D,Vec& tau)
   loadSettings(_file);
   checkInput();
   allocateFields(); // initialize fields
+  he.setTemp(_T);
   setMaterialParameters();
 
   if (D._loadICs==1) {
@@ -217,6 +218,7 @@ PetscErrorCode PowerLaw::allocateFields()
   ierr = VecDuplicate(_u,&_A);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_B);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_n);CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&_T);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_effVisc);CHKERRQ(ierr);
 
 
@@ -280,9 +282,6 @@ PetscErrorCode PowerLaw::setMaterialParameters()
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
     }
   }
-  _he.getTemp(_T);
-  //~ guessSteadyStateEffVisc();
-
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

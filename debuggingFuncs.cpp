@@ -13,7 +13,7 @@ PetscErrorCode checkMatrix(Mat * mat,string fileLoc,string name)
   string matSourceFile = fileLoc + name;
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inviewer);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,matSourceFile.c_str(),FILE_MODE_READ,&inviewer);
-  ierr = PetscViewerSetFormat(inviewer,PETSC_VIEWER_BINARY_MATLAB);
+  ierr = PetscViewerPushFormat(inviewer,PETSC_VIEWER_BINARY_MATLAB);
 
   ierr = MatCreate(PETSC_COMM_WORLD,&debugMat);CHKERRQ(ierr);
   ierr = MatLoad(debugMat,inviewer);CHKERRQ(ierr);

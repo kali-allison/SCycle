@@ -54,7 +54,7 @@ Mediator::Mediator(Domain&D)
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,_fault->_tauQSP); }
-  else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_fault->_tauQSP); }
+  else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_he,_fault->_tauQSP); }
 
   writeContext();
 

@@ -82,8 +82,6 @@ class LinearElastic
 
     // thermomechanical coupling
     std::string   _thermalCoupling,_heatEquationType;
-    HeatEquation  _he;
-    Vec           _T; // temperature
     PetscViewer   _tempViewer;
 
     // viewers

@@ -23,7 +23,7 @@ class PowerLaw: public LinearElastic
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
     std::string  _AFile,_BFile,_nFile,_TFile; // names of each file within loadFromFile
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
-    Vec         _A,_n,_B;
+    Vec         _A,_n,_B,_T;
     Vec         _effVisc;
 
     // viewers
@@ -64,7 +64,7 @@ class PowerLaw: public LinearElastic
     Vec         _gxz,_dgxz; // viscoelastic strain and strain rate
     Vec         _gTxy,_gTxz; // total strain
 
-    PowerLaw(Domain&D,Vec& tau);
+    PowerLaw(Domain& D,HeatEquation& he,Vec& tau);
     ~PowerLaw();
 
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);

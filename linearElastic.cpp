@@ -18,7 +18,7 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
-  _thermalCoupling("no"),_heatEquationType("transient"),_he(D),_T(NULL),_tempViewer(NULL),
+  _thermalCoupling("no"),_heatEquationType("transient"),_tempViewer(NULL),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
@@ -71,7 +71,6 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_sxy);
   VecDestroy(&_sxz);
   VecDestroy(&_surfDisp);
-  VecDestroy(&_T);
 
   KSPDestroy(&_ksp);
 
@@ -324,7 +323,6 @@ PetscErrorCode LinearElastic::allocateFields()
   VecDuplicate(*_z,&_muVec);
   VecDuplicate(_rhs,&_u);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
-  VecDuplicate(_rhs,&_T); _he.getTemp(_T);
   VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
 
 #if VERBOSE > 1
@@ -763,15 +761,6 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscScalar time)
     ierr = PetscViewerDestroy(&_sxyPV);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
                                    FILE_MODE_APPEND,&_sxyPV);CHKERRQ(ierr);
-
-    if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
-              FILE_MODE_WRITE,&_tempViewer);CHKERRQ(ierr);
-    ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_tempViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T").c_str(),
-                                   FILE_MODE_APPEND,&_tempViewer);CHKERRQ(ierr);
-    }
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
