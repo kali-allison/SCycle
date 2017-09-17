@@ -55,17 +55,17 @@ class LinearElastic
 
     // off-fault material fields: + side
     Vec                  _muVecP;
-    PetscScalar          _muValPlus,_rhoValPlus; // if constant
-    Vec                  _bcRPShift,_surfDispPlus;
-    Vec                  _rhsP,_uP,_sxy,_sxz;
+    PetscScalar          _muVal,_rhoVal; // if constant
+    Vec                  _bcRShift,_surfDisp;
+    Vec                  _rhs,_u,_sxy,_sxz;
 
     // linear system data
     std::string          _linSolver;
-    KSP                  _kspP;
-    PC                   _pcP;
+    KSP                  _ksp;
+    PC                   _pc;
     PetscScalar          _kspTol;
 
-    SbpOps               *_sbpP;
+    SbpOps               *_sbp;
     std::string           _sbpType;
 
     // thermomechanical coupling
@@ -74,18 +74,15 @@ class LinearElastic
     Vec          _T; // temperature
     PetscViewer  _tempViewer;
 
-    // coupling to hydraulic fault
-    std::string _hydraulicCoupling,_hydraulicTimeIntType;
-
     // viewers
-    PetscViewer          _timeV1D,_timeV2D,_surfDispPlusViewer;
+    PetscViewer          _timeV1D,_timeV2D,_surfDispViewer;
 
     // runtime data
     double               _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
     PetscInt             _linSolveCount;
 
-    PetscViewer          _bcRPlusV,_bcRPShiftV,_bcLPlusV,
-                         _uPV,_uAnalV,_rhsPlusV,_sxyPV;
+    PetscViewer          _bcRlusV,_bcRShiftV,_bcLlusV,
+                         _uV,_uAnalV,_rhslusV,_sxyPV;
 
 
     PetscErrorCode loadSettings(const char *file);
@@ -97,14 +94,14 @@ class LinearElastic
 
     // boundary conditions
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
-    Vec                  _bcTP,_bcRP,_bcBP,_bcLP;
+    Vec                  _bcT,_bcR,_bcB,_bcL;
 
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     PetscScalar _tLast; // time of last earthquake
 
-    Vec _uPPrev;
+    Vec _uPrev;
 
     LinearElastic(Domain&D,Vec& tau);
     ~LinearElastic();
@@ -243,78 +240,4 @@ class SymmLinearElastic: public LinearElastic
 };
 
 
-
-
-
-
-
-
-
-
-/*
- * Contains all the fields and methods needed to model an elastic lithosphere
- * whose material properties are *not* necessarily symmetric about the fault.
- * The algorithm is described is based on Brittany Erickson's paper on
- * the earthquake cycle in sedimentary basins, with modifications to the
- * boundary condition on the fault.
- */
- /*
-class FullLinearElastic: public LinearElastic
-{
-  protected:
-
-    // off-fault material fields: - side
-    PetscScalar         *_muArrMinus;
-    Mat                  _muM;
-    Vec                  _bcLMShift,_surfDispMinus;
-    Vec                  _rhsM,_uM,_sigma_xyMinus;
-
-
-
-    // linear system data
-    KSP                  _kspM;
-    PC                   _pcMinus;
-
-    SbpOps               *_sbpM;
-
-    PetscViewer          _surfDispMinusViewer;
-    PetscViewer          __bcRMinusV,_bcRMShiftV,_bcLMinusV,
-                         _uMV,_rhsMV_stressxyMV;
-
-
-    PetscErrorCode setShifts();
-    PetscErrorCode setSurfDisp();
-
-  public:
-
-    // boundary conditions
-    Vec                  _bcTMinus,_bcRMinus,_bcBMinus,_bcLMinus;
-
-    FullFault            *_fault;
-    std::vector<Vec>    _var; // holds variables to integrate
-
-
-    FullLinearElastic(Domain&D);
-    ~FullLinearElastic();
-
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-                         const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage);
-
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // IMEX backward Euler
-
-    // IO commands
-    PetscErrorCode view(){ return 0; };
-    PetscErrorCode writeStep1D();
-    PetscErrorCode writeStep2D();
-
-    // for debugging
-    PetscErrorCode setU();
-    PetscErrorCode setSigmaxy();
-
-    PetscErrorCode measureMMSError();
-};
-*/
 #endif

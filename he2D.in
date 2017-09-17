@@ -1,9 +1,9 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 401
-Ly = 60 # km
+Ny = 101
+Nz = 101
+Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
 
@@ -17,7 +17,7 @@ bulkDeformationType = powerLaw
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
-bCoordTrans = 16.0
+bCoordTrans = 6.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -125,8 +125,8 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [800 1100]
+TVals = [293 1793] # 30 C/km
+#TVals = [800 1100]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
@@ -154,7 +154,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 2e3
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
@@ -165,34 +165,9 @@ timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
-# for SCEC
-#outputDir = /scratch/kallison/scec/pl_Dc1_cwsh_
-#outputDir = /scratch/kallison/scec/pl_Dc1_cwshSS_
-#outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_cwshSS_
-#outputDir = /scratch/kallison/scec/pl_Ny101_Nz101_Dc1_nhe_
-#outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_nhe_
-#outputDir = /scratch/kallison/scec/g30_Ny101_Nz101_Dc1_cwshSS_
-
-#outputDir = /scratch/kallison/scec/g30_sNgrad_trans_Ny101_Nz201_Dc1_cwshSS_
-#outputDir = /scratch/kallison/scec/g30_sNgrad_trans2_Ny101_Nz201_Dc1_cwshSS_
-#outputDir = /scratch/kallison/scec/g30_sNgrad_Ny101_Nz201_Dc1_cwshSS_
-
-
-#outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz201_
-#outputDir = /scratch/kallison/scec/g30_cwshSS_step2_Dc1_Ny201_Nz401_
-
-# real earthquakes!!
-#outputDir = /scratch/kallison/scec/g30_cwshSS_Dc16e-3_Ny201_Nz401_
-#outputDir = /scratch/kallison/scec/g30_cwshSS_Dc8e-3_Ny201_Nz401_
-#outputDir = /scratch/kallison/scecFinal/g30_cwshSS_Dc16e-3_Ny201_Nz401_
-#outputDir = /scratch/kallison/scecFinal/le_Dc16e-3_Ny201_Nz401_
-
-
-#outputDir = /scratch/kallison/scec/g30_nhe_Dc1_Ny201_Nz401_
-#outputDir = /scratch/kallison/scec/g30_nhe_bcLTau_Ny201_Nz401_
-#outputDir = /scratch/kallison/scec/g30_nhe_Dc16e-3_Ny201_Nz401_
 
 #outputDir = /scratch/kallison/scec/test_
-outputDir = data/stabilityTest_
+outputDir = /scratch/kallison/test/nameSpace_
+#outputDir = data/stabilityTest_
 
 
