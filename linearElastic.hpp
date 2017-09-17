@@ -81,8 +81,7 @@ class LinearElastic
     std::string          _sbpType;
 
     // thermomechanical coupling
-    std::string   _thermalCoupling,_heatEquationType;
-    PetscViewer   _tempViewer;
+    std::string   _thermalCoupling;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D,_surfDispViewer;

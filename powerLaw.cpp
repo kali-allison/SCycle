@@ -161,9 +161,6 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("heatEquationType")==0) {
-      _heatEquationType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
 
   }
 
@@ -191,9 +188,6 @@ PetscErrorCode PowerLaw::checkInput()
 
   //~ if (_viscDistribution.compare("loadFromFile")==0) { assert(!_inputDir.compare("unspecified")); }
   if (_viscDistribution.compare("loadFromFile")==0) { assert(_inputDir.compare("unspecified")); }
-
-  assert(_heatEquationType.compare("transient")==0 ||
-      _heatEquationType.compare("steadyState")==0 );
 
   assert(_AVals.size() == _ADepths.size() );
   assert(_BVals.size() == _BDepths.size() );

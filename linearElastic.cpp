@@ -18,7 +18,7 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
-  _thermalCoupling("no"),_heatEquationType("transient"),_tempViewer(NULL),
+  _thermalCoupling("no"),
   _timeV1D(NULL),_timeV2D(NULL),_surfDispViewer(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
@@ -78,7 +78,6 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_timeV2D);
   PetscViewerDestroy(&_surfDispViewer);
   PetscViewerDestroy(&_uV);
-  PetscViewerDestroy(&_tempViewer);
 
   delete _sbp; _sbp = NULL;
 
