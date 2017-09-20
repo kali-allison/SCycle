@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 101
+Ny = 41
+Nz = 41
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -13,11 +13,11 @@ isMMS = no
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 #zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
-bCoordTrans = 10.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -152,9 +152,9 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1.5e4
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e18
 initDeltaT = 1e-3
@@ -168,6 +168,7 @@ timeIntInds = [psi slip]
 
 #outputDir = /scratch/kallison/test/nameSpace_
 #outputDir = /scratch/kallison/test/b5_
-outputDir = /scratch/kallison/test/b10_
+#outputDir = /scratch/kallison/test/b10_
+outputDir = data/io_
 
 

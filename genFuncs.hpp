@@ -50,6 +50,13 @@ PetscErrorCode writeVecAppend(Vec vec,std::string str);
 // Write mat to the file loc in binary format.
 PetscErrorCode writeMat(Mat mat,const char * loc);
 
+// initiate a viewer for binary output
+PetscViewer initiateViewer(std::string str);
+
+// loop over all viewers in the map vwL and switch then all to append mode
+PetscErrorCode appendViewer(map<string,PetscViewer>& vwL);
+
+
 // Print all entries of 2D DMDA global vector out, including which
 // processor each entry lives on, and the corresponding subscripting
 // indices.

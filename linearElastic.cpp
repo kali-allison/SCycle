@@ -691,33 +691,21 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),FILE_MODE_WRITE,
-                                 &_surfDispViewer);CHKERRQ(ierr);
-    ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_surfDispViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfDispPlus").c_str(),
-                                   FILE_MODE_APPEND,&_surfDispViewer);CHKERRQ(ierr);
+    _viewers["surfDisp"] = initiateViewer("surfDisp");
+    _viewers["bcL"] = initiateViewer("bcL");
+    _viewers["bcR"] = initiateViewer("bcR");
 
-    // boundary conditions
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),FILE_MODE_WRITE,
-                                 &_bcRlusV);CHKERRQ(ierr);
-    ierr = VecView(_bcR,_bcRlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcRlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcR").c_str(),
-                                   FILE_MODE_APPEND,&_bcRlusV);CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
-              FILE_MODE_WRITE,&_bcLlusV);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_bcLlusV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcLlusV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"bcL").c_str(),
-                                   FILE_MODE_APPEND,&_bcLlusV);CHKERRQ(ierr);
+    ierr = appendViewer(_viewers);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_surfDisp,_surfDispViewer);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_bcLlusV);CHKERRQ(ierr);
-    ierr = VecView(_bcR,_bcRlusV);CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

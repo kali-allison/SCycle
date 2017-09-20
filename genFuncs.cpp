@@ -104,6 +104,24 @@ PetscErrorCode writeMat(Mat mat,const char * loc)
 }
 
 
+PetscViewer initiateViewer(std::string str)
+{
+  PetscViewer vw;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);
+  return vw;
+}
+PetscErrorCode appendViewer(map<string,PetscViewer>& vwL)
+{
+  PetscErrorCode ierr = 0;
+  for (map<string,PetscViewer>::iterator it=vwL.begin(); it!=vwL.end(); it++ ) {
+    ierr = PetscViewerDestroy(&vwL[it->first]); CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(it->first).c_str(),FILE_MODE_APPEND,&vwL[it->first]);
+    CHKERRQ(ierr);
+  }
+  return ierr;
+}
+
+
 // Print all entries of 2D DMDA global vector to stdout, including which
 // processor each entry lives on, and the corresponding subscripting
 // indices
