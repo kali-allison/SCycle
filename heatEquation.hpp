@@ -52,10 +52,11 @@ class HeatEquation
     Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
 
     // viewers
-    PetscViewer          _TV; // temperature viewer
-    PetscViewer          _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
+    std::map <string,PetscViewer>  _viewers;
+    //~ PetscViewer          _TV; // temperature viewer
+    //~ PetscViewer          _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
     PetscViewer          _timeV; // time output viewer for debugging
-    PetscViewer          _heatFluxV,_surfaceHeatFluxV; // time output viewer for debugging
+    //~ PetscViewer          _heatFluxV,_surfaceHeatFluxV; // time output viewer for debugging
 
     // which factors to include
     std::string          _wShearHeating,_wFrictionalHeating;

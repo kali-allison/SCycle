@@ -85,6 +85,7 @@ class LinearElastic
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;
+    std::map <string,PetscViewer>  _viewers;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
@@ -95,7 +96,6 @@ class LinearElastic
     // boundary conditions
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcT,_bcR,_bcB,_bcL;
-    std::map <string,PetscViewer>  _viewers;
 
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping

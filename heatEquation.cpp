@@ -12,8 +12,6 @@ HeatEquation::HeatEquation(Domain& D)
   _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _surfaceHeatFlux(NULL),_heatFlux(NULL),
-  _TV(NULL),_bcRVw(NULL),_bcTVw(NULL),_bcLVw(NULL),_bcBVw(NULL),_timeV(NULL),
-  _heatFluxV(NULL),_surfaceHeatFluxV(NULL),
   _wShearHeating("yes"),_wFrictionalHeating("yes"),
   _sbpType(D._sbpType),_sbpT(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
@@ -27,7 +25,6 @@ HeatEquation::HeatEquation(Domain& D)
     std::string funcName = "HeatEquation::HeatEquation";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
 
   loadSettings(_file);
   checkInput();
@@ -66,14 +63,9 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_bcT);
   VecDestroy(&_bcB);
 
-  PetscViewerDestroy(&_TV);
-  PetscViewerDestroy(&_bcRVw);
-  PetscViewerDestroy(&_bcTVw);
-  PetscViewerDestroy(&_bcLVw);
-  PetscViewerDestroy(&_bcBVw);
-  PetscViewerDestroy(&_timeV);
-  PetscViewerDestroy(&_heatFluxV);
-  PetscViewerDestroy(&_surfaceHeatFluxV);
+  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first]);
+  }
 
   delete _sbpT;
 }
@@ -1490,49 +1482,30 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
   double startTime = MPI_Wtime();
 
   if (stepCount == 0) {
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfaceHeatFlux").c_str(),
-                                 FILE_MODE_WRITE,&_surfaceHeatFluxV);CHKERRQ(ierr);
-    ierr = VecView(_surfaceHeatFlux,_surfaceHeatFluxV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_surfaceHeatFluxV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfaceHeatFlux").c_str(),
-                                   FILE_MODE_APPEND,&_surfaceHeatFluxV);CHKERRQ(ierr);
+    _viewers["surfaceHeatFlux"] = initiateViewer(_outputDir + "surfaceHeatFlux");
+    _viewers["he_bcR"] = initiateViewer(_outputDir + "he_bcR");
+    _viewers["he_bcT"] = initiateViewer(_outputDir + "he_bcT");
+    _viewers["he_bcL"] = initiateViewer(_outputDir + "he_bcL");
+    _viewers["he_bcB"] = initiateViewer(_outputDir + "he_bcB");
 
+    ierr = VecView(_surfaceHeatFlux,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["he_bcR"]); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers["he_bcT"]); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["he_bcL"]); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers["he_bcB"]); CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcR").c_str(),
-                                 FILE_MODE_WRITE,&_bcRVw);CHKERRQ(ierr);
-    ierr = VecView(_bcR,_bcRVw);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcRVw);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcR").c_str(),
-                                   FILE_MODE_APPEND,&_bcRVw);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcT").c_str(),
-                                 FILE_MODE_WRITE,&_bcTVw);CHKERRQ(ierr);
-    ierr = VecView(_bcT,_bcTVw);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcTVw);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcT").c_str(),
-                                   FILE_MODE_APPEND,&_bcTVw);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                 FILE_MODE_WRITE,&_bcLVw);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_bcLVw);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcLVw);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcL").c_str(),
-                                   FILE_MODE_APPEND,&_bcLVw);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcB").c_str(),
-                                 FILE_MODE_WRITE,&_bcBVw);CHKERRQ(ierr);
-    ierr = VecView(_bcB,_bcBVw);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_bcBVw);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"he_bcB").c_str(),
-                                   FILE_MODE_APPEND,&_bcBVw);CHKERRQ(ierr);
-
+    ierr = appendViewer(_viewers["surfaceHeatFlux"],_outputDir + "surfaceHeatFlux");
+    ierr = appendViewer(_viewers["he_bcR"],_outputDir + "he_bcR");
+    ierr = appendViewer(_viewers["he_bcT"],_outputDir + "he_bcT");
+    ierr = appendViewer(_viewers["he_bcL"],_outputDir + "he_bcL");
+    ierr = appendViewer(_viewers["he_bcB"],_outputDir + "he_bcB");
   }
   else {
-    ierr = VecView(_surfaceHeatFlux,_surfaceHeatFluxV);CHKERRQ(ierr);
-    ierr = VecView(_bcR,_bcRVw);CHKERRQ(ierr);
-    ierr = VecView(_bcT,_bcTVw);CHKERRQ(ierr);
-    ierr = VecView(_bcL,_bcLVw);CHKERRQ(ierr);
-    ierr = VecView(_bcB,_bcBVw);CHKERRQ(ierr);
+    ierr = VecView(_surfaceHeatFlux,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["he_bcR"]); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers["he_bcT"]); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["he_bcL"]); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers["he_bcB"]); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -1556,30 +1529,18 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
   double startTime = MPI_Wtime();
 
   if (stepCount == 0) {
-    //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T0").c_str(),
-                                 //~ FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
-    //~ ierr = VecView(_T0,_TV);CHKERRQ(ierr);
-    //~ ierr = PetscViewerDestroy(&_TV);CHKERRQ(ierr);
+    _viewers["dT"] = initiateViewer(_outputDir + "dT");
+    _viewers["heatFlux"] = initiateViewer(_outputDir + "heatFlux");
 
+    ierr = VecView(_dT,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_heatFlux,_viewers["heatFlux"]); CHKERRQ(ierr);
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dT").c_str(),
-                                 FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
-    ierr = VecView(_dT,_TV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_TV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"dT").c_str(),
-                                   FILE_MODE_APPEND,&_TV);CHKERRQ(ierr);
-
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"heatFlux").c_str(),
-                                 FILE_MODE_WRITE,&_heatFluxV);CHKERRQ(ierr);
-    ierr = VecView(_heatFlux,_heatFluxV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_heatFluxV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"heatFlux").c_str(),
-                                   FILE_MODE_APPEND,&_heatFluxV);CHKERRQ(ierr);
-
+    ierr = appendViewer(_viewers["surfaceHeatFlux"],_outputDir + "surfaceHeatFlux");
+    ierr = appendViewer(_viewers["heatFlux"],_outputDir + "heatFlux");
   }
   else {
-    ierr = VecView(_dT,_TV);CHKERRQ(ierr);
-    ierr = VecView(_heatFlux,_heatFluxV);CHKERRQ(ierr);
+    ierr = VecView(_dT,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_heatFlux,_viewers["heatFlux"]); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
