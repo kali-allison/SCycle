@@ -91,6 +91,11 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
 
+  // destroy viewers
+  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first]);
+  }
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -691,15 +696,15 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer("surfDisp");
-    _viewers["bcL"] = initiateViewer("bcL");
-    _viewers["bcR"] = initiateViewer("bcR");
+    _viewers["surfDisp"] = initiateViewer(_outputDir + "surfDisp");
+    _viewers["bcL"] = initiateViewer(_outputDir + "bcL");
+    _viewers["bcR"] = initiateViewer(_outputDir + "bcR");
 
     ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers);
+    ierr = appendViewer(_viewers,_outputDir);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
@@ -734,26 +739,18 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscScalar time)
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    // output body fields
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"u").c_str(),
-              FILE_MODE_WRITE,&_uV);CHKERRQ(ierr);
-    ierr = VecView(_u,_uV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_uV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"u").c_str(),
-                                   FILE_MODE_APPEND,&_uV);CHKERRQ(ierr);
+    _viewers["u"] = initiateViewer(_outputDir + "u");
+    _viewers["sxy"] = initiateViewer(_outputDir + "sxy");
 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-              FILE_MODE_WRITE,&_sxyPV);CHKERRQ(ierr);
-    ierr = VecView(_sxy,_sxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_sxyPV);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"stressxyP").c_str(),
-                                   FILE_MODE_APPEND,&_sxyPV);CHKERRQ(ierr);
+    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+
+    ierr = appendViewer(_viewers,_outputDir);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-
-    ierr = VecView(_u,_uV);CHKERRQ(ierr);
-    ierr = VecView(_sxy,_sxyPV);CHKERRQ(ierr);
+    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
   }
 
 
