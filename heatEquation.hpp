@@ -141,8 +141,8 @@ class HeatEquation
     PetscErrorCode view();
     PetscErrorCode writeDomain();
     PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D(const PetscInt stepCount);
-    PetscErrorCode writeStep2D(const PetscInt stepCount);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
 
     static double zzmms_rho(const double y,const double z);
     static double zzmms_c(const double y,const double z);

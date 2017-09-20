@@ -650,12 +650,12 @@ PetscErrorCode HeatEquation::timeMonitor(const PetscReal time,const PetscInt ste
   #endif
   if ( stepCount % _stride1D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
-    ierr = writeStep1D(stepCount);CHKERRQ(ierr);
+    ierr = writeStep1D(stepCount,time);CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
     //~ierr = PetscViewerHDF5IncrementTimestep(D->viewer);CHKERRQ(ierr);
-    ierr = writeStep2D(stepCount);CHKERRQ(ierr);
+    ierr = writeStep2D(stepCount,time);CHKERRQ(ierr);
   }
 
 #if VERBOSE > 0
@@ -1478,7 +1478,7 @@ PetscErrorCode HeatEquation::computeHeatFlux()
 
 
 
-PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
+PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1489,7 +1489,7 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
 
   double startTime = MPI_Wtime();
 
-  if (_surfaceHeatFluxV==NULL) {
+  if (stepCount == 0) {
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"surfaceHeatFlux").c_str(),
                                  FILE_MODE_WRITE,&_surfaceHeatFluxV);CHKERRQ(ierr);
     ierr = VecView(_surfaceHeatFlux,_surfaceHeatFluxV);CHKERRQ(ierr);
@@ -1544,7 +1544,7 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount)
 }
 
 
-PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
+PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1555,7 +1555,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount)
 
   double startTime = MPI_Wtime();
 
-  if (_TV==NULL) {
+  if (stepCount == 0) {
     //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"T0").c_str(),
                                  //~ FILE_MODE_WRITE,&_TV);CHKERRQ(ierr);
     //~ ierr = VecView(_T0,_TV);CHKERRQ(ierr);

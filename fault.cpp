@@ -15,8 +15,6 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _dPsi(NULL),_psi(NULL),_theta(NULL),
   _sigmaN_cap(1e14),_sNEff(NULL),
   _slip(NULL),_slipVel(NULL),
-  _slipViewer(NULL),_slipVelViewer(NULL),_tauQSPlusViewer(NULL),
-  _psiViewer(NULL),_thetaViewer(NULL),_tempViewer(NULL),
   _computeVelTime(0),_stateLawTime(0),
   _tauQSP(NULL),_tauP(NULL)
 {
@@ -217,13 +215,9 @@ Fault::~Fault()
   VecDestroy(&_rho);
   VecDestroy(&_c);
 
-
-  PetscViewerDestroy(&_slipViewer);
-  PetscViewerDestroy(&_slipVelViewer);
-  PetscViewerDestroy(&_tauQSPlusViewer);
-  PetscViewerDestroy(&_psiViewer);
-  PetscViewerDestroy(&_thetaViewer);
-  PetscViewerDestroy(&_tempViewer);
+  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first]);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1326,7 +1320,7 @@ PetscErrorCode SymmFault::writeContext()
 }
 
 
-PetscErrorCode SymmFault::writeStep(const PetscInt step)
+PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1336,50 +1330,31 @@ PetscErrorCode SymmFault::writeStep(const PetscInt step)
 
 
 
-  if (_slipViewer==NULL) {
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"slip").c_str(),FILE_MODE_WRITE,&_slipViewer);
-    ierr = VecView(_slip,_slipViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_slipViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"slip").c_str(),
-                                 FILE_MODE_APPEND,&_slipViewer);CHKERRQ(ierr);
+  if (stepCount == 0) {
+    _viewers["slip"] = initiateViewer(_outputDir + "slip");
+    _viewers["slipVel"] = initiateViewer(_outputDir + "slipVel");
+    _viewers["tauQSP"] = initiateViewer(_outputDir + "tauQSP");
+    _viewers["psi"] = initiateViewer(_outputDir + "psi");
+    _viewers["fault_T"] = initiateViewer(_outputDir + "fault_T");
 
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"slipVel").c_str(),FILE_MODE_WRITE,&_slipVelViewer);
-    ierr = VecView(_slipVel,_slipVelViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_slipVelViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"slipVel").c_str(),
-                                 FILE_MODE_APPEND,&_slipVelViewer);CHKERRQ(ierr);
+    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
+    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
+    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
+    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
+    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
 
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"tauQSPlus").c_str(),FILE_MODE_WRITE,&_tauQSPlusViewer);
-    ierr = VecView(_tauQSP,_tauQSPlusViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_tauQSPlusViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"tauQSPlus").c_str(),
-                                 FILE_MODE_APPEND,&_tauQSPlusViewer);CHKERRQ(ierr);
-
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"psi").c_str(),FILE_MODE_WRITE,&_psiViewer);
-    ierr = VecView(_psi,_psiViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_psiViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"psi").c_str(),
-                                 FILE_MODE_APPEND,&_psiViewer);CHKERRQ(ierr);
-
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"theta").c_str(),FILE_MODE_WRITE,&_thetaViewer);
-    ierr = VecView(_theta,_thetaViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_thetaViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"theta").c_str(),
-                                 FILE_MODE_APPEND,&_thetaViewer);CHKERRQ(ierr);
-
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_T").c_str(),FILE_MODE_WRITE,&_tempViewer);
-    ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_tempViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_T").c_str(),
-                                 FILE_MODE_APPEND,&_tempViewer);CHKERRQ(ierr);
+    ierr = appendViewer(_viewers["slip"],_outputDir + "slip");
+    ierr = appendViewer(_viewers["slipVel"],_outputDir + "slipVel");
+    ierr = appendViewer(_viewers["tauQSP"],_outputDir + "tauQSP");
+    ierr = appendViewer(_viewers["psi"],_outputDir + "psi");
+    ierr = appendViewer(_viewers["fault_T"],_outputDir + "fault_T");
   }
   else {
-    ierr = VecView(_slip,_slipViewer);CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_slipVelViewer);CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_tauQSPlusViewer);CHKERRQ(ierr);
-    ierr = VecView(_psi,_psiViewer);CHKERRQ(ierr);
-    ierr = VecView(_theta,_thetaViewer);CHKERRQ(ierr);
-    ierr = VecView(_T,_tempViewer);CHKERRQ(ierr);
+    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
+    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
+    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
+    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
+    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1

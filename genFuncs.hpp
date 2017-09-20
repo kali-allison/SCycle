@@ -52,9 +52,9 @@ PetscErrorCode writeMat(Mat mat,const char * loc);
 
 // initiate a viewer for binary output
 PetscViewer initiateViewer(std::string str);
-
+PetscErrorCode appendViewer(PetscViewer& vw,const std::string str);
 // loop over all viewers in the map vwL and switch then all to append mode
-PetscErrorCode appendViewer(map<string,PetscViewer>& vwL,const std::string dir);
+PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir);
 
 
 // Print all entries of 2D DMDA global vector out, including which

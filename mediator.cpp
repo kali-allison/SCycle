@@ -187,12 +187,12 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
 double startTime = MPI_Wtime();
 
   if ( stepCount % _stride1D == 0) {
-    ierr = _momBal->writeStep1D(time); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount); CHKERRQ(ierr);
+    ierr = _momBal->writeStep1D(stepCount,time); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount,time); CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    ierr = _momBal->writeStep2D(time);CHKERRQ(ierr);
+    ierr = _momBal->writeStep2D(stepCount,time);CHKERRQ(ierr);
   }
 
   if (stepCount % 50 == 0) {
@@ -227,11 +227,11 @@ double startTime = MPI_Wtime();
   timeMonitor(time,stepCount,varEx,dvarEx);
 
   if ( stepCount % _stride1D == 0) {
-    ierr = _he.writeStep1D(_stepCount); CHKERRQ(ierr);
+    ierr = _he.writeStep1D(_stepCount,time); CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    ierr = _he.writeStep2D(_stepCount);CHKERRQ(ierr);
+    ierr = _he.writeStep2D(_stepCount,time);CHKERRQ(ierr);
   }
 
 _writeTime += MPI_Wtime() - startTime;

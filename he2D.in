@@ -130,10 +130,10 @@ TVals = [1400 1400]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
-#thermalCoupling = coupled
+thermalCoupling = coupled
 #thermalCoupling = uncoupled
-thermalCoupling = no
-withShearHeating = no
+#thermalCoupling = no
+withShearHeating = yes
 withFrictionalHeating = no
 
 
@@ -146,11 +146,34 @@ withFrictionalHeating = no
 viscDistribution = effectiveVisc
 strainRate = 1e-14
 
+#======================================================================
+# hydraulic fault inputs
+#hydraulicCoupling = no
+hydraulicCoupling = uncoupled
+#hydraulicCoupling = coupled
+
+hydraulicTimeIntType = explicit
+#hydraulicTimeIntType = implicit
+
+n_pVals = [0.1 0.1]
+n_pDepths = [0 30]
+beta_pVals = [1e-2 1e-2] # 1/MPa
+beta_pDepths = [0 30]
+k_pVals = [1e-19 1e-19] # km^2
+k_pDepths = [0 30]
+eta_pVals = [1e-9 1e-9] # MPa s
+eta_pDepths = [0 30]
+#rho_fVals = [1e3 1e3] # g/cm^3
+rho_fVals = [1 1] # g/cm^3
+rho_fDepths = [0 30]
+pVals = [0.0 0.0]
+pDepths = [0 30]
+
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
 stride1D = 1
 stride2D = 1

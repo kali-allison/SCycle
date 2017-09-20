@@ -110,7 +110,15 @@ PetscViewer initiateViewer(std::string str)
   PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);
   return vw;
 }
-PetscErrorCode appendViewer(map<string,PetscViewer>& vwL,const std::string dir)
+PetscErrorCode appendViewer(PetscViewer& vw,const std::string str)
+{
+  PetscErrorCode ierr = 0;
+  ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_APPEND,&vw);
+  CHKERRQ(ierr);
+  return ierr;
+}
+PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir)
 {
   PetscErrorCode ierr = 0;
   for (map<string,PetscViewer>::iterator it=vwL.begin(); it!=vwL.end(); it++ ) {

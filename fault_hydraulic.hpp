@@ -39,9 +39,6 @@ class SymmFault_Hydr: public SymmFault
     std::vector<double>   _eta_pVals,_eta_pDepths,_rho_fVals,_rho_fDepths;
     std::vector<double>   _pVals,_pDepths,_dpVals,_dpDepths;
 
-    // IO viewers
-    PetscViewer _pViewer,_sNEffviewer;
-
     // run time monitoring
     double       _writeTime,_linSolveTime,_ptTime,_startTime,_miscTime;
 
@@ -85,7 +82,7 @@ class SymmFault_Hydr: public SymmFault
     // IO
     PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeContext();
-    PetscErrorCode writeStep(const PetscInt step);
+    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     //~ PetscErrorCode view();
 };
 

@@ -9,7 +9,6 @@ SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
   _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),_sN(NULL),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType("mfc"),_linSolveCount(0),
-  _pViewer(NULL),_sNEffviewer(NULL),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
   _p(NULL)
 {
@@ -46,9 +45,6 @@ SymmFault_Hydr::~SymmFault_Hydr()
   VecDestroy(&_rho_f);
 
   VecDestroy(&_p);
-
-  PetscViewerDestroy(&_pViewer);
-  PetscViewerDestroy(&_sNEffviewer);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -734,7 +730,7 @@ PetscErrorCode SymmFault_Hydr::writeContext()
 
 
 // extends SymmFault's writeContext
-PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt step)
+PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -742,24 +738,21 @@ PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt step)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-  SymmFault::writeStep(step);
+  SymmFault::writeStep(stepCount,time);
 
-  if (step==0) {
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_hydr_p").c_str(),FILE_MODE_WRITE,&_pViewer);
-    ierr = VecView(_p,_pViewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_pViewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_hydr_p").c_str(),
-                                 FILE_MODE_APPEND,&_pViewer);CHKERRQ(ierr);
+  if (stepCount==0) {
+    _viewers["p"] = initiateViewer(_outputDir + "fault_hydr_p");
+    _viewers["sNEff"] = initiateViewer(_outputDir + "fault_hydr_sNEff");
 
-    PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_hydr_sNEff").c_str(),FILE_MODE_WRITE,&_sNEffviewer);
-    ierr = VecView(_sNEff,_sNEffviewer);CHKERRQ(ierr);
-    ierr = PetscViewerDestroy(&_sNEffviewer);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(_outputDir+"fault_hydr_sNEff").c_str(),
-                                 FILE_MODE_APPEND,&_sNEffviewer);CHKERRQ(ierr);
+    ierr = VecView(_p,_viewers["p"]); CHKERRQ(ierr);
+    ierr = VecView(_sNEff,_viewers["sNEff"]); CHKERRQ(ierr);
+
+    ierr = appendViewer(_viewers["p"],_outputDir + "fault_hydr_p");
+    ierr = appendViewer(_viewers["sNEff"],_outputDir + "fault_hydr_sNEff");
   }
   else {
-    ierr = VecView(_p,_pViewer);CHKERRQ(ierr);
-    ierr = VecView(_sNEff,_sNEffviewer);CHKERRQ(ierr);
+    ierr = VecView(_p,_viewers["p"]); CHKERRQ(ierr);
+    ierr = VecView(_sNEff,_viewers["sNEff"]); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1

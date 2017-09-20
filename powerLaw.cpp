@@ -7,11 +7,6 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_B(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),
-  _sxyPV(NULL),_sxzPV(NULL),_sdevV(NULL),
-  _gTxyV(NULL),_gTxzV(NULL),
-  _gxyV(NULL),_dgxyV(NULL),
-  _gxzV(NULL),_dgxzV(NULL),
-  _TV(NULL),_effViscV(NULL),_miscV(NULL),
   _sxz(NULL),_sdev(NULL),
   _gxy(NULL),_dgxy(NULL),
   _gxz(NULL),_dgxz(NULL),
@@ -70,18 +65,6 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_gxz);
   VecDestroy(&_dgxy);
   VecDestroy(&_dgxz);
-
-  PetscViewerDestroy(&_sxyPV);
-  PetscViewerDestroy(&_sxzPV);
-  PetscViewerDestroy(&_sdevV);
-  PetscViewerDestroy(&_gTxyV);
-  PetscViewerDestroy(&_gTxzV);
-  PetscViewerDestroy(&_gxyV);
-  PetscViewerDestroy(&_gxzV);
-  PetscViewerDestroy(&_dgxyV);
-  PetscViewerDestroy(&_dgxzV);
-  PetscViewerDestroy(&_effViscV);
-  PetscViewerDestroy(&_miscV);
 
   PetscViewerDestroy(&_timeV2D);
 
@@ -1539,7 +1522,7 @@ PetscErrorCode PowerLaw::writeContext()
 }
 
 
-PetscErrorCode PowerLaw::writeStep1D(const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1550,16 +1533,17 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscScalar time)
 
   double startTime = MPI_Wtime();
 
-  LinearElastic::writeStep1D(time);
+  LinearElastic::writeStep1D(stepCount,time);
 
-  if (_stepCount == 0) {
+  if (stepCount == 0) {
     //~ _viewers["pl_SATL"] = initiateViewer(_outputDir + "pl_SATL");
     //~ _viewers["pl_SATR"] = initiateViewer(_outputDir + "pl_SATR");
 
     //~ ierr = VecView(SATL,_viewers["pl_SATL"]); CHKERRQ(ierr);
     //~ ierr = VecView(SATR,_viewers["pl_SATR"]); CHKERRQ(ierr);
 
-    //~ ierr = appendViewer(_viewers,_outputDir);
+    //~ ierr = appendViewer(_viewers["pl_SATL"],_outputDir + "pl_SATL");
+    //~ ierr = appendViewer(_viewers["pl_SATR"],_outputDir + "pl_SATR");
   }
   else {
     //~ ierr = VecView(SATL,_viewers["pl_SATL"]);CHKERRQ(ierr);
@@ -1575,7 +1559,7 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscScalar time)
 }
 
 
-PetscErrorCode PowerLaw::writeStep2D(const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1585,9 +1569,9 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscScalar time)
   #endif
 
   double startTime = MPI_Wtime();
-  LinearElastic::writeStep2D(time);
+  LinearElastic::writeStep2D(stepCount,time);
 
-  if (_gTxyV==NULL) {
+  if (stepCount == 0) {
     _viewers["gTxy"] = initiateViewer(_outputDir + "gTxy");
     _viewers["gxy"] = initiateViewer(_outputDir + "gxy");
     _viewers["effVisc"] = initiateViewer(_outputDir + "effVisc");
@@ -1595,6 +1579,10 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscScalar time)
     ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
     ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
     ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
+
+    ierr = appendViewer(_viewers["gTxy"],_outputDir + "gTxy");
+    ierr = appendViewer(_viewers["gxy"],_outputDir + "gxy");
+    ierr = appendViewer(_viewers["effVisc"],_outputDir + "effVisc");
 
     if (_Nz>1) {
       _viewers["gTxz"] = initiateViewer(_outputDir + "gTxz");
@@ -1604,8 +1592,11 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscScalar time)
       ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
       ierr = VecView(_sxz,_viewers["gxz"]); CHKERRQ(ierr);
       ierr = VecView(_gxz,_viewers["sxz"]); CHKERRQ(ierr);
+
+      ierr = appendViewer(_viewers["gTxz"],_outputDir + "gTxz");
+      ierr = appendViewer(_viewers["gxz"],_outputDir + "gxz");
+      ierr = appendViewer(_viewers["sxz"],_outputDir + "sxz");
     }
-    ierr = appendViewer(_viewers,_outputDir);
   }
   else {
     ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);

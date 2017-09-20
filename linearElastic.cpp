@@ -19,11 +19,9 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _thermalCoupling("no"),
-  _timeV1D(NULL),_timeV2D(NULL),_surfDispViewer(NULL),
+  _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
-  _bcRlusV(NULL),_bcRShiftV(NULL),_bcLlusV(NULL),
-  _uV(NULL),_uAnalV(NULL),_rhslusV(NULL),_sxyPV(NULL),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_quadEx(NULL),_quadImex(NULL)
 {
@@ -74,24 +72,11 @@ LinearElastic::~LinearElastic()
 
   KSPDestroy(&_ksp);
 
-  PetscViewerDestroy(&_timeV1D);
-  PetscViewerDestroy(&_timeV2D);
-  PetscViewerDestroy(&_surfDispViewer);
-  PetscViewerDestroy(&_uV);
-
   delete _sbp; _sbp = NULL;
 
-  PetscViewerDestroy(&_bcRlusV);
-  PetscViewerDestroy(&_bcRShiftV);
-  PetscViewerDestroy(&_bcLlusV);
-  PetscViewerDestroy(&_uAnalV);
-  PetscViewerDestroy(&_rhslusV);
-  PetscViewerDestroy(&_sxyPV);
-
+  // destroy viewers
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
-
-  // destroy viewers
   for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first]);
   }
@@ -679,7 +664,7 @@ PetscErrorCode LinearElastic::writeContext()
 }
 
 
-PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep1D";
@@ -689,7 +674,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
     CHKERRQ(ierr);
   #endif
   double startTime = MPI_Wtime();
-  _stepCount++;
+  _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
     ierr = _sbp->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);
@@ -704,7 +689,9 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
     ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers,_outputDir);
+    ierr = appendViewer(_viewers["surfDisp"],_outputDir + "surfDisp");
+    ierr = appendViewer(_viewers["bcL"],_outputDir + "bcL");
+    ierr = appendViewer(_viewers["bcR"],_outputDir + "bcR");
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
@@ -723,7 +710,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscScalar time)
 
 
 
-PetscErrorCode LinearElastic::writeStep2D(const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep2D";
@@ -745,7 +732,8 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscScalar time)
     ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers,_outputDir);
+    ierr = appendViewer(_viewers["u"],_outputDir + "u");
+    ierr = appendViewer(_viewers["sxy"],_outputDir + "sxy");
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);

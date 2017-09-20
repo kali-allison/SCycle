@@ -84,14 +84,11 @@ class LinearElastic
     std::string   _thermalCoupling;
 
     // viewers
-    PetscViewer      _timeV1D,_timeV2D,_surfDispViewer;
+    PetscViewer      _timeV1D,_timeV2D;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
     PetscInt     _linSolveCount;
-
-    PetscViewer   _bcRlusV,_bcRShiftV,_bcLlusV,
-                  _uV,_uAnalV,_rhslusV,_sxyPV;
 
   //~ public:
 
@@ -128,8 +125,8 @@ class LinearElastic
     // IO commands
     PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext();
-    PetscErrorCode virtual writeStep1D(const PetscScalar time); // write out 1D fields
-    PetscErrorCode virtual writeStep2D(const PetscScalar time); // write out 2D fields
+    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
+    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
 
     // trial
     PetscErrorCode virtual computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

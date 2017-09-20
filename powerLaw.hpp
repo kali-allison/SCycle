@@ -27,15 +27,6 @@ class PowerLaw: public LinearElastic
     Vec         _effVisc;
     Vec         SATL;
 
-    // viewers
-    PetscViewer _sxyPV,_sxzPV,_sdevV;
-    PetscViewer _gTxyV,_gTxzV;
-    PetscViewer _gxyV,_dgxyV;
-    PetscViewer _gxzV,_dgxzV;
-    PetscViewer _TV;
-    PetscViewer _effViscV;
-    PetscViewer _miscV;
-
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
     PetscErrorCode checkInput(); // check input from file
@@ -86,8 +77,8 @@ class PowerLaw: public LinearElastic
 
     PetscErrorCode writeDomain();
     PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D(const PetscScalar time);
-    PetscErrorCode writeStep2D(const PetscScalar time);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode view(const double totRunTime);
 
     PetscErrorCode measureMMSError(const PetscScalar time);

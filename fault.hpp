@@ -63,8 +63,7 @@ class Fault: public RootFinderContext
     Vec                  _slip,_slipVel;
 
     // viewers
-    PetscViewer    _slipViewer,_slipVelViewer,_tauQSPlusViewer,_psiViewer,_thetaViewer;
-    PetscViewer    _tempViewer;
+    std::map <string,PetscViewer>  _viewers;
 
     // runtime data
     double               _computeVelTime,_stateLawTime;
@@ -116,7 +115,7 @@ class Fault: public RootFinderContext
     // IO
     PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext() = 0;
-    PetscErrorCode virtual writeStep(const PetscInt step) = 0;
+    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time) = 0;
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
@@ -156,7 +155,7 @@ class SymmFault: public Fault
     PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    PetscErrorCode virtual writeStep(const PetscInt step);
+    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode virtual writeContext();
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
