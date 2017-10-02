@@ -1192,7 +1192,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
 // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxy,&SAT);
-  ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT);CHKERRQ(ierr);
+  ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
   VecSet(SAT,0.0); // !!!
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
@@ -1217,7 +1217,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
 
   VecDestroy(&SAT);
 
-  // add
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1575,14 +1574,17 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     _viewers["gTxy"] = initiateViewer(_outputDir + "gTxy");
     _viewers["gxy"] = initiateViewer(_outputDir + "gxy");
     _viewers["effVisc"] = initiateViewer(_outputDir + "effVisc");
+    _viewers["rhs"] = initiateViewer(_outputDir + "rhs");
 
     ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
     ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
     ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
+    ierr = VecView(_rhs,_viewers["rhs"]); CHKERRQ(ierr);
 
     ierr = appendViewer(_viewers["gTxy"],_outputDir + "gTxy");
     ierr = appendViewer(_viewers["gxy"],_outputDir + "gxy");
     ierr = appendViewer(_viewers["effVisc"],_outputDir + "effVisc");
+    ierr = appendViewer(_viewers["rhs"],_outputDir + "rhs");
 
     if (_Nz>1) {
       _viewers["gTxz"] = initiateViewer(_outputDir + "gTxz");
@@ -1590,8 +1592,8 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
       _viewers["sxz"] = initiateViewer(_outputDir + "sxz");
 
       ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["sxz"]); CHKERRQ(ierr);
+      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
+      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
       ierr = appendViewer(_viewers["gTxz"],_outputDir + "gTxz");
       ierr = appendViewer(_viewers["gxz"],_outputDir + "gxz");
@@ -1602,10 +1604,11 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
     ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
     ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
+    ierr = VecView(_rhs,_viewers["rhs"]); CHKERRQ(ierr);
     if (_Nz>1) {
       ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["sxz"]); CHKERRQ(ierr);
+      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
+      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
     }
   }
 
