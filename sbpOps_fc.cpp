@@ -6,7 +6,7 @@
 //================= constructor and destructor ========================
 SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
   string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._dq),_dz(D._dr),
+: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._Ly/(D._Ny-1.)),_dz(D._Lz/(D._Nz-1.)),
   _muVec(&muVec),_mu(NULL),
   _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),

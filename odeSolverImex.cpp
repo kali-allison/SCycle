@@ -395,6 +395,15 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     }
   }
 
+  // check that errInds is valid
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
+    if (_var.find(key) == _var.end()) {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+    }
+    assert(_var.find(key) != _var.end());
+  }
+
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 

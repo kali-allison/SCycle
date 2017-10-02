@@ -505,12 +505,18 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
-    //~ for(std::vector<int>::size_type i = 0; i != _var.size(); i++) {
-      //~ _errInds.push_back(i);
-    //~ }
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       _errInds.push_back(it->first);
     }
+  }
+
+  // check that errInds is valid
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
+    if (_var.find(key) == _var.end()) {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+    }
+    assert(_var.find(key) != _var.end());
   }
 
 

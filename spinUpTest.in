@@ -1,17 +1,17 @@
 #======================================================================
 # domain
 order = 4
-Ny = 30
-Nz = 31
-Ly = 30 # km
-Lz = 10 # km
+Ny = 42
+Nz = 41
+Ly = 10 # km
+Lz = 11 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # coordinate transformation
 #bCoordTrans = 6.0
@@ -23,7 +23,7 @@ sbpType = mfc
 
 #inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
 loadICs = 0
-bcLTauQS = 0
+bcLTauQS = 1
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -121,15 +121,15 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 20
+maxStepCount = 10
 initTime = 0
-maxTime = 1e14
+maxTime = 1e12
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 5e-9
-timeIntInds = [psi slip]
-#timeIntInds = [gVxy gVxz]
+atol = 1e-8
+#timeIntInds = [psi slip]
+timeIntInds = [gVxy gVxz]
 
 
 
