@@ -20,7 +20,7 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  _he(D)
+  _fault(NULL),_momBal(NULL),_he(D)
 {
   #if VERBOSE > 1
     std::string funcName = "Mediator::Mediator()";
@@ -81,8 +81,8 @@ Mediator::~Mediator()
 
   delete _quadImex; _quadImex = NULL;
   delete _quadEx;   _quadEx = NULL;
-  //~ delete _momBal;   _momBal = NULL;
-  //~ delete _fault;    _fault = NULL;
+  delete _momBal;   _momBal = NULL;
+  delete _fault;    _fault = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

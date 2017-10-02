@@ -1282,10 +1282,7 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
 
-  //~ std::string bcTType = "Neumann";
-  //~ std::string bcBType = "Neumann";
-  //~ std::string bcRType = "Dirichlet";
-  //~ std::string bcLType = "Dirichlet";
+  delete _sbpT;
 
   // construct matrices
   // BC order: top, right, bottom, left
@@ -1323,6 +1320,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
   // update boundaries (for solving for perturbation from steady-state)
   setBCsforBE();
 
+  delete _sbpT;
   // construct matrices
   // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
   if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {

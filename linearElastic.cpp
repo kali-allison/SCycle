@@ -64,6 +64,7 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcRShift);
 
   // body fields
+  VecDestroy(&_muVec);
   VecDestroy(&_rhs);
   VecDestroy(&_u);
   VecDestroy(&_sxy);

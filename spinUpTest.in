@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 50
-Nz = 51
+Ny = 31
+Nz = 31
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -12,6 +12,8 @@ geometry = symmetric
 
 # linearElastic or powerLaw
 bulkDeformationType = powerLaw
+powerLawMomBalType = steadyState
+#powerLawMomBalType = transient
 
 # coordinate transformation
 bCoordTrans = 5.0
@@ -28,8 +30,7 @@ bcLTauQS = 0
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
 linSolver = AMG
 kspTol = 1e-10
-powerLawMomBalType = steadyState
-#powerLawType = transient
+
 
 # algorithm for heat equation
 linSolver_heateq = AMG
@@ -60,11 +61,11 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
+#sigmaNVals = [50 50] # (MPa) constant
 #sigmaNVals = [30 30] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
+#sigmaNDepths = [0 60] #(km) constant
+sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
 
 stateLaw = agingLaw
@@ -102,9 +103,12 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
 
 
-#TVals = [293 1793] # 30 C/km
-TVals = [800 900]
-TDepths = [0 10]
+# initial geotherm
+TVals = [293 1793] # 30 C/km
+#TVals = [800 900]
+TDepths = [0 50]
+
+# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
 heatEquationType = steadyState
 thermalCoupling = no
 withShearHeating = no
@@ -121,11 +125,11 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5e5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
-maxTime = 5e7
+maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -135,7 +139,8 @@ timeIntInds = [psi slip]
 
 
 
-outputDir = data/spinUpTest_
+#outputDir = data/spinUpTest_
+outputDir = /scratch/kallison/testSteadyState/Lz40_
 
 
 

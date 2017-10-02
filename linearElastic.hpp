@@ -101,7 +101,7 @@ class LinearElastic
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     LinearElastic(Domain&D,Vec& tau);
-    ~LinearElastic();
+    virtual ~LinearElastic();
 
     // time stepping function
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);

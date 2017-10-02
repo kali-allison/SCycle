@@ -29,7 +29,7 @@ class PowerLaw: public LinearElastic
     Vec         SATL;
 
     // coefficients for steady-state computations
-    Mat _Mss,_Bss,_Css,_aM;
+    Mat _Mss,_Bss,_Css,_aM,_BxaxDy,_CxaxDz;
     Vec _aV;
     PetscErrorCode initializeSSMatrices(); // compute B and C
     PetscErrorCode computeSteadyStateCoeff(const PetscScalar time); // compute a = 1 / [1 + 1/(t*mu/effVisc) ]

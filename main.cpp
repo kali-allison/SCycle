@@ -76,7 +76,7 @@ int runEqCycle(const char * inputFile)
   d.write();
 
   //~ if (d._bulkDeformationType.compare("linearElastic")==0) {
-    //~ SymmLinearElastic sle(d);
+    //~ LinearElastic sle(d);
     //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     //~ ierr = sle.integrate();CHKERRQ(ierr);
     //~ ierr = sle.view();CHKERRQ(ierr);
@@ -88,10 +88,12 @@ int runEqCycle(const char * inputFile)
     //~ ierr = pl.view();CHKERRQ(ierr);
   //~ }
 
+  HeatEquation he(d);
+
   Mediator m(d);
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate();CHKERRQ(ierr);
-  ierr = m.view();CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }
