@@ -204,7 +204,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr); // necessary for solving steady state power law
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);

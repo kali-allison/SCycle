@@ -34,7 +34,8 @@ class SbpOps
     virtual PetscErrorCode getH(Mat &mat) = 0;
 
     // temporarily available for energy balance
-    virtual PetscErrorCode getMus(Mat &muqy,Mat &murz) = 0;
+    virtual PetscErrorCode getDs(Mat &Dy,Mat &Dz) = 0;
+    virtual PetscErrorCode getMus(Mat &mu,Mat &muqy,Mat &murz) = 0;
     virtual PetscErrorCode getR(Mat& Ry, Mat& Rz) = 0;
     virtual PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) = 0;
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;

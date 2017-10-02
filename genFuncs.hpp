@@ -105,7 +105,6 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
 
 
 
-
 // for 1D da
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
   const int N, const double dz,const DM da);

@@ -1,10 +1,10 @@
 #======================================================================
 # domain
 order = 4
-Ny = 40
-Nz = 41
-Ly = 10 # km
-Lz = 11 # km
+Ny = 50
+Nz = 51
+Ly = 30 # km
+Lz = 40 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
@@ -14,9 +14,9 @@ geometry = symmetric
 bulkDeformationType = powerLaw
 
 # coordinate transformation
-bCoordTrans = 1.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
-sbpType = mfc
+#sbpType = mfc
 
 #======================================================================
 # linear systems
@@ -25,9 +25,11 @@ sbpType = mfc
 loadICs = 0
 bcLTauQS = 0
 
-# algorithm for momentum balance equation
-linSolver = MUMPSCHOLESKY
-#kspTol = 1e-10
+# algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
+linSolver = AMG
+kspTol = 1e-10
+powerLawMomBalType = steadyState
+#powerLawType = transient
 
 # algorithm for heat equation
 linSolver_heateq = AMG
@@ -121,7 +123,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 200
+maxStepCount = 5e5
 initTime = 0
 maxTime = 5e7
 initDeltaT = 1e-3

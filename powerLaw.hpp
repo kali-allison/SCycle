@@ -18,6 +18,7 @@ class PowerLaw: public LinearElastic
   protected:
     const char       *_file;
     std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _momBalType; // steady-state or transient
 
     // material properties
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
@@ -26,6 +27,12 @@ class PowerLaw: public LinearElastic
     Vec         _A,_n,_B,_T;
     Vec         _effVisc;
     Vec         SATL;
+
+    // coefficients for steady-state computations
+    Mat _Mss,_Bss,_Css,_aM;
+    Vec _aV;
+    PetscErrorCode initializeSSMatrices(); // compute B and C
+    PetscErrorCode computeSteadyStateCoeff(const PetscScalar time); // compute a = 1 / [1 + 1/(t*mu/effVisc) ]
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
@@ -42,7 +49,8 @@ class PowerLaw: public LinearElastic
     PetscErrorCode setViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
       Vec& gVxy_t, Vec& gVxz_t);
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
-    PetscErrorCode setStresses(const PetscScalar time);
+    PetscErrorCode computeTotalStrains(const PetscScalar time);
+    PetscErrorCode computeStresses(const PetscScalar time);
     PetscErrorCode computeViscosity();
 
     PetscErrorCode setMMSInitialConditions();
@@ -69,6 +77,7 @@ class PowerLaw: public LinearElastic
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_SS(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,

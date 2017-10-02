@@ -165,7 +165,8 @@ PetscErrorCode SbpOps_fc::getH(Mat &mat)
 
 
 // for energy balance
-PetscErrorCode SbpOps_fc::getMus(Mat &muqy,Mat &murz) { muqy = _mu; murz = _mu; return 0; }
+PetscErrorCode SbpOps_fc::getDs(Mat &Dy,Mat &Dz) { Dy = _Dy_Iz; Dz = _Iy_Dz; return 0; }
+PetscErrorCode SbpOps_fc::getMus(Mat &mu,Mat &muqy,Mat &murz) { mu = _mu; muqy = _mu; murz = _mu; return 0; }
 PetscErrorCode SbpOps_fc::getR(Mat& Ry, Mat& Rz) { Ry=_Ry; Rz=_Rz; return 0; }
 PetscErrorCode SbpOps_fc::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz)
 {
