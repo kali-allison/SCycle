@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 31
-Nz = 31
+Ny = 151
+Nz = 151
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -23,7 +23,7 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny101_Nz201_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/t30_bcLTau_
 loadICs = 0
 bcLTauQS = 0
 
@@ -44,6 +44,7 @@ impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
+#DcVals = [8e-3 8e-3] # m
 #DcVals = [16e-3 16e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
@@ -61,18 +62,15 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-#sigmaNVals = [50 50] # (MPa) constant
-#sigmaNVals = [30 30] # (MPa) constant
-#sigmaNDepths = [0 60] #(km) constant
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
+sigmaNVals = [50 50] # (MPa) constant
+sigmaNDepths = [0 60] #(km) constant
+#sigmaNVals = [5.668 5.668 1336] # MPa
+#sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
 
 stateLaw = agingLaw
 v0 = 1e-6
 f0 = 0.6
-
-
 
 
 #======================================================================
@@ -104,6 +102,8 @@ rhoDepths = [0 60]
 
 
 # initial geotherm
+#TVals = [293 1293] # 20 C/km
+#TVals = [293 1543] # 25 C/km
 TVals = [293 1793] # 30 C/km
 #TVals = [800 900]
 TDepths = [0 50]
@@ -127,9 +127,9 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 10
 stride2D = 10
-maxStepCount = 1e8
+maxStepCount = 1e5
 initTime = 0
-maxTime = 1e15
+maxTime = 1e12
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -138,9 +138,16 @@ timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
+# for loading SBP matrices into matlab
+#outputDir = /scratch/kallison/testSteadyState/mat_bcLTau_
 
 #outputDir = data/spinUpTest_
-outputDir = /scratch/kallison/testSteadyState/Lz40_
+#outputDir = /scratch/kallison/testSteadyState/t30_
+#outputDir = /scratch/kallison/testSteadyState/t30_bcLTau_
+outputDir = /scratch/kallison/testSteadyState/ss30_
 
+#outputDir = /scratch/kallison/test/pl30_nct_
+#outputDir = /scratch/kallison/test/pl30_wct5_
+#outputDir = /scratch/kallison/test/pl30_wct15_
 
 

@@ -1649,7 +1649,7 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   PetscErrorCode ierr = 0;
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps.c\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps_fc.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
   PetscViewer    viewer;
@@ -1738,29 +1738,6 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_Iy_ENz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-
-
-  //~// matrices to map SAT boundaries to A
-  //~str = outputDir + "AL";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_AL,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "AR";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_rhsR,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "AT";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_rhsT,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-//~
-  //~str = outputDir + "AB";
-  //~ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ierr = MatView(_AB,viewer);CHKERRQ(ierr);
-  //~ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps.cpp\n");CHKERRQ(ierr);

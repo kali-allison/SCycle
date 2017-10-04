@@ -29,10 +29,6 @@ mainHeatEquation:  mainHeatEquation.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
 #~	-rm mainLinearElastic.o
 
-main_iceSheet:  main_iceSheet.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm main_iceSheet.o
-
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 

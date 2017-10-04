@@ -7,8 +7,9 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _momBalType("transient"),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_B(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),
-  _Mss(NULL),_Bss(NULL),_Css(NULL),_aM(NULL),_aV(NULL),_BxaxDy(NULL),_CxaxDz(NULL),
+  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),
+  _B(NULL),_C(NULL),
+  _Mss(NULL),_Bss(NULL),_Css(NULL),_aM(NULL),_aV(NULL),_Br(NULL),
   _sxz(NULL),_sdev(NULL),
   _gxy(NULL),_dgxy(NULL),
   _gxz(NULL),_dgxz(NULL),
@@ -40,6 +41,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
     computeTotalStrains(_currTime);
     computeStresses(_currTime);
   }
+  initializeMomBalMats();
 
   if (_momBalType.compare("steadyState")==0) {
     initializeSSMatrices(); // initialize Bss and Css
@@ -64,7 +66,7 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_A);
   VecDestroy(&_n);
   VecDestroy(&_T);
-  VecDestroy(&_B);
+  VecDestroy(&_QR);
   VecDestroy(&_effVisc);
   VecDestroy(&_aV);
   VecDestroy(&_sxz);
@@ -78,12 +80,13 @@ PowerLaw::~PowerLaw()
 
   PetscViewerDestroy(&_timeV2D);
 
+  MatDestroy(&_B);
+  MatDestroy(&_C);
   MatDestroy(&_Mss);
   MatDestroy(&_Bss);
   MatDestroy(&_Css);
   MatDestroy(&_aM);
-  MatDestroy(&_BxaxDy);
-  MatDestroy(&_CxaxDz);
+  MatDestroy(&_Br);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -213,7 +216,7 @@ PetscErrorCode PowerLaw::allocateFields()
   #endif
 
   ierr = VecDuplicate(_u,&_A);CHKERRQ(ierr);
-  ierr = VecDuplicate(_u,&_B);CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&_QR);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_n);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_T);CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&_effVisc);CHKERRQ(ierr);
@@ -264,22 +267,22 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   // set each field using it's vals and depths std::vectors
   if (_Nz == 1) {
     VecSet(_A,_AVals[0]);
-    VecSet(_B,_BVals[0]);
+    VecSet(_QR,_BVals[0]);
     VecSet(_n,_nVals[0]);
   }
   else {
     if (_viscDistribution.compare("mms")==0) {
       if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
       else { mapToVec(_A,zzmms_A,*_y,*_z); }
-      if (_Nz == 1) { mapToVec(_B,zzmms_B1D,*_y); }
-      else { mapToVec(_B,zzmms_B,*_y,*_z); }
+      if (_Nz == 1) { mapToVec(_QR,zzmms_B1D,*_y); }
+      else { mapToVec(_QR,zzmms_B,*_y,*_z); }
       if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
       else { mapToVec(_n,zzmms_n,*_y,*_z); }
     }
     else if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
     else {
       ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_B,_BVals,_BDepths);CHKERRQ(ierr);
+      ierr = setVecFromVectors(_QR,_BVals,_BDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
     }
   }
@@ -324,7 +327,7 @@ PetscErrorCode PowerLaw::loadEffViscFromFiles()
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_B,inv);CHKERRQ(ierr);
+  ierr = VecLoad(_QR,inv);CHKERRQ(ierr);
 
   // load B
   vecSourceFile = _inputDir + "n";
@@ -422,7 +425,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_B,inv);CHKERRQ(ierr);
+  ierr = VecLoad(_QR,inv);CHKERRQ(ierr);
 
   vecSourceFile = _inputDir + "n";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -559,7 +562,90 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D,Vec& tauRS)
   #endif
 }
 
- // compute B and C
+// compute B and C
+// B = H*Dy*mu + SAT terms
+// C = H*Dz*mu + SAT terms
+PetscErrorCode PowerLaw::initializeMomBalMats()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::initializeMomBalMats";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // get necessary matrix factors
+  Mat Dy,Dz;
+  Mat Hyinv,Hzinv,H;
+  Mat muqy,murz,mu;
+  Mat E0y,ENy,E0z,ENz;
+  Mat qy,rz,yq,zr;
+  _sbp->getDs(Dy,Dz);
+  _sbp->getHinvs(Hyinv,Hzinv);
+  _sbp->getH(H);
+  _sbp->getMus(mu,muqy,murz);
+  _sbp->getEs(E0y,ENy,E0z,ENz);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbp->getCoordTrans(qy,rz,yq,zr);
+  }
+
+  // helpful factor qyxrzxH = qy * rz * H, and yqxzrxH = yq * zr * H
+  Mat yqxHy,zrxHz,yqxzrxH;
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    ierr = MatMatMatMult(yq,H,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr); // correct
+    ierr = MatMatMatMult(zr,H,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
+    ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
+  }
+  else {
+    ierr = MatMatMult(H,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy);
+    ierr = MatMatMult(H,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz);
+    ierr = MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&yqxzrxH); CHKERRQ(ierr);
+  }
+
+  // B = (yq*zr*H) * Dy*mu + SAT
+  ierr = MatMatMatMult(yqxzrxH,Dy,mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_B); CHKERRQ(ierr);
+
+  // add B_SAT: 0 if Dirichlet, zr*H*mu*Hyinv*EXy if von Neumann
+  if (_bcLType.compare("Neumann")==0) {
+    Mat B_SATL;
+    ierr = MatMatMatMult(zrxHz,mu,E0y,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B_SATL); CHKERRQ(ierr);
+    ierr = MatAXPY(_B,1.,B_SATL,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&B_SATL);
+  }
+  if (_bcRType.compare("Neumann")==0) {
+    Mat B_SATR;
+    ierr = MatMatMatMult(zrxHz,mu,ENy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B_SATR); CHKERRQ(ierr);
+    ierr = MatAXPY(_B,-1.,B_SATR,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&B_SATR);
+  }
+
+  // C = (yq*zr*H) * Dz*mu + SAT
+  ierr = MatMatMatMult(yqxzrxH,Dz,mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_C); CHKERRQ(ierr);
+
+  // add C_SAT: 0 if Dirichlet, yq*H*mu*Hzinv*EXz if von Neumann
+  if (_bcTType.compare("Neumann")==0) {
+    Mat C_SATL;
+    ierr = MatMatMatMult(yqxHy,mu,E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_SATL); CHKERRQ(ierr);
+    ierr = MatAXPY(_C,1.,C_SATL,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&C_SATL);
+  }
+  if (_bcBType.compare("Neumann")==0) {
+    Mat C_SATR;
+    ierr = MatMatMatMult(yqxHy,mu,ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_SATR); CHKERRQ(ierr);
+    ierr = MatAXPY(_C,-1.,C_SATR,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&C_SATR);
+  }
+
+  MatDestroy(&yqxHy);
+  MatDestroy(&zrxHz);
+  MatDestroy(&yqxzrxH);
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+// compute Bss and Css
 PetscErrorCode PowerLaw::initializeSSMatrices()
 {
   PetscErrorCode ierr = 0;
@@ -583,49 +669,113 @@ PetscErrorCode PowerLaw::initializeSSMatrices()
     _sbp->getCoordTrans(qy,rz,yq,zr);
   }
 
-  // create B = qy*rz*H*Dy*mu
-  Mat temp;
-  ierr = MatMatMatMult(H,Dy,mu,MAT_INITIAL_MATRIX,1.,&temp); CHKERRQ(ierr); // temp = H*Dy*mu
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    ierr = MatMatMatMult(qy,rz,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Bss); CHKERRQ(ierr); // B = qy * rz * temp
-  }
-  else {
-    ierr = MatConvert(temp,MATSAME,MAT_INITIAL_MATRIX,&_Bss); CHKERRQ(ierr);
-  }
-  MatDestroy(&temp);
-
-  // create C = qy*rz*H ( Dz*mu + mu*Hzinv*(E0z - ENz) )
-  Mat qyxrzxH,Dzxmu,muxHzinvxENz;
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    ierr = MatMatMatMult(qy,rz,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&qyxrzxH); CHKERRQ(ierr);
-  }
-  else {
-    ierr = MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&qyxrzxH); CHKERRQ(ierr);
-  }
-  ierr = MatMatMult(Dz,mu,MAT_INITIAL_MATRIX,1.,&Dzxmu); CHKERRQ(ierr);
-  ierr = MatMatMatMult(mu,Hzinv,E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp); CHKERRQ(ierr);
-  ierr = MatMatMatMult(mu,Hzinv,ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&muxHzinvxENz); CHKERRQ(ierr);
-  ierr = MatAXPY(temp,-1.,muxHzinvxENz,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-  ierr = MatAXPY(temp,1.,Dzxmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-  ierr = MatMatMult(qyxrzxH,temp,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Css); CHKERRQ(ierr);
-  MatDestroy(&Dzxmu);
-  MatDestroy(&muxHzinvxENz);
-  MatDestroy(&qyxrzxH);
-  MatDestroy(&temp);
-
   // initialize aM (with the wrong values, but space allocated on the diagonal)
   MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&_aM); CHKERRQ(ierr);
   computeSteadyStateCoeff(_currTime); // set aV and aM
 
 
+  // create Br = Dy + Hqinv*qy*(E0y-ENy)
+  ierr = MatConvert(Dy,MATSAME,MAT_INITIAL_MATRIX,&_Br); CHKERRQ(ierr);
+  if (_bcLType.compare("Dirichlet")==0) {
+    Mat Br_SATL;
+    ierr = MatMatMatMult(Hyinv,qy,E0y,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Br_SATL); CHKERRQ(ierr);
+    ierr = MatAXPY(_Br,1.,Br_SATL,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&Br_SATL);
+  }
+  if (_bcRType.compare("Dirichlet")==0) {
+    Mat Br_SATR;
+    ierr = MatMatMatMult(Hyinv,qy,E0y,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Br_SATR); CHKERRQ(ierr);
+    ierr = MatAXPY(_Br,1.,Br_SATR,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&Br_SATR);
+  }
+
+  // create Bss = B*a*Dy + B*a*Hqinv*qy*(E0y - ENy) = B * a * Br
+  ierr = MatMatMatMult(_B,_aM,_Br,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Bss); CHKERRQ(ierr);
+
+
+  // create Css = B*a*Dz + a*Hqinv*qy*(E0y - ENy)
+  ierr = MatMatMatMult(_C,_aM,Dz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Css); CHKERRQ(ierr);
+
+  // compute Mss
+  Mat A;
+  _sbp->getA(A);
+  ierr = MatConvert(A,MATSAME,MAT_INITIAL_MATRIX,&_Mss); CHKERRQ(ierr);
+  ierr = MatAXPY(_Mss,-1.,_Bss,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  ierr = MatAXPY(_Mss,-1.,_Css,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+// compute updated Bss and Css
+PetscErrorCode PowerLaw::updateSSMatrices()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateSSMatrices";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // get necessary matrix factors
+  Mat Dy,Dz;
+  Mat Hyinv,Hzinv,H;
+  Mat muqy,murz,mu;
+  Mat E0y,ENy,E0z,ENz;
+  Mat qy,rz,yq,zr;
+  _sbp->getDs(Dy,Dz);
+  _sbp->getHinvs(Hyinv,Hzinv);
+  _sbp->getH(H);
+  _sbp->getMus(mu,muqy,murz);
+  _sbp->getEs(E0y,ENy,E0z,ENz);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbp->getCoordTrans(qy,rz,yq,zr);
+  }
+
+  // initialize aM (with the wrong values, but space allocated on the diagonal)
+  MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&_aM); CHKERRQ(ierr);
+  computeSteadyStateCoeff(_currTime); // set aV and aM
+
+  // helpful factor qyxrzxH = qy * rz * H, and yqxzrxH = yq * zr * H
+  Mat qyxrzxH,yqxzrxH;
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    ierr = MatMatMatMult(qy,rz,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&qyxrzxH); CHKERRQ(ierr);
+    ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
+  }
+  else {
+    qyxrzxH = H;
+    yqxzrxH = H;
+  }
+
+  // create Bss = B*a*Dy + B*a*Hqinv*qy*(E0y - ENy)
+  ierr = MatMatMatMult(_B,_aM,Dy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Bss); CHKERRQ(ierr);
+  if (_bcLType.compare("Dirichlet")==0) {
+    Mat B_SATL,qyxE0y;
+    ierr = MatMatMult(qy,E0y,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&qyxE0y); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_aM,Hyinv,E0y,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B_SATL); CHKERRQ(ierr);
+    ierr = MatAXPY(_Bss,1.,B_SATL,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&qyxE0y);
+    MatDestroy(&B_SATL);
+  }
+  if (_bcRType.compare("Dirichlet")==0) {
+    Mat B_SATR,qyxENy;
+    ierr = MatMatMult(qy,ENy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&qyxENy); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_aM,Hyinv,ENy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B_SATR); CHKERRQ(ierr);
+    ierr = MatAXPY(_Bss,-1.,B_SATR,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+    MatDestroy(&qyxENy);
+    MatDestroy(&B_SATR);
+  }
+
+  // create Css = B*a*Dz + a*Hqinv*qy*(E0y - ENy)
+  ierr = MatMatMatMult(_C,_aM,Dz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_Css); CHKERRQ(ierr);
+
   // compute Mss
   Mat A;
     _sbp->getA(A);
-  ierr = MatMatMatMult(_Bss,_aM,Dy,MAT_INITIAL_MATRIX,1.,&_BxaxDy); CHKERRQ(ierr);
-  ierr = MatMatMatMult(_Css,_aM,Dz,MAT_INITIAL_MATRIX,1.,&_CxaxDz); CHKERRQ(ierr);
-  ierr = MatConvert(A,MATSAME,MAT_INITIAL_MATRIX,&_Mss); CHKERRQ(ierr);
-  ierr = MatAXPY(_Mss,-1.,_BxaxDy,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-  ierr = MatAXPY(_Mss,-1.,_CxaxDz,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  ierr = MatConvert(A,MATSAME,MAT_REUSE_MATRIX,&_Mss); CHKERRQ(ierr);
+  ierr = MatAXPY(_Mss,-1.,_Bss,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+  ierr = MatAXPY(_Mss,-1.,_Css,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
 
   return ierr;
   #if VERBOSE > 1
@@ -660,10 +810,10 @@ PetscErrorCode PowerLaw::computeSteadyStateCoeff(const PetscScalar time)
 
   ierr = MatDiagonalSet(_aM,_aV,INSERT_VALUES); CHKERRQ(ierr);
 
-  return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 // inititialize effective viscosity
@@ -680,7 +830,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
   VecGetArray(_A,&A);
-  VecGetArray(_B,&B);
+  VecGetArray(_QR,&B);
   VecGetArray(_n,&n);
   VecGetArray(_T,&T);
   VecGetArray(_effVisc,&effVisc);
@@ -691,7 +841,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc()
     Jj++;
   }
   VecRestoreArray(_A,&A);
-  VecRestoreArray(_B,&B);
+  VecRestoreArray(_QR,&B);
   VecRestoreArray(_n,&n);
   VecRestoreArray(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
@@ -722,8 +872,8 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
   else { mapToVec(_A,zzmms_A,*_y,*_z); }
-  if (_Nz == 1) { mapToVec(_B,zzmms_B1D,*_y); }
-  else { mapToVec(_B,zzmms_B,*_y,*_z); }
+  if (_Nz == 1) { mapToVec(_QR,zzmms_B1D,*_y); }
+  else { mapToVec(_QR,zzmms_B,*_y,*_z); }
   if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
   else { mapToVec(_n,zzmms_n,*_y,*_z); }
   if (_Nz == 1) { mapToVec(_T,zzmms_T1D,*_y); }
@@ -1060,11 +1210,11 @@ PetscErrorCode PowerLaw::d_dt_SS(const PetscScalar time,const map<string,Vec>& v
     _sbp->getA(A);
     Mat Dy,Dz;
     _sbp->getDs(Dy,Dz);
-    ierr = MatMatMatMult(_Bss,_aM,Dy,MAT_REUSE_MATRIX,1.,&_BxaxDy); CHKERRQ(ierr);
-    ierr = MatMatMatMult(_Css,_aM,Dz,MAT_REUSE_MATRIX,1.,&_CxaxDz); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_B,_aM,_Br,MAT_REUSE_MATRIX,PETSC_DEFAULT,&_Bss); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_C,_aM,Dz,MAT_REUSE_MATRIX,1.,&_Css); CHKERRQ(ierr);
     ierr = MatCopy(A,_Mss,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
-    ierr = MatAXPY(_Mss,-1.,_BxaxDy,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
-    ierr = MatAXPY(_Mss,-1.,_CxaxDz,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+    ierr = MatAXPY(_Mss,-1.,_Bss,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
+    ierr = MatAXPY(_Mss,-1.,_Css,SAME_NONZERO_PATTERN); CHKERRQ(ierr);
 
     ierr = KSPSetOperators(_ksp,_Mss,_Mss);CHKERRQ(ierr); // change ksp to use Mss
 
@@ -1078,6 +1228,13 @@ PetscErrorCode PowerLaw::d_dt_SS(const PetscScalar time,const map<string,Vec>& v
     ierr = computeTotalStrains(time); CHKERRQ(ierr);
     MatMult(_aM,_gTxy,_gxy);
     MatMult(_aM,_gTxz,_gxz);
+
+    // add SAT terms to strain rate for gVxy
+    Vec SAT;
+    VecDuplicate(_gTxy,&SAT);
+    ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
+    MatMultAdd(_aM,SAT,_gxy,_gxy); // comment out to negate effect of SAT
+
     ierr = computeStresses(time); CHKERRQ(ierr);
     computeViscosity();
 
@@ -1261,12 +1418,17 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
     CHKERRQ(ierr);
   #endif
 
+  // add source terms to rhs: d/dy( mu*gxy) + d/dz( mu*gxz) + SAT
+  ierr = MatMult(_B,_gxy,out); CHKERRQ(ierr);
+  if (_Nz > 1) {
+    ierr = MatMultAdd(_C,_gxz,out,out); CHKERRQ(ierr);
+  }
+
+/*
   Vec source;
-  VecDuplicate(gxy,&source);
+  VecDuplicate(_u,&source);
   VecSet(source,0.0);
 
-  // add source terms to rhs: d/dy( mu*gxy) + d/dz( mu*gxz)
-  // + Hz^-1 E0z mu gxz - Hz^-1 ENz mu gxz
   Vec sourcexy_y;
   VecDuplicate(_u,&sourcexy_y);
   VecSet(sourcexy_y,0.0);
@@ -1287,6 +1449,8 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
   ierr = VecCopy(sourcexy_y,source);CHKERRQ(ierr); // sourcexy_y -> source
   VecDestroy(&sourcexy_y);
 
+
+  // Hz^-1 E0z mu gxz - Hz^-1 ENz mu gxz
   if (_Nz > 1)
   {
     Vec sourcexz_z;
@@ -1323,6 +1487,7 @@ PetscErrorCode PowerLaw::setViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
   }
   ierr = _sbp->H(source,out); CHKERRQ(ierr);
   VecDestroy(&source);
+*/
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1347,7 +1512,7 @@ PetscErrorCode PowerLaw::computeViscosity()
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
   VecGetArray(_sdev,&sigmadev);
   VecGetArray(_A,&A);
-  VecGetArray(_B,&B);
+  VecGetArray(_QR,&B);
   VecGetArray(_n,&n);
   VecGetArray(_T,&T);
   VecGetArray(_effVisc,&effVisc);
@@ -1362,7 +1527,7 @@ PetscErrorCode PowerLaw::computeViscosity()
   }
   VecRestoreArray(_sdev,&sigmadev);
   VecRestoreArray(_A,&A);
-  VecRestoreArray(_B,&B);
+  VecRestoreArray(_QR,&B);
   VecRestoreArray(_n,&n);
   VecRestoreArray(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
@@ -1386,26 +1551,16 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
     CHKERRQ(ierr);
   #endif
 
-// add SAT terms to strain rate for epsxy
+  // add SAT terms to strain rate for epsxy
   Vec SAT;
   VecDuplicate(_gTxy,&SAT);
   ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
-  VecSet(SAT,0.0); // !!!
+  //~ VecSet(SAT,0.0); // !!!
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(gVxy_t,_muVec,SAT);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    Vec temp1;
-    VecDuplicate(_gxy,&temp1);
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
-    MatMult(qy,gVxy_t,temp1);
-    VecCopy(temp1,gVxy_t);
-    VecDestroy(&temp1);
-  }
   VecAXPY(gVxy_t,1.0,_sxy);
   VecPointwiseDivide(gVxy_t,gVxy_t,_effVisc);
-
 
   if (_Nz > 1) {
     VecCopy(_sxz,gVxz_t);
@@ -1457,6 +1612,17 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
   VecDestroy(&GL);
   VecDestroy(&GR);
   VecDestroy(&temp1);
+
+  // include effects of coordinate transform
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat qy,rz,yq,zr;
+    Vec temp1;
+    VecDuplicate(_gxy,&temp1);
+    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    MatMult(qy,out,temp1);
+    VecCopy(temp1,out);
+    VecDestroy(&temp1);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1717,7 +1883,7 @@ PetscErrorCode PowerLaw::writeContext()
 
   str = _outputDir + "powerLawB";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);CHKERRQ(ierr);
-  ierr = VecView(_B,vw);CHKERRQ(ierr);
+  ierr = VecView(_QR,vw);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw);CHKERRQ(ierr);
 
   str = _outputDir + "n";

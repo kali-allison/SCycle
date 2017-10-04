@@ -24,14 +24,19 @@ class PowerLaw: public LinearElastic
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
     std::string  _AFile,_BFile,_nFile,_TFile; // names of each file within loadFromFile
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
-    Vec         _A,_n,_B,_T;
+    Vec         _A,_n,_QR,_T;
     Vec         _effVisc;
     Vec         SATL;
 
-    // coefficients for steady-state computations
-    Mat _Mss,_Bss,_Css,_aM,_BxaxDy,_CxaxDz;
+    // composite matrices to make momentum balance simpler
+    Mat _B,_C;
+    PetscErrorCode initializeMomBalMats(); // computes B and C
+
+    // for steady-state computations
+    Mat _Mss,_Bss,_Css,_aM,_Br;
     Vec _aV;
     PetscErrorCode initializeSSMatrices(); // compute B and C
+    PetscErrorCode updateSSMatrices(); // compute B and C
     PetscErrorCode computeSteadyStateCoeff(const PetscScalar time); // compute a = 1 / [1 + 1/(t*mu/effVisc) ]
 
     // initialize and set data
