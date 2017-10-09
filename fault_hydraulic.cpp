@@ -251,7 +251,8 @@ PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
   VecSet(_bcT,_pVals[0]);
 
   VecDuplicate(_bcT,&_bcB);
-  VecSet(_bcB,_g*_rho_fVals.back());
+  VecSet(_bcB,_g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back());
+//  VecSet(_bcB,_g*_rho_fVals.back());
 
   VecCreate(PETSC_COMM_WORLD,&_bcL);
   VecSetSizes(_bcL,PETSC_DECIDE,_N);
@@ -392,20 +393,20 @@ PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
 
 
   // force pressure to be hydrostatic
-  //~ PetscScalar *rho_f,*p,*z=0;
-  //~ PetscInt Ii,Istart,Iend;
-  //~ VecGetOwnershipRange(_p,&Istart,&Iend);
-  //~ VecGetArray(_rho_f,&rho_f);
-  //~ VecGetArray(_p,&p);
-  //~ VecGetArray(_z,&z);
-  //~ PetscInt Jj = 0;
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ p[Jj] = rho_f[Jj]*_g*z[Jj];
-    //~ Jj++;
-  //~ }
-  //~ VecRestoreArray(_rho_f,&rho_f);
-  //~ VecRestoreArray(_p,&p);
-  //~ VecRestoreArray(_z,&z);
+//  PetscScalar *rho_f,*p,*z=0;
+//  PetscInt Ii,Istart,Iend;
+//  VecGetOwnershipRange(_p,&Istart,&Iend);
+//  VecGetArray(_rho_f,&rho_f);
+//  VecGetArray(_p,&p);
+//  VecGetArray(_z,&z);
+//  PetscInt Jj = 0;
+//  for (Ii=Istart;Ii<Iend;Ii++) {
+//    p[Jj] = rho_f[Jj]*_g*z[Jj];
+//    Jj++;
+//  }
+//  VecRestoreArray(_rho_f,&rho_f);
+//  VecRestoreArray(_p,&p);
+//  VecRestoreArray(_z,&z);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
