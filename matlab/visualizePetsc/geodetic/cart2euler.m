@@ -1,0 +1,25 @@
+function [lat,lon,r]=cart2euler(rx,ry,rz)
+% CART2EULER  Converts Cartesian coordinate rotations to Euler pole rotation.
+%   Used for modelling tectonic plate motion with spherical approximation.
+% Version: 2013-11-22
+% Usage:   [lat,lon,r]=cart2euler(rx,ry,rz)
+% Input:   rx  - rotation about Cartesian X axis (radians; counterclockwise)
+%          ry  - rotation about Cartesian Y axis (radians; counterclockwise)
+%          rz  - rotation about Cartesian Z axis (radians; counterclockwise)
+% Output:  lat - latitude of Euler pole (radians)
+%          lon - longitude of Euler pole (radians)
+%          r   - rotation about Euler pole (radians; counterclockwise)
+
+% Created 2012-07-11
+% Revised 2013-11-22 Corrected comments/help info.
+
+% Copyright (c) 2013, Michael R. Craymer
+% All rights reserved.
+% Email: mike@craymer.com
+
+if nargin ~= 3
+  warning('Incorrect number of input arguments');
+  return
+end
+
+[lon,lat,r]=cart2sph(rx,ry,rz);
