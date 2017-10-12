@@ -105,7 +105,7 @@ class PowerLaw: public LinearElastic
     PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec& g);
 
     // trial
-    PetscErrorCode computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode solveSSProblem(const PetscScalar time);
 
 
 

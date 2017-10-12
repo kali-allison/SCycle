@@ -848,41 +848,6 @@ PetscErrorCode LinearElastic::d_dt_eqCycle(const PetscScalar time,const map<stri
 }
 
 
-// compute total strain rate gTxy
-PetscErrorCode LinearElastic::computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::computeTotalStrainRates in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-
-  Vec bcL_t, bcR_t;
-  VecDuplicate(_bcL,&bcL_t);
-  VecDuplicate(_bcL,&bcR_t);
-  VecSet(bcR_t,_vL/2.);
-  VecCopy(dvarEx["slip"],bcL_t);
-  ierr = _sbp->setRhs(_rhs,bcL_t,bcR_t,_bcT,_bcB);CHKERRQ(ierr);
-  VecDestroy(&bcL_t);
-  VecDestroy(&bcR_t);
-
-  // solve for u_t
-  Vec u_t;
-  VecDuplicate(_u,&u_t);
-  double startTime = MPI_Wtime();
-  ierr = KSPSolve(_ksp,_rhs,u_t);CHKERRQ(ierr);
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
-
-  // solve for total strain rate
-  ierr = _sbp->Dy(u_t,dvarEx["gTxy"]); CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
-
 // implicit/explicit time stepping
 PetscErrorCode LinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)

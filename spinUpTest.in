@@ -1,8 +1,8 @@
 #======================================================================
 # domain
-order = 4
-Ny = 51
-Nz = 52
+order = 2
+Ny = 11
+Nz = 12
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -16,14 +16,16 @@ powerLawMomBalType = steadyState
 #powerLawMomBalType = transient
 
 # coordinate transformation
-#bCoordTrans = 5.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 5.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/t30_bcLTau_
+inputDir = /data/dunham/kallison/eqcycle/inputFiles/t30_
+#inputDir = /data/dunham/kallison/eqcycle/inputFiles/ss30_
+#inputDir = /data/dunham/kallison/eqcycle/inputFiles/eq30_
 loadICs = 0
 bcLTauQS = 1
 
@@ -45,8 +47,8 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
-DcVals = [1 1] # m
+DcVals = [16e-3 16e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -125,11 +127,11 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e4
+stride1D = 1
+stride2D = 1
+maxStepCount = 12
 initTime = 0
-maxTime = 1e12
+maxTime = 10
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -142,14 +144,8 @@ timeIntInds = [psi slip]
 #outputDir = data/testMats_bcLTau_
 #outputDir = data/test_
 
-
-#outputDir = data/spinUpTest_
-#outputDir = /scratch/kallison/testSteadyState/t30_
-#outputDir = /scratch/kallison/testSteadyState/t30_bcLTau_
-#outputDir = /scratch/kallison/testSteadyState/ss30_
-
-#outputDir = /scratch/kallison/test/pl30_nct_
-#outputDir = /scratch/kallison/test/pl30_wct5_
-#outputDir = /scratch/kallison/test/pl30_wct15_
-
+#outputDir = /scratch/kallison/test/t30_
+outputDir = /scratch/kallison/test/ss30_
+#outputDir = /scratch/kallison/test/t30_cont_
+#outputDir = /scratch/kallison/test/eq30_
 

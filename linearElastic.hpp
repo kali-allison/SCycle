@@ -129,7 +129,6 @@ class LinearElastic
     PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
 
     // trial
-    PetscErrorCode virtual computeTotalStrainRates(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // MMS functions
     static double zzmms_f(const double y,const double z);
