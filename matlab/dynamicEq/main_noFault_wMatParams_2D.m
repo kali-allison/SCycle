@@ -66,8 +66,8 @@ uz = Dz(u,dz,order);
 uLap = Dyy(u,dy,order) + Dzz(u,dz,order);
 
 % apply part of boundary conditions to intermediate fields
-uLap(:,1) = uLap(:,1) + (1/h11z)*G(:,1) .* uy(:,1);
-uLap(:,end) = uLap(:,end) - (1/h11z)*G(:,end) .* uy(:,end);
+uLap(:,1) = uLap(:,1) + (1/h11y)*G(:,1) .* uy(:,1);
+uLap(:,end) = uLap(:,end) - (1/h11y)*G(:,end) .* uy(:,end);
 uLap(1,:) = uLap(1,:) + (1/h11z)*G(1,:) .* uz(1,:);
 uLap(end,:) = uLap(end,:) + (1/h11z)*G(end,:) .* uz(end,:);
 
@@ -86,8 +86,8 @@ for tInd = 2:length(t)
   uLap = Dyy_mu(u,G,dy,order) + Dzz_mu(u,G,dz,order);
   
   % apply part of boundary conditions to intermediate fields
-  uLap(:,1) = uLap(:,1) + (1/h11z)*G(:,1) .* uy(:,1);
-  uLap(:,end) = uLap(:,end) - (1/h11z)*G(:,end) .* uy(:,end);
+  uLap(:,1) = uLap(:,1) + (1/h11y)*G(:,1) .* uy(:,1);
+  uLap(:,end) = uLap(:,end) - (1/h11y)*G(:,end) .* uy(:,end);
   uLap(1,:) = uLap(1,:) + (1/h11z)*G(1,:) .* uz(1,:);
   uLap(end,:) = uLap(end,:) + (1/h11z)*G(end,:) .* uz(end,:);
   

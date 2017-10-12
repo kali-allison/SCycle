@@ -54,18 +54,6 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
 
   constructA(tempFactors);
 
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Ny = %i, Nz = %i\n",_Ny,_Nz);
-  //~ PetscInt m,n;
-  //~ MatGetSize(_rhsL,&m,&n);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"_rhsL: %i x %i\n",m,n);
-  //~ MatGetSize(_rhsR,&m,&n);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"_rhsR: %i x %i\n",m,n);
-  //~ MatGetSize(_rhsT,&m,&n);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"_rhsT: %i x %i\n",m,n);
-  //~ MatGetSize(_rhsB,&m,&n);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"_rhsB: %i x %i\n",m,n);
-  //~ assert(0);
-
   MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
   MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
 
@@ -86,6 +74,12 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
 
   Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
   kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
+
+  Spmat e0z(_Nz,1); e0z(0,0,1.0);
+  kronConvert(tempFactors._Iy,e0z,_Iy_e0z,1,1);
+
+  Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
+  kronConvert(tempFactors._Iy,eNz,_Iy_eNz,1,1);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
@@ -1125,6 +1119,29 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
   return ierr;
 }
 
+PetscErrorCode SbpOps_fc::updateVarCoeff(const Vec& coeff)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function updateVarCoeff in sbpOps.cpp.\n");
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
+  TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+  // this approach fundamentally reallocates all the matrices
+  ierr = satBoundaries(tempFactors); CHKERRQ(ierr);
+  ierr = constructA(tempFactors); CHKERRQ(ierr);
+
+
+  _runTime = MPI_Wtime() - startTime;
+  #if VERBOSE >1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in sbpOps.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 // compute matrix relating displacement to vector b containing boundary conditions
 PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
@@ -1733,10 +1750,20 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_Iy_E0z,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  //~ MatView(_Iy_e0z,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
+  str = outputDir + "ee0z";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_Iy_e0z,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   str = outputDir + "ENz";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(_Iy_ENz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  str = outputDir + "eeNz";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(_Iy_eNz,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE > 1

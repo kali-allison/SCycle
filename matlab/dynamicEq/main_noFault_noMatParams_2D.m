@@ -33,14 +33,6 @@ t = 0:dt:tmax;
 
 
 
-% boundary conditions
-bcTType = 'outgoing characteristics';
-bcTType = 'outgoing characteristics';
-bcLType = 'outgoing characteristics';
-bcLType = 'outgoing characteristics';
-
-
-
 % create SBP operators
 
 % SBP

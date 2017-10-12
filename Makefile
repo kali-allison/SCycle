@@ -21,10 +21,6 @@ main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
-mainLinearElastic:  mainLinearElastic.o $(OBJECTS)
-	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
-#~	-rm mainLinearElastic.o
-
 mainHeatEquation:  mainHeatEquation.o $(OBJECTS)
 	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
 #~	-rm mainLinearElastic.o
@@ -50,7 +46,7 @@ test: test.o
 
 #.PHONY : clean
 clean::
-	-rm -f *.o main helloWorld mainLinearElastic main
+	-rm -f *.o main
 
 depend:
 	-g++ -MM *.c*

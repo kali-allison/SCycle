@@ -85,6 +85,9 @@ class SbpOps_sc
     // mat-based versions
     PetscErrorCode matDy(const Vec &in, Vec &out); // out = Dy * in
 
+    // allow variable coefficient to change
+    PetscErrorCode updateVarCoeff(const Vec& coeff);
+
 
     // functions to compute various derivatives of input vectors (this
     // allows the matrix-free version of these operators to present

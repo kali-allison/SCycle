@@ -178,6 +178,9 @@ class SbpOps_fc_coordTrans : public SbpOps
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
 
+    // allow variable coefficient to change
+    PetscErrorCode updateVarCoeff(const Vec& coeff);
+
     PetscErrorCode getDs(Mat &Dy,Mat &Dz);
     PetscErrorCode getMus(Mat &mu,Mat &muqy,Mat &murz);
     PetscErrorCode getR(Mat& Ry, Mat& Rz);

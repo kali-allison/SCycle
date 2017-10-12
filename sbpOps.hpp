@@ -33,6 +33,9 @@ class SbpOps
     virtual PetscErrorCode getA(Mat &mat) = 0;
     virtual PetscErrorCode getH(Mat &mat) = 0;
 
+    // allow variable coefficient to change
+    virtual PetscErrorCode updateVarCoeff(const Vec& coeff) = 0;
+
     // temporarily available for energy balance
     virtual PetscErrorCode getDs(Mat &Dy,Mat &Dz) = 0;
     virtual PetscErrorCode getMus(Mat &mu,Mat &muqy,Mat &murz) = 0;

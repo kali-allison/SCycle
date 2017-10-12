@@ -110,8 +110,13 @@ class SbpOps_fc : public SbpOps
     Mat _Hyinv_Iz,_Iy_Hzinv;
     Mat _e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
 
-    // boundary conditions
+    // boundary condition penalties
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // penalty terms for traction and displacement respectively
+
+    // save intermediate values for terms
+    // necessary to allow for interial time stepping, but also good for preallocating
+    // to allow for the variable coefficient to change
+    //~ Mat _Aint,_Abc;
 
     // directory for matrix debugging
     string _debugFolder;
@@ -175,6 +180,10 @@ class SbpOps_fc : public SbpOps
 
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
+
+
+    // allow variable coefficient to change
+    PetscErrorCode updateVarCoeff(const Vec& coeff);
 
 
     // functions to compute various derivatives of input vectors (this

@@ -33,11 +33,11 @@ class PowerLaw: public LinearElastic
     PetscErrorCode initializeMomBalMats(); // computes B and C
 
     // for steady-state computations
-    Mat _Mss,_Bss,_Css,_aM,_Br;
-    Vec _aV;
-    PetscErrorCode initializeSSMatrices(); // compute B and C
-    PetscErrorCode updateSSMatrices(); // compute B and C
-    PetscErrorCode computeSteadyStateCoeff(const PetscScalar time); // compute a = 1 / [1 + 1/(t*mu/effVisc) ]
+    SbpOps   *_sbp_eta;
+    KSP       _ksp_eta;
+    PC        _pc_eta;
+    Vec _v;
+    PetscErrorCode initializeSSMatrices(Domain &D); // compute B and C
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file

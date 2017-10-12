@@ -1031,6 +1031,31 @@ PetscErrorCode SbpOps_c::construct1stDerivs(const TempMats_c& tempMats)
 }
 
 
+PetscErrorCode SbpOps_c::updateVarCoeff(const Vec& coeff)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function updateVarCoeff in SbpOps_c.cpp.\n");
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
+  TempMats_c tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+  // this approach fundamentally reallocates all the matrices
+  ierr = satBoundaries(tempFactors); CHKERRQ(ierr);
+  ierr = constructA(tempFactors); CHKERRQ(ierr);
+
+
+  _runTime = MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in SbpOps_c.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
 // compute matrix relating displacement to vector b containing boundary conditions
 PetscErrorCode SbpOps_c::constructA(const TempMats_c& tempMats)
 {

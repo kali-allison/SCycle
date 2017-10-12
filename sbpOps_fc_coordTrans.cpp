@@ -1192,6 +1192,30 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
 }
 
 
+PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function updateVarCoeff in SbpOps_fc_coordTrans.cpp.\n");
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
+  TempMats_fc_coordTrans tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu,_y,_z);
+
+  // this approach fundamentally reallocates all the matrices
+  ierr = satBoundaries(tempFactors); CHKERRQ(ierr);
+  ierr = constructA(tempFactors); CHKERRQ(ierr);
+
+
+  _runTime = MPI_Wtime() - startTime;
+  #if VERBOSE >1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in SbpOps_fc_coordTrans.cpp.\n");CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 // compute matrix relating displacement to vector b containing boundary conditions
 PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& tempMats)
 {

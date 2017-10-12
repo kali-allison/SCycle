@@ -87,8 +87,7 @@ int runEqCycle(const char * inputFile)
     //~ ierr = pl.integrate();CHKERRQ(ierr);
     //~ ierr = pl.view();CHKERRQ(ierr);
   //~ }
-
-  HeatEquation he(d);
+  //~ HeatEquation he(d);
 
   Mediator m(d);
   //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");

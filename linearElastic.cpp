@@ -678,7 +678,6 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
-    ierr = _sbp->writeOps(_outputDir + "ops_u_");CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
