@@ -67,7 +67,6 @@ class LinearElastic
     const PetscScalar    _vL; // loading velocity
 
     // off-fault material fields
-    std::string          _muDistribution; // if load from file
     Vec                  _muVec;
     PetscScalar          _muVal,_rhoVal; // if constant
     Vec                  _bcRShift,_surfDisp;

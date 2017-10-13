@@ -1,10 +1,10 @@
 #======================================================================
 # domain
-order = 2
-Ny = 101
-Nz = 301
-Ly = 30 # km
-Lz = 40 # km
+order = 4
+Ny = 201
+Nz = 251
+Ly = 60 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
@@ -21,8 +21,8 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/t30_
-loadICs = 0
+inputDir = /data/dunham/kallison/eqcycle/inputData/basin_
+loadICs = 1
 bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -41,8 +41,8 @@ impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
-#DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
+DcVals = [8e-3 8e-3] # m
+#DcVals = [16e-3 16e-3] # m
 #DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
@@ -116,11 +116,11 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 12
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
-maxTime = 0
+maxTime = 5e11
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -129,12 +129,6 @@ timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
-# write to laptop
-#outputDir = data/testMats_bcLTau_
-#outputDir = data/test_
-
-#outputDir = /scratch/kallison/test/t30_
-outputDir = /scratch/kallison/test/ss30_
-#outputDir = /scratch/kallison/test/t30_cont_
-#outputDir = /scratch/kallison/test/eq30_
+#outputDir = /scratch/kallison/basin/test_
+outputDir = /scratch/kallison/basin/Dc8_Ny201_Nz251_
 

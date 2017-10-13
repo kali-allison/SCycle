@@ -262,10 +262,10 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
 
   // load T0 (background geotherm)
-  ierr = loadVecFromInputFile(_T0,_inputDir,"T0");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_T0,_inputDir,"T0"); CHKERRQ(ierr);
 
   // load dT (perturbation)
-  ierr = loadVecFromInputFile(_dT,_inputDir,"dT");CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_dT,_inputDir,"dT"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

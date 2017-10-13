@@ -33,8 +33,8 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   checkInput();
   allocateFields();
   setMaterialParameters();
+  setInitialConds(D,tau); // guess at steady-state configuration
   if (_loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
-  else { setInitialConds(D,tau); } // guess at steady-state configuration
   setUpSBPContext(D); // set up matrix operators
 
   _sbp->muxDy(_u,_sxy); // initialize for shear stress
@@ -132,10 +132,6 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     }
     else if (var.compare("rhoPlus")==0) {
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-
-    else if (var.compare("shearModDistribution")==0) {
-      _muDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
   }
@@ -335,18 +331,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
     CHKERRQ(ierr);
   #endif
 
-  if (_muDistribution.compare("loadFromFile")==0) {
-    PetscViewer inv; // input viewer
-    string vecSourceFile = _inputDir + "mu";
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv); CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(_muVec,inv);CHKERRQ(ierr);
-    PetscViewerDestroy(&inv);
-  }
-  else {
-    VecSet(_muVec,_muVal);
-  }
+  VecSet(_muVec,_muVal);
 
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
@@ -373,29 +358,18 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
   PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
 
-  PetscViewer inv; // input viewer
-
   // load bcL
-  string vecSourceFile = _inputDir + "bcL";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_bcL,inv);CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcL,_inputDir,"bcL"); CHKERRQ(ierr);
 
   // load bcR
-  vecSourceFile = _inputDir + "bcR";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_bcRShift,inv);CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"bcR"); CHKERRQ(ierr);
+  VecSet(_bcR,0.);
 
   // load u
-  vecSourceFile = _inputDir + "u";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_u,inv);CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
 
+  // load shear modulus
+  ierr = loadVecFromInputFile(_muVec,_inputDir,"mu"); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -529,12 +503,7 @@ PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
   }
   else {
     // load slip
-    PetscViewer inv; // in viewer
-    std::string vecSourceFile = _inputDir + "slip";
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(out,inv);CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(out,_inputDir,"slip"); CHKERRQ(ierr);
   }
 
 
@@ -671,7 +640,7 @@ PetscErrorCode LinearElastic::writeContext()
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
 
-  ierr = writeVec(_muVec,_outputDir + "_muPlus"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,_outputDir + "mu"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

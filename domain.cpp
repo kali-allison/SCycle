@@ -603,38 +603,9 @@ PetscErrorCode Domain::setFields()
   VecAssemblyEnd(_y);
   VecAssemblyEnd(_z);
 
-  // load y instead
-  if (_yInputDir.compare("unspecified")!=0) {
-    PetscViewer inv; // in viewer
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,_yInputDir.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(_y,inv);CHKERRQ(ierr);
-  }
-  // load  z instead
-  if (_zInputDir.compare("unspecified")!=0) {
-    PetscViewer inv; // in viewer
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,_zInputDir.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(_z,inv);CHKERRQ(ierr);
-  }
-
-  // load y instead
-  if (_inputDir.compare("unspecified")!=0 && _loadICs) {
-    PetscViewer inv; // in viewer
-    std::string vecSourceFile = _inputDir + "y";
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(_y,inv);CHKERRQ(ierr);
-
-    vecSourceFile = _inputDir + "z";
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(_z,inv);CHKERRQ(ierr);
-  }
+  // load y and z instead
+    ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());

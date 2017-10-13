@@ -320,8 +320,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecSet(_cohesion,0);
 
   // set depth-independent fields
-    ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
-    ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
+  ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
+  ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
 
   // set a using a vals
   if (_N == 1) {
@@ -831,24 +831,24 @@ PetscErrorCode SymmFault::setSplitNodeFields()
     ierr =  VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
 
     //eta = 0.5*sqrt(_rhoArr[Ii]*_muArr[Ii]);
-    //~ zPlus = _muArrPlus[Ii]/_csArrPlus[Ii];
-    //~ ierr =  VecGetValues(muV,1,&Ii,&mu);CHKERRQ(ierr);
-    //~ ierr =  VecGetValues(csV,1,&Ii,&cs);CHKERRQ(ierr);
     //~ zPlus = mu/cs;
 
     tau_inf = sigma_N*a*asinh( (double) 0.5*_vL*exp(_f0/a)/_v0 );
 
     ierr = VecSetValue(_tauQSP,Ii,tau_inf,INSERT_VALUES);CHKERRQ(ierr);
-    //~ ierr = VecSetValue(_zP,Ii,zPlus,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_tauQSP);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyBegin(_zP);CHKERRQ(ierr);
 
   ierr = VecAssemblyEnd(_tauQSP);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(_zP);CHKERRQ(ierr);
 
-  //~ VecDestroy(&muV);
-  //~ VecDestroy(&csV);
+
+  //~ // load impedence from file if desired
+  //~ PetscViewer inv; // input viewer
+  //~ string vecSourceFile = _inputDir + "imp";
+  //~ ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv); CHKERRQ(ierr);
+  //~ ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+  //~ ierr = VecLoad(_zP,inv);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1496,32 +1496,21 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
 
-//~// load normal stress: _sNEff
+  // load normal stress: _sNEff
   //~string vecSourceFile = _inputDir + "sigma_N";
-  PetscViewer inv; // in viewer
+  ierr = loadVecFromInputFile(_sNEff,inputDir,"sNEff"); CHKERRQ(ierr);
 
   // load state: psi
-  string vecSourceFile = inputDir + "psi"; // old data
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_psi,inv);CHKERRQ(ierr);
-  //~ VecSet(_psi,0.6);
+  ierr = loadVecFromInputFile(_psi,inputDir,"psi"); CHKERRQ(ierr);
 
   // load slip
-  vecSourceFile = inputDir + "slip";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_slip,inv);CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_slip,inputDir,"slip"); CHKERRQ(ierr);
 
   // load quasi-static shear stress
-  vecSourceFile = inputDir + "tauQS";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_tauQSP,inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&inv);
+  ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
+
+  // load quasi-static shear stress
+  ierr = loadVecFromInputFile(_zP,inputDir,"impedence"); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);

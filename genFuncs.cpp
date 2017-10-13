@@ -1,5 +1,34 @@
 #include "genFuncs.hpp"
 
+
+
+// check if file exists
+bool doesFileExist(const string fileName)
+{
+    std::ifstream infile(fileName.c_str());
+    return infile.good();
+};
+
+// load matlab-style file
+PetscErrorCode loadFileIfExists_matlab(const string fileName, Vec& vec)
+{
+  PetscErrorCode ierr = 0;
+
+  bool fileExists = doesFileExist(fileName);
+  if (fileExists) {
+    PetscViewer inv;
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,fileName.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(vec,inv);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: File not found: %s\n",fileName.c_str());
+  }
+  return ierr;
+}
+
+
 // clean up a C++ std library vector of PETSc Vecs
 void destroyVector(std::vector<Vec>& vec)
 {
@@ -355,12 +384,20 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
 #endif
 
   string vecSourceFile = inputDir + fieldName;
-  PetscViewer inv;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
 
-  ierr = VecLoad(out,inv);CHKERRQ(ierr);
+  bool fileExists = doesFileExist(vecSourceFile);
+  if (fileExists) {
+    PetscPrintf(PETSC_COMM_WORLD,"Note: Loading Vec from file: %s\n",vecSourceFile.c_str());
+    PetscViewer inv;
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+
+    ierr = VecLoad(out,inv);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: File not found: %s\n",vecSourceFile.c_str());
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
