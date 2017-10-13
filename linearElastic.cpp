@@ -127,11 +127,15 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
       _bcLTauQS = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    if (var.compare("muPlus")==0) {
+    else if (var.compare("muPlus")==0) {
       _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("rhoPlus")==0) {
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("shearModDistribution")==0) {
+      _muDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
   }
@@ -331,7 +335,18 @@ PetscErrorCode LinearElastic::setMaterialParameters()
     CHKERRQ(ierr);
   #endif
 
-  VecSet(_muVec,_muVal);
+  if (_muDistribution.compare("loadFromFile")==0) {
+    PetscViewer inv; // input viewer
+    string vecSourceFile = _inputDir + "mu";
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
+    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv); CHKERRQ(ierr);
+    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
+    ierr = VecLoad(_muVec,inv);CHKERRQ(ierr);
+    PetscViewerDestroy(&inv);
+  }
+  else {
+    VecSet(_muVec,_muVal);
+  }
 
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }

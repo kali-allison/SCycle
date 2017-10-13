@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 2
-Ny = 11
-Nz = 12
+Ny = 101
+Nz = 301
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -11,9 +11,7 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
-powerLawMomBalType = steadyState
-#powerLawMomBalType = transient
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 bCoordTrans = 5.0
@@ -23,16 +21,13 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-inputDir = /data/dunham/kallison/eqcycle/inputFiles/t30_
-#inputDir = /data/dunham/kallison/eqcycle/inputFiles/ss30_
-#inputDir = /data/dunham/kallison/eqcycle/inputFiles/eq30_
+inputDir = /data/dunham/kallison/eqcycle/inputData/t30_
 loadICs = 0
-bcLTauQS = 1
+bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
 linSolver = MUMPSCHOLESKY
-kspTol = 1e-10
-
+#kspTol = 1e-10
 
 # algorithm for heat equation
 linSolver_heateq = AMG
@@ -50,12 +45,6 @@ cohesionDepths = [0 60] # m
 DcVals = [16e-3 16e-3] # m
 #DcVals = [1 1] # m
 DcDepths = [0 60] # m
-
-# uniformly VS
-#aVals = [0.2652 0.2652]
-#aDepths = [0 60]
-#bVals = [0.0497 0.0497]
-#bDepths = [0 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -78,7 +67,7 @@ f0 = 0.6
 #======================================================================
 # off-fault material parameters
 
-shearModDistribution = constant
+shearModDistribution = loadFromFile
 problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3

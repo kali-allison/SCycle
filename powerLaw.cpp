@@ -1088,9 +1088,6 @@ PetscErrorCode PowerLaw::solveSSProblem(const PetscScalar time)
   VecCopy(_v,_u);
   VecScale(_u,time);
 
-  //~ VecView(_sxy,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-
   PetscScalar *mu,*gxy_t,*gxz_t,*gxy,*gxz,*sxy,*sxz=0;
   PetscInt Istart,Iend;
   VecGetOwnershipRange(_sxy,&Istart,&Iend);

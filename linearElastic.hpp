@@ -67,6 +67,7 @@ class LinearElastic
     const PetscScalar    _vL; // loading velocity
 
     // off-fault material fields
+    std::string          _muDistribution; // if load from file
     Vec                  _muVec;
     PetscScalar          _muVal,_rhoVal; // if constant
     Vec                  _bcRShift,_surfDisp;
@@ -128,7 +129,6 @@ class LinearElastic
     PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
     PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
 
-    // trial
 
     // MMS functions
     static double zzmms_f(const double y,const double z);
