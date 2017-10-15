@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N pl
+#PBS -N le
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V

@@ -663,18 +663,20 @@ PetscErrorCode PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
   // use effective viscosity to compute strength of off-fault material
   if (tauVisc == NULL) { VecDuplicate(_bcL,&tauVisc); }
 
+  // first get viscosity just on fault
   PetscInt Istart,Iend;
-  PetscScalar *visc,*tauViscV;
-  VecGetOwnershipRange(tauVisc,&Istart,&Iend);
-  VecGetArray(_effVisc,&visc);
-  VecGetArray(tauVisc,&tauViscV);
-  PetscInt Jj = 0;
+  PetscScalar v = 0;
+  ierr = VecGetOwnershipRange(_effVisc,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    tauViscV[Jj] = visc[Jj] * ess_t;
-    Jj++;
+    if (Ii<_Nz) {
+      ierr = VecGetValues(_effVisc,1,&Ii,&v);CHKERRQ(ierr);
+      ierr = VecSetValues(tauVisc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
   }
-  VecRestoreArray(_effVisc,&visc);
-  VecRestoreArray(tauVisc,&tauViscV);
+  ierr = VecAssemblyBegin(tauVisc);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(tauVisc);CHKERRQ(ierr);
+
+  VecScale(tauVisc,ess_t);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -907,7 +909,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
 //~ _miscTime += MPI_Wtime() - startMiscTime;
 
 
-  // add source terms to rhs: d/dy( 2*mu*strainV_xy) + d/dz( 2*mu*strainV_xz)
+  // add source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
   Vec viscSource;
   ierr = VecDuplicate(_gxy,&viscSource);CHKERRQ(ierr);
   ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
@@ -1023,7 +1025,8 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
   }
 
   // update u and viscous strains
-  PetscScalar time = 1e12;
+  //~ PetscScalar time = 1e12;
+  PetscScalar time = 100;
   VecCopy(_v,_u);
   VecScale(_u,time);
 
