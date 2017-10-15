@@ -348,6 +348,71 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 }
 
 
+PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 2
+    std::string funcName = "Fault::getTauSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }
+
+  PetscInt       Istart,Iend;
+  PetscScalar   *tauRSV,*sN,*a=0;
+  VecGetOwnershipRange(tauRS,&Istart,&Iend);
+  VecGetArray(tauRS,&tauRSV);
+  VecGetArray(_sNEff,&sN);
+  VecGetArray(_a,&a);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar psiSS = _f0;
+    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
+    Jj++;
+  }
+  VecRestoreArray(tauRS,&tauRSV);
+  VecRestoreArray(_sNEff,&sN);
+  VecRestoreArray(_a,&a);
+
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// compute slip vel from tau
+PetscErrorCode Fault::computeVss(const Vec tau)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 2
+    std::string funcName = "Fault::getTauSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscInt       Istart,Iend;
+  PetscScalar   *tauV,*sN,*a,*V=0;
+  VecGetOwnershipRange(tau,&Istart,&Iend);
+  VecGetArray(tau,&tauV);
+  VecGetArray(_sNEff,&sN);
+  VecGetArray(_a,&a);
+  VecGetArray(_slipVel,&V);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar psiSS = _f0;
+    V[Jj] = 2.*_v0*exp(-psiSS/a[Jj]) * sinh( (double) tauV[Jj]/a[Jj]/sN[Jj] );
+    Jj++;
+  }
+  VecRestoreArray(tau,&tauV);
+  VecRestoreArray(_sNEff,&sN);
+  VecRestoreArray(_a,&a);
+  VecRestoreArray(_slipVel,&V);
+
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 
 PetscScalar Fault::getTauSS(PetscInt& ind)
 {
@@ -660,11 +725,9 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi);
   varEx["psi"] = varPsi;
 
+  // slip is added by the momentum balance equation
   //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
   //~ varEx["slip"] = varSlip;
-
-  //~ Vec tauRS; VecDuplicate(_tauQSP,&tauRS); VecCopy(_tauQSP,tauRS);
-  //~ varEx["tau"] = tauRS;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -756,16 +819,16 @@ PetscErrorCode SymmFault::computeVel()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      //~ Bisect rootAlg(_maxNumIts,_rootTol);
-      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      //~ ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
-      //~ _rootIts += rootAlg.getNumIts();
-
-      PetscScalar x0;
-      ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
-      BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      Bisect rootAlg(_maxNumIts,_rootTol);
       ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      _rootIts += rootAlg.getNumIts();
+
+      //~ PetscScalar x0;
+      //~ ierr = VecGetValues(_slipVel,1,&Ii,&x0);CHKERRQ(ierr);
+      //~ BracketedNewton rootAlg(_maxNumIts,_rootTol);
+      //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      //~ ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     slipVel[Jj] = outVal;

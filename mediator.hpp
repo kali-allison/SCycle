@@ -34,12 +34,14 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     Mediator(const Mediator &that);
     Mediator& operator=(const Mediator &rhs);
 
+    Domain *_D;
+
     // IO information
     std::string       _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    const bool     _isMMS; // true if running mms test
-    bool           _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
+    const bool           _isMMS; // true if running mms test
+    bool                 _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
     std::string          _outputDir; // output data
     const PetscScalar    _vL;
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
@@ -48,7 +50,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
-    std::string            _timeIntegrator;
+    std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
     PetscReal              _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
@@ -71,15 +73,18 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     Fault              *_fault;
-    //~ SymmFault      *_fault;
-    //~ SymmFault_Hydr *_fault;
     LinearElastic  *_momBal; // solves momentum balance equation
-    HeatEquation _he;
+    HeatEquation *_he;
 
 
     Mediator(Domain&D);
     ~Mediator();
 
+    // to solve a steady-state problem
+    PetscErrorCode solveSS(Domain& D);
+
+
+    // for adaptive time stepping
     PetscErrorCode integrate(); // will call OdeSolver method by same name
 
     // explicit time-stepping methods

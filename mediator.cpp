@@ -6,7 +6,7 @@ using namespace std;
 
 
 Mediator::Mediator(Domain&D)
-: _delim(D._delim),_isMMS(D._isMMS),
+: _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
   _outputDir(D._outputDir),
   _vL(D._vL),
@@ -20,7 +20,8 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  _fault(NULL),_momBal(NULL),_he(D)
+  //~ _fault(NULL),_momBal(NULL),_he(D)
+  _fault(NULL),_momBal(NULL),_he(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "Mediator::Mediator()";
@@ -32,31 +33,19 @@ Mediator::Mediator(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  // set up time integration member
-  if (_timeIntegrator.compare("FEuler")==0) {
-    _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
-  }
-  else if (_timeIntegrator.compare("RK32")==0) {
-    _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
-  }
-  else if (_timeIntegrator.compare("IMEX")==0) {
-    _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,D._timeControlType);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
-    assert(0); // automatically fail
-  }
+  _he = new HeatEquation(D);
 
   if (_hydraulicCoupling.compare("coupled")==0 || _hydraulicCoupling.compare("uncoupled")==0) {
-    _fault = new SymmFault_Hydr(D,_he);
+    _fault = new SymmFault_Hydr(D,*_he);
   }
-  else { _fault = new SymmFault(D,_he); }
+  else { _fault = new SymmFault(D,*_he); }
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,_fault->_tauQSP); }
-  else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,_he,_fault->_tauQSP); }
+  else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he,_fault->_tauQSP); }
 
-  writeContext();
+  // try new way to solve for initial conditions
+  solveSS(D);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -83,6 +72,7 @@ Mediator::~Mediator()
   delete _quadEx;   _quadEx = NULL;
   delete _momBal;   _momBal = NULL;
   delete _fault;    _fault = NULL;
+  delete _he;    _he = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -116,6 +106,9 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     }
     else if (var.compare("hydraulicCoupling")==0) {
       _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("timeControlType")==0) {
+      _timeControlType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }
 
@@ -164,7 +157,7 @@ PetscErrorCode Mediator::initiateIntegrand()
   _fault->initiateIntegrand(_initTime,_varEx,_varIm);
 
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    _he.initiateIntegrand(_initTime,_varEx,_varIm);
+     _he->initiateIntegrand(_initTime,_varEx,_varIm);
   }
 
   #if VERBOSE > 1
@@ -227,11 +220,11 @@ double startTime = MPI_Wtime();
   timeMonitor(time,stepCount,varEx,dvarEx);
 
   if ( stepCount % _stride1D == 0) {
-    ierr = _he.writeStep1D(_stepCount,time); CHKERRQ(ierr);
+    ierr =  _he->writeStep1D(_stepCount,time); CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
-    ierr = _he.writeStep2D(_stepCount,time);CHKERRQ(ierr);
+    ierr =  _he->writeStep2D(_stepCount,time);CHKERRQ(ierr);
   }
 
 _writeTime += MPI_Wtime() - startTime;
@@ -248,7 +241,7 @@ PetscErrorCode Mediator::view()
 
   double totRunTime = MPI_Wtime() - _startTime;
 
-  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view(); _he.view(); }
+  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view();  _he->view(); }
   if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
 
   _momBal->view(_integrateTime);
@@ -271,7 +264,7 @@ PetscErrorCode Mediator::writeContext()
   #endif
 
   _momBal->writeContext();
-  _he.writeContext();
+   _he->writeContext();
   _fault->writeContext();
 
   #if VERBOSE > 1
@@ -280,6 +273,60 @@ PetscErrorCode Mediator::writeContext()
   return ierr;
 }
 
+
+
+PetscErrorCode Mediator::solveSS(Domain& D)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mediator::solveSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar H = 10; // seismogenic depth
+  PetscScalar ess_t = _vL*0.5/H; // steady state strain rate
+
+  // compute steady state temperature if necessary
+  // already part of constructor
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ _he = new HeatEquation(D);
+  //~ }
+
+  // compute steady state stress on fault
+  Vec tauRS = NULL,tauVisc = NULL,tauSS = NULL;
+  _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
+  _momBal->getTauVisc(tauVisc,ess_t); // tau visc from steady state strain rate
+
+  // tauSS = min(tauRS,tauVisc)
+  VecDuplicate(tauRS,&tauSS);
+  PetscScalar *tauRSV,*tauViscV,*tauSSV=0;
+  PetscInt Istart,Iend;
+  VecGetOwnershipRange(tauRS,&Istart,&Iend);
+  VecGetArray(tauRS,&tauRSV);
+  VecGetArray(tauVisc,&tauViscV);
+  VecGetArray(tauSS,&tauSSV);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    tauSSV[Jj] = min(tauRSV[Jj],tauViscV[Jj]);
+    Jj++;
+  }
+  VecRestoreArray(tauRS,&tauRSV);
+  VecRestoreArray(tauVisc,&tauViscV);
+  VecRestoreArray(tauSS,&tauSSV);
+
+  // now update fault and momentum balance
+  _fault->computeVss(tauSS); // compute slip vel from tauSS
+  _momBal->updateSS(*_D,tauSS); // use tauSS and slip vel to compute uss, vss, etc
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+//======================================================================
+// Adaptive time stepping functions
+//======================================================================
 PetscErrorCode Mediator::integrate()
 {
   PetscErrorCode ierr = 0;
@@ -289,8 +336,24 @@ PetscErrorCode Mediator::integrate()
   #endif
   double startTime = MPI_Wtime();
 
-  initiateIntegrand();
+  _momBal->prepareForIntegration(*_D);
+  initiateIntegrand(); // put initial conditions into var for integration
   _stepCount = 0;
+
+  // initialize time integrator
+  if (_timeIntegrator.compare("FEuler")==0) {
+    _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK32")==0) {
+    _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("IMEX")==0) {
+    _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
+    assert(0); // automatically fail
+  }
 
   if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
@@ -314,7 +377,6 @@ PetscErrorCode Mediator::integrate()
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
-
 
   _integrateTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -345,8 +407,6 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
     VecSet(dvarEx.find("slip")->second,0.0); // slip vel
   }
-  //~ ierr = _momBal->computeTotalStrainRates(time,varEx,dvarEx); CHKERRQ(ierr);
-
   return ierr;
 }
 
@@ -370,7 +430,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   if (varIm.find("Temp") != varIm.end()) {
     Vec sdev = NULL;
     _momBal->getSigmaDev(sdev);
-    ierr = _he.be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
+    ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
       sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
@@ -404,7 +464,7 @@ PetscErrorCode Mediator::measureMMSError()
 
   //~ _momBal->measureMMSError(_currTime);
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = _he.measureMMSError(_currTime);
+    ierr =  _he->measureMMSError(_currTime);
   }
 
   return ierr;

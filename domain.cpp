@@ -604,8 +604,8 @@ PetscErrorCode Domain::setFields()
   VecAssemblyEnd(_z);
 
   // load y and z instead
-    ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());

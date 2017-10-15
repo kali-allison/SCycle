@@ -1,9 +1,9 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 251
-Ly = 60 # km
+Ny = 501
+Nz = 501
+Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
 
@@ -14,15 +14,15 @@ geometry = symmetric
 bulkDeformationType = linearElastic
 
 # coordinate transformation
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems
 
 inputDir = /data/dunham/kallison/eqcycle/inputData/basin_
-loadICs = 1
+loadICs = 0
 bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -47,10 +47,16 @@ DcVals = [8e-3 8e-3] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
+
+# easier to resolve
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 60]
 
 
 sigmaNVals = [50 50] # (MPa) constant
@@ -130,5 +136,15 @@ timeIntInds = [psi slip]
 
 
 #outputDir = /scratch/kallison/basin/test_
-outputDir = /scratch/kallison/basin/Dc8_Ny201_Nz251_
+#outputDir = /scratch/kallison/basin/Dc8_Ny201_Nz251_
+#outputDir = /scratch/kallison/basin/Dc8_Ny201_Nz401_
+#outputDir = /scratch/kallison/basin/Dc8_Ny201_Nz501_
+#outputDir = /scratch/kallison/basin/Dc16_Ny201_Nz251_
+
+#outputDir = /scratch/kallison/basin/le_hom_Ny201_Nz401_
+#outputDir = /scratch/kallison/basin/le_hom_Ny201_Nz601_
+#outputDir = /scratch/kallison/forKenneth/le_hom_Ny201_Nz301_
+#outputDir = /scratch/kallison/forKenneth/le_hom_Ny201_Nz501_
+#outputDir = /scratch/kallison/forKenneth/le_hom_Ny301_Nz501_
+outputDir = /scratch/kallison/forKenneth/le_hom_Ny501_Nz501_
 

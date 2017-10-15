@@ -36,7 +36,7 @@ class PowerLaw: public LinearElastic
     SbpOps   *_sbp_eta;
     KSP       _ksp_eta;
     PC        _pc_eta;
-    Vec _v;
+    Vec       _v;
     PetscErrorCode initializeSSMatrices(Domain &D); // compute B and C
 
     // initialize and set data
@@ -46,7 +46,7 @@ class PowerLaw: public LinearElastic
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadEffViscFromFiles();
     PetscErrorCode setSSInitialConds(Domain& D,Vec& tauRS); // try to skip some spin up steps
-    PetscErrorCode guessSteadyStateEffVisc(); // inititialize effective viscosity
+    PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
 
     // functions needed each time step
@@ -77,12 +77,16 @@ class PowerLaw: public LinearElastic
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode getSigmaDev(Vec& sdev);
 
+    // for steady state computations
+    PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc (from guess at effective viscosity)
+    PetscErrorCode updateSS(Domain& D,const Vec& tau); // update u, bcs
+    PetscErrorCode updateTemp(const Vec& T); // update T, update eff visc from it
+
     // methods for explicit time stepping
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_SS(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
@@ -106,6 +110,8 @@ class PowerLaw: public LinearElastic
 
     // trial
     PetscErrorCode solveSSProblem(const PetscScalar time);
+    PetscErrorCode updateSS(Domain& D,const Vec& tau, const Vec& slipVel); // update u, bcs
+
 
 
 

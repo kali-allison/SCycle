@@ -30,7 +30,7 @@ HeatEquation::HeatEquation(Domain& D)
   checkInput();
   setFields(D);
   if (D._loadICs==1) { loadFieldsFromFiles(); }
-  else if (!_isMMS) { computeInitialSteadyStateTemp(D); }
+  if (!_isMMS) { computeInitialSteadyStateTemp(D); }
 
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(D); }
   else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(D); }
@@ -340,7 +340,6 @@ PetscErrorCode ierr = 0;
       mapToVec(_dT,zzmms_dT,*_y,*_z,D._initTime);
       setMMSBoundaryConditions(D._initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
     }
-    else if (_heatFieldsDistribution.compare("loadFromFile")==0) { loadFieldsFromFiles(); }
     else {
       ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
       ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);

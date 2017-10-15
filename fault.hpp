@@ -110,6 +110,12 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
 
+
+    // for steady state computations
+    PetscErrorCode getTauRS(Vec& tauRS, const PetscScalar vL);
+    PetscErrorCode computeVss(const Vec tau); // compute slip vel from tau
+
+
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
 
     // IO

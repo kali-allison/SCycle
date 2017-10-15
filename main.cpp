@@ -75,23 +75,10 @@ int runEqCycle(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  //~ if (d._bulkDeformationType.compare("linearElastic")==0) {
-    //~ LinearElastic sle(d);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    //~ ierr = sle.integrate();CHKERRQ(ierr);
-    //~ ierr = sle.view();CHKERRQ(ierr);
-  //~ }
-  //~ else if (d._bulkDeformationType.compare("powerLaw")==0) {
-    //~ PowerLaw pl(d);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    //~ ierr = pl.integrate();CHKERRQ(ierr);
-    //~ ierr = pl.view();CHKERRQ(ierr);
-  //~ }
-  //~ HeatEquation he(d);
-
   Mediator m(d);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = m.integrate();CHKERRQ(ierr);
+  ierr = m.writeContext(); CHKERRQ(ierr);
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = m.integrate(); CHKERRQ(ierr);
   //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;

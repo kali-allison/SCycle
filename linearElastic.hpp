@@ -39,7 +39,6 @@ class LinearElastic
     PetscErrorCode allocateFields(); // allocate space for member fields
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode setInitialConds(Domain& D,Vec& tau);
     PetscErrorCode setInitialSlip(Vec& out);
     PetscErrorCode setUpSBPContext(Domain& D);
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
@@ -97,13 +96,15 @@ class LinearElastic
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcT,_bcR,_bcB,_bcL;
 
-    OdeSolver           *_quadEx; // explicit time stepping
-    OdeSolverImex       *_quadImex; // implicit time stepping
-
     LinearElastic(Domain&D,Vec& tau);
     virtual ~LinearElastic();
 
+    // for steady state computations
+    PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc (from guess at effective viscosity)
+    PetscErrorCode virtual updateSS(Domain& D,const Vec& tau); // update u, bcs
+
     // time stepping function
+    PetscErrorCode virtual prepareForIntegration(Domain& D);
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
