@@ -56,6 +56,7 @@ class PowerLaw: public LinearElastic
     PetscErrorCode setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode computeTotalStrains(const PetscScalar time);
     PetscErrorCode computeStresses(const PetscScalar time);
+    PetscErrorCode computeSDev();
     PetscErrorCode computeViscosity();
 
     PetscErrorCode setMMSInitialConditions();
@@ -100,19 +101,6 @@ class PowerLaw: public LinearElastic
     PetscErrorCode view(const double totRunTime);
 
     PetscErrorCode measureMMSError(const PetscScalar time);
-
-    // currently investigating utility
-    PetscErrorCode psuedoTS_main();
-    PetscErrorCode psuedoTS_computeIJacobian(Mat& J,PetscReal time,Vec& g,Vec& g_t);
-    PetscErrorCode psuedoTS_computeJacobian(Mat& J,PetscReal time,Vec& g);
-    PetscErrorCode psuedoTS_evaluateIRHS(Vec&F,PetscReal time,Vec& g,Vec& g_t);
-    PetscErrorCode psuedoTS_evaluateRHS(Vec&F,PetscReal time,Vec& g);
-
-    // trial
-    PetscErrorCode solveSSProblem(const PetscScalar time);
-    PetscErrorCode updateSS(Domain& D,const Vec& tau, const Vec& slipVel); // update u, bcs
-
-
 
 
     // MMS functions
@@ -171,11 +159,5 @@ class PowerLaw: public LinearElastic
     static double zzmms_pl_gxz_t_source1D(const double y,const double t);
 
 };
-
-PetscErrorCode computeIJacobian(TS ts,PetscReal t,Vec g,Vec g_t,PetscReal a,Mat Amat,Mat Pmat,void *ctx);
-PetscErrorCode computeJacobian(TS ts,PetscReal t,Vec g,Mat Amat,Mat Pmat,void *ctx);
-PetscErrorCode evaluateIRHS(TS ts,PetscReal t,Vec g,Vec g_t,Vec F,void *ptr);
-PetscErrorCode evaluateRHS(TS ts,PetscReal t,Vec g,Vec F,void *ptr);
-PetscErrorCode monitor(TS ts,PetscInt stepCount,PetscReal time,Vec g,void *ptr);
 
 #endif

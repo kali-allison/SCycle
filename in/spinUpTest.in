@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 301
-Nz = 502
+Ny = 201
+Nz = 202
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -108,10 +108,10 @@ rhoDepths = [0 60]
 
 
 # initial geotherm
-TVals = [293 1293] # 20 C/km
+#TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
-#TVals = [1000 1000]
+TVals = [800 800]
 TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
@@ -130,9 +130,9 @@ viscDistribution = effectiveVisc
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
