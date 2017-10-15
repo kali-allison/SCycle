@@ -16,7 +16,7 @@ order = 2;
 Ny = 53;
 Ly = 1;
 dy = Ly / (Ny - 1);
-y = linspace(0,Ly,Ny)';
+y = linspace(0,Ly,Ny);
 
 
 tmax = 1;

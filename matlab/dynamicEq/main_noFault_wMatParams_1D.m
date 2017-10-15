@@ -16,7 +16,7 @@ order = 2;
 Ny = 103;
 Ly = 30;
 dy = Ly / (Ny - 1);
-y = linspace(0,Ly,Ny)';
+y = linspace(0,Ly,Ny);
 
 % material parameters
 % G = y.*0 + 1; % (GPa) shear modulus
