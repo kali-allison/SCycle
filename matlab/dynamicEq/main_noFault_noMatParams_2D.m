@@ -17,7 +17,7 @@ clear all
 
 % domain
 order = 2;
-Ny = 53;
+Ny = 103;
 Nz = 51;
 Ly = 1;
 Lz = 1;
