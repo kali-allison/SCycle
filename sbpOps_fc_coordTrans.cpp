@@ -1208,7 +1208,6 @@ PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
   ierr = satBoundaries(tempFactors); CHKERRQ(ierr);
   ierr = constructA(tempFactors); CHKERRQ(ierr);
 
-
   _runTime = MPI_Wtime() - startTime;
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in SbpOps_fc_coordTrans.cpp.\n");CHKERRQ(ierr);

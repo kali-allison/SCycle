@@ -2,7 +2,7 @@
 # domain
 order = 4
 Ny = 201
-Nz = 202
+Nz = 251
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -23,13 +23,14 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/inputFiles/t30_
+inputDir = /data/dunham/kallison/eqcycle/inputData/ss30_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/eq30_
 loadICs = 0
 bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
 linSolver = MUMPSCHOLESKY
-#kspTol = 1e-10
+kspTol = 1e-10
 
 
 # algorithm for heat equation
@@ -45,8 +46,8 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
-DcVals = [1 1] # m
+DcVals = [16e-3 16e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -110,8 +111,8 @@ rhoDepths = [0 60]
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [800 800]
+TVals = [293 1793] # 30 C/km
+#TVals = [500 1793]
 TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
@@ -123,16 +124,16 @@ withFrictionalHeating = no
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-
+maxEffVisc = 1e21
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -147,5 +148,11 @@ timeIntInds = [psi slip]
 #outputDir = data/test_
 
 #outputDir = /scratch/kallison/test/le_
-outputDir = /scratch/kallison/test/pl_
+#outputDir = /scratch/kallison/test/pl1_
+#outputDir = /scratch/kallison/test/pl2_
+
+#outputDir = /scratch/kallison/test/pl2_maxVisc1e16_
+
+#outputDir = /scratch/kallison/test/pl_trans_maxVisc1e21_
+outputDir = /scratch/kallison/test/pl_v2_trans_maxVisc1e21_
 

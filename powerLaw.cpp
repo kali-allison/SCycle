@@ -7,7 +7,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _momBalType("transient"),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),
+  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),_effViscCap(1e30),
   _B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_v(NULL),
   _sxz(NULL),_sdev(NULL),
@@ -157,6 +157,10 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     }
     else if (var.compare("thermalCoupling")==0) {
       _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+
+    else if (var.compare("maxEffVisc")==0) {
+      _effViscCap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
   }
@@ -924,7 +928,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
   // update stresses, viscosity, and set shear traction on fault
   ierr = computeTotalStrains(time);CHKERRQ(ierr);
   ierr = computeStresses(time);CHKERRQ(ierr);
-  //~ computeViscosity();
+  computeViscosity();
 
   ierr = setViscStrainRates(time,_gxy,_gxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
 
@@ -961,6 +965,9 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
   VecDuplicate(_effVisc,&gVxz_t); VecSet(gVxz_t,0.0);
   VecDuplicate(_effVisc,&_v); VecSet(_v,0.0);
 
+  writeVec(_bcL,_outputDir+"SS_bcL");
+  writeVec(_T,_outputDir+"SS_T");
+
   // set up IO to evaluate loop
   _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
   _viewers["SS_gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
@@ -985,15 +992,18 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
 
   double err = 1e10;
   int Ii = 0;
-  while ( Ii < 50 && err > 1e-3) {
+  while ( Ii < 100 && err > 1e-3) {
     VecCopy(_effVisc,effVisc_old);
 
-    _sbp_eta->updateVarCoeff(_effVisc);
+    //~ _sbp_eta->updateVarCoeff(_effVisc);
+    delete _sbp_eta;
+    initializeSSMatrices(D);
     Mat A;
     _sbp_eta->getA(A);
     ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
 
     // solve for steady-state velocity
+    ierr = _sbp_eta->setRhs(_rhs,_bcL,bcR_v,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
     ierr = KSPSolve(_ksp_eta,_rhs,_v);CHKERRQ(ierr);
 
     // update viscous strain rates
@@ -1008,11 +1018,25 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
 
     // update effective viscosity
     ierr = computeViscosity(); CHKERRQ(ierr);
+    PetscScalar f = 0.1;
+    PetscInt Istart,Iend;
+    PetscScalar *viscOld,*viscNew;
+    VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+    VecGetArray(_effVisc,&viscNew);
+    VecGetArray(effVisc_old,&viscOld);
+    PetscInt Jj = 0;
+    for (PetscInt Kk=Istart;Kk<Iend;Kk++) {
+      viscNew[Jj] = (1.-f)*viscOld[Jj] + f*viscNew[Jj];
+      viscNew[Jj] = min(viscNew[Jj],_effViscCap);
+      Jj++;
+    }
+    VecRestoreArray(_effVisc,&viscNew);
+    VecRestoreArray(effVisc_old,&viscOld);
 
     PetscScalar len;
     VecNorm(_effVisc,NORM_2,&len);
-    err = computeNormDiff_2(effVisc_old,_effVisc) / len;
-    PetscPrintf(PETSC_COMM_WORLD,"    %i %e, %e\n",Ii,err,len);
+    err = computeNormDiff_2(effVisc_old,_effVisc) / len * sqrt(_Ny*_Nz);
+    PetscPrintf(PETSC_COMM_WORLD,"    %i %e\n",Ii,err);
     Ii++;
 
     ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
@@ -1059,10 +1083,10 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
   VecRestoreArray(gVxy_t,&gxy_t);
   VecRestoreArray(gVxz_t,&gxz_t);
 
-  _viewers["SS_gxy"] = initiateViewer(_outputDir + "SS_gxy");
-  ierr = VecView(_gxy,_viewers["SS_gxy"]); CHKERRQ(ierr);
-  _viewers["SS_gxz"] = initiateViewer(_outputDir + "SS_gxz");
-  ierr = VecView(_gxz,_viewers["SS_gxz"]); CHKERRQ(ierr);
+  _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
+  ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
+  _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
+  ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
 
   VecDestroy(&effVisc_old);
   VecDestroy(&gVxy_t);
@@ -1281,7 +1305,7 @@ PetscErrorCode PowerLaw::computeViscosity()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
-    effVisc[Jj] = min(effVisc[Jj],1e30);
+    effVisc[Jj] = min(effVisc[Jj],_effViscCap);
 
     assert(~isnan(effVisc[Jj]));
     assert(~isinf(effVisc[Jj]));

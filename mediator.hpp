@@ -43,6 +43,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     const bool           _isMMS; // true if running mms test
     bool                 _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
     std::string          _outputDir; // output data
+    std::string          _inputDir; // input data
     const PetscScalar    _vL;
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault

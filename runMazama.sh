@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N le
+#PBS -N pl_v2_trans_maxVisc1e21
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/pl.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/pl.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/pl_v2_trans_maxVisc1e21.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/pl_v2_trans_maxVisc1e21.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

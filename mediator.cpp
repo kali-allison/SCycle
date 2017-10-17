@@ -8,7 +8,7 @@ using namespace std;
 Mediator::Mediator(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
-  _outputDir(D._outputDir),
+  _outputDir(D._outputDir),_inputDir(D._inputDir),
   _vL(D._vL),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
@@ -313,6 +313,12 @@ PetscErrorCode Mediator::solveSS(Domain& D)
   VecRestoreArray(tauRS,&tauRSV);
   VecRestoreArray(tauVisc,&tauViscV);
   VecRestoreArray(tauSS,&tauSSV);
+
+  ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+
+std::map <string,PetscViewer>  _viewers;
+  _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
+  ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
 
   // now update fault and momentum balance
   _fault->computeVss(tauSS); // compute slip vel from tauSS

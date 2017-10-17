@@ -27,6 +27,7 @@ class PowerLaw: public LinearElastic
     Vec         _A,_n,_QR,_T;
     Vec         _effVisc;
     Vec         SATL;
+    PetscScalar _effViscCap; // imposed upper limit on effective viscosity
 
     // composite matrices to make momentum balance simpler
     Mat _B,_C;
