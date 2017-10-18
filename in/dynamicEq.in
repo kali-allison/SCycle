@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 102
+Ny = 51
+Nz = 52
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -11,14 +11,12 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
-#powerLawMomBalType = steadyState
-powerLawMomBalType = transient
+bulkDeformationType = linearElastic
 
 # coordinate transformation
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems
@@ -86,7 +84,7 @@ f0 = 0.6
 shearModDistribution = constant
 problem = symmetric
 muPlus = 30 # GPa
-rhoPlus = 3.0 # g/cm^3
+rhoPlus = 2.6702 # g/cm^3
 
 # power law properties: quartz-diorite
 AVals = [1.3e-3 1.3e-3]
@@ -133,9 +131,9 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 1e15
+maxStepCount = 5
 initTime = 0
-maxTime = 1e15
+maxTime = 8
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -146,16 +144,7 @@ timeIntInds = [psi slip]
 
 # write to laptop
 #outputDir = data/maxVisc1e16_
-#outputDir = data/maxVisc1e21_
-#outputDir = data/maxVisc1e30_
 
+outputDir = /scratch/mrivet/test_
 
-#outputDir = /scratch/kallison/test/le_
-#outputDir = /scratch/kallison/test/pl1_
-#outputDir = /scratch/kallison/test/pl2_
-
-#outputDir = /scratch/kallison/test/pl2_maxVisc1e16_
-
-#outputDir = /scratch/kallison/test/pl_trans_maxVisc1e21_
-#outputDir = /scratch/kallison/test/pl_v2_trans_maxVisc1e21_
 
