@@ -992,7 +992,7 @@ PetscErrorCode PowerLaw::updateSS(Domain& D,const Vec& tau)
 
   double err = 1e10;
   int Ii = 0;
-  while ( Ii < 100 && err > 1e-3) {
+  while ( Ii < 10 && err > 1e-3) {
     VecCopy(_effVisc,effVisc_old);
 
     //~ _sbp_eta->updateVarCoeff(_effVisc);
