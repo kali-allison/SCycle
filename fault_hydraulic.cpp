@@ -644,7 +644,7 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
 
 
   // compute rate for pressure
-  PetscScalar *rhog_yA,*rho_f,*n,*beta,*p_tA,*rhsA=0;
+  PetscScalar *rhog_yA,*rho_f,*n,*beta,*p_tA,*rhsA=0, *sourceA;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_sNEff,&Istart,&Iend);
   VecGetArray(rhog_y,&rhog_yA);
@@ -652,6 +652,7 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
   VecGetArray(_n_p,&n);
   VecGetArray(_beta_p,&beta);
   VecGetArray(rhs,&rhsA);
+
 
   // add source
   Vec source,Hxsource;
@@ -667,15 +668,17 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
 
   writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
+
+  VecGetArray(Hxsource, &sourceA);
   VecDestroy(&source);
 
-  ierr = VecAXPY(rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+  // ierr = VecAXPY(rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
 
   VecGetArray(p_t,&p_tA);
   PetscInt Jj = 0;
 
   for (Ii=Istart;Ii<Iend;Ii++) {
-    p_tA[Jj] = p_tA[Jj] - 1e3*rhog_yA[Jj] - rhsA[Jj];
+    p_tA[Jj] = p_tA[Jj] - 1e3*rhog_yA[Jj] - rhsA[Jj] + sourceA[Jj];
     p_tA[Jj] = p_tA[Jj] / ( rho_f[Jj]*n[Jj]*beta[Jj] );
     assert(~isnan(p_tA[Jj]));
     assert(~isinf(p_tA[Jj]));
@@ -692,6 +695,7 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
   VecRestoreArray(_beta_p,&beta);
   VecRestoreArray(rhs,&rhsA);
   VecRestoreArray(p_t,&p_tA);
+  VecRestoreArray(Hxsource,&sourceA);
 
   _sbp->Hinv(p_t,dvarEx["pressure"]);
 
@@ -905,7 +909,7 @@ double SymmFault_Hydr::zzmms_pSource1D(const double z, const double t)
   PetscScalar n0 = 0.1;
   PetscScalar k0 = 1e-19;
 
-  PetscScalar p_src = delta_p*(beta0*eta0*n0*omega*cos(omega*t) + k0*kz*kz*sin(omega*t))*sin(kz*z)/(beta0*eta0*n0);
+  PetscScalar p_src = delta_p*(beta0*eta0*n0*omega*cos(omega*t) + k0*kz*kz*sin(omega*t))*sin(kz*z)/(eta0);
   return p_src;
 }
 
