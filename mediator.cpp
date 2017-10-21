@@ -403,9 +403,12 @@ PetscErrorCode Mediator::measureMMSError()
   PetscErrorCode ierr = 0;
 
   //~ _momBal->measureMMSError(_currTime);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr = _he.measureMMSError(_currTime);
-  }
+  // if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+  //   ierr = _he.measureMMSError(_currTime);
+  // }
+
+  _fault->measureMMSError(_currTime);
+
 
   return ierr;
 }

@@ -5,7 +5,7 @@
 using namespace std;
 
 SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
-: SymmFault(D,He),
+: SymmFault(D,He), 
   _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),_sN(NULL),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType("mfc"),_linSolveCount(0),
@@ -22,6 +22,8 @@ SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
   checkInput();
   setFields(D);
   computeInitialSteadyStatePressure(D);
+
+  // if (_isMMS) { setMMSInitialConditions(); }
 
   //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
@@ -248,10 +250,12 @@ PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
   VecSetSizes(_bcT,PETSC_DECIDE,1);
   VecSetFromOptions(_bcT);
   PetscObjectSetName((PetscObject) _bcT, "bcT");
-  VecSet(_bcT,_pVals[0]);
+  // VecSet(_bcT,_pVals[0]);
+  VecSet(_bcT, 0);
 
   VecDuplicate(_bcT,&_bcB);
-  VecSet(_bcB,_g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back());
+  // VecSet(_bcB,_g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back());
+  VecSet(_bcB, 0);
 //  VecSet(_bcB,_g*_rho_fVals.back());
 
   VecCreate(PETSC_COMM_WORLD,&_bcL);
@@ -328,10 +332,10 @@ PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
 
   // Set up linear system
   if (_sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_fc(D,1,_N,coeff,"Dirichlet","Dirichlet","Neumann","Dirichlet","z");
+    _sbp = new SbpOps_fc(D,1,_N,coeff,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,1,_N,coeff,"Dirichlet","Dirichlet","Neumann","Dirichlet","z");
+    _sbp = new SbpOps_fc_coordTrans(D,1,_N,coeff,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -393,20 +397,20 @@ PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
 
 
   // force pressure to be hydrostatic
-//  PetscScalar *rho_f,*p,*z=0;
-//  PetscInt Ii,Istart,Iend;
-//  VecGetOwnershipRange(_p,&Istart,&Iend);
-//  VecGetArray(_rho_f,&rho_f);
-//  VecGetArray(_p,&p);
-//  VecGetArray(_z,&z);
-//  PetscInt Jj = 0;
-//  for (Ii=Istart;Ii<Iend;Ii++) {
-//    p[Jj] = rho_f[Jj]*_g*z[Jj];
-//    Jj++;
-//  }
-//  VecRestoreArray(_rho_f,&rho_f);
-//  VecRestoreArray(_p,&p);
-//  VecRestoreArray(_z,&z);
+  // PetscScalar *rho_f,*p,*z=0;
+  // PetscInt Ii,Istart,Iend;
+  // VecGetOwnershipRange(_p,&Istart,&Iend);
+  // VecGetArray(_rho_f,&rho_f);
+  // VecGetArray(_p,&p);
+  // VecGetArray(_z,&z);
+  // PetscInt Jj = 0;
+  // for (Ii=Istart;Ii<Iend;Ii++) {
+  //   p[Jj] = rho_f[Jj]*_g*z[Jj];
+  //   Jj++;
+  // }
+  // VecRestoreArray(_rho_f,&rho_f);
+  // VecRestoreArray(_p,&p);
+  // VecRestoreArray(_z,&z);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -550,7 +554,7 @@ PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<str
   ierr = MatMult(D2,_p,p_t); CHKERRQ(ierr);
 
   // set up boundary terms
-  //~ VecSet(_bcB,20.); // add some fluid flow from depth
+  // VecSet(_bcB,2e-9); // add some fluid flow from depth
   Vec rhs;
   VecDuplicate(_k_p,&rhs);
   _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
@@ -565,18 +569,18 @@ PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<str
   VecGetArray(_n_p,&n);
   VecGetArray(_beta_p,&beta);
   VecGetArray(rhs,&rhsA);
+
   VecGetArray(p_t,&p_tA);
   PetscInt Jj = 0;
+
   for (Ii=Istart;Ii<Iend;Ii++) {
     p_tA[Jj] = p_tA[Jj] - 1e3*rhog_yA[Jj] - rhsA[Jj];
     p_tA[Jj] = p_tA[Jj] / ( rho_f[Jj]*n[Jj]*beta[Jj] );
-
-    p_tA[Jj] = 0.0;
-
     assert(~isnan(p_tA[Jj]));
     assert(~isinf(p_tA[Jj]));
     Jj++;
   }
+
   VecRestoreArray(rhog_y,&rhog_yA);
   VecRestoreArray(_rho_f,&rho_f);
   VecRestoreArray(_n_p,&n);
@@ -585,7 +589,6 @@ PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<str
   VecRestoreArray(p_t,&p_tA);
 
   _sbp->Hinv(p_t,dvarEx["pressure"]);
-
 
 
   VecDestroy(&rhog);
@@ -609,7 +612,99 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  assert(0);
+  // call base class's rate function to update slip and state variable rate
+  // SymmFault::d_dt_eqCycle(time,varEx,dvarEx);
+
+  double startTime = MPI_Wtime(); // time this section
+
+  // source term from gravity
+  Vec rhog,rhog_y,temp;
+  VecDuplicate(_p,&rhog);
+  VecSet(rhog,_g);
+  VecPointwiseMult(rhog,rhog,_rho_f);
+  VecPointwiseMult(rhog,rhog,_rho_f);
+  VecPointwiseMult(rhog,rhog,_k_p);
+  VecPointwiseDivide(rhog,rhog,_eta_p);
+  VecDuplicate(_p,&rhog_y);
+  VecDuplicate(_p,&temp);
+  _sbp->Dz(rhog,temp); // check that this works!
+  _sbp->H(temp,rhog_y);
+
+  Vec p_t;
+  VecDuplicate(_k_p,&p_t);
+  Mat D2;
+  _sbp->getA(D2);
+  ierr = MatMult(D2,_p,p_t); CHKERRQ(ierr);
+
+  // set up boundary terms
+  // VecSet(_bcB,2e-9); // add some fluid flow from depth
+  Vec rhs;
+  VecDuplicate(_k_p,&rhs);
+  _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
+
+
+  // compute rate for pressure
+  PetscScalar *rhog_yA,*rho_f,*n,*beta,*p_tA,*rhsA=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetArray(rhog_y,&rhog_yA);
+  VecGetArray(_rho_f,&rho_f);
+  VecGetArray(_n_p,&n);
+  VecGetArray(_beta_p,&beta);
+  VecGetArray(rhs,&rhsA);
+
+  // add source
+  Vec source,Hxsource;
+  VecDuplicate(_p,&source);
+  VecDuplicate(_p,&Hxsource);
+
+  PetscScalar *z=0;
+  // VecGetArray(_z,&z);
+
+  mapToVec(source, zzmms_pSource1D, _z, time);
+  // VecRestoreArray(_z,&z);
+  
+
+  writeVec(source,_outputDir + "mms_uSource");
+  ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
+  VecDestroy(&source);
+
+  ierr = VecAXPY(rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+
+  VecGetArray(p_t,&p_tA);
+  PetscInt Jj = 0;
+
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    p_tA[Jj] = p_tA[Jj] - 1e3*rhog_yA[Jj] - rhsA[Jj];
+    p_tA[Jj] = p_tA[Jj] / ( rho_f[Jj]*n[Jj]*beta[Jj] );
+    assert(~isnan(p_tA[Jj]));
+    assert(~isinf(p_tA[Jj]));
+    Jj++;
+  }
+
+
+
+
+
+  VecRestoreArray(rhog_y,&rhog_yA);
+  VecRestoreArray(_rho_f,&rho_f);
+  VecRestoreArray(_n_p,&n);
+  VecRestoreArray(_beta_p,&beta);
+  VecRestoreArray(rhs,&rhsA);
+  VecRestoreArray(p_t,&p_tA);
+
+  _sbp->Hinv(p_t,dvarEx["pressure"]);
+
+
+  VecDestroy(&rhog);
+  VecDestroy(&rhog_y);
+  VecDestroy(&temp);
+  VecDestroy(&rhs);
+  VecDestroy(&p_t);
+
+
+  _ptTime += MPI_Wtime() - startTime;
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -668,10 +763,6 @@ PetscErrorCode SymmFault_Hydr::be_MMS(const PetscScalar time,const Vec slipVel,c
   #endif
   return ierr;
 }
-
-
-
-
 
 
 // =====================================================================
@@ -763,6 +854,58 @@ PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt stepCount, const PetscSc
 }
 
 
+PetscErrorCode  SymmFault_Hydr::measureMMSError(const double totRunTime) 
+{ 
+  Vec pA;
+  VecDuplicate(_p, &pA);
+  mapToVec(pA, zzmms_pA1D, _z, totRunTime);
+
+  writeVec(pA,_outputDir+"uA");
+
+  double err2pA = computeNormDiff_2(_p,pA);
+
+  PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e\n",
+            2,_N,_h,err2pA,log2(err2pA));
+
+  return 0; 
+}; 
 
 
+double SymmFault_Hydr::zzmms_pA1D(const double z,const double t) 
+{ 
+  PetscScalar PI = 3.14159265359;
+  PetscScalar T0 = 3e1;
+
+  PetscScalar delta_p = 1.2;
+  PetscScalar omega = 1.5*PI / T0;
+
+  PetscScalar kz = 2 * PI / 30;
+
+  PetscScalar beta0 = 1e-2;
+  PetscScalar eta0 = 1e-9;
+  PetscScalar n0 = 0.1;
+  PetscScalar k0 = 1e-19;
+
+  PetscScalar p_src = delta_p * sin(kz * z) * sin(omega * t);
+  return p_src; 
+}
+
+double SymmFault_Hydr::zzmms_pSource1D(const double z, const double t)
+{
+  PetscScalar PI = 3.14159265359;
+  PetscScalar T0 = 3e1;
+
+  PetscScalar delta_p = 1.2;
+  PetscScalar omega = 1.5*PI / T0;
+
+  PetscScalar kz = 2 * PI / 30;
+
+  PetscScalar beta0 = 1e-2;
+  PetscScalar eta0 = 1e-9;
+  PetscScalar n0 = 0.1;
+  PetscScalar k0 = 1e-19;
+
+  PetscScalar p_src = delta_p*(beta0*eta0*n0*omega*cos(omega*t) + k0*kz*kz*sin(omega*t))*sin(kz*z)/(beta0*eta0*n0);
+  return p_src;
+}
 

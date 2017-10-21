@@ -122,6 +122,10 @@ class Fault: public RootFinderContext
     PetscErrorCode loadFieldsFromFiles(std::string inputDir);
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode setHeatParams(const Vec& k,const Vec& rho,const Vec& c);
+
+    // mms test
+    PetscErrorCode virtual measureMMSError(const double totRunTime) { return 0; }; 
+
 };
 
 
@@ -167,6 +171,7 @@ class SymmFault: public Fault
     PetscErrorCode getTau(Vec& tau);
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
+
 };
 
 

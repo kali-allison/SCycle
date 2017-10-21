@@ -53,6 +53,7 @@ class SymmFault_Hydr: public SymmFault
 
     // pressure and perturbation from pressure
     Vec _p;
+    const Vec  *_z_test;
 
     SymmFault_Hydr(Domain& D, HeatEquation& He);
     ~SymmFault_Hydr();
@@ -84,6 +85,13 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode writeContext();
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     //~ PetscErrorCode view();
+
+    // mms error
+    PetscErrorCode measureMMSError(const double totRunTime);
+
+    static double zzmms_pSource1D(const double z, const double t);
+    static double zzmms_pA1D(const double y,const double t);
+
 };
 
 
