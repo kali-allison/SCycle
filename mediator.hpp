@@ -27,9 +27,9 @@
 
 /* Base class for a linear elastic material
  */
-class Mediator: public IntegratorContextEx, public IntegratorContextImex
+class Mediator: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
 {
-  private:
+private:
     // disable default copy constructor and assignment operator
     Mediator(const Mediator &that);
     Mediator& operator=(const Mediator &rhs);
@@ -50,6 +50,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    std::string            _initialU; // gaussian
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
@@ -81,6 +82,12 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     Mediator(Domain&D);
     ~Mediator();
 
+    Domain* getD();
+    PetscScalar getvL();
+    std::map <string,Vec> getvarEx();
+    std::string getinitialU();
+    std::string getTimeIntegrator();
+
     // to solve a steady-state problem
     PetscErrorCode solveSS(Domain& D);
 
@@ -90,6 +97,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, Vec& _ay);
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,

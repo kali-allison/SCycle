@@ -10,6 +10,7 @@ Mediator::Mediator(Domain&D)
   _bcLTauQS(0),
   _outputDir(D._outputDir),_inputDir(D._inputDir),
   _vL(D._vL),
+  _initialU("gaussian"),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _timeIntegrator(D._timeIntegrator),
@@ -45,7 +46,7 @@ Mediator::Mediator(Domain&D)
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he,_fault->_tauQSP); }
 
   // try new way to solve for initial conditions
-  solveSS(D);
+  if(_timeIntegrator.compare("WaveEq")!=0){solveSS(D);}
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -110,6 +111,9 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     else if (var.compare("timeControlType")==0) {
       _timeControlType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+    else if (var.compare("initialU")==0) {
+      _initialU = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
   }
 
   #if VERBOSE > 1
@@ -135,7 +139,8 @@ PetscErrorCode Mediator::checkInput()
 
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
-      _timeIntegrator.compare("IMEX")==0 );
+      _timeIntegrator.compare("IMEX")==0 ||
+      _timeIntegrator.compare("WaveEq")==0 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -143,6 +148,12 @@ PetscErrorCode Mediator::checkInput()
   #endif
   return ierr;
 }
+
+Domain* Mediator::getD(){return _D;}
+PetscScalar Mediator::getvL(){return _vL;}
+std::map <string,Vec> Mediator::getvarEx(){return _varEx;}
+std::string Mediator::getinitialU(){return _initialU;}
+std::string Mediator::getTimeIntegrator(){return _timeIntegrator;}
 
 // initiate variables to be integrated in time
 PetscErrorCode Mediator::initiateIntegrand()
@@ -152,10 +163,19 @@ PetscErrorCode Mediator::initiateIntegrand()
     std::string funcName = "Mediator::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
-  _fault->initiateIntegrand(_initTime,_varEx,_varIm);
-
+  
+  if(_timeIntegrator.compare("WaveEq") == 0){
+    Vec u, uPrev;
+    VecDuplicate(_D->_y,&u);
+    VecDuplicate(_D->_y, &uPrev);
+    _varEx["u"] = u;
+    _varEx["uPrev"] = uPrev;
+  }
+  else{
+    _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
+    _fault->initiateIntegrand(_initTime,_varEx,_varIm);
+  }
+  
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
   }
@@ -342,7 +362,7 @@ PetscErrorCode Mediator::integrate()
   #endif
   double startTime = MPI_Wtime();
 
-  _momBal->prepareForIntegration(*_D);
+  _momBal->prepareForIntegration(*_D, _timeIntegrator);
   initiateIntegrand(); // put initial conditions into var for integration
   _stepCount = 0;
 
@@ -352,6 +372,9 @@ PetscErrorCode Mediator::integrate()
   }
   else if (_timeIntegrator.compare("RK32")==0) {
     _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("WaveEq")==0) {
+    _quadEx = new WaveEq(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
@@ -372,7 +395,7 @@ PetscErrorCode Mediator::integrate()
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
-  else {
+  else if(_timeIntegrator.compare("WaveEq")!=0) {
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
@@ -382,6 +405,18 @@ PetscErrorCode Mediator::integrate()
     ierr = _quadEx->setErrInds(_timeIntInds);
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  }
+  else {
+    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+  
+    ierr = _quadEx->setInitialConds(this);CHKERRQ(ierr);
+
+    // control which fields are used to select step size
+    ierr = _quadEx->setErrInds(_timeIntInds);
+
+    ierr = _quadEx->integrateWave(this);CHKERRQ(ierr);
   }
 
   _integrateTime += MPI_Wtime() - startTime;
@@ -413,6 +448,38 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
     VecSet(dvarEx.find("slip")->second,0.0); // slip vel
   }
+  return ierr;
+}
+
+// Wave equation
+PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, Vec& _ay)
+{
+  PetscErrorCode ierr = 0;
+  ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx); CHKERRQ(ierr);
+
+  VecDuplicate(_D->_y, &_ay);
+  VecSet(_ay, 0.0);
+  
+  PetscScalar yy[1], zz[1];
+  PetscScalar ay;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_D->_y,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    PetscInt II[0];
+    II[0] = Ii;
+    VecGetValues(_D->_y, 1, II, yy);
+    VecGetValues(_D->_z, 1, II, zz);
+    PetscScalar alphay, alphaz;
+    (_momBal->_sbp)->getAlphay(alphay);
+    (_momBal->_sbp)->getAlphay(alphaz);
+    if (zz[0] == 0 || zz[0] == _D->_Lz){ay = 0.5 * alphaz;}
+    if (yy[0] == 0 || yy[0] == _D->_Ly){ay = 0.5 * alphay;}
+
+    VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
+    }
+  VecAssemblyBegin(_ay);
+  VecAssemblyEnd(_ay);
+
   return ierr;
 }
 

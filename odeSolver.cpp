@@ -157,6 +157,146 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
   return ierr;
 }
 
+//================= WaveEq child class functions =======================
+
+WaveEq::WaveEq(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+: OdeSolver(maxNumSteps,finalT,deltaT,controlType)
+{}
+
+PetscErrorCode WaveEq::view()
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::view in odeSolver.cpp.\n");
+#endif
+  PetscErrorCode ierr = 0;
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTimeSolver summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: wave equation\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
+                     _initT,_finalT);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total number of steps taken: %i/%i\n",
+                     _stepCount,_maxNumSteps);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   final time reached: %g\n",
+                     _currT);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time: %g\n",
+                     _runTime);CHKERRQ(ierr);
+  return 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::view in odeSolver.cpp.\n");
+#endif
+}
+
+PetscErrorCode WaveEq::setInitialConds(IntegratorContextWave *obj)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  PetscErrorCode ierr = 0;
+
+  _var = (obj->getvarEx());
+
+  if((obj->getinitialU()).compare("gaussian")==0){
+    PetscScalar yy[1], zz[1];
+    PetscScalar uu;
+
+    PetscInt Ii,Istart,Iend;
+    ierr = VecGetOwnershipRange((obj->getD())->_q,&Istart,&Iend);CHKERRQ(ierr);
+
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      PetscInt II[1];
+      II[0] = Ii;
+
+      VecGetValues((obj->getD())->_y, 1, II, yy);
+      VecGetValues((obj->getD())->_z, 1, II, zz);
+
+      uu = exp(-pow( yy[0]-0.5*((obj->getD())->_Ly), 2) /5) * exp(-pow(zz[0]-0.5*((obj->getD())->_Lz), 2) /5);
+
+      ierr = VecSetValues(_var["u"],1,&Ii,&uu,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_var["uPrev"],1,&Ii,&uu,INSERT_VALUES);CHKERRQ(ierr);
+
+      }
+    VecAssemblyBegin(_var["u"]);
+    VecAssemblyBegin(_var["uPrev"]);
+    VecAssemblyEnd(_var["u"]);
+    VecAssemblyEnd(_var["uPrev"]);
+    }
+
+  
+  for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+    Vec temp;
+    ierr = VecDuplicate(_var[it->first],&temp); CHKERRQ(ierr);
+    ierr = VecSet(temp,0.0); CHKERRQ(ierr);
+    _dvar[it->first] = temp;
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::setInitialConds in odeSolver.cpp.\n");
+#endif
+  return ierr;
+}
+
+PetscErrorCode WaveEq::integrateWave(IntegratorContextWave *obj)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::integrateWave in odeSolver.cpp.\n");
+#endif
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+
+  if (_finalT==_initT) { return ierr; }
+  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+
+  // set initial condition
+  ierr = obj->d_dt_WaveEq(_currT,_var,_dvar, _ay);CHKERRQ(ierr);
+  ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
+
+  Vec temp;
+  VecDuplicate(_var["u"], &temp);
+  ierr = VecAYPX(temp, 0, _var["u"]);
+  ierr = VecAXPY(temp, pow(_deltaT, 2), _dvar["u"]);
+  ierr = VecAXPY(temp, 2, _var["u"]);
+  ierr = VecAXPY(temp, -1, _var["uPrev"]);
+
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write first step
+
+  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+    ierr = obj->d_dt_WaveEq(_currT,_var,_dvar, _ay);CHKERRQ(ierr);
+    ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
+
+    Vec temp, temp2, temp3;
+    VecDuplicate(_var["u"], &temp);
+    ierr = VecAYPX(temp, 0, _var["u"]);
+    ierr = VecAXPY(temp, pow(_deltaT, 2), _dvar["u"]);
+    ierr = VecAXPY(temp, 2, _var["u"]);
+    VecDuplicate(_var["u"], &temp2);
+    VecDuplicate(_var["u"], &temp3);
+    VecSet(temp2, 0.0);
+    VecSet(temp3, 0.0);
+    ierr = VecAXPY(temp2, (obj->getD())->_vL * _deltaT, _ay);
+    ierr = VecPointwiseMult(temp3, temp2, _var["uPrev"]);
+    ierr = VecAXPY(temp, -1, _var["uPrev"]);
+    ierr = VecAXPY(temp, 1, temp3);
+    ierr = VecAYPX(_var["uPrev"], 0.0, _var["u"]);
+    ierr = VecAYPX(_var["u"], 0.0, temp);
+    VecDestroy(&temp);
+    VecDestroy(&temp2);
+    VecDestroy(&temp3);
+
+    _currT = _currT + _deltaT;
+    if (_currT>_finalT) { _currT = _finalT; }
+    _stepCount++;
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::integrate in odeSolver.cpp.\n");
+#endif
+  return ierr;
+}
+
 
 
 //================= RK32 child class functions =========================
