@@ -1,4 +1,4 @@
-order = 2 # SBP order of accuracy
+order = 4 # SBP order of accuracy
 Ny = 41
 Nz = 42
 Ly = 30 # (km) horizontal domain size
@@ -122,12 +122,12 @@ withFrictionalHeating = no
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = FEuler
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 1
-initTime = 1e1
+maxStepCount = 1e7
+initTime = 1.5e1
 maxTime = 3e1      # (s)
 initDeltaT = 1e-1   # (s) size of initial time step
 minDeltaT = 1e-1    # (s) minimum allowed time step

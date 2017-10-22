@@ -32,6 +32,7 @@ class SymmFault_Hydr: public SymmFault
     std::string           _sbpType;
     int                   _linSolveCount;
     Vec                   _bcL,_bcT,_bcB;
+    Vec                   _p_t;
 
 
     // input fields
@@ -91,6 +92,7 @@ class SymmFault_Hydr: public SymmFault
 
     static double zzmms_pSource1D(const double z, const double t);
     static double zzmms_pA1D(const double y,const double t);
+    static double zzmms_pt1D(const double z,const double t);
 
 };
 
