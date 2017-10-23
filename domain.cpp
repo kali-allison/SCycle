@@ -399,7 +399,8 @@ PetscErrorCode Domain::checkInput()
 
   assert(_timeIntegrator.compare("FEuler")==0
     || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("IMEX")==0);
+    || _timeIntegrator.compare("IMEX")==0
+    || _timeIntegrator.compare("WaveEq")==0);
 
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||

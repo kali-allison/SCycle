@@ -32,6 +32,9 @@ class SbpOps
     // don't want _A to belong to the abstract class
     virtual PetscErrorCode getA(Mat &mat) = 0;
     virtual PetscErrorCode getH(Mat &mat) = 0;
+    virtual PetscErrorCode getAlphay(PetscScalar &alphaDy){return 1;};
+    virtual PetscErrorCode getAlphaz(PetscScalar &alphaDz){return 1;};
+
 
     // allow variable coefficient to change
     virtual PetscErrorCode updateVarCoeff(const Vec& coeff) = 0;

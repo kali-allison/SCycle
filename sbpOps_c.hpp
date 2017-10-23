@@ -159,6 +159,8 @@ class SbpOps_c : public SbpOps
 
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
+    PetscErrorCode getAlphay(PetscScalar &alphaDy);
+    PetscErrorCode getAlphaz(PetscScalar &alphaDz);
 
     // allow variable coefficient to change
     PetscErrorCode updateVarCoeff(const Vec& coeff);

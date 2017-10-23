@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <assert.h>
 #include "integratorContextEx.hpp"
+#include "integratorContextWave.hpp"
 #include "genFuncs.hpp"
 
 /*
@@ -84,11 +85,13 @@ class OdeSolver
     //~ virtual PetscErrorCode setInitialConds(std::vector<Vec>& var) = 0;
     //~ virtual PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) = 0;
     //~ virtual PetscErrorCode setErrInds(std::vector<int>& errInds) = 0;
-    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& var) = 0;
+    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& var){return 1;};
+    virtual PetscErrorCode setInitialConds(IntegratorContextWave* obj){return 1;};
     virtual PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(IntegratorContextEx *obj) = 0;
+    virtual PetscErrorCode integrate(IntegratorContextEx *obj){return 1;};
+    virtual PetscErrorCode integrateWave(IntegratorContextWave *obj){return 1;};
 };
 
 PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
@@ -112,6 +115,25 @@ class FEuler : public OdeSolver
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
     PetscErrorCode integrate(IntegratorContextEx *obj);
+};
+
+class WaveEq : public OdeSolver
+{
+  public:
+    Vec _ay;
+    WaveEq(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    ~WaveEq() {};
+    PetscErrorCode view();
+
+    PetscErrorCode setTolerance(const PetscReal atol){return 0;};
+    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
+    //~ PetscErrorCode setInitialConds(std::vector<Vec>& var);
+    //~ PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
+    //~ PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
+    PetscErrorCode setInitialConds(IntegratorContextWave* var);
+    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
+    PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
+    PetscErrorCode integrateWave(IntegratorContextWave *obj);
 };
 
 class RK32 : public OdeSolver

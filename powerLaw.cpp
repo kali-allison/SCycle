@@ -26,14 +26,18 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
   setMaterialParameters();
 
   // set up matrix operators and KSP environment
-  setUpSBPContext(D);
+  //~ setUpSBPContext(D); // old
+  // guess steady state conditions
+  //~ guessSteadyStateEffVisc(1e-12);
+  //~ setSSInitialConds(D,tau);
+  setUpSBPContext(D, _timeIntegrator); // set up matrix operators
   initializeMomBalMats();
   //~ computeTotalStrains(_currTime);
   //~ computeStresses(_currTime);
 
   //~ if (D._loadICs==1) {
     loadFieldsFromFiles();
-    setUpSBPContext(D); // set up matrix operators
+    setUpSBPContext(D, _timeIntegrator); // set up matrix operators
     computeTotalStrains(_currTime);
     computeStresses(_currTime);
     computeViscosity(_effViscCap);
