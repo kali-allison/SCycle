@@ -1570,16 +1570,20 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
   if (stepCount == 0) {
     _viewers["dT"] = initiateViewer(_outputDir + "dT");
     _viewers["heatFlux"] = initiateViewer(_outputDir + "heatFlux");
+    _viewers["surfaceHeatFlux"] = initiateViewer(_outputDir + "surfaceHeatFlux");
 
-    ierr = VecView(_dT,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_dT,_viewers["dT"]); CHKERRQ(ierr);
     ierr = VecView(_heatFlux,_viewers["heatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_surfaceHeatFlux,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers["surfaceHeatFlux"],_outputDir + "surfaceHeatFlux");
+    ierr = appendViewer(_viewers["dT"],_outputDir + "dT");
     ierr = appendViewer(_viewers["heatFlux"],_outputDir + "heatFlux");
+    ierr = appendViewer(_viewers["surfaceHeatFlux"],_outputDir + "surfaceHeatFlux");
   }
   else {
-    ierr = VecView(_dT,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_dT,_viewers["dT"]); CHKERRQ(ierr);
     ierr = VecView(_heatFlux,_viewers["heatFlux"]); CHKERRQ(ierr);
+    ierr = VecView(_surfaceHeatFlux,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
