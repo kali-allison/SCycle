@@ -265,24 +265,30 @@ PetscErrorCode WaveEq::integrateWave(IntegratorContextWave *obj)
     ierr = obj->d_dt_WaveEq(_currT,_var,_dvar, _ay);CHKERRQ(ierr);
     ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
 
-    Vec temp, temp2, temp3;
+    Vec temp, temp2, temp3, temp4;
     VecDuplicate(_var["u"], &temp);
     ierr = VecAYPX(temp, 0, _var["u"]);
     ierr = VecAXPY(temp, pow(_deltaT, 2), _dvar["u"]);
     ierr = VecAXPY(temp, 2, _var["u"]);
     VecDuplicate(_var["u"], &temp2);
     VecDuplicate(_var["u"], &temp3);
+    VecDuplicate(_var["u"], &temp4);
     VecSet(temp2, 0.0);
     VecSet(temp3, 0.0);
+    VecSet(temp4, 1.0);
     ierr = VecAXPY(temp2, (obj->getD())->_vL * _deltaT, _ay);
+    ierr = VecAXPY(temp2, -1.0, temp4);
     ierr = VecPointwiseMult(temp3, temp2, _var["uPrev"]);
-    ierr = VecAXPY(temp, -1, _var["uPrev"]);
     ierr = VecAXPY(temp, 1, temp3);
+    ierr = VecPointwiseDivide(temp, temp, temp2);
+
     ierr = VecAYPX(_var["uPrev"], 0.0, _var["u"]);
     ierr = VecAYPX(_var["u"], 0.0, temp);
+
     VecDestroy(&temp);
     VecDestroy(&temp2);
     VecDestroy(&temp3);
+    VecDestroy(&temp4);
 
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
