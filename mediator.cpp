@@ -49,8 +49,8 @@ Mediator::Mediator(Domain&D)
   //~ if (_loadICs == 0) {
     //~ solveSS();
   //~ }
-  // try new way to solve for initial conditions
-  if(_timeIntegrator.compare("WaveEq")!=0){ solveSS(D); }
+  // try new way to solve for initial steady state conditions
+  if(_timeIntegrator.compare("WaveEq")!=0){ solveSS(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -667,7 +667,7 @@ PetscErrorCode Mediator::measureMMSError()
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ ierr =  _he->measureMMSError(_currTime);
   //~ }
-  _fault->measureMMSError(_currTime);
+  //~ _fault->measureMMSError(_currTime);
 
   return ierr;
 }
