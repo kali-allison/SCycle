@@ -1154,6 +1154,48 @@ PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec 
   return ierr;
 }
 
+PetscErrorCode HeatEquation::initiateVarSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::initiateVarSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // put variables to be integrated implicity into varIm
+  Vec T;
+  VecDuplicate(_T0,&T);
+  VecWAXPY(T,1.0,_T0,_dT);
+  varSS["Temp"] = T;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode HeatEquation::updateSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::updateSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Vec slipVel = varSS.find("slipVel")->second;
+  Vec tau = varSS.find("tau")->second;
+  Vec sDev = varSS.find("sDev")->second;
+  Vec gVxy_t = varSS.find("gVxy_t")->second;
+  Vec gVxz_t = varSS.find("gVxz_t")->second;
+
+  // final argument is output
+  ierr = computeSteadyStateTemp(0,slipVel,tau,sDev,gVxy_t,gVxz_t,varSS["Temp"]); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 // compute steady-state temperature given boundary conditions and shear heating source terms (assuming these remain constant)
 PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,

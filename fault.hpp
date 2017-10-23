@@ -27,7 +27,7 @@ class Fault: public RootFinderContext
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
     const bool        _isMMS; // true if running mms test
-    bool        _bcLTauQS; // true if running mms test
+    bool              _bcLTauQS; // true if running mms test
     std::string       _stateLaw; // state evolution law
 
     // domain properties
@@ -114,9 +114,9 @@ class Fault: public RootFinderContext
     // for steady state computations
     PetscErrorCode getTauRS(Vec& tauRS, const PetscScalar vL);
     PetscErrorCode computeVss(const Vec tau); // compute slip vel from tau
-
-
     PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
+    PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // tau and slip vel in varSS
+    PetscErrorCode updateSS(map<string,Vec>& varSS);
 
     // IO
     PetscErrorCode virtual view(const double totRunTime);

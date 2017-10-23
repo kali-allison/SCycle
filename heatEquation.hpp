@@ -110,6 +110,8 @@ class HeatEquation
 
     PetscErrorCode computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T);
+    PetscErrorCode initiateVarSS(map<string,Vec>& varSS);
+    PetscErrorCode updateSS(map<string,Vec>& varSS);
 
     // compute rate
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& _varIm);
