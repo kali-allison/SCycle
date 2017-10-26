@@ -20,7 +20,6 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  //~ _fault(NULL),_momBal(NULL),_he(D)
   _fault(NULL),_momBal(NULL),_he(NULL)
 {
   #if VERBOSE > 1
@@ -45,7 +44,10 @@ Mediator::Mediator(Domain&D)
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he,_fault->_tauQSP); }
 
   // try new way to solve for initial conditions
-  solveSS(D);
+  if (!D._isMMS) {
+    assert(0);
+    solveSS(D);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -314,9 +316,11 @@ PetscErrorCode Mediator::solveSS(Domain& D)
   VecRestoreArray(tauVisc,&tauViscV);
   VecRestoreArray(tauSS,&tauSSV);
 
-  ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  if (_inputDir.compare("unspecified") != 0) {
+    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  }
 
-std::map <string,PetscViewer>  _viewers;
+  std::map <string,PetscViewer>  _viewers;
   _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
   ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
 
@@ -469,9 +473,11 @@ PetscErrorCode Mediator::measureMMSError()
   PetscErrorCode ierr = 0;
 
   //~ _momBal->measureMMSError(_currTime);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr =  _he->measureMMSError(_currTime);
-  }
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ ierr =  _he->measureMMSError(_currTime);
+  //~ }
+
+  _fault->measureMMSError(_currTime);
 
   return ierr;
 }

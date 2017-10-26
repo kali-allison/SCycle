@@ -1170,7 +1170,6 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   computeViscosity();
 
   // update rates
-  //~ ierr = setViscStrainRates(time,_gxy,_gxz,*(dvarBegin+3),*(dvarBegin+4)); CHKERRQ(ierr);
   ierr = setViscStrainRates(time,_gxy,_gxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
   Vec source;
   VecDuplicate(_u,&source);
