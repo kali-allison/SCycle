@@ -100,10 +100,10 @@ PetscErrorCode SymmFault_Hydr::checkInput()
 PetscErrorCode SymmFault_Hydr::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-      std::string funcName = "SymmFault_Hydr::loadSettings";
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault_Hydr::loadSettings";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-#endif
+  #endif
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
@@ -819,6 +819,9 @@ PetscErrorCode SymmFault_Hydr::writeContext()
 
   SymmFault::writeContext();
 
+  // assert(0);
+  ierr = _sbp->writeOps(_outputDir + "ops_p_"); CHKERRQ(ierr);
+
   PetscViewer    viewer;
 
   // write out scalar info
@@ -839,6 +842,9 @@ PetscErrorCode SymmFault_Hydr::writeContext()
   ierr = writeVec(_k_p,_outputDir + "fault_hydr_k"); CHKERRQ(ierr);
   ierr = writeVec(_eta_p,_outputDir + "fault_hydr_eta"); CHKERRQ(ierr);
   ierr = writeVec(_rho_f,_outputDir + "fault_hydr_rho_f"); CHKERRQ(ierr);
+
+
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
