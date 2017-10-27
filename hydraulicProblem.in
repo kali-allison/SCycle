@@ -1,8 +1,8 @@
-order = 2 # SBP order of accuracy
+order = 4 # SBP order of accuracy
 Ny = 41
 Nz = 42
-Ly = 6.2832 # (km) horizontal domain size
-Lz = 6.2832 # (km) vertical domain size
+Ly = 30 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
@@ -76,36 +76,35 @@ hydraulicTimeIntType = explicit
 #hydraulicTimeIntType = implicit
 
 # actual, physical values
-#n_pVals = [0.1 0.1]
-#n_pDepths = [0 30]
-#beta_pVals = [1e-2 1e-2] # 1/MPa
-#beta_pDepths = [0 30]
-#k_pVals = [1e-19 1e-19] # km^2
-#k_pDepths = [0 30]
-#eta_pVals = [1e-9 1e-9] # MPa s
-#eta_pDepths = [0 30]
-#g = 0
-#rho_fVals = [1e3 1e3] # kg/m^3
-#rho_fVals = [1 1] # g/cm^3
-#rho_fDepths = [0 30]
-#pVals = [0.0 0.0]
-#pDepths = [0 30]
-
-
-# for MMS test
-n_pVals = [1 1]
+n_pVals = [0.1 0.1]
 n_pDepths = [0 30]
-beta_pVals = [1 1] # 1/MPa
+beta_pVals = [1e-2 1e-2] # 1/MPa
 beta_pDepths = [0 30]
-k_pVals = [1 1] # km^2
+k_pVals = [1e-19 1e-19] # km^2
 k_pDepths = [0 30]
-eta_pVals = [1 1] # MPa s
+eta_pVals = [1e-9 1e-9] # MPa s
 eta_pDepths = [0 30]
 g = 0
 rho_fVals = [1 1] # g/cm^3
 rho_fDepths = [0 30]
 pVals = [0.0 0.0]
 pDepths = [0 30]
+
+
+# for MMS test
+#n_pVals = [1 1]
+#n_pDepths = [0 30]
+#beta_pVals = [1 1] # 1/MPa
+#beta_pDepths = [0 30]
+#k_pVals = [1 1] # km^2
+#k_pDepths = [0 30]
+#eta_pVals = [1 1] # MPa s
+#eta_pDepths = [0 30]
+#g = 0
+#rho_fVals = [1 1] # g/cm^3
+#rho_fDepths = [0 30]
+#pVals = [0.0 0.0]
+#pDepths = [0 30]
 
 
 #======================================================================
@@ -144,12 +143,12 @@ timeControlType = P
 stride1D = 1
 stride2D = 1
 maxStepCount = 1e3
-initTime = 1
-maxTime = 1.02      # (s) 3e1
-initDeltaT = 1e-4   # (s) size of initial time step
-minDeltaT = 1e-4    # (s) minimum allowed time step
-maxDeltaT = 1e10    # (s) maximum allowed time step
-atol = 1e-10 # absolute error for adaptive time stepper
+initTime = 0
+maxTime = 1e7      # (s) 3e1
+initDeltaT = 1e-3   # (s) size of initial time step
+minDeltaT = 1e-3    # (s) minimum allowed time step
+maxDeltaT = 3e5    # (s) maximum allowed time step
+atol = 1e-8 # absolute error for adaptive time stepper
 #timeIntInds = [psi slip]
 timeIntInds = [pressure]
 
