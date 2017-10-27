@@ -17,6 +17,9 @@ class SymmFault_Hydr: public SymmFault
 
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling and integration type (explicit vs implicit)
 
+    // information about the domain and SBP context
+    const int _order;
+
     // material properties
     Vec _n_p,_beta_p,_k_p,_eta_p,_rho_f;
     PetscScalar _g;
@@ -32,6 +35,7 @@ class SymmFault_Hydr: public SymmFault
     std::string           _sbpType;
     int                   _linSolveCount;
     Vec                   _bcL,_bcT,_bcB;
+    Vec                   _p_t;
 
 
     // input fields
@@ -53,6 +57,7 @@ class SymmFault_Hydr: public SymmFault
 
     // pressure and perturbation from pressure
     Vec _p;
+    const Vec  *_z_test;
 
     SymmFault_Hydr(Domain& D, HeatEquation& He);
     ~SymmFault_Hydr();
@@ -84,6 +89,14 @@ class SymmFault_Hydr: public SymmFault
     PetscErrorCode writeContext();
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     //~ PetscErrorCode view();
+
+    // mms error
+    PetscErrorCode measureMMSError(const double totRunTime);
+
+    static double zzmms_pSource1D(const double z, const double t);
+    static double zzmms_pA1D(const double y,const double t);
+    static double zzmms_pt1D(const double z,const double t);
+
 };
 
 

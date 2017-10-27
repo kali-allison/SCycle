@@ -4,8 +4,8 @@ using namespace std;
 
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("unspecificed"),
-  _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
+  _bulkDeformationType("unspecified"),_geometry("unspecified"),_sbpType("mfc_coordTrans"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
@@ -61,8 +61,8 @@ Domain::Domain(const char *file)
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_outputDir("unspecificed"),
-  _bulkDeformationType("unspecificed"),_geometry("unspecificed"),_sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecificed"),
+  _bulkDeformationType("unspecified"),_geometry("unspecified"),_sbpType("mfc_coordTrans"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
@@ -605,8 +605,10 @@ PetscErrorCode Domain::setFields()
   VecAssemblyEnd(_z);
 
   // load y and z instead
-  ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
+  if (_inputDir.compare("unspecified") != 0) {
+    ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());

@@ -55,11 +55,12 @@ int runMMSTests(const char * inputFile)
   for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
   //~ for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
   {
-    Domain d(inputFile,Ny,Ny+1);
+    Domain d(inputFile,Ny,Ny);
     //~ Domain d(inputFile,Ny,1);
     d.write();
 
     Mediator m(d);
+    ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.integrate();CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
   }

@@ -8,11 +8,11 @@ using namespace std;
 Mediator::Mediator(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),
+  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(D._vL),
-  _initialU("gaussian"),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+    _initialU("gaussian"),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
@@ -21,7 +21,6 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  //~ _fault(NULL),_momBal(NULL),_he(D)
   _fault(NULL),_momBal(NULL),_he(NULL)
 {
   #if VERBOSE > 1
@@ -46,7 +45,9 @@ Mediator::Mediator(Domain&D)
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he,_fault->_tauQSP); }
 
   // try new way to solve for initial conditions
-  if(_timeIntegrator.compare("WaveEq")!=0){solveSS(D);}
+  if (!D._isMMS && _timeIntegrator.compare("WaveEq")!=0) {
+    solveSS();
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -163,7 +164,7 @@ PetscErrorCode Mediator::initiateIntegrand()
     std::string funcName = "Mediator::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  
+
   if(_timeIntegrator.compare("WaveEq") == 0){
     Vec u, uPrev;
     VecDuplicate(_D->_y,&u);
@@ -176,7 +177,7 @@ PetscErrorCode Mediator::initiateIntegrand()
     _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
     _fault->initiateIntegrand(_initTime,_varEx,_varIm);
   }
-  
+
   if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
   }
@@ -296,7 +297,7 @@ PetscErrorCode Mediator::writeContext()
 
 
 
-PetscErrorCode Mediator::solveSS(Domain& D)
+PetscErrorCode Mediator::solveSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -335,15 +336,144 @@ PetscErrorCode Mediator::solveSS(Domain& D)
   VecRestoreArray(tauVisc,&tauViscV);
   VecRestoreArray(tauSS,&tauSSV);
 
-  ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  if (_inputDir.compare("unspecified") != 0) {
+    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  }
 
-std::map <string,PetscViewer>  _viewers;
+  std::map <string,PetscViewer>  _viewers;
   _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
   ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
 
-  // now update fault and momentum balance
-  _fault->computeVss(tauSS); // compute slip vel from tauSS
-  _momBal->updateSS(*_D,tauSS); // use tauSS and slip vel to compute uss, vss, etc
+
+  // now try to converge to steady state
+
+  // first, set up _varSS
+  _varSS["tau"] = tauSS;
+  Vec tauExtra; VecDuplicate(tauSS,&tauExtra); VecCopy(tauSS,tauExtra); _varSS["tauExtra"] = tauExtra;
+  _fault->initiateVarSS(_varSS);
+  _momBal->initiateVarSS(_varSS);
+  _he->initiateVarSS(_varSS);
+
+  // for the linear elastic problem, this only requires one step
+  if (_D->_bulkDeformationType.compare("linearElastic")==0) {
+    ierr = _momBal->updateSSa(*_D, _varSS); CHKERRQ(ierr);
+    #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    #endif
+    return ierr;
+  }
+
+  // for power-law problem, try to converge
+  Vec effVisc_old;
+  VecDuplicate(_varSS["effVisc"],&effVisc_old);
+
+
+  // outer loop: iterate on tauSS
+  writeSS(0);
+  for (int Jj=0; Jj < 1; Jj++) {
+    // inner loop: iterate on effective viscosity
+    double err = 1e10;
+    int Ii = 0;
+    while (Ii < 10 && err > 1e-3) {
+      VecCopy(_varSS["effVisc"],effVisc_old);
+      _momBal->updateSSa(*_D, _varSS); // compute v, viscous strain rates
+
+
+      // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
+      PetscScalar f = 0.1;
+      VecScale(_varSS["effVisc"],f);
+      VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+
+      PetscScalar len;
+      VecNorm(_varSS["effVisc"],NORM_2,&len);
+      err = computeNormDiff_2(effVisc_old,_varSS["effVisc"]) / len * sqrt(_D->_Ny*_D->_Nz);
+      PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
+      Ii++;
+    }
+    _momBal->updateSSb(*_D, _varSS);
+    _fault->updateSS(_varSS); // compute tauSS from v(y=0)
+    //~ _he->updateSS(_varSS); // update steady state temperature
+
+    //~ VecSet(_varSS["tauExtra"],Jj);
+    PetscPrintf(PETSC_COMM_WORLD,"Jj: %i\n",Jj);
+    writeSS(Jj);
+  }
+
+  VecDestroy(&effVisc_old);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Mediator::writeSS(const int Ii)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mediator::writeSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (Ii == 0) {
+    _viewers["SS_slipVel"] = initiateViewer(_outputDir + "SS_slipVel");
+    _viewers["SS_tau"] = initiateViewer(_outputDir + "SS_tau");
+    _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
+    _viewers["SS_gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
+    _viewers["SS_gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
+    _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
+    _viewers["SS_sxz"] = initiateViewer(_outputDir + "SS_sxz");
+    _viewers["SS_gxy"] = initiateViewer(_outputDir + "SS_gxy");
+    _viewers["SS_gxz"] = initiateViewer(_outputDir + "SS_gxz");
+    _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+    _viewers["SS_v"] = initiateViewer(_outputDir + "SS_v");
+    _viewers["SS_T"] = initiateViewer(_outputDir + "SS_T");
+
+    ierr = VecView(_varSS["slipVel"],_viewers["SS_slipVel"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["tau"],_viewers["SS_tau"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["effVisc"],_viewers["SS_effVisc"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxy_t"],_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxz_t"],_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxy"],_viewers["SS_sxy"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxz"],_viewers["SS_sxz"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxy"],_viewers["SS_gxy"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxz"],_viewers["SS_gxz"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["u"],_viewers["SS_u"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["v"],_viewers["SS_v"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["Temp"],_viewers["SS_T"]); CHKERRQ(ierr);
+
+    ierr = appendViewer(_viewers["SS_tau"],_outputDir + "SS_tau");
+    ierr = appendViewer(_viewers["SS_effVisc"],_outputDir + "SS_effVisc");
+    ierr = appendViewer(_viewers["SS_gVxy_t"],_outputDir + "SS_gVxy_t");
+    ierr = appendViewer(_viewers["SS_gVxz_t"],_outputDir + "SS_gVxz_t");
+    ierr = appendViewer(_viewers["SS_sxy"],_outputDir + "SS_sxy");
+    ierr = appendViewer(_viewers["SS_sxz"],_outputDir + "SS_sxz");
+    ierr = appendViewer(_viewers["SS_gxy"],_outputDir + "SS_gxy");
+    ierr = appendViewer(_viewers["SS_gxz"],_outputDir + "SS_gxz");
+    ierr = appendViewer(_viewers["SS_u"],_outputDir + "SS_u");
+    ierr = appendViewer(_viewers["SS_v"],_outputDir + "SS_v");
+    ierr = appendViewer(_viewers["SS_T"],_outputDir + "SS_T");
+
+    _viewers["SS_tauExtra"] = initiateViewer(_outputDir + "SS_tauExtra");
+    ierr = VecView(_varSS["tauExtra"],_viewers["SS_tauExtra"]); CHKERRQ(ierr);
+    ierr = appendViewer(_viewers["SS_tauExtra"],_outputDir + "SS_tauExtra");
+  }
+  else {
+    ierr = VecView(_varSS["slipVel"],_viewers["SS_slipVel"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["tau"],_viewers["SS_tau"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["effVisc"],_viewers["SS_effVisc"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxy_t"],_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxz_t"],_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxy"],_viewers["SS_sxy"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxz"],_viewers["SS_sxz"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxy"],_viewers["SS_gxy"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxz"],_viewers["SS_gxz"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["u"],_viewers["SS_u"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["v"],_viewers["SS_v"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["Temp"],_viewers["SS_T"]); CHKERRQ(ierr);
+
+    ierr = VecView(_varSS["tauExtra"],_viewers["SS_tauExtra"]); CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -411,8 +541,13 @@ PetscErrorCode Mediator::integrate()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+<<<<<<< HEAD
   
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+=======
+
+    ierr = _quadEx->setInitialConds(this);CHKERRQ(ierr);
+>>>>>>> b189f81b0d2affe7372158c2076527b8ff6ad8b1
 
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds);
@@ -456,7 +591,34 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT)
 {
   PetscErrorCode ierr = 0;
+<<<<<<< HEAD
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
+=======
+  ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx); CHKERRQ(ierr);
+
+  VecDuplicate(_D->_y, &_ay);
+  VecSet(_ay, 0.0);
+
+  PetscScalar yy[1], zz[1];
+  PetscScalar ay;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_D->_y,&Istart,&Iend);
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    PetscInt II[0];
+    II[0] = Ii;
+    VecGetValues(_D->_y, 1, II, yy);
+    VecGetValues(_D->_z, 1, II, zz);
+    PetscScalar alphay, alphaz;
+    (_momBal->_sbp)->getAlphay(alphay);
+    (_momBal->_sbp)->getAlphay(alphaz);
+    if (zz[0] == 0 || zz[0] == _D->_Lz){ay = 0.5 * alphaz;}
+    if (yy[0] == 0 || yy[0] == _D->_Ly){ay = 0.5 * alphay;}
+
+    VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
+    }
+  VecAssemblyBegin(_ay);
+  VecAssemblyEnd(_ay);
+>>>>>>> b189f81b0d2affe7372158c2076527b8ff6ad8b1
 
   return ierr;
 }
@@ -514,9 +676,10 @@ PetscErrorCode Mediator::measureMMSError()
   PetscErrorCode ierr = 0;
 
   //~ _momBal->measureMMSError(_currTime);
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    ierr =  _he->measureMMSError(_currTime);
-  }
+  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
+    //~ ierr =  _he->measureMMSError(_currTime);
+  //~ }
+  _fault->measureMMSError(_currTime);
 
   return ierr;
 }

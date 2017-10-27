@@ -145,6 +145,6 @@ timeIntInds = [psi slip]
 # write to laptop
 #outputDir = data/maxVisc1e16_
 
-outputDir = /scratch/mrivet/test_
+outputDir = /scratch/kallison/test_
 
 

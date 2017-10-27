@@ -34,7 +34,10 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   allocateFields();
   setMaterialParameters();
   //~ setInitialConds(D,tau); // guess at steady-state configuration
-  if (_loadICs==1) { loadFieldsFromFiles(); } // load from previous simulation
+  //~ if (_loadICs==1) {  } // load from previous simulation
+  if (_inputDir.compare("unspecified") != 0) {
+    loadFieldsFromFiles(); // load from previous simulation
+  }
 
 
   setSurfDisp();
@@ -412,13 +415,30 @@ PetscErrorCode LinearElastic::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
   return ierr;
 }
 
-// update u, bcs
-// note that second variable is unnecessary for the linear elastic problem
-PetscErrorCode LinearElastic::updateSS(Domain& D, const Vec& tau)
+PetscErrorCode LinearElastic::initiateVarSS(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::updateSS";
+    std::string funcName = "LinearElastic::initiateVarSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // do nothing
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute steady state u, bcs
+PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateSSa";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -449,7 +469,7 @@ PetscErrorCode LinearElastic::updateSS(Domain& D, const Vec& tau)
 
   // set up boundary conditions
   VecSet(_bcR,0.0);
-  VecCopy(tau,_bcL);
+  VecCopy(varSS["tau"],_bcL);
 
   // compute uss that satisfies tau at left boundary
   _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);
@@ -500,7 +520,21 @@ PetscErrorCode LinearElastic::updateSS(Domain& D, const Vec& tau)
   return ierr;
 }
 
+PetscErrorCode LinearElastic::updateSSb(Domain& D,map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateSSb";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
+  // do nothing, this is only needed for the power-law problem
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 // try to speed up spin up by starting closer to steady state
 PetscErrorCode LinearElastic::prepareForIntegration(Domain& D, std::string _timeIntegrator)
@@ -1010,6 +1044,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt_WaveEq in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
+  return ierr;
 }
 
 

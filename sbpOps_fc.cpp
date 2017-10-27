@@ -1704,7 +1704,7 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   double startTime = MPI_Wtime();
   PetscViewer    viewer;
 
-  if (_Ny == 1) { return 0;}
+  // if (_Ny == 1) { return 0;}
 
   std::string str =  outputDir + "A";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);

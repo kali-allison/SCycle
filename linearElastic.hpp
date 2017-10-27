@@ -59,7 +59,7 @@ class LinearElastic
     PetscScalar          _Ly,_Lz,_dy,_dz;
     Vec                  *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
-    const bool           _loadICs; // true if running mms test
+    const bool           _loadICs; // true if starting from a previous simulation
     bool                 _bcLTauQS; // true if left boundary is traction
     PetscScalar          _currTime;
     PetscInt             _stepCount;
@@ -101,8 +101,10 @@ class LinearElastic
     virtual ~LinearElastic();
 
     // for steady state computations
-    PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc (from guess at effective viscosity)
-    PetscErrorCode virtual updateSS(Domain& D,const Vec& tau); // update u, bcs
+    PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
+    PetscErrorCode virtual updateSSa(Domain& D,map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode virtual updateSSb(Domain& D,map<string,Vec>& varSS); // does nothing for the linear elastic equations
+    PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // time stepping function
     PetscErrorCode virtual prepareForIntegration(Domain& D, std::string _timeIntegrator);
