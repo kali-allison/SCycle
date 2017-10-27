@@ -69,7 +69,7 @@ uLap = Dyy(u,dy,order) + Dzz(u,dz,order);
 uLap(:,1) = uLap(:,1) + (1/h11y)*G(:,1) .* uy(:,1);
 uLap(:,end) = uLap(:,end) - (1/h11y)*G(:,end) .* uy(:,end);
 uLap(1,:) = uLap(1,:) + (1/h11z)*G(1,:) .* uz(1,:);
-uLap(end,:) = uLap(end,:) + (1/h11z)*G(end,:) .* uz(end,:);
+uLap(end,:) = uLap(end,:) - (1/h11z)*G(end,:) .* uz(end,:);
 
 uPrev = u; % n-1
 u = u + uLap.*0.5*dt1^2/2./rho; % n
@@ -89,7 +89,7 @@ for tInd = 2:length(t)
   uLap(:,1) = uLap(:,1) + (1/h11y)*G(:,1) .* uy(:,1);
   uLap(:,end) = uLap(:,end) - (1/h11y)*G(:,end) .* uy(:,end);
   uLap(1,:) = uLap(1,:) + (1/h11z)*G(1,:) .* uz(1,:);
-  uLap(end,:) = uLap(end,:) + (1/h11z)*G(end,:) .* uz(end,:);
+  uLap(end,:) = uLap(end,:) - (1/h11z)*G(end,:) .* uz(end,:);
   
   % update interior
   uNew(2:end-1,2:end-1) = uLap(2:end-1,2:end-1).*dt^2./rho(2:end-1,2:end-1) + 2*u(2:end-1,2:end-1) - uPrev(2:end-1,2:end-1);

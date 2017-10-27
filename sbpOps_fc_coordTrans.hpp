@@ -177,6 +177,8 @@ class SbpOps_fc_coordTrans : public SbpOps
     // return shallow copies of various matrices as needed (primarily for energy balance computations)
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
+    PetscErrorCode getAlphay(PetscScalar &alphaDy);
+    PetscErrorCode getAlphaz(PetscScalar &alphaDz);
 
     // allow variable coefficient to change
     PetscErrorCode updateVarCoeff(const Vec& coeff);

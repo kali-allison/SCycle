@@ -97,7 +97,7 @@ private:
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, Vec& _ay);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT);
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,

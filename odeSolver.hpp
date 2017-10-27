@@ -130,7 +130,7 @@ class WaveEq : public OdeSolver
     //~ PetscErrorCode setInitialConds(std::vector<Vec>& var);
     //~ PetscErrorCode setInitialCondsIm(std::vector<Vec>& varIm) {return 0;};
     //~ PetscErrorCode setErrInds(std::vector<int>& errInds) {return 0;};
-    PetscErrorCode setInitialConds(IntegratorContextWave* var);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
     PetscErrorCode integrateWave(IntegratorContextWave *obj);

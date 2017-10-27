@@ -23,7 +23,7 @@ class IntegratorContextEx
     //~ typedef std::map<string,Vec>::const_iterator const_it_vec;
 
     virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
-    virtual PetscErrorCode d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar, Vec& _ay) = 0;
+    virtual PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar, PetscReal _deltaT) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& var,const map<string,Vec>& dvar) = 0;

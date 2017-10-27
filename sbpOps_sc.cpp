@@ -73,6 +73,39 @@ PetscErrorCode SbpOps_sc::getA(Mat &mat)
   return 0;
 }
 
+PetscErrorCode SbpOps_sc::getAlphay(PetscScalar &alphaDy)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_c::getAlphay";
+    string fileName = "SbpOps_c.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return copy of alphaDy:
+  alphaDy = _alphaDy;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
+PetscErrorCode SbpOps_sc::getAlphaz(PetscScalar &alphaDz)
+{
+  #if VERBOSE > 1
+    string funcName = "SbpOps_c::getalphaDz";
+    string fileName = "SbpOps_c.cpp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+
+  // return copy of alphaDz:
+  alphaDz = _alphaDz;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return 0;
+}
+
 // map the boundary condition vectors to rhs
 PetscErrorCode SbpOps_sc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
 {

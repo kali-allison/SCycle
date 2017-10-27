@@ -170,6 +170,7 @@ PetscErrorCode Mediator::initiateIntegrand()
     VecDuplicate(_D->_y, &uPrev);
     _varEx["u"] = u;
     _varEx["uPrev"] = uPrev;
+    _momBal->initiateIntegrandWave(_initialU, _varEx);
   }
   else{
     _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
@@ -219,7 +220,7 @@ double startTime = MPI_Wtime();
   }
 
 _writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
+  #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   return ierr;
@@ -248,7 +249,7 @@ double startTime = MPI_Wtime();
   }
 
 _writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
+  #if VERBOSE > 1
     //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   return ierr;
@@ -411,7 +412,7 @@ PetscErrorCode Mediator::integrate()
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
   
-    ierr = _quadEx->setInitialConds(this);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
 
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds);
@@ -452,33 +453,10 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 }
 
 // Wave equation
-PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, Vec& _ay)
+PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT)
 {
   PetscErrorCode ierr = 0;
-  ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx); CHKERRQ(ierr);
-
-  VecDuplicate(_D->_y, &_ay);
-  VecSet(_ay, 0.0);
-  
-  PetscScalar yy[1], zz[1];
-  PetscScalar ay;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_D->_y,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscInt II[0];
-    II[0] = Ii;
-    VecGetValues(_D->_y, 1, II, yy);
-    VecGetValues(_D->_z, 1, II, zz);
-    PetscScalar alphay, alphaz;
-    (_momBal->_sbp)->getAlphay(alphay);
-    (_momBal->_sbp)->getAlphay(alphaz);
-    if (zz[0] == 0 || zz[0] == _D->_Lz){ay = 0.5 * alphaz;}
-    if (yy[0] == 0 || yy[0] == _D->_Ly){ay = 0.5 * alphay;}
-
-    VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
-    }
-  VecAssemblyBegin(_ay);
-  VecAssemblyEnd(_ay);
+  ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
 
   return ierr;
 }

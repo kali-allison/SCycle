@@ -49,7 +49,6 @@ SbpOps_c::SbpOps_c(Domain&D,PetscInt Ny,PetscInt Nz,Vec& muVec,string bcT,string
       _alphaDy = -2.0*48.0/17.0 /_dy;
       _alphaDz = -2.0*48.0/17.0 /_dz;
     }
-
     constructH(tempFactors);
     construct1stDerivs(tempFactors);
     satBoundaries(tempFactors);
@@ -147,7 +146,6 @@ PetscErrorCode SbpOps_c::getAlphay(PetscScalar &alphaDy)
 
   // return copy of alphaDy:
   alphaDy = _alphaDy;
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
   #endif
