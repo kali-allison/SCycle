@@ -6,9 +6,9 @@
 PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
 : LinearElastic(D,tau), _file(D._file),_delim(D._delim),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),_effViscCap(1e30),_effViscCapSS(1e21),
+  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),_effViscCap(1e30),
   _B(NULL),_C(NULL),
-  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
+  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_effViscCapSS(1e21),
   _sxz(NULL),_sdev(NULL),
   _gxy(NULL),_dgxy(NULL),
   _gxz(NULL),_dgxz(NULL),
@@ -952,7 +952,7 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
     CHKERRQ(ierr);
   #endif
 
-  Vec v,gVxy_t,gVxz_t,effVisc;
+  Vec v,gVxy_t,gVxz_t;
   VecDuplicate(_u,&v); VecSet(v,0.); varSS["v"] = v;
   VecDuplicate(_u,&gVxy_t); VecSet(gVxy_t,0.); varSS["gVxy_t"] = gVxy_t;
   VecDuplicate(_u,&gVxz_t); VecSet(gVxz_t,0.); varSS["gVxz_t"] = gVxz_t;
@@ -970,157 +970,6 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   #endif
   return ierr;
 }
-/*
-// solve for steady-state v, viscous strain rates
-PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateSSa";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-    CHKERRQ(ierr);
-  #endif
-
-  if (_sbp_eta == NULL) { initializeSSMatrices(D); }
-
-  // set up rhs vector
-  Vec bcR_v,bcT,bcB;
-  VecDuplicate(_bcR,&bcR_v); VecSet(bcR_v,_vL/2.);
-  VecDuplicate(_bcB,&bcB); VecSet(bcB,0.);
-  VecDuplicate(_bcT,&bcT); VecSet(bcT,0.);
-  VecCopy(varSS["tau"],_bcL);
-  ierr = _sbp_eta->setRhs(_rhs,_bcL,bcR_v,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
-
-  Vec effVisc_old,gVxy_t,gVxz_t;
-  VecDuplicate(_effVisc,&effVisc_old);
-  VecDuplicate(_effVisc,&gVxy_t); VecSet(gVxy_t,0.0);
-  VecDuplicate(_effVisc,&gVxz_t); VecSet(gVxz_t,0.0);
-  VecDuplicate(_effVisc,&_v); VecSet(_v,0.0);
-
-  writeVec(_bcL,_outputDir+"SS_bcL");
-  writeVec(_T,_outputDir+"SS_T");
-
-  // set up IO to evaluate loop
-  _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
-  _viewers["SS_gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
-  _viewers["SS_gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
-  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  _viewers["SS_sxz"] = initiateViewer(_outputDir + "SS_sxz");
-  _viewers["SS_v"] = initiateViewer(_outputDir + "SS_v");
-
-  ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
-  ierr = VecView(gVxy_t,_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
-  ierr = VecView(gVxz_t,_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
-  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-  ierr = VecView(_sxz,_viewers["SS_sxz"]); CHKERRQ(ierr);
-  ierr = VecView(_v,_viewers["SS_v"]); CHKERRQ(ierr);
-
-  ierr = appendViewer(_viewers["SS_effVisc"],_outputDir + "SS_effVisc");
-  ierr = appendViewer(_viewers["SS_gVxy_t"],_outputDir + "SS_gVxy_t");
-  ierr = appendViewer(_viewers["SS_gVxz_t"],_outputDir + "SS_gVxz_t");
-  ierr = appendViewer(_viewers["SS_sxy"],_outputDir + "SS_sxy");
-  ierr = appendViewer(_viewers["SS_sxz"],_outputDir + "SS_sxz");
-  ierr = appendViewer(_viewers["SS_v"],_outputDir + "SS_v");
-
-  double err = 1e10;
-  int Ii = 0;
-  while ( Ii < 10 && err > 1e-3) {
-    VecCopy(_effVisc,effVisc_old);
-
-    //~ _sbp_eta->updateVarCoeff(_effVisc);
-    delete _sbp_eta;
-    initializeSSMatrices(D);
-    Mat A;
-    _sbp_eta->getA(A);
-    ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
-
-    // solve for steady-state velocity
-    ierr = _sbp_eta->setRhs(_rhs,_bcL,bcR_v,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
-    ierr = KSPSolve(_ksp_eta,_rhs,_v);CHKERRQ(ierr);
-
-    // update viscous strain rates
-    _sbp_eta->Dy(_v,gVxy_t);
-    _sbp_eta->Dz(_v,gVxz_t);
-
-    // update stresses
-    ierr = VecPointwiseMult(_sxy,_effVisc,gVxy_t); CHKERRQ(ierr);
-    ierr = VecPointwiseMult(_sxz,_effVisc,gVxz_t); CHKERRQ(ierr);
-    ierr = computeSDev(); CHKERRQ(ierr); // deviatoric stress
-
-
-    // update effective viscosity
-    // accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-    ierr = computeViscosity(); CHKERRQ(ierr); // new viscosity
-    PetscScalar f = 0.1;
-    VecScale(_effVisc,f);
-    VecAXPY(_effVisc,1.-f,effVisc_old);
-
-    PetscScalar len;
-    VecNorm(_effVisc,NORM_2,&len);
-    err = computeNormDiff_2(effVisc_old,_effVisc) / len * sqrt(_Ny*_Nz);
-    PetscPrintf(PETSC_COMM_WORLD,"    %i %e\n",Ii,err);
-    Ii++;
-
-    ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
-    ierr = VecView(gVxy_t,_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
-    ierr = VecView(gVxz_t,_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_sxz,_viewers["SS_sxz"]); CHKERRQ(ierr);
-    ierr = VecView(_v,_viewers["SS_v"]); CHKERRQ(ierr);
-  }
-
-  // update u and viscous strains
-  PetscScalar time = 100;
-  VecCopy(_v,_u);
-  VecScale(_u,time);
-
-  _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
-
-  PetscScalar *mu,*gxy_t,*gxz_t,*gxy,*gxz,*sxy,*sxz=0;
-  PetscInt Istart,Iend;
-  VecGetOwnershipRange(_sxy,&Istart,&Iend);
-  VecGetArray(_muVec,&mu);
-  VecGetArray(_sxy,&sxy);
-  VecGetArray(_sxz,&sxz);
-  VecGetArray(_gxy,&gxy);
-  VecGetArray(_gxz,&gxz);
-  VecGetArray(gVxy_t,&gxy_t);
-  VecGetArray(gVxz_t,&gxz_t);
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar gVxy0 = -sxy[Jj]/mu[Jj];
-    PetscScalar gVxz0 = -sxz[Jj]/mu[Jj];
-    gxy[Jj] = gxy_t[Jj] * time + gVxy0;
-    gxz[Jj] = gxz_t[Jj] * time + gVxz0;
-
-    Jj++;
-  }
-  VecRestoreArray(_muVec,&mu);
-  VecRestoreArray(_sxy,&sxy);
-  VecRestoreArray(_sxz,&sxz);
-  VecRestoreArray(_gxy,&gxy);
-  VecRestoreArray(_gxz,&gxz);
-  VecRestoreArray(gVxy_t,&gxy_t);
-  VecRestoreArray(gVxz_t,&gxz_t);
-
-  _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
-  ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
-  _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
-  ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
-
-  VecDestroy(&effVisc_old);
-  VecDestroy(&gVxy_t);
-  VecDestroy(&gVxz_t);
-  VecDestroy(&bcR_v);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-      CHKERRQ(ierr);
-  #endif
-  return ierr;
-}*/
-
 
 // solve for steady-state v, viscous strain rates
 PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)

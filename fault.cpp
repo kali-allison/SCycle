@@ -410,7 +410,7 @@ PetscErrorCode Fault::updateSS(map<string,Vec>& varSS)
 
   // extract slipVel from v
   Vec vel = varSS.find("v")->second;
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Istart,Iend;
   PetscScalar    val = 0;
   ierr = VecGetOwnershipRange(vel,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
