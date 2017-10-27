@@ -340,7 +340,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_cs,&Istart,&Iend);
   VecGetArray(_cs,&cs);
-  
+
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     cs[Jj] = pow(cs[Jj], 0.5);
@@ -947,7 +947,7 @@ PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<s
     // Create matrix _ay
     VecDuplicate(*_y, &_ay);
     VecSet(_ay, 0.0);
-    
+
     PetscScalar *yy, *zz, *ay;
     VecGetOwnershipRange(*_y,&Istart,&Iend);
     VecGetArray(_ay,&ay);
@@ -989,6 +989,7 @@ PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<s
     ierr = VecPointwiseMult(_ay, _ay, _cs);
     }
     _u = _varEx["u"];
+    return ierr;
 }
 
 PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT)
@@ -1001,7 +1002,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   Mat A;
   ierr = _sbp->getA(A);
 
-  // Update the laplacian 
+  // Update the laplacian
   Vec Laplacian;
   VecDuplicate(*_y, &Laplacian);
   ierr = MatMult(A, varEx["u"], Laplacian);
@@ -1009,7 +1010,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
 
   // Apply the time step
   Vec uNext, correction, previous, ones;
-  
+
   VecDuplicate(varEx["u"], &ones);
   VecDuplicate(varEx["u"], &correction);
   VecSet(ones, 1.0);
