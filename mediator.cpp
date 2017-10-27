@@ -541,13 +541,8 @@ PetscErrorCode Mediator::integrate()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-<<<<<<< HEAD
   
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-=======
-
-    ierr = _quadEx->setInitialConds(this);CHKERRQ(ierr);
->>>>>>> b189f81b0d2affe7372158c2076527b8ff6ad8b1
 
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds);
@@ -591,34 +586,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT)
 {
   PetscErrorCode ierr = 0;
-<<<<<<< HEAD
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
-=======
-  ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx); CHKERRQ(ierr);
-
-  VecDuplicate(_D->_y, &_ay);
-  VecSet(_ay, 0.0);
-
-  PetscScalar yy[1], zz[1];
-  PetscScalar ay;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_D->_y,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscInt II[0];
-    II[0] = Ii;
-    VecGetValues(_D->_y, 1, II, yy);
-    VecGetValues(_D->_z, 1, II, zz);
-    PetscScalar alphay, alphaz;
-    (_momBal->_sbp)->getAlphay(alphay);
-    (_momBal->_sbp)->getAlphay(alphaz);
-    if (zz[0] == 0 || zz[0] == _D->_Lz){ay = 0.5 * alphaz;}
-    if (yy[0] == 0 || yy[0] == _D->_Ly){ay = 0.5 * alphay;}
-
-    VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
-    }
-  VecAssemblyBegin(_ay);
-  VecAssemblyEnd(_ay);
->>>>>>> b189f81b0d2affe7372158c2076527b8ff6ad8b1
 
   return ierr;
 }
