@@ -1,10 +1,11 @@
-#ifndef IntegratorContextEx_HPP_INCLUDED
-#define IntegratorContextEx_HPP_INCLUDED
+#ifndef IntegratorContextWave_HPP_INCLUDED
+#define IntegratorContextWave_HPP_INCLUDED
 
 #include <petscksp.h>
 #include <vector>
 #include <map>
 #include "genFuncs.hpp"
+#include "domain.hpp"
 
 /*
  * This abstract class defines an interface for OdeSolver. Classes
@@ -13,7 +14,7 @@
 
 class OdeSolver;
 
-class IntegratorContextEx
+class IntegratorContextWave
 {
   public:
 
@@ -22,7 +23,20 @@ class IntegratorContextEx
     //~ typedef std::map<string,Vec>::iterator it_vec;
     //~ typedef std::map<string,Vec>::const_iterator const_it_vec;
 
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
+    // Domain *_D;
+    
+    // PetscScalar    _vL;
+    //     // time stepping data
+    // std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    // std::string            _initialU; // gaussian
+    // std::string            _timeIntegrator,_timeControlType;
+
+    virtual Domain* getD() = 0;
+    virtual PetscScalar getvL() = 0;
+    virtual std::map <string,Vec> getvarEx() = 0;
+    virtual std::string getinitialU() = 0;
+    virtual std::string getTimeIntegrator() = 0;
+
     virtual PetscErrorCode d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar, Vec& _ay) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,

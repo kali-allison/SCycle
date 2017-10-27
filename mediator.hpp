@@ -27,9 +27,9 @@
 
 /* Base class for a linear elastic material
  */
-class Mediator: public IntegratorContextEx, public IntegratorContextImex
+class Mediator: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
 {
-  private:
+private:
     // disable default copy constructor and assignment operator
     Mediator(const Mediator &that);
     Mediator& operator=(const Mediator &rhs);
@@ -44,12 +44,14 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     bool                 _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
+    const bool           _loadICs; // true if starting from a previous simulation
     const PetscScalar    _vL;
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    std::string            _initialU; // gaussian
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
@@ -59,6 +61,10 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
+
+    // steady state data
+    std::map <string,Vec>  _varSS; // holds variables for steady state iteration
+
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
@@ -74,15 +80,23 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     Fault              *_fault;
-    LinearElastic  *_momBal; // solves momentum balance equation
-    HeatEquation *_he;
+    LinearElastic      *_momBal; // solves momentum balance equation
+    HeatEquation       *_he;
 
 
     Mediator(Domain&D);
     ~Mediator();
 
+    Domain* getD();
+    PetscScalar getvL();
+    std::map <string,Vec> getvarEx();
+    std::string getinitialU();
+    std::string getTimeIntegrator();
+
     // to solve a steady-state problem
-    PetscErrorCode solveSS(Domain& D);
+    std::map <string,PetscViewer>  _viewers;
+    PetscErrorCode solveSS();
+    PetscErrorCode writeSS(const int Ii);
 
 
     // for adaptive time stepping
@@ -90,6 +104,7 @@ class Mediator: public IntegratorContextEx, public IntegratorContextImex
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, Vec& _ay);
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,

@@ -7,3 +7,7 @@ matlabAnswers/**
 .goutputstream*
 
 .fuse_hidden*
+
+.vscode
+.gitignore
+test_Maxime/*

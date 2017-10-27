@@ -374,7 +374,77 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
   VecRestoreArray(_sNEff,&sN);
   VecRestoreArray(_a,&a);
 
+  VecSet(_slipVel,vL);
+
   #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// put tau and slip vel in varSS
+PetscErrorCode Fault::initiateVarSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Fault::initiateVarSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  varSS["slipVel"] = _slipVel;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+  // extract slipVel from v, update tauSS from this
+PetscErrorCode Fault::updateSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Fault::updateSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // extract slipVel from v
+  Vec vel = varSS.find("v")->second;
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar    val = 0;
+  ierr = VecGetOwnershipRange(vel,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    if (Ii<_N) {
+      ierr = VecGetValues(vel,1,&Ii,&val);CHKERRQ(ierr);
+      val = 2.* val;
+      ierr = VecSetValues(_slipVel,1,&Ii,&val,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
+
+  // update shear stress on fault
+  PetscScalar   *tau,*sN,*a,*V=0;
+  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetArray(varSS["tau"],&tau);
+  //~ VecGetArray(varSS["tauExtra"],&tau);
+  VecGetArray(_sNEff,&sN);
+  VecGetArray(_a,&a);
+  VecGetArray(_slipVel,&V);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar psiSS = _f0;
+    tau[Jj] = a[Jj] * sN[Jj] * asinh( (double) (0.5*V[Jj]/_v0)  *exp(psiSS/a[Jj]));
+    Jj++;
+  }
+  VecRestoreArray(varSS["tau"],&tau);
+  //~ VecRestoreArray(varSS["tauExtra"],&tau);
+  VecRestoreArray(_sNEff,&sN);
+  VecRestoreArray(_a,&a);
+  VecRestoreArray(_slipVel,&V);
+
+
+  #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
@@ -384,8 +454,8 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
 PetscErrorCode Fault::computeVss(const Vec tau)
 {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 2
-    std::string funcName = "Fault::getTauSS";
+  #if VERBOSE > 1
+    std::string funcName = "Fault::computeVss";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -407,7 +477,7 @@ PetscErrorCode Fault::computeVss(const Vec tau)
   VecRestoreArray(_a,&a);
   VecRestoreArray(_slipVel,&V);
 
-  #if VERBOSE > 3
+  #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
@@ -417,7 +487,7 @@ PetscErrorCode Fault::computeVss(const Vec tau)
 PetscScalar Fault::getTauSS(PetscInt& ind)
 {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 2
+  #if VERBOSE > 3
     std::string funcName = "Fault::getTauSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
