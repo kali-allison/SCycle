@@ -600,15 +600,19 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // update fields based on varEx, varIm
   _momBal->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->updateFields(time,varEx); }
+  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+    _p->updateFields(time,varEx);
+  }
 
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->d_dt(time,varEx,dvarEx); }
+  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+    _p->d_dt(time,varEx,dvarEx);
+  }
 
   // update fields on fault from other classes
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("no")!=0) { _fault->setSNEff(_p->_p); }
+  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -636,7 +640,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // update integrated variables based on varEx, varImo
+  // update state of each class from integrated variables varEx and varImo
   _momBal->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
   if (varImo.find("pressure") != varImo.end() ) {
@@ -657,13 +661,12 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
-  if ( varImo.find("pressure") != varImo.end() ) {
+  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
   // update shear stress on fault from momentum balance computation
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
-
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state

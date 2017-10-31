@@ -22,9 +22,6 @@ class SbpOps
 {
 
   public:
-    // temporarily available for energy balance calculations
-    //~ Mat _mu,_H,_Hy_Iz,_Iy_Hz,_e0y_Iz,_eNy_Iz,_E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
-    //~ Mat _Ry,_Rz,_By_Iz,_Iy_Bz;
 
     SbpOps(){};
     virtual ~SbpOps(){};

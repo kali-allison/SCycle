@@ -11,7 +11,7 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
 #bCoordTrans = 5.0
@@ -115,8 +115,8 @@ TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
 heatEquationType = steadyState
-thermalCoupling = coupled
-withShearHeating = yes
+thermalCoupling = no
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -127,7 +127,7 @@ maxEffVisc = 1e16
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1

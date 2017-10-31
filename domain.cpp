@@ -29,7 +29,8 @@ Domain::Domain(const char *file)
   //~ if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
   //~ else (_dz = 1);
 
-  _dq = 1.0/(_Ny-1.0);
+  if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
+  else (_dq = 1);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
   else (_dr = 1);
 
@@ -85,11 +86,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _Ny = Ny;
   _Nz = Nz;
 
-  //~ _dy = _Ly/(_Ny-1.0);
-  //~ if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
-  //~ else (_dz = 1);
-
-  _dq = 1.0/(_Ny-1.0);
+  if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
+  else (_dq = 1);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
   else (_dr = 1);
 
@@ -391,7 +389,6 @@ PetscErrorCode Domain::checkInput()
   #endif
 
   assert( _order==2 || _order==4 );
-  //~assert( _Ny > 3 && _Nz > 0 );
   assert( _Ly > 0 && _Lz > 0);
   assert( _dq > 0 && !isnan(_dq) );
   assert( _dr > 0 && !isnan(_dr) );
@@ -412,7 +409,7 @@ PetscErrorCode Domain::checkInput()
   assert(_stride2D >= 1);
   assert(_atol >= 1e-14);
   assert(_minDeltaT >= 1e-14);
-  assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT > _minDeltaT);
+  assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
