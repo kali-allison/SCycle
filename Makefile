@@ -9,7 +9,7 @@ CLINKER		      = openmpicc
 OBJECTS := domain.o debuggingFuncs.o mediator.o fault.o genFuncs.o linearElastic.o\
  odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
  spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
- odeSolverImex.o fault_hydraulic.o
+ odeSolverImex.o pressureEq.o
 
 
 
@@ -63,7 +63,7 @@ fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp heatEquation.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
  rootFinder.hpp
-fault_hydraulic.o: fault_hydraulic.cpp fault_hydraulic.hpp genFuncs.hpp \
+pressureEq.o: pressureEq.cpp pressureEq.hpp genFuncs.hpp \
  domain.hpp fault.hpp heatEquation.hpp sbpOps.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
@@ -79,23 +79,23 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
- rootFinderContext.hpp rootFinder.hpp fault_hydraulic.hpp
+ rootFinderContext.hpp rootFinder.hpp pressureEq.hpp
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  heatEquation.hpp sbpOps_c.hpp debuggingFuncs.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
- rootFinder.hpp linearElastic.hpp fault_hydraulic.hpp powerLaw.hpp
+ rootFinder.hpp linearElastic.hpp pressureEq.hpp powerLaw.hpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- fault_hydraulic.hpp
+ pressureEq.hpp
 mediator.o: mediator.cpp mediator.hpp integratorContextEx.hpp \
  genFuncs.hpp odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp \
  domain.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp \
  sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
- rootFinderContext.hpp rootFinder.hpp fault_hydraulic.hpp \
+ rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
  linearElastic.hpp powerLaw.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContextEx.hpp \
  genFuncs.hpp
@@ -107,7 +107,7 @@ powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContextEx.hpp \
  integratorContextImex.hpp odeSolverImex.hpp sbpOps.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
- fault_hydraulic.hpp
+ pressureEq.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
 sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp
 sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \

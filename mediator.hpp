@@ -18,7 +18,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "fault_hydraulic.hpp"
+#include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
@@ -82,6 +82,7 @@ private:
     Fault              *_fault;
     LinearElastic      *_momBal; // solves momentum balance equation
     HeatEquation       *_he;
+    PressureEq         *_p;
 
 
     Mediator(Domain&D);

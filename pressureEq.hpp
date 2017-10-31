@@ -1,5 +1,5 @@
-#ifndef FAULT_P_HPP_INCLUDED
-#define FAULT_P_HPP_INCLUDED
+#ifndef PRESSURE_HPP_INCLUDED
+#define PRESSURE_HPP_INCLUDED
 
 #include <petscksp.h>
 #include <cmath>
@@ -11,7 +11,7 @@
 #include "fault.hpp"
 
 
-class SymmFault_Hydr: public SymmFault
+class PressureEq
 {
   private:
 
@@ -47,8 +47,8 @@ class SymmFault_Hydr: public SymmFault
     double       _writeTime,_linSolveTime,_ptTime,_startTime,_miscTime;
 
     // disable default copy constructor and assignment operator
-    SymmFault_Hydr(const SymmFault_Hydr & that);
-    SymmFault_Hydr& operator=( const SymmFault_Hydr& rhs);
+    PressureEq(const PressureEq & that);
+    PressureEq& operator=( const PressureEq& rhs);
 
     PetscErrorCode computeVariableCoefficient(const Vec& p,Vec& coeff);
     PetscErrorCode computeInitialSteadyStatePressure(Domain& D);
@@ -59,8 +59,8 @@ class SymmFault_Hydr: public SymmFault
     Vec _p;
     const Vec  *_z_test;
 
-    SymmFault_Hydr(Domain& D, HeatEquation& He);
-    ~SymmFault_Hydr();
+    PressureEq(Domain& D);
+    ~PressureEq();
 
     PetscErrorCode setFields(Domain& D);
     PetscErrorCode loadSettings(const char *file);

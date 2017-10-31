@@ -1,19 +1,18 @@
-#include "fault_hydraulic.hpp"
+#include "pressureEq.hpp"
 
-#define FILENAME "fault_hydraulic.cpp"
+#define FILENAME "pressureEq.cpp"
 
 using namespace std;
 
-SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
-: SymmFault(D,He),
-  _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),_order(D._order),
+PressureEq::PressureEq(Domain&D)
+: _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),_order(D._order),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),_sN(NULL),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType("mfc"),_linSolveCount(0),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
   _p(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::SymmFault_Hydr";
+    std::string funcName = "PressureEq::PressureEq";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -21,7 +20,7 @@ SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
   loadSettings(_file);
   checkInput();
   setFields(D);
-  computeInitialSteadyStatePressure(D);
+  computeInitialSteadyStatePressureEq(D);
 
   if (_isMMS) { // set initial condition
     // setMMSInitialConditions();
@@ -38,10 +37,10 @@ SymmFault_Hydr::SymmFault_Hydr(Domain&D, HeatEquation& He)
   #endif
 }
 
-SymmFault_Hydr::~SymmFault_Hydr()
+PressureEq::~PressureEq()
 {
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::~SymmFault_Hydr";
+    std::string funcName = "PressureEq::~PressureEq";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -62,11 +61,11 @@ SymmFault_Hydr::~SymmFault_Hydr()
 
 
 // Check that required fields have been set by the input file
-PetscErrorCode SymmFault_Hydr::checkInput()
+PetscErrorCode PressureEq::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::checkInput";
+    std::string funcName = "PressureEq::checkInput";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -100,11 +99,11 @@ PetscErrorCode SymmFault_Hydr::checkInput()
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::loadSettings(const char *file)
+PetscErrorCode PressureEq::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::loadSettings";
+    std::string funcName = "PressureEq::loadSettings";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   PetscMPIInt rank,size;
@@ -193,24 +192,23 @@ PetscErrorCode SymmFault_Hydr::loadSettings(const char *file)
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
+PetscErrorCode PressureEq::setFields(Domain&D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::setFields";
+    std::string funcName = "PressureEq::setFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   // allocate memory and partition accross processors
   VecDuplicate(_tauQSP,&_n_p);  PetscObjectSetName((PetscObject) _n_p, "n_p");  VecSet(_n_p,0.0);
-  VecDuplicate(_tauQSP,&_beta_p);  PetscObjectSetName((PetscObject) _beta_p, "beta_p");  VecSet(_beta_p,0.0);
-  VecDuplicate(_tauQSP,&_k_p);  PetscObjectSetName((PetscObject) _k_p, "k_p");  VecSet(_k_p,0.0);
-  VecDuplicate(_tauQSP,&_eta_p);  PetscObjectSetName((PetscObject) _eta_p, "eta_p");  VecSet(_eta_p,0.0);
-  VecDuplicate(_tauQSP,&_rho_f);  PetscObjectSetName((PetscObject) _rho_f, "rho_f");  VecSet(_rho_f,0.0);
-  VecDuplicate(_sNEff,&_sN);  PetscObjectSetName((PetscObject) _sN, "sN");  VecCopy(_sNEff,_sN);
+  VecDuplicate(_n_p,&_beta_p);  PetscObjectSetName((PetscObject) _beta_p, "beta_p");  VecSet(_beta_p,0.0);
+  VecDuplicate(_n_p,&_k_p);  PetscObjectSetName((PetscObject) _k_p, "k_p");  VecSet(_k_p,0.0);
+  VecDuplicate(_n_p,&_eta_p);  PetscObjectSetName((PetscObject) _eta_p, "eta_p");  VecSet(_eta_p,0.0);
+  VecDuplicate(_n_p,&_rho_f);  PetscObjectSetName((PetscObject) _rho_f, "rho_f");  VecSet(_rho_f,0.0);
 
-  VecDuplicate(_tauQSP,&_p);  PetscObjectSetName((PetscObject) _p, "p");  VecSet(_p,0.0);
-  VecDuplicate(_tauQSP,&_p_t);  PetscObjectSetName((PetscObject) _p_t, "p_t");  VecSet(_p_t,0.0);
+  VecDuplicate(_n_p,&_p);  PetscObjectSetName((PetscObject) _p, "p");  VecSet(_p,0.0);
+  VecDuplicate(_n_p,&_p_t);  PetscObjectSetName((PetscObject) _p_t, "p_t");  VecSet(_p_t,0.0);
 
   // initialize values
   if (_N == 1) {
@@ -278,11 +276,11 @@ PetscErrorCode SymmFault_Hydr::setFields(Domain&D)
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::computeVariableCoefficient(const Vec& p,Vec& coeff)
+PetscErrorCode PressureEq::computeVariableCoefficient(const Vec& p,Vec& coeff)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SymmFault_Hydr::computeVariableCoefficient";
+    string funcName = "PressureEq::computeVariableCoefficient";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -318,11 +316,11 @@ PetscErrorCode SymmFault_Hydr::computeVariableCoefficient(const Vec& p,Vec& coef
 }
 
 // initial conditions
-PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
+PetscErrorCode PressureEq::computeInitialSteadyStatePressureEq(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SymmFault_Hydr::computeInitialSteadyStatePressure";
+    string funcName = "PressureEq::computeInitialSteadyStatePressureEq";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -427,16 +425,13 @@ PetscErrorCode SymmFault_Hydr::computeInitialSteadyStatePressure(Domain& D)
 }
 
 
-PetscErrorCode SymmFault_Hydr::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode PressureEq::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::initiateIntegrand";
+    std::string funcName = "PressureEq::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  // allow SymmFault to add slip and state to integrated variables
-  SymmFault::initiateIntegrand(time,varEx,varIm);
 
   // make shallow copy of pressure
   Vec p;
@@ -458,11 +453,11 @@ PetscErrorCode SymmFault_Hydr::initiateIntegrand(const PetscScalar time,map<stri
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode PressureEq::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::updateFields()";
+    std::string funcName = "PressureEq::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -476,10 +471,10 @@ PetscErrorCode SymmFault_Hydr::updateFields(const PetscScalar time,const map<str
     //~ VecCopy(varIm.find("pressure")->second,_p); // not necessary
   }
 
-  // !!! not sure this is the correct location for this
-  if (_hydraulicCoupling.compare("coupled")==0) {
-    setSNEff();
-  }
+  //~ // !!! not sure this is the correct location for this
+  //~ if (_hydraulicCoupling.compare("coupled")==0) {
+    //~ setSNEff();
+  //~ }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -492,11 +487,11 @@ PetscErrorCode SymmFault_Hydr::updateFields(const PetscScalar time,const map<str
 
 // compute effective normal stress from total and pore pressure:
 // sNEff = sN - rho*g*z - dp
-PetscErrorCode SymmFault_Hydr::setSNEff()
+PetscErrorCode PressureEq::setSNEff()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::setSNEff";
+    std::string funcName = "PressureEq::setSNEff";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
@@ -530,11 +525,11 @@ PetscErrorCode SymmFault_Hydr::setSNEff()
 
 
 // explicit time integration
-PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode PressureEq::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::d_dt_eqCycle";
+    std::string funcName = "PressureEq::d_dt_eqCycle";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -615,16 +610,13 @@ PetscErrorCode SymmFault_Hydr::d_dt_eqCycle(const PetscScalar time,const map<str
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::d_dt_mms";
+    std::string funcName = "PressureEq::d_dt_mms";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  // call base class's rate function to update slip and state variable rate
-  SymmFault::d_dt_mms(time,varEx,dvarEx);
 
   double startTime = MPI_Wtime(); // time this section
 
@@ -712,12 +704,12 @@ PetscErrorCode SymmFault_Hydr::d_dt_mms(const PetscScalar time,const map<string,
 }
 
 // implicit time integration
-PetscErrorCode SymmFault_Hydr::be(const PetscScalar time,const Vec slipVel,const Vec& tau,
+PetscErrorCode PressureEq::be(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::be";
+    std::string funcName = "PressureEq::be";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -729,12 +721,12 @@ PetscErrorCode SymmFault_Hydr::be(const PetscScalar time,const Vec slipVel,const
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::be_eqCycle(const PetscScalar time,const Vec slipVel,const Vec& tau,
+PetscErrorCode PressureEq::be_eqCycle(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::be_eqCycle";
+    std::string funcName = "PressureEq::be_eqCycle";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -746,12 +738,12 @@ PetscErrorCode SymmFault_Hydr::be_eqCycle(const PetscScalar time,const Vec slipV
   return ierr;
 }
 
-PetscErrorCode SymmFault_Hydr::be_MMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
+PetscErrorCode PressureEq::be_MMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::be_MMS";
+    std::string funcName = "PressureEq::be_MMS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -767,11 +759,9 @@ PetscErrorCode SymmFault_Hydr::be_MMS(const PetscScalar time,const Vec slipVel,c
 // =====================================================================
 // IO commands
 
-PetscErrorCode SymmFault_Hydr::view(const double totRunTime)
+PetscErrorCode PressureEq::view(const double totRunTime)
 {
   PetscErrorCode ierr = 0;
-
-  SymmFault::view(totRunTime);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   pressure rate time (explicit) (s): %g\n",_ptTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent computing pressure rate: %g\n",_ptTime/totRunTime*100.);CHKERRQ(ierr);
@@ -782,15 +772,13 @@ PetscErrorCode SymmFault_Hydr::view(const double totRunTime)
 
 
 // extends SymmFault's writeContext
-PetscErrorCode SymmFault_Hydr::writeContext()
+PetscErrorCode PressureEq::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::writeContext";
+    std::string funcName = "PressureEq::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  SymmFault::writeContext();
 
   ierr = _sbp->writeOps(_outputDir + "ops_p_"); CHKERRQ(ierr);
 
@@ -815,9 +803,6 @@ PetscErrorCode SymmFault_Hydr::writeContext()
   ierr = writeVec(_eta_p,_outputDir + "fault_hydr_eta"); CHKERRQ(ierr);
   ierr = writeVec(_rho_f,_outputDir + "fault_hydr_rho_f"); CHKERRQ(ierr);
 
-
-
-
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -826,15 +811,13 @@ PetscErrorCode SymmFault_Hydr::writeContext()
 
 
 // extends SymmFault's writeContext
-PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "SymmFault_Hydr::writeStep";
+    std::string funcName = "PressureEq::writeStep";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
-
-  SymmFault::writeStep(stepCount,time);
 
 
     Vec pA;
@@ -882,7 +865,7 @@ PetscErrorCode SymmFault_Hydr::writeStep(const PetscInt stepCount, const PetscSc
 }
 
 
-PetscErrorCode  SymmFault_Hydr::measureMMSError(const double totRunTime)
+PetscErrorCode  PressureEq::measureMMSError(const double totRunTime)
 {
   Vec pA;
   VecDuplicate(_p, &pA);
@@ -899,17 +882,7 @@ PetscErrorCode  SymmFault_Hydr::measureMMSError(const double totRunTime)
 };
 
 
-  //~ PetscScalar delta_p = 1e6;
-  //~ PetscScalar omega = 1.5*PI / T0;
-
-  //~ PetscScalar kz = 2. * PI / 30.;
-
-  //~ PetscScalar beta0 = 1e-2;
-  //~ PetscScalar eta0 = 1e-9;
-  //~ PetscScalar n0 = 0.1;
-  //~ PetscScalar k0 = 1e-19;
-
-double SymmFault_Hydr::zzmms_pt1D(const double z,const double t)
+double PressureEq::zzmms_pt1D(const double z,const double t)
 {
   PetscScalar PI = 3.14159265359;
   PetscScalar T0 = 9e9;
@@ -927,7 +900,7 @@ double SymmFault_Hydr::zzmms_pt1D(const double z,const double t)
 }
 
 
-double SymmFault_Hydr::zzmms_pA1D(const double z,const double t)
+double PressureEq::zzmms_pA1D(const double z,const double t)
 {
   PetscScalar PI = 3.14159265359;
   PetscScalar T0 = 9e9;
@@ -945,7 +918,7 @@ double SymmFault_Hydr::zzmms_pA1D(const double z,const double t)
   return p_src;
 }
 
-double SymmFault_Hydr::zzmms_pSource1D(const double z, const double t)
+double PressureEq::zzmms_pSource1D(const double z, const double t)
 {
   PetscScalar PI = 3.14159265359;
   PetscScalar T0 = 9e9;

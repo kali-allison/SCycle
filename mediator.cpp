@@ -21,7 +21,7 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  _fault(NULL),_momBal(NULL),_he(NULL)
+  _fault(NULL),_momBal(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "Mediator::Mediator()";
@@ -35,10 +35,11 @@ Mediator::Mediator(Domain&D)
 
   _he = new HeatEquation(D);
 
-  if (_hydraulicCoupling.compare("coupled")==0 || _hydraulicCoupling.compare("uncoupled")==0) {
-    _fault = new SymmFault_Hydr(D,*_he);
-  }
-  else { _fault = new SymmFault(D,*_he); }
+  //~ if (_hydraulicCoupling.compare("coupled")==0 || _hydraulicCoupling.compare("uncoupled")==0) {
+    //~ _fault = new SymmFault_Hydr(D,*_he);
+  //~ }
+  //~ else {  }
+  _fault = new SymmFault(D,*_he);
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,_fault->_tauQSP); }
@@ -541,7 +542,7 @@ PetscErrorCode Mediator::integrate()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-  
+
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
 
     // control which fields are used to select step size
