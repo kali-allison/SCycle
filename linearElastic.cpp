@@ -856,7 +856,7 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
   return ierr;
 }
 
-PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -876,7 +876,7 @@ PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<strin
   return ierr;
 }
 
-PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

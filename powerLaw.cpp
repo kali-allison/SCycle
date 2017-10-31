@@ -792,7 +792,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   return ierr;
 }
 
-PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -800,7 +800,7 @@ PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  LinearElastic::initiateIntegrand(time,varEx,varIm);
+  LinearElastic::initiateIntegrand(time,varEx);
 
   // add viscous strain to integrated variables, stored in _var
     Vec vargxyP; VecDuplicate(_u,&vargxyP); VecCopy(_gxy,vargxyP);
@@ -814,7 +814,7 @@ PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec
   return ierr;
 }
 
-PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -822,7 +822,7 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  LinearElastic::updateFields(time,varEx,varIm);
+  LinearElastic::updateFields(time,varEx);
 
   // if integrating viscous strains in time
   VecCopy(varEx.find("gVxy")->second,_gxy);

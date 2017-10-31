@@ -71,7 +71,10 @@ Mediator::~Mediator()
   for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
     VecDestroy(&it->second);
   }
-  for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+  for (it = _varImMult.begin(); it!=_varImMult.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varIm1.begin(); it!=_varIm1.end(); it++ ) {
     VecDestroy(&it->second);
   }
 
@@ -184,16 +187,18 @@ PetscErrorCode Mediator::initiateIntegrand()
     _momBal->initiateIntegrandWave(_initialU, _varEx);
   }
   else{
-    _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
-    _fault->initiateIntegrand(_initTime,_varEx,_varIm);
+    _momBal->initiateIntegrand(_initTime,_varEx);
+    _fault->initiateIntegrand(_initTime,_varEx);
   }
 
   if (_thermalCoupling.compare("no")!=0 ) {
-     _he->initiateIntegrand(_initTime,_varEx,_varIm);
+     _he->initiateIntegrand(_initTime,_varEx,_varIm1);
+     //~ _he->initiateIntegrand(_initTime,_varEx,_varImMult);
   }
 
   if (_hydraulicCoupling.compare("no")!=0 ) {
-     _p->initiateIntegrand(_initTime,_varEx,_varIm);
+     _p->initiateIntegrand(_initTime,_varEx,_varIm1);
+     //~ _p->initiateIntegrand(_initTime,_varEx,_varImMult);
   }
 
   #if VERBOSE > 1
@@ -248,7 +253,7 @@ _writeTime += MPI_Wtime() - startTime;
 
 // monitoring function for IMEX integration
 PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm)
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImMult,const map<string,Vec>& varIm1)
 {
   PetscErrorCode ierr = 0;
   _stepCount = stepCount;
@@ -547,7 +552,7 @@ PetscErrorCode Mediator::integrate()
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varImMult,_varIm1);CHKERRQ(ierr);
 
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds);
@@ -593,13 +598,13 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   PetscErrorCode ierr = 0;
 
   // update fields based on varEx, varIm
-  _momBal->updateFields(time,varEx,_varIm);
-  _fault->updateFields(time,varEx,_varIm);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->updateFields(time,varEx,_varIm); }
+  _momBal->updateFields(time,varEx);
+  _fault->updateFields(time,varEx);
+  if (_hydraulicCoupling.compare("no")!=0) { _p->updateFields(time,varEx); }
 
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->d_dt(time,varEx,_varIm); }
+  if (_hydraulicCoupling.compare("no")!=0) { _p->d_dt(time,varEx,dvarEx); }
 
   // update fields on fault from other classes
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
@@ -631,27 +636,32 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // update integrated variables based on varEx, varIm
-  _momBal->updateFields(time,varEx,varImo);
-  _fault->updateFields(time,varEx,varImo);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->updateFields(time,varEx,varImo); }
+  // update integrated variables based on varEx, varImo
+  _momBal->updateFields(time,varEx);
+  _fault->updateFields(time,varEx);
+  if (varImo.find("pressure") != varImo.end() ) {
+    _p->updateFields(time,varEx,varImo);
+  }
 
   // update temperature in momBal
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _momBal->updateTemperature(varImo.find("Temp")->second);
+    _fault->setTemp(varImo.find("Temp")->second);
   }
 
   // update effective normal stress in fault using pore pressure
-  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
+  if (varImo.find("pressure") != varImo.end() && _hydraulicCoupling.compare("coupled")!=0) {
+    _fault->setSNEff(_p->_p);
+  }
 
 
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("no")!=0) {
+  if ( varImo.find("pressure") != varImo.end() ) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
-  // update fields on fault from other classes
+  // update shear stress on fault from momentum balance computation
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
 
 

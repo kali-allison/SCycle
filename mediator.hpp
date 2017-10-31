@@ -52,7 +52,7 @@ private:
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::string            _initialU; // gaussian
-    std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
+    std::map <string,Vec>  _varImMult,_varIm1; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
@@ -119,7 +119,7 @@ private:
     PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImMult,const map<string,Vec>& varIm1);
 
     // debugging and MMS tests
     PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,

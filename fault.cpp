@@ -786,7 +786,7 @@ SymmFault::~SymmFault()
   #endif
 }
 
-PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -808,7 +808,7 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   return ierr;
 }
 
-PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -818,10 +818,6 @@ PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,V
 
   VecCopy(varEx.find("psi")->second,_psi);
   VecCopy(varEx.find("slip")->second,_slip);
-
-  if (varIm.find("deltaT") != varIm.end()) {
-    setTemp(varIm.find("deltaT")->second);
-  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

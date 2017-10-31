@@ -434,6 +434,22 @@ PetscErrorCode PressureEq::initiateIntegrand(const PetscScalar time,map<string,V
   return ierr;
 }
 
+PetscErrorCode PressureEq::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::updateFields()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecCopy(varEx.find("pressure")->second,_p);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode PressureEq::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;

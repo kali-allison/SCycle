@@ -77,6 +77,7 @@ class PressureEq
     PetscErrorCode checkInput();
 
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
 
     // explicit time integration

@@ -104,19 +104,20 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out,PetscScalar *J) = 0;
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
-    PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
-    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm) = 0;
+    PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx) = 0;
+    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
     PetscErrorCode virtual setSNEff(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
     PetscErrorCode virtual setSN(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
+    PetscErrorCode virtual setTemp(const Vec& T) = 0;
 
 
     // for steady state computations
     PetscErrorCode getTauRS(Vec& tauRS, const PetscScalar vL);
     PetscErrorCode computeVss(const Vec tau); // compute slip vel from tau
-    PetscScalar getTauSS(PetscInt& ind); // return steady-state shear stress
+    PetscScalar    getTauSS(PetscInt& ind); // return steady-state shear stress
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // tau and slip vel in varSS
     PetscErrorCode updateSS(map<string,Vec>& varSS);
 
@@ -161,8 +162,8 @@ class SymmFault: public Fault
     ~SymmFault();
 
     // for interaction with mediator
-    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
-    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
