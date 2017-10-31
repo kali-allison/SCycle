@@ -478,9 +478,9 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     }
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
-      VecCopy(_varHalfdTIm[it->first],_varIm_half[it->first]);
     }
-    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    //~ ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm,_varHalfdTIm,0.5*_deltaT);CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);

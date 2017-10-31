@@ -898,6 +898,22 @@ PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<stri
   return ierr;
 }
 
+PetscErrorCode LinearElastic::updateTemperature(const Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateTemperature()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // do nothing
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode LinearElastic::getSigmaDev(Vec& sdev)
 {
   return 0;

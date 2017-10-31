@@ -109,6 +109,7 @@ class LinearElastic
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
     PetscErrorCode virtual initiateIntegrandWave(std::string _initialU, map<string,Vec>& varEx);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode virtual updateTemperature(const Vec& T);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
     PetscErrorCode virtual getSigmaDev(Vec& sdev);
 

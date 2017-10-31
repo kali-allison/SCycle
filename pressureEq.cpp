@@ -5,8 +5,10 @@
 using namespace std;
 
 PressureEq::PressureEq(Domain&D)
-: _hydraulicCoupling("uncoupled"),_hydraulicTimeIntType("explicit"),_order(D._order),
-  _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),_sN(NULL),
+: _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),
+  _hydraulicTimeIntType("explicit"),
+  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
+  _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType("mfc"),_linSolveCount(0),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
   _p(NULL)
@@ -20,7 +22,7 @@ PressureEq::PressureEq(Domain&D)
   loadSettings(_file);
   checkInput();
   setFields(D);
-  computeInitialSteadyStatePressureEq(D);
+  computeInitialSteadyStatePressure(D);
 
   if (_isMMS) { // set initial condition
     // setMMSInitialConditions();
@@ -52,6 +54,10 @@ PressureEq::~PressureEq()
   VecDestroy(&_rho_f);
 
   VecDestroy(&_p);
+
+  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first]);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -120,10 +126,7 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     var = line.substr(0,pos);
 
     // load Vec inputs
-    if (var.compare("hydraulicCoupling")==0) {
-      _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("hydraulicTimeIntType")==0) {
+    if (var.compare("hydraulicTimeIntType")==0) {
       _hydraulicTimeIntType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
@@ -201,7 +204,12 @@ PetscErrorCode PressureEq::setFields(Domain&D)
   #endif
 
   // allocate memory and partition accross processors
-  VecDuplicate(_tauQSP,&_n_p);  PetscObjectSetName((PetscObject) _n_p, "n_p");  VecSet(_n_p,0.0);
+  VecCreate(PETSC_COMM_WORLD,&_n_p);
+  VecSetSizes(_n_p,PETSC_DECIDE,_N);
+  VecSetFromOptions(_n_p);
+  PetscObjectSetName((PetscObject) _n_p, "n_p");
+  VecSet(_n_p,0.0);
+
   VecDuplicate(_n_p,&_beta_p);  PetscObjectSetName((PetscObject) _beta_p, "beta_p");  VecSet(_beta_p,0.0);
   VecDuplicate(_n_p,&_k_p);  PetscObjectSetName((PetscObject) _k_p, "k_p");  VecSet(_k_p,0.0);
   VecDuplicate(_n_p,&_eta_p);  PetscObjectSetName((PetscObject) _eta_p, "eta_p");  VecSet(_eta_p,0.0);
@@ -226,31 +234,12 @@ PetscErrorCode PressureEq::setFields(Domain&D)
     ierr = setVecFromVectors(_rho_f,_rho_fVals,_rho_fDepths);CHKERRQ(ierr);
   }
 
-  // initialize sN based on sNEff
-  PetscScalar *sNEff,*sN,*p,*rho_f,*z=0;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
-  VecGetArray(_sNEff,&sNEff);
-  VecGetArray(_sN,&sN);
-  VecGetArray(_p,&p);
-  VecGetArray(_rho_f,&rho_f);
-  VecGetArray(_z,&z);
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    sN[Jj] = sNEff[Jj] + p[Jj];
-
-    assert(~isnan(sNEff[Jj]));
-    assert(~isinf(sNEff[Jj]));
-    Jj++;
-  }
-  VecRestoreArray(_sNEff,&sNEff);
-  VecRestoreArray(_sN,&sN);
-  VecRestoreArray(_rho_f,&rho_f);
-  VecRestoreArray(_z,&z);
-
-
 
   // boundary conditions
+  VecDuplicate(_n_p,&_bcL);
+  PetscObjectSetName((PetscObject) _bcL, "bcL");
+  VecSet(_bcL,0.0);
+
   VecCreate(PETSC_COMM_WORLD,&_bcT);
   VecSetSizes(_bcT,PETSC_DECIDE,1);
   VecSetFromOptions(_bcT);
@@ -262,13 +251,6 @@ PetscErrorCode PressureEq::setFields(Domain&D)
   // VecSet(_bcB,_g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back());
   VecSet(_bcB, 0);
 //  VecSet(_bcB,_g*_rho_fVals.back());
-
-  VecCreate(PETSC_COMM_WORLD,&_bcL);
-  VecSetSizes(_bcL,PETSC_DECIDE,_N);
-  VecSetFromOptions(_bcL);
-  PetscObjectSetName((PetscObject) _bcL, "bcL");
-  VecSet(_bcL,0.0);
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -316,11 +298,11 @@ PetscErrorCode PressureEq::computeVariableCoefficient(const Vec& p,Vec& coeff)
 }
 
 // initial conditions
-PetscErrorCode PressureEq::computeInitialSteadyStatePressureEq(Domain& D)
+PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "PressureEq::computeInitialSteadyStatePressureEq";
+    string funcName = "PressureEq::computeInitialSteadyStatePressure";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -441,7 +423,6 @@ PetscErrorCode PressureEq::initiateIntegrand(const PetscScalar time,map<string,V
   // put variable to be integrated explicitly into varEx
   if (_hydraulicTimeIntType.compare("explicit")==0) {
     varEx["pressure"] = p;
-    // assert(0);
   }
   else { // put variables to be integrated implicity into varIm
     varIm["pressure"] = p;
@@ -461,20 +442,12 @@ PetscErrorCode PressureEq::updateFields(const PetscScalar time,const map<string,
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // allow SymmFault to update slip and state
-  SymmFault::updateFields(time,varEx,varIm);
-
   if (_hydraulicTimeIntType.compare("explicit")==0) {
     VecCopy(varEx.find("pressure")->second,_p);
   }
   else { // put variables to be integrated implicity into varIm
-    //~ VecCopy(varIm.find("pressure")->second,_p); // not necessary
+    VecCopy(varIm.find("pressure")->second,_p);
   }
-
-  //~ // !!! not sure this is the correct location for this
-  //~ if (_hydraulicCoupling.compare("coupled")==0) {
-    //~ setSNEff();
-  //~ }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -485,57 +458,68 @@ PetscErrorCode PressureEq::updateFields(const PetscScalar time,const map<string,
 
 // time stepping functions
 
-// compute effective normal stress from total and pore pressure:
-// sNEff = sN - rho*g*z - dp
-PetscErrorCode PressureEq::setSNEff()
+
+
+
+// purely explicit time integration
+PetscErrorCode PressureEq::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PressureEq::setSNEff";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+    std::string funcName = "PressureEq::d_dt";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscScalar *sNEff,*sN,*p,*rho_f,*z=0;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
-  VecGetArray(_sNEff,&sNEff);
-  VecGetArray(_sN,&sN);
-  VecGetArray(_p,&p);
-  VecGetArray(_rho_f,&rho_f);
-  VecGetArray(_z,&z);
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    sNEff[Jj] = sN[Jj] - p[Jj];
-
-    assert(~isnan(sNEff[Jj]));
-    assert(~isinf(sNEff[Jj]));
-    Jj++;
+  if (_isMMS) {
+    ierr = d_dt_mms(time,varEx,dvarEx);CHKERRQ(ierr);
   }
-  VecRestoreArray(_p,&p);
-  VecRestoreArray(_sNEff,&sNEff);
-  VecRestoreArray(_sN,&sN);
-  VecRestoreArray(_rho_f,&rho_f);
-  VecRestoreArray(_z,&z);
+  else {
+    ierr = d_dt_main(time,varEx,dvarEx);CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
 
 
-// explicit time integration
-PetscErrorCode PressureEq::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+// implicit/explicit time integration
+PetscErrorCode PressureEq::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PressureEq::d_dt_eqCycle";
+    std::string funcName = "PressureEq::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // call base class's rate function to update slip and state variable rate
-  SymmFault::d_dt_eqCycle(time,varEx,dvarEx);
+  if (_hydraulicTimeIntType.compare("explicit")==0) {
+    ierr = d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
+  }
+  else {
+    if (_isMMS) {
+      ierr = be_mms(time,varEx,dvarEx,varIm,varImo,dt);CHKERRQ(ierr);
+    }
+    else {
+      ierr = be(time,varEx,dvarEx,varIm,varImo,dt);CHKERRQ(ierr);
+    }
+  }
 
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode PressureEq::d_dt_main(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::d_dt_main";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   double startTime = MPI_Wtime(); // time this section
 
@@ -570,7 +554,7 @@ PetscErrorCode PressureEq::d_dt_eqCycle(const PetscScalar time,const map<string,
   // compute rate for pressure
   PetscScalar *rhog_yA,*rho_f,*n,*beta,*p_tA,*rhsA=0;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetOwnershipRange(dvarEx["pressure"],&Istart,&Iend);
   VecGetArray(rhog_y,&rhog_yA);
   VecGetArray(_rho_f,&rho_f);
   VecGetArray(_n_p,&n);
@@ -594,9 +578,6 @@ PetscErrorCode PressureEq::d_dt_eqCycle(const PetscScalar time,const map<string,
   VecRestoreArray(_beta_p,&beta);
   VecRestoreArray(rhs,&rhsA);
   VecRestoreArray(dvarEx["pressure"],&p_tA);
-
-  //~ _sbp->Hinv(p_t,dvarEx["pressure"]);
-
 
   VecDestroy(&rhog);
   VecDestroy(&rhog_y);
@@ -661,7 +642,7 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>
   // compute rate for pressure
   PetscScalar *rhog_yA,*rho_f,*n,*beta,*p_tA,*rhsA, *sourceA;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_sNEff,&Istart,&Iend);
+  VecGetOwnershipRange(dvarEx["pressure"],&Istart,&Iend);
   VecGetArray(rhog_y,&rhog_yA);
   VecGetArray(_rho_f,&rho_f);
   VecGetArray(_n_p,&n);
@@ -703,9 +684,10 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>
   return ierr;
 }
 
-// implicit time integration
-PetscErrorCode PressureEq::be(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+// backward Euler implicit solve
+// new result goes in varIm
+PetscErrorCode PressureEq::be(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+  map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -721,29 +703,14 @@ PetscErrorCode PressureEq::be(const PetscScalar time,const Vec slipVel,const Vec
   return ierr;
 }
 
-PetscErrorCode PressureEq::be_eqCycle(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+// backward Euler implicit solve for MMS test
+// new result goes in varIm
+PetscErrorCode PressureEq::be_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PressureEq::be_eqCycle";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  assert(0);
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode PressureEq::be_MMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "PressureEq::be_MMS";
+    std::string funcName = "PressureEq::be_mms";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -785,23 +752,22 @@ PetscErrorCode PressureEq::writeContext()
   PetscViewer    viewer;
 
   // write out scalar info
-  std::string str = _outputDir + "fault_hydr_context.txt";
+  std::string str = _outputDir + "p_context.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
 
   ierr = PetscViewerASCIIPrintf(viewer,"g = %.15e\n",_g); CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str()); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicTimeIntType = %s\n",_hydraulicTimeIntType.c_str()); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
   //~ PetscErrorCode writeVec(Vec vec,std::string str)
-  ierr = writeVec(_n_p,_outputDir + "fault_hydr_n"); CHKERRQ(ierr);
-  ierr = writeVec(_beta_p,_outputDir + "fault_hydr_beta"); CHKERRQ(ierr);
-  ierr = writeVec(_k_p,_outputDir + "fault_hydr_k"); CHKERRQ(ierr);
-  ierr = writeVec(_eta_p,_outputDir + "fault_hydr_eta"); CHKERRQ(ierr);
-  ierr = writeVec(_rho_f,_outputDir + "fault_hydr_rho_f"); CHKERRQ(ierr);
+  ierr = writeVec(_n_p,_outputDir + "p_n"); CHKERRQ(ierr);
+  ierr = writeVec(_beta_p,_outputDir + "p_beta"); CHKERRQ(ierr);
+  ierr = writeVec(_k_p,_outputDir + "p_k"); CHKERRQ(ierr);
+  ierr = writeVec(_eta_p,_outputDir + "p_eta"); CHKERRQ(ierr);
+  ierr = writeVec(_rho_f,_outputDir + "p_rho_f"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -827,29 +793,25 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
 
 
   if (stepCount==0) {
-    _viewers["p"] = initiateViewer(_outputDir + "fault_hydr_p");
-    _viewers["sNEff"] = initiateViewer(_outputDir + "fault_hydr_sNEff");
+    _viewers["p"] = initiateViewer(_outputDir + "p_p");
 
     ierr = VecView(_p,_viewers["p"]); CHKERRQ(ierr);
-    ierr = VecView(_sNEff,_viewers["sNEff"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers["p"],_outputDir + "fault_hydr_p");
-    ierr = appendViewer(_viewers["sNEff"],_outputDir + "fault_hydr_sNEff");
+    ierr = appendViewer(_viewers["p"],_outputDir + "p_p");
 
     if (_isMMS) {
-      _viewers["p_t"] = initiateViewer(_outputDir + "fault_hydr_p_t");
+      _viewers["p_t"] = initiateViewer(_outputDir + "p_p_t");
       ierr = VecView(_p_t,_viewers["p_t"]); CHKERRQ(ierr);
-      ierr = appendViewer(_viewers["p_t"],_outputDir + "fault_hydr_p_t");
+      ierr = appendViewer(_viewers["p_t"],_outputDir + "p_p_t");
 
-      _viewers["pA"] = initiateViewer(_outputDir + "fault_hydr_pA");
+      _viewers["pA"] = initiateViewer(_outputDir + "p_pA");
       ierr = VecView(pA,_viewers["pA"]); CHKERRQ(ierr);
-      ierr = appendViewer(_viewers["pA"],_outputDir + "fault_hydr_pA");
+      ierr = appendViewer(_viewers["pA"],_outputDir + "p_pA");
     }
 
   }
   else {
     ierr = VecView(_p,_viewers["p"]); CHKERRQ(ierr);
-    ierr = VecView(_sNEff,_viewers["sNEff"]); CHKERRQ(ierr);
 
     if (_isMMS) {
       ierr = VecView(_p_t,_viewers["p_t"]); CHKERRQ(ierr);
@@ -864,6 +826,93 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
   return ierr;
 }
 
+
+
+// Fills vec with the linear interpolation between the pairs of points (vals,depths).
+PetscErrorCode PressureEq::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::setVecFromVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecSet(vec,vals[0]);
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+      z0 = depths[0+ind];
+      z1 = depths[0+ind+1];
+      v0 = vals[0+ind];
+      v1 = vals[0+ind+1];
+      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// Fills vec with the linear interpolation between the pairs of points (vals,depths), but always below the specified max value
+PetscErrorCode PressureEq::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
+  const PetscScalar maxVal)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::setVecFromVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+      z0 = depths[0+ind];
+      z1 = depths[0+ind+1];
+      v0 = vals[0+ind];
+      v1 = vals[0+ind+1];
+      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+      v = min(maxVal,v);
+      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+
+
+
+
+// MMS functions
 
 PetscErrorCode  PressureEq::measureMMSError(const double totRunTime)
 {

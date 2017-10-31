@@ -818,20 +818,31 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::updateFields()";
+    std::string funcName = "PowerLaw::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   LinearElastic::updateFields(time,varEx,varIm);
 
   // if integrating viscous strains in time
-    VecCopy(varEx.find("gVxy")->second,_gxy);
-    VecCopy(varEx.find("gVxz")->second,_gxz);
+  VecCopy(varEx.find("gVxy")->second,_gxy);
+  VecCopy(varEx.find("gVxz")->second,_gxz);
 
-  // if also solving coupled heat equation
-  if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
-      VecCopy(varIm.find("Temp")->second,_T);
-    }
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PowerLaw::updateTemperature(const Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateTemperature()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecCopy(T,_T);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

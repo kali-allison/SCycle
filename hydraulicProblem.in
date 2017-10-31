@@ -6,7 +6,7 @@ Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = yes
+isMMS = no
 
 # symmetric or general
 geometry = symmetric
@@ -15,14 +15,13 @@ geometry = symmetric
 bulkDeformationType = linearElastic
 
 # coordinate transformation
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
 #bCoordTrans = 6.0
 #sbpType = mfc_coordTrans
 sbpType = mfc
 
 #======================================================================
 # linear system
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_b8_csh_Dc16_3IC_tI1_z
+#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_
 loadICs = 0
 bcLTauQS = 0
 
@@ -60,7 +59,7 @@ aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
-# normal stress
+# effective normal stress
 sigmaNVals = [5.668 5.668 1336] # MPa
 sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
@@ -68,8 +67,8 @@ sigmaNDepths = [0 0.25 60]
 
 #======================================================================
 # hydraulic fault inputs
-#hydraulicCoupling = no
-hydraulicCoupling = uncoupled
+hydraulicCoupling = no
+#hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
 hydraulicTimeIntType = explicit
@@ -149,8 +148,8 @@ initDeltaT = 1e-3   # (s) size of initial time step
 minDeltaT = 1e-3    # (s) minimum allowed time step
 maxDeltaT = 3e5    # (s) maximum allowed time step
 atol = 1e-8 # absolute error for adaptive time stepper
-#timeIntInds = [psi slip]
-timeIntInds = [pressure]
+timeIntInds = [psi slip]
+#timeIntInds = [pressure]
 
 
 outputDir = data/hf_

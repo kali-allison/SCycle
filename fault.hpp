@@ -27,12 +27,11 @@ class Fault: public RootFinderContext
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
     const bool        _isMMS; // true if running mms test
-    bool              _bcLTauQS; // true if running mms test
+    bool              _bcLTauQS;
     std::string       _stateLaw; // state evolution law
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
-    const PetscInt     _sizeMuArr;
     const PetscScalar  _L,_h; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
     const std::string  _problemType; // symmetric (only y>0) or full
@@ -56,7 +55,8 @@ class Fault: public RootFinderContext
     std::vector<double>  _impedanceVals,_impedanceDepths;
     std::vector<double>  _sigmaNVals,_sigmaNDepths;
     PetscScalar          _sigmaN_cap; // allow cap on normal stress
-    Vec                  _sNEff;
+    Vec                  _sNEff; // effective normal stress
+    Vec                  _sN; // total normal stress
     Vec                  _zP;
     //~ PetscScalar   *_muArrPlus,*_csArrPlus;
     Vec                 *_muVecP,*_csVecP;
@@ -109,6 +109,8 @@ class Fault: public RootFinderContext
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
+    PetscErrorCode virtual setSNEff(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
+    PetscErrorCode virtual setSN(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
 
 
     // for steady state computations
@@ -130,7 +132,7 @@ class Fault: public RootFinderContext
     PetscErrorCode setHeatParams(const Vec& k,const Vec& rho,const Vec& c);
 
     // mms test
-    PetscErrorCode virtual measureMMSError(const double totRunTime) { return 0; }; 
+    PetscErrorCode virtual measureMMSError(const double totRunTime) { return 0; };
 
 };
 
@@ -177,6 +179,8 @@ class SymmFault: public Fault
     PetscErrorCode getTau(Vec& tau);
     PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
+    PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
+    PetscErrorCode setSN(const Vec& p); // set total normal stress from pore pressure and effective normal stress
 
 };
 
