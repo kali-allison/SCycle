@@ -354,13 +354,13 @@ PetscErrorCode SbpOps_fc::constructBs(const TempMats_fc& tempMats)
   Mat temp;
   if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
   if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
-  MatTransposeMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
   PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
   MatDestroy(&temp);
 
   if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
   if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
-  MatTransposeMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
   PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
   MatDestroy(&temp);
 
@@ -760,7 +760,6 @@ PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
     assert(0);
   }
 
-
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -805,7 +804,6 @@ PetscErrorCode SbpOps_fc::getH(Mat &mat)
 }
 
 
-// for energy balance
 PetscErrorCode SbpOps_fc::getDs(Mat &Dy,Mat &Dz) { Dy = _Dy_Iz; Dz = _Iy_Dz; return 0; }
 PetscErrorCode SbpOps_fc::getMus(Mat &mu,Mat &muqy,Mat &murz) { mu = _mu; muqy = _mu; murz = _mu; return 0; }
 PetscErrorCode SbpOps_fc::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz)
@@ -837,7 +835,7 @@ PetscErrorCode SbpOps_fc::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
   Iy_Hzinv = _Iy_Hzinv;
   return 0;
 }
-PetscErrorCode SbpOps_fc::getCoordTrans(Mat&J, Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
 
 
 //======================================================================
@@ -1872,8 +1870,8 @@ TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
 
-  sbp_fc_Spmat(order,Ny,1.0/dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy);
-  sbp_fc_Spmat(order,Nz,1/dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz);
+  sbp_fc_Spmat(order,Ny,1./dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy);
+  sbp_fc_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz);
 
 
 #if VERBOSE > 1

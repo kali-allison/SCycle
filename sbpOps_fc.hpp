@@ -20,20 +20,6 @@ using namespace std;
  *
  */
 
-
-
-/*
- * Container for matrices that are needed temporarily to construct
- * main operators. These include 1D SBP operators that are later mapped
- * to 2D, and the 2D factors that are used to enforce boundaries in the
- * A matrix.
- */
-/*
- * Container for matrices that are needed temporarily to construct
- * main operators. These include 1D SBP operators that are later mapped
- * to 2D, and the 2D factors that are used to enforce boundaries in the
- * A matrix.
- */
 struct TempMats_fc
 {
   const PetscInt    _order,_Ny,_Nz;
@@ -56,7 +42,6 @@ private:
 
 class SbpOps_fc : public SbpOps
 {
-
   public:
 
     const PetscInt      _order,_Ny,_Nz;
@@ -92,7 +77,7 @@ class SbpOps_fc : public SbpOps
     ~SbpOps_fc();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
-    PetscErrorCode setGrid(const Vec& y, const Vec& z);
+    PetscErrorCode setGrid(Vec& y,Vec& z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
@@ -132,7 +117,7 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
 
     // allow access to matrices
-    PetscErrorCode getCoordTrans(Mat& J,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
+    PetscErrorCode getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
     PetscErrorCode getDs(Mat &Dy,Mat &Dz);

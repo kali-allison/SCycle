@@ -95,7 +95,7 @@ class SbpOps_c : public SbpOps
     ~SbpOps_c();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
-    PetscErrorCode setGrid(const Vec& y, const Vec& z);
+    PetscErrorCode setGrid(Vec& y, Vec& z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
@@ -135,7 +135,7 @@ class SbpOps_c : public SbpOps
     PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
 
     // allow access to matrices
-    PetscErrorCode getCoordTrans(Mat& J,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
+    PetscErrorCode getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
     PetscErrorCode getDs(Mat &Dy,Mat &Dz);

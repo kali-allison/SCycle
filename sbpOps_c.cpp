@@ -131,7 +131,7 @@ PetscErrorCode SbpOps_c::setBCTypes(std::string bcR, std::string bcT, std::strin
   return ierr;
 }
 
-PetscErrorCode SbpOps_c::setGrid(const Vec& y, const Vec& z) { return 0; } // not used for this type of SBP operator
+PetscErrorCode SbpOps_c::setGrid(Vec& y, Vec& z) { return 0; } // not used for this type of SBP operator
 
 PetscErrorCode SbpOps_c::setMultiplyByH(const int multByH)
 {
@@ -356,13 +356,13 @@ PetscErrorCode SbpOps_c::constructBs(const TempMats_c& tempMats)
   Mat temp;
   if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
   if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
-  MatTransposeMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
   PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
   MatDestroy(&temp);
 
   if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
   if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
-  MatTransposeMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
   PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
   MatDestroy(&temp);
 
@@ -839,7 +839,7 @@ PetscErrorCode SbpOps_c::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
   Iy_Hzinv = _Iy_Hzinv;
   return 0;
 }
-PetscErrorCode SbpOps_c::getCoordTrans(Mat&J, Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
+PetscErrorCode SbpOps_c::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
 
 
 //======================================================================
