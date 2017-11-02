@@ -71,7 +71,7 @@ class SbpOps
     virtual PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv) = 0;
 
     // various pieces of the Jacobian of a coordinate transformation
-    virtual PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;
+    virtual PetscErrorCode getCoordTrans(Mat& J, Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;
 
     // create the vector rhs out of the boundary conditions
     virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;

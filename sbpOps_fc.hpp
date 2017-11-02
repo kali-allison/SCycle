@@ -35,23 +35,23 @@ using namespace std;
  * A matrix.
  */
 struct TempMats_fc
-    {
-      const PetscInt    _order,_Ny,_Nz;
-      const PetscReal   _dy,_dz;
-      Mat               _mu;
+{
+  const PetscInt    _order,_Ny,_Nz;
+  const PetscReal   _dy,_dz;
+  Mat               _mu;
 
-      Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
-      Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
+  Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
+  Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-      TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
-      ~TempMats_fc();
+  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
+  ~TempMats_fc();
 
-    private:
+private:
 
-      // disable default copy constructor and assignment operator
-      TempMats_fc(const TempMats_fc & that);
-      TempMats_fc& operator=( const TempMats_fc& rhs );
-  };
+  // disable default copy constructor and assignment operator
+  TempMats_fc(const TempMats_fc & that);
+  TempMats_fc& operator=( const TempMats_fc& rhs );
+};
 
 
 class SbpOps_fc : public SbpOps
@@ -132,7 +132,7 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
 
     // allow access to matrices
-    PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr);
+    PetscErrorCode getCoordTrans(Mat& J,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
     PetscErrorCode getA(Mat &mat);
     PetscErrorCode getH(Mat &mat);
     PetscErrorCode getDs(Mat &Dy,Mat &Dz);
@@ -142,35 +142,35 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
     PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv);
 
-    private:
-      // disable default copy constructor and assignment operator
-      SbpOps_fc(const SbpOps_fc & that);
-      SbpOps_fc& operator=( const SbpOps_fc& rhs );
+  private:
+    // disable default copy constructor and assignment operator
+    SbpOps_fc(const SbpOps_fc & that);
+    SbpOps_fc& operator=( const SbpOps_fc& rhs );
 
-      PetscErrorCode setMatsToNull();
+    PetscErrorCode setMatsToNull();
 
-      // functions to construct various matrices
-      PetscErrorCode constructMu(Vec& muVec);
-      PetscErrorCode constructEs(const TempMats_fc& tempMats);
-      PetscErrorCode constructes(const TempMats_fc& tempMats);
-      PetscErrorCode constructBs(const TempMats_fc& tempMats);
-      PetscErrorCode constructHs(const TempMats_fc& tempMats);
-      PetscErrorCode constructH(const TempMats_fc& tempMats);
-      PetscErrorCode constructHinv(const TempMats_fc& tempMats);
-      PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
-      PetscErrorCode constructA(const TempMats_fc& tempMats);
-      PetscErrorCode updateA_BCs();
-      PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
-      PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
-      PetscErrorCode constructD2(const TempMats_fc& tempMats);
-      PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
-      PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
-      PetscErrorCode deleteIntermediateFields();
+    // functions to construct various matrices
+    PetscErrorCode constructMu(Vec& muVec);
+    PetscErrorCode constructEs(const TempMats_fc& tempMats);
+    PetscErrorCode constructes(const TempMats_fc& tempMats);
+    PetscErrorCode constructBs(const TempMats_fc& tempMats);
+    PetscErrorCode constructHs(const TempMats_fc& tempMats);
+    PetscErrorCode constructH(const TempMats_fc& tempMats);
+    PetscErrorCode constructHinv(const TempMats_fc& tempMats);
+    PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
+    PetscErrorCode constructA(const TempMats_fc& tempMats);
+    PetscErrorCode updateA_BCs();
+    PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
+    PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
+    PetscErrorCode constructD2(const TempMats_fc& tempMats);
+    PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
+    PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
+    PetscErrorCode deleteIntermediateFields();
 
-      PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);
-      PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall); // for A
-      PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
-      PetscErrorCode constructBCMats();
+    PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);
+    PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall); // for A
+    PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
+    PetscErrorCode constructBCMats();
 };
 
 // functions to construct 1D sbp operators
