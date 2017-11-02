@@ -25,7 +25,7 @@ SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const P
   if (Nz == 1) { _dz = Lz; }
 
   // penalty weights
-  _alphaT = -1.0; // traction
+  _alphaT = -1.0; // von Neumann
   _beta= 1.0; // 1 part of Dirichlet
   if (_order == 2) { _alphaDy = -4.0/_dy; _alphaDz = -4.0/_dz; }
   else if (_order == 4) { _alphaDy = 2.0*-48.0/17.0 /_dy; _alphaDz = 2.0*-48.0/17.0 /_dz;  }
@@ -165,7 +165,9 @@ PetscErrorCode SbpOps_fc::changeBCTypes(std::string bcR, std::string bcT, std::s
   _bcBType = bcB;
 
   constructBCMats();
+  updateA_BCs();
 
+  if (_deleteMats) { deleteIntermediateFields(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -661,6 +663,57 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
   }
 
   ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+
+  #if VERBOSE > 2
+    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+  #endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  _runTime = MPI_Wtime() - startTime;
+  return 0;
+}
+
+// update A based on new BCs
+PetscErrorCode SbpOps_fc::updateA_BCs()
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::updateA_BCs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_D2 == NULL) {
+    TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
+    constructD2(tempMats);
+  }
+  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
+  if (_deleteMats) { MatDestroy(&_D2); }
+
+  // add SAT boundary condition terms
+  constructBCMats();
+
+  if (_D2type.compare("yz")==0) {
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("y")==0) {
+    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("z")==0) {
+    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
+    assert(0);
+  }
 
   #if VERBOSE > 2
     MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
@@ -2010,9 +2063,6 @@ PetscErrorCode SbpOps_fc::Hyinvxe0y(const Vec &in, Vec &out)
   ierr = MatMult(_e0y_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
 
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
@@ -2035,9 +2085,6 @@ PetscErrorCode SbpOps_fc::HyinvxeNy(const Vec &in, Vec &out)
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
   ierr = MatMult(_eNy_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
 
   VecDestroy(&temp1);
 
@@ -2062,9 +2109,6 @@ PetscErrorCode SbpOps_fc::HyinvxE0y(const Vec &in, Vec &out)
   ierr = MatMult(_E0y_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
 
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
@@ -2087,9 +2131,6 @@ PetscErrorCode SbpOps_fc::HyinvxENy(const Vec &in, Vec &out)
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
   ierr = MatMult(_ENy_Iz,in,temp1); CHKERRQ(ierr);
   ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
 
   VecDestroy(&temp1);
 

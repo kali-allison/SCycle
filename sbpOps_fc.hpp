@@ -159,6 +159,7 @@ class SbpOps_fc : public SbpOps
       PetscErrorCode constructHinv(const TempMats_fc& tempMats);
       PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
       PetscErrorCode constructA(const TempMats_fc& tempMats);
+      PetscErrorCode updateA_BCs();
       PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
       PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
       PetscErrorCode constructD2(const TempMats_fc& tempMats);
