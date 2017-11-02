@@ -81,8 +81,6 @@ class SbpOps_sc
     PetscErrorCode setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB);
 
     PetscErrorCode getA(Mat &mat);
-    PetscErrorCode getAlphay(PetscScalar &alphaDy);
-    PetscErrorCode getAlphaz(PetscScalar &alphaDz);
     // mat-based versions
     PetscErrorCode matDy(const Vec &in, Vec &out); // out = Dy * in
 

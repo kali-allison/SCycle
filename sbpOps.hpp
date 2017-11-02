@@ -15,8 +15,27 @@
  *         m                   2                 fc
  *         m                   4                 fc
  *
- * Coming soon: matrix-free versions!
+ *
+ * To create a member of this class, several functions need to be called called to set up
+ * the context:
+ *
+ * Example usage:
+ *    SbpOps *sbp = new SbpOps_fc(order,Ny,Nz,Ly,Lz,coeff); // Sample constructor call. Note that this does NOT compute any matrices.
+ *    setBCTypes("Dirichlet","Neumann","Dirichlet","Neumann"); // sets what types of boundaries will be enforced
+ *    computeMatrices(); // this call actually creates the matrices
+ *
+ * Optional additional functions:
+ *    setGrid(y,z); // y- and z- coordinate vectors
+ *    setLaplaceType("yz"); // (default: "yz") determines whether to
+ *        // construct d/dy(coeff * d/dy) + d/dz(coeff * d/dz) or only 1 or the other term
+ *    setMultiplyByH(1); // (default: 0) 1 for yes, 0 for no
+ *    changeBCTypes("Neumann","Neumann","Neumann","Neumann");  // if you want to switch
+ *              // which type of BC to enforce (will compute the new matrices for you if necessary)
+ *    setDeleteIntermediateFields(1); // (default: 0) removes intermediate matrices and old BC matrices to save on memory usage
+ *
  */
+
+
 
 class SbpOps
 {
@@ -26,28 +45,35 @@ class SbpOps
     SbpOps(){};
     virtual ~SbpOps(){};
 
-    // don't want _A to belong to the abstract class
-    virtual PetscErrorCode getA(Mat &mat) = 0;
-    virtual PetscErrorCode getH(Mat &mat) = 0;
-    virtual PetscErrorCode getAlphay(PetscScalar &alphaDy){return 1;};
-    virtual PetscErrorCode getAlphaz(PetscScalar &alphaDz){return 1;};
+
+    // set context options
+    virtual PetscErrorCode setBCTypes(string bcR, string bcT, string bcL, string bcB) = 0;
+    virtual PetscErrorCode setGrid(const Vec& y, const Vec& z) = 0;
+    virtual PetscErrorCode setMultiplyByH(const int multByH) = 0;
+    virtual PetscErrorCode setLaplaceType(const string type) = 0; // "y", "z", or "yz"
+    virtual PetscErrorCode setDeleteIntermediateFields(const int deleteMats) = 0;
+    virtual PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB) = 0;
+    virtual PetscErrorCode computeMatrices() = 0; // matrices not constructed until now
 
 
     // allow variable coefficient to change
     virtual PetscErrorCode updateVarCoeff(const Vec& coeff) = 0;
 
-    // temporarily available for energy balance
+    // allow access to matrices
+    virtual PetscErrorCode getA(Mat &mat) = 0;
+    virtual PetscErrorCode getH(Mat &mat) = 0;
     virtual PetscErrorCode getDs(Mat &Dy,Mat &Dz) = 0;
     virtual PetscErrorCode getMus(Mat &mu,Mat &muqy,Mat &murz) = 0;
     virtual PetscErrorCode getR(Mat& Ry, Mat& Rz) = 0;
     virtual PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) = 0;
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
-    virtual PetscErrorCode getBs(Mat& By_Iz,Mat& Iy_Bz) = 0;
     virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;
     virtual PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv) = 0;
+
+    // various pieces of the Jacobian of a coordinate transformation
     virtual PetscErrorCode getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) = 0;
 
-    // create the vector rhs out of the boundary conditions (_bc*)
+    // create the vector rhs out of the boundary conditions
     virtual PetscErrorCode setRhs(Vec&rhs,Vec &_bcF,Vec &_bcR,Vec &_bcT,Vec &_bcB) = 0;
 
     // functions to compute various derivatives of input vectors
