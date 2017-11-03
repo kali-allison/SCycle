@@ -25,22 +25,7 @@ int runTests(const char * inputFile)
   d.write();
 
 
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
-  //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~SymmFault fault(domain);
-  //~fault.writeContext(domain._outputDir);
-  //~ SymmLinearElastic lith(domain);
-  //~ lith.writeStep1D();
-  //~ lith.writeStep2D();
-  //~ lith.integrate();
-  //~ lith.view();
-
-  //~ PowerLaw pl(d);
-  //~ pl.writeContext();
-  //~ pl.writeStep1D();
-  //~ pl.writeStep2D();
-  //~ pl.integrate();
+  HeatEquation he(d); // heat equation
 
   return ierr;
 }
@@ -80,7 +65,7 @@ int runEqCycle(const char * inputFile)
   ierr = m.writeContext(); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);
-  ierr = m.view();CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }
@@ -96,13 +81,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.in"; }
 
-  //~ {
-    //~ Domain domain(inputFile);
-    //~ if (domain._isMMS) { runMMSTests(inputFile); }
-    //~ else { runEqCycle(inputFile); }
-  //~ }
+  {
+    Domain domain(inputFile);
+    if (domain._isMMS) { runMMSTests(inputFile); }
+    else { runEqCycle(inputFile); }
+  }
 
-  runTests(inputFile);
+  //~ runTests(inputFile);
 
   PetscFinalize();
   return ierr;

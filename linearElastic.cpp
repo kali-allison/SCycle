@@ -484,6 +484,8 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
   if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
   _sbp->computeMatrices(); // actually create the matrices
 
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
+  setupKSP(_sbp,_ksp,_pc);
 
   // set up boundary conditions
   VecSet(_bcR,0.0);

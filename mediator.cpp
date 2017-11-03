@@ -54,6 +54,7 @@ Mediator::Mediator(Domain&D)
     solveSS();
   }
 
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -245,7 +246,6 @@ _writeTime += MPI_Wtime() - startTime;
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
-    std::string funcName = "Mediator::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
@@ -278,7 +278,6 @@ double startTime = MPI_Wtime();
 _writeTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
-    std::string funcName = "Mediator::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
@@ -291,12 +290,13 @@ PetscErrorCode Mediator::view()
 
   double totRunTime = MPI_Wtime() - _startTime;
 
-  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view();  _he->view(); }
-  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
+  if (_timeIntegrator.compare("IMEX")==0&& _quadImex!=NULL) { ierr = _quadImex->view(); }
+  if (_timeIntegrator.compare("RK32")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
 
   _momBal->view(_integrateTime);
   _fault->view(_integrateTime);
   if (_hydraulicCoupling.compare("no")!=0) { _p->view(_integrateTime); }
+  if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Mediator Runtime Summary:\n");CHKERRQ(ierr);
@@ -707,11 +707,11 @@ PetscErrorCode Mediator::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  //~ _momBal->measureMMSError(_currTime);
+  _momBal->measureMMSError(_currTime);
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ ierr =  _he->measureMMSError(_currTime);
   //~ }
-  _fault->measureMMSError(_currTime);
+  //~ _fault->measureMMSError(_currTime);
 
   return ierr;
 }

@@ -240,7 +240,7 @@ PetscErrorCode WaveEq::integrateWave(IntegratorContextWave *obj)
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     ierr = obj->d_dt_WaveEq(_currT,_var,_dvar, _deltaT);CHKERRQ(ierr);
     ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
-    
+
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
@@ -305,20 +305,8 @@ PetscErrorCode RK32::view()
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: ");CHKERRQ(ierr);
-  if (_controlType.compare("P") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"P\n");CHKERRQ(ierr);
-  }
-  else if (_controlType.compare("PI") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"PI\n");CHKERRQ(ierr);
-  }
-  else if (_controlType.compare("PID") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"PID\n");CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");CHKERRQ(ierr);
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
-  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
                      _initT,_finalT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   permitted step size range: [%g,%g]\n",

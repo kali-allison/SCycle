@@ -1126,7 +1126,7 @@ PetscErrorCode SymmFault::setSNEff(const Vec& p)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-  ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+  //~ ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1

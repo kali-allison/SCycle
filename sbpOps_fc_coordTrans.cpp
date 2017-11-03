@@ -356,19 +356,19 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
   ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES); CHKERRQ(ierr);
 
   // J = yq * zr, J-1
-  ierr = MatMatMult(_yq,_zr,MAT_INITIAL_MATRIX,0.5,&_J); CHKERRQ(ierr);
-  ierr = MatMatMult(_qy,_rz,MAT_INITIAL_MATRIX,0.5,&_Jinv); CHKERRQ(ierr);
+  ierr = MatMatMult(_yq,_zr,MAT_INITIAL_MATRIX,1.,&_J); CHKERRQ(ierr);
+  ierr = MatMatMult(_qy,_rz,MAT_INITIAL_MATRIX,1.,&_Jinv); CHKERRQ(ierr);
 
   // compute muqy and murz
-  ierr = MatMatMult(_mu,_qy,MAT_INITIAL_MATRIX,0.5,&_muqy); CHKERRQ(ierr);
-  ierr = MatMatMult(_mu,_rz,MAT_INITIAL_MATRIX,0.5,&_murz); CHKERRQ(ierr);
+  ierr = MatMatMult(_mu,_qy,MAT_INITIAL_MATRIX,1.,&_muqy); CHKERRQ(ierr);
+  ierr = MatMatMult(_mu,_rz,MAT_INITIAL_MATRIX,1.,&_murz); CHKERRQ(ierr);
 
   VecDestroy(&temp);
   VecDestroy(&ones);
    if (_deleteMats) { MatDestroy(&_Dq_Iz); MatDestroy(&_Iy_Dr); }
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -394,7 +394,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD1_qr(const TempMats_fc_coordTrans
     ierr = MatView(_Iy_Dr,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 #endif
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -418,7 +418,7 @@ PetscErrorCode SbpOps_fc_coordTrans::construct1stDerivs(const TempMats_fc_coordT
     ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;
@@ -518,7 +518,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructHs(const TempMats_fc_coordTrans& t
   PetscObjectSetName((PetscObject) _Hy_Iz, "Hy_Iz");
   kronConvert(tempMats._Iy,tempMats._Hz,_Iy_Hz,1,0);
   PetscObjectSetName((PetscObject) _Iy_Hz, "Iy_Hz");
-  ierr = MatMatMult(_Hy_Iz,_Iy_Hz,MAT_INITIAL_MATRIX,0.5,&_H);
+  ierr = MatMatMult(_Hy_Iz,_Iy_Hz,MAT_INITIAL_MATRIX,1.,&_H);
   PetscObjectSetName((PetscObject) _H, "H");
 
   // Hinv, and Hinvy and Hinvz
@@ -526,7 +526,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructHs(const TempMats_fc_coordTrans& t
   PetscObjectSetName((PetscObject) _Hyinv_Iz, "Hyinv_Iz");
   kronConvert(tempMats._Iy,tempMats._Hzinv,_Iy_Hzinv,1,0);
   PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
-  ierr = MatMatMult(_Hyinv_Iz,_Hyinv_Iz,MAT_INITIAL_MATRIX,0.5,&_Hinv);
+  ierr = MatMatMult(_Hyinv_Iz,_Hyinv_Iz,MAT_INITIAL_MATRIX,1.,&_Hinv);
   PetscObjectSetName((PetscObject) _Hinv, "Hinv");
 
   #if VERBOSE > 1
@@ -552,12 +552,12 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out,Mat& L,Mat& Hi
 
   // temporary matrix using only diagonal matrices, should be efficient to generate and destroy
   Mat HinvxExmu;
-  ierr = MatMatMatMult(Hinv,E,mu,MAT_INITIAL_MATRIX,0.5,&HinvxExmu); CHKERRQ(ierr);
+  ierr = MatMatMatMult(Hinv,E,mu,MAT_INITIAL_MATRIX,1.,&HinvxExmu); CHKERRQ(ierr);
 
   Mat LxHinv,Exmu,LxHinvxExmu;
-  ierr = MatMatMult(L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHinv); CHKERRQ(ierr);
-  ierr = MatMatMult(E,mu,MAT_INITIAL_MATRIX,0.5,&Exmu); CHKERRQ(ierr);
-  ierr = MatMatMult(LxHinv,Exmu,MAT_INITIAL_MATRIX,0.5,&LxHinvxExmu); CHKERRQ(ierr);
+  ierr = MatMatMult(L,Hinv,MAT_INITIAL_MATRIX,1.,&LxHinv); CHKERRQ(ierr);
+  ierr = MatMatMult(E,mu,MAT_INITIAL_MATRIX,1.,&Exmu); CHKERRQ(ierr);
+  ierr = MatMatMult(LxHinv,Exmu,MAT_INITIAL_MATRIX,1.,&LxHinvxExmu); CHKERRQ(ierr);
 
   if (!_multByH) { // if do not multiply by H
     ierr = MatMatMult(HinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
@@ -598,7 +598,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out,Mat& L,Mat& Hi
   else {
     // if do multiply by H
     Mat HL;
-    ierr = MatMatMult(_H,L,MAT_INITIAL_MATRIX,0.5,&HL); CHKERRQ(ierr);
+    ierr = MatMatMult(_H,L,MAT_INITIAL_MATRIX,1.,&HL); CHKERRQ(ierr);
     ierr = MatMatMatMult(_H,Hinv,e,scall,1.,&out); CHKERRQ(ierr);
     MatDestroy(&HL);
   }
@@ -627,14 +627,14 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Dirichlet(Mat& out,PetscScalar 
 
   Mat LxHxHinv;
   if (!_multByH) { // if do not multiply by H
-    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHxHinv); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,1.,&LxHxHinv); CHKERRQ(ierr);
   }
   else {
-    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHxHinv); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,1.,&LxHxHinv); CHKERRQ(ierr);
   }
 
   Mat HinvxmuxE;
-  ierr = MatMatMatMult(LxHxHinv,mu,E,MAT_INITIAL_MATRIX,0.5,&HinvxmuxE); CHKERRQ(ierr);
+  ierr = MatMatMatMult(LxHxHinv,mu,E,MAT_INITIAL_MATRIX,1.,&HinvxmuxE); CHKERRQ(ierr);
 
   ierr = MatMatMatMult(LxHxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
@@ -673,7 +673,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBCMats()
 
   if (_bcTType.compare("Dirichlet")==0) {
     if (_AT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_E0z,MAT_INITIAL_MATRIX); }
-    if (_rhsT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_INITIAL_MATRIX); }
+    if (_rhsT_D == NULL) { constructBC_Dirichlet(_rhsT_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_INITIAL_MATRIX); }
     _AT = _AT_D;
     _rhsT = _rhsT_D;
   }

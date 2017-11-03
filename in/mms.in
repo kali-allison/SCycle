@@ -1,32 +1,32 @@
 #======================================================================
 # domain
 order = 4
-Ny = 41
-Nz = 41
-Ly = 30 # km
-Lz = 30 # km
+Ny = 21
+Nz = 21
+Ly = 2
+#Ly = 1.570796326794897
+#Ly = 6.283185307179586
+Lz = 2.5
+#Lz = 6.283185307179586
 vL = 1e-9    # (m/s)
 
-isMMS = no
+isMMS = yes
 
 # symmetric or general
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # coordinate transformation
-#zInputDir = /data/dunham/kallison/eqcycle/heInputFiles/v3_Ny101_Nz201_z
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz401_
-#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_cwshSS_
-#inputDir = /data/dunham/kallison/eqcycle/scecInputFiles/g30_nhe_
+#inputDir = /data/dunham/kallison/eqcycle/heInputFiles/g30_Ny201_Nz301_
 loadICs = 0
 bcLTauQS = 0
 
@@ -48,52 +48,28 @@ cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
 #DcVals = [16e-3 16e-3] # m
+#DcVals = [32e-3 32e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
-# uniformly VS
-aVals = [0.2652 0.2652]
-aDepths = [0 60]
-bVals = [0.0497 0.0497]
-bDepths = [0 60]
-
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
-# SHALLOW VS: creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0079 0.0242 0.0325 0.0301 0.0375 0.0737]
-#bDepths = [0 4.5000 10 11.0000 19.3333 60]
-
-
-#sigmaNVals = [30 30] # (MPa) constant
 sigmaNVals = [50 50] # (MPa) constant
+#sigmaNVals = [30 30] # (MPa) constant
 sigmaNDepths = [0 60] #(km) constant
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
-#sigmaN_cap = 50; # MPa
+#sigmaN_cap = 30; # MPa
 
 
 stateLaw = agingLaw
 #stateLaw = slipLaw
 v0 = 1e-6
 f0 = 0.6
-
-#stateLaw = flashHeating
-#v0 = 1e-6
-#v0 = 100
-#f0 = 0.6
-#fw = 0.12
-#fw = 0.0
-#Vw = 0.1
-#Tw = 1.1732e+03 # K 900 C
-#tau_c = 3 # GPa
-#D = 5 # um
-
 
 #======================================================================
 # off-fault material parameters
@@ -112,6 +88,7 @@ nVals = [2.4 2.4]
 nDepths = [0 60]
 
 # heat equation properties
+#heatFieldsDistribution = mms
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
@@ -125,15 +102,15 @@ rhoDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [1400 1400]
+TVals = [293 1793] # 30 C/km
+#TVals = [1000 1100]
 TDepths = [0 50]
 heatEquationType = steadyState
 #heatEquationType = transient
 thermalCoupling = coupled
 #thermalCoupling = uncoupled
 #thermalCoupling = no
-withShearHeating = yes
+withShearHeating = no
 withFrictionalHeating = no
 
 
@@ -146,52 +123,25 @@ withFrictionalHeating = no
 viscDistribution = effectiveVisc
 strainRate = 1e-14
 
-#======================================================================
-# hydraulic fault inputs
-#hydraulicCoupling = no
-hydraulicCoupling = uncoupled
-#hydraulicCoupling = coupled
-
-hydraulicTimeIntType = explicit
-#hydraulicTimeIntType = implicit
-
-n_pVals = [0.1 0.1]
-n_pDepths = [0 30]
-beta_pVals = [1e-2 1e-2] # 1/MPa
-beta_pDepths = [0 30]
-k_pVals = [1e-19 1e-19] # km^2
-k_pDepths = [0 30]
-eta_pVals = [1e-9 1e-9] # MPa s
-eta_pDepths = [0 30]
-#rho_fVals = [1e3 1e3] # g/cm^3
-rho_fVals = [1 1] # g/cm^3
-rho_fDepths = [0 30]
-pVals = [0.0 0.0]
-pDepths = [0 30]
-
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 11e3
 initTime = 0
-maxTime = 1e18
+maxTime = 1e-2
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-8
+atol = 1e-10
 timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
-
-#outputDir = /scratch/kallison/test/nameSpace_
-#outputDir = /scratch/kallison/test/b5_
-#outputDir = /scratch/kallison/test/b10_
-outputDir = data/io_
-
+#outputDir = /scratch/kallison/mms/test_
+outputDir = data/hf_
 
