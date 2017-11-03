@@ -38,15 +38,15 @@ int runMMSTests(const char * inputFile)
              "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
              "errL2gxz","log2(errL2gxz)");
   for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
-  //~ for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
+  //~ for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
     Domain d(inputFile,Ny,Ny);
     //~ Domain d(inputFile,Ny,1);
     d.write();
 
     Mediator m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.integrate();CHKERRQ(ierr);
+    ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
   }
 

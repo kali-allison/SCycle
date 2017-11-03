@@ -756,7 +756,7 @@ PetscErrorCode LinearElastic::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+  ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
 
   PetscViewer    viewer;
 

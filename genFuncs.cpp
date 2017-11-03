@@ -89,6 +89,18 @@ void printVecsSum(Vec vec1,Vec vec2)
   }
 }
 
+// Write vec to the file loc in binary format.
+PetscErrorCode writeMat(Mat& mat,std::string str)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer viewer;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = MatView(mat,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
+
+
 
 // Write vec to the file loc in binary format.
 // Note that due to a memory problem in PETSc, looping over this many

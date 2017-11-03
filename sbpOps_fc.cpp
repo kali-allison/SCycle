@@ -455,7 +455,7 @@ PetscErrorCode SbpOps_fc::constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar B
     ierr = MatMatMatMult(_H,Hinv,e,scall,1.,&out); CHKERRQ(ierr);
   }
 
-  PetscScalar a = - Bfact * _alphaT;
+  PetscScalar a = Bfact * _alphaT;
   MatScale(out,a);
 
   #if VERBOSE > 1
@@ -585,6 +585,8 @@ PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
   if (_D2type.compare("yz")==0) { // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
     ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
     ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
+    //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
     ierr = MatAYPX(_D2,1.0,Dzzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
@@ -601,7 +603,7 @@ PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
     assert(0);
   }
 
-  if (!_multByH) { // if multiply by H
+  if (_multByH) { // if multiply by H
     Mat temp;
     ierr = MatMatMult(_H,_D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
     ierr = MatCopy(temp,_D2,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -1435,102 +1437,35 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps_fc.cpp\n");CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
-  PetscViewer    viewer;
 
-  // if (_Ny == 1) { return 0;}
+  writeMat(_A,outputDir + "A");
+  writeMat(_D2,outputDir + "D2");
 
-  std::string str =  outputDir + "A";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  writeMat(_Dy_Iz,outputDir + "Dy_Iz");
+  writeMat(_Iy_Dz,outputDir + "Iy_Dz");
 
-  // first derivative operators
-  str = outputDir + "Dy_Iz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  writeMat(_rhsR,outputDir + "rhsR");
+  writeMat(_rhsT,outputDir + "rhsT");
+  writeMat(_rhsL,outputDir + "rhsL");
+  writeMat(_rhsB,outputDir + "rhsB");
+  writeMat(_AR,outputDir + "AR");
+  writeMat(_AT,outputDir + "AT");
+  writeMat(_AL,outputDir + "AL");
+  writeMat(_AB,outputDir + "AB");
 
-  str = outputDir + "Iy_Dz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Dz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  writeMat(_H,outputDir + "H");
+  writeMat(_Hinv,outputDir + "Hinv");
+  writeMat(_Hyinv_Iz,outputDir + "Hyinv");
+  writeMat(_Iy_Hzinv,outputDir + "Hzinv");
 
-
-  // matrices to map SAT boundaries to rhs
-  str = outputDir + "rhsL";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsL,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsR";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsR,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsT";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsT,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsB";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsB,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-
-  // H and Hinv
-  str = outputDir + "H";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_H,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "Hyinv";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Hyinv_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "Hzinv";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Hzinv,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "E0y";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_E0y_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "ee0y";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_e0y_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "ENy";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_ENy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "eeNy";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_eNy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "E0z";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_E0z,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  //~ MatView(_Iy_e0z,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-  str = outputDir + "ee0z";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_e0z,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "ENz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_ENz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "eeNz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_eNz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  writeMat(_E0y_Iz,outputDir + "E0y");
+  writeMat(_ENy_Iz,outputDir + "ENy");
+  writeMat(_Iy_E0z,outputDir + "E0z");
+  writeMat(_Iy_ENz,outputDir + "ENz");
+  writeMat(_e0y_Iz,outputDir + "ee0y");
+  writeMat(_eNy_Iz,outputDir + "eeNy");
+  writeMat(_Iy_e0z,outputDir + "ee0z");
+  writeMat(_Iy_eNz,outputDir + "eeNz");
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps.cpp\n");CHKERRQ(ierr);

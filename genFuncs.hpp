@@ -42,6 +42,9 @@ void printVecsDiff(Vec vec1,Vec vec2);
 void printVecsSum(Vec vec1,Vec vec2);
 
 // Write vec to the file loc in binary format.
+PetscErrorCode writeMat(Mat& mat,std::string str);
+
+// Write vec to the file loc in binary format.
 PetscErrorCode writeVec(Vec vec,const char * loc);
 
 // Write vec to the file loc in binary format.

@@ -143,5 +143,5 @@ timeIntInds = [psi slip]
 
 
 #outputDir = /scratch/kallison/mms/test_
-outputDir = data/hf_
+outputDir = data/mms_
 
