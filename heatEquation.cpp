@@ -396,17 +396,24 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp(Domain& D)
     CHKERRQ(ierr);
   #endif
 
-  // Set up linear system
-  if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+  if (_sbpType.compare("mc")==0) {
+    _sbpT = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpT = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbpT = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbpT->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbpT->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
+  _sbpT->setMultiplyByH(1);
+  _sbpT->setLaplaceType("z");
+  _sbpT->computeMatrices(); // actually create the matrices
 
 
   if (_Nz > 1) {
@@ -1002,8 +1009,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   // add H * To to rhs
   //~ _sbpT->H(To,temp);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,temp); CHKERRQ(ierr);
   }
   VecAXPY(rhs,1.0,temp);
@@ -1115,8 +1122,8 @@ PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec 
   mapToVec(source,zzmms_SSTsource,*_y,*_z,time);
   ierr = _sbpT->H(source,Hxsource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
   }
   //~ writeVec(source,_outputDir+"mms_SSdTsource");
@@ -1291,8 +1298,8 @@ PetscErrorCode HeatEquation::computeShearHeating(Vec& shearHeat,const Vec& sigma
   VecSet(temp1,0.0);
   _sbpT->H(shearHeat,temp1);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbpT->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(shearHeat,yq,zr,temp1); CHKERRQ(ierr);
   }
   else{ VecCopy(temp1,shearHeat); }
@@ -1326,17 +1333,24 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
   delete _sbpT;
 
   // construct matrices
-  // BC order: top, right, bottom, left
-  if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,bcTType,bcRType,bcBType,bcLType,"yz");
+  if (_sbpType.compare("mc")==0) {
+    _sbpT = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,bcTType,bcRType,bcBType,bcLType,"yz");
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpT = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbpT = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbpT->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    assert(0);
+    assert(0); // automatically fail
   }
+  _sbpT->setBCTypes("Dirichlet","Dirichlet","Neumann","Dirichlet");
+  _sbpT->setMultiplyByH(1);
+  _sbpT->setLaplaceType("z");
+  _sbpT->computeMatrices(); // actually create the matrices
 
   setupKSP_SS(_sbpT);
 
@@ -1358,29 +1372,40 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
   #endif
 
 
+
+
+
   // update boundaries (for solving for perturbation from steady-state)
   setBCsforBE();
 
   delete _sbpT;
   // construct matrices
-  // BC order: top, right, bottom, left; last argument makes A = Dzzmu + AT + AB
-  if (D._sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbpT = new SbpOps_fc(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  // BC order: right,top, left, bottom
+  if (_sbpType.compare("mc")==0) {
+    _sbpT = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (D._sbpType.compare("mfc_coordTrans")==0) {
-    _sbpT = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_k,"Dirichlet","Dirichlet","Dirichlet","Neumann","yz");
+  else if (_sbpType.compare("mfc")==0) {
+    _sbpT = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbpT = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbpT->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    assert(0);
+    assert(0); // automatically fail
   }
+  _sbpT->setBCTypes("Dirichlet","Dirichlet","Neumann","Dirichlet");
+  _sbpT->setMultiplyByH(1);
+  _sbpT->setLaplaceType("yz");
+  _sbpT->computeMatrices(); // actually create the matrices
 
   // create identity matrix I (multiplied by H)
   Mat H;
   _sbpT->getH(H);
   if (D._sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    _sbpT->getCoordTrans(qy,rz,yq,zr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,1.0,&_I);
   }
   else {

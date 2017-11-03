@@ -48,7 +48,7 @@ class SbpOps
 
     // set context options
     virtual PetscErrorCode setBCTypes(string bcR, string bcT, string bcL, string bcB) = 0;
-    virtual PetscErrorCode setGrid(Vec& y, Vec& z) = 0;
+    virtual PetscErrorCode setGrid(Vec* y, Vec* z) = 0;
     virtual PetscErrorCode setMultiplyByH(const int multByH) = 0;
     virtual PetscErrorCode setLaplaceType(const string type) = 0; // "y", "z", or "yz"
     virtual PetscErrorCode setDeleteIntermediateFields(const int deleteMats) = 0;
@@ -64,7 +64,6 @@ class SbpOps
     virtual PetscErrorCode getH(Mat &mat) = 0;
     virtual PetscErrorCode getDs(Mat &Dy,Mat &Dz) = 0;
     virtual PetscErrorCode getMus(Mat &mu,Mat &muqy,Mat &murz) = 0;
-    virtual PetscErrorCode getR(Mat& Ry, Mat& Rz) = 0;
     virtual PetscErrorCode getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz) = 0;
     virtual PetscErrorCode getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz) = 0;
     virtual PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz) = 0;

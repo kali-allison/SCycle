@@ -77,7 +77,7 @@ public:
     ~SbpOps_fc_coordTrans();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
-    PetscErrorCode setGrid(Vec& y, Vec& z);
+    PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
@@ -154,9 +154,9 @@ public:
     PetscErrorCode constructRzmu(const TempMats_fc_coordTrans& tempMats,Mat &Rzmu);
     PetscErrorCode deleteIntermediateFields();
 
-    PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);
-    PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall); // for A
-    PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
+    PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& L,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);
+    PetscErrorCode constructBC_Neumann(Mat& out, Mat& L,Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall); // for A
+    PetscErrorCode constructBC_Neumann(Mat& out, Mat& L, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
     PetscErrorCode constructBCMats();
 };
 

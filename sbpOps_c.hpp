@@ -95,7 +95,7 @@ class SbpOps_c : public SbpOps
     ~SbpOps_c();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
-    PetscErrorCode setGrid(Vec& y, Vec& z);
+    PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);

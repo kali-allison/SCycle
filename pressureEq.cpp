@@ -318,16 +318,23 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain& D)
   //~ assert(0);
 
   // Set up linear system
-  if (_sbpType.compare("mfc")==0 || D._sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_fc(D,1,_N,coeff,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    if (_sbpType.compare("mc")==0) {
+    _sbp = new SbpOps_c(_order,1,_N,1,_L,coeff);
+  }
+  else if (_sbpType.compare("mfc")==0) {
+    _sbp = new SbpOps_fc(_order,1,_N,1,_L,coeff);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,1,_N,coeff,"Dirichlet","Dirichlet","Dirichlet","Dirichlet","z");
+    _sbp = new SbpOps_fc_coordTrans(_order,1,_N,1,_L,coeff);
+    _sbp->setGrid(NULL,&_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
+  _sbp->setLaplaceType("z");
+  _sbp->computeMatrices(); // actually create the matrices
 
 
   // set up linear solver context

@@ -136,7 +136,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setBCTypes(std::string bcR, std::string bcT
   return ierr;
 }
 
-PetscErrorCode SbpOps_fc_coordTrans::setGrid(Vec& y, Vec& z)
+PetscErrorCode SbpOps_fc_coordTrans::setGrid(Vec* y, Vec* z)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -144,8 +144,8 @@ PetscErrorCode SbpOps_fc_coordTrans::setGrid(Vec& y, Vec& z)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  _y = &y;
-  _z = &z;
+  _y = y;
+  _z = z;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -342,6 +342,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
 
 
   // construct dy/dq and dq/dy
+  if (_y == NULL) { assert(0); } // come back and fix this!
   MatMult(_Dq_Iz,*_y,temp); // temp = Dq * y
   ierr = MatDiagonalSet(_yq,temp,INSERT_VALUES); CHKERRQ(ierr);
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
@@ -536,11 +537,12 @@ PetscErrorCode SbpOps_fc_coordTrans::constructHs(const TempMats_fc_coordTrans& t
 
 
 // computes SAT term for von Neumann BC to be added to u
-// out = alphaT * Bfact *     Hinv* E * mu * D1
-// out = alphaT * Bfact * H * Hinv* E * mu * D1
+// out = alphaT * Bfact *     L * Hinv* E * mu * D1
+// out = alphaT * Bfact * H * L* Hinv* E * mu * D1
 // scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
 // Bfact = -1 or 1, instead of passing in matrix B
-PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall)
+// L = relevant coordinate transform (yq or zr)
+PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out,Mat& L,Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -552,14 +554,21 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, Pe
   Mat HinvxExmu;
   ierr = MatMatMatMult(Hinv,E,mu,MAT_INITIAL_MATRIX,0.5,&HinvxExmu); CHKERRQ(ierr);
 
+  Mat LxHinv,Exmu,LxHinvxExmu;
+  ierr = MatMatMult(L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHinv); CHKERRQ(ierr);
+  ierr = MatMatMult(E,mu,MAT_INITIAL_MATRIX,0.5,&Exmu); CHKERRQ(ierr);
+  ierr = MatMatMult(LxHinv,Exmu,MAT_INITIAL_MATRIX,0.5,&LxHinvxExmu); CHKERRQ(ierr);
+
   if (!_multByH) { // if do not multiply by H
     ierr = MatMatMult(HinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   }
   else {
     // if do multiply by H
-    ierr = MatMatMatMult(_H,HinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_H,LxHinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   }
-  MatDestroy(&HinvxExmu);
+  MatDestroy(&LxHinv);
+  MatDestroy(&Exmu);
+  MatDestroy(&LxHinvxExmu);
 
   PetscScalar a = Bfact * _alphaT;
   MatScale(out,a);
@@ -575,7 +584,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, Pe
 // out = alphaT * Bfact * H * Hinv* e
 // scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
 // Bfact = -1 or 1, instead of passing in matrix B
-PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall)
+PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out,Mat& L,Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -584,11 +593,14 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, Pe
   #endif
 
   if (!_multByH) { // if do not multiply by H
-    ierr = MatMatMult(Hinv,e,scall,1.,&out); CHKERRQ(ierr);
+    ierr = MatMatMatMult(L,Hinv,e,scall,1.,&out); CHKERRQ(ierr);
   }
   else {
     // if do multiply by H
+    Mat HL;
+    ierr = MatMatMult(_H,L,MAT_INITIAL_MATRIX,0.5,&HL); CHKERRQ(ierr);
     ierr = MatMatMatMult(_H,Hinv,e,scall,1.,&out); CHKERRQ(ierr);
+    MatDestroy(&HL);
   }
 
   PetscScalar a = - Bfact * _alphaT;
@@ -605,7 +617,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Neumann(Mat& out, Mat& Hinv, Pe
 // out = H * Hinv * (alphaD * mu + BD1T) * E
 // scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
 // Bfact = -1 or 1, instead of passing in matrix B
-PetscErrorCode SbpOps_fc_coordTrans::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall)
+PetscErrorCode SbpOps_fc_coordTrans::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& L,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -613,19 +625,22 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBC_Dirichlet(Mat& out,PetscScalar 
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Mat HxHinv;
+  Mat LxHxHinv;
   if (!_multByH) { // if do not multiply by H
-    HxHinv = Hinv;
+    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHxHinv); CHKERRQ(ierr);
   }
   else {
-    ierr = MatMatMult(_H,Hinv,MAT_INITIAL_MATRIX,0.5,&HxHinv); CHKERRQ(ierr);
+    ierr = MatMatMatMult(_H,L,Hinv,MAT_INITIAL_MATRIX,0.5,&LxHxHinv); CHKERRQ(ierr);
   }
 
   Mat HinvxmuxE;
-  ierr = MatMatMatMult(HxHinv,mu,E,MAT_INITIAL_MATRIX,0.5,&HinvxmuxE); CHKERRQ(ierr);
+  ierr = MatMatMatMult(LxHxHinv,mu,E,MAT_INITIAL_MATRIX,0.5,&HinvxmuxE); CHKERRQ(ierr);
 
-  ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
+  ierr = MatMatMatMult(LxHxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
+
+  MatDestroy(&LxHxHinv);
+  MatDestroy(&HinvxmuxE);
 
 
   #if VERBOSE > 1
@@ -644,55 +659,55 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBCMats()
   #endif
 
   if (_bcRType.compare("Dirichlet")==0) {
-    if (_AR_D == NULL) { constructBC_Dirichlet(_AR_D,_alphaDy,_muqy,_Hyinv_Iz,_muxBySy_IzT,_ENy_Iz,MAT_INITIAL_MATRIX); }
-    if (_rhsR_D == NULL) { constructBC_Dirichlet(_rhsR_D,_alphaDy,_muqy,_Hyinv_Iz,_muxBySy_IzT,_eNy_Iz,MAT_INITIAL_MATRIX); }
+    if (_AR_D == NULL) { constructBC_Dirichlet(_AR_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_ENy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsR_D == NULL) { constructBC_Dirichlet(_rhsR_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_eNy_Iz,MAT_INITIAL_MATRIX); }
     _AR = _AR_D;
     _rhsR = _rhsR_D;
   }
   else if (_bcRType.compare("Neumann")==0) {
-    if (_AR_N == NULL) { constructBC_Neumann(_AR_N,_Hyinv_Iz, 1.,_ENy_Iz,_muqy,_Dy_Iz,MAT_INITIAL_MATRIX); }
-    if (_rhsR_N == NULL) { constructBC_Neumann(_rhsR_N,_Hyinv_Iz, 1.,_eNy_Iz,MAT_INITIAL_MATRIX); }
+    if (_AR_N == NULL) { constructBC_Neumann(_AR_N,_zr,_Hyinv_Iz, 1.,_ENy_Iz,_muqy,_Dy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsR_N == NULL) { constructBC_Neumann(_rhsR_N,_zr,_Hyinv_Iz, 1.,_eNy_Iz,MAT_INITIAL_MATRIX); }
     _AR = _AR_N;
     _rhsR = _rhsR_N;
   }
 
   if (_bcTType.compare("Dirichlet")==0) {
-    if (_AT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_E0z,MAT_INITIAL_MATRIX); }
-    if (_rhsT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_INITIAL_MATRIX); }
+    if (_AT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_E0z,MAT_INITIAL_MATRIX); }
+    if (_rhsT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_INITIAL_MATRIX); }
     _AT = _AT_D;
     _rhsT = _rhsT_D;
   }
   else if (_bcTType.compare("Neumann")==0) {
-    if (_AT_N == NULL) { constructBC_Neumann(_AT_N,_Iy_Hzinv, -1.,_Iy_E0z,_murz,_Iy_Dz,MAT_INITIAL_MATRIX); }
-    if (_rhsT_N == NULL) { constructBC_Neumann(_rhsT_N,_Iy_Hzinv, -1.,_Iy_e0z,MAT_INITIAL_MATRIX); }
+    if (_AT_N == NULL) { constructBC_Neumann(_AT_N,_yq,_Iy_Hzinv, -1.,_Iy_E0z,_murz,_Iy_Dz,MAT_INITIAL_MATRIX); }
+    if (_rhsT_N == NULL) { constructBC_Neumann(_rhsT_N,_yq,_Iy_Hzinv, -1.,_Iy_e0z,MAT_INITIAL_MATRIX); }
     _AT = _AT_N;
     _rhsT = _rhsT_N;
   }
 
 
   if (_bcLType.compare("Dirichlet")==0) {
-    if (_AL_D == NULL) { constructBC_Dirichlet(_AL_D,_alphaDy,_muqy,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_INITIAL_MATRIX); }
-    if (_rhsL_D == NULL) { constructBC_Dirichlet(_rhsL_D,_alphaDy,_muqy,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_INITIAL_MATRIX); }
+    if (_AL_D == NULL) { constructBC_Dirichlet(_AL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsL_D == NULL) { constructBC_Dirichlet(_rhsL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_INITIAL_MATRIX); }
     _AL = _AL_D;
     _rhsL = _rhsL_D;
   }
   else if (_bcLType.compare("Neumann")==0) {
-    if (_AL_N == NULL) { constructBC_Neumann(_AL_N, _Hyinv_Iz, -1., _E0y_Iz, _muqy, _Dy_Iz,MAT_INITIAL_MATRIX); }
-    if (_rhsL_N == NULL) { constructBC_Neumann(_rhsL_N, _Hyinv_Iz, -1., _e0y_Iz,MAT_INITIAL_MATRIX); }
+    if (_AL_N == NULL) { constructBC_Neumann(_AL_N,_zr,_Hyinv_Iz, -1., _E0y_Iz, _muqy, _Dy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsL_N == NULL) { constructBC_Neumann(_rhsL_N,_zr,_Hyinv_Iz, -1., _e0y_Iz,MAT_INITIAL_MATRIX); }
     _AL = _AL_N;
     _rhsL = _rhsL_N;
   }
 
 
   if (_bcBType.compare("Dirichlet")==0) {
-    if (_AB_D == NULL) { constructBC_Dirichlet(_AB_D,_alphaDz,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_INITIAL_MATRIX); }
-    if (_rhsB_D == NULL) { constructBC_Dirichlet(_rhsB_D,_alphaDz,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_INITIAL_MATRIX); }
+    if (_AB_D == NULL) { constructBC_Dirichlet(_AB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_INITIAL_MATRIX); }
+    if (_rhsB_D == NULL) { constructBC_Dirichlet(_rhsB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_INITIAL_MATRIX); }
     _AB = _AB_D;
     _rhsB = _rhsB_D;
   }
-  else if (_bcLType.compare("Neumann")==0) {
-    if (_AB_N == NULL) { constructBC_Neumann(_AB_N,_Iy_Hzinv, 1.,_Iy_ENz,_murz,_Iy_Dz,MAT_INITIAL_MATRIX); }
-    if (_rhsB_N == NULL) { constructBC_Neumann(_rhsB_N,_Iy_Hzinv, 1.,_Iy_eNz,MAT_INITIAL_MATRIX); }
+  else if (_bcBType.compare("Neumann")==0) {
+    if (_AB_N == NULL) { constructBC_Neumann(_AB_N,_yq,_Iy_Hzinv, 1.,_Iy_ENz,_murz,_Iy_Dz,MAT_INITIAL_MATRIX); }
+    if (_rhsB_N == NULL) { constructBC_Neumann(_rhsB_N,_yq,_Iy_Hzinv, 1.,_Iy_eNz,MAT_INITIAL_MATRIX); }
     _AB = _AB_N;
     _rhsB = _rhsB_N;
   }

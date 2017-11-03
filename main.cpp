@@ -96,13 +96,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.in"; }
 
-  {
-    Domain domain(inputFile);
-    if (domain._isMMS) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
-  }
+  //~ {
+    //~ Domain domain(inputFile);
+    //~ if (domain._isMMS) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(inputFile); }
+  //~ }
 
-  //~ runTests(inputFile);
+  runTests(inputFile);
 
   PetscFinalize();
   return ierr;

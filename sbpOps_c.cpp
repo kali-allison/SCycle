@@ -131,7 +131,7 @@ PetscErrorCode SbpOps_c::setBCTypes(std::string bcR, std::string bcT, std::strin
   return ierr;
 }
 
-PetscErrorCode SbpOps_c::setGrid(Vec& y, Vec& z) { return 0; } // not used for this type of SBP operator
+PetscErrorCode SbpOps_c::setGrid(Vec* y, Vec* z) { return 0; } // not used for this type of SBP operator
 
 PetscErrorCode SbpOps_c::setMultiplyByH(const int multByH)
 {
@@ -558,7 +558,7 @@ PetscErrorCode SbpOps_c::constructBCMats()
     _AB = _AB_D;
     _rhsB = _rhsB_D;
   }
-  else if (_bcLType.compare("Neumann")==0) {
+  else if (_bcBType.compare("Neumann")==0) {
     if (_AB_N == NULL) { constructBC_Neumann(_AB_N,_Iy_Hzinv, 1.,_Iy_ENz,_mu,_Iy_Dz,MAT_INITIAL_MATRIX); }
     if (_rhsB_N == NULL) { constructBC_Neumann(_rhsB_N,_Iy_Hzinv, 1.,_Iy_eNz,MAT_INITIAL_MATRIX); }
     _AB = _AB_N;
