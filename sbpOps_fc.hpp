@@ -145,8 +145,8 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
     PetscErrorCode constructA(const TempMats_fc& tempMats);
     PetscErrorCode updateA_BCs();
-    PetscErrorCode constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu);
-    PetscErrorCode constructD2zmu(const TempMats_fc& tempMats, Mat &D2zmu);
+    PetscErrorCode constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu);
+    PetscErrorCode constructDzzmu(const TempMats_fc& tempMats, Mat &Dzzmu);
     PetscErrorCode constructD2(const TempMats_fc& tempMats);
     PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
     PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
