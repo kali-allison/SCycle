@@ -862,7 +862,7 @@ PetscErrorCode SbpOps_fc::constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu
     MatDestroy(&temp);
   }
 
-  writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
+  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDyymu in sbpOps.cpp.\n");CHKERRQ(ierr);
