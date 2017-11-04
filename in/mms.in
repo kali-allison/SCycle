@@ -19,9 +19,9 @@ geometry = symmetric
 bulkDeformationType = linearElastic
 
 # coordinate transformation
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems

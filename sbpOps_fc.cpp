@@ -583,19 +583,19 @@ PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
   Mat Dzzmu = NULL;
 
   if (_D2type.compare("yz")==0) { // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
-    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
-    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    ierr = constructDyymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = constructDzzmu(tempMats,Dzzmu); CHKERRQ(ierr);
     //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
     //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
     ierr = MatAYPX(_D2,1.0,Dzzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
   else if (_D2type.compare("y")==0) { // D2 = d/dy(mu d/dy)
-    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = constructDyymu(tempMats,Dyymu); CHKERRQ(ierr);
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
   }
   else if (_D2type.compare("z")==0) { // D2 = d/dz(mu d/dz)
-    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    ierr = constructDzzmu(tempMats,Dzzmu); CHKERRQ(ierr);
     ierr = MatDuplicate(Dzzmu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
   }
   else {
@@ -839,90 +839,65 @@ PetscErrorCode SbpOps_fc::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& y
 //======================================================================
 
 
-// compute D2ymu using my class Spmat
-PetscErrorCode SbpOps_fc::constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu)
+// compute Dyymu using my class Spmat
+PetscErrorCode SbpOps_fc::constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructD2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructDyymu in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
+  Mat Rymu,HinvxRymu;
+  ierr = constructRymu(tempMats,Rymu); CHKERRQ(ierr);
+  ierr = MatMatMult(_Hyinv_Iz,Rymu,MAT_INITIAL_MATRIX,1.,&HinvxRymu); CHKERRQ(ierr);
+  ierr = MatMatMatMult(_Dy_Iz,_mu,_Dy_Iz,MAT_INITIAL_MATRIX,1.,&Dyymu); CHKERRQ(ierr);
+  ierr = MatAXPY(Dyymu,-1.,HinvxRymu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  MatDestroy(&HinvxRymu);
+  MatDestroy(&Rymu);
 
-  // kron(Dy,Iz) (interior stencil)
-  Mat Dy_Iz;
-  {
-    if (_order==2) { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,2,2); }
-    else  { kronConvert(tempMats._D1yint,tempMats._Iz,Dy_Iz,5,5); }
-    ierr = PetscObjectSetName((PetscObject) Dy_Iz, "Dyint_Iz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&Dy_Iz,_debugFolder,"Dyint_Iz");CHKERRQ(ierr);
-    #endif
-    #if VERBOSE > 2
-      ierr = MatView(Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    #endif
-  }
-
-
-  // mu*kron(Hy,Iz)
-  Mat muxHy_Iz;
-  {
+  if (!_multByH) {
     Mat temp;
-    kronConvert(tempMats._Hy,tempMats._Iz,temp,1,0);
-    ierr = MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.0,&muxHy_Iz);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) muxHy_Iz, "muxHy_Iz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&muxHy_Iz,_debugFolder,"muxHy_Iz");CHKERRQ(ierr);
-    #endif
-    #if VERBOSE > 2
-      ierr = MatView(muxHy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    #endif
+    MatMatMult(_H,Dyymu,MAT_INITIAL_MATRIX,1.,&temp); CHKERRQ(ierr);
+    MatCopy(temp,Dyymu,SAME_NONZERO_PATTERN);
     MatDestroy(&temp);
   }
 
-  Mat temp1,temp2;
-  //~ ierr = MatTransposeMatMult(Dy_Iz,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  Mat Dy_IzT;
-  MatTranspose(Dy_Iz,MAT_INITIAL_MATRIX,&Dy_IzT);
-  MatMatMult(Dy_IzT,muxHy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-  MatDestroy(&Dy_IzT);
-  ierr = MatMatMult(temp1,Dy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-  ierr = MatScale(temp2,-1);CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&Dy_Iz);
-  MatDestroy(&muxHy_Iz);
+  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
 
-
-  Mat Rymu;
-  ierr = constructRymu(tempMats,Rymu);CHKERRQ(ierr);
-  ierr = MatAXPY(temp2,-1,Rymu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  #if CALCULATE_ENERGY == 1
-    MatDuplicate(Rymu,MAT_COPY_VALUES,&_Ry);
+  #if VERBOSE >1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDyymu in sbpOps.cpp.\n");CHKERRQ(ierr);
   #endif
-  MatDestroy(&Rymu);
+  return ierr;
+}
 
-
-  Mat temp,muxBSy_Iz;
-  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
-  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
-  MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&muxBSy_Iz);
-  ierr = MatAXPY(temp2,1,muxBSy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  MatDestroy(&temp);
-  MatDestroy(&muxBSy_Iz);
-
-  ierr = MatMatMult(_Hyinv_Iz,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
-  MatDestroy(&temp2);
-  #if DEBUG > 0
-    ierr = checkMatrix(&D2ymu,_debugFolder,"D2ymu");CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 2
-    ierr = MatView(D2ymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+// compute Dzzmu using my class Spmat
+PetscErrorCode SbpOps_fc::constructDzzmu(const TempMats_fc& tempMats,Mat &Dzzmu)
+{
+  PetscErrorCode  ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructDzzmu in sbpOps.cpp.\n");CHKERRQ(ierr);
   #endif
 
+  Mat Rzmu,HinvxRzmu;
+  ierr = constructRzmu(tempMats,Rzmu); CHKERRQ(ierr);
+  ierr = MatMatMult(_Iy_Hzinv,Rzmu,MAT_INITIAL_MATRIX,1.,&HinvxRzmu); CHKERRQ(ierr);
+  ierr = MatMatMatMult(_Iy_Dz,_mu,_Iy_Dz,MAT_INITIAL_MATRIX,1.,&Dzzmu); CHKERRQ(ierr);
+  ierr = MatAXPY(Dzzmu,-1.,HinvxRzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  MatDestroy(&HinvxRzmu);
+  MatDestroy(&Rzmu);
 
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructD2ymu in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
+  if (!_multByH) {
+    Mat temp;
+    MatMatMult(_H,Dzzmu,MAT_INITIAL_MATRIX,1.,&temp); CHKERRQ(ierr);
+    MatCopy(temp,Dzzmu,SAME_NONZERO_PATTERN);
+    MatDestroy(&temp);
+  }
+
+  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
+
+  #if VERBOSE >1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDzzmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -1247,90 +1222,7 @@ switch ( _order ) {
 }
 
 
-// compute D2zmu using my class Spmat
-PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
-{
-  PetscErrorCode  ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructD2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
 
-
-  // kron(Iy,Dz)
-  Mat Iy_Dz = NULL;
-  {
-    if (_order==2) { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,2,2); }
-    else  { kronConvert(tempMats._Iy,tempMats._D1zint,Iy_Dz,5,5); }
-    ierr = PetscObjectSetName((PetscObject) Iy_Dz, "Iy_Dz");CHKERRQ(ierr);
-    #if DEBUG > 0
-      ierr = checkMatrix(&Iy_Dz,_debugFolder,"Iy_Dz");CHKERRQ(ierr);
-    #endif
-    #if VERBOSE > 2
-      ierr = MatView(Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    #endif
-  }
-
-
-  // mu*kron(Iy,Hz)
-  Mat muxIy_Hz = NULL;
-  {
-    Mat Iy_Hz = NULL;
-    kronConvert(tempMats._Iy,tempMats._Hz,Iy_Hz,1,1);
-    ierr = MatMatMult(_mu,Iy_Hz,MAT_INITIAL_MATRIX,1.0,&muxIy_Hz);CHKERRQ(ierr);
-     ierr = PetscObjectSetName((PetscObject) muxIy_Hz, "muxIy_Hz");CHKERRQ(ierr);
-    MatDestroy(&Iy_Hz);
-    #if DEBUG > 0
-      ierr = checkMatrix(&muxIy_Hz,_debugFolder,"muxIy_Hz");CHKERRQ(ierr);
-    #endif
-    #if VERBOSE > 2
-      ierr = MatView(muxIy_Hz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-    #endif
-  }
-
-  Mat temp1,temp2 = NULL;
-  //~ ierr = MatTransposeMatMult(Iy_Dz,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-  Mat Iy_DzT;
-  MatTranspose(Iy_Dz,MAT_INITIAL_MATRIX,&Iy_DzT);
-  MatMatMult(Iy_DzT,muxIy_Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-  MatDestroy(&Iy_DzT);
-  ierr = MatMatMult(temp1,Iy_Dz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-  ierr = MatScale(temp2,-1);CHKERRQ(ierr);
-  MatDestroy(&temp1);
-  MatDestroy(&Iy_Dz);
-  MatDestroy(&muxIy_Hz);
-
-  Mat Rzmu = NULL;
-  ierr = constructRzmu(tempMats,Rzmu);
-  ierr = MatAXPY(temp2,-1,Rzmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  #if CALCULATE_ENERGY == 1
-    MatDuplicate(Rzmu,MAT_COPY_VALUES,&_Rz);
-  #endif
-  MatDestroy(&Rzmu);
-
-  Mat temp,muxIy_BSz;
-  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
-  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
-  MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&muxIy_BSz);
-  ierr = MatAXPY(temp2,1,muxIy_BSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  MatDestroy(&temp);
-  MatDestroy(&muxIy_BSz);
-
-  ierr = MatMatMult(_Iy_Hzinv,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
-  MatDestroy(&temp2);
-  #if DEBUG > 0
-    ierr = checkMatrix(&D2zmu,_debugFolder,"D2zmu");CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 2
-    ierr = MatView(D2zmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  #endif
-
-
-  #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructD2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
 
 // compute matrices for 1st derivatives
 PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)

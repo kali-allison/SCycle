@@ -730,17 +730,17 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2(const TempMats_fc_coordTrans& t
   Mat Dzzmu = NULL;
 
   if (_D2type.compare("yz")==0) { // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
-    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
-    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    ierr = constructDyymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = constructDzzmu(tempMats,Dzzmu); CHKERRQ(ierr);
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
     ierr = MatAYPX(_D2,1.0,Dzzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
   else if (_D2type.compare("y")==0) { // D2 = d/dy(mu d/dy)
-    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = constructDyymu(tempMats,Dyymu); CHKERRQ(ierr);
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
   }
   else if (_D2type.compare("z")==0) { // D2 = d/dz(mu d/dz)
-    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    ierr = constructDzzmu(tempMats,Dzzmu); CHKERRQ(ierr);
     ierr = MatDuplicate(Dzzmu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
   }
   else {
@@ -985,11 +985,11 @@ PetscErrorCode SbpOps_fc_coordTrans::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat&
 
 
 // compute D2ymu using my class Spmat
-PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans& tempMats, Mat &Dyymu)
+PetscErrorCode SbpOps_fc_coordTrans::constructDyymu(const TempMats_fc_coordTrans& tempMats, Mat &Dyymu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
-  string funcName = "SbpOps_fc_coordTrans::constructD2ymu";
+  string funcName = "SbpOps_fc_coordTrans::constructDyymu";
   string fileName = "sbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
@@ -1027,11 +1027,11 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2ymu(const TempMats_fc_coordTrans
 }
 
 // compute D2zmu using my class Spmat
-PetscErrorCode SbpOps_fc_coordTrans::constructD2zmu(const TempMats_fc_coordTrans& tempMats,Mat &Dzzmu)
+PetscErrorCode SbpOps_fc_coordTrans::constructDzzmu(const TempMats_fc_coordTrans& tempMats,Mat &Dzzmu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE > 1
-  string funcName = "SbpOps_fc_coordTrans::constructD2zmu";
+  string funcName = "SbpOps_fc_coordTrans::constructDzzmu";
   string fileName = "sbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
