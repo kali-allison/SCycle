@@ -3,10 +3,10 @@
 order = 4
 Ny = 21
 Nz = 21
-Ly = 2
+Ly = 1
 #Ly = 1.570796326794897
 #Ly = 6.283185307179586
-Lz = 2.5
+Lz = 1
 #Lz = 6.283185307179586
 vL = 1e-9    # (m/s)
 
@@ -19,9 +19,9 @@ geometry = symmetric
 bulkDeformationType = linearElastic
 
 # coordinate transformation
-#bCoordTrans = 5.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 5.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 
 #======================================================================
 # linear systems

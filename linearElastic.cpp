@@ -42,10 +42,10 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   if (_timeIntegrator.compare("WaveEq")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
   // for MMS tests
-  //~ _bcTType = "Dirichlet";
-  //~ _bcBType = "Dirichlet";
-  //~ _bcRType = "Dirichlet";
-  //~ _bcLType = "Dirichlet";
+  _bcTType = "Dirichlet";
+  _bcBType = "Dirichlet";
+  _bcRType = "Dirichlet";
+  _bcLType = "Dirichlet";
 
   //~ setInitialConds(D,tau); // guess at steady-state configuration
   //~ if (_loadICs==1) {  } // load from previous simulation
@@ -354,13 +354,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_cs,&Istart,&Iend);
   VecGetArray(_cs,&cs);
-
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    cs[Jj] = pow(cs[Jj], 0.5);
-    Jj++;
-  }
-  VecRestoreArray(_cs,&cs);
+  VecSqrtAbs(_cs);
 
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
@@ -684,7 +678,6 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D, std::string _timeIntegr
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
   _sbp->computeMatrices(); // actually create the matrices
-
 
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);

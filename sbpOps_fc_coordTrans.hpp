@@ -147,7 +147,7 @@ public:
     PetscErrorCode constructJacobian(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode constructA(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode updateA_BCs();
-    PetscErrorCode constructD2ymu(const TempMats_fc_coordTrans& tempMats, Mat &D2ymu);
+    PetscErrorCode constructD2ymu(const TempMats_fc_coordTrans& tempMats, Mat &Dyymu);
     PetscErrorCode constructD2zmu(const TempMats_fc_coordTrans& tempMats, Mat &D2zmu);
     PetscErrorCode constructD2(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode constructRymu(const TempMats_fc_coordTrans& tempMats,Mat &Rymu);
