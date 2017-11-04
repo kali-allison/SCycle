@@ -7,7 +7,7 @@ using namespace std;
 
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
-  _N(D._Nz),_sizeMuArr(D._Ny*D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
+  _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
@@ -40,7 +40,6 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecDuplicate(_tauQSP,&_slip);    PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "slipVel");
   VecSet(_slipVel,0.0);
-
 
 
   // flash heating parameters
@@ -339,6 +338,10 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
   }
+
+  //~ VecWAXPY(_sN,1.0,_p,_sNEff);
+  VecDuplicate(_sNEff,&_sN);
+  VecCopy(_sNEff,_sN);
 
 
   #if VERBOSE > 1
@@ -783,7 +786,7 @@ SymmFault::~SymmFault()
   #endif
 }
 
-PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -805,7 +808,7 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   return ierr;
 }
 
-PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -815,10 +818,6 @@ PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,V
 
   VecCopy(varEx.find("psi")->second,_psi);
   VecCopy(varEx.find("slip")->second,_slip);
-
-  if (varIm.find("deltaT") != varIm.end()) {
-    setTemp(varIm.find("deltaT")->second);
-  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1099,6 +1098,43 @@ PetscErrorCode SymmFault::getTau(Vec& tau)
   return ierr;
 }
 
+// use pore pressure to compute total normal stress
+// sNEff = sN - rho*g*z - dp
+PetscErrorCode SymmFault::setSN(const Vec& p)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setSN";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+
+  ierr = VecWAXPY(_sN,1.,p,_sNEff); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute effective normal stress from total and pore pressure:
+// sNEff = sN - rho*g*z - dp
+PetscErrorCode SymmFault::setSNEff(const Vec& p)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::setSNEff";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+
+  //~ ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+    //~ sNEff[Jj] = sN[Jj] - p[Jj];
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 
 
 PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,PetscScalar *out)
@@ -1283,6 +1319,10 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
   }
   else if (!_bcLTauQS) {
     ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
+  }
+  else {
+    VecSet(dvarEx["psi"],0.0);
+    VecSet(dvarEx["slip"],0.0);
   }
 
   _stateLawTime += MPI_Wtime() - startTime;

@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 31
-Nz = 32
+Ny = 51
+Nz = 52
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -12,13 +12,11 @@ geometry = symmetric
 
 # linearElastic or powerLaw
 bulkDeformationType = linearElastic
-#powerLawMomBalType = steadyState
-powerLawMomBalType = transient
 
 # coordinate transformation
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems
@@ -145,6 +143,7 @@ timeIntInds = [psi slip]
 
 
 # write to laptop
+outputDir = data/test_
 #outputDir = data/maxVisc1e16_
 #outputDir = data/maxVisc1e21_
 #outputDir = data/maxVisc1e30_

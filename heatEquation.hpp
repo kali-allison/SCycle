@@ -33,7 +33,7 @@ class HeatEquation
     // domain dimensions etc
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
-    const Vec           *_y,*_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
     std::string          _heatEquationType;
     int                  _isMMS;
 

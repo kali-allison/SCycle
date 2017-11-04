@@ -11,8 +11,8 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
-  _vL(D._vL),_ay(NULL),
-  _muVec(NULL),_muVal(30.0),_rhoVal(3.0),_rhoVec(NULL),
+  _vL(D._vL),
+  _muVec(NULL),_rhoVec(NULL),_cs(NULL),_ay(NULL),_muVal(30.0),_rhoVal(3.0),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
@@ -33,6 +33,20 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   checkInput();
   allocateFields();
   setMaterialParameters();
+    // define boundary condition types
+  _bcTType = "Neumann";
+  _bcBType = "Neumann";
+  _bcRType = "Dirichlet";
+  _bcLType = "Dirichlet";
+  if (_bcLTauQS==1) { _bcLType = "Neumann"; }
+  if (_timeIntegrator.compare("WaveEq")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
+
+  // for MMS tests
+  _bcTType = "Dirichlet";
+  _bcBType = "Dirichlet";
+  _bcRType = "Dirichlet";
+  _bcLType = "Dirichlet";
+
   //~ setInitialConds(D,tau); // guess at steady-state configuration
   //~ if (_loadICs==1) {  } // load from previous simulation
   if (_inputDir.compare("unspecified") != 0) {
@@ -65,7 +79,7 @@ LinearElastic::~LinearElastic()
   // body fields
   VecDestroy(&_muVec);
   VecDestroy(&_rhs);
-  // VecDestroy(&_u);
+  VecDestroy(&_u);
   VecDestroy(&_sxy);
   VecDestroy(&_sxz);
   VecDestroy(&_surfDisp);
@@ -340,13 +354,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_cs,&Istart,&Iend);
   VecGetArray(_cs,&cs);
-
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    cs[Jj] = pow(cs[Jj], 0.5);
-    Jj++;
-  }
-  VecRestoreArray(_cs,&cs);
+  VecSqrtAbs(_cs);
 
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
@@ -442,6 +450,8 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+
+
   delete _sbp;
   KSPDestroy(&_ksp);
 
@@ -451,21 +461,25 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
+  _sbp->computeMatrices(); // actually create the matrices
+
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
-
 
   // set up boundary conditions
   VecSet(_bcR,0.0);
@@ -634,7 +648,7 @@ PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
   return ierr;
 }
 
-// try to speed up spin up by starting closer to steady state
+// set up SBP operators
 PetscErrorCode LinearElastic::setUpSBPContext(Domain& D, std::string _timeIntegrator)
 {
   PetscErrorCode ierr = 0;
@@ -646,37 +660,28 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D, std::string _timeIntegr
   delete _sbp;
   KSPDestroy(&_ksp);
 
-  // set up SBP operators
-  //~ string bcT,string bcR,string bcB, string bcL
-  _bcTType = "Neumann";
-  _bcBType = "Neumann";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
-  if (_bcLTauQS==1) { _bcLType = "Neumann"; }
-  if (_timeIntegrator.compare("WaveEq")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
-
-  // for MMS tests
-  //~ _bcTType = "Dirichlet";
-  //~ _bcBType = "Dirichlet";
-  //~ _bcRType = "Dirichlet";
-  //~ _bcLType = "Dirichlet";
 
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVec,_bcTType,_bcRType,_bcBType,_bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
+  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
+  _sbp->computeMatrices(); // actually create the matrices
+
+
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
-
 
   return ierr;
   #if VERBOSE > 1
@@ -744,7 +749,7 @@ PetscErrorCode LinearElastic::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+  ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
 
   PetscViewer    viewer;
 
@@ -856,7 +861,7 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
   return ierr;
 }
 
-PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -876,7 +881,7 @@ PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<strin
   return ierr;
 }
 
-PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -891,6 +896,22 @@ PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<stri
   } // else do nothing
   ierr = VecSet(_bcR,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_bcR,1.0,_bcRShift);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode LinearElastic::updateTemperature(const Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateTemperature()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // do nothing
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -955,8 +976,12 @@ PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<s
     VecGetArray(*_z, &zz);
     Jj = 0;
     PetscScalar alphay, alphaz;
-    (_sbp)->getAlphay(alphay);
-    (_sbp)->getAlphaz(alphaz);
+    PetscScalar dy,dz;
+    if (_sbpType.compare("mfc_coordTrans")==0) { dy = 1./(_Ny-1); dz = 1./(_Nz-1); }
+    else { dy = _Ly/(_Ny-1); dz = _Lz/(_Nz-1); }
+    if (_order == 2 ) { alphay = 0.5 * dy; alphaz = 0.5 * dz; }
+    if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * dy; alphaz = 0.4567e4/0.14400e5 * dz; }
+
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
       if (zz[Jj] == 0){ay[Jj] = -0.5 * alphaz;}
@@ -969,23 +994,20 @@ PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<s
     VecRestoreArray(*_z,&z);
     VecRestoreArray(_ay,&ay);
 
-    // for (Ii=Istart;Ii<Iend;Ii++) {
-    //   PetscInt II[0];
-    //   II[0] = Ii;
-    //   VecGetValues(*_y, 1, II, yy);
-    //   VecGetValues(*_z, 1, II, zz);
-    //   PetscScalar alphay, alphaz;
-    //   (_sbp)->getAlphay(alphay);
-    //   (_sbp)->getAlphaz(alphaz);
-    //   ay=0;
-    //   if (zz[0] == 0){ay = -1.0 * alphaz;}
-    //   if (zz[0] == _Lz){ay = -1.0 * alphaz;}
-    //   if (yy[0] == 0){ay = -1.0 * alphay;}
-    //   if (yy[0] == _Ly){ay = -1.0 * alphay;}
-    //   VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
-    //   }
-    // VecAssemblyBegin(_ay);
-    // VecAssemblyEnd(_ay);
+     //~ for (Ii=Istart;Ii<Iend;Ii++) {
+       //~ PetscInt II[0];
+       //~ II[0] = Ii;
+       //~ VecGetValues(*_y, 1, II, yy);
+       //~ VecGetValues(*_z, 1, II, zz);
+       //~ ay=0;
+       //~ if (zz[0] == 0){ay[Jj] = -1.0 * alphaz;}
+       //~ if (zz[0] == _Lz){ay[Jj] = -1.0 * alphaz;}
+       //~ if (yy[0] == 0){ay[Jj] = -1.0 * alphay;}
+       //~ if (yy[0] == _Ly){ay[Jj] = -1.0 * alphay;}
+       //~ VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
+       //~ }
+     //~ VecAssemblyBegin(_ay);
+     //~ VecAssemblyEnd(_ay);
     ierr = VecPointwiseMult(_ay, _ay, _cs);
     }
     _u = _varEx["u"];
@@ -1108,8 +1130,8 @@ PetscErrorCode LinearElastic::d_dt_mms(const PetscScalar time,const map<string,V
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(source,Hxsource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
   }
   VecDestroy(&source);
@@ -1245,8 +1267,8 @@ PetscErrorCode LinearElastic::setMMSInitialConditions()
   writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
   }
   VecDestroy(&source);

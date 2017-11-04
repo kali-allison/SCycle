@@ -1,32 +1,275 @@
 #include "sbpOps_fc.hpp"
 
+#define FILENAME "sbpOps_fc.cpp"
 
 
-
-//================= constructor and destructor ========================
-SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
-  string bcT,string bcR,string bcB, string bcL, string type)
-: _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._Ly/(D._Ny-1.)),_dz(D._Lz/(D._Nz-1.)),
-  _muVec(&muVec),_mu(NULL),
-  _type(type),_bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
-  _rhsL(NULL),_rhsR(NULL),_rhsT(NULL),_rhsB(NULL),
-  _Hyinv_Iz(NULL),_Iy_Hzinv(NULL),_e0y_Iz(NULL),_eNy_Iz(NULL),
-  _E0y_Iz(NULL),_ENy_Iz(NULL),_Iy_E0z(NULL),_Iy_ENz(NULL),
-  _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0),
-  _debugFolder("./matlabAnswers/"),_H(NULL),_Hinv(NULL),_A(NULL),
-  _Dy_Iz(NULL),_Iy_Dz(NULL),
-  _Ry(NULL),_Rz(NULL),_By_Iz(NULL),_Iy_Bz(NULL),_Iy_e0z(NULL),_Iy_eNz(NULL)
+//======================================================================
+// constructor and destructor
+//======================================================================
+SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
+: _order(order),_Ny(Ny),_Nz(Nz),_dy(Ly/(Ny-1.)),_dz(Lz/(Nz-1.)),
+  _muVec(&muVec),
+  _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
+  _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in sbpOps.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_fc.cpp.\n");
 #endif
 
-  //~ if (_Ny == 1) { return; }
+  // ensure this is in an acceptable state
+  setMatsToNull();
+  assert(order == 2 || order == 4);
+  assert(Ny > 0); assert(Nz > 0);
+  assert(Ly > 0); assert(Lz > 0);
+  if (Ny == 1) { _dy = Ly; }
+  if (Nz == 1) { _dz = Lz; }
+  assert(_muVec != NULL);
 
-  stringstream ss;
-  ss << "order" << _order << "Ny" << _Ny << "Nz" << _Nz << "/";
-  _debugFolder += ss.str();
+  // penalty weights
+  _alphaT = -1.0; // von Neumann
+  _beta= 1.0; // 1 part of Dirichlet
+  if (_order == 2) { _alphaDy = -4.0/_dy; _alphaDz = -4.0/_dz; }
+  else if (_order == 4) { _alphaDy = 2.0*-48.0/17.0 /_dy; _alphaDz = 2.0*-48.0/17.0 /_dz;  }
 
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in SbpOps_fc.cpp.\n");
+#endif
+}
+
+
+
+SbpOps_fc::~SbpOps_fc()
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
+  #endif
+
+  MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
+  MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
+  MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
+  MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
+
+  MatDestroy(&_A);
+  MatDestroy(&_D2);
+  MatDestroy(&_Dy_Iz);
+  MatDestroy(&_Iy_Dz);
+  MatDestroy(&_Hinv); MatDestroy(&_H);
+  MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
+  MatDestroy(&_Hy_Iz); MatDestroy(&_Iy_Hz);
+  MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
+  MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
+  MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
+  #endif
+}
+
+
+//======================================================================
+// functions for setting options for class
+//======================================================================
+
+PetscErrorCode SbpOps_fc::setMatsToNull()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::setMatsToNull";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  _mu = NULL;
+
+  _AR = NULL; _AT = NULL; _AL = NULL; _AB = NULL;
+  _rhsL = NULL; _rhsR = NULL; _rhsT = NULL; _rhsB = NULL;
+  _AR_N = NULL; _AT_N = NULL; _AL_N = NULL; _AB_N = NULL;
+  _rhsL_N = NULL; _rhsR_N = NULL; _rhsT_N = NULL; _rhsB_N = NULL;
+  _AR_D = NULL; _AT_D = NULL; _AL_D = NULL; _AB_D = NULL;
+  _rhsL_D = NULL; _rhsR_D = NULL; _rhsT_D = NULL; _rhsB_D = NULL;
+
+  _A = NULL;
+  _Dy_Iz = NULL; _Iy_Dz = NULL;
+  _D2 = NULL;
+  _Hinv = NULL; _H = NULL; _Hyinv_Iz = NULL; _Iy_Hzinv = NULL; _Hy_Iz = NULL; _Iy_Hz = NULL;
+  _e0y_Iz = NULL; _eNy_Iz = NULL; _Iy_e0z = NULL; _Iy_eNz = NULL;
+  _E0y_Iz = NULL; _ENy_Iz = NULL; _Iy_E0z = NULL; _Iy_ENz = NULL;
+  _muxBySy_IzT = NULL; _Iy_muxBzSzT = NULL;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode SbpOps_fc::setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::setBCTypes";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // check that each string is a valid option
+  assert(bcR.compare("Dirichlet") == 0 || bcR.compare("Neumann") == 0 );
+  assert(bcT.compare("Dirichlet") == 0 || bcT.compare("Neumann") == 0 );
+  assert(bcL.compare("Dirichlet") == 0 || bcL.compare("Neumann") == 0 );
+  assert(bcB.compare("Dirichlet") == 0 || bcB.compare("Neumann") == 0 );
+
+  _bcRType = bcR;
+  _bcTType = bcT;
+  _bcLType = bcL;
+  _bcBType = bcB;
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::setGrid(Vec* y, Vec* z) { return 0; } // not used for this type of SBP operator
+
+PetscErrorCode SbpOps_fc::setMultiplyByH(const int multByH)
+{
+  assert( _multByH == 1 || _multByH == 0 );
+  _multByH = multByH;
+  return 0;
+}
+
+PetscErrorCode SbpOps_fc::setLaplaceType(const std::string type)
+{
+  assert(_D2type.compare("yz") == 0 || _D2type.compare("y") == 0 || _D2type.compare("z") == 0 );
+  _D2type = type;
+  return 0;
+}
+
+PetscErrorCode SbpOps_fc::changeBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::setBCTypes";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // check that each string is a valid option
+  assert(bcR.compare("Dirichlet") == 0 || bcR.compare("Neumann") == 0 );
+  assert(bcT.compare("Dirichlet") == 0 || bcT.compare("Neumann") == 0 );
+  assert(bcL.compare("Dirichlet") == 0 || bcL.compare("Neumann") == 0 );
+  assert(bcB.compare("Dirichlet") == 0 || bcB.compare("Neumann") == 0 );
+
+  _bcRType = bcR;
+  _bcTType = bcT;
+  _bcLType = bcL;
+  _bcBType = bcB;
+
+  constructBCMats();
+  updateA_BCs();
+
+  if (_deleteMats) { deleteIntermediateFields(); }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode SbpOps_fc::setDeleteIntermediateFields(const int deleteMats)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::setDeleteIntermediateFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  assert(deleteMats == 0 || deleteMats == 1);
+  _deleteMats = deleteMats;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::deleteIntermediateFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::deleteIntermediateFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  MatDestroy(&_AR); MatDestroy(&_AT); MatDestroy(&_AL); MatDestroy(&_AB);
+  if ( _bcRType.compare("Dirichlet") == 0 ) {
+    MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
+    MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
+  }
+  else if ( _bcRType.compare("Neumann") == 0 ) {
+    MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
+    MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
+  }
+  else {
+    MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
+    MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
+    MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
+    MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
+  }
+
+  MatDestroy(&_D2);
+
+  MatDestroy(&_Hinv); MatDestroy(&_H);
+  MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
+  MatDestroy(&_Hy_Iz); MatDestroy(&_Iy_Hz);
+  MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
+  MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
+  MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+//======================================================================
+// functions for computing matrices
+//======================================================================
+
+// matrices not constructed until now
+PetscErrorCode SbpOps_fc::computeMatrices()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::computeMatrices";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
+
+  constructMu(*_muVec);
+  constructEs(tempMats);
+  constructes(tempMats);
+  constructHs(tempMats);
+  constructBs(tempMats);
+
+  construct1stDerivs(tempMats);
+  constructBCMats();
+  constructA(tempMats);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::constructMu(Vec& muVec)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructMu";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // construct matrix mu
   MatCreate(PETSC_COMM_WORLD,&_mu);
@@ -35,92 +278,492 @@ SbpOps_fc::SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,
   MatMPIAIJSetPreallocation(_mu,1,NULL,1,NULL);
   MatSeqAIJSetPreallocation(_mu,1,NULL);
   MatSetUp(_mu);
-  MatDiagonalSet(_mu,*_muVec,INSERT_VALUES);
+  MatDiagonalSet(_mu,muVec,INSERT_VALUES);
 
-  // NOT a member of this class, contains stuff to be deleted before
-  // end of constructor to save on memory usage.
-  TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  // reset SAT params
-  if (_order==4) {
-    _alphaDy = 2.0*-48.0/17.0 /_dy;
-    _alphaDz = 2.0*-48.0/17.0 /_dz;
-  }
-
-  constructH(tempFactors);
-  constructHinv(tempFactors);
-  construct1stDerivs(tempFactors);
-  satBoundaries(tempFactors);
-
-  constructA(tempFactors);
-
-  MatDuplicate(tempFactors._Hyinv_Iz,MAT_COPY_VALUES,&_Hyinv_Iz);
-  MatDuplicate(tempFactors._Iy_Hzinv,MAT_COPY_VALUES,&_Iy_Hzinv);
-
-  Spmat e0y(_Ny,1); e0y(0,0,1.0);
-  kronConvert(e0y,tempFactors._Iz,_e0y_Iz,1,1);
-
-  Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
-  kronConvert(eNy,tempFactors._Iz,_eNy_Iz,1,1);
-
-  Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
-  kronConvert(E0y,tempFactors._Iz,_E0y_Iz,1,1);
-
-  Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
-  kronConvert(ENy,tempFactors._Iz,_ENy_Iz,1,1);
-
-  Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
-  kronConvert(tempFactors._Iy,E0z,_Iy_E0z,1,1);
-
-  Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
-  kronConvert(tempFactors._Iy,ENz,_Iy_ENz,1,1);
-
-  Spmat e0z(_Nz,1); e0z(0,0,1.0);
-  kronConvert(tempFactors._Iy,e0z,_Iy_e0z,1,1);
-
-  Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
-  kronConvert(tempFactors._Iy,eNz,_Iy_eNz,1,1);
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in sbpOps.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
 }
 
-SbpOps_fc::~SbpOps_fc()
+
+PetscErrorCode SbpOps_fc::constructEs(const TempMats_fc& tempMats)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructEs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
+  kronConvert(E0y,tempMats._Iz,_E0y_Iz,1,1);
+
+  Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
+  kronConvert(ENy,tempMats._Iz,_ENy_Iz,1,1);
+
+  Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
+  kronConvert(tempMats._Iy,E0z,_Iy_E0z,1,1);
+
+  Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
+  kronConvert(tempMats._Iy,ENz,_Iy_ENz,1,1);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::constructes(const TempMats_fc& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructes";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Spmat e0y(_Ny,1); e0y(0,0,1.0);
+  kronConvert(e0y,tempMats._Iz,_e0y_Iz,1,1);
+
+  Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
+  kronConvert(eNy,tempMats._Iz,_eNy_Iz,1,1);
+
+  Spmat e0z(_Nz,1); e0z(0,0,1.0);
+  kronConvert(tempMats._Iy,e0z,_Iy_e0z,1,1);
+
+  Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
+  kronConvert(tempMats._Iy,eNz,_Iy_eNz,1,1);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::constructBs(const TempMats_fc& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructBs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Mat temp;
+  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
+  PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
+  MatDestroy(&temp);
+
+  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
+  PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
+  MatDestroy(&temp);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::constructHs(const TempMats_fc& tempMats)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructHs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // H, Hy, and Hz
+  kronConvert(tempMats._Hy,tempMats._Iz,_Hy_Iz,1,0);
+  PetscObjectSetName((PetscObject) _Hy_Iz, "Hy_Iz");
+  kronConvert(tempMats._Iy,tempMats._Hz,_Iy_Hz,1,0);
+  PetscObjectSetName((PetscObject) _Iy_Hz, "Iy_Hz");
+  ierr = MatMatMult(_Hy_Iz,_Iy_Hz,MAT_INITIAL_MATRIX,1.,&_H);
+  PetscObjectSetName((PetscObject) _H, "H");
+
+  // Hinv, and Hinvy and Hinvz
+  kronConvert(tempMats._Hyinv,tempMats._Iz,_Hyinv_Iz,1,0);
+  PetscObjectSetName((PetscObject) _Hyinv_Iz, "Hyinv_Iz");
+  kronConvert(tempMats._Iy,tempMats._Hzinv,_Iy_Hzinv,1,0);
+  PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
+  ierr = MatMatMult(_Hyinv_Iz,_Hyinv_Iz,MAT_INITIAL_MATRIX,1.,&_Hinv);
+  PetscObjectSetName((PetscObject) _Hinv, "Hinv");
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+// computes SAT term for von Neumann BC to be added to u
+// out = alphaT * Bfact *     Hinv* E * mu * D1
+// out = alphaT * Bfact * H * Hinv* E * mu * D1
+// scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
+// Bfact = -1 or 1, instead of passing in matrix B
+PetscErrorCode SbpOps_fc::constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructBC_Neumann(Mat& out, Mat& Hinv, Mat& B, Mat& E, Mat& mu, Mat& D1)";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // temporary matrix using only diagonal matrices, should be efficient to generate and destroy
+  Mat HinvxExmu;
+  ierr = MatMatMatMult(Hinv,E,mu,MAT_INITIAL_MATRIX,1.,&HinvxExmu); CHKERRQ(ierr);
+
+  if (!_multByH) { // if do not multiply by H
+    ierr = MatMatMult(HinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
+  }
+  else {
+    // if do multiply by H
+    ierr = MatMatMatMult(_H,HinvxExmu,D1,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
+  }
+  MatDestroy(&HinvxExmu);
+
+  PetscScalar a = Bfact * _alphaT;
+  MatScale(out,a);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// computes SAT term for von Neumann BC for construction of rhs
+// out = alphaT * Bfact *     Hinv* e
+// out = alphaT * Bfact * H * Hinv* e
+// scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
+// Bfact = -1 or 1, instead of passing in matrix B
+PetscErrorCode SbpOps_fc::constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructBC_Neumann(Mat& out, Mat& Hinv, Mat& B, Mat& E, Mat& mu, Mat& D1)";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (!_multByH) { // if do not multiply by H
+    ierr = MatMatMult(Hinv,e,scall,1.,&out); CHKERRQ(ierr);
+  }
+  else {
+    // if do multiply by H
+    ierr = MatMatMatMult(_H,Hinv,e,scall,1.,&out); CHKERRQ(ierr);
+  }
+
+  PetscScalar a = Bfact * _alphaT;
+  MatScale(out,a);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// computes SAT term for Dirichlet BC
+// out =     Hinv * (alphaD * mu + BD1T) * E
+// out = H * Hinv * (alphaD * mu + BD1T) * E
+// scall = MAT_INITIAL_MATRIX, or MAT_REUSE_MATRIX
+// Bfact = -1 or 1, instead of passing in matrix B
+PetscErrorCode SbpOps_fc::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructBC_Dirichlet";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Mat HxHinv;
+  if (!_multByH) { // if do not multiply by H
+    HxHinv = Hinv;
+  }
+  else {
+    ierr = MatMatMult(_H,Hinv,MAT_INITIAL_MATRIX,1.,&HxHinv); CHKERRQ(ierr);
+  }
+
+  Mat HinvxmuxE;
+  ierr = MatMatMatMult(HxHinv,mu,E,MAT_INITIAL_MATRIX,1.,&HinvxmuxE); CHKERRQ(ierr);
+
+  ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
+  ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SbpOps_fc::constructBCMats()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructBCMats";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_bcRType.compare("Dirichlet")==0) {
+    if (_AR_D == NULL) { constructBC_Dirichlet(_AR_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_ENy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsR_D == NULL) { constructBC_Dirichlet(_rhsR_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_eNy_Iz,MAT_INITIAL_MATRIX); }
+    _AR = _AR_D;
+    _rhsR = _rhsR_D;
+  }
+  else if (_bcRType.compare("Neumann")==0) {
+    if (_AR_N == NULL) { constructBC_Neumann(_AR_N,_Hyinv_Iz, 1.,_ENy_Iz,_mu,_Dy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsR_N == NULL) { constructBC_Neumann(_rhsR_N,_Hyinv_Iz, 1.,_eNy_Iz,MAT_INITIAL_MATRIX); }
+    _AR = _AR_N;
+    _rhsR = _rhsR_N;
+  }
+
+  if (_bcTType.compare("Dirichlet")==0) {
+    if (_AT_D == NULL) { constructBC_Dirichlet(_AT_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_E0z,MAT_INITIAL_MATRIX); }
+    if (_rhsT_D == NULL) { constructBC_Dirichlet(_rhsT_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_INITIAL_MATRIX); }
+    _AT = _AT_D;
+    _rhsT = _rhsT_D;
+  }
+  else if (_bcTType.compare("Neumann")==0) {
+    if (_AT_N == NULL) { constructBC_Neumann(_AT_N,_Iy_Hzinv, -1.,_Iy_E0z,_mu,_Iy_Dz,MAT_INITIAL_MATRIX); }
+    if (_rhsT_N == NULL) { constructBC_Neumann(_rhsT_N,_Iy_Hzinv, -1.,_Iy_e0z,MAT_INITIAL_MATRIX); }
+    _AT = _AT_N;
+    _rhsT = _rhsT_N;
+  }
+
+
+  if (_bcLType.compare("Dirichlet")==0) {
+    if (_AL_D == NULL) { constructBC_Dirichlet(_AL_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsL_D == NULL) { constructBC_Dirichlet(_rhsL_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_INITIAL_MATRIX); }
+    _AL = _AL_D;
+    _rhsL = _rhsL_D;
+  }
+  else if (_bcLType.compare("Neumann")==0) {
+    if (_AL_N == NULL) { constructBC_Neumann(_AL_N, _Hyinv_Iz, -1., _E0y_Iz, _mu, _Dy_Iz,MAT_INITIAL_MATRIX); }
+    if (_rhsL_N == NULL) { constructBC_Neumann(_rhsL_N, _Hyinv_Iz, -1., _e0y_Iz,MAT_INITIAL_MATRIX); }
+    _AL = _AL_N;
+    _rhsL = _rhsL_N;
+  }
+
+
+  if (_bcBType.compare("Dirichlet")==0) {
+    if (_AB_D == NULL) { constructBC_Dirichlet(_AB_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_INITIAL_MATRIX); }
+    if (_rhsB_D == NULL) { constructBC_Dirichlet(_rhsB_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_INITIAL_MATRIX); }
+    _AB = _AB_D;
+    _rhsB = _rhsB_D;
+  }
+  else if (_bcBType.compare("Neumann")==0) {
+    if (_AB_N == NULL) { constructBC_Neumann(_AB_N,_Iy_Hzinv, 1.,_Iy_ENz,_mu,_Iy_Dz,MAT_INITIAL_MATRIX); }
+    if (_rhsB_N == NULL) { constructBC_Neumann(_rhsB_N,_Iy_Hzinv, 1.,_Iy_eNz,MAT_INITIAL_MATRIX); }
+    _AB = _AB_N;
+    _rhsB = _rhsB_N;
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// construct // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
+PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructA";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+    #if VERBOSE > 2
+    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+  #endif
+
+  Mat Dyymu = NULL;
+  Mat Dzzmu = NULL;
+
+  if (_D2type.compare("yz")==0) { // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
+    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
+    //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
+    ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
+    ierr = MatAYPX(_D2,1.0,Dzzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("y")==0) { // D2 = d/dy(mu d/dy)
+    ierr = constructD2ymu(tempMats,Dyymu); CHKERRQ(ierr);
+    ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("z")==0) { // D2 = d/dz(mu d/dz)
+    ierr = constructD2zmu(tempMats,Dzzmu); CHKERRQ(ierr);
+    ierr = MatDuplicate(Dzzmu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
+    assert(0);
+  }
+
+  if (_multByH) { // if multiply by H
+    Mat temp;
+    ierr = MatMatMult(_H,_D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
+    ierr = MatCopy(temp,_D2,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatDestroy(&temp);CHKERRQ(ierr);
+    ierr = MatSetOption(_D2,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
+  }
+
+  // clean up
+  ierr = MatDestroy(&Dyymu);CHKERRQ(ierr);
+  ierr = MatDestroy(&Dzzmu);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  _runTime = MPI_Wtime() - startTime;
+  return 0;
+}
+
+// assumes A has not been computed before
+PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::constructA";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_D2 == NULL) { constructD2(tempMats); }
+  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
+  if (_deleteMats) { MatDestroy(&_D2); }
+
+  // add SAT boundary condition terms
+  constructBCMats();
+
+  if (_D2type.compare("yz")==0) {
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("y")==0) {
+    ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("z")==0) {
+    ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
+    assert(0);
+  }
+  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+
+  #if VERBOSE > 2
+    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+  #endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  _runTime = MPI_Wtime() - startTime;
+  return 0;
+}
+
+// update A based on new BCs
+PetscErrorCode SbpOps_fc::updateA_BCs()
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc::updateA_BCs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_D2 == NULL) {
+    TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
+    constructD2(tempMats);
+  }
+  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
+  if (_deleteMats) { MatDestroy(&_D2); }
+
+  // add SAT boundary condition terms
+  constructBCMats();
+
+  if (_D2type.compare("yz")==0) {
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("y")==0) {
+    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("z")==0) {
+    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
+    assert(0);
+  }
+
+  #if VERBOSE > 2
+    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+  #endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  _runTime = MPI_Wtime() - startTime;
+  return 0;
+}
+
+//======================================================================
+// functions to allow user access to various matrices
+//======================================================================
+
+// map the boundary condition vectors to rhs
+PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
+{
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  MatDestroy(&_H);
-  MatDestroy(&_Hinv);
+  if (_D2type.compare("yz")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+    ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
+  }
+  else if (_D2type.compare("y")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
+    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
+  }
+  else if (_D2type.compare("z")==0) {
+    ierr = VecSet(rhs,0.0);
+    ierr = MatMult(_rhsT,bcT,rhs);CHKERRQ(ierr);
+    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
+    assert(0);
+  }
 
-  // final operator A
-  MatDestroy(&_A);
-
-  // SAT enforcement of boundary conditions
-  MatDestroy(&_rhsL);
-  MatDestroy(&_rhsR);
-  MatDestroy(&_rhsT);
-  MatDestroy(&_rhsB);
-
-  MatDestroy(&_Dy_Iz);
-  MatDestroy(&_Iy_Dz);
-
-  MatDestroy(&_mu);
-
-  MatDestroy(&_Hyinv_Iz);
-  MatDestroy(&_Iy_Hzinv);
-  MatDestroy(&_e0y_Iz);
-  MatDestroy(&_eNy_Iz);
-  MatDestroy(&_E0y_Iz);
-  MatDestroy(&_ENy_Iz);
-  MatDestroy(&_Iy_E0z);
-  MatDestroy(&_Iy_ENz);
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
 #endif
+
+  _runTime += MPI_Wtime() - startTime;
+  return ierr;
 }
 
 PetscErrorCode SbpOps_fc::getA(Mat &mat)
@@ -140,38 +783,6 @@ PetscErrorCode SbpOps_fc::getA(Mat &mat)
   return 0;
 }
 
-PetscErrorCode SbpOps_fc::getAlphay(PetscScalar &alphaDy)
-{
-  #if VERBOSE > 2
-    string funcName = "SbpOps_fc::getAlphay";
-    string fileName = "SbpOps_fc.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-
-  // return copy of alphaDy:
-  alphaDy = _alphaDy;
-  #if VERBOSE > 2
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
-
-PetscErrorCode SbpOps_fc::getAlphaz(PetscScalar &alphaDz)
-{
-  #if VERBOSE > 2
-    string funcName = "SbpOps_fc::getAlphaz";
-    string fileName = "SbpOps_fc.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-
-  // return copy of alphaDz:
-  alphaDz = _alphaDz;
-
-  #if VERBOSE > 2
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
 
 PetscErrorCode SbpOps_fc::getH(Mat &mat)
 {
@@ -191,10 +802,8 @@ PetscErrorCode SbpOps_fc::getH(Mat &mat)
 }
 
 
-// for energy balance
 PetscErrorCode SbpOps_fc::getDs(Mat &Dy,Mat &Dz) { Dy = _Dy_Iz; Dz = _Iy_Dz; return 0; }
 PetscErrorCode SbpOps_fc::getMus(Mat &mu,Mat &muqy,Mat &murz) { mu = _mu; muqy = _mu; murz = _mu; return 0; }
-PetscErrorCode SbpOps_fc::getR(Mat& Ry, Mat& Rz) { Ry=_Ry; Rz=_Rz; return 0; }
 PetscErrorCode SbpOps_fc::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz)
 {
   E0y_Iz = _E0y_Iz;
@@ -211,12 +820,7 @@ PetscErrorCode SbpOps_fc::getes(Mat& e0y_Iz,Mat& eNy_Iz,Mat& Iy_e0z,Mat& Iy_eNz)
   Iy_eNz = _Iy_eNz;
   return 0;
 }
-PetscErrorCode SbpOps_fc::getBs(Mat& By_Iz,Mat& Iy_Bz)
-{
-  By_Iz = _By_Iz;
-  Iy_Bz = _Iy_Bz;
-  return 0;
-}
+
 PetscErrorCode SbpOps_fc::getHs(Mat& Hy_Iz,Mat& Iy_Hz)
 {
   Hy_Iz = _Hy_Iz;
@@ -229,366 +833,10 @@ PetscErrorCode SbpOps_fc::getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv)
   Iy_Hzinv = _Iy_Hzinv;
   return 0;
 }
-PetscErrorCode SbpOps_fc::getCoordTrans(Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
+PetscErrorCode SbpOps_fc::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr) { assert(0); return 0; }
 
 
 //======================================================================
-
-/* Enforce boundary conditions using SAT penalty terms, computing both
- * matrices used to build the rhs vector from the boundary vectors and
- * the matrices that are added to the spatial derivative matrices to
- * form the A matrix.
- */
-PetscErrorCode SbpOps_fc::satBoundaries(TempMats_fc& tempMats)
-{
-  PetscErrorCode  ierr = 0;
-
-  double startTime = MPI_Wtime();
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function satBoundaries in sbpOps.cpp.\n");
-  CHKERRQ(ierr);
-#endif
-
-  // temporary matrices needed throughout function
-  Mat temp1,temp2,temp3;
-
-// matrices in y-direction (left and right boundaries)
-{ // enclose in brackets so that destructors are called at end
-  // kron(E0y,Iz)
-  Mat E0y_Iz;
-  {
-    Spmat E0y(_Ny,_Ny);
-    E0y(0,0,1.0);
-    kronConvert(E0y,tempMats._Iz,E0y_Iz,1,1);
-    ierr = PetscObjectSetName((PetscObject) E0y_Iz, "E0y_Iz");CHKERRQ(ierr);
-  }
-
-
-  // kron(e0y,Iz)
-  Mat e0y_Iz;
-  {
-    Spmat e0y(_Ny,1);
-    e0y(0,0,1.0);
-    kronConvert(e0y,tempMats._Iz,e0y_Iz,1,1);
-    ierr = PetscObjectSetName((PetscObject) e0y_Iz, "e0y_Iz");CHKERRQ(ierr);
-  }
-
-  // kron(ENy,Iz)
-  Mat ENy_Iz;
-  {
-    Spmat ENy(_Ny,_Ny);
-    ENy(_Ny-1,_Ny-1,1.0);
-    kronConvert(ENy,tempMats._Iz,ENy_Iz,1,1);
-    ierr = PetscObjectSetName((PetscObject) ENy_Iz, "ENy_Iz");CHKERRQ(ierr);
-  }
-
-  // kron(eNy,Iz)
-  Mat eNy_Iz;
-  {
-    Spmat eNy(_Ny,1);
-    eNy(_Ny-1,0,1.0);
-    kronConvert(eNy,tempMats._Iz,eNy_Iz,1,1);
-    ierr = PetscObjectSetName((PetscObject) eNy_Iz, "eNy_Iz");CHKERRQ(ierr);
-  }
-
-
-  // enforcement of left boundary _bcL =================================
-  // map bcL to rhs
-
-  // if bcL = displacement: _alphaD*mu*_Hinvy_Iz*e0y_Iz + _beta*_Hinvy_Iz*e0y_Iz*muxBSy_IzT
-  if (!_bcLType.compare("Dirichlet")) {
-    MatDestroy(&_rhsL);
-    ierr = MatMatMatMult(_mu,tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,_alphaDy);CHKERRQ(ierr);
-    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    Mat muxBSy_IzT;
-    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
-    MatMatMult(muxBSy_IzT,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxBSy_IzT);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-    ierr = MatAYPX(_rhsL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3); //!!!
-    ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-
-
-    //ierr = MatView(_rhsL,PETSC_VIEWER_STDOUT_WORLD);
-    // if bcL = traction-free
-    // _rhsL is unneeded bc bcL = 0
-
-    // in computation of A
-    // if bcL = displacement: _alphaD*mu*_Hinvy_Iz*E0y_Iz + _beta*_Hinvy_Iz*muxBSy_IzT*E0y_Iz
-    ierr = MatMatMatMult(_mu,tempMats._Hyinv_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AL,_alphaDy);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
-    MatMatMult(muxBSy_IzT,E0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxBSy_IzT);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(tempMats._AL,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-    }
-  else {
-    // For rhsL: if bcL = traction: alphaT * Hinvy_Iz * e0y_Iz
-    MatDestroy(&_rhsL);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,e0y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsL);CHKERRQ(ierr);
-    ierr = MatScale(_rhsL,-_alphaT);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._H,_rhsL,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsL,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3); //!!!
-    ierr = PetscObjectSetName((PetscObject) _rhsL, "rhsL");CHKERRQ(ierr);
-
-    // For A:if bcL = traction: alphaT * Hinvy_Iz * E0y_Iz * muxBySy_Iz
-    ierr = MatMatMatMult(tempMats._Hyinv_Iz,E0y_Iz,tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AL);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AL,_alphaT);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AL, "AL");CHKERRQ(ierr);
-  }
-
-  // enforcement of right boundary bcR =================================
-  // map bcR to rhs
-  if (!_bcRType.compare("Dirichlet")) {
-    // if bcR = displacement: _alphaD*mu*_Hinvy_Iz*eNy_Iz + _beta*_Hinvy_Iz*muxBSy_IzT*eNy_Iz
-    MatDestroy(&_rhsR);
-    ierr = MatMatMatMult(_mu,tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
-    ierr = MatScale(_rhsR,_alphaDy);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    Mat muxBSy_IzT;
-    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
-    MatMatMult(muxBSy_IzT,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxBSy_IzT);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(_rhsR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3); //!!!
-    ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-
-
-    // in computation of A
-    // if bcR = displacement: _alphaD*mu*Hinvy_Iz*ENy_Iz + _beta*Hinvy_Iz*muxBSy_IzT*ENy_Iz
-    ierr = MatMatMatMult(_mu,tempMats._Hyinv_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AR,_alphaDy);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxBSy_Iz,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    MatTranspose(tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,&muxBSy_IzT);
-    MatMatMult(muxBSy_IzT,ENy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxBSy_IzT);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(tempMats._AR,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AR, "AR");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-  }
-  else {
-    // For rhsR: if bcR = traction: alphaT * Hinvy_Iz * eNy_Iz
-    MatDestroy(&_rhsR);
-    ierr = MatMatMult(tempMats._Hyinv_Iz,eNy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsR);CHKERRQ(ierr);
-    ierr = MatScale(_rhsR,_alphaT);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._H,_rhsR,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsR,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3); //!!!
-    ierr = PetscObjectSetName((PetscObject) _rhsR, "rhsR");CHKERRQ(ierr);
-
-
-    // For A:if bcR = traction: alphaT * Hinvy_Iz * ENy_Iz * muxBySy_Iz
-    ierr = MatMatMatMult(tempMats._Hyinv_Iz,ENy_Iz,tempMats._muxBSy_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AR);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AR,_alphaT);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AR, "AR");CHKERRQ(ierr);
-    //~ierr = MatView(_AR,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  }
-
-
-   MatDestroy(&e0y_Iz);
-   MatDestroy(&eNy_Iz);
-   MatDestroy(&E0y_Iz);
-   MatDestroy(&ENy_Iz);
-
-}
-
-
-// matrices in z-direction (top and bottom boundaries)
-  // These matrices are nonzero if Nz > 1
-{
-  // kron(Iy,E0z)
-  Mat Iy_E0z;
-  {
-    Spmat E0z(_Nz,_Nz);
-    E0z(0,0,1.0);
-    kronConvert(tempMats._Iy,E0z,Iy_E0z,1,1);
-    ierr = PetscObjectSetName((PetscObject) Iy_E0z, "Iy_E0z");CHKERRQ(ierr);
-  }
-
-  // kron(Iy,e0z)
-  Mat Iy_e0z;
-  {
-    Spmat e0z(_Nz,1);
-    e0z(0,0,1.0);
-    kronConvert(tempMats._Iy,e0z,Iy_e0z,1,1);
-    ierr = PetscObjectSetName((PetscObject) Iy_e0z, "Iy_e0z");CHKERRQ(ierr);
-  }
-
-  // kron(Iy,ENz)
-  Mat Iy_ENz;
-  {
-    Spmat ENz(_Nz,_Nz);
-    ENz(_Nz-1,_Nz-1,1.0);
-    kronConvert(tempMats._Iy,ENz,Iy_ENz,1,1);
-    ierr = PetscObjectSetName((PetscObject) Iy_ENz, "Iy_ENz");CHKERRQ(ierr);
-  }
-
-  // kron(Iy,eNz)
-  Mat Iy_eNz;
-  {
-    Spmat eNz(_Nz,1);
-    eNz(_Nz-1,0,1.0);
-    kronConvert(tempMats._Iy,eNz,Iy_eNz,1,1);
-    ierr = PetscObjectSetName((PetscObject) Iy_eNz, "Iy_eNz");CHKERRQ(ierr);
-  }
-
-
-  // enforcement of top boundary bcT ===================================
-  // map bcS to rhs
-  if (!_bcTType.compare("Dirichlet")) {
-    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_e0z + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_e0z
-    MatDestroy(&_rhsT);
-    ierr = MatMatMatMult(_mu,tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-    ierr = MatScale(_rhsT,_alphaDz);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    Mat muxIy_BSzT;
-    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
-    MatMatMult(muxIy_BSzT,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxIy_BSzT);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(_rhsT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
-    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-    MatDestroy(&temp3);
-    ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-
-    // in computation of A
-    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_E0z + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_E0z
-    ierr = MatMatMatMult(_mu,tempMats._Iy_Hzinv,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AT,_alphaDz);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
-    MatMatMult(muxIy_BSzT,Iy_E0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
-    MatDestroy(&muxIy_BSzT);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(tempMats._AT,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-  }
-  else {
-    // if bcT = traction: alphaT*Iy_Hzinv*Iy_e0z
-    MatDestroy(&_rhsT);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_e0z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsT);CHKERRQ(ierr);
-    ierr = MatScale(_rhsT,-_alphaT);CHKERRQ(ierr);
-    ierr = MatMatMult(tempMats._H,_rhsT,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsT,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3);
-    ierr = PetscObjectSetName((PetscObject) _rhsT, "rhsT");CHKERRQ(ierr);
-
-    // in computation of A
-    // if bcT = traction-free: _alphaT*Iy_Hinvz*Iy_E0z*muxIy_BzSz
-    ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_E0z,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AT);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AT,_alphaT);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AT, "AT");CHKERRQ(ierr);
-  }
-
-  // enforcement of bottom boundary bcB ================================
-  // map bcB to rhs
-  if (!_bcBType.compare("Dirichlet")) {
-    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_eNz + _beta*Iy_Hzinv*_muxIy_BSzT*Iy_eNz
-    MatDestroy(&_rhsB);
-    ierr = MatMatMatMult(_mu,tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
-    ierr = MatScale(_rhsB,_alphaDz);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_eNz,MAT_INITIAL_MATRIX,1.0,&temp1);CHKERRQ(ierr);
-    Mat muxIy_BSzT;
-    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
-    MatMatMult(muxIy_BSzT,Iy_eNz,MAT_INITIAL_MATRIX,1.0,&temp1);
-    MatDestroy(&muxIy_BSzT);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-    ierr = MatAYPX(_rhsB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-
-    ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr);
-    ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3); //!!!
-    ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-
-
-    // in computation of A
-    // if bcR = displacement: _alphaD*mu*Iy_Hzinv*Iy_ENz + _beta*Iy_Hzinv*(_muxIy_BSz)'*Iy_ENz
-    ierr = MatMatMatMult(_mu,tempMats._Iy_Hzinv,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AB,_alphaDz);CHKERRQ(ierr);
-
-    //~ ierr = MatTransposeMatMult(tempMats._muxIy_BSz,Iy_ENz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
-    MatTranspose(tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,&muxIy_BSzT);
-    MatMatMult(muxIy_BSzT,Iy_ENz,MAT_INITIAL_MATRIX,1.0,&temp1);
-    MatDestroy(&muxIy_BSzT);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,temp1,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
-
-    ierr = MatAYPX(tempMats._AB,_beta,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AB, "AB");CHKERRQ(ierr);
-    MatDestroy(&temp1);
-    MatDestroy(&temp2);
-  }
-  else {
-    // if bcB = traction: alphaT*Iy_Hinvz*Iy_eNz
-    MatDestroy(&_rhsB);
-    ierr = MatMatMult(tempMats._Iy_Hzinv,Iy_eNz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_rhsB);CHKERRQ(ierr);
-    ierr = MatScale(_rhsB,_alphaT);CHKERRQ(ierr);
-      ierr = MatMatMult(tempMats._H,_rhsB,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp3);CHKERRQ(ierr); //!!!
-    ierr = MatCopy(temp3,_rhsB,SAME_NONZERO_PATTERN);CHKERRQ(ierr); //!!!
-    MatDestroy(&temp3);
-    ierr = PetscObjectSetName((PetscObject) _rhsB, "rhsB");CHKERRQ(ierr);
-    //~ierr = MatView(_rhsB,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
-    // in computation of A
-    // if bcB = traction-free: _alphaT*Iy_Hinvz*Iy_ENz*muxIy_BzSz
-    ierr = MatMatMatMult(tempMats._Iy_Hzinv,Iy_ENz,tempMats._muxIy_BSz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&tempMats._AB);CHKERRQ(ierr);
-    ierr = MatScale(tempMats._AB,_alphaT);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) tempMats._AB, "AB");CHKERRQ(ierr);
-  }
-
-
-   MatDestroy(&Iy_e0z);
-   MatDestroy(&Iy_eNz);
-   MatDestroy(&Iy_E0z);
-   MatDestroy(&Iy_ENz);
-
-}
-
-  _runTime += MPI_Wtime() - startTime;
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function satBoundaries in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-return ierr;
-}
-
 
 
 // compute D2ymu using my class Spmat
@@ -652,9 +900,16 @@ PetscErrorCode SbpOps_fc::constructD2ymu(const TempMats_fc& tempMats, Mat &D2ymu
   #endif
   MatDestroy(&Rymu);
 
-  ierr = MatAXPY(temp2,1,tempMats._muxBSy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
 
-  ierr = MatMatMult(tempMats._Hyinv_Iz,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
+  Mat temp,muxBSy_Iz;
+  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
+  MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&muxBSy_Iz);
+  ierr = MatAXPY(temp2,1,muxBSy_Iz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  MatDestroy(&temp);
+  MatDestroy(&muxBSy_Iz);
+
+  ierr = MatMatMult(_Hyinv_Iz,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2ymu);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
   MatDestroy(&temp2);
   #if DEBUG > 0
@@ -1052,9 +1307,15 @@ PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
   #endif
   MatDestroy(&Rzmu);
 
-  ierr = MatAXPY(temp2,1,tempMats._muxIy_BSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  Mat temp,muxIy_BSz;
+  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
+  MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.,&muxIy_BSz);
+  ierr = MatAXPY(temp2,1,muxIy_BSz,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  MatDestroy(&temp);
+  MatDestroy(&muxIy_BSz);
 
-  ierr = MatMatMult(tempMats._Iy_Hzinv,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
+  ierr = MatMatMult(_Iy_Hzinv,temp2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D2zmu);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
   MatDestroy(&temp2);
   #if DEBUG > 0
@@ -1071,48 +1332,6 @@ PetscErrorCode SbpOps_fc::constructD2zmu(const TempMats_fc& tempMats,Mat &D2zmu)
   return ierr;
 }
 
-
-// compute H matrix (Hy kron Hz)
-PetscErrorCode SbpOps_fc::constructH(const TempMats_fc& tempMats)
-{
-  PetscErrorCode ierr = 0;
-  double startTime = MPI_Wtime();
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  MatDuplicate(tempMats._H,MAT_COPY_VALUES,&_H);
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructH in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-_runTime = MPI_Wtime() - startTime;
-  return ierr;
-}
-
-// compute Hinv matrix (Hyinv kron Hzinv)
-PetscErrorCode SbpOps_fc::constructHinv(const TempMats_fc& tempMats)
-{
-  PetscErrorCode ierr = 0;
-  double startTime = MPI_Wtime();
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructHinv in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  if (_Ny > 1 && _Nz > 1) {
-    MatMatMult(tempMats._Hyinv_Iz,tempMats._Iy_Hzinv,MAT_INITIAL_MATRIX,1.5,&_Hinv);
-  }
-  else if (_Nz == 1) { MatDuplicate(tempMats._Hyinv_Iz,MAT_COPY_VALUES,&_Hinv); }
-  else if (_Ny == 1) { MatDuplicate(tempMats._Iy_Hzinv,MAT_COPY_VALUES,&_Hinv); }
-  PetscObjectSetName((PetscObject) _Hinv, "Hinv");
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructHinv in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-_runTime = MPI_Wtime() - startTime;
-  return ierr;
-}
-
 // compute matrices for 1st derivatives
 PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
 {
@@ -1122,23 +1341,12 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function construct1stDerivs in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  //~ PetscPrintf(PETSC_COMM_WORLD,"D1y:\n");
-  //~ tempMats._D1y.printPetsc();
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
-  //~ PetscPrintf(PETSC_COMM_WORLD,"D1z:\n");
-  //~ tempMats._D1y.printPetsc();
-  //~ PetscPrintf(PETSC_COMM_WORLD,"\n");
 
   kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
 
-  // create _Iy_Dz
   kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
-
-  //~ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  //~ierr = MatView(_Iy_Dz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-
 
 #if VERBOSE > 2
   ierr = MatView(_Dy_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -1165,9 +1373,8 @@ PetscErrorCode SbpOps_fc::updateVarCoeff(const Vec& coeff)
   TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
   // this approach fundamentally reallocates all the matrices
-  ierr = satBoundaries(tempFactors); CHKERRQ(ierr);
+  deleteIntermediateFields();
   ierr = constructA(tempFactors); CHKERRQ(ierr);
-
 
   _runTime = MPI_Wtime() - startTime;
   #if VERBOSE >1
@@ -1176,107 +1383,445 @@ PetscErrorCode SbpOps_fc::updateVarCoeff(const Vec& coeff)
   return ierr;
 }
 
-// compute matrix relating displacement to vector b containing boundary conditions
-PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
+
+//======================== public member functions =====================
+
+
+
+
+
+//======================= I/O functions ================================
+
+PetscErrorCode SbpOps_fc::loadOps(const std::string inputDir)
 {
   PetscErrorCode  ierr = 0;
-  double startTime = MPI_Wtime();
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function constructA in sbpOps.cpp.\n");
-  CHKERRQ(ierr);
-#endif
-
-  if (_type.compare("yz")==0) {
-    Mat D2ymu = NULL;
-    ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
-
-    Mat D2zmu = NULL;
-    ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
-
-    // compute A
-    ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
-    ierr = MatAYPX(_A,1.0,D2zmu,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-
-    // clean up
-    ierr = MatDestroy(&D2ymu);CHKERRQ(ierr);
-    ierr = MatDestroy(&D2zmu);CHKERRQ(ierr);
-
-    // use new Mats _AL etc
-    ierr = MatAXPY(_A,1.0,tempMats._AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,tempMats._AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else if (_type.compare("y")==0) {
-    Mat D2ymu;
-    ierr = constructD2ymu(tempMats,D2ymu);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) D2ymu, "D2ymu");CHKERRQ(ierr);
-
-    // compute A
-    MatDestroy(&_A);
-    ierr = MatDuplicate(D2ymu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
-
-    ierr = MatDestroy(&D2ymu);CHKERRQ(ierr); // clean up
-
-    // use new Mats _AL etc
-    ierr = MatAXPY(_A,1.0,tempMats._AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,tempMats._AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else if (_type.compare("z")==0) {
-    Mat D2zmu;
-    ierr = constructD2zmu(tempMats,D2zmu);CHKERRQ(ierr);
-    ierr = PetscObjectSetName((PetscObject) D2zmu, "D2zmu");CHKERRQ(ierr);
-
-    // compute A
-    MatDestroy(&_A);
-    ierr = MatDuplicate(D2zmu,MAT_COPY_VALUES,&_A);CHKERRQ(ierr);
-    ierr = MatDestroy(&D2zmu);CHKERRQ(ierr); // clean up
-
-    // add matrices for boundary conditions
-    ierr = MatAXPY(_A,1.0,tempMats._AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,tempMats._AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
-    assert(0);
-  }
-
-#if DEBUG > 0
-  checkMatrix(&_A,_debugFolder,"matA");CHKERRQ(ierr);
-#endif
-
-
-
-
-  // if using H A uhat = H rhs
-  Mat temp;
-  ierr = MatMatMult(tempMats._H,_A,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-  ierr = MatCopy(temp,_A,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatDestroy(&temp);CHKERRQ(ierr);
-  ierr = MatSetOption(_A,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
-
-  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
-
-
-  //~MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
-
-#if VERBOSE > 2
-  MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
-#endif
-
-  _runTime = MPI_Wtime() - startTime;
+  PetscViewer     viewer;
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructA in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function loadOps in sbpOps.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  return 0;
+  double startTime = MPI_Wtime();
+
+  int size;
+  MatType matType;
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
+  if (size > 1) {matType = MATMPIAIJ;}
+  else {matType = MATSEQAIJ;}
+
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"A",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&_A);CHKERRQ(ierr);
+  ierr = MatSetType(_A,matType);CHKERRQ(ierr);
+  ierr = MatLoad(_A,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Dy_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
+  ierr = MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);CHKERRQ(ierr);
+  ierr = MatSetType(_Dy_Iz,matType);CHKERRQ(ierr);
+  ierr = MatLoad(_Dy_Iz,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function loadOps in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
+  _runTime = MPI_Wtime() - startTime;
+    return ierr;
+}
+
+
+PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps_fc.cpp\n");CHKERRQ(ierr);
+#endif
+  double startTime = MPI_Wtime();
+
+  writeMat(_A,outputDir + "A");
+  writeMat(_D2,outputDir + "D2");
+
+  writeMat(_Dy_Iz,outputDir + "Dy_Iz");
+  writeMat(_Iy_Dz,outputDir + "Iy_Dz");
+
+  writeMat(_rhsR,outputDir + "rhsR");
+  writeMat(_rhsT,outputDir + "rhsT");
+  writeMat(_rhsL,outputDir + "rhsL");
+  writeMat(_rhsB,outputDir + "rhsB");
+  writeMat(_AR,outputDir + "AR");
+  writeMat(_AT,outputDir + "AT");
+  writeMat(_AL,outputDir + "AL");
+  writeMat(_AB,outputDir + "AB");
+
+  writeMat(_H,outputDir + "H");
+  writeMat(_Hinv,outputDir + "Hinv");
+  writeMat(_Hyinv_Iz,outputDir + "Hyinv");
+  writeMat(_Iy_Hzinv,outputDir + "Hzinv");
+
+  writeMat(_E0y_Iz,outputDir + "E0y");
+  writeMat(_ENy_Iz,outputDir + "ENy");
+  writeMat(_Iy_E0z,outputDir + "E0z");
+  writeMat(_Iy_ENz,outputDir + "ENz");
+  writeMat(_e0y_Iz,outputDir + "ee0y");
+  writeMat(_eNy_Iz,outputDir + "eeNy");
+  writeMat(_Iy_e0z,outputDir + "ee0z");
+  writeMat(_Iy_eNz,outputDir + "eeNz");
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps.cpp\n");CHKERRQ(ierr);
+#endif
+  _runTime = MPI_Wtime() - startTime;
+  return ierr;
+};
+
+
+
+
+// out = Dy * in
+PetscErrorCode SbpOps_fc::Dy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Dy";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+};
+
+ // out = mu * Dy * in
+PetscErrorCode SbpOps_fc::muxDy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "muxDy";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp;
+  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
+  ierr = MatMult(_Dy_Iz,in,temp); CHKERRQ(ierr);
+  ierr = MatMult(_mu,temp,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+};
+
+// out = Dy * mu * in
+PetscErrorCode SbpOps_fc::Dyxmu(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Dyxmu";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp;
+  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
+  ierr = MatMult(_mu,in,temp); CHKERRQ(ierr);
+  ierr = MatMult(_Dy_Iz,temp,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+};
+
+
+// out = Dz * in
+PetscErrorCode SbpOps_fc::Dz(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Dz";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+};
+
+
+// out = mu * Dz * in
+PetscErrorCode SbpOps_fc::muxDz(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "muxDy";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp;
+  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Dz,in,temp); CHKERRQ(ierr);
+  ierr = MatMult(_mu,temp,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Dz * mu * in
+PetscErrorCode SbpOps_fc::Dzxmu(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Dzxmu";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp;
+  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
+  ierr = MatMult(_mu,in,temp); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Dz,temp,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = H * in
+PetscErrorCode SbpOps_fc::H(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "H";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_H,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hinv * in
+PetscErrorCode SbpOps_fc::Hinv(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Hinv";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  ierr = MatMult(_Hinv,in,out); CHKERRQ(ierr);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hy^-1 * e0y * in
+PetscErrorCode SbpOps_fc::Hyinvxe0y(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "Hyinvxe0y";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_e0y_Iz,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hy^-1 * eNy * in
+PetscErrorCode SbpOps_fc::HyinvxeNy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HyinvxeNy";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_eNy_Iz,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hy^-1 * E0y * in
+PetscErrorCode SbpOps_fc::HyinvxE0y(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HyinvxE0y";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_E0y_Iz,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hy^-1 * eNy * in
+PetscErrorCode SbpOps_fc::HyinvxENy(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HyinvxENy";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_ENy_Iz,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hz^-1 * e0z * in
+PetscErrorCode SbpOps_fc::HzinvxE0z(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HzinvxE0z";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_E0z,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Hzinv,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
+}
+
+// out = Hz^-1 * eNz * in
+PetscErrorCode SbpOps_fc::HzinvxENz(const Vec &in, Vec &out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "HzinvxENz";
+  string fileName = "sbpOps_fc.cpp";
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+
+  Vec temp1;
+  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_ENz,in,temp1); CHKERRQ(ierr);
+  ierr = MatMult(_Iy_Hzinv,temp1,out); CHKERRQ(ierr);
+
+  VecDestroy(&temp1);
+
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+#endif
+  return ierr;
 }
 
 
 
 
+//=================== functions for struct =============================
+
+TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
+      const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
+: _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
+  _Hy(Ny,Ny),_Hyinv(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_BSy(Ny,Ny),_Iy(Ny,Ny),
+  _Hz(Nz,Nz),_Hzinv(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_BSz(Nz,Nz),_Iz(Nz,Nz)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
+#endif
+
+  _mu = mu; // shallow copy
+
+  _Iy.eye(); // matrix size is set during colon initialization
+  _Iz.eye();
+
+  sbp_fc_Spmat(order,Ny,1./dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy);
+  sbp_fc_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz);
+
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
+#endif
+}
+
+TempMats_fc::~TempMats_fc()
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");
+#endif
+
+ // do nothing
+
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");
+#endif
+}
 
 
 PetscErrorCode sbp_fc_Spmat2(const PetscInt N,const PetscScalar scale, Spmat& D2, Spmat& C2)
@@ -1605,648 +2150,6 @@ switch ( order ) {
 #endif
   //~_runTime = MPI_Wtime() - startTime;
   return ierr;
-}
-
-
-
-
-//======================== public member functions =====================
-
-// map the boundary condition vectors to rhs
-PetscErrorCode SbpOps_fc::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
-{
-  PetscErrorCode ierr = 0;
-  double startTime = MPI_Wtime();
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  if (_type.compare("yz")==0) {
-    ierr = VecSet(rhs,0.0);
-    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
-    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-    ierr = MatMultAdd(_rhsT,bcT,rhs,rhs);
-    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
-  }
-  else if (_type.compare("y")==0) {
-    ierr = VecSet(rhs,0.0);
-    ierr = MatMult(_rhsL,bcL,rhs);CHKERRQ(ierr); // rhs = _rhsL * _bcL
-    ierr = MatMultAdd(_rhsR,bcR,rhs,rhs); // rhs = rhs + _rhsR * _bcR
-  }
-  else if (_type.compare("z")==0) {
-    ierr = VecSet(rhs,0.0);
-    ierr = MatMult(_rhsT,bcT,rhs);CHKERRQ(ierr);
-    ierr = MatMultAdd(_rhsB,bcB,rhs,rhs);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
-    assert(0);
-  }
-
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  _runTime += MPI_Wtime() - startTime;
-  return ierr;
-}
-
-
-
-//======================= I/O functions ================================
-
-PetscErrorCode SbpOps_fc::loadOps(const std::string inputDir)
-{
-  PetscErrorCode  ierr = 0;
-  PetscViewer     viewer;
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function loadOps in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-
-  double startTime = MPI_Wtime();
-
-  int size;
-  MatType matType;
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
-  if (size > 1) {matType = MATMPIAIJ;}
-  else {matType = MATSEQAIJ;}
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"A",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&_A);CHKERRQ(ierr);
-  ierr = MatSetType(_A,matType);CHKERRQ(ierr);
-  ierr = MatLoad(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,"Dy_Iz",FILE_MODE_READ,&viewer);CHKERRQ(ierr);
-  ierr = MatCreate(PETSC_COMM_WORLD,&_Dy_Iz);CHKERRQ(ierr);
-  ierr = MatSetType(_Dy_Iz,matType);CHKERRQ(ierr);
-  ierr = MatLoad(_Dy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function loadOps in sbpOps.cpp.\n");CHKERRQ(ierr);
-#endif
-  _runTime = MPI_Wtime() - startTime;
-    return ierr;
-}
-
-
-PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
-{
-  PetscErrorCode ierr = 0;
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting writeOps in sbpOps_fc.cpp\n");CHKERRQ(ierr);
-#endif
-  double startTime = MPI_Wtime();
-  PetscViewer    viewer;
-
-  // if (_Ny == 1) { return 0;}
-
-  std::string str =  outputDir + "A";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_A,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // first derivative operators
-  str = outputDir + "Dy_Iz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Dy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "Iy_Dz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Dz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-
-  // matrices to map SAT boundaries to rhs
-  str = outputDir + "rhsL";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsL,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsR";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsR,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsT";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsT,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "rhsB";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_rhsB,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-
-  // H and Hinv
-  str = outputDir + "H";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_H,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "Hyinv";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Hyinv_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "Hzinv";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_Hzinv,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "E0y";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_E0y_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "ee0y";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_e0y_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "ENy";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_ENy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "eeNy";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_eNy_Iz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "E0z";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_E0z,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  //~ MatView(_Iy_e0z,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
-  str = outputDir + "ee0z";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_e0z,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "ENz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_ENz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  str = outputDir + "eeNz";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = MatView(_Iy_eNz,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending writeOps in sbpOps.cpp\n");CHKERRQ(ierr);
-#endif
-  _runTime = MPI_Wtime() - startTime;
-  return ierr;
-};
-
-
-
-
-// out = Dy * in
-PetscErrorCode SbpOps_fc::Dy(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Dy";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-};
-
- // out = mu * Dy * in
-PetscErrorCode SbpOps_fc::muxDy(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "muxDy";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp;
-  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = MatMult(_Dy_Iz,in,temp); CHKERRQ(ierr);
-  ierr = MatMult(_mu,temp,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-};
-
-// out = Dy * mu * in
-PetscErrorCode SbpOps_fc::Dyxmu(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Dyxmu";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp;
-  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = MatMult(_mu,in,temp); CHKERRQ(ierr);
-  ierr = MatMult(_Dy_Iz,temp,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-};
-
-
-// out = Dz * in
-PetscErrorCode SbpOps_fc::Dz(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Dz";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-};
-
-
-// out = mu * Dz * in
-PetscErrorCode SbpOps_fc::muxDz(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "muxDy";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp;
-  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_Dz,in,temp); CHKERRQ(ierr);
-  ierr = MatMult(_mu,temp,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Dz * mu * in
-PetscErrorCode SbpOps_fc::Dzxmu(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Dzxmu";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp;
-  ierr = VecDuplicate(in,&temp); CHKERRQ(ierr);
-  ierr = MatMult(_mu,in,temp); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_Dz,temp,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = H * in
-PetscErrorCode SbpOps_fc::H(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "H";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_H,in,out); CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hinv * in
-PetscErrorCode SbpOps_fc::Hinv(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Hinv";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  ierr = MatMult(_Hinv,in,out); CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hy^-1 * e0y * in
-PetscErrorCode SbpOps_fc::Hyinvxe0y(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "Hyinvxe0y";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_e0y_Iz,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hy^-1 * eNy * in
-PetscErrorCode SbpOps_fc::HyinvxeNy(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "HyinvxeNy";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_eNy_Iz,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hy^-1 * E0y * in
-PetscErrorCode SbpOps_fc::HyinvxE0y(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "HyinvxE0y";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_E0y_Iz,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hy^-1 * eNy * in
-PetscErrorCode SbpOps_fc::HyinvxENy(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "HyinvxENy";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_ENy_Iz,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Hyinv_Iz,temp1,out); CHKERRQ(ierr);
-
-  //~ ierr = VecScale(temp1,_alphaDy); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hz^-1 * e0z * in
-PetscErrorCode SbpOps_fc::HzinvxE0z(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "HzinvxE0z";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_E0z,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_Hzinv,temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-// out = Hz^-1 * eNz * in
-PetscErrorCode SbpOps_fc::HzinvxENz(const Vec &in, Vec &out)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "HzinvxENz";
-  string fileName = "sbpOps_fc.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  //~PetscInt ENzM,ENzN,HzinvM,HzinvN,vecN;
-  //~VecGetSize(in,&vecN);
-  //~MatGetSize(_Iy_ENz,&ENzM,&ENzN);
-  //~MatGetSize(_Iy_Hzinv,&HzinvM,&HzinvN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"vecN = %i\n",vecN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"ENzM = %i, ENzN = %i\n",ENzM,ENzN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"HzinvM = %i, HzinvN = %i\n",HzinvM,HzinvN);
-  //~assert(0>1);
-
-  Vec temp1;
-  ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_ENz,in,temp1); CHKERRQ(ierr);
-  ierr = MatMult(_Iy_Hzinv,temp1,out); CHKERRQ(ierr);
-
-  VecDestroy(&temp1);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-
-
-
-//=================== functions for struct =============================
-
-TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
-      const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
-: _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
-  _Hy(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_Iy(Ny,Ny),
-  _Hz(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_Iz(Nz,Nz),
-  _muxBSy_Iz(NULL),_Hyinv_Iz(NULL),_muxIy_BSz(NULL),_Iy_Hzinv(NULL),
-  _AL(NULL),_AR(NULL),_AT(NULL),_AB(NULL),_H(NULL)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
-#endif
-
-  _mu = mu; // shallow copy
-
-  _Iy.eye(); // matrix size is set during colon initialization
-  _Iz.eye();
-
-
-  // going from 1D in y to 2D:
-  {
-    Spmat Hyinv(_Ny,_Ny),BSy(_Ny,_Ny);
-    sbp_fc_Spmat(order,Ny,1.0/dy,_Hy,Hyinv,_D1y,_D1yint,BSy);
-    //~ if (Ny > 1) { sbp_fc_Spmat(order,Ny,1.0/dy,_Hy,Hyinv,_D1y,_D1yint,BSy); }
-    //~ else { _Hy.eye(); }
-
-    // kron(Hyinv,Iz)
-    {
-      Spmat Hyinv_Iz(_Ny*_Nz,_Ny*_Nz);
-      //~ Hyinv_Iz = kron(Hyinv,_Iz);
-      //~ Hyinv_Iz.convert(_Hyinv_Iz,1);
-      kronConvert(Hyinv,_Iz,_Hyinv_Iz,1,0);
-      PetscObjectSetName((PetscObject) _Hyinv_Iz, "Hyinv_Iz");
-    }
-
-
-    // mu*kron(BSy,Iz)
-    {
-      Mat temp;
-      if (_order==2) { kronConvert(BSy,_Iz,temp,3,3); }
-      if (_order==4) { kronConvert(BSy,_Iz,temp,5,5); }
-      MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxBSy_Iz);
-      PetscObjectSetName((PetscObject) _muxBSy_Iz, "muxBSy_Iz");
-      MatDestroy(&temp);
-    }
-  }
-
-
-
-  // going from 1D in z to 2D:
-  {
-    Spmat Hzinv(_Nz,_Nz),BSz(_Nz,_Nz);
-    sbp_fc_Spmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,BSz);
-    //~ if (Nz > 1) { sbp_fc_Spmat(order,Nz,1/dz,_Hz,Hzinv,_D1z,_D1zint,BSz); }
-    //~ else { _Hz.eye(); }
-
-    // kron(Iy,Hzinv)
-    {
-      kronConvert(_Iy,Hzinv,_Iy_Hzinv,1,0);
-      PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
-    }
-
-    // mu*kron(Iy,BSz)
-    {
-      Mat temp;
-      if (_order==2) { kronConvert(_Iy,BSz,temp,3,3); }
-      if (_order==4) { kronConvert(_Iy,BSz,temp,5,5); }
-      MatMatMult(_mu,temp,MAT_INITIAL_MATRIX,1.0,&_muxIy_BSz);
-      PetscObjectSetName((PetscObject) _muxIy_BSz, "muxIy_BzSz");
-      MatDestroy(&temp);
-    }
-  }
-
-
-  // H matrix
-  {
-    // kron(Hy,Hz)
-    kronConvert(_Hy,_Hz,_H,1,0);
-  }
-  PetscObjectSetName((PetscObject) _H, "H");
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
-#endif
-}
-
-TempMats_fc::~TempMats_fc()
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");
-#endif
-
-  MatDestroy(&_muxBSy_Iz);
-  MatDestroy(&_Hyinv_Iz);
-
-  MatDestroy(&_muxIy_BSz);
-  MatDestroy(&_Iy_Hzinv);
-
-  MatDestroy(&_AL);
-  MatDestroy(&_AR);
-  MatDestroy(&_AT);
-  MatDestroy(&_AB);
-
-  MatDestroy(&_H);
-
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending TempMats_fc::~TempMats_fc in sbpOps.cpp.\n");
-#endif
 }
 
 

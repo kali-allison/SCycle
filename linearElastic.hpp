@@ -17,8 +17,6 @@
 #include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
-#include "fault.hpp"
-#include "fault_hydraulic.hpp"
 #include "heatEquation.hpp"
 
 
@@ -108,9 +106,10 @@ class LinearElastic
 
     // time stepping function
     PetscErrorCode virtual prepareForIntegration(Domain& D, std::string _timeIntegrator);
-    PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
+    PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode virtual initiateIntegrandWave(std::string _initialU, map<string,Vec>& varEx);
-    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+    PetscErrorCode virtual updateTemperature(const Vec& T);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
     PetscErrorCode virtual getSigmaDev(Vec& sdev);
 

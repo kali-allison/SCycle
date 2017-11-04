@@ -391,25 +391,28 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D,Vec& tauRS)
   delete _sbp;
 
   // set up SBP operators
-  //~ string bcT,string bcR,string bcB, string bcL
   std::string bcTType = "Neumann";
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
-
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz"); // to spin up viscoelastic
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_muVec,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  _sbp->setMultiplyByH(1);
+  _sbp->computeMatrices(); // actually create the matrices
+
   KSPDestroy(&_ksp);
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
@@ -506,14 +509,14 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   Mat Hyinv,Hzinv,H;
   Mat muqy,murz,mu;
   Mat E0y,ENy,E0z,ENz;
-  Mat qy,rz,yq,zr;
+  Mat J,Jinv,qy,rz,yq,zr;
   _sbp->getDs(Dy,Dz);
   _sbp->getHinvs(Hyinv,Hzinv);
   _sbp->getH(H);
   _sbp->getMus(mu,muqy,murz);
   _sbp->getEs(E0y,ENy,E0z,ENz);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp->getCoordTrans(qy,rz,yq,zr);
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
   }
 
   // helpful factor qyxrzxH = qy * rz * H, and yqxzrxH = yq * zr * H
@@ -582,24 +585,29 @@ PetscErrorCode PowerLaw::initializeSSMatrices(Domain &D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+    // set up SBP operators
   std::string bcTType = "Neumann";
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
-
   if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(D,_Ny,_Nz,_effVisc,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp_eta = new SbpOps_fc(D,_Ny,_Nz,_effVisc,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(D,_Ny,_Nz,_effVisc,bcTType,bcRType,bcBType,bcLType,"yz");
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
+  _sbp->computeMatrices(); // actually create the matrices
+
   KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
   setupKSP(_sbp_eta,_ksp_eta,_pc_eta);
 
@@ -731,8 +739,8 @@ PetscErrorCode PowerLaw::setMMSInitialConditions()
   ierr = _sbp->H(uSource,HxuSource); CHKERRQ(ierr);
   VecDestroy(&uSource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,viscSource); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,HxuSource); CHKERRQ(ierr);
@@ -792,7 +800,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   return ierr;
 }
 
-PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
+PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -800,7 +808,7 @@ PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  LinearElastic::initiateIntegrand(time,varEx,varIm);
+  LinearElastic::initiateIntegrand(time,varEx);
 
   // add viscous strain to integrated variables, stored in _var
     Vec vargxyP; VecDuplicate(_u,&vargxyP); VecCopy(_gxy,vargxyP);
@@ -814,24 +822,35 @@ PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec
   return ierr;
 }
 
-PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm)
+PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::updateFields()";
+    std::string funcName = "PowerLaw::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  LinearElastic::updateFields(time,varEx,varIm);
+  LinearElastic::updateFields(time,varEx);
 
   // if integrating viscous strains in time
-    VecCopy(varEx.find("gVxy")->second,_gxy);
-    VecCopy(varEx.find("gVxz")->second,_gxz);
+  VecCopy(varEx.find("gVxy")->second,_gxy);
+  VecCopy(varEx.find("gVxz")->second,_gxz);
 
-  // if also solving coupled heat equation
-  if (varIm.find("Temp") != varIm.end() && _thermalCoupling.compare("coupled")==0) {
-      VecCopy(varIm.find("Temp")->second,_T);
-    }
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PowerLaw::updateTemperature(const Vec& T)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateTemperature()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecCopy(T,_T);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1115,8 +1134,8 @@ PetscErrorCode PowerLaw::d_dt_mms(const PetscScalar time,const map<string,Vec>& 
   ierr = _sbp->H(uSource,HxuSource);
   VecDestroy(&uSource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,HxuSource); CHKERRQ(ierr);
   }
@@ -1374,10 +1393,10 @@ PetscErrorCode PowerLaw::setViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &
 
   // include effects of coordinate transform
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat qy,rz,yq,zr;
+    Mat J,Jinv,qy,rz,yq,zr;
     Vec temp1;
     VecDuplicate(_gxy,&temp1);
-    ierr = _sbp->getCoordTrans(qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatMult(qy,out,temp1);
     VecCopy(temp1,out);
     VecDestroy(&temp1);

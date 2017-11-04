@@ -41,9 +41,8 @@ OdeSolverImex::~OdeSolverImex()
   destroyVector(_dvar2nd);
   destroyVector(_var3rd);
 
-  destroyVector(_varHalfdTIm);
-  destroyVector(_vardTIm);
-  destroyVector(_varIm_half);
+  destroyVector(_varHalfdTImMult);
+  destroyVector(_vardTImMult);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex destructor in OdeSolverImex.cpp.\n");
@@ -91,20 +90,8 @@ PetscErrorCode OdeSolverImex::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: IMEX runge-kutta (3,2)\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: ");CHKERRQ(ierr);
-  if (_controlType.compare("P") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"P\n");CHKERRQ(ierr);
-  }
-  else if (_controlType.compare("PI") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"PI\n");CHKERRQ(ierr);
-  }
-  else if (_controlType.compare("PID") == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"PID\n");CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");CHKERRQ(ierr);
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
-  }
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %g to %g\n",
                      _initT,_finalT);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   permitted step size range: [%g,%g]\n",
@@ -143,7 +130,7 @@ PetscErrorCode OdeSolverImex::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm)
+PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varImMult,std::map<string,Vec>& varIm1)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setInitialConds in OdeSolverImex.cpp.\n");
@@ -195,40 +182,28 @@ PetscErrorCode OdeSolverImex::setInitialConds(std::map<string,Vec>& varEx,std::m
     _var3rd[it->first] = var3rd;
   }
 
-  // implicit part
-  _varIm = varIm;
-  for (map<string,Vec>::iterator it=_varIm.begin(); it!=_varIm.end(); it++ ) {
-
+  // implicit part, computed at each stage
+  _varImMult = varImMult;
+  for (map<string,Vec>::iterator it=_varImMult.begin(); it!=_varImMult.end(); it++ ) {
     Vec varHalfdTIm;
-    ierr = VecDuplicate(_varIm[it->first],&varHalfdTIm); CHKERRQ(ierr);
+    ierr = VecDuplicate(_varImMult[it->first],&varHalfdTIm); CHKERRQ(ierr);
     ierr = VecSet(varHalfdTIm,0.0); CHKERRQ(ierr);
-    _varHalfdTIm[it->first] = varHalfdTIm;
+    _varHalfdTImMult[it->first] = varHalfdTIm;
 
     Vec vardTIm;
-    ierr = VecDuplicate(_varIm[it->first],&vardTIm); CHKERRQ(ierr);
+    ierr = VecDuplicate(_varImMult[it->first],&vardTIm); CHKERRQ(ierr);
     ierr = VecSet(vardTIm,0.0); CHKERRQ(ierr);
-    _vardTIm[it->first] = vardTIm;
-
-    Vec varIm_half;
-    ierr = VecDuplicate(_varIm[it->first],&varIm_half); CHKERRQ(ierr);
-    ierr = VecSet(varIm_half,0.0); CHKERRQ(ierr);
-    _varIm_half[it->first] = varIm_half;
+    _vardTImMult[it->first] = vardTIm;
   }
 
-  //~ Vec temp;
-  //~ VecDuplicate(*varIm.begin(),&temp);
-  //~ VecSet(temp,0.0);
-  //~ _varHalfdTIm.push_back(temp);
-
-  //~ Vec temp1;
-  //~ VecDuplicate(*varIm.begin(),&temp1);
-  //~ VecSet(temp1,0.0);
-  //~ _vardTIm.push_back(temp1);
-
-  //~ Vec temp2;
-  //~ VecDuplicate(*varIm.begin(),&temp2);
-  //~ VecSet(temp2,0.0);
-  //~ _varIm_half.push_back(temp2);
+  // implicit part, computed once per time step
+  _varIm1 = varIm1;
+  for (map<string,Vec>::iterator it=_varIm1.begin(); it!=_varIm1.end(); it++ ) {
+    Vec vardTIm;
+    ierr = VecDuplicate(_varIm1[it->first],&vardTIm); CHKERRQ(ierr);
+    ierr = VecSet(vardTIm,0.0); CHKERRQ(ierr);
+    _vardTIm1[it->first] = vardTIm;
+  }
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -295,7 +270,7 @@ PetscReal OdeSolverImex::computeStepSize(const PetscReal totErr)
     }
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR in odeSolverImex: timeControlType not understood\n");
     assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
 
@@ -412,7 +387,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varIm);CHKERRQ(ierr); // write initial conditions
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varImMult,_varIm1);CHKERRQ(ierr); // write initial conditions
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
     _stepCount++;
@@ -437,7 +412,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
         ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,
-               _varHalfdTIm,_varIm,0.5*_deltaT);CHKERRQ(ierr);
+               _varHalfdTImMult,_varImMult,0.5*_deltaT);CHKERRQ(ierr);
 
 
       // stage 2: integrate fields to _currT + _deltaT
@@ -445,7 +420,7 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
         ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm,_varHalfdTIm,0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTImMult,_varHalfdTImMult,0.5*_deltaT);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -476,17 +451,26 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
     }
-    for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
-      VecCopy(_vardTIm[it->first],_varIm[it->first]);
-      VecCopy(_varHalfdTIm[it->first],_varIm_half[it->first]);
+
+    // accept state for implicit "Mult" variables from second step as update
+    for (map<string,Vec>::iterator it = _vardTImMult.begin(); it!=_vardTImMult.end(); it++ ) {
+      VecCopy(_vardTImMult[it->first],_varImMult[it->first]);
     }
-    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+
+    // update rates for explicit variables, and compute updated state for implicit "1" variables
+    // note that this should possibly include updated state for the "mult" variables as well
+    ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm1,_varIm1,_deltaT);CHKERRQ(ierr);
+
+    // accept updated state for implicit "1" variables
+    for (map<string,Vec>::iterator it = _vardTIm1.begin(); it!=_vardTIm1.end(); it++ ) {
+      VecCopy(_vardTIm1[it->first],_varIm1[it->first]);
+    }
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varIm);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varImMult,_varIm1);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;

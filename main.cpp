@@ -25,22 +25,7 @@ int runTests(const char * inputFile)
   d.write();
 
 
-  //~SbpOps sbp(domain,*domain._muArrPlus,domain._muP);
-  //~MatView(domain._muP,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~SymmFault fault(domain);
-  //~fault.writeContext(domain._outputDir);
-  //~ SymmLinearElastic lith(domain);
-  //~ lith.writeStep1D();
-  //~ lith.writeStep2D();
-  //~ lith.integrate();
-  //~ lith.view();
-
-  //~ PowerLaw pl(d);
-  //~ pl.writeContext();
-  //~ pl.writeStep1D();
-  //~ pl.writeStep2D();
-  //~ pl.integrate();
+  HeatEquation he(d); // heat equation
 
   return ierr;
 }
@@ -53,15 +38,15 @@ int runMMSTests(const char * inputFile)
              "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
              "errL2gxz","log2(errL2gxz)");
   for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
-  //~ for(PetscInt Ny=41;Ny<42;Ny=(Ny-1)*2+1)
+  //~ for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
     Domain d(inputFile,Ny,Ny);
     //~ Domain d(inputFile,Ny,1);
     d.write();
 
     Mediator m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.integrate();CHKERRQ(ierr);
+    ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
   }
 
@@ -80,7 +65,7 @@ int runEqCycle(const char * inputFile)
   ierr = m.writeContext(); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);
-  ierr = m.view();CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }

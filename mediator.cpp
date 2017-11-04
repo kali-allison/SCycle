@@ -21,7 +21,7 @@ Mediator::Mediator(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),
-  _fault(NULL),_momBal(NULL),_he(NULL)
+  _fault(NULL),_momBal(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "Mediator::Mediator()";
@@ -33,12 +33,17 @@ Mediator::Mediator(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  _he = new HeatEquation(D);
+  _he = new HeatEquation(D); // heat equation
 
-  if (_hydraulicCoupling.compare("coupled")==0 || _hydraulicCoupling.compare("uncoupled")==0) {
-    _fault = new SymmFault_Hydr(D,*_he);
+  _fault = new SymmFault(D,*_he); // fault
+
+  // pressure diffusion equation
+  if (_hydraulicCoupling.compare("no")!=0) {
+    _p = new PressureEq(D);
   }
-  else { _fault = new SymmFault(D,*_he); }
+  if (_hydraulicCoupling.compare("coupled")==0) {
+    _fault->setSN(_p->_p);
+  }
 
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,_fault->_tauQSP); }
@@ -48,6 +53,7 @@ Mediator::Mediator(Domain&D)
   if (!D._isMMS && _timeIntegrator.compare("WaveEq")!=0) {
     solveSS();
   }
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -66,7 +72,10 @@ Mediator::~Mediator()
   for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
     VecDestroy(&it->second);
   }
-  for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+  for (it = _varImMult.begin(); it!=_varImMult.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varIm1.begin(); it!=_varIm1.end(); it++ ) {
     VecDestroy(&it->second);
   }
 
@@ -74,7 +83,8 @@ Mediator::~Mediator()
   delete _quadEx;   _quadEx = NULL;
   delete _momBal;   _momBal = NULL;
   delete _fault;    _fault = NULL;
-  delete _he;    _he = NULL;
+  delete _he;       _he = NULL;
+  delete _p;        _p = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -138,6 +148,10 @@ PetscErrorCode Mediator::checkInput()
       _thermalCoupling.compare("uncoupled")==0 ||
       _thermalCoupling.compare("no")==0 );
 
+  assert(_hydraulicCoupling.compare("coupled")==0 ||
+      _hydraulicCoupling.compare("uncoupled")==0 ||
+      _hydraulicCoupling.compare("no")==0 );
+
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("IMEX")==0 ||
@@ -174,12 +188,18 @@ PetscErrorCode Mediator::initiateIntegrand()
     _momBal->initiateIntegrandWave(_initialU, _varEx);
   }
   else{
-    _momBal->initiateIntegrand(_initTime,_varEx,_varIm);
-    _fault->initiateIntegrand(_initTime,_varEx,_varIm);
+    _momBal->initiateIntegrand(_initTime,_varEx);
+    _fault->initiateIntegrand(_initTime,_varEx);
   }
 
-  if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-     _he->initiateIntegrand(_initTime,_varEx,_varIm);
+  if (_thermalCoupling.compare("no")!=0 ) {
+     _he->initiateIntegrand(_initTime,_varEx,_varIm1);
+     //~ _he->initiateIntegrand(_initTime,_varEx,_varImMult);
+  }
+
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+     _p->initiateIntegrand(_initTime,_varEx,_varIm1);
+     //~ _p->initiateIntegrand(_initTime,_varEx,_varImMult);
   }
 
   #if VERBOSE > 1
@@ -204,6 +224,7 @@ double startTime = MPI_Wtime();
   if ( stepCount % _stride1D == 0) {
     ierr = _momBal->writeStep1D(stepCount,time); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time); CHKERRQ(ierr);
+    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time); CHKERRQ(ierr); }
   }
 
   if ( stepCount % _stride2D == 0) {
@@ -221,15 +242,18 @@ double startTime = MPI_Wtime();
   }
 
 _writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 1
+  #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+  #endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
 
 // monitoring function for IMEX integration
 PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm)
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImMult,const map<string,Vec>& varIm1)
 {
   PetscErrorCode ierr = 0;
   _stepCount = stepCount;
@@ -239,19 +263,22 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
+
+
   timeMonitor(time,stepCount,varEx,dvarEx);
 
   if ( stepCount % _stride1D == 0) {
-    ierr =  _he->writeStep1D(_stepCount,time); CHKERRQ(ierr);
+    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time); CHKERRQ(ierr); }
   }
 
   if ( stepCount % _stride2D == 0) {
-    ierr =  _he->writeStep2D(_stepCount,time);CHKERRQ(ierr);
+    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time);CHKERRQ(ierr); }
   }
 
 _writeTime += MPI_Wtime() - startTime;
+
   #if VERBOSE > 1
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -263,13 +290,15 @@ PetscErrorCode Mediator::view()
 
   double totRunTime = MPI_Wtime() - _startTime;
 
-  if (_timeIntegrator.compare("IMEX")==0) { ierr = _quadImex->view();  _he->view(); }
-  if (_timeIntegrator.compare("RK32")==0) { ierr = _quadEx->view(); }
+  if (_timeIntegrator.compare("IMEX")==0&& _quadImex!=NULL) { ierr = _quadImex->view(); }
+  if (_timeIntegrator.compare("RK32")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
 
   _momBal->view(_integrateTime);
   _fault->view(_integrateTime);
+  if (_hydraulicCoupling.compare("no")!=0) { _p->view(_integrateTime); }
+  if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Mediator Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
@@ -288,6 +317,10 @@ PetscErrorCode Mediator::writeContext()
   _momBal->writeContext();
    _he->writeContext();
   _fault->writeContext();
+
+  if (_hydraulicCoupling.compare("no")!=0) {
+    _p->writeContext();
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -519,7 +552,7 @@ PetscErrorCode Mediator::integrate()
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varImMult,_varIm1);CHKERRQ(ierr);
 
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds);
@@ -541,7 +574,7 @@ PetscErrorCode Mediator::integrate()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-  
+
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
 
     // control which fields are used to select step size
@@ -558,27 +591,32 @@ PetscErrorCode Mediator::integrate()
 }
 
 
-// explicit time stepping
+// purely explicit time stepping
+// note that the heat equation never appears here because it is only ever solved implicitly
 PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
   // update fields based on varEx, varIm
-  _momBal->updateFields(time,varEx,_varIm);
-  _fault->updateFields(time,varEx,_varIm);
+  _momBal->updateFields(time,varEx);
+  _fault->updateFields(time,varEx);
+  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+    _p->updateFields(time,varEx);
+  }
 
+  // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
+  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+    _p->d_dt(time,varEx,dvarEx);
+  }
 
-  // update fields on fault
+  // update fields on fault from other classes
   ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
+  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
 
-  if (!_bcLTauQS) {
-    ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
-  }
-  else {
-    VecSet(dvarEx.find("psi")->second,0.0); // dstate psi
-    VecSet(dvarEx.find("slip")->second,0.0); // slip vel
-  }
+  // rates for fault
+  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
   return ierr;
 }
 
@@ -602,19 +640,45 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // update fields based on varEx, varIm
-  _momBal->updateFields(time,varEx,varImo);
-  _fault->updateFields(time,varEx,varImo);
+  // update state of each class from integrated variables varEx and varImo
+  _momBal->updateFields(time,varEx);
+  _fault->updateFields(time,varEx);
+  if (varImo.find("pressure") != varImo.end() ) {
+    _p->updateFields(time,varEx,varImo);
+  }
 
-  ierr = d_dt(time,varEx,dvarEx);CHKERRQ(ierr);
+  // update temperature in momBal
+  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+    _momBal->updateTemperature(varImo.find("Temp")->second);
+    _fault->setTemp(varImo.find("Temp")->second);
+  }
 
+  // update effective normal stress in fault using pore pressure
+  if (varImo.find("pressure") != varImo.end() && _hydraulicCoupling.compare("coupled")!=0) {
+    _fault->setSNEff(_p->_p);
+  }
+
+
+  // compute rates
+  ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
+  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+  }
+
+  // update shear stress on fault from momentum balance computation
+  ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
+
+  // rates for fault
+  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
+  // heat equation
   if (varIm.find("Temp") != varIm.end()) {
     Vec sdev = NULL;
     _momBal->getSigmaDev(sdev);
     ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
       sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
-    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, dTdt
+    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 
   #if VERBOSE > 1
@@ -643,11 +707,11 @@ PetscErrorCode Mediator::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  //~ _momBal->measureMMSError(_currTime);
+  _momBal->measureMMSError(_currTime);
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ ierr =  _he->measureMMSError(_currTime);
   //~ }
-  _fault->measureMMSError(_currTime);
+  //~ _fault->measureMMSError(_currTime);
 
   return ierr;
 }

@@ -84,14 +84,16 @@ class PowerLaw: public LinearElastic
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // methods for explicit time stepping
-    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm);
-    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+    PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount);

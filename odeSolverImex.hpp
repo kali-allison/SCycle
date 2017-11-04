@@ -13,16 +13,18 @@
 
 /*
  * Provides a set of algorithms to solve a system of ODEs of
- * the form y' = f(t,y) using IMEX time stepping.
+ * the form y' = f(t,y) using IMEX time stepping,
+ * where y is represented as an array of one or more Vecs
+ * (PETSc data type).
+ *
+ * Containers for integration:
+ *   var          map<string,Vec> of explicitly integrated variables
+ *   varImMult    map<string,Vec> of implicitly integrated variables, computed at intermediate stages
+ *   varIm1       map<string,Vec> of implicitly integrated variables, computed once per time step
  *
  * SOLVER TYPE      ALGORITHM
- *  FEuler        forward Euler
- *  RK32          explicit Runge-Kutta (2,3)
+ *  IMEX        explicit part Runge-Kutta (2,3), implicit controlled by user
  *
- * To obtain solutions at user-specified times, use FEuler and call setStepSize
- * in the routine f(t,y).
- *
- * y is represented as an array of one or more Vecs (PETSc data type).
  *
  * At minimum, the user must specify:
  *     QUANTITY               FUNCTION
@@ -56,14 +58,15 @@ class OdeSolverImex
 {
   protected:
 
-    PetscReal           _initT,_finalT,_currT,_deltaT;
-    PetscInt            _maxNumSteps,_stepCount;
+    PetscReal               _initT,_finalT,_currT,_deltaT;
+    PetscInt                _maxNumSteps,_stepCount;
     std::map<string,Vec>    _var,_dvar; // explicit integration variable and rate
-    std::map<string,Vec>    _varIm; // implicit integration variable
-    std::vector<string>    _errInds; // which inds of _var to use for error control
-    int                 _lenVar;
-    double              _runTime;
-    string              _controlType;
+    std::map<string,Vec>    _varImMult; // implicit integration variable, at each stage
+    std::map<string,Vec>    _varIm1; // implicit integration variable, once per time step
+    std::vector<string>     _errInds; // which inds of _var to use for error control
+    int                     _lenVar;
+    double                  _runTime;
+    string                  _controlType;
 
   public:
 
@@ -75,7 +78,7 @@ class OdeSolverImex
 
     // intermediate values for time stepping for the explicit variable
     std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
-    std::map<string,Vec> _varHalfdTIm,_vardTIm,_varIm_half;
+    std::map<string,Vec> _varHalfdTImMult,_vardTImMult,_vardTIm1;
 
 
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
@@ -88,7 +91,7 @@ class OdeSolverImex
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     //~ PetscErrorCode setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm);
     //~ PetscErrorCode setErrInds(std::vector<int>& errInds);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varImMult,std::map<string,Vec>& varIm1);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
