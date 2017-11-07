@@ -272,7 +272,6 @@ PetscErrorCode SbpOps_fc_coordTrans::computeMatrices()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
   TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
 
   constructMu(*_muVec);
@@ -331,13 +330,12 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
   VecSet(ones,1.0);
 
   Vec temp;
-  VecDuplicate(*_y,&temp);
+  VecDuplicate(*_muVec,&temp);
 
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_yq);
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_zr);
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_qy);
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_rz);
-
 
   // construct dy/dq and dq/dy
   if (_y == NULL) { VecCopy(ones,temp); }
@@ -1015,7 +1013,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDyymu(const TempMats_fc_coordTrans
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
+  writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
 
   #if VERBOSE > 2
     ierr = MatView(Dyymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -1057,7 +1055,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDzzmu(const TempMats_fc_coordTrans
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
+  writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -1902,10 +1900,10 @@ PetscErrorCode ierr = 0;
 
   if (N == 1) {
     H.eye();
-    Hinv.eye();
-    D1.eye();
-    D1int.eye();
-    BS.eye();
+    //~ Hinv.eye();
+    //~ D1.eye();
+    //~ D1int.eye();
+    //~ BS.eye();
     return ierr;
   }
 
@@ -2086,8 +2084,8 @@ PetscErrorCode ierr = 0;
   assert(N > 2 || N == 1);
 
   if (N == 1) {
-    D2.eye();
-    C2.eye();
+    //~ D2.eye();
+    //~ C2.eye();
     return ierr;
   }
 
@@ -2139,10 +2137,10 @@ PetscErrorCode ierr = 0;
   assert(N > 8 || N == 1);
 
   if (N==1) {
-    D3.eye();
-    D4.eye();
-    C3.eye();
-    C4.eye();
+    //~ D3.eye();
+    //~ D4.eye();
+    //~ C3.eye();
+    //~ C4.eye();
     return ierr;
   }
 

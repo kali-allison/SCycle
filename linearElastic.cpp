@@ -351,8 +351,6 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   VecPointwiseMult(_cs, _muVec, _rhoVec);
 
   PetscScalar *cs;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_cs,&Istart,&Iend);
   VecGetArray(_cs,&cs);
   VecSqrtAbs(_cs);
 
@@ -749,8 +747,6 @@ PetscErrorCode LinearElastic::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
-
   PetscViewer    viewer;
 
   // write out scalar info
@@ -789,6 +785,8 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
+    ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 

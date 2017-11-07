@@ -63,6 +63,7 @@ class PressureEq
       const PetscScalar maxVal);
 
     PetscErrorCode computeVariableCoefficient(const Vec& p,Vec& coeff);
+    PetscErrorCode setUpSBP();
     PetscErrorCode computeInitialSteadyStatePressure(Domain& D);
 
   public:

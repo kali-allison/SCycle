@@ -24,8 +24,9 @@ int runTests(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-
-  HeatEquation he(d); // heat equation
+  PressureEq p(d); // pressure equation
+  p.writeContext();
+  //~ HeatEquation he(d); // heat equation
 
   return ierr;
 }
@@ -40,13 +41,13 @@ int runMMSTests(const char * inputFile)
   for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
   //~ for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
-    Domain d(inputFile,Ny,Ny);
-    //~ Domain d(inputFile,Ny,1);
+    //~ Domain d(inputFile,Ny,Ny);
+    Domain d(inputFile,Ny,1);
     d.write();
 
     Mediator m(d);
-    ierr = m.integrate();CHKERRQ(ierr);
     ierr = m.writeContext(); CHKERRQ(ierr);
+    ierr = m.integrate();CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
   }
 
@@ -65,7 +66,7 @@ int runEqCycle(const char * inputFile)
   ierr = m.writeContext(); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);
-  //~ ierr = m.view();CHKERRQ(ierr);
+  ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }

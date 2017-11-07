@@ -585,8 +585,6 @@ PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
   if (_D2type.compare("yz")==0) { // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
     ierr = constructDyymu(tempMats,Dyymu); CHKERRQ(ierr);
     ierr = constructDzzmu(tempMats,Dzzmu); CHKERRQ(ierr);
-    //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
-    //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
     ierr = MatDuplicate(Dyymu,MAT_COPY_VALUES,&_D2); CHKERRQ(ierr);
     ierr = MatAYPX(_D2,1.0,Dzzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
   }
@@ -601,14 +599,6 @@ PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: sbp member 'type' not understood. Choices: 'yz', 'y', 'z'.\n");
     assert(0);
-  }
-
-  if (_multByH) { // if multiply by H
-    Mat temp;
-    ierr = MatMatMult(_H,_D2,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
-    ierr = MatCopy(temp,_D2,SAME_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatDestroy(&temp);CHKERRQ(ierr);
-    ierr = MatSetOption(_D2,MAT_SYMMETRIC,PETSC_TRUE);CHKERRQ(ierr);
   }
 
   // clean up
@@ -855,14 +845,14 @@ PetscErrorCode SbpOps_fc::constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu
   MatDestroy(&HinvxRymu);
   MatDestroy(&Rymu);
 
-  if (!_multByH) {
+  if (_multByH) {
     Mat temp;
     MatMatMult(_H,Dyymu,MAT_INITIAL_MATRIX,1.,&temp); CHKERRQ(ierr);
     MatCopy(temp,Dyymu,SAME_NONZERO_PATTERN);
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_u_Dyymu");
+  writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDyymu in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -886,14 +876,14 @@ PetscErrorCode SbpOps_fc::constructDzzmu(const TempMats_fc& tempMats,Mat &Dzzmu)
   MatDestroy(&HinvxRzmu);
   MatDestroy(&Rzmu);
 
-  if (!_multByH) {
+  if (_multByH) {
     Mat temp;
     MatMatMult(_H,Dzzmu,MAT_INITIAL_MATRIX,1.,&temp); CHKERRQ(ierr);
     MatCopy(temp,Dzzmu,SAME_NONZERO_PATTERN);
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_u_Dzzmu");
+  writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDzzmu in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -1726,8 +1716,8 @@ PetscErrorCode ierr = 0;
   assert(N > 2 || N == 1);
 
   if (N == 1) {
-    D2.eye();
-    C2.eye();
+    //~ D2.eye();
+    //~ C2.eye();
     return ierr;
   }
 
@@ -1779,10 +1769,10 @@ PetscErrorCode ierr = 0;
   assert(N > 8 || N == 1);
 
   if (N==1) {
-    D3.eye();
-    D4.eye();
-    C3.eye();
-    C4.eye();
+    //~ D3.eye();
+    //~ D4.eye();
+    //~ C3.eye();
+    //~ C4.eye();
     return ierr;
   }
 
@@ -1874,10 +1864,10 @@ PetscErrorCode ierr = 0;
 
   if (N == 1) {
     H.eye();
-    Hinv.eye();
-    D1.eye();
-    D1int.eye();
-    BS.eye();
+    //~ Hinv.eye();
+    //~ D1.eye();
+    //~ D1int.eye();
+    //~ BS.eye();
     return ierr;
   }
 

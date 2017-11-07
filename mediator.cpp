@@ -711,7 +711,7 @@ PetscErrorCode Mediator::measureMMSError()
   //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
     //~ ierr =  _he->measureMMSError(_currTime);
   //~ }
-  //~ _fault->measureMMSError(_currTime);
+  //~ _p->measureMMSError(_currTime);
 
   return ierr;
 }

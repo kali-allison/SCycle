@@ -3,10 +3,10 @@
 order = 4
 Ny = 21
 Nz = 21
-Ly = 1
+Ly = 2
 #Ly = 1.570796326794897
 #Ly = 6.283185307179586
-Lz = 1
+Lz = 4
 #Lz = 6.283185307179586
 vL = 1e-9    # (m/s)
 
@@ -123,7 +123,6 @@ withFrictionalHeating = no
 viscDistribution = effectiveVisc
 strainRate = 1e-14
 
-
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
@@ -131,7 +130,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 11e3
+maxStepCount = 5
 initTime = 0
 maxTime = 1e-2
 initDeltaT = 1e-3

@@ -1,12 +1,12 @@
 order = 4 # SBP order of accuracy
-Ny = 41
-Nz = 42
-Ly = 30 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Ny = 11
+Nz = 12
+Ly = 1 # (km) horizontal domain size
+Lz = 2 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = no
+isMMS = yes
 
 # symmetric or general
 geometry = symmetric
@@ -67,8 +67,8 @@ sigmaNDepths = [0 0.25 60]
 
 #======================================================================
 # hydraulic fault inputs
-hydraulicCoupling = no
-#hydraulicCoupling = uncoupled
+#hydraulicCoupling = no
+hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
 hydraulicTimeIntType = explicit
@@ -90,7 +90,6 @@ pVals = [0.0 0.0]
 pDepths = [0 30]
 
 
-# for MMS test
 #n_pVals = [1 1]
 #n_pDepths = [0 30]
 #beta_pVals = [1 1] # 1/MPa
@@ -104,7 +103,6 @@ pDepths = [0 30]
 #rho_fDepths = [0 30]
 #pVals = [0.0 0.0]
 #pDepths = [0 30]
-
 
 #======================================================================
 # off-fault material parameters
@@ -139,20 +137,20 @@ withFrictionalHeating = no
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 1e3
+stride1D = 1000
+stride2D = 1000
+maxStepCount = 1e5
 initTime = 0
-maxTime = 1e7      # (s) 3e1
+maxTime = 1e5      # (s)
 initDeltaT = 1e-3   # (s) size of initial time step
 minDeltaT = 1e-3    # (s) minimum allowed time step
 maxDeltaT = 3e5    # (s) maximum allowed time step
-atol = 1e-8 # absolute error for adaptive time stepper
-timeIntInds = [psi slip]
-#timeIntInds = [pressure]
+atol = 1e-10 # absolute error for adaptive time stepper
+#timeIntInds = [psi slip]
+timeIntInds = [pressure]
 
 
-outputDir = data/hf_
+outputDir = data/mms_
 
 
 
