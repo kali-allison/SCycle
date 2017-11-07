@@ -1,5 +1,5 @@
 % 1D wave eq
-% - no fault
+% - with fault
 % - has nontrivial material parameters
 %
 % Boundary Conditions: (outgoing characteristics)
@@ -27,19 +27,9 @@ G = y.*0 + 30; % (GPa) shear modulus
 rho = y.*0 + 2.6702; % (g/cm^3) density
 cs = sqrt(G./rho); % (km/s) shear wave speed
 
-% fault material parameters (all stored in p)
-p.a = 0.015;
-p.b = 0.0;
-p.sNEff = 50; % MPa, effective normal stress
-p.v0 = 1e-6;
-p.f0 = 0.6;
-p.Dc = 8e-3;
-p.rho = rho(1);
-p.tau0 = 0;
-
 
 % time
-tmax = 15;
+tmax = 10;
 cfl = 0.25;
 dt1 = 0.05*cfl/max(cs) * dy;
 dt = cfl/max(cs) * dy;
@@ -58,7 +48,7 @@ end
 
 
 % initial conditions
-amp = 1;
+amp = 10;
 u =  amp*exp(-(y-0.5*Ly).^2./5);
 u0_t =  0*exp(-(y-0.5*Ly).^2./5);
 
@@ -74,9 +64,6 @@ uLap(end) = uLap(end) - (1/h11y)*G(end) .* uy(end);
 uPrev = u; % n-1
 u = u + uLap.*0.5*dt1^2/2./rho; % n
 uNew = 0.*u; % n+1
-
-psi = 0.6;
-vel = 0;
 
 % figure(1),clf,plot(u),xlabel('y')
 % return
@@ -102,19 +89,17 @@ for tInd = 2:length(t)-1
   % update boundary conditions
 
   % y = 0: cs u_t - mu u_y = 0
-%   uNew(1) = dt^2*uLap(1)./rho(1)  + 2*u(1) + (ay(1)-1)*uPrev(1);
-%   uNew(1) = uNew(1)./(1+ay(1));
+  uNew(1) = dt^2*uLap(1)./rho(1)  + 2*u(1) + (ay(1)-1)*uPrev(1);
+  uNew(1) = uNew(1)./(1+ay(1));
   
   % y = Lz: cs u_t + mu u_y = 0
   uNew(end) = dt^2*uLap(end)./rho(end)  + 2*u(end) + (ay(end)-1)*uPrev(end);
   uNew(end) = uNew(end)./(1+ay(end));
   
-  % fault
-  pen = h11y;
-  [uNew0, psi,vel] = fault_1d(dt,pen,uLap(1),u(1),uPrev(1),psi,vel,p);
-  uNew(1) = uNew0;
   
-
+  % fault
+  
+  
   
   % update which is the n+1, n, and n-1 steps
   uPrev = u;
@@ -127,7 +112,6 @@ for tInd = 2:length(t)-1
     xlabel('y')
     title(sprintf('t = %g s',t(tInd)))
     drawnow
-%     pause
   end
   
 end
