@@ -296,16 +296,20 @@ PetscErrorCode SbpOps_fc::constructEs(const TempMats_fc& tempMats)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Spmat E0y(_Ny,_Ny); E0y(0,0,1.0);
+  Spmat E0y(_Ny,_Ny);
+  if (_Ny > 1) { E0y(0,0,1.0); }
   kronConvert(E0y,tempMats._Iz,_E0y_Iz,1,1);
 
-  Spmat ENy(_Ny,_Ny); ENy(_Ny-1,_Ny-1,1.0);
+  Spmat ENy(_Ny,_Ny);
+  if (_Ny > 1) { ENy(_Ny-1,_Ny-1,1.0); }
   kronConvert(ENy,tempMats._Iz,_ENy_Iz,1,1);
 
-  Spmat E0z(_Nz,_Nz); E0z(0,0,1.0);
+  Spmat E0z(_Nz,_Nz);
+  if (_Nz > 1) { E0z(0,0,1.0); }
   kronConvert(tempMats._Iy,E0z,_Iy_E0z,1,1);
 
-  Spmat ENz(_Nz,_Nz); ENz(_Nz-1,_Nz-1,1.0);
+  Spmat ENz(_Nz,_Nz);
+  if (_Nz > 1) { ENz(_Nz-1,_Nz-1,1.0); }
   kronConvert(tempMats._Iy,ENz,_Iy_ENz,1,1);
 
   #if VERBOSE > 1
@@ -322,16 +326,20 @@ PetscErrorCode SbpOps_fc::constructes(const TempMats_fc& tempMats)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Spmat e0y(_Ny,1); e0y(0,0,1.0);
+  Spmat e0y(_Ny,1);
+  if (_Ny > 1) { e0y(0,0,1.0); }
   kronConvert(e0y,tempMats._Iz,_e0y_Iz,1,1);
 
-  Spmat eNy(_Ny,1); eNy(_Ny-1,0,1.0);
+  Spmat eNy(_Ny,1);
+  if (_Ny > 1) { eNy(_Ny-1,0,1.0); }
   kronConvert(eNy,tempMats._Iz,_eNy_Iz,1,1);
 
-  Spmat e0z(_Nz,1); e0z(0,0,1.0);
+  Spmat e0z(_Nz,1);
+  if (_Nz > 1) { e0z(0,0,1.0); }
   kronConvert(tempMats._Iy,e0z,_Iy_e0z,1,1);
 
-  Spmat eNz(_Nz,1); eNz(_Nz-1,0,1.0);
+  Spmat eNz(_Nz,1);
+  if (_Nz > 1) { eNz(_Nz-1,0,1.0); }
   kronConvert(tempMats._Iy,eNz,_Iy_eNz,1,1);
 
   #if VERBOSE > 1
@@ -1864,7 +1872,7 @@ PetscErrorCode ierr = 0;
 
   if (N == 1) {
     H.eye();
-    //~ Hinv.eye();
+    Hinv.eye();
     //~ D1.eye();
     //~ D1int.eye();
     //~ BS.eye();

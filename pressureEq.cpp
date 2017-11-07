@@ -23,11 +23,13 @@ PressureEq::PressureEq(Domain&D)
   checkInput();
   setFields(D);
   setUpSBP();
+
+  // initial conditions
   if (!_isMMS) {
     computeInitialSteadyStatePressure(D);
   }
 
-  if (_isMMS) { // set initial condition
+  if (_isMMS) {
     mapToVec(_p, zzmms_pA1D, _z, D._initTime);
     VecSet(_bcL, 0);
     VecSet(_bcT, zzmms_pSource1D(0, D._initTime));
@@ -577,7 +579,7 @@ PetscErrorCode PressureEq::d_dt_main(const PetscScalar time,const map<string,Vec
   VecDuplicate(_k_p,&rhs);
   _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
 
-  // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
+  // d/dt p = (D2*p - rhs) / (rho * n * beta)
   VecAXPY(p_t,-1.0,rhs);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
@@ -657,9 +659,7 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>
   mapToVec(source, zzmms_pSource1D, _z, time);
   //~ writeVec(source,_outputDir + "mms_pSource");
 
-
   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
-  //~ VecAXPY(p_t,-1.0,rhs);
   VecAXPY(p_t,1.0,source);
   VecPointwiseDivide(p_t,p_t,_rho_f);
   VecPointwiseDivide(p_t,p_t,_n_p);

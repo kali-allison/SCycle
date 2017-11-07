@@ -9,6 +9,7 @@
 #include "sbpOps.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
+#include "pressureEq.hpp"
 #include "powerLaw.hpp"
 #include "mediator.hpp"
 
@@ -41,8 +42,8 @@ int runMMSTests(const char * inputFile)
   for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
   //~ for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
-    //~ Domain d(inputFile,Ny,Ny);
-    Domain d(inputFile,Ny,1);
+    Domain d(inputFile,Ny,Ny);
+    //~ Domain d(inputFile,Ny,1);
     d.write();
 
     Mediator m(d);
