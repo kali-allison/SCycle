@@ -1021,7 +1021,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDyymu(const TempMats_fc_coordTrans
     MatDestroy(&temp);
   }
 
-  writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
+  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
 
   #if VERBOSE > 2
     ierr = MatView(Dyymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -1063,7 +1063,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDzzmu(const TempMats_fc_coordTrans
     MatDestroy(&temp);
   }
 
-  writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
+  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);

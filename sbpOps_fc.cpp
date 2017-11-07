@@ -860,7 +860,7 @@ PetscErrorCode SbpOps_fc::constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu
     MatDestroy(&temp);
   }
 
-  writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
+  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDyymu in sbpOps.cpp.\n");CHKERRQ(ierr);
@@ -891,7 +891,7 @@ PetscErrorCode SbpOps_fc::constructDzzmu(const TempMats_fc& tempMats,Mat &Dzzmu)
     MatDestroy(&temp);
   }
 
-  writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
+  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
 
   #if VERBOSE >1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function constructDzzmu in sbpOps.cpp.\n");CHKERRQ(ierr);
