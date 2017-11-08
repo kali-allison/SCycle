@@ -9,8 +9,10 @@
 #include <map>
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
+#include "integratorContextWave.hpp"
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
+#include "odeSolver_WaveEq.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -46,6 +48,7 @@ private:
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     const PetscScalar    _vL;
+    std::string          _momBalType; // "dynamic", "static"
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 
@@ -56,7 +59,7 @@ private:
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscReal              _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
+    PetscScalar              _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -70,7 +73,7 @@ private:
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
 
     // set up integrated variables (_varEx, _varIm)
-    PetscErrorCode initiateIntegrand();
+
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
@@ -78,34 +81,37 @@ private:
   public:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
+    OdeSolver_WaveEq    *_quadWaveEq; // implicit time stepping
 
-    Fault              *_fault;
-    LinearElastic      *_momBal; // solves momentum balance equation
-    HeatEquation       *_he;
-    PressureEq         *_p;
+    Fault               *_fault;
+    LinearElastic       *_momBal; // solves momentum balance equation
+    HeatEquation        *_he;
+    PressureEq          *_p;
 
 
     Mediator(Domain&D);
     ~Mediator();
 
-    Domain* getD();
-    PetscScalar getvL();
-    std::map <string,Vec> getvarEx();
-    std::string getinitialU();
-    std::string getTimeIntegrator();
+    PetscErrorCode integrate(); // will call OdeSolver method by same name
+
+
+    // dynamic wave equation functions
+    PetscErrorCode initiateIntegrand_dyn();
+    PetscErrorCode integrate_dyn();
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT);
+
+    // adaptive time stepping functions for quasi-static problem
+    PetscErrorCode initiateIntegrand_qs();
+    PetscErrorCode integrate_qs();
 
     // to solve a steady-state problem
     std::map <string,PetscViewer>  _viewers;
     PetscErrorCode solveSS();
     PetscErrorCode writeSS(const int Ii);
 
-
-    // for adaptive time stepping
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
-
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT);
+
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
@@ -116,13 +122,13 @@ private:
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImMult,const map<string,Vec>& varIm1);
 
     // debugging and MMS tests
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+    PetscErrorCode debug(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage);
     PetscErrorCode measureMMSError();
 

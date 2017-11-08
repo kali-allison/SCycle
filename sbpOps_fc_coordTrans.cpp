@@ -319,7 +319,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SbpOps_fc_coordTrans::computeJacobian";
+    string funcName = "SbpOps_fc_coordTrans::constructJacobian";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 

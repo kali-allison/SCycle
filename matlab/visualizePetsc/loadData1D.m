@@ -55,11 +55,11 @@ output.dt = (output.time(2:end) - output.time(1:end-1))/output.dom.stride1D;
 
 
 % load pressure
-if exist(strcat(sourceDir,'fault_hydr_p'),'file') == 2
+if exist(strcat(sourceDir,'p_p'),'file') == 2
   output.p = loadVec(sourceDir,'fault_hydr_p',stride,startInd,endInd);
   display('   finished loading pressure')
 end
-if exist(strcat(sourceDir,'fault_hydr_sNEff'),'file') == 2
+if exist(strcat(sourceDir,'p_sNEff'),'file') == 2
   output.sNEff = loadVec(sourceDir,'fault_hydr_sNEff',stride,startInd,endInd);
   display('   finished loading pressure')
 end

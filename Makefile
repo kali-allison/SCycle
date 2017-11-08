@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DCALCULATE_ENERGY=0
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0 -DCALCULATE_ENERGY=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
@@ -9,7 +9,7 @@ CLINKER		      = openmpicc
 OBJECTS := domain.o debuggingFuncs.o mediator.o fault.o genFuncs.o linearElastic.o\
  odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
  spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
- odeSolverImex.o pressureEq.o
+ odeSolverImex.o odeSolver_WaveEq.o pressureEq.o
 
 
 
@@ -27,14 +27,6 @@ mainHeatEquation:  mainHeatEquation.o $(OBJECTS)
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-
-mainEx: mainEx.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm mainEx.o
-
-testMain: testMain.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm testMain.o
 
 helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -102,6 +94,8 @@ odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContextEx.hpp \
 odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp \
  integratorContextImex.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextEx.hpp
+odeSolver_WaveEq.o: odeSolver_WaveEq.cpp odeSolver_WaveEq.hpp integratorContextWave.hpp \
+ genFuncs.hpp
 powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContextEx.hpp \
  genFuncs.hpp odeSolver.hpp domain.hpp linearElastic.hpp \
  integratorContextImex.hpp odeSolverImex.hpp sbpOps.hpp sbpOps_c.hpp \

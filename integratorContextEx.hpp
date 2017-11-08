@@ -17,11 +17,6 @@ class IntegratorContextEx
 {
   public:
 
-    //~ typedef std::vector<Vec>::iterator it_vec;
-    //~ typedef std::vector<Vec>::const_iterator const_it_vec;
-    //~ typedef std::map<string,Vec>::iterator it_vec;
-    //~ typedef std::map<string,Vec>::const_iterator const_it_vec;
-
     virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
     virtual PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar, PetscReal _deltaT) = 0;
     virtual PetscErrorCode integrate() = 0;
