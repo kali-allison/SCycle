@@ -499,6 +499,8 @@ PetscErrorCode SbpOps_fc::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat&
   ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
 
+  // MatDestroy(&HxHinv);
+  // MatDestroy(&HinvxmuxE);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -650,8 +652,11 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   }
   else if (_D2type.compare("z")==0) {
+
     ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());

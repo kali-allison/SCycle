@@ -584,6 +584,7 @@ PetscErrorCode PressureEq::d_dt_main(const PetscScalar time,const map<string,Vec
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+
     Vec temp;
     VecDuplicate(p_t,&temp);
     ierr = MatMult(Jinv,p_t,temp);
@@ -641,13 +642,12 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>
   VecDuplicate(_k_p,&rhs);
   _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
 
+
   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
   VecAXPY(p_t,-1.0,rhs);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    MatView(Jinv, PETSC_VIEWER_STDOUT_WORLD);
-    assert(0);
     Vec temp;
     VecDuplicate(p_t,&temp);
     ierr = MatMult(Jinv,p_t,temp);
