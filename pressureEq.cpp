@@ -646,6 +646,8 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time,const map<string,Vec>
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    MatView(Jinv, PETSC_VIEWER_STDOUT_WORLD);
+    assert(0);
     Vec temp;
     VecDuplicate(p_t,&temp);
     ierr = MatMult(Jinv,p_t,temp);
@@ -936,7 +938,7 @@ double PressureEq::zzmms_pt1D(const double z,const double t)
   //~ PetscScalar delta_p = 5;
   PetscScalar omega = 2*PI / T0;
 
-  PetscScalar kz = 2. * PI / 30.;
+  PetscScalar kz = 2. * PI / 1.;
   //~ PetscScalar kz = 1.0;
 
   PetscScalar p_t = delta_p * sin(kz * z) * omega * cos(omega * t); // correct
@@ -954,7 +956,7 @@ double PressureEq::zzmms_pA1D(const double z,const double t)
   PetscScalar delta_p = 50;
   PetscScalar omega = 2.*PI / T0;
 
-  PetscScalar kz = 2. * PI / 30.;
+  PetscScalar kz = 2. * PI / 1.;
   //~ PetscScalar kz = 1.;
 
   PetscScalar p_src = delta_p * sin(kz * z) * sin(omega * t); // correct
@@ -972,7 +974,7 @@ double PressureEq::zzmms_pSource1D(const double z, const double t)
   PetscScalar delta_p = 50;
   PetscScalar omega = 2.*PI / T0;
 
-  PetscScalar kz = 2. * PI / 30.;
+  PetscScalar kz = 2. * PI / 1.;
   //~ PetscScalar kz = 1.;
 
   //~ PetscScalar beta0 = 1;

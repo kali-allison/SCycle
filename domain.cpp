@@ -581,7 +581,7 @@ PetscErrorCode Domain::setFields()
       z = r*_Lz;
 
       //~ y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
-      //~ z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
+      // z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
       //~ z = _Lz*(r+exp(r/0.125)-1.0)/exp(1.0/0.125);
 
       //~ z = (sinh(5.0*5.0*(r-0.5))/sinh(5.0*5.0*0.5) + 1.0)*0.5*_Lz; // original

@@ -1,8 +1,8 @@
 order = 4 # SBP order of accuracy
 Ny = 11
 Nz = 12
-Ly = 30 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Ly = 1 # (km) horizontal domain size
+Lz = 1 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
@@ -137,15 +137,15 @@ withFrictionalHeating = no
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1000
-stride2D = 1000
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e5
 initTime = 0
-maxTime = 1e5      # (s)
+maxTime = 1e7      # (s)
 initDeltaT = 1e-4   # (s) size of initial time step
 minDeltaT = 1e-4    # (s) minimum allowed time step
 maxDeltaT = 3e5    # (s) maximum allowed time step
-atol = 1e-8 # absolute error for adaptive time stepper
+atol = 1e-9 # absolute error for adaptive time stepper
 #timeIntInds = [psi slip]
 timeIntInds = [pressure]
 
