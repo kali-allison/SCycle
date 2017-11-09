@@ -20,7 +20,7 @@ Mediator::Mediator(Domain&D)
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
-  _quadEx(NULL),_quadImex(NULL),
+  _quadEx(NULL),_quadImex(NULL),_quadWaveEq(NULL),
   _fault(NULL),_momBal(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
@@ -168,7 +168,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ solveSS();
+  solveSS();
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -350,11 +350,71 @@ PetscErrorCode Mediator::solveSS()
   PetscScalar H = 10; // seismogenic depth
   PetscScalar ess_t = _vL*0.5/H; // steady state strain rate
 
-  // compute steady state temperature if necessary
-  // already part of constructor
-  //~ if (_thermalCoupling.compare("coupled")==0 || _thermalCoupling.compare("uncoupled")==0) {
-    //~ _he = new HeatEquation(D);
+  // compute steady state stress on fault
+  Vec tauRS = NULL,tauVisc = NULL,tauSS = NULL;
+  _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
+  _momBal->getTauVisc(tauVisc,ess_t); // tau visc from steady state strain rate
+
+  // tauSS = min(tauRS,tauVisc)
+  VecDuplicate(tauRS,&tauSS);
+  PetscScalar *tauRSV,*tauViscV,*tauSSV=0;
+  PetscInt Istart,Iend;
+  VecGetOwnershipRange(tauRS,&Istart,&Iend);
+  VecGetArray(tauRS,&tauRSV);
+  VecGetArray(tauVisc,&tauViscV);
+  VecGetArray(tauSS,&tauSSV);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    //~ tauSSV[Jj] = min(tauRSV[Jj],tauViscV[Jj]);
+    tauSSV[Jj] = tauRSV[Jj];
+    Jj++;
+  }
+  VecRestoreArray(tauRS,&tauRSV);
+  VecRestoreArray(tauVisc,&tauViscV);
+  VecRestoreArray(tauSS,&tauSSV);
+
+  if (_inputDir.compare("unspecified") != 0) {
+    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  }
+
+  std::map <string,PetscViewer>  _viewers;
+  _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
+  ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
+
+
+  // first, set up _varSS
+  _varSS["tau"] = tauSS;
+  _momBal->initiateVarSS(_varSS);
+  _fault->initiateVarSS(_varSS);
+
+  // for the linear elastic problem, this only requires one step
+  //~ if (_D->_bulkDeformationType.compare("linearElastic")==0) {
+    ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
+
+    #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    #endif
+    //~ return ierr;
   //~ }
+  ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode Mediator::solveSS_v2()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mediator::solveSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar H = 10; // seismogenic depth
+  PetscScalar ess_t = _vL*0.5/H; // steady state strain rate
 
   // compute steady state stress on fault
   Vec tauRS = NULL,tauVisc = NULL,tauSS = NULL;
@@ -391,19 +451,21 @@ PetscErrorCode Mediator::solveSS()
 
   // first, set up _varSS
   _varSS["tau"] = tauSS;
-  Vec tauExtra; VecDuplicate(tauSS,&tauExtra); VecCopy(tauSS,tauExtra); _varSS["tauExtra"] = tauExtra;
-  _fault->initiateVarSS(_varSS);
-  _momBal->initiateVarSS(_varSS);
-  _he->initiateVarSS(_varSS);
+  //~ Vec tauExtra; VecDuplicate(tauSS,&tauExtra); VecCopy(tauSS,tauExtra); _varSS["tauExtra"] = tauExtra;
+
+  //~ _fault->initiateVarSS(_varSS);
+  //~ _momBal->initiateVarSS(_varSS);
+  //~ _he->initiateVarSS(_varSS);
 
   // for the linear elastic problem, this only requires one step
   //~ if (_D->_bulkDeformationType.compare("linearElastic")==0) {
-    ierr = _momBal->updateSSa(*_D, _varSS); CHKERRQ(ierr);
+    ierr = _momBal->updateSSa( _varSS); CHKERRQ(ierr);
     #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     #endif
     return ierr;
   //~ }
+  ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
 
 /*
   // for power-law problem, try to converge
@@ -558,7 +620,7 @@ PetscErrorCode Mediator::integrate_qs()
   #endif
   double startTime = MPI_Wtime();
 
-  _momBal->prepareForIntegration(*_D);
+  _momBal->prepareForIntegration();
   initiateIntegrand_qs(); // put initial conditions into var for integration
   _stepCount = 0;
 
@@ -597,7 +659,6 @@ PetscErrorCode Mediator::integrate_qs()
 
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds);
-
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
 

@@ -106,7 +106,8 @@ private:
 
     // to solve a steady-state problem
     std::map <string,PetscViewer>  _viewers;
-    PetscErrorCode solveSS();
+    PetscErrorCode solveSS(); // assume bcL is correct and do 1 linear solve
+    PetscErrorCode solveSS_v2(); // iterate for eff visc etc
     PetscErrorCode writeSS(const int Ii);
 
     // explicit time-stepping methods

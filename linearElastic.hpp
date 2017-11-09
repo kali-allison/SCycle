@@ -100,12 +100,12 @@ class LinearElastic
 
     // for steady state computations
     PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
-    PetscErrorCode virtual updateSSa(Domain& D,map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
-    PetscErrorCode virtual updateSSb(Domain& D,map<string,Vec>& varSS); // does nothing for the linear elastic equations
+    PetscErrorCode virtual updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode virtual updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
     PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // time stepping function
-    PetscErrorCode virtual prepareForIntegration(Domain& D);
+    PetscErrorCode virtual prepareForIntegration();
     PetscErrorCode virtual initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode virtual initiateIntegrand_dyn(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx);

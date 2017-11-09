@@ -27,7 +27,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
 
   // set up matrix operators and KSP environment
   // guess steady state conditions
-  //~ guessSteadyStateEffVisc(1e-12);
+  //~ guessSteadyStateEffVisc(1e-14);
   //~ setSSInitialConds(D,tau);
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
@@ -549,7 +549,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
 }
 
 // compute Bss and Css
-PetscErrorCode PowerLaw::initializeSSMatrices(Domain &D)
+PetscErrorCode PowerLaw::initializeSSMatrices()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -563,22 +563,22 @@ PetscErrorCode PowerLaw::initializeSSMatrices(Domain &D)
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  _sbp->setMultiplyByH(1);
-  _sbp->computeMatrices(); // actually create the matrices
+  _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  _sbp_eta->setMultiplyByH(1);
+  _sbp_eta->computeMatrices(); // actually create the matrices
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
   setupKSP(_sbp_eta,_ksp_eta,_pc_eta);
@@ -962,8 +962,9 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+
 // solve for steady-state v, viscous strain rates
-PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -978,9 +979,10 @@ PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
 
   //~ _sbp_eta->updateVarCoeff(_effVisc);
   delete _sbp_eta;
-  initializeSSMatrices(D);
+  initializeSSMatrices();
   Mat A;
   _sbp_eta->getA(A);
+
   ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
 
   // set up rhs vector
@@ -1010,8 +1012,9 @@ PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
   return ierr;
 }
 
+
 // solve for steady-state u, gVxy
-PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1025,6 +1028,8 @@ PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
   PetscScalar time = 100;
   VecCopy(varSS["v"],_u);
   VecScale(_u,time);
+
+  LinearElastic::updateSSb(varSS); // update BCs based on u
 
   _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
   ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
@@ -1059,6 +1064,11 @@ PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
   ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
   _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
   ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
+  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
+  _viewers["SS_sxz"] = initiateViewer(_outputDir + "SS_sxz");
+  ierr = VecView(_sxz,_viewers["SS_sxz"]); CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1305,7 +1315,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   Vec SAT;
   VecDuplicate(_gTxy,&SAT);
   ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
-  VecSet(SAT,0.0); // !!!
+  //~ VecSet(SAT,0.0); // !!!
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(gVxy_t,_muVec,SAT);
