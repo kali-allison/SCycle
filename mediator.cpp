@@ -357,21 +357,8 @@ PetscErrorCode Mediator::solveSS()
 
   // tauSS = min(tauRS,tauVisc)
   VecDuplicate(tauRS,&tauSS);
-  PetscScalar *tauRSV,*tauViscV,*tauSSV=0;
-  PetscInt Istart,Iend;
-  VecGetOwnershipRange(tauRS,&Istart,&Iend);
-  VecGetArray(tauRS,&tauRSV);
-  VecGetArray(tauVisc,&tauViscV);
-  VecGetArray(tauSS,&tauSSV);
-  PetscInt Jj = 0;
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    //~ tauSSV[Jj] = min(tauRSV[Jj],tauViscV[Jj]);
-    tauSSV[Jj] = tauRSV[Jj];
-    Jj++;
-  }
-  VecRestoreArray(tauRS,&tauRSV);
-  VecRestoreArray(tauVisc,&tauViscV);
-  VecRestoreArray(tauSS,&tauSSV);
+  VecPointwiseMin(tauSS,tauRS,tauVisc);
+  //~ VecCopy(tauRS,tauSS);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -386,7 +373,6 @@ PetscErrorCode Mediator::solveSS()
   _varSS["tau"] = tauSS;
   _momBal->initiateVarSS(_varSS);
   _fault->initiateVarSS(_varSS);
-
   ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
 
@@ -612,8 +598,8 @@ PetscErrorCode Mediator::integrate_qs()
   #endif
   double startTime = MPI_Wtime();
 
-  _momBal->prepareForIntegration();
   initiateIntegrand_qs(); // put initial conditions into var for integration
+  _momBal->prepareForIntegration();
   _stepCount = 0;
 
   // initialize time integrator
@@ -636,9 +622,7 @@ PetscErrorCode Mediator::integrate_qs()
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setInitialConds(_varEx,_varImMult,_varIm1);CHKERRQ(ierr);
-
-    // control which fields are used to select step size
-    ierr = _quadImex->setErrInds(_timeIntInds);
+    ierr = _quadImex->setErrInds(_timeIntInds); // control which fields are used to select step size
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -646,11 +630,9 @@ PetscErrorCode Mediator::integrate_qs()
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
 
-    // control which fields are used to select step size
-    ierr = _quadEx->setErrInds(_timeIntInds);
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
 

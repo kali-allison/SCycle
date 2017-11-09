@@ -557,19 +557,19 @@ PetscErrorCode PowerLaw::initializeSSMatrices()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-    // set up SBP operators
-  std::string bcTType = "Neumann";
-  std::string bcBType = "Neumann";
+  // set up SBP operators
   std::string bcRType = "Dirichlet";
+  std::string bcTType = "Neumann";
   std::string bcLType = "Neumann";
+  std::string bcBType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
     _sbp_eta->setGrid(_y,_z);
   }
   else {
@@ -917,7 +917,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
   // update stresses, viscosity, and set shear traction on fault
   ierr = computeTotalStrains(time);CHKERRQ(ierr);
   ierr = computeStresses(time);CHKERRQ(ierr);
-  //~ computeViscosity(_effViscCap);
+  computeViscosity(_effViscCap);
 
   ierr = setViscStrainRates(time,_gxy,_gxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
 
@@ -978,6 +978,9 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   //~ ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
 
   //~ _sbp_eta->updateVarCoeff(_effVisc);
+  _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
+  ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
+
   delete _sbp_eta;
   initializeSSMatrices();
   Mat A;
@@ -1004,6 +1007,17 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 
   // update effective viscosity
   ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
+
+  _viewers["v"] = initiateViewer(_outputDir + "SS_v");
+  ierr = VecView(varSS["v"],_viewers["v"]); CHKERRQ(ierr);
+  _viewers["gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
+  ierr = VecView(varSS["gVxy_t"],_viewers["gVxy_t"]); CHKERRQ(ierr);
+  _viewers["gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
+  ierr = VecView(varSS["gVxz_t"],_viewers["gVxz_t"]); CHKERRQ(ierr);
+  _viewers["sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+  _viewers["sxz"] = initiateViewer(_outputDir + "SS_sxz");
+  ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1064,10 +1078,6 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
   _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
   ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
-  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-  _viewers["SS_sxz"] = initiateViewer(_outputDir + "SS_sxz");
-  ierr = VecView(_sxz,_viewers["SS_sxz"]); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1

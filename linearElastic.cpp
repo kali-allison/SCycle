@@ -473,6 +473,7 @@ PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
   ierr = KSPSolve(ksp,_rhs,_u);CHKERRQ(ierr);
   KSPDestroy(&ksp);
 
+  _sbp->muxDy(_u,_sxy); // initialize for shear stress
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -524,12 +525,11 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   }
   VecDestroy(&uL);
 
-  _sbp->muxDy(_u,_sxy); // initialize for shear stress
 
   _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
   ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-  _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
+  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
