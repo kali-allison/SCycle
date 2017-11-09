@@ -387,15 +387,7 @@ PetscErrorCode Mediator::solveSS()
   _momBal->initiateVarSS(_varSS);
   _fault->initiateVarSS(_varSS);
 
-  // for the linear elastic problem, this only requires one step
-  //~ if (_D->_bulkDeformationType.compare("linearElastic")==0) {
-    ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
-
-    #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    #endif
-    //~ return ierr;
-  //~ }
+  ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
 
   #if VERBOSE > 1

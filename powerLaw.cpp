@@ -917,7 +917,7 @@ PetscErrorCode PowerLaw::d_dt_eqCycle(const PetscScalar time,const map<string,Ve
   // update stresses, viscosity, and set shear traction on fault
   ierr = computeTotalStrains(time);CHKERRQ(ierr);
   ierr = computeStresses(time);CHKERRQ(ierr);
-  computeViscosity(_effViscCap);
+  //~ computeViscosity(_effViscCap);
 
   ierr = setViscStrainRates(time,_gxy,_gxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
 
