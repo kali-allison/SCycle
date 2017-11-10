@@ -12,7 +12,7 @@ Mediator::Mediator(Domain&D)
   _vL(D._vL),
   _momBalType("static"),_thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-    _initialU("gaussian"),
+  _initialU("gaussian"),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
@@ -46,8 +46,10 @@ Mediator::Mediator(Domain&D)
   }
 
   // initiate momentum balance equation
-  if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D); }
+  if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,*_he); }
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he); }
+  //~ _momBal = new LinearElastic(D,*_he);
+  //~ _momBal = new PowerLaw(D,*_he);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -602,7 +604,6 @@ PetscErrorCode Mediator::integrate_qs()
   double startTime = MPI_Wtime();
 
   initiateIntegrand_qs(); // put initial conditions into var for integration
-  _momBal->prepareForIntegration();
   _stepCount = 0;
 
   // initialize time integrator
@@ -691,7 +692,9 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update fields on fault from other classes
-  ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
+  Vec sxy,sxz,sdev;
+  ierr = _momBal->getStresses(sxy,sxz,sdev);
+  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
   if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
 
   // rates for fault
@@ -746,15 +749,18 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update shear stress on fault from momentum balance computation
-  ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
+  //~ ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
+  Vec sxy,sxz,sdev;
+  ierr = _momBal->getStresses(sxy,sxz,sdev);
+  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
-    Vec sdev = NULL;
-    _momBal->getSigmaDev(sdev);
+    Vec sxy=NULL,sxz=NULL,sdev = NULL;
+    _momBal->getStresses(sxy,sxz,sdev);
     ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
       sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);

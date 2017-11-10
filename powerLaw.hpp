@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include "integratorContextEx.hpp"
+#include "momBalContext.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "linearElastic.hpp"
@@ -13,13 +14,31 @@
 
 // models a 1D Maxwell slider assuming symmetric boundary condition
 // on the fault.
-class PowerLaw: public LinearElastic
+class PowerLaw : public MomBalContext
+//~ class PowerLaw
 {
   protected:
-    const char       *_file;
-    std::string       _delim; // format is: var delim value (without the white space)
+    const char          *_file;
+    std::string          _delim; // format is: var delim value (without the white space)
+    std::string          _inputDir; // directory to load fields from
+    std::string          _outputDir;  // output data
+    const PetscInt       _order,_Ny,_Nz;
+    PetscScalar          _Ly,_Lz,_dy,_dz;
+    Vec                 *_y,*_z; // to handle variable grid spacing
+    const bool           _isMMS; // true if running mms test
+    const bool           _loadICs; // true if starting from a previous simulation
+    std::string          _momBalType; // "dynamic", "static"
+    std::string          _thermalCoupling;
+    bool                 _bcLTauQS; // true if left boundary is traction
+    PetscScalar          _currTime;
+    PetscInt             _stepCount;
+    PetscScalar          _vL; // loading velocity
 
     // material properties
+    Vec                  _muVec, _rhoVec, _cs, _ay;
+    PetscScalar          _muVal,_rhoVal; // if constant
+    Vec                  _bcRShift,_surfDisp;
+    Vec                  _rhs;
     std::string  _viscDistribution; // options: mms, fromVector,loadFromFile
     std::string  _AFile,_BFile,_nFile,_TFile; // names of each file within loadFromFile
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
@@ -28,9 +47,15 @@ class PowerLaw: public LinearElastic
     Vec         SATL;
     PetscScalar _effViscCap; // imposed upper limit on effective viscosity
 
-    // composite matrices to make momentum balance simpler
-    Mat _B,_C;
-    PetscErrorCode initializeMomBalMats(); // computes B and C
+    // linear system data
+    std::string          _linSolver;
+    KSP                  _ksp;
+    PC                   _pc;
+    PetscScalar          _kspTol;
+    SbpOps              *_sbp;
+    std::string          _sbpType;
+    Mat                  _B,_C; // composite matrices to make momentum balance simpler
+    PetscErrorCode   initializeMomBalMats(); // computes B and C
 
     // for steady-state computations
     SbpOps   *_sbp_eta;
@@ -38,6 +63,14 @@ class PowerLaw: public LinearElastic
     PC        _pc_eta;
     PetscScalar _effViscCapSS; // imposed upper limit on effective viscosity for steady state computation
     PetscErrorCode initializeSSMatrices(); // compute Bss and Css
+
+    // viewers
+    PetscViewer      _timeV1D,_timeV2D;
+    std::map <string,PetscViewer>  _viewers;
+
+    // runtime data
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    PetscInt     _linSolveCount;
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
@@ -48,6 +81,8 @@ class PowerLaw: public LinearElastic
     PetscErrorCode setSSInitialConds(Domain& D,Vec& tauRS); // try to skip some spin up steps
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
+    PetscErrorCode setUpSBPContext(Domain& D);
+    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
     // functions needed each time step
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
@@ -58,7 +93,9 @@ class PowerLaw: public LinearElastic
     PetscErrorCode computeStresses(const PetscScalar time);
     PetscErrorCode computeSDev();
     PetscErrorCode computeViscosity(const PetscScalar viscCap);
+    PetscErrorCode setSurfDisp();
 
+    PetscErrorCode setInitialSlip(Vec& out);
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
 
@@ -66,16 +103,17 @@ class PowerLaw: public LinearElastic
 
   public:
 
-    Vec         _sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
-    Vec         _gxy,_dgxy; // viscoelastic strain and strain rate
-    Vec         _gxz,_dgxz; // viscoelastic strain and strain rate
-    Vec         _gTxy,_gTxz; // total strain
+    Vec          _u;
+    Vec          _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec          _gxy,_dgxy; // viscoelastic strain and strain rate
+    Vec          _gxz,_dgxz; // viscoelastic strain and strain rate
+    Vec          _gTxy,_gTxz; // total strain
+    std::string  _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
+    Vec          _bcT,_bcR,_bcB,_bcL;
 
     PowerLaw(Domain& D,HeatEquation& he);
     ~PowerLaw();
 
-
-    PetscErrorCode getSigmaDev(Vec& sdev);
 
     // for steady state computations
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
@@ -85,18 +123,29 @@ class PowerLaw: public LinearElastic
 
     // methods for explicit time stepping
     PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode initiateIntegrand_dyn(const PetscScalar time,map<string,Vec>& varEx) { return 0; };
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
+    PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
+
+    // methods for explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT) { return 0; };
+
+    // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
 
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage) {return 0;};
+
+    PetscErrorCode measureMMSError(const PetscScalar time);
 
     PetscErrorCode writeDomain();
     PetscErrorCode writeContext();
@@ -104,11 +153,32 @@ class PowerLaw: public LinearElastic
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode view(const double totRunTime);
 
-    PetscErrorCode measureMMSError(const PetscScalar time);
+
 
 
     // MMS functions
+    static double zzmms_f(const double y,const double z);
+    static double zzmms_f_y(const double y,const double z);
+    static double zzmms_f_yy(const double y,const double z);
+    static double zzmms_f_z(const double y,const double z);
+    static double zzmms_f_zz(const double y,const double z);
+    static double zzmms_g(const double t);
+    static double zzmms_g_t(const double t);
+
+    static double zzmms_mu(const double y,const double z);
+    static double zzmms_mu_y(const double y,const double z);
+    static double zzmms_mu_z(const double y,const double z);
+
+    static double zzmms_uA(const double y,const double z,const double t);
+    static double zzmms_uA_y(const double y,const double z,const double t);
+    static double zzmms_uA_yy(const double y,const double z,const double t);
+    static double zzmms_uA_z(const double y,const double z,const double t);
+    static double zzmms_uA_zz(const double y,const double z,const double t);
+    static double zzmms_uA_t(const double y,const double z,const double t);
+    static double zzmms_sigmaxy(const double y,const double z,const double t);
     static double zzmms_sigmaxz(const double y,const double z,const double t);
+    static double zzmms_uSource(const double y,const double z,const double t);
+
 
     static double zzmms_visc(const double y,const double z);
     static double zzmms_invVisc(const double y,const double z);
@@ -140,6 +210,24 @@ class PowerLaw: public LinearElastic
 
 
     // 1D
+    static double zzmms_f1D(const double y);// helper function for uA
+    static double zzmms_f_y1D(const double y);
+    static double zzmms_f_yy1D(const double y);
+
+    static double zzmms_uA1D(const double y,const double t);
+    static double zzmms_uA_y1D(const double y,const double t);
+    static double zzmms_uA_yy1D(const double y,const double t);
+    static double zzmms_uA_z1D(const double y,const double t);
+    static double zzmms_uA_zz1D(const double y,const double t);
+    static double zzmms_uA_t1D(const double y,const double t);
+
+    static double zzmms_mu1D(const double y);
+    static double zzmms_mu_y1D(const double y);
+    static double zzmms_mu_z1D(const double z);
+
+    static double zzmms_sigmaxy1D(const double y,const double t);
+    static double zzmms_uSource1D(const double y,const double t);
+
     static double zzmms_visc1D(const double y);
     static double zzmms_invVisc1D(const double y);
     static double zzmms_invVisc_y1D(const double y);

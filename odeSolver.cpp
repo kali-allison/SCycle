@@ -527,13 +527,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
-      // set fields to 0
-      //~ for (int ind=0;ind<_lenVar;ind++) {
-        //~ VecSet(_varHalfdT[ind],0.0); VecSet(_dvarHalfdT[ind],0.0);
-        //~ VecSet(_vardT[ind],0.0);     VecSet(_dvardT[ind],0.0);
-        //~ VecSet(_var2nd[ind],0.0);    VecSet(_dvar2nd[ind],0.0);
-        //~ VecSet(_var3rd[ind],0.0);
-      //~ }
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
         VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
@@ -542,19 +535,13 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       }
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
-      //~ for (int ind=0;ind<_lenVar;ind++) {
-        //~ ierr = VecWAXPY(_varHalfdT[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-      //~ }
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
       ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT,_dvarHalfdT,"t+dt/2");CHKERRQ(ierr);
+
       // stage 2: integrate fields to _currT + _deltaT
-      //~ for (int ind=0;ind<_lenVar;ind++) {
-        //~ ierr = VecWAXPY(_vardT[ind],-_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_vardT[ind],2*_deltaT,_dvarHalfdT[ind]);CHKERRQ(ierr);
-      //~ }
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
@@ -563,14 +550,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT,_dvardT,"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
-      //~ for (int ind=0;ind<_lenVar;ind++) {
-        //~ ierr = VecWAXPY(_var2nd[ind],0.5*_deltaT,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_var2nd[ind],0.5*_deltaT,_dvardT[ind]);CHKERRQ(ierr);
-
-        //~ ierr = VecWAXPY(_var3rd[ind],_deltaT/6.0,_dvar[ind],_var[ind]);CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_var3rd[ind],2*_deltaT/3.0,_dvarHalfdT[ind]);CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_var3rd[ind],_deltaT/6.0,_dvardT[ind]);CHKERRQ(ierr);
-      //~ }
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
@@ -597,11 +576,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
-    //~ for (int ind=0;ind<_lenVar;ind++) {
-      //~ VecSet(_var[ind],0.0);
-      //~ ierr = VecCopy(_var3rd[ind],_var[ind]);CHKERRQ(ierr);
-      //~ VecSet(_dvar[ind],0.0);
-    //~ }
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       VecSet(_var[it->first],0.0);
       ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);

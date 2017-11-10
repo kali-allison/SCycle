@@ -16,12 +16,12 @@ isMMS = yes
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # coordinate transformation
-#bCoordTrans = 5.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+bCoordTrans = 5.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
 
 #======================================================================
 # linear systems
@@ -128,17 +128,17 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 1000
+stride2D = 1000
+maxStepCount = 1e5
 initTime = 0
-maxTime = 1e-2
+maxTime = 3e7
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-10
-timeIntInds = [psi slip]
-#timeIntInds = [gVxy gVxz]
+#timeIntInds = [psi slip]
+timeIntInds = [gVxy gVxz]
 
 
 #outputDir = /scratch/kallison/mms/test_
