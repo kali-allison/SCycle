@@ -354,7 +354,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
 
   VecSet(_muVec,_muVal);
   VecSet(_rhoVec,_rhoVal);
-  VecPointwiseMult(_cs, _muVec, _rhoVec);
+  VecPointwiseDivide(_cs, _muVec, _rhoVec);
 
   PetscScalar *cs;
   VecGetArray(_cs,&cs);
