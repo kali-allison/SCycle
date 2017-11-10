@@ -71,8 +71,8 @@ sigmaNDepths = [0 0.25 60]
 hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
-#hydraulicTimeIntType = explicit
-hydraulicTimeIntType = implicit
+hydraulicTimeIntType = explicit
+#hydraulicTimeIntType = implicit
 
 # actual, physical values
 n_pVals = [0.1 0.1]
@@ -137,14 +137,14 @@ withFrictionalHeating = no
 
 timeIntegrator = IMEX
 timeControlType = P
-stride1D = 1000
-stride2D = 1000
+stride1D = 50
+stride2D = 50
 maxStepCount = 1e5
 initTime = 0
-maxTime = 1e7      # (s)
-initDeltaT = 1e3   # (s) size of initial time step
-minDeltaT = 1e3    # (s) minimum allowed time step
-maxDeltaT = 3e5    # (s) maximum allowed time step
+maxTime = 2.25e9      # (s)
+initDeltaT = 1e4   # (s) size of initial time step
+minDeltaT = 1e4    # (s) minimum allowed time step
+maxDeltaT = 3e6    # (s) maximum allowed time step
 atol = 1e-9 # absolute error for adaptive time stepper
 timeIntInds = [psi slip]
 #timeIntInds = [pressure]
