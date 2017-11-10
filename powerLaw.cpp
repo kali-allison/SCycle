@@ -725,6 +725,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   _sbp->getHinvs(Hyinv,Hzinv);
   _sbp->getHs(Hy,Hz);
   _sbp->getH(H);
+  _sbp->getHs(Hy,Hz);
   _sbp->getMus(mu,muqy,murz);
   _sbp->getEs(E0y,ENy,E0z,ENz);
 
