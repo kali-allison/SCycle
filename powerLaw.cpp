@@ -46,7 +46,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
   // for MMS tests
-  //~ _bcTType = "Dirichlet";
+  //~ _bcTType = "Neumann";
   //~ _bcBType = "Dirichlet";
   //~ _bcRType = "Dirichlet";
   //~ _bcLType = "Dirichlet";
@@ -723,27 +723,26 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   Mat J,Jinv,qy,rz,yq,zr;
   _sbp->getDs(Dy,Dz);
   _sbp->getHinvs(Hyinv,Hzinv);
+  _sbp->getHs(Hy,Hz);
   _sbp->getH(H);
   _sbp->getHs(Hy,Hz);
   _sbp->getMus(mu,muqy,murz);
   _sbp->getEs(E0y,ENy,E0z,ENz);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-  }
 
   // helpful factor qyxrzxH = qy * rz * H, and yqxzrxH = yq * zr * H
   Mat yqxHy,zrxHz,yqxzrxH;
   if (_sbpType.compare("mfc_coordTrans")==0) {
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
     //~ ierr = MatMatMult(yqxzrxH,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
-    //~ ierr = MatMatMult(yqxzrxH,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
     ierr = MatMatMult(yq,Hy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
+    //~ ierr = MatMatMult(yqxzrxH,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
     ierr = MatMatMult(zr,Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
   }
   else {
     ierr = MatMatMult(H,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy);
     ierr = MatMatMult(H,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz);
-    ierr = MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&yqxzrxH); CHKERRQ(ierr);
+    ierr = MatDuplicate(H,MAT_COPY_VALUES,&yqxzrxH); CHKERRQ(ierr);
   }
 
 

@@ -41,6 +41,7 @@ class PressureEq
     int                  _linSolveCount;
     Vec                  _bcL,_bcT,_bcB;
     Vec                  _p_t;
+    Mat                  _M;
 
 
     // input fields
@@ -65,6 +66,8 @@ class PressureEq
     PetscErrorCode computeVariableCoefficient(const Vec& p,Vec& coeff);
     PetscErrorCode setUpSBP();
     PetscErrorCode computeInitialSteadyStatePressure(Domain& D);
+    PetscErrorCode setUpBe(Domain& D);
+    PetscErrorCode setupKSP(const Mat& A);
 
   public:
 

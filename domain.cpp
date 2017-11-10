@@ -577,10 +577,10 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      y = q*_Ly;
+      //~ y = q*_Ly;
       z = r*_Lz;
 
-      //~ y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
+      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
       //~ y = _Ly * exp(_bCoordTrans*q)/exp(_bCoordTrans); // new transformation
 
       // z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
