@@ -42,7 +42,7 @@ if isnan(vel), keyboard, end
 
 % update psi using slipLaw2
 % func = @(stateNew) -stateNew + psi + 0.5*dt*(agingLaw(stateNew,vel,p) + agingLaw(psi,vel,p));
-func = @(stateNew) -stateNew + psi + 0.5*dt*agingLaw((stateNew+psi)/2,(vel+velPrev)/2,p);
+func = @(stateNew) -stateNew + psi + dt*agingLaw((stateNew+psi)/2,(vel+velPrev)/2,p);
 [psiNew,~,stateCnvgd] = regulaFalsi(func,-10,10,psi);
 if ~stateCnvgd,keyboard,end
 

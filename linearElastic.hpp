@@ -38,7 +38,7 @@ class LinearElastic
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setInitialSlip(Vec& out);
-    PetscErrorCode setUpSBPContext(Domain& D, std::string _timeIntegrator);
+    PetscErrorCode setUpSBPContext(Domain& D);
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
     PetscErrorCode computeShearStress();
@@ -58,6 +58,7 @@ class LinearElastic
     Vec                  *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if starting from a previous simulation
+    std::string          _momBalType; // "dynamic", "static"
     bool                 _bcLTauQS; // true if left boundary is traction
     PetscScalar          _currTime;
     PetscInt             _stepCount;
@@ -71,7 +72,6 @@ class LinearElastic
 
     // linear system data
     std::string          _linSolver;
-    std::string          _timeIntegrator;
     KSP                  _ksp;
     PC                   _pc;
     PetscScalar          _kspTol;
@@ -95,19 +95,19 @@ class LinearElastic
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcT,_bcR,_bcB,_bcL;
 
-    LinearElastic(Domain&D,Vec& tau);
+    LinearElastic(Domain&D);
     virtual ~LinearElastic();
 
     // for steady state computations
     PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
-    PetscErrorCode virtual updateSSa(Domain& D,map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
-    PetscErrorCode virtual updateSSb(Domain& D,map<string,Vec>& varSS); // does nothing for the linear elastic equations
+    PetscErrorCode virtual updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode virtual updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
     PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // time stepping function
-    PetscErrorCode virtual prepareForIntegration(Domain& D, std::string _timeIntegrator);
-    PetscErrorCode virtual initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode virtual initiateIntegrandWave(std::string _initialU, map<string,Vec>& varEx);
+    PetscErrorCode virtual prepareForIntegration();
+    PetscErrorCode virtual initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode virtual initiateIntegrand_dyn(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode virtual updateTemperature(const Vec& T);
     PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);

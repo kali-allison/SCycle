@@ -5,11 +5,11 @@
 using namespace std;
 
 
-LinearElastic::LinearElastic(Domain&D,Vec& tau)
+LinearElastic::LinearElastic(Domain&D)
 : _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_loadICs(D._loadICs),
+  _isMMS(D._isMMS),_loadICs(D._loadICs),_momBalType("static"),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
   _vL(D._vL),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_ay(NULL),_muVal(30.0),_rhoVal(3.0),
@@ -39,20 +39,20 @@ LinearElastic::LinearElastic(Domain&D,Vec& tau)
   _bcRType = "Dirichlet";
   _bcLType = "Dirichlet";
   if (_bcLTauQS==1) { _bcLType = "Neumann"; }
-  if (_timeIntegrator.compare("WaveEq")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
+  if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
   // for MMS tests
-  _bcTType = "Dirichlet";
-  _bcBType = "Dirichlet";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
+  //~ _bcTType = "Dirichlet";
+  //~ _bcBType = "Dirichlet";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
+  setUpSBPContext(D); // set up matrix operators
 
   //~ setInitialConds(D,tau); // guess at steady-state configuration
   //~ if (_loadICs==1) {  } // load from previous simulation
   if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
   }
-
 
   setSurfDisp();
 
@@ -129,8 +129,12 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     if (var.compare("linSolver")==0) {
       _linSolver = line.substr(pos+_delim.length(),line.npos);
     }
-        else if (var.compare("kspTol")==0) {
+    else if (var.compare("kspTol")==0) {
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("linSolver")==0) {
+      _momBalType = line.substr(pos+_delim.length(),line.npos);
     }
 
     else if (var.compare("thermalCoupling")==0) {
@@ -168,6 +172,8 @@ PetscErrorCode LinearElastic::checkInput()
          _linSolver.compare("MUMPSLU") == 0 ||
          _linSolver.compare("PCG") == 0 ||
          _linSolver.compare("AMG") == 0 );
+
+   assert(_momBalType.compare("dynamic") == 0 || _momBalType.compare("static") == 0 );
 
   if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
@@ -348,7 +354,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
 
   VecSet(_muVec,_muVal);
   VecSet(_rhoVec,_rhoVal);
-  VecPointwiseMult(_cs, _muVec, _rhoVec);
+  VecPointwiseDivide(_cs, _muVec, _rhoVec);
 
   PetscScalar *cs;
   VecGetArray(_cs,&cs);
@@ -440,7 +446,7 @@ PetscErrorCode LinearElastic::initiateVarSS(map<string,Vec>& varSS)
 }
 
 // compute steady state u, bcs
-PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
+PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -448,36 +454,15 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
-
-  delete _sbp;
-  KSPDestroy(&_ksp);
-
-  // set up SBP operators
   std::string bcTType = "Neumann";
   std::string bcBType = "Neumann";
   std::string bcRType = "Dirichlet";
   std::string bcLType = "Neumann";
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  }
-  else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    assert(0); // automatically fail
-  }
-  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
-  _sbp->computeMatrices(); // actually create the matrices
+  _sbp->changeBCTypes(bcRType,bcTType,bcLType,bcBType);
 
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc);
+  KSP ksp; PC pc;
+  KSPCreate(PETSC_COMM_WORLD,&ksp);
+  setupKSP(_sbp,ksp,pc);
 
   // set up boundary conditions
   VecSet(_bcR,0.0);
@@ -485,10 +470,24 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
 
   // compute uss that satisfies tau at left boundary
   _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);
-  ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
-  KSPDestroy(&_ksp);
-  delete _sbp;
-  _sbp = NULL;
+  ierr = KSPSolve(ksp,_rhs,_u);CHKERRQ(ierr);
+  KSPDestroy(&ksp);
+
+  _sbp->muxDy(_u,_sxy); // initialize for shear stress
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateSSb";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   // extract boundary condition information from u
   Vec uL;
@@ -524,23 +523,13 @@ PetscErrorCode LinearElastic::updateSSa(Domain& D,map<string,Vec>& varSS)
   if (!_bcLTauQS) {
     VecCopy(uL,_bcL);
   }
-
   VecDestroy(&uL);
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
-PetscErrorCode LinearElastic::updateSSb(Domain& D,map<string,Vec>& varSS)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "LinearElastic::updateSSb";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
 
-  // do nothing, this is only needed for the power-law problem
+  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
+  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -549,7 +538,7 @@ PetscErrorCode LinearElastic::updateSSb(Domain& D,map<string,Vec>& varSS)
 }
 
 // try to speed up spin up by starting closer to steady state
-PetscErrorCode LinearElastic::prepareForIntegration(Domain& D, std::string _timeIntegrator)
+PetscErrorCode LinearElastic::prepareForIntegration()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -557,49 +546,8 @@ PetscErrorCode LinearElastic::prepareForIntegration(Domain& D, std::string _time
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  setUpSBPContext(D, _timeIntegrator); // set up matrix operators
+  _sbp->changeBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
 
-  if (_timeIntegrator.compare("WaveEq")!=0){
-    _sbp->muxDy(_u,_sxy); // initialize for shear stress
-    if (_isMMS) { setMMSInitialConditions(); }
-
-    // extract boundary condition information from u
-    Vec uL;
-    VecDuplicate(_bcL,&uL);
-    PetscScalar minVal = 0;
-    VecMin(_u,NULL,&minVal);
-    PetscScalar v = 0.0;
-    PetscInt Istart,Iend;
-    ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
-    for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-      // put left boundary info into fault slip vector
-      if ( Ii < _Nz ) {
-        ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-        v = v + abs(minVal);
-        ierr = VecSetValues(uL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-
-      // put right boundary data into bcR
-      if ( Ii > (_Ny*_Nz - _Nz - 1) ) {
-        PetscInt zI =  Ii - (_Ny*_Nz - _Nz);
-        //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
-        ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-        v = v + abs(minVal);
-        ierr = VecSetValues(_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
-      }
-    }
-    ierr = VecAssemblyBegin(_bcRShift);CHKERRQ(ierr);
-    ierr = VecAssemblyBegin(uL);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(_bcRShift);CHKERRQ(ierr);
-    ierr = VecAssemblyEnd(uL);CHKERRQ(ierr);
-    VecCopy(_bcRShift,_bcR);
-
-    if (!_bcLTauQS) {
-      VecCopy(uL,_bcL);
-    }
-
-    VecDestroy(&uL);
-  }
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -647,7 +595,7 @@ PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
 }
 
 // set up SBP operators
-PetscErrorCode LinearElastic::setUpSBPContext(Domain& D, std::string _timeIntegrator)
+PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -674,7 +622,7 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D, std::string _timeIntegr
     assert(0); // automatically fail
   }
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
-  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
+  _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
 
 
@@ -755,6 +703,8 @@ PetscErrorCode LinearElastic::writeContext()
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
+
+  ierr = PetscViewerASCIIPrintf(viewer,"momBalType = %s\n",_momBalType.c_str());CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
@@ -859,41 +809,22 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
   return ierr;
 }
 
-PetscErrorCode LinearElastic::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
+
+PetscErrorCode LinearElastic::initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::initiateIntegrand()";
+    std::string funcName = "LinearElastic::initiateIntegrand_qs()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  if (_isMMS) { setMMSInitialConditions(); }
 
   // set slip based on uP
   Vec slip;
   VecDuplicate(_bcL,&slip);
   setInitialSlip(slip);
   varEx["slip"] = slip;
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "LinearElastic::updateFields()";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  _currTime = time;
-  if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
-    ierr = VecCopy(varEx.find("slip")->second,_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_bcL,0.5);CHKERRQ(ierr);
-  } // else do nothing
-  ierr = VecSet(_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcR,1.0,_bcRShift);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -922,6 +853,29 @@ PetscErrorCode LinearElastic::getSigmaDev(Vec& sdev)
   return 0;
 }
 
+
+PetscErrorCode LinearElastic::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateFields()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  _currTime = time;
+  if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
+    ierr = VecCopy(varEx.find("slip")->second,_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_bcL,0.5);CHKERRQ(ierr);
+  } // else do nothing
+  ierr = VecSet(_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_bcR,1.0,_bcRShift);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 // explicit time stepping
 PetscErrorCode LinearElastic::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
@@ -935,12 +889,17 @@ PetscErrorCode LinearElastic::d_dt(const PetscScalar time,const map<string,Vec>&
   return ierr;
 }
 
-PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<string,Vec>& _varEx){
+PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<string,Vec>& _varEx){
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt_WaveEq in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::initiateIntegrand_dyn in linearElastic.cpp\n");CHKERRQ(ierr);
   #endif
-  if(_initialU.compare("gaussian")==0){
+  Vec uPrevV;
+  VecDuplicate(_u, &uPrevV); VecSet(uPrevV,0.);
+  _varEx["u"] = _u;
+  _varEx["uPrev"] = uPrevV;
+
+  //~ if(_initialU.compare("gaussian")==0){
     // PetscScalar yy[1], zz[1];
     // PetscScalar uu;
 
@@ -1007,8 +966,9 @@ PetscErrorCode LinearElastic::initiateIntegrandWave(std::string _initialU, map<s
      //~ VecAssemblyBegin(_ay);
      //~ VecAssemblyEnd(_ay);
     ierr = VecPointwiseMult(_ay, _ay, _cs);
-    }
+    //~ }
     _u = _varEx["u"];
+
     return ierr;
 }
 
@@ -1023,10 +983,13 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = _sbp->getA(A);
 
   // Update the laplacian
-  Vec Laplacian;
+  Vec Laplacian, temp;
   VecDuplicate(*_y, &Laplacian);
-  ierr = MatMult(A, varEx["u"], Laplacian);
+  VecDuplicate(*_y, &temp);
+  ierr = MatMult(A, varEx["u"], temp);
+  ierr = _sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
+  VecDestroy(&temp);
 
   // Apply the time step
   Vec uNext, correction, previous, ones;

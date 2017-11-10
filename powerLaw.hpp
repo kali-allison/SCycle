@@ -37,7 +37,7 @@ class PowerLaw: public LinearElastic
     KSP       _ksp_eta;
     PC        _pc_eta;
     PetscScalar _effViscCapSS; // imposed upper limit on effective viscosity for steady state computation
-    PetscErrorCode initializeSSMatrices(Domain &D); // compute B and C
+    PetscErrorCode initializeSSMatrices(); // compute Bss and Css
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
@@ -71,7 +71,7 @@ class PowerLaw: public LinearElastic
     Vec         _gxz,_dgxz; // viscoelastic strain and strain rate
     Vec         _gTxy,_gTxz; // total strain
 
-    PowerLaw(Domain& D,HeatEquation& he,Vec& tau);
+    PowerLaw(Domain& D,HeatEquation& he);
     ~PowerLaw();
 
 
@@ -79,12 +79,12 @@ class PowerLaw: public LinearElastic
 
     // for steady state computations
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
-    PetscErrorCode updateSSa(Domain& D,map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
-    PetscErrorCode updateSSb(Domain& D,map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode updateSSb(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // methods for explicit time stepping
-    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time

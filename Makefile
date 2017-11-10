@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=0 -DODEPRINT=0 -DCALCULATE_ENERGY=0
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
@@ -9,7 +9,7 @@ CLINKER		      = openmpicc
 OBJECTS := domain.o debuggingFuncs.o mediator.o fault.o genFuncs.o linearElastic.o\
  odeSolver.o rootFinder.o sbpOps_c.o sbpOps_fc.o\
  spmat.o powerLaw.o sbpOps_sc.o heatEquation.o sbpOps_fc_coordTrans.o \
- odeSolverImex.o pressureEq.o
+ odeSolverImex.o odeSolver_WaveEq.o pressureEq.o
 
 
 
@@ -21,20 +21,8 @@ main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
 	-rm main.o
 
-mainHeatEquation:  mainHeatEquation.o $(OBJECTS)
-	-${CLINKER} $^ $(CFLAGS) -o $@ ${PETSC_SYS_LIB} $(CFLAGS)
-#~	-rm mainLinearElastic.o
-
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-
-mainEx: mainEx.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm mainEx.o
-
-testMain: testMain.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm testMain.o
 
 helloWorld: helloWorld.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -63,11 +51,6 @@ fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp heatEquation.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
  rootFinder.hpp
-pressureEq.o: pressureEq.cpp pressureEq.hpp genFuncs.hpp \
- domain.hpp fault.hpp heatEquation.hpp sbpOps.hpp sbpOps_c.hpp \
- debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
- integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
- odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
 heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
@@ -78,36 +61,43 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp \
  integratorContextEx.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
  sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp \
- sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
- rootFinderContext.hpp rootFinder.hpp pressureEq.hpp
+ sbpOps_fc_coordTrans.hpp heatEquation.hpp
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  heatEquation.hpp sbpOps_c.hpp debuggingFuncs.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
- rootFinder.hpp linearElastic.hpp pressureEq.hpp powerLaw.hpp
+ rootFinder.hpp linearElastic.hpp pressureEq.hpp powerLaw.hpp \
+ mediator.hpp integratorContextWave.hpp odeSolver_WaveEq.hpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
  domain.hpp sbpOps.hpp sbpOps_fc.hpp debuggingFuncs.hpp sbpOps_c.hpp \
  sbpOps_sc.hpp sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
- odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
- pressureEq.hpp
+ odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp linearElastic.hpp
 mediator.o: mediator.cpp mediator.hpp integratorContextEx.hpp \
- genFuncs.hpp odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp \
- domain.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp spmat.hpp \
- sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
- rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
+ genFuncs.hpp odeSolver.hpp integratorContextImex.hpp \
+ integratorContextWave.hpp domain.hpp odeSolverImex.hpp \
+ odeSolver_WaveEq.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp \
+ spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp fault.hpp \
+ heatEquation.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
  linearElastic.hpp powerLaw.hpp
 odeSolver.o: odeSolver.cpp odeSolver.hpp integratorContextEx.hpp \
  genFuncs.hpp
 odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp \
  integratorContextImex.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextEx.hpp
+odeSolver_WaveEq.o: odeSolver_WaveEq.cpp odeSolver_WaveEq.hpp \
+ integratorContextWave.hpp genFuncs.hpp domain.hpp odeSolver.hpp \
+ integratorContextEx.hpp
 powerLaw.o: powerLaw.cpp powerLaw.hpp integratorContextEx.hpp \
  genFuncs.hpp odeSolver.hpp domain.hpp linearElastic.hpp \
  integratorContextImex.hpp odeSolverImex.hpp sbpOps.hpp sbpOps_c.hpp \
  debuggingFuncs.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
- fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
- pressureEq.hpp
+ heatEquation.hpp
+pressureEq.o: pressureEq.cpp pressureEq.hpp genFuncs.hpp domain.hpp \
+ fault.hpp heatEquation.hpp sbpOps.hpp sbpOps_c.hpp debuggingFuncs.hpp \
+ spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp integratorContextEx.hpp \
+ odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp \
+ rootFinderContext.hpp rootFinder.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
 sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp
 sbpOps_c.o: sbpOps_c.cpp sbpOps_c.hpp domain.hpp genFuncs.hpp \

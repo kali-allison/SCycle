@@ -3,8 +3,8 @@
 #define FILENAME "powerLaw.cpp"
 
 
-PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
-: LinearElastic(D,tau), _file(D._file),_delim(D._delim),
+PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
+: LinearElastic(D), _file(D._file),_delim(D._delim),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),_effViscCap(1e30),
   _B(NULL),_C(NULL),
@@ -26,22 +26,19 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,Vec& tau)
   setMaterialParameters();
 
   // set up matrix operators and KSP environment
-  //~ setUpSBPContext(D); // old
   // guess steady state conditions
-  //~ guessSteadyStateEffVisc(1e-12);
+  //~ guessSteadyStateEffVisc(1e-14);
   //~ setSSInitialConds(D,tau);
-  setUpSBPContext(D, _timeIntegrator); // set up matrix operators
+  setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
-  //~ computeTotalStrains(_currTime);
-  //~ computeStresses(_currTime);
 
-  //~ if (D._loadICs==1) {
-    loadFieldsFromFiles();
-    setUpSBPContext(D, _timeIntegrator); // set up matrix operators
-    computeTotalStrains(_currTime);
-    computeStresses(_currTime);
-    computeViscosity(_effViscCap);
-  //~ }
+  if (_inputDir.compare("unspecified") != 0) {
+    loadFieldsFromFiles(); // load from previous simulation
+  }
+
+  computeTotalStrains(_currTime);
+  computeStresses(_currTime);
+  computeViscosity(_effViscCap);
 
   if (_isMMS) { setMMSInitialConditions(); }
 
@@ -299,36 +296,10 @@ PetscErrorCode PowerLaw::loadEffViscFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  PetscViewer inv; // in viewer
-
-  // load effective viscosity
-  string vecSourceFile = _inputDir + "EffVisc";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  //~ ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_effVisc,inv);CHKERRQ(ierr);
-
-  // load A
-  vecSourceFile = _inputDir + "A";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_A,inv);CHKERRQ(ierr);
-
-  // load B
-  vecSourceFile = _inputDir + "B";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_QR,inv);CHKERRQ(ierr);
-
-  // load B
-  vecSourceFile = _inputDir + "n";
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-  ierr = VecLoad(_n,inv);CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"B"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -532,6 +503,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
     ierr = MatConvert(H,MATSAME,MAT_INITIAL_MATRIX,&yqxzrxH); CHKERRQ(ierr);
   }
 
+
   // B = (yq*zr*H) * Dy*mu + SAT
   ierr = MatMatMatMult(yqxzrxH,Dy,mu,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_B); CHKERRQ(ierr);
 
@@ -577,7 +549,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
 }
 
 // compute Bss and Css
-PetscErrorCode PowerLaw::initializeSSMatrices(Domain &D)
+PetscErrorCode PowerLaw::initializeSSMatrices()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -585,28 +557,28 @@ PetscErrorCode PowerLaw::initializeSSMatrices(Domain &D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-    // set up SBP operators
-  std::string bcTType = "Neumann";
-  std::string bcBType = "Neumann";
+  // set up SBP operators
   std::string bcRType = "Dirichlet";
+  std::string bcTType = "Neumann";
   std::string bcLType = "Neumann";
+  std::string bcBType = "Neumann";
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp_eta->setGrid(_y,_z);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  if (_timeIntegrator.compare("WaveEq")!=0){ _sbp->setMultiplyByH(1); }
-  _sbp->computeMatrices(); // actually create the matrices
+  _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  _sbp_eta->setMultiplyByH(1);
+  _sbp_eta->computeMatrices(); // actually create the matrices
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
   setupKSP(_sbp_eta,_ksp_eta,_pc_eta);
@@ -800,15 +772,15 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   return ierr;
 }
 
-PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
+PetscErrorCode PowerLaw::initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::initiateIntegrand()";
+    std::string funcName = "LinearElastic::initiateIntegrand_qs()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  LinearElastic::initiateIntegrand(time,varEx);
+  LinearElastic::initiateIntegrand_qs(time,varEx);
 
   // add viscous strain to integrated variables, stored in _var
     Vec vargxyP; VecDuplicate(_u,&vargxyP); VecCopy(_gxy,vargxyP);
@@ -990,8 +962,9 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+
 // solve for steady-state v, viscous strain rates
-PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1005,10 +978,14 @@ PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
   //~ ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
 
   //~ _sbp_eta->updateVarCoeff(_effVisc);
+  _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
+  ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
+
   delete _sbp_eta;
-  initializeSSMatrices(D);
+  initializeSSMatrices();
   Mat A;
   _sbp_eta->getA(A);
+
   ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
 
   // set up rhs vector
@@ -1031,6 +1008,17 @@ PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
   // update effective viscosity
   ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
 
+  _viewers["v"] = initiateViewer(_outputDir + "SS_v");
+  ierr = VecView(varSS["v"],_viewers["v"]); CHKERRQ(ierr);
+  _viewers["gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
+  ierr = VecView(varSS["gVxy_t"],_viewers["gVxy_t"]); CHKERRQ(ierr);
+  _viewers["gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
+  ierr = VecView(varSS["gVxz_t"],_viewers["gVxz_t"]); CHKERRQ(ierr);
+  _viewers["sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+  _viewers["sxz"] = initiateViewer(_outputDir + "SS_sxz");
+  ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
@@ -1038,8 +1026,9 @@ PetscErrorCode PowerLaw::updateSSa(Domain& D,map<string,Vec>& varSS)
   return ierr;
 }
 
+
 // solve for steady-state u, gVxy
-PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1053,6 +1042,8 @@ PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
   PetscScalar time = 100;
   VecCopy(varSS["v"],_u);
   VecScale(_u,time);
+
+  LinearElastic::updateSSb(varSS); // update BCs based on u
 
   _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
   ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
@@ -1087,6 +1078,7 @@ PetscErrorCode PowerLaw::updateSSb(Domain& D,map<string,Vec>& varSS)
   ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
   _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
   ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1333,7 +1325,7 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   Vec SAT;
   VecDuplicate(_gTxy,&SAT);
   ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
-  VecSet(SAT,0.0); // !!!
+  //~ VecSet(SAT,0.0); // !!!
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(gVxy_t,_muVec,SAT);

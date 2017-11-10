@@ -1,17 +1,19 @@
 #======================================================================
 # domain
 order = 4
-Ny = 51
-Nz = 52
+Ny = 201
+Nz = 202
 Ly = 30 # km
-Lz = 40 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
+# dynamic or static
+momBalType = static
 
 # coordinate transformation
 #bCoordTrans = 5.0
@@ -22,7 +24,6 @@ sbpType = mfc
 # linear systems
 
 #inputDir = /data/dunham/kallison/eqcycle/inputData/ss30_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/eq30_
 loadICs = 0
 bcLTauQS = 0
 
@@ -49,9 +50,9 @@ DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
-#aVals = [0.2652 0.2652]
+#aVals = [0.015 0.02]
 #aDepths = [0 60]
-#bVals = [0.0497 0.0497]
+#bVals = [0.0 0.0]
 #bDepths = [0 60]
 
 # easier to resolve
@@ -109,9 +110,10 @@ rhoDepths = [0 60]
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [500 1793]
-TDepths = [0 50]
+#TVals = [293 1793] # 30 C/km
+#TDepths = [0 50]
+TVals = [800 1000]
+TDepths = [0 30]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
 heatEquationType = steadyState
@@ -122,7 +124,8 @@ withFrictionalHeating = no
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 1e16
+maxEffVisc = 1e30
+maxEffViscSS = 1e25
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
@@ -131,7 +134,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 1e4
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -144,17 +147,6 @@ timeIntInds = [psi slip]
 
 # write to laptop
 outputDir = data/test_
-#outputDir = data/maxVisc1e16_
-#outputDir = data/maxVisc1e21_
-#outputDir = data/maxVisc1e30_
 
-
-#outputDir = /scratch/kallison/test/le_
-#outputDir = /scratch/kallison/test/pl1_
-#outputDir = /scratch/kallison/test/pl2_
-
-#outputDir = /scratch/kallison/test/pl2_maxVisc1e16_
-
-#outputDir = /scratch/kallison/test/pl_trans_maxVisc1e21_
 #outputDir = /scratch/kallison/test/pl_v2_trans_maxVisc1e21_
 

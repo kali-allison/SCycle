@@ -1371,10 +1371,6 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
     CHKERRQ(ierr);
   #endif
 
-
-
-
-
   // update boundaries (for solving for perturbation from steady-state)
   setBCsforBE();
 

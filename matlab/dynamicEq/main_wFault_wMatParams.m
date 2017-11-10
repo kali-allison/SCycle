@@ -27,6 +27,15 @@ G = y.*0 + 30; % (GPa) shear modulus
 rho = y.*0 + 2.6702; % (g/cm^3) density
 cs = sqrt(G./rho); % (km/s) shear wave speed
 
+% fault material parameters (all stored in p)
+p.a = 0.015;
+p.b = 0.0;
+p.sNEff = 50; % MPa, effective normal stress
+p.v0 = 1e-6;
+p.f0 = 0.6;
+p.Dc = 8e-3;
+p.rho = rho(1);
+p.tau0 = 0;
 
 % time
 tmax = 10;
@@ -65,6 +74,9 @@ uPrev = u; % n-1
 u = u + uLap.*0.5*dt1^2/2./rho; % n
 uNew = 0.*u; % n+1
 
+psi = 0.6;
+velPrev = 0;
+
 % figure(1),clf,plot(u),xlabel('y')
 % return
 
@@ -98,7 +110,13 @@ for tInd = 2:length(t)-1
   
   
   % fault
+%   
+%   [out1, psi, vel] = fault_2d(dt,pen,uLap(:,1),u(:,1),uPrev(:,1),psi,velPrev,p);
+%   
   
+  pen = h11y;
+  [out1, psi, vel] = fault_1d(dt,pen,uLap(1),u(1),uPrev(1),psi,velPrev,p);
+  uNew(1) = out1;
   
   
   % update which is the n+1, n, and n-1 steps

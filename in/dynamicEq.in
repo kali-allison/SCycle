@@ -12,6 +12,7 @@ geometry = symmetric
 
 # linearElastic or powerLaw
 bulkDeformationType = linearElastic
+momBalType = dynamic
 
 # coordinate transformation
 #bCoordTrans = 5.0
