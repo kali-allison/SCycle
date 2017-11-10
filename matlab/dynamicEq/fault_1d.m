@@ -31,7 +31,7 @@ if (absVel <= 1e-14)
   vel = 0;
 else
   fric = fricStrength(psi,absVel,p);
-  alpha = (p.sNEff./(2*pen*p.rho)) * fricStrength(psi,absVel,p)/absVel;
+  alpha = (1./(pen*p.rho)) * fricStrength(psi,absVel,p)/absVel;
   A = 1 + alpha * dt;
 
   uNew = (2*u + dt^2./p.rho * an + (dt*alpha-1)*uPrev)./A;
