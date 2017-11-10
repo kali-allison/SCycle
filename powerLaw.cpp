@@ -717,13 +717,14 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
 
   // get necessary matrix factors
   Mat Dy,Dz;
-  Mat Hyinv,Hzinv,H;
+  Mat Hyinv,Hzinv,Hy,Hz,H;
   Mat muqy,murz,mu;
   Mat E0y,ENy,E0z,ENz;
   Mat J,Jinv,qy,rz,yq,zr;
   _sbp->getDs(Dy,Dz);
   _sbp->getHinvs(Hyinv,Hzinv);
   _sbp->getH(H);
+  _sbp->getHs(Hy,Hz);
   _sbp->getMus(mu,muqy,murz);
   _sbp->getEs(E0y,ENy,E0z,ENz);
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -734,8 +735,10 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   Mat yqxHy,zrxHz,yqxzrxH;
   if (_sbpType.compare("mfc_coordTrans")==0) {
     ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
-    ierr = MatMatMult(yqxzrxH,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr); // correct
-    ierr = MatMatMult(yqxzrxH,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
+    //~ ierr = MatMatMult(yqxzrxH,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
+    //~ ierr = MatMatMult(yqxzrxH,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
+    ierr = MatMatMult(yq,Hy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
+    ierr = MatMatMult(zr,Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
   }
   else {
     ierr = MatMatMult(H,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy);
