@@ -688,6 +688,7 @@ PetscErrorCode SbpOps_fc::updateA_BCs()
     TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
+  MatZeroEntries(_A);
   MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
 
   if (_deleteMats) { MatDestroy(&_D2); }
