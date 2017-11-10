@@ -120,6 +120,9 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     else if (var.compare("initialU")==0) {
       _initialU = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+    else if (var.compare("momBalType")==0) {
+      _momBalType = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
   }
 
   #if VERBOSE > 1
@@ -247,7 +250,7 @@ double startTime = MPI_Wtime();
     if (_timeIntegrator.compare("IMEX")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
-    else { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
+    else if (_momBalType.compare("dynamic") != 0) { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
   }
 
 _writeTime += MPI_Wtime() - startTime;

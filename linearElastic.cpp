@@ -983,10 +983,13 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = _sbp->getA(A);
 
   // Update the laplacian
-  Vec Laplacian;
+  Vec Laplacian, temp;
   VecDuplicate(*_y, &Laplacian);
-  ierr = MatMult(A, varEx["u"], Laplacian);
+  VecDuplicate(*_y, &temp);
+  ierr = MatMult(A, varEx["u"], temp);
+  ierr = _sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
+  VecDestroy(&temp);
 
   // Apply the time step
   Vec uNext, correction, previous, ones;
