@@ -7,8 +7,11 @@
 #include <assert.h>
 #include <vector>
 #include <map>
+
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
+#include "momBalContext.hpp"
+
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
 #include "genFuncs.hpp"
@@ -22,14 +25,13 @@
 
 
 // Class for a linear elastic material
-class LinearElastic
+class LinearElastic : public MomBalContext
+//~ class LinearElastic
 {
   private:
     // disable default copy constructor and assignment operator
-    LinearElastic(const LinearElastic &that);
-    LinearElastic& operator=(const LinearElastic &rhs);
-
-  protected:
+    //~ LinearElastic(const LinearElastic &that);
+    //~ LinearElastic& operator=(const LinearElastic &rhs);
 
     // initialize data members
     PetscErrorCode loadSettings(const char *file);
@@ -95,43 +97,42 @@ class LinearElastic
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
     Vec                  _bcT,_bcR,_bcB,_bcL;
 
-    LinearElastic(Domain&D);
-    virtual ~LinearElastic();
+    LinearElastic(Domain&D,HeatEquation& he);
+    ~LinearElastic();
 
     // for steady state computations
-    PetscErrorCode virtual getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
-    PetscErrorCode virtual updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
-    PetscErrorCode virtual updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
-    PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
+    PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
+    PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
+    PetscErrorCode updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
+    PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
 
     // time stepping function
-    PetscErrorCode virtual prepareForIntegration();
-    PetscErrorCode virtual initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode virtual initiateIntegrand_dyn(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode virtual updateTemperature(const Vec& T);
-    PetscErrorCode virtual computeMaxTimeStep(PetscScalar& maxTimeStep);
-    PetscErrorCode virtual getSigmaDev(Vec& sdev);
+    PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode initiateIntegrand_dyn(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+    PetscErrorCode updateTemperature(const Vec& T);
+    PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep);
+    PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
 
     // methods for explicit time stepping
-    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode virtual d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT);
-    PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode virtual debug(const PetscReal time,const PetscInt stepCount,
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscReal _deltaT);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const char *stage);
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // IMEX backward Euler
 
-    PetscErrorCode virtual measureMMSError(const PetscScalar time);
+    PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
-    PetscErrorCode virtual view(const double totRunTime);
-    PetscErrorCode virtual writeContext();
-    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
-    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
+    PetscErrorCode view(const double totRunTime);
+    PetscErrorCode writeContext();
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
 
 
     // MMS functions

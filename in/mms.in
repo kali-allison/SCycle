@@ -16,7 +16,7 @@ isMMS = yes
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # coordinate transformation
 #bCoordTrans = 5.0
@@ -128,11 +128,11 @@ strainRate = 1e-14
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 1000
+stride2D = 1000
 maxStepCount = 5
 initTime = 0
-maxTime = 1e-2
+maxTime = 1e7
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10

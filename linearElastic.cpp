@@ -5,7 +5,7 @@
 using namespace std;
 
 
-LinearElastic::LinearElastic(Domain&D)
+LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
 : _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
@@ -33,7 +33,7 @@ LinearElastic::LinearElastic(Domain&D)
   checkInput();
   allocateFields();
   setMaterialParameters();
-    // define boundary condition types
+  // define boundary condition types
   _bcTType = "Neumann";
   _bcBType = "Neumann";
   _bcRType = "Dirichlet";
@@ -537,23 +537,6 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   return ierr;
 }
 
-// try to speed up spin up by starting closer to steady state
-PetscErrorCode LinearElastic::prepareForIntegration()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "LinearElastic::setInitialConds";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  _sbp->changeBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
 // compute bcL from u so that fault's initial conditions can be set from it
 PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
 {
@@ -819,6 +802,7 @@ PetscErrorCode LinearElastic::initiateIntegrand_qs(const PetscScalar time,map<st
   #endif
 
   if (_isMMS) { setMMSInitialConditions(); }
+  _sbp->changeBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
 
   // set slip based on uP
   Vec slip;
@@ -848,8 +832,11 @@ PetscErrorCode LinearElastic::updateTemperature(const Vec& T)
   return ierr;
 }
 
-PetscErrorCode LinearElastic::getSigmaDev(Vec& sdev)
+PetscErrorCode LinearElastic::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
 {
+  sxy = _sxy;
+  sxz = _sxz;
+  sdev = NULL;
   return 0;
 }
 
