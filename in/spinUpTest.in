@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 101
-Nz = 102
+Ny = 51
+Nz = 52
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -11,7 +11,7 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 # dynamic or static
 momBalType = static
 
@@ -68,11 +68,21 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
+#sigmaNVals = [50 50] # (MPa) constant
+#sigmaNDepths = [0 60] #(km) constant
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
+#sigmaN_floor = 5.5; # MPa
+
+# with varying degrees of overpressure
+#sigmaNVals = [0 802.1] # lambda = 0.4
+#sigmaNVals = [0 668.5] # lambda = 0.5
+#sigmaNVals = [0 534.8] # lambda = 0.6
+sigmaNVals = [0 401.1] # lambda = 0.7
+#sigmaNVals = [0 267.4] # lambda = 0.8
+sigmaNDepths = [0 60]
+sigmaN_floor = 5.5; # MPa
 
 stateLaw = agingLaw
 v0 = 1e-6
@@ -132,9 +142,9 @@ maxEffViscSS = 1e25
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e6
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -146,9 +156,9 @@ timeIntInds = [psi slip]
 
 
 # write to laptop
-#outputDir = data/test_
+outputDir = data/test_
 
 #outputDir = /scratch/kallison/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/test_
-outputDir = /data/dunham/kallison/eqcycle/data/g30_
+#outputDir = /data/dunham/kallison/eqcycle/data/g30_
 

@@ -13,7 +13,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
-  _sigmaN_cap(1e14),_sNEff(NULL),
+  _sigmaN_cap(1e14),_sigmaN_floor(0.),_sNEff(NULL),
   _slip(NULL),_slipVel(NULL),
   _computeVelTime(0),_stateLawTime(0),
   _tauQSP(NULL),_tauP(NULL)
@@ -333,10 +333,18 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
+  }
+
+  // impose floor and ceiling on effective normal stress
+  {
+    Vec temp; VecDuplicate(_sNEff,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    VecDestroy(&temp);
   }
 
   //~ VecWAXPY(_sN,1.0,_p,_sNEff);
@@ -1591,6 +1599,9 @@ PetscErrorCode Fault::loadSettings(const char *file)
     }
     else if (var.compare("sigmaN_cap")==0) {
       _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("sigmaN_floor")==0) {
+      _sigmaN_floor = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     else if (var.compare("aVals")==0) {

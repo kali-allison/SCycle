@@ -25,7 +25,7 @@ PressureEq::PressureEq(Domain&D)
   setUpSBP();
 
   // Back Eular upates
-  if (_hydraulicTimeIntType.compare("implicit")) {
+  if (_hydraulicTimeIntType.compare("implicit")==0) {
     setUpBe(D);
   }
 
@@ -787,13 +787,13 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   MatScale(D2_rho_n_beta, -dt);
-  MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2 
+  MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
 
 
 
 
   // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2 
+  // M = I - dt/(rho*n*beta)*D2
   // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT )
 
   // _sbp->H(rhog_y,temp);
@@ -878,7 +878,7 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
   MatShift(D2_rho_n_beta, 1);
 
   // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2 
+  // M = I - dt/(rho*n*beta)*D2
   // rhs = p - dt/(rho*n*beta) * D1(k/eta*rho^2*g) + dt*1/(rho*n*beta) * SAT
 
   // // ensure diagonal has been allocated, even if 0
@@ -910,7 +910,6 @@ PetscErrorCode PressureEq::setupKSP(const Mat& A)
   #endif
 
   // set up linear solver context
-  KSP _ksp;
   PC pc;
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
 
