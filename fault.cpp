@@ -1332,6 +1332,58 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
   return ierr;
 }
 
+PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::d_dt_WaveEq";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+//~ PetscScalar    val,psiVal,thetaVal;
+// PetscScalar    psi,dpsi;
+// PetscInt       Ii,Istart,Iend;
+
+// //~ ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
+// //~ ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
+
+// // compute slip velocity
+// double startTime = MPI_Wtime();
+// ierr = computeVel();CHKERRQ(ierr);
+// VecCopy(_slipVel,dvarEx.find("slip")->second);
+// _computeVelTime += MPI_Wtime() - startTime;
+
+
+// // compute rate of state variable
+// startTime = MPI_Wtime();
+// PetscScalar *psiA,*dpsiA = 0;
+// VecGetArray(_psi,&psiA);
+// VecGetArray(dvarEx.find("psi")->second,&dpsiA);
+// PetscInt Jj = 0; // local array index
+// ierr = VecGetOwnershipRange(_psi,&Istart,&Iend); // local portion of global Vec index
+// for (Ii=Istart;Ii<Iend;Ii++) {
+//   psi = psiA[Jj];
+
+//   if (!_stateLaw.compare("agingLaw")) {
+//     //~ ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+//     ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   else if (!_stateLaw.compare("slipLaw")) {
+//     //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+//     ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   else if (!_stateLaw.compare("flashHeating")) {
+//     ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
+//   else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
+
+//   dpsiA[Jj] = dpsi;
+//   Jj++;
+// }
+// VecRestoreArray(_psi,&psiA);
+// VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
+}
+
 
 PetscErrorCode SymmFault::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
