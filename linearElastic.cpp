@@ -967,7 +967,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt_WaveEq in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
   ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  Mat A, H1;
+  Mat A;
   ierr = _sbp->getA(A);
 
   // Update the laplacian
