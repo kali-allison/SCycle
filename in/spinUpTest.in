@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 51
-Nz = 52
+Ny = 201
+Nz = 201
 Ly = 30 # km
 Lz = 40 # km
 vL = 1e-9    # (m/s)
@@ -11,12 +11,12 @@ vL = 1e-9    # (m/s)
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 # dynamic or static
 momBalType = static
 
 # coordinate transformation
-bCoordTrans = 15.0
+bCoordTrans = 8.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -119,8 +119,8 @@ rhoDepths = [0 60]
 
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 #TVals = [800 1000]
 #TDepths = [0 30]
@@ -135,16 +135,16 @@ withFrictionalHeating = no
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
 maxEffVisc = 1e30
-maxEffViscSS = 1e25
+maxEffViscSS = 1e23
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -156,9 +156,11 @@ timeIntInds = [psi slip]
 
 
 # write to laptop
-outputDir = data/test_
+#outputDir = data/test_
 
 #outputDir = /scratch/kallison/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/g30_
+
+outputDir = /scratch/kallison/he/l0.4_
 
