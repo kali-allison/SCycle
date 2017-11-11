@@ -399,7 +399,7 @@ PetscErrorCode SbpOps_c::constructHs(const TempMats_c& tempMats)
   PetscObjectSetName((PetscObject) _Hyinv_Iz, "Hyinv_Iz");
   kronConvert(tempMats._Iy,tempMats._Hzinv,_Iy_Hzinv,1,0);
   PetscObjectSetName((PetscObject) _Iy_Hzinv, "Iy_Hzinv");
-  ierr = MatMatMult(_Hyinv_Iz,_Hyinv_Iz,MAT_INITIAL_MATRIX,1.,&_Hinv);
+  ierr = MatMatMult(_Hyinv_Iz,_Iy_Hzinv,MAT_INITIAL_MATRIX,1.,&_Hinv);
   PetscObjectSetName((PetscObject) _Hinv, "Hinv");
 
   #if VERBOSE > 1
