@@ -54,7 +54,7 @@ class Fault: public RootFinderContext
     // fields that differ on the split nodes
     std::vector<double>  _impedanceVals,_impedanceDepths;
     std::vector<double>  _sigmaNVals,_sigmaNDepths;
-    PetscScalar          _sigmaN_cap; // allow cap on normal stress
+    PetscScalar          _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                  _sNEff; // effective normal stress
     Vec                  _sN; // total normal stress
     Vec                  _zP;

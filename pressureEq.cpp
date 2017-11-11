@@ -7,7 +7,7 @@ using namespace std;
 PressureEq::PressureEq(Domain&D)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"),
-  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
+  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),_M(NULL),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType(D._sbpType),_linSolveCount(0),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
@@ -23,6 +23,11 @@ PressureEq::PressureEq(Domain&D)
   checkInput();
   setFields(D);
   setUpSBP();
+
+  // Back Eular upates
+  if (_hydraulicTimeIntType.compare("implicit")==0) {
+    setUpBe(D);
+  }
 
   // initial conditions
   if (!_isMMS) {
@@ -326,11 +331,11 @@ PetscErrorCode PressureEq::setUpSBP()
 
   // set up variable coefficient
   Vec coeff;
-  VecSet(_p,0.);
-  computeVariableCoefficient(_p,coeff);
+  VecSet(_p, 0.);
+  computeVariableCoefficient(_p, coeff);
 
   // Set up linear system
-    if (_sbpType.compare("mc")==0) {
+  if (_sbpType.compare("mc")==0) {
     _sbp = new SbpOps_c(_order,1,_N,1,_L,coeff);
   }
   else if (_sbpType.compare("mfc")==0) {
@@ -703,8 +708,8 @@ PetscErrorCode PressureEq::be(const PetscScalar time,const map<string,Vec>& varE
 
 // backward Euler implicit solve for MMS test
 // new result goes in varIm
-PetscErrorCode PressureEq::be_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
+PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo, const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -712,7 +717,105 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time,const map<string,Vec>& 
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  assert(0);
+  double startTime = MPI_Wtime(); // time this section
+
+  // Vec p0 = varImo["pressure"]; // to make this code slightly easier to read
+
+  // force p to be correct
+  //~ mapToVec(_p, zzmms_pA1D, _z, time);
+
+  // source term from gravity: d/dz ( rho*k/eta * g )
+  Vec rhog,rhog_y;
+  VecDuplicate(_p,&rhog);
+  VecSet(rhog,_g);
+  VecPointwiseMult(rhog,rhog,_rho_f);
+  VecPointwiseMult(rhog,rhog,_rho_f);
+  VecPointwiseMult(rhog,rhog,_k_p);
+  VecPointwiseDivide(rhog,rhog,_eta_p);
+  VecDuplicate(_p,&rhog_y);
+  _sbp->Dz(rhog,rhog_y);
+
+  Mat D2;
+  _sbp->getA(D2);
+
+  Mat H, I;
+  _sbp->getH(H);
+  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &I);
+  Vec tmp;
+  VecDuplicate(_p, &tmp);
+  VecSet(tmp, 1);
+  MatDiagonalSet(I, tmp, INSERT_VALUES);
+
+  // set up boundary terms
+  Vec rhs;
+  VecDuplicate(_k_p,&rhs);
+  _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
+
+  // // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
+  // VecAXPY(p_t,-1.0,rhs);
+  // if (_sbpType.compare("mfc_coordTrans")==0) {
+  //   Mat J,Jinv,qy,rz,yq,zr;
+  //   ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+  //   Vec temp;
+  //   VecDuplicate(p_t,&temp);
+  //   ierr = MatMult(Jinv,p_t,temp);
+  //   VecCopy(temp,p_t);
+  //   VecDestroy(&temp);
+  // }
+
+  // compute MMS source
+  Vec source;
+  VecDuplicate(_p, &source);
+  mapToVec(source, zzmms_pSource1D, _z, time);
+  //~ writeVec(source,_outputDir + "mms_pSource");
+
+  // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
+  // VecAXPY(p_t,1.0,source);
+
+  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
+  VecDuplicate(_p, &rho_n_beta);
+  VecSet(rho_n_beta, 1);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_rho_f);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_n_p);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_beta_p);
+  Mat Diag_rho_n_beta;
+  MatDuplicate(I, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
+
+  Mat D2_rho_n_beta;
+  MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+
+  MatScale(D2_rho_n_beta, -dt);
+  MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
+
+
+
+
+  // solve Mx = rhs
+  // M = I - dt/(rho*n*beta)*D2
+  // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT )
+
+  // _sbp->H(rhog_y,temp);
+  VecAXPY(rhs, -1.0, rhog_y);
+  VecScale(rhs, dt);
+  VecPointwiseMult(rhs, rhs, rho_n_beta);
+  VecAXPY(rhs, 1, varImo.find("pressure")->second);
+
+
+  ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);CHKERRQ(ierr);
+
+
+  ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  //~ mapToVec(dvarEx["pressure"], zzmms_pt1D, _z, time);
+  VecDestroy(&rhog);
+  VecDestroy(&rhog_y);
+  VecDestroy(&rhs);
+  VecDestroy(&source);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -720,6 +823,120 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time,const map<string,Vec>& 
   return ierr;
 }
 
+// set up KSP, matrices, boundary conditions for the hydralic problem
+PetscErrorCode PressureEq::setUpBe(Domain& D)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "PressureEq::setUpBe";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // Vec rhog, rhog_y;
+  // VecDuplicate(_p, &rhog);
+  // VecSet(rhog, _g);
+  // VecPointwiseMult(rhog, rhog, _rho_f);
+  // VecPointwiseMult(rhog, rhog, _rho_f);
+  // VecPointwiseMult(rhog, rhog, _k_p);
+  // VecPointwiseDivide(rhog, rhog, _eta_p);
+  // VecDuplicate(_p, &rhog_y);
+  // _sbp->Dz(rhog,rhog_y);
+
+  Mat D2;
+  _sbp->getA(D2);
+  Mat H;
+  _sbp->getH(H);
+  // MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &I);
+  // Vec tmp;
+  // VecDuplicate(_p, &tmp);
+  // VecSet(tmp, 1);
+  // MatDiagonalSet(I, tmp, INSERT_VALUES);
+
+  // set up boundary terms
+  Vec rhs;
+  VecDuplicate(_p, &rhs);
+  _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
+
+  // VecDestroy(&rhoCV);
+
+  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
+  VecDuplicate(_p, &rho_n_beta);
+  VecSet(rho_n_beta, 1);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_rho_f);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_n_p);
+  VecPointwiseDivide(rho_n_beta,rho_n_beta,_beta_p);
+  Mat Diag_rho_n_beta;
+  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
+
+  Mat D2_rho_n_beta;
+  MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+
+  MatScale(D2_rho_n_beta, -D._initTime);
+  MatShift(D2_rho_n_beta, 1);
+
+  // solve Mx = rhs
+  // M = I - dt/(rho*n*beta)*D2
+  // rhs = p - dt/(rho*n*beta) * D1(k/eta*rho^2*g) + dt*1/(rho*n*beta) * SAT
+
+  // // ensure diagonal has been allocated, even if 0
+  // PetscScalar v=0.0;
+  // PetscInt Ii,Istart,Iend=0;
+  // MatGetOwnershipRange(_D2divRhoC,&Istart,&Iend);
+  // for (Ii = Istart; Ii < Iend; Ii++) {
+  //   MatSetValues(_D2divRhoC,1,&Ii,1,&Ii,&v,ADD_VALUES);
+  // }
+  // MatAssemblyBegin(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+  // MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
+  // MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
+
+  setupKSP(D2_rho_n_beta);
+
+#if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PressureEq::setupKSP(const Mat& A)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "HeatEquation::setupKSP";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // set up linear solver context
+  PC pc;
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
+
+  // set up KSP
+  // reuse preconditioner at each time step
+  ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(_ksp,A,A);CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = KSPGetPC(_ksp,&pc);CHKERRQ(ierr);
+  ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(_ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+
+
+  // perform computation of preconditioners now, rather than on first use
+  double startTime = MPI_Wtime();
+  ierr = KSPSetUp(_ksp);CHKERRQ(ierr);
+  _ptTime += MPI_Wtime() - startTime;
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 // =====================================================================
 // IO commands
@@ -903,9 +1120,6 @@ PetscErrorCode PressureEq::setVecFromVectors(Vec& vec, vector<double>& vals,vect
   #endif
   return ierr;
 }
-
-
-
 
 
 

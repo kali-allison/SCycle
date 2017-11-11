@@ -7,9 +7,12 @@
 #include <assert.h>
 #include <vector>
 #include <map>
+
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "integratorContextWave.hpp"
+#include "momBalContext.hpp"
+
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
 #include "odeSolver_WaveEq.hpp"
@@ -84,7 +87,7 @@ private:
     OdeSolver_WaveEq    *_quadWaveEq; // implicit time stepping
 
     Fault               *_fault;
-    LinearElastic       *_momBal; // solves momentum balance equation
+    MomBalContext       *_momBal; // solves momentum balance equation
     HeatEquation        *_he;
     PressureEq          *_p;
 
