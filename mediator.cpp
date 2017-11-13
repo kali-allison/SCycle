@@ -171,7 +171,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  solveSS();
+  //~ solveSS();
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -721,7 +721,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-/*
+
   // update state of each class from integrated variables varEx and varImo
   _momBal->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
@@ -765,29 +765,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
       sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
-  }*/
-
-  // update fields based on varEx, varIm
-  _momBal->updateFields(time,varEx);
-  _fault->updateFields(time,varEx);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->updateFields(time,varEx);
   }
-
-  // compute rates
-  ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->d_dt(time,varEx,dvarEx);
-  }
-
-  // update fields on fault from other classes
-  Vec sxy,sxz,sdev;
-  ierr = _momBal->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
-
-  // rates for fault
-  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

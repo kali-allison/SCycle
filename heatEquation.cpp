@@ -1050,7 +1050,6 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 //~ double startMiscTime = MPI_Wtime();
 //~ _miscTime += MPI_Wtime() - startMiscTime;
 
-
   // set up boundary conditions and source terms
   Vec rhs;
   VecDuplicate(_dT,&rhs);
