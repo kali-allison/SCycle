@@ -30,7 +30,7 @@ HeatEquation::HeatEquation(Domain& D)
   checkInput();
   setFields(D);
   if (D._loadICs==1) { loadFieldsFromFiles(); }
-  if (!_isMMS) { computeInitialSteadyStateTemp(D); }
+  if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(D); }
 
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(D); }
   else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(D); }
@@ -266,6 +266,7 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
   // load dT (perturbation)
   ierr = loadVecFromInputFile(_dT,_inputDir,"dT"); CHKERRQ(ierr);
+  writeVec(_dT,_outputDir+"init1_dT");
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -676,6 +677,10 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   //~ VecCopy(_T0,T);
   VecWAXPY(T,1.0,_T0,_dT);
   varIm["Temp"] = T;
+
+  writeVec(_dT,_outputDir+"init_dT");
+  writeVec(_T0,_outputDir+"init_T0");
+  writeVec(T,_outputDir+"init_T");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
