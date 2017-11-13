@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N l0.4
+#PBS -N testIMEX
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/l0.4.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/l0.4.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/test.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/test.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

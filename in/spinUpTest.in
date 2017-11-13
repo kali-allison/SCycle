@@ -1,29 +1,29 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 201
+Ny = 51
+Nz = 52
 Ly = 30 # km
-Lz = 40 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
 geometry = symmetric
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 # dynamic or static
 momBalType = static
 
 # coordinate transformation
-bCoordTrans = 8.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 8.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/ss30_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/l0.8_
 loadICs = 0
 bcLTauQS = 0
 
@@ -79,8 +79,8 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaNVals = [0 802.1] # lambda = 0.4
 #sigmaNVals = [0 668.5] # lambda = 0.5
 #sigmaNVals = [0 534.8] # lambda = 0.6
-sigmaNVals = [0 401.1] # lambda = 0.7
-#sigmaNVals = [0 267.4] # lambda = 0.8
+#sigmaNVals = [0 401.1] # lambda = 0.7
+sigmaNVals = [0 267.4] # lambda = 0.8
 sigmaNDepths = [0 60]
 sigmaN_floor = 5.5; # MPa
 
@@ -119,11 +119,11 @@ rhoDepths = [0 60]
 
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
+#TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
-TDepths = [0 50]
-#TVals = [800 1000]
-#TDepths = [0 30]
+#TDepths = [0 50]
+TVals = [800 1000]
+TDepths = [0 30]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
 heatEquationType = steadyState
@@ -140,13 +140,13 @@ maxEffViscSS = 1e23
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 1e3
 initTime = 0
-maxTime = 1e15
+maxTime = 3e10
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -162,5 +162,18 @@ timeIntInds = [psi slip]
 #outputDir = /data/dunham/kallison/eqcycle/data/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/g30_
 
-outputDir = /scratch/kallison/he/l0.4_
+outputDir = /scratch/kallison/he/testIMEX_
+#outputDir = /scratch/kallison/he/testRK32_
 
+#outputDir = /scratch/kallison/he/l0.4_
+#outputDir = /scratch/kallison/he/l0.5_
+#outputDir = /scratch/kallison/he/l0.6_
+#outputDir = /scratch/kallison/he/l0.7_
+#outputDir = /scratch/kallison/he/l0.8_
+
+#outputDir = /scratch/kallison/he/l0.6_0_
+#outputDir = /scratch/kallison/he/l0.7_0_
+#outputDir = /scratch/kallison/he/l0.8_0_
+
+#outputDir = /scratch/kallison/he/l0.8_nT_
+#outputDir = /scratch/kallison/he/l0.8_contT_
