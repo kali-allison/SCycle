@@ -13,7 +13,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
-  _sigmaN_cap(1e14),_sNEff(NULL),
+  _sigmaN_cap(1e14),_sigmaN_floor(0.),_sNEff(NULL),
   _slip(NULL),_slipVel(NULL),
   _computeVelTime(0),_stateLawTime(0),
   _tauQSP(NULL),_tauP(NULL)
@@ -333,10 +333,18 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths,_sigmaN_cap);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
+  }
+
+  // impose floor and ceiling on effective normal stress
+  {
+    Vec temp; VecDuplicate(_sNEff,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    VecDestroy(&temp);
   }
 
   //~ VecWAXPY(_sN,1.0,_p,_sNEff);
@@ -1332,6 +1340,58 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
   return ierr;
 }
 
+PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::d_dt_WaveEq";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+//~ PetscScalar    val,psiVal,thetaVal;
+// PetscScalar    psi,dpsi;
+// PetscInt       Ii,Istart,Iend;
+
+// //~ ierr = VecCopy(varEx.find("psi")->second,_psi);CHKERRQ(ierr);
+// //~ ierr = VecCopy(varEx.find("slip")->second,_slip);CHKERRQ(ierr);
+
+// // compute slip velocity
+// double startTime = MPI_Wtime();
+// ierr = computeVel();CHKERRQ(ierr);
+// VecCopy(_slipVel,dvarEx.find("slip")->second);
+// _computeVelTime += MPI_Wtime() - startTime;
+
+
+// // compute rate of state variable
+// startTime = MPI_Wtime();
+// PetscScalar *psiA,*dpsiA = 0;
+// VecGetArray(_psi,&psiA);
+// VecGetArray(dvarEx.find("psi")->second,&dpsiA);
+// PetscInt Jj = 0; // local array index
+// ierr = VecGetOwnershipRange(_psi,&Istart,&Iend); // local portion of global Vec index
+// for (Ii=Istart;Ii<Iend;Ii++) {
+//   psi = psiA[Jj];
+
+//   if (!_stateLaw.compare("agingLaw")) {
+//     //~ ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+//     ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   else if (!_stateLaw.compare("slipLaw")) {
+//     //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
+//     ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   else if (!_stateLaw.compare("flashHeating")) {
+//     ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
+//     }
+//   //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
+//   else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
+
+//   dpsiA[Jj] = dpsi;
+//   Jj++;
+// }
+// VecRestoreArray(_psi,&psiA);
+// VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
+}
+
 
 PetscErrorCode SymmFault::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
@@ -1591,6 +1651,9 @@ PetscErrorCode Fault::loadSettings(const char *file)
     }
     else if (var.compare("sigmaN_cap")==0) {
       _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("sigmaN_floor")==0) {
+      _sigmaN_floor = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     else if (var.compare("aVals")==0) {

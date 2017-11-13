@@ -48,8 +48,6 @@ Mediator::Mediator(Domain&D)
   // initiate momentum balance equation
   if (D._bulkDeformationType.compare("linearElastic")==0) { _momBal = new LinearElastic(D,*_he); }
   else if (D._bulkDeformationType.compare("powerLaw")==0) { _momBal = new PowerLaw(D,*_he); }
-  //~ _momBal = new LinearElastic(D,*_he);
-  //~ _momBal = new PowerLaw(D,*_he);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -204,9 +202,8 @@ PetscErrorCode Mediator::initiateIntegrand_dyn()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
+  // _fault->initiateIntegrand(_initTime,_varEx);
   _momBal->initiateIntegrand_dyn(_initTime, _varEx);
-  _fault->initiateIntegrand(_initTime,_varEx);
 
   //~ if (_thermalCoupling.compare("no")!=0 ) {
      //~ _he->initiateIntegrand(_initTime,_varEx,_varIm1);
@@ -708,6 +705,7 @@ PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& va
 {
   PetscErrorCode ierr = 0;
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
+  // ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT);
 
   return ierr;
 }
@@ -723,10 +721,12 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+
   // update state of each class from integrated variables varEx and varImo
   _momBal->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
-  if (varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
+
+  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->updateFields(time,varEx,varImo);
   }
 
@@ -745,7 +745,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    // _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    //~ _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
     _p->d_dt(time,varEx,dvarEx);
   }
 
@@ -764,7 +764,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     _momBal->getStresses(sxy,sxz,sdev);
     ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
-      sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
+      sdev,varIm["Temp"],varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 

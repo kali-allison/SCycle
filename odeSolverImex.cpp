@@ -352,6 +352,141 @@ PetscReal OdeSolverImex::computeError()
 }
 
 
+
+
+PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+
+  PetscErrorCode ierr=0;
+  PetscReal      totErr=0.0;
+  PetscInt       attemptCount = 0;
+
+  // build default errInds if it hasn't been defined already
+  if (_errInds.size()==0) {
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      _errInds.push_back(it->first);
+    }
+  }
+
+  // check that errInds is valid
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
+    if (_var.find(key) == _var.end()) {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+    }
+    assert(_var.find(key) != _var.end());
+  }
+
+
+  // set initial condition
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varImMult,_varIm1);CHKERRQ(ierr);// write first step
+
+  if (_finalT==_initT) { return ierr; }
+  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
+
+  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+
+    _stepCount++;
+    attemptCount = 0;
+    while (attemptCount<100) { // repeat until time step is acceptable
+      attemptCount++;
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
+      if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
+
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
+        VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
+        VecSet(_var2nd[it->first],0.0);    VecSet(_dvar2nd[it->first],0.0);
+        VecSet(_var3rd[it->first],0.0);
+      }
+
+      // stage 1: integrate fields to _currT + 0.5*deltaT
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+      }
+      //~ ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,_varHalfdTImMult,_varImMult,0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
+
+      // stage 2: integrate fields to _currT + _deltaT
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
+      }
+      //~ ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTImMult,_varHalfdTImMult,0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
+
+      // 2nd and 3rd order update
+      for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+        ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
+
+        ierr = VecWAXPY(_var3rd[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_var3rd[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
+      }
+
+      // calculate error
+      totErr = computeError();
+      #if ODEPRINT > 0
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
+      #endif
+      if (totErr<_atol) { break; } // !!!orig
+      _deltaT = computeStepSize(totErr);
+      if (_minDeltaT == _deltaT) { break; }
+
+      _numRejectedSteps++;
+    }
+    _currT = _currT+_deltaT;
+
+    // accept 3rd order solution as update
+    for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+      VecSet(_var[it->first],0.0);
+      ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);
+      VecSet(_dvar[it->first],0.0);
+    }
+
+    // accept state for implicit "Mult" variables from second step as update
+    //~ for (map<string,Vec>::iterator it = _vardTImMult.begin(); it!=_vardTImMult.end(); it++ ) {
+      //~ VecCopy(_vardTImMult[it->first],_varImMult[it->first]);
+    //~ }
+
+    // update rates for explicit variables, and compute updated state for implicit "1" variables
+    // note that this should possibly include updated state for the "mult" variables as well
+    ierr = obj->d_dt(_currT,_var,_dvar,_vardTIm1,_varIm1,_deltaT);CHKERRQ(ierr);
+    //~ ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+
+    // accept updated state for implicit "1" variables
+    for (map<string,Vec>::iterator it = _vardTIm1.begin(); it!=_vardTIm1.end(); it++ ) {
+      VecCopy(_vardTIm1[it->first],_varIm1[it->first]);
+    }
+
+    if (totErr!=0.0) {
+      _deltaT = computeStepSize(totErr);
+    }
+
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,_varImMult,_varIm1);CHKERRQ(ierr);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::integrate in odeSolver.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+
+
+
+
+/*
 PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 {
 #if VERBOSE > 1
@@ -395,7 +530,6 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
       if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       // set fields to 0
@@ -411,16 +545,16 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,
-               _varHalfdTImMult,_varImMult,0.5*_deltaT);CHKERRQ(ierr);
-
+      //~ ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT,_varHalfdTImMult,_varImMult,0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTImMult,_varHalfdTImMult,0.5*_deltaT);CHKERRQ(ierr);
+      //~ ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTImMult,_varHalfdTImMult,0.5*_deltaT);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -434,9 +568,10 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 
       // calculate error
       totErr = computeError();
-      #if ODEPRINT > 0
+      //~ #if ODEPRINT > 0
         ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
-      #endif
+//~ assert(0);
+      //~ #endif
       if (totErr<_atol) { break; } // !!!orig
       _deltaT = computeStepSize(totErr);
       if (_minDeltaT == _deltaT) { break; }
@@ -453,18 +588,19 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     }
 
     // accept state for implicit "Mult" variables from second step as update
-    for (map<string,Vec>::iterator it = _vardTImMult.begin(); it!=_vardTImMult.end(); it++ ) {
-      VecCopy(_vardTImMult[it->first],_varImMult[it->first]);
-    }
+    //~ for (map<string,Vec>::iterator it = _vardTImMult.begin(); it!=_vardTImMult.end(); it++ ) {
+      //~ VecCopy(_vardTImMult[it->first],_varImMult[it->first]);
+    //~ }
 
     // update rates for explicit variables, and compute updated state for implicit "1" variables
     // note that this should possibly include updated state for the "mult" variables as well
-    ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm1,_varIm1,_deltaT);CHKERRQ(ierr);
+    //~ ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT,_vardTIm1,_varIm1,_deltaT);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
 
-    // accept updated state for implicit "1" variables
-    for (map<string,Vec>::iterator it = _vardTIm1.begin(); it!=_vardTIm1.end(); it++ ) {
-      VecCopy(_vardTIm1[it->first],_varIm1[it->first]);
-    }
+    //~ // accept updated state for implicit "1" variables
+    //~ for (map<string,Vec>::iterator it = _vardTIm1.begin(); it!=_vardTIm1.end(); it++ ) {
+      //~ VecCopy(_vardTIm1[it->first],_varIm1[it->first]);
+    //~ }
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
@@ -479,4 +615,6 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
 #endif
   return ierr;
 }
+*/
+
 

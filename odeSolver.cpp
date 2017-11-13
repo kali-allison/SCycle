@@ -255,37 +255,6 @@ PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  //~ _var = var;
-  //~ _lenVar = var.size();
-
-  /*
-  _varHalfdT.reserve(_lenVar); _dvarHalfdT.reserve(_lenVar);
-  _vardT    .reserve(_lenVar);     _dvardT.reserve(_lenVar);
-  _var2nd   .reserve(_lenVar);    _dvar2nd.reserve(_lenVar);
-  _var3rd   .reserve(_lenVar);
-
-  _dvar.reserve(_lenVar);
-  for (int ind=0;ind<_lenVar;ind++) {
-    ierr = VecDuplicate(_var[ind],&_dvar[ind]);CHKERRQ(ierr);
-    ierr = VecSet(_dvar[ind],0.0);CHKERRQ(ierr);
-
-    ierr = VecDuplicate(_var[ind],&_varHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_varHalfdT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvarHalfdT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvarHalfdT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_vardT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_vardT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvardT[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvardT[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_var2nd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_var2nd[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_dvar2nd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_dvar2nd[ind],0.0);CHKERRQ(ierr);
-    ierr = VecDuplicate(_var[ind],&_var3rd[ind]);CHKERRQ(ierr);
-        ierr = VecSet(_var3rd[ind],0.0);CHKERRQ(ierr);
-  }
-  */
-
   _var = var;
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
     Vec dvar;
@@ -560,7 +529,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       }
       ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd,_dvardT,"2nd");CHKERRQ(ierr);
       ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd,_dvardT,"3rd");CHKERRQ(ierr);
-
 
       // calculate error
       totErr = computeError();

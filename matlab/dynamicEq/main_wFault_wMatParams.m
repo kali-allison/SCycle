@@ -13,7 +13,7 @@ clear all
 
 % domain
 order = 2;
-Ny = 103;
+Ny = 203;
 Ly = 30;
 dy = Ly / (Ny - 1);
 y = linspace(0,Ly,Ny);
