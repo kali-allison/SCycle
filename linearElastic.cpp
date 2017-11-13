@@ -133,7 +133,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    else if (var.compare("linSolver")==0) {
+    else if (var.compare("momBalType")==0) {
       _momBalType = line.substr(pos+_delim.length(),line.npos);
     }
 
@@ -355,9 +355,6 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   VecSet(_muVec,_muVal);
   VecSet(_rhoVec,_rhoVal);
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
-
-  PetscScalar *cs;
-  VecGetArray(_cs,&cs);
   VecSqrtAbs(_cs);
 
   if (_isMMS) {
@@ -881,6 +878,10 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::initiateIntegrand_dyn in linearElastic.cpp\n");CHKERRQ(ierr);
   #endif
+  // Vec slip;
+  // VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
+  // _varEx["slip"] = slip;
+
   Vec uPrevV;
   VecDuplicate(_u, &uPrevV); VecSet(uPrevV,0.);
   _varEx["u"] = _u;
@@ -928,14 +929,14 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
-      if (zz[Jj] == 0){ay[Jj] = -0.5 * alphaz;}
-      if (zz[Jj] == _Lz){ay[Jj] = -0.5 * alphaz;}
-      if (yy[Jj] == 0){ay[Jj] = -0.5 * alphay;}
-      if (yy[Jj] == _Ly){ay[Jj] = -0.5 * alphay;}
+      if (zz[Jj] == 0){ay[Jj] += 0.5 / alphaz;}
+      if (zz[Jj] == _Lz){ay[Jj] += 0.5 / alphaz;}
+      if (yy[Jj] == 0){ay[Jj] += 0.5 / alphay;}
+      if (yy[Jj] == _Ly){ay[Jj] += 0.5 / alphay;}
       Jj++;
     }
-    VecRestoreArray(*_y,&y);
-    VecRestoreArray(*_z,&z);
+    VecRestoreArray(*_y,&yy);
+    VecRestoreArray(*_z,&zz);
     VecRestoreArray(_ay,&ay);
 
      //~ for (Ii=Istart;Ii<Iend;Ii++) {
@@ -1008,7 +1009,26 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   VecDestroy(&correction);
   VecDestroy(&previous);
 
-  _u = varEx["u"];
+  // PetscScalar *yy, *zz, *uu, *varExu;
+  // PetscInt Ii,Istart,Iend;
+  // PetscInt Jj = 0;
+  // VecGetOwnershipRange(*_y,&Istart,&Iend);
+  // VecGetArray(_u,&uu);
+  // VecGetArray(*_y, &yy);
+  // VecGetArray(*_z, &zz);
+  // VecGetArray(varEx["u"], &varExu);
+  // Jj = 0;
+
+  // for (Ii=Istart;Ii<Iend;Ii++) {
+  //   if (yy[Jj] == 0){varExu[Jj] = uu[Jj];}
+  //   Jj++;
+  // }
+  // VecRestoreArray(*_y,&yy);
+  // VecRestoreArray(*_z,&zz);
+  // VecRestoreArray(_u,&uu);
+  // VecRestoreArray(varEx["u"], &varExu);
+
+  // _u = varEx["u"];
   // _u = _ay;
 
   PetscPrintf(PETSC_COMM_WORLD,"");
