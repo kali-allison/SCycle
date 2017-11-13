@@ -1255,40 +1255,41 @@ PetscErrorCode LinearElastic::debug(const PetscReal time,const PetscInt stepCoun
 {
   PetscErrorCode ierr = 0;
 
-#if ODEPRINT > 0
-  PetscInt       Istart,Iend;
-  PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
+// #if ODEPRINT > 0
+//   PetscInt       Istart,Iend;
+//   PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
 
-  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
+//   //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
-  ierr= VecGetOwnershipRange(varEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(varEx.find("psi"),1,&Istart,&psiVal);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(varEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(varEx.find("psi"),1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(varEx.find("slip"),1,&Istart,&uVal);CHKERRQ(ierr);
+//   ierr = VecGetValues(varEx.find("slip"),1,&Istart,&uVal);CHKERRQ(ierr);
 
-  ierr= VecGetOwnershipRange(dvarEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(dvarEx.find("psi"),1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(dvarEx.find("slip"),1,&Istart,&velVal);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(dvarEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(dvarEx.find("psi"),1,&Istart,&dQVal);CHKERRQ(ierr);
+//   ierr = VecGetValues(dvarEx.find("slip"),1,&Istart,&velVal);CHKERRQ(ierr);
 
-  ierr= VecGetOwnershipRange(_bcR,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(_bcR,1,&Istart,&bcRval);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(_bcR,&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(_bcR,1,&Istart,&bcRval);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
+//   ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
 
-  if (stepCount == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
-                       "Step","Stage","bcR","D","Q","tauQS","V","dQ","time");
-    CHKERRQ(ierr);
-  }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,psiVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,dQVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
+//   if (stepCount == 0) {
+//     ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
+//                        "Step","Stage","bcR","D","Q","tauQS","V","dQ","time");
+//     CHKERRQ(ierr);
+//   }
+//   ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,psiVal);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,dQVal);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
 
 
-  //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-#endif
+//   //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+// #endif
   return ierr;
+  
 }
 
 PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)

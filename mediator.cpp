@@ -726,7 +726,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // update state of each class from integrated variables varEx and varImo
   _momBal->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
-  if (varImo.find("pressure") != varImo.end() ) {
+  if (varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->updateFields(time,varEx,varImo);
   }
 
@@ -737,7 +737,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update effective normal stress in fault using pore pressure
-  if (varImo.find("pressure") != varImo.end() && _hydraulicCoupling.compare("coupled")!=0) {
+  if (_hydraulicCoupling.compare("coupled")!=0) {
     _fault->setSNEff(_p->_p);
   }
 
@@ -745,7 +745,8 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    // _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    _p->d_dt(time,varEx,dvarEx);
   }
 
   // update shear stress on fault from momentum balance computation
