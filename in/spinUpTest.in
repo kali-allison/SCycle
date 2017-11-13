@@ -1,10 +1,10 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 202
+Ny = 51
+Nz = 52
 Ly = 30 # km
-Lz = 40 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
@@ -76,9 +76,9 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaN_floor = 5.5; # MPa
 
 # with varying degrees of overpressure
-#sigmaNVals = [0 802.1] # lambda = 0.4
+sigmaNVals = [0 802.1] # lambda = 0.4
 #sigmaNVals = [0 668.5] # lambda = 0.5
-sigmaNVals = [0 534.8] # lambda = 0.6
+#sigmaNVals = [0 534.8] # lambda = 0.6
 #sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
 sigmaNDepths = [0 60]
@@ -119,8 +119,8 @@ rhoDepths = [0 60]
 
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 #TVals = [800 1000]
 #TDepths = [0 30]
@@ -144,7 +144,7 @@ timeIntegrator = IMEX
 timeControlType = P
 stride1D = 100
 stride2D = 100
-maxStepCount = 1e9
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -163,14 +163,18 @@ timeIntInds = [psi slip]
 #outputDir = /data/dunham/kallison/eqcycle/data/g30_
 
 
-#outputDir = /scratch/kallison/he/l0.4_
-#outputDir = /scratch/kallison/he/l0.5_
-#outputDir = /scratch/kallison/he/l0.6_
-#outputDir = /scratch/kallison/he/l0.7_
+#outputDir = /scratch/kallison/he/g30_l0.8_
+outputDir = /scratch/kallison/he/g30_l0.4_
+
 #outputDir = /scratch/kallison/he/l0.8_
+#outputDir = /scratch/kallison/he/l0.7_
+#outputDir = /scratch/kallison/he/l0.6_
+#outputDir = /scratch/kallison/he/l0.5_
+#outputDir = /scratch/kallison/he/l0.4_
+
 
 #outputDir = /scratch/kallison/he/l0.8_nSS_
 #outputDir = /scratch/kallison/he/l0.7_nSS_
-outputDir = /scratch/kallison/he/l0.6_nSS_
+#outputDir = /scratch/kallison/he/l0.6_nSS_
 #outputDir = /scratch/kallison/he/l0.4_nSS_
 

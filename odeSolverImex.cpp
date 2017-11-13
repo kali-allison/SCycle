@@ -462,6 +462,11 @@ PetscErrorCode OdeSolverImex::integrate(IntegratorContextImex *obj)
     ierr = obj->d_dt(_currT,_var,_dvar,_vardTIm1,_varIm1,_deltaT);CHKERRQ(ierr);
     //~ ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
+    // accept updated state for implicit "1" variables
+    for (map<string,Vec>::iterator it = _vardTIm1.begin(); it!=_vardTIm1.end(); it++ ) {
+      VecCopy(_vardTIm1[it->first],_varIm1[it->first]);
+    }
+
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
     }

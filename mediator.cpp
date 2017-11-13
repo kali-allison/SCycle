@@ -171,7 +171,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ solveSS();
+  solveSS();
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -763,7 +763,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     _momBal->getStresses(sxy,sxz,sdev);
     ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
-      sdev,varIm.find("Temp")->second,varImo.find("Temp")->second,dt);CHKERRQ(ierr);
+      sdev,varIm["Temp"],varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 

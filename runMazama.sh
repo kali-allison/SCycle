@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N l0.6_nSS
+#PBS -N g30_l0.8
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/l0.6_nSS.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/l0.6_nSS.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/g30_l0.8.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/g30_l0.8.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
