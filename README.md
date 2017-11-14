@@ -37,7 +37,7 @@ rho_f : density of fluid
 
 n=0.1
 
-beta =  10^{-8} Pa^-1 = 10  GPa^{-1}
+beta =  10^{-8} Pa^{-1} = 10  GPa^{-1}
 
 k = 10^{-13} m^2 = 10^{-19} km^2
 
