@@ -28,7 +28,7 @@ beta : compressibility
 
 k : permeability
 
-eta : viscosity (Pa$\cdot$s)
+eta : viscosity
 
 rho_f : density of fluid
 
