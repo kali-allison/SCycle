@@ -1,4 +1,4 @@
-order = 4 # SBP order of accuracy
+order = 2 # SBP order of accuracy
 Ny = 11
 Nz = 12
 Ly = 1 # (km) horizontal domain size
@@ -71,17 +71,17 @@ sigmaNDepths = [0 0.25 60]
 hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
-hydraulicTimeIntType = explicit
-#hydraulicTimeIntType = implicit
+#hydraulicTimeIntType = explicit
+hydraulicTimeIntType = implicit
 
 # actual, physical values
 n_pVals = [0.1 0.1]
 n_pDepths = [0 30]
-beta_pVals = [1e-2 1e-2] # 1/MPa
+beta_pVals = [10 10] # 1/gPa
 beta_pDepths = [0 30]
 k_pVals = [1e-19 1e-19] # km^2
 k_pDepths = [0 30]
-eta_pVals = [1e-9 1e-9] # MPa s
+eta_pVals = [1e-12 1e-12] # GPa s
 eta_pDepths = [0 30]
 g = 0
 rho_fVals = [1 1] # g/cm^3
@@ -142,8 +142,8 @@ stride2D = 50
 maxStepCount = 1e5
 initTime = 0
 maxTime = 2.25e9      # (s)
-initDeltaT = 1e4   # (s) size of initial time step
-minDeltaT = 1e4    # (s) minimum allowed time step
+initDeltaT = 1e6   # (s) size of initial time step
+minDeltaT = 1e6    # (s) minimum allowed time step
 maxDeltaT = 3e6    # (s) maximum allowed time step
 atol = 1e-9 # absolute error for adaptive time stepper
 timeIntInds = [psi slip]

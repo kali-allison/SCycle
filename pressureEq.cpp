@@ -34,6 +34,7 @@ PressureEq::PressureEq(Domain&D)
     computeInitialSteadyStatePressure(D);
   }
 
+
   if (_isMMS) {
     mapToVec(_p, zzmms_pA1D, _z, D._initTime);
     VecSet(_bcL, 0);
@@ -727,6 +728,8 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   // force p to be correct
   //~ mapToVec(_p, zzmms_pA1D, _z, time);
 
+  // assert(0);
+
   // source term from gravity: d/dz ( rho*k/eta * g )
   Vec rhog, rhog_y;
   VecDuplicate(_p, &rhog);
@@ -764,6 +767,9 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   // compute MMS source
   Vec source;
   VecDuplicate(_p, &source);
+
+  // PetscPrintf(PETSC_COMM_WORLD,"Time: %f", time);
+
   mapToVec(source, zzmms_pSource1D, _z, time);
   //~ writeVec(source,_outputDir + "mms_pSource");
 
@@ -785,8 +791,8 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   MatScale(D2_rho_n_beta, -dt);
-  MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
 
+  MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
 
 
   // solve Mx = rhs
@@ -795,17 +801,38 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
 
 
   // _sbp->H(rhog_y,temp);
+
   VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
   VecPointwiseMult(rhs, rhs, rho_n_beta); //1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT)
+
+
   VecAXPY(rhs, 1.0, source); // 1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + src
+  // VecView(source, PETSC_VIEWER_STDOUT_WORLD);
   VecScale(rhs, dt); // dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
   VecAXPY(rhs, 1, varImo.find("pressure")->second); // p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
 
 
-  ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);CHKERRQ(ierr);
+
+  // ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);CHKERRQ(ierr);
 
 
-  ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
+  // ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
+
+  KSP solver;
+  PC pc;
+  KSPCreate(PETSC_COMM_WORLD,&solver);
+  KSPSetType(solver,KSPPREONLY);
+  KSPGetPC(solver,&pc);
+  PCSetType(pc,PCLU);
+  KSPSetOperators(solver,D2_rho_n_beta,D2_rho_n_beta);
+  KSPSolve(solver, rhs, varIm["pressure"]);
+
+  // MatView(D2_rho_n_beta, PETSC_VIEWER_STDOUT_WORLD);
+  // VecView(rhs, PETSC_VIEWER_STDOUT_WORLD);
+  // PetscPrintf(PETSC_COMM_WORLD,"time %f\n", time);
+  // VecView(varImo.find("pressure")->second, PETSC_VIEWER_STDOUT_WORLD);
+  // VecView(varIm.find("pressure")->second, PETSC_VIEWER_STDOUT_WORLD);
+  // assert(0);
 
   // Vec pA;
   // VecDuplicate(_p, &pA);
@@ -871,6 +898,7 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
   VecPointwiseDivide(rho_n_beta,rho_n_beta,_rho_f);
   VecPointwiseDivide(rho_n_beta,rho_n_beta,_n_p);
   VecPointwiseDivide(rho_n_beta,rho_n_beta,_beta_p);
+
   Mat Diag_rho_n_beta;
   MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
@@ -880,7 +908,9 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   MatScale(D2_rho_n_beta, -D._initTime);
+
   MatShift(D2_rho_n_beta, 1);
+
 
   // solve Mx = rhs
   // M = I - dt/(rho*n*beta)*D2
@@ -1006,10 +1036,10 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
   #endif
 
 
+    
     Vec pA;
     VecDuplicate(_p, &pA);
     mapToVec(pA, zzmms_pA1D, _z, time);
-
 
 
   if (stepCount==0) {
@@ -1135,6 +1165,7 @@ PetscErrorCode  PressureEq::measureMMSError(const double totRunTime)
 {
   Vec pA;
   VecDuplicate(_p, &pA);
+
   mapToVec(pA, zzmms_pA1D, _z, totRunTime);
 
   // writeVec(pA,_outputDir+"pA");
@@ -1201,13 +1232,14 @@ double PressureEq::zzmms_pSource1D(const double z, const double t)
   //~ PetscScalar n0 = 1;
   //~ PetscScalar k0 = 1;
 
-  PetscScalar beta0 = 1e-2;
-  PetscScalar eta0 = 1e-9;
+  PetscScalar beta0 = 10;
+  PetscScalar eta0 = 1e-12;
   PetscScalar n0 = 0.1;
   PetscScalar k0 = 1e-19;
 
   PetscScalar p_src = delta_p*(beta0*eta0*n0*omega*cos(omega*t) + k0*kz*kz*sin(omega*t))*sin(kz*z)/(beta0*eta0*n0); // correct
   //~ PetscScalar p_src = 0;
+
   return p_src;
 }
 

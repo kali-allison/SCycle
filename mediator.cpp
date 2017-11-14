@@ -674,6 +674,7 @@ PetscErrorCode Mediator::integrate_dyn()
 PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
+  // assert(0);
 
   // update fields based on varEx, varIm
   _momBal->updateFields(time,varEx);
@@ -745,8 +746,8 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // compute rates
   ierr = _momBal->d_dt(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    //~ _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
-    _p->d_dt(time,varEx,dvarEx);
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    // _p->d_dt(time,varEx,dvarEx);
   }
 
   // update shear stress on fault from momentum balance computation
