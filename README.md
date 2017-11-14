@@ -20,7 +20,7 @@
 
 - Fluid diffusion equation
 
-Variable: 
+**Variables:**
 
 n : porosity
 
@@ -33,7 +33,7 @@ eta : viscosity
 rho_f : density of fluid
 
 
-Values:
+**Values:**
 
 n=0.1
 
