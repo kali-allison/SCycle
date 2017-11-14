@@ -20,24 +20,28 @@
 
 - Fluid diffusion equation
 
-$n$ : porosity
+Variable: 
 
-$\beta$ : compressibility
+n : porosity
 
-$k$ : permeability
+beta : compressibility
 
-$\eta$ : viscosity (Pa$\cdot$s)
+k : permeability
 
-$\rho_f$ : density of fluid
+eta : viscosity (Pa$\cdot$s)
+
+rho_f : density of fluid
 
 
-$n=0.1$
+Values:
 
-$\beta =  10^{-8} \text{ Pa}^{-1} = 10 \text{ GPa}^{-1}$
+n=0.1
 
-$k = 10^{-13} \text{ m}^2 = 10^{-19} \text{ km}^2 \approx 100 \text{ md}$
+beta =  10^{-8} Pa^-1 = 10  GPa^{-1}
 
-$\eta = 10^{-3} \text{ Pa s} = 10^{-12} \text{ GPa s}$
+k = 10^{-13} m^2 = 10^{-19} km^2
 
-$\rho_f = 10^3 \text{ kg}/\text{m}^3 = 1 \text{ g}/\text{cm}^3$
+eta = 10^{-3} Pa s = 10^{-12} GPa s
+
+rho_f = 10^3 kg/m^3 = 1 g/cm^3
 
