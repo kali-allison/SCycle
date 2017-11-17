@@ -50,6 +50,8 @@ class MomBalContext
     PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 1D fields
     PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 2D fields
 
+    PetscErrorCode virtual getRhoVec(Vec& rho){return 1;}; // compute initial tauVisc
+
 };
 
 

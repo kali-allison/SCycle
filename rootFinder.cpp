@@ -138,6 +138,68 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
   return ierr;
 }
 
+PetscErrorCode Bisect::findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting bisect in rootFinder.cpp\n");
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
+#endif
+  if (select){
+  ierr = obj->getResid_dyn(ind,_left,&_fLeft);CHKERRQ(ierr);
+  ierr = obj->getResid_dyn(ind,_right,&_fRight);CHKERRQ(ierr);
+  }
+  else{
+    ierr = obj->getResid_aging(ind,_left,&_fLeft);CHKERRQ(ierr);
+    ierr = obj->getResid_aging(ind,_right,&_fRight);CHKERRQ(ierr);
+  }
+  assert(!isnan(_fLeft)); assert(!isnan(_fRight));
+  assert(!isinf(_fLeft)); assert(!isinf(_fRight));
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
+#endif
+
+  if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
+  else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
+
+  PetscInt numIts = 0;
+  while ( (numIts <= _maxNumIts) & (sqrt(_fMid*_fMid) >= _atol) ) {
+    _mid = (_left + _right)*0.5;
+    if(select){
+    ierr = obj->getResid_dyn(ind,_mid,&_fMid);CHKERRQ(ierr);
+    }
+    else{
+      ierr = obj->getResid_aging(ind,_mid,&_fMid);CHKERRQ(ierr);
+    }
+#if VERBOSE > 4
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
+                       ind,numIts,_left,_right,_mid,_fMid);CHKERRQ(ierr);
+#endif
+    if (_fLeft*_fMid <= 0) {
+      _right = _mid;
+      _fRight = _fMid;
+    }
+    else {
+      _left = _mid;
+      _fLeft = _fMid;
+    }
+   numIts++;
+  }
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
+                     numIts,_maxNumIts,_mid,_fMid);CHKERRQ(ierr);
+#endif
+
+  *out = _mid;
+  if (sqrt(_fMid*_fMid) > _atol) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
+    assert(sqrt(_fMid*_fMid) < _atol);
+    return 1;
+  }
+
+  return ierr;
+}
+
 
 PetscErrorCode Bisect::setBounds(PetscScalar left,PetscScalar right)
 {
@@ -192,7 +254,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting BracketedNewton::findRoot in rootFinder.cpp\n");
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
 #endif
 
   // check if initial input is the root

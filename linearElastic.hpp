@@ -102,6 +102,7 @@ class LinearElastic : public MomBalContext
 
     // for steady state computations
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
+    PetscErrorCode getRhoVec(Vec& rho); // compute initial tauVisc
     PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS

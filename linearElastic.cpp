@@ -878,9 +878,9 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::initiateIntegrand_dyn in linearElastic.cpp\n");CHKERRQ(ierr);
   #endif
-  // Vec slip;
-  // VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
-  // _varEx["slip"] = slip;
+  Vec slip;
+  VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
+  _varEx["slip"] = slip;
 
   Vec uPrevV;
   VecDuplicate(_u, &uPrevV); VecSet(uPrevV,0.);
@@ -939,20 +939,6 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
     VecRestoreArray(*_z,&zz);
     VecRestoreArray(_ay,&ay);
 
-     //~ for (Ii=Istart;Ii<Iend;Ii++) {
-       //~ PetscInt II[0];
-       //~ II[0] = Ii;
-       //~ VecGetValues(*_y, 1, II, yy);
-       //~ VecGetValues(*_z, 1, II, zz);
-       //~ ay=0;
-       //~ if (zz[0] == 0){ay[Jj] = -1.0 * alphaz;}
-       //~ if (zz[0] == _Lz){ay[Jj] = -1.0 * alphaz;}
-       //~ if (yy[0] == 0){ay[Jj] = -1.0 * alphay;}
-       //~ if (yy[0] == _Ly){ay[Jj] = -1.0 * alphay;}
-       //~ VecSetValues(_ay,1,&Ii,&ay,INSERT_VALUES);
-       //~ }
-     //~ VecAssemblyBegin(_ay);
-     //~ VecAssemblyEnd(_ay);
     ierr = VecPointwiseMult(_ay, _ay, _cs);
     //~ }
     _u = _varEx["u"];
@@ -1002,6 +988,29 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = VecAXPY(uNext, 1, previous);
   ierr = VecAXPY(correction, 2, ones);
   ierr = VecPointwiseDivide(uNext, uNext, correction);
+
+  PetscScalar *yy, *zz, *uu, *varExu;
+  PetscInt Ii,Istart,Iend;
+  PetscInt Jj = 0;
+  VecGetOwnershipRange(*_y,&Istart,&Iend);
+  VecGetArray(_u,&uu);
+  VecGetArray(*_y, &yy);
+  VecGetArray(*_z, &zz);
+  VecGetArray(uNext, &varExu);
+  Jj = 0;
+
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    if (yy[Jj] == 0){
+      varExu[Jj] = uu[Jj];
+      // PetscPrintf(PETSC_COMM_WORLD, "varEx u = %g", varExu[Jj]);
+    }
+    Jj++;
+  }
+  VecRestoreArray(*_y,&yy);
+  VecRestoreArray(*_z,&zz);
+  VecRestoreArray(_u,&uu);
+  VecRestoreArray(uNext, &varExu);
+
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
   VecDestroy(&uNext);
@@ -1009,26 +1018,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   VecDestroy(&correction);
   VecDestroy(&previous);
 
-  // PetscScalar *yy, *zz, *uu, *varExu;
-  // PetscInt Ii,Istart,Iend;
-  // PetscInt Jj = 0;
-  // VecGetOwnershipRange(*_y,&Istart,&Iend);
-  // VecGetArray(_u,&uu);
-  // VecGetArray(*_y, &yy);
-  // VecGetArray(*_z, &zz);
-  // VecGetArray(varEx["u"], &varExu);
-  // Jj = 0;
-
-  // for (Ii=Istart;Ii<Iend;Ii++) {
-  //   if (yy[Jj] == 0){varExu[Jj] = uu[Jj];}
-  //   Jj++;
-  // }
-  // VecRestoreArray(*_y,&yy);
-  // VecRestoreArray(*_z,&zz);
-  // VecRestoreArray(_u,&uu);
-  // VecRestoreArray(varEx["u"], &varExu);
-
-  // _u = varEx["u"];
+  _u = varEx["u"];
   // _u = _ay;
 
   PetscPrintf(PETSC_COMM_WORLD,"");
@@ -1036,6 +1026,10 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt_WaveEq in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
   return ierr;
+}
+
+PetscErrorCode LinearElastic::getRhoVec(Vec& rho){
+  rho = _rhoVec;
 }
 
 

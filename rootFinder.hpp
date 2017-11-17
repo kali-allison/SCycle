@@ -32,6 +32,7 @@ class RootFinder
 
     virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out) = 0;
     virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out) = 0;
+    virtual PetscErrorCode findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select) = 0;
     virtual PetscErrorCode setBounds(PetscScalar left,PetscScalar right) = 0;
 
     PetscInt getNumIts() const;
@@ -54,6 +55,7 @@ class Bisect : public RootFinder
 
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
+    PetscErrorCode findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select);
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
 };
 

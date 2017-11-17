@@ -103,7 +103,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
   // ierr = VecCopy(uNext, _var["u"])
 
   ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev);CHKERRQ(ierr); // write first step
-
+  
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     ierr = obj->d_dt_WaveEq(_currT,_var,_varPrev, _deltaT);CHKERRQ(ierr);
 

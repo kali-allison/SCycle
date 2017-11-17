@@ -1,10 +1,10 @@
 #======================================================================
 # domain
-order = 4
-Ny = 51
-Nz = 52
-Ly = 30 # km
-Lz = 40 # km
+order = 2
+Ny = 200
+Nz = 150
+Ly = 40 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
@@ -132,10 +132,10 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 5000
 initTime = 0
-maxTime = 8
-initDeltaT = 1e-3
+maxTime = 20
+initDeltaT = 5e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
@@ -146,6 +146,6 @@ timeIntInds = [psi slip]
 # write to laptop
 #outputDir = data/maxVisc1e16_
 
-outputDir = /scratch/kallison/test_
+outputDir = ./test_Maxime/test_
 
 

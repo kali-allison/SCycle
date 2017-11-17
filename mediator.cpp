@@ -202,7 +202,7 @@ PetscErrorCode Mediator::initiateIntegrand_dyn()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // _fault->initiateIntegrand(_initTime,_varEx);
+  _fault->initiateIntegrand(_initTime,_varEx);
   _momBal->initiateIntegrand_dyn(_initTime, _varEx);
 
   //~ if (_thermalCoupling.compare("no")!=0 ) {
@@ -704,8 +704,11 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT)
 {
   PetscErrorCode ierr = 0;
+  Vec _rhoVec;
+  VecDuplicate(_D->_y, &_rhoVec);
+  _momBal->getRhoVec(_rhoVec);
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
-  // ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT);
+  ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT,_rhoVec);CHKERRQ(ierr);
 
   return ierr;
 }
