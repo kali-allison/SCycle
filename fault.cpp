@@ -1015,7 +1015,7 @@ PetscErrorCode SymmFault::computeVel_dyn()
   #endif
 
   // constructing right boundary: right = abs(slip)
-  ierr = VecDuplicate(_slipVel, &right);
+  ierr = VecDuplicate(_Phi, &right);
   ierr = VecAbs(right);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -1030,7 +1030,7 @@ PetscErrorCode SymmFault::computeVel_dyn()
   for (Ii=Istart;Ii<Iend;Ii++) {
     leftVal = leftA[Jj];
     rightVal = rightA[Jj];
-    if (rightVal == 0){rightVal = 10.0;}
+    if (rightVal < 0){rightVal = -rightVal;}
 
     // check bounds
     if (isnan(leftVal)) {
@@ -1690,8 +1690,8 @@ for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(_an,1,&Ii,&an);CHKERRQ(ierr);
     ierr = VecGetValues(_slipVel,1,&Ii,&slip);CHKERRQ(ierr);
     ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
-    if (slip < 1e14){
-      uNew = 2 * u - uPrev + _deltaT / rho * an;
+    if (slip < 1e-14){
+      uNew = 2 * u - uPrev + _deltaT * _deltaT / rho * an;
       vel = 0;
     }
     else{
@@ -1700,7 +1700,7 @@ for (Ii=Istart;Ii<Iend;Ii++) {
       ierr = VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
       ierr = VecGetValues(_Phi,1,&Ii,&Phi);CHKERRQ(ierr);
       fric = (PetscScalar) a*sigma_N*asinh( (double) (slip/2./_v0)*exp(psi/a) );
-      alpha = 1 / (rho * alphay) * fric;
+      alpha = 1 / (rho * alphay) * fric / slip;
       A = 1 + alpha * _deltaT;
       uNew = (2*u + _deltaT * _deltaT / rho * an + (_deltaT*alpha-1)*uPrev) /  A;
       vel = Phi / (1 + _deltaT*alphay / rho * fric / slip);
