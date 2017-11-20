@@ -682,20 +682,6 @@ while (Jj < 4) {
   Vec slipVel = _quadEx->_dvar["slip"];
   PetscScalar maxSlipVel;
   VecMax(slipVel,NULL,&maxSlipVel);
-if (maxSlipVel < 1e6) {
-
-  // update temperature
-  {
-    Vec sxy=NULL,sxz=NULL,sdev = NULL;
-    _momBal->getStresses(sxy,sxz,sdev);
-    //~ Vec slipVel = _quadEx->_dvar["slip"];
-    Vec gVxy_t = _quadEx->_dvar["gVxy"];
-    Vec gVxz_t = _quadEx->_dvar["gVxz"];
-    //~ _he->computeSteadyStateTemp(_currTime,slipVel,_fault->_tauQSP,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
-    _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
-    _momBal->updateTemperature(_varSS["Temp"]);
-  }
-  delete _quadEx; _quadEx = NULL;
 
   // compute steady state conditions
   VecCopy(_fault->_tauQSP,_varSS["tau"]);
@@ -710,6 +696,19 @@ if (maxSlipVel < 1e6) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
 
+      // update temperature
+  {
+    Vec sxy=NULL,sxz=NULL,sdev = NULL;
+    _momBal->getStresses(sxy,sxz,sdev);
+    //~ Vec slipVel = _quadEx->_dvar["slip"];
+    Vec gVxy_t = _quadEx->_dvar["gVxy"];
+    Vec gVxz_t = _quadEx->_dvar["gVxz"];
+    //~ _he->computeSteadyStateTemp(_currTime,slipVel,_fault->_tauQSP,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+    _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+    _momBal->updateTemperature(_varSS["Temp"]);
+  }
+
+
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
     PetscScalar f = 0.5;
     VecScale(_varSS["effVisc"],f);
@@ -722,6 +721,7 @@ if (maxSlipVel < 1e6) {
     Ii++;
   }
   VecDestroy(&effVisc_old);
+delete _quadEx; _quadEx = NULL;
 
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
 
@@ -736,7 +736,6 @@ if (maxSlipVel < 1e6) {
   ierr = VecView(_varSS["effVisc"],_viewers["effVisc"]); CHKERRQ(ierr);
   ierr = VecView(_varSS["Temp"],_viewers["Temp"]); CHKERRQ(ierr);
   Jj++;
-  }
 }
 
   _integrateTime += MPI_Wtime() - startTime;
