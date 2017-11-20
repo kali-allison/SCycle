@@ -134,18 +134,14 @@ class HeatEquation
     PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage);
     PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode view();
-    PetscErrorCode writeDomain();
-    PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     static double zzmms_rho(const double y,const double z);
     static double zzmms_c(const double y,const double z);

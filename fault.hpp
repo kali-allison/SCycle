@@ -124,8 +124,9 @@ class Fault: public RootFinderContext
 
     // IO
     PetscErrorCode virtual view(const double totRunTime);
-    PetscErrorCode virtual writeContext() = 0;
+    PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
     PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time) = 0;
+    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir) = 0;
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
@@ -171,7 +172,8 @@ class SymmFault: public Fault
     PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode virtual writeContext();
+    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+    PetscErrorCode virtual writeContext(const std::string outputDir);
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);

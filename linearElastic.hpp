@@ -130,10 +130,11 @@ class LinearElastic : public MomBalContext
 
     // IO commands
     PetscErrorCode view(const double totRunTime);
-    PetscErrorCode writeContext();
+    PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
-
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
     static double zzmms_f(const double y,const double z);

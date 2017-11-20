@@ -147,10 +147,12 @@ class PowerLaw : public MomBalContext
 
     PetscErrorCode measureMMSError(const PetscScalar time);
 
-    PetscErrorCode writeDomain();
-    PetscErrorCode writeContext();
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode view(const double totRunTime);
 
 

@@ -1236,8 +1236,8 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   //~ ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
 
   //~ _sbp_eta->updateVarCoeff(_effVisc);
-  _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
-  ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
+  //~ _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
+  //~ ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
 
   delete _sbp_eta;
   initializeSSMatrices();
@@ -1266,16 +1266,16 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   // update effective viscosity
   ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
 
-  _viewers["v"] = initiateViewer(_outputDir + "SS_v");
-  ierr = VecView(varSS["v"],_viewers["v"]); CHKERRQ(ierr);
-  _viewers["gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
-  ierr = VecView(varSS["gVxy_t"],_viewers["gVxy_t"]); CHKERRQ(ierr);
-  _viewers["gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
-  ierr = VecView(varSS["gVxz_t"],_viewers["gVxz_t"]); CHKERRQ(ierr);
-  _viewers["sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-  _viewers["sxz"] = initiateViewer(_outputDir + "SS_sxz");
-  ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
+  //~ _viewers["v"] = initiateViewer(_outputDir + "SS_v");
+  //~ ierr = VecView(varSS["v"],_viewers["v"]); CHKERRQ(ierr);
+  //~ _viewers["gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
+  //~ ierr = VecView(varSS["gVxy_t"],_viewers["gVxy_t"]); CHKERRQ(ierr);
+  //~ _viewers["gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
+  //~ ierr = VecView(varSS["gVxz_t"],_viewers["gVxz_t"]); CHKERRQ(ierr);
+  //~ _viewers["sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  //~ ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+  //~ _viewers["sxz"] = initiateViewer(_outputDir + "SS_sxz");
+  //~ ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1301,7 +1301,6 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   VecCopy(varSS["v"],_u);
   VecScale(_u,time);
 
-  //~ LinearElastic::updateSSb(varSS); // update BCs based on u
   // extract boundary condition information from u
   Vec uL;
   PetscInt Istart,Iend;
@@ -1338,8 +1337,8 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   }
   VecDestroy(&uL);
 
-  _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
+  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;
   VecGetOwnershipRange(_sxy,&Istart,&Iend);
@@ -1366,10 +1365,10 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   VecRestoreArray(varSS["gVxy_t"],&gVxy_t);
   VecRestoreArray(varSS["gVxz_t"],&gVxz_t);
 
-  _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
-  ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
-  _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
-  ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
+  //~ _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
+  //~ ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
+  //~ _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
+  //~ ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1993,7 +1992,7 @@ PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 
 // Save all scalar fields to text file named pl_domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.
-PetscErrorCode PowerLaw::writeDomain()
+PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2003,7 +2002,7 @@ PetscErrorCode PowerLaw::writeDomain()
   #endif
 
   // output scalar fields
-  std::string str = _outputDir + "pl_context.txt";
+  std::string str = outputDir + "pl_context.txt";
   PetscViewer    viewer;
 
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
@@ -2034,7 +2033,7 @@ PetscErrorCode PowerLaw::writeDomain()
   return ierr;
 }
 
-PetscErrorCode PowerLaw::writeContext()
+PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2043,12 +2042,12 @@ PetscErrorCode PowerLaw::writeContext()
     CHKERRQ(ierr);
   #endif
 
-  writeDomain();
+  writeDomain(outputDir);
 
-  ierr = writeVec(_muVec,_outputDir + "mu"); CHKERRQ(ierr);
-  ierr = writeVec(_A,_outputDir + "powerLawA"); CHKERRQ(ierr);
-  ierr = writeVec(_QR,_outputDir + "powerLawB"); CHKERRQ(ierr);
-  ierr = writeVec(_n,_outputDir + "n"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  ierr = writeVec(_A,outputDir + "momBal_A"); CHKERRQ(ierr);
+  ierr = writeVec(_QR,outputDir + "momBal_QR"); CHKERRQ(ierr);
+  ierr = writeVec(_n,outputDir + "momBal_n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2058,7 +2057,7 @@ PetscErrorCode PowerLaw::writeContext()
 }
 
 
-PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2070,25 +2069,23 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
-  //~ LinearElastic::writeStep1D(stepCount,time);
-
   if (stepCount == 0) {
-    ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer(_outputDir + "surfDisp");
-    _viewers["bcL"] = initiateViewer(_outputDir + "bcL");
-    _viewers["bcR"] = initiateViewer(_outputDir + "bcR");
+    _viewers["surfDisp"] = initiateViewer(outputDir + "surfDisp");
+    _viewers["bcL"] = initiateViewer(outputDir + "bcL");
+    _viewers["bcR"] = initiateViewer(outputDir + "bcR");
 
     ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers["surfDisp"],_outputDir + "surfDisp");
-    ierr = appendViewer(_viewers["bcL"],_outputDir + "bcL");
-    ierr = appendViewer(_viewers["bcR"],_outputDir + "bcR");
+    ierr = appendViewer(_viewers["surfDisp"],outputDir + "surfDisp");
+    ierr = appendViewer(_viewers["bcL"],outputDir + "bcL");
+    ierr = appendViewer(_viewers["bcR"],outputDir + "bcR");
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
@@ -2106,7 +2103,7 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
 }
 
 
-PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2119,14 +2116,14 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
   //~ LinearElastic::writeStep2D(stepCount,time);
 
   if (stepCount == 0) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["u"] = initiateViewer(_outputDir + "u");
-    _viewers["sxy"] = initiateViewer(_outputDir + "sxy");
-    _viewers["gTxy"] = initiateViewer(_outputDir + "gTxy");
-    _viewers["gxy"] = initiateViewer(_outputDir + "gxy");
-    _viewers["effVisc"] = initiateViewer(_outputDir + "effVisc");
+    _viewers["u"] = initiateViewer(outputDir + "u");
+    _viewers["sxy"] = initiateViewer(outputDir + "sxy");
+    _viewers["gTxy"] = initiateViewer(outputDir + "gTxy");
+    _viewers["gxy"] = initiateViewer(outputDir + "gxy");
+    _viewers["effVisc"] = initiateViewer(outputDir + "effVisc");
 
     ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
@@ -2134,24 +2131,24 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
     ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
 
-    ierr = appendViewer(_viewers["u"],_outputDir + "u");
-    ierr = appendViewer(_viewers["sxy"],_outputDir + "sxy");
-    ierr = appendViewer(_viewers["gTxy"],_outputDir + "gTxy");
-    ierr = appendViewer(_viewers["gxy"],_outputDir + "gxy");
-    ierr = appendViewer(_viewers["effVisc"],_outputDir + "effVisc");
+    ierr = appendViewer(_viewers["u"],outputDir + "u");
+    ierr = appendViewer(_viewers["sxy"],outputDir + "sxy");
+    ierr = appendViewer(_viewers["gTxy"],outputDir + "gTxy");
+    ierr = appendViewer(_viewers["gxy"],outputDir + "gxy");
+    ierr = appendViewer(_viewers["effVisc"],outputDir + "effVisc");
 
     if (_Nz>1) {
-      _viewers["gTxz"] = initiateViewer(_outputDir + "gTxz");
-      _viewers["gxz"] = initiateViewer(_outputDir + "gxz");
-      _viewers["sxz"] = initiateViewer(_outputDir + "sxz");
+      _viewers["gTxz"] = initiateViewer(outputDir + "gTxz");
+      _viewers["gxz"] = initiateViewer(outputDir + "gxz");
+      _viewers["sxz"] = initiateViewer(outputDir + "sxz");
 
       ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
       ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
       ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
-      ierr = appendViewer(_viewers["gTxz"],_outputDir + "gTxz");
-      ierr = appendViewer(_viewers["gxz"],_outputDir + "gxz");
-      ierr = appendViewer(_viewers["sxz"],_outputDir + "sxz");
+      ierr = appendViewer(_viewers["gTxz"],outputDir + "gTxz");
+      ierr = appendViewer(_viewers["gxz"],outputDir + "gxz");
+      ierr = appendViewer(_viewers["sxz"],outputDir + "sxz");
     }
   }
   else {

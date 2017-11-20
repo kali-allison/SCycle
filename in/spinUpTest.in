@@ -4,7 +4,7 @@ order = 4
 Ny = 201
 Nz = 202
 Ly = 30 # km
-Lz = 40 # km
+Lz = 25 # km
 vL = 1e-9    # (m/s)
 
 # symmetric or general
@@ -16,15 +16,15 @@ bulkDeformationType = powerLaw
 momBalType = static
 
 # coordinate transformation
-bCoordTrans = 8.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
 #======================================================================
 # linear systems
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/l0.8_
-loadICs = 1
+#inputDir = /data/dunham/kallison/eqcycle/inputData/g25SS_l0.4_
+loadICs = 0
 bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -68,8 +68,8 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-#sigmaNVals = [50 50] # (MPa) constant
-#sigmaNDepths = [0 60] #(km) constant
+sigmaNVals = [50 50] # (MPa) constant
+sigmaNDepths = [0 60] #(km) constant
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
@@ -80,12 +80,14 @@ bDepths = [0 10 11 19.3333 60]
 #sigmaNVals = [0 668.5] # lambda = 0.5
 #sigmaNVals = [0 534.8] # lambda = 0.6
 #sigmaNVals = [0 401.1] # lambda = 0.7
-sigmaNVals = [0 267.4] # lambda = 0.8
-sigmaNDepths = [0 60]
-sigmaN_floor = 5.5; # MPa
+#sigmaNVals = [0 267.4] # lambda = 0.8
+#sigmaNDepths = [0 60]
+#sigmaN_floor = 5.5; # MPa
 
-stateLaw = agingLaw
-v0 = 1e-6
+# state variable law: agingLaw, slipLaw, flashHeating, constantState
+stateLaw = constantState
+#v0 = 1e-6
+v0 = 1e-9
 f0 = 0.6
 
 
@@ -119,17 +121,18 @@ rhoDepths = [0 60]
 
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
+#TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
-TDepths = [0 50]
-#TVals = [800 1000]
-#TDepths = [0 30]
+#TDepths = [0 50]
+TVals = [500 1000]
+TDepths = [0 25]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
-heatEquationType = transient
+heatEquationType = steadyState
 thermalCoupling = coupled
 withShearHeating = yes
 withFrictionalHeating = no
+heatCouplingStride = 1e5
 
 
 #viscDistribution = loadFromFile
@@ -140,11 +143,11 @@ maxEffViscSS = 1e23
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = IMEX
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 100
+stride2D = 100
+maxStepCount = 1e4
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -152,6 +155,7 @@ minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-8
 timeIntInds = [psi slip]
+#timeIntInds = [slip]
 #timeIntInds = [gVxy gVxz]
 
 
@@ -160,16 +164,17 @@ timeIntInds = [psi slip]
 
 #outputDir = /scratch/kallison/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/test_
-#outputDir = /data/dunham/kallison/eqcycle/data/g30_
+
+#outputDir = /scratch/kallison/test/g25_v0_
+#outputDir = /scratch/kallison/test/g25_v1_
+
+outputDir = /scratch/kallison/test/itTau_
 
 
-outputDir = /scratch/kallison/heCont/test_
+#outputDir = /scratch/kallison/viscShearHeat/g25_s1e1_Ny101_Nz101_
+#outputDir = /scratch/kallison/viscShearHeat/g25_s1e4_Ny151_Nz101_
+#outputDir = /scratch/kallison/viscShearHeat/g25_s5e4_Ny151_Nz101_
+#outputDir = /scratch/kallison/viscShearHeat/g25_s1e5_Ny151_Nz101_
+#outputDir = /scratch/kallison/viscShearHeat/g25_s5e5_Ny151_Nz101_
 
-
-
-#outputDir = /scratch/kallison/he/g25t_l0.8_
-#outputDir = /scratch/kallison/he/g25t_l0.7_
-#outputDir = /scratch/kallison/he/g25t_l0.6_
-#outputDir = /scratch/kallison/he/g25t_l0.5_
-#outputDir = /scratch/kallison/he/g25t_l0.4_
 

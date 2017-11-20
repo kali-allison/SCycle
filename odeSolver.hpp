@@ -53,7 +53,7 @@
 
 class OdeSolver
 {
-  protected:
+  public:
 
     PetscReal               _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
@@ -63,7 +63,7 @@ class OdeSolver
     double                  _runTime;
     string                  _controlType;
 
-  public:
+  //~ public:
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
