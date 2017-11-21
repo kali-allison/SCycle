@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 202
+Ny = 101
+Nz = 102
 Ly = 30 # km
 Lz = 25 # km
 vL = 1e-9    # (m/s)
@@ -121,10 +121,10 @@ rhoDepths = [0 60]
 
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
+TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
 #TDepths = [0 50]
-TVals = [500 1000]
+#TVals = [400 1000]
 TDepths = [0 25]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
@@ -137,30 +137,30 @@ heatCouplingStride = 1e5
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 1e30
-maxEffViscSS = 1e23
+maxEffVisc = 1e25
+maxEffViscSS = 1e18
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100
-stride2D = 100
-maxStepCount = 1e4
+stride1D = 10
+stride2D = 10
+maxStepCount = 1000
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-8
+atol = 1e-3
 timeIntInds = [psi slip]
 #timeIntInds = [slip]
 #timeIntInds = [gVxy gVxz]
 
 
 # write to laptop
-#outputDir = data/test_
+outputDir = data/test_
 
 #outputDir = /scratch/kallison/test_
 #outputDir = /data/dunham/kallison/eqcycle/data/test_
@@ -168,7 +168,7 @@ timeIntInds = [psi slip]
 #outputDir = /scratch/kallison/test/g25_v0_
 #outputDir = /scratch/kallison/test/g25_v1_
 
-outputDir = /scratch/kallison/test/itTau_
+#outputDir = /scratch/kallison/test/itTau_
 
 
 #outputDir = /scratch/kallison/viscShearHeat/g25_s1e1_Ny101_Nz101_

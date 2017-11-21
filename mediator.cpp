@@ -386,13 +386,13 @@ PetscErrorCode Mediator::solveSS()
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
   double err = 1e10;
   int Ii = 0;
-  //~ //while (Ii < 10 && err > 1e-3) {
-  while (Ii < 10 ) {
+  while (Ii < 20 && err > 1e-3) {
+  //~ while (Ii < 10 ) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
 
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-    PetscScalar f = 0.5;
+    PetscScalar f = 0.25;
     VecScale(_varSS["effVisc"],f);
     VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
 
@@ -410,6 +410,11 @@ PetscErrorCode Mediator::solveSS()
   Vec sxy,sxz,sdev;
   ierr = _momBal->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+
+  _viewers["solveSS_effVisc"] = initiateViewer(_outputDir + "solveSS_effVisc");
+  ierr = VecView(_varSS["effVisc"],_viewers["solveSS_effVisc"]); CHKERRQ(ierr);
+  _viewers["solveSS_sxy"] = initiateViewer(_outputDir + "solveSS_sxy");
+  ierr = VecView(sxy,_viewers["solveSS_sxy"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -915,7 +920,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   // heat equation
   if (_stepCount % _heatCouplingStride == 0 && varIm.find("Temp") != varIm.end()) {
   //~ if (varIm.find("Temp") != varIm.end()) {
-    PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
     Vec sxy=NULL,sxz=NULL,sdev = NULL;
     _momBal->getStresses(sxy,sxz,sdev);
     ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,

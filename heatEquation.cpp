@@ -1311,7 +1311,9 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbpT = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    _sbpT->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbpT->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbpT->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbpT->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1355,7 +1357,9 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbpT = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    _sbpT->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbpT->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbpT->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbpT->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");

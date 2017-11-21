@@ -328,6 +328,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     VecSet(_sNEff,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
     VecSet(_cohesion,_cohesionVals[0]);
+    VecSet(_zP,_impedanceVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
@@ -349,7 +350,6 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   //~ VecWAXPY(_sN,1.0,_p,_sNEff);
   VecDuplicate(_sNEff,&_sN);
   VecCopy(_sNEff,_sN);
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -861,7 +861,6 @@ PetscErrorCode SymmFault::computeVel()
   //~ ierr = VecAXPY(right,-1.0,_cohesion);CHKERRQ(ierr); // add effect of cohesion!
   ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
 
-
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
 
@@ -991,6 +990,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv); CHKERRQ(ierr);
   //~ ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   //~ ierr = VecLoad(_zP,inv);CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1392,6 +1392,7 @@ PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& va
 // }
 // VecRestoreArray(_psi,&psiA);
 // VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
+return ierr;
 }
 
 

@@ -56,6 +56,7 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
 
   setSurfDisp();
 
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
 #endif
@@ -608,7 +609,9 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -617,7 +620,6 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
-
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
