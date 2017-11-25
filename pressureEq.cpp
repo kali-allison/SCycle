@@ -7,7 +7,7 @@ using namespace std;
 PressureEq::PressureEq(Domain&D)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"),
-  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),_M(NULL),
+  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType(D._sbpType),_linSolveCount(0),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
@@ -873,8 +873,15 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   VecDestroy(&rhog);
   VecDestroy(&rhog_y);
   VecDestroy(&rhs);
+  VecDestroy(&rho_n_beta);
   VecDestroy(&source);
   VecDestroy(&Hxsource);
+  VecDestroy(&Hxp);
+
+  // MatDestroy(&D2);
+  // MatDestroy(&H);
+  MatDestroy(&Diag_rho_n_beta);
+  MatDestroy(&D2_rho_n_beta);
 
 
   #if VERBOSE > 1
@@ -893,39 +900,24 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
     CHKERRQ(ierr);
   #endif
 
-  // Vec rhog, rhog_y;
-  // VecDuplicate(_p, &rhog);
-  // VecSet(rhog, _g);
-  // VecPointwiseMult(rhog, rhog, _rho_f);
-  // VecPointwiseMult(rhog, rhog, _rho_f);
-  // VecPointwiseMult(rhog, rhog, _k_p);
-  // VecPointwiseDivide(rhog, rhog, _eta_p);
-  // VecDuplicate(_p, &rhog_y);
-  // _sbp->Dz(rhog,rhog_y);
-
   Mat D2;
   _sbp->getA(D2);
   Mat H;
   _sbp->getH(H);
-  // MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &I);
-  // Vec tmp;
-  // VecDuplicate(_p, &tmp);
-  // VecSet(tmp, 1);
-  // MatDiagonalSet(I, tmp, INSERT_VALUES);
 
   // set up boundary terms
   Vec rhs;
   VecDuplicate(_p, &rhs);
-  _sbp->setRhs(rhs,_bcL,_bcL,_bcT,_bcB);
+  _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
 
   // VecDestroy(&rhoCV);
 
   Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
   VecDuplicate(_p, &rho_n_beta);
   VecSet(rho_n_beta, 1);
-  VecPointwiseDivide(rho_n_beta,rho_n_beta,_rho_f);
-  VecPointwiseDivide(rho_n_beta,rho_n_beta,_n_p);
-  VecPointwiseDivide(rho_n_beta,rho_n_beta,_beta_p);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
   Mat Diag_rho_n_beta;
   MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
@@ -938,23 +930,6 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
 
   // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
   MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
-
-
-
-  // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2
-  // rhs = p - dt/(rho*n*beta) * D1(k/eta*rho^2*g) + dt*1/(rho*n*beta) * SAT
-
-  // // ensure diagonal has been allocated, even if 0
-  // PetscScalar v=0.0;
-  // PetscInt Ii,Istart,Iend=0;
-  // MatGetOwnershipRange(_D2divRhoC,&Istart,&Iend);
-  // for (Ii = Istart; Ii < Iend; Ii++) {
-  //   MatSetValues(_D2divRhoC,1,&Ii,1,&Ii,&v,ADD_VALUES);
-  // }
-  // MatAssemblyBegin(_D2divRhoC,MAT_FINAL_ASSEMBLY);
-  // MatAssemblyEnd(_D2divRhoC,MAT_FINAL_ASSEMBLY);
-  // MatConvert(_D2divRhoC,MATSAME,MAT_INITIAL_MATRIX,&_A);
 
   setupKSP(D2_rho_n_beta);
 

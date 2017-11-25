@@ -41,7 +41,7 @@ class PressureEq
     int                  _linSolveCount;
     Vec                  _bcL,_bcT,_bcB;
     Vec                  _p_t;
-    Mat                  _M;
+    // Mat                  _M;
 
 
     // input fields
