@@ -995,7 +995,7 @@ PetscErrorCode PressureEq::view(const double totRunTime)
 
 
 // extends SymmFault's writeContext
-PetscErrorCode PressureEq::writeContext()
+PetscErrorCode PressureEq::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1003,12 +1003,12 @@ PetscErrorCode PressureEq::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  ierr = _sbp->writeOps(_outputDir + "ops_p_"); CHKERRQ(ierr);
+  ierr = _sbp->writeOps(outputDir + "ops_p_"); CHKERRQ(ierr);
 
   PetscViewer    viewer;
 
   // write out scalar info
-  std::string str = _outputDir + "p_context.txt";
+  std::string str = outputDir + "p_context.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -1019,11 +1019,11 @@ PetscErrorCode PressureEq::writeContext()
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
   //~ PetscErrorCode writeVec(Vec vec,std::string str)
-  ierr = writeVec(_n_p,_outputDir + "p_n"); CHKERRQ(ierr);
-  ierr = writeVec(_beta_p,_outputDir + "p_beta"); CHKERRQ(ierr);
-  ierr = writeVec(_k_p,_outputDir + "p_k"); CHKERRQ(ierr);
-  ierr = writeVec(_eta_p,_outputDir + "p_eta"); CHKERRQ(ierr);
-  ierr = writeVec(_rho_f,_outputDir + "p_rho_f"); CHKERRQ(ierr);
+  ierr = writeVec(_n_p,outputDir + "p_n"); CHKERRQ(ierr);
+  ierr = writeVec(_beta_p,outputDir + "p_beta"); CHKERRQ(ierr);
+  ierr = writeVec(_k_p,outputDir + "p_k"); CHKERRQ(ierr);
+  ierr = writeVec(_eta_p,outputDir + "p_eta"); CHKERRQ(ierr);
+  ierr = writeVec(_rho_f,outputDir + "p_rho_f"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1043,6 +1043,23 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
 
 
     
+    writeStep(stepCount,time,_outputDir);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::writeStep";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
+  #endif
+
+
     Vec pA;
     VecDuplicate(_p, &pA);
     mapToVec(pA, zzmms_pA1D, _z, time);

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N g30_l0.8
+#PBS -N itTau
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/g30_l0.8.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/g30_l0.8.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/itTau.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/itTau.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
@@ -21,6 +21,8 @@ cd $PBS_O_WORKDIR
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he.in
 
 mpirun $EXEC_DIR/main $INIT_DIR/spinUpTest.in
+#~ mpirun $EXEC_DIR/main $INIT_DIR/flashHeating.in
+
 #~ mpirun $EXEC_DIR/main $INIT_DIR/basin.in
 
 #~ mpirun $EXEC_DIR/main $INIT_DIR/he2D.in

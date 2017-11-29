@@ -4,6 +4,7 @@
 #include <petscksp.h>
 #include <string>
 #include <cmath>
+#include <stdio.h>
 #include <assert.h>
 #include <vector>
 #include <map>
@@ -54,6 +55,7 @@ private:
     std::string          _momBalType; // "dynamic", "static"
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    int                  _heatCouplingStride;
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -112,6 +114,7 @@ private:
     PetscErrorCode solveSS(); // assume bcL is correct and do 1 linear solve
     PetscErrorCode solveSS_v2(); // iterate for eff visc etc
     PetscErrorCode writeSS(const int Ii);
+    PetscErrorCode integrate_SS();
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

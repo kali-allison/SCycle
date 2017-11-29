@@ -46,9 +46,9 @@ class MomBalContext
 
     // IO commands
     PetscErrorCode virtual view(const double totRunTime) = 0;
-    PetscErrorCode virtual writeContext() = 0;
-    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 1D fields
-    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 2D fields
+    PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
+    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir) = 0; // write out 1D fields
+    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir) = 0; // write out 2D fields
 
 };
 

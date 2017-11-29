@@ -472,6 +472,11 @@ PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
 
   _sbp->muxDy(_u,_sxy); // initialize for shear stress
 
+  //~ _viewers["SS_ua"] = initiateViewer(_outputDir + "SS_ua");
+  //~ ierr = VecView(_u,_viewers["SS_ua"]); CHKERRQ(ierr);
+  //~ _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  //~ ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -492,13 +497,20 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   VecDuplicate(_bcL,&uL);
   PetscScalar minVal = 0;
   VecMin(_u,NULL,&minVal);
+  if (minVal < 0) { minVal = abs(minVal); }
+
+  Vec temp;
+  VecDuplicate(_u,&temp);
+  VecSet(temp,minVal);
+  VecAXPY(_u,1.,temp);
+  VecDestroy(&temp);
+
   PetscScalar v = 0.0;
   ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     // extract left boundary info for bcL
     if ( Ii < _Nz ) {
       ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-      v = v + abs(minVal);
       ierr = VecSetValues(uL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
@@ -507,7 +519,6 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
       PetscInt zI =  Ii - (_Ny*_Nz - _Nz);
       //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
       ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-      v = v + abs(minVal);
       ierr = VecSetValues(_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -520,13 +531,14 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   if (!_bcLTauQS) {
     VecCopy(uL,_bcL);
   }
+
+  _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+  ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
+
+  _viewers["SS_uL"] = initiateViewer(_outputDir + "SS_uL");
+  ierr = VecView(uL,_viewers["SS_uL"]); CHKERRQ(ierr);
+
   VecDestroy(&uL);
-
-
-  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -553,13 +565,14 @@ PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
     ierr = loadVecFromInputFile(out,_inputDir,"slip"); CHKERRQ(ierr);
   }
   else {
-    PetscScalar minVal = 0;
-    VecMin(_u,NULL,&minVal);
+    //~ PetscScalar minVal = 0;
+    //~ VecMin(_u,NULL,&minVal);
     ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
     for (Ii=Istart;Ii<Iend;Ii++) {
       if (Ii<_Nz) {
         ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-        v = 2. * (v + abs(minVal));
+        //~ v = 2. * (v + abs(minVal));
+        v = 2. * v;
         ierr = VecSetValues(out,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
       }
     }
@@ -667,7 +680,7 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   return ierr;
 }
 
-PetscErrorCode LinearElastic::writeContext()
+PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -678,7 +691,7 @@ PetscErrorCode LinearElastic::writeContext()
   PetscViewer    viewer;
 
   // write out scalar info
-  std::string str = _outputDir + "linEl_context.txt";
+  std::string str = outputDir + "momBal_context.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -693,7 +706,7 @@ PetscErrorCode LinearElastic::writeContext()
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
 
-  ierr = writeVec(_muVec,_outputDir + "mu"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,outputDir + "momBal_mu"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -702,7 +715,7 @@ PetscErrorCode LinearElastic::writeContext()
 }
 
 
-PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep1D";
@@ -715,14 +728,14 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
-    ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer(_outputDir + "surfDisp");
-    _viewers["bcL"] = initiateViewer(_outputDir + "bcL");
-    _viewers["bcR"] = initiateViewer(_outputDir + "bcR");
+    _viewers["surfDisp"] = initiateViewer(outputDir + "surfDisp");
+    _viewers["bcL"] = initiateViewer(outputDir + "bcL");
+    _viewers["bcR"] = initiateViewer(outputDir + "bcR");
 
     ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
@@ -749,7 +762,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
 
 
-PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep2D";
@@ -762,17 +775,17 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
 
   if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["u"] = initiateViewer(_outputDir + "u");
-    _viewers["sxy"] = initiateViewer(_outputDir + "sxy");
+    _viewers["u"] = initiateViewer(outputDir + "u");
+    _viewers["sxy"] = initiateViewer(outputDir + "sxy");
 
     ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
 
     ierr = appendViewer(_viewers["u"],_outputDir + "u");
-    ierr = appendViewer(_viewers["sxy"],_outputDir + "sxy");
+    ierr = appendViewer(_viewers["sxy"],outputDir + "sxy");
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
