@@ -933,6 +933,8 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
 
   setupKSP(D2_rho_n_beta);
 
+  VecDestroy(&rhs);
+
 #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);

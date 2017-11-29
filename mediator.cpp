@@ -795,9 +795,9 @@ PetscErrorCode Mediator::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  _momBal->measureMMSError(_currTime);
+  // _momBal->measureMMSError(_currTime);
   //~ _he->measureMMSError(_currTime);
-  //~ _p->measureMMSError(_currTime);
+  _p->measureMMSError(_currTime);
 
   return ierr;
 }
