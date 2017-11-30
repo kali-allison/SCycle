@@ -43,7 +43,8 @@ Mediator::Mediator(Domain&D)
     _p = new PressureEq(D);
   }
   if (_hydraulicCoupling.compare("coupled")==0) {
-    _fault->setSN(_p->_p);
+    assert(0);
+    _fault->setSNEff(_p->_p);
   }
 
   // initiate momentum balance equation
@@ -852,7 +853,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   Vec sxy,sxz,sdev;
   ierr = _momBal->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
+  if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -923,7 +924,7 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
     //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
     Vec sxy=NULL,sxz=NULL,sdev = NULL;
     _momBal->getStresses(sxy,sxz,sdev);
-    ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauQSP,
+    ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauP,
       dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
       sdev,varIm["Temp"],varImo.find("Temp")->second,dt);CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt

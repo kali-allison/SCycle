@@ -90,7 +90,8 @@ class HeatEquation
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
     PetscErrorCode setUpTransientProblem(Domain& D);
     PetscErrorCode setBCsforBE();
-    PetscErrorCode computeShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeViscousShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeFrictionalShearHeating(Vec& shearHeat,const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();
@@ -100,7 +101,7 @@ class HeatEquation
 
     Vec _dT; // actually change in temperature
     Vec _T0; // initial temperature
-    Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
+    Vec _k,_rho,_c,_h,_w;  // thermal conductivity, density, heat capacity, radioactive heat generation, shear zone width (km)
 
     HeatEquation(Domain& D);
     ~HeatEquation();

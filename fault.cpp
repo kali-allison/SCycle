@@ -314,7 +314,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
-  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
+  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion");
+  VecDuplicate(_tauQSP,&_sN); PetscObjectSetName((PetscObject) _sN, "sN");
   VecSet(_cohesion,0);
 
   // set depth-independent fields
@@ -325,7 +326,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
-    VecSet(_sNEff,_sigmaNVals[0]);
+    //~ VecSet(_sNEff,_sigmaNVals[0]);
+    VecSet(_sN,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
     VecSet(_cohesion,_cohesionVals[0]);
     VecSet(_zP,_impedanceVals[0]);
@@ -333,7 +335,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    //~ ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
@@ -341,15 +344,13 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
   // impose floor and ceiling on effective normal stress
   {
-    Vec temp; VecDuplicate(_sNEff,&temp);
-    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
-    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    Vec temp; VecDuplicate(_sN,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sN,_sN,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sN,_sN,temp);
     VecDestroy(&temp);
   }
 
-  //~ VecWAXPY(_sN,1.0,_p,_sNEff);
-  VecDuplicate(_sNEff,&_sN);
-  VecCopy(_sNEff,_sN);
+  VecCopy(_sN,_sNEff);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -679,8 +680,8 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
 
-  PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
-  //~ PetscScalar Vw = _Vw;
+  //~ PetscScalar Vw = (M_PI*ath/_D) * pow(rc*(_Tw-T)/_tau_c,2);
+  PetscScalar Vw = _Vw;
 
   if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*(Vw/slipVel); }
   //~ if (a-b > 0.0) { fss = fLV; }
@@ -1136,7 +1137,7 @@ PetscErrorCode SymmFault::setSNEff(const Vec& p)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-  //~ ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+  ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1
@@ -1475,7 +1476,10 @@ _computeVelTime += MPI_Wtime() - startTime;
   VecRestoreArray(_psi,&psiA);
   VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
 
-  //~ dvarEx["tau"] = _tauQSP;
+  // set tauP = tauQS - z/2 *slipVel
+  VecCopy(_slipVel,_tauP);
+  VecPointwiseMult(_tauP,_zP,_tauP);
+  VecAYPX(_tauP,-0.5,_tauQSP);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
