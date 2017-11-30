@@ -39,6 +39,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecDuplicate(_tauQSP,&_dTheta);  PetscObjectSetName((PetscObject) _dTheta, "dTheta"); VecSet(_dTheta,0.0);
   VecDuplicate(_tauQSP,&_slip);    PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "slipVel");
+
   VecSet(_slipVel,0.0);
 
 
@@ -315,6 +316,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
   VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
+  VecDuplicate(_tauQSP,&_sN);      PetscObjectSetName((PetscObject) _sN, "sN");
   VecSet(_cohesion,0);
 
   // set depth-independent fields
@@ -325,14 +327,14 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   if (_N == 1) {
     VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
-    VecSet(_sNEff,_sigmaNVals[0]);
+    VecSet(_sN,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
     VecSet(_cohesion,_cohesionVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
@@ -347,8 +349,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   }
 
   //~ VecWAXPY(_sN,1.0,_p,_sNEff);
-  VecDuplicate(_sNEff,&_sN);
-  VecCopy(_sNEff,_sN);
+  // VecDuplicate(_sNEff,&_sN);
+  VecCopy(_sN, _sNEff);
 
 
   #if VERBOSE > 1
@@ -1109,7 +1111,8 @@ PetscErrorCode SymmFault::getTau(Vec& tau)
 }
 
 // use pore pressure to compute total normal stress
-// sNEff = sN - rho*g*z - dp
+// sNEff = sN - rho*g*z - dp 
+// sNEff sigma Normal effective
 PetscErrorCode SymmFault::setSN(const Vec& p)
 {
   PetscErrorCode ierr = 0;
@@ -1136,7 +1139,9 @@ PetscErrorCode SymmFault::setSNEff(const Vec& p)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-  //~ ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+
+  ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+  assert(0);
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1

@@ -43,7 +43,8 @@ Mediator::Mediator(Domain&D)
     _p = new PressureEq(D);
   }
   if (_hydraulicCoupling.compare("coupled")==0) {
-    _fault->setSN(_p->_p);
+    // assert(0);
+    _fault->setSNEff(_p->_p);
   }
 
   // initiate momentum balance equation
@@ -176,7 +177,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ if (!_loadICs) { solveSS(); }
+  // if (!_loadICs) { solveSS(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -830,7 +831,6 @@ PetscErrorCode Mediator::integrate_dyn()
 PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
-  // assert(0);
 
   // update fields based on varEx, varIm
   _momBal->updateFields(time,varEx);
@@ -849,7 +849,9 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   Vec sxy,sxz,sdev;
   ierr = _momBal->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
-  if (_hydraulicCoupling.compare("coupled")!=0) { _fault->setSNEff(_p->_p); }
+
+  if (_hydraulicCoupling.compare("coupled")==0) { 
+    _fault->setSNEff(_p->_p); }
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state

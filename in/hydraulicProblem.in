@@ -68,8 +68,8 @@ sigmaNDepths = [0 0.25 60]
 #======================================================================
 # hydraulic fault inputs
 #hydraulicCoupling = no
-hydraulicCoupling = uncoupled
-#hydraulicCoupling = coupled
+#hydraulicCoupling = uncoupled
+hydraulicCoupling = coupled
 
 #hydraulicTimeIntType = explicit
 hydraulicTimeIntType = implicit
