@@ -535,7 +535,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       #if ODEPRINT > 0
         ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
       #endif
-      if (totErr<_atol) { break; } // !!!orig
+      if (totErr<_atol) { break; }
       _deltaT = computeStepSize(totErr);
       if (_minDeltaT == _deltaT) { break; }
 
@@ -557,6 +557,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     }
 
     ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+
+    if (_stepCount > 5) {PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); break; }
   }
 
   _runTime += MPI_Wtime() - startTime;

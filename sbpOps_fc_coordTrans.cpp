@@ -352,7 +352,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
   ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES); CHKERRQ(ierr);
 
-  // J = yq * zr, J-1
+  // J = yq * zr, J^-1
   ierr = MatMatMult(_yq,_zr,MAT_INITIAL_MATRIX,1.,&_J); CHKERRQ(ierr);
   ierr = MatMatMult(_qy,_rz,MAT_INITIAL_MATRIX,1.,&_Jinv); CHKERRQ(ierr);
 

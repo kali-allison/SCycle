@@ -768,7 +768,7 @@ SymmFault::SymmFault(Domain&D, HeatEquation& He)
   setSplitNodeFields();
 
   Vec Temp;
-  VecDuplicate(He._T0,&Temp);
+  VecDuplicate(He._Tamb,&Temp);
   He.getTemp(Temp);
   setTemp(Temp);
   VecDestroy(&Temp);

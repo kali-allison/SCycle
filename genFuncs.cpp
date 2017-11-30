@@ -241,7 +241,7 @@ double computeNorm_Mat(const Mat& mat,const Vec& vec)
 }
 
 
-// computes || vec1 - vec2 ||_2
+// computes || vec1 - vec2 ||_2 / sqrt(length(vec1))
 double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
 {
   PetscErrorCode ierr = 0;
@@ -257,6 +257,28 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
   ierr = VecGetSize(vec1,&len);CHKERRQ(ierr);
 
   err = err/sqrt(len);
+
+  VecDestroy(&diff);
+
+  return err;
+}
+
+// computes || vec1 - vec2 ||_2 / || vec1 ||_2
+double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+
+  PetscScalar len;
+  ierr = VecNorm(vec1,NORM_2,&len);CHKERRQ(ierr);
+
+  err = err/len;
 
   VecDestroy(&diff);
 

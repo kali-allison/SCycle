@@ -75,6 +75,7 @@ PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm);
 // vector norms
 double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2);
 double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
+double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2);
 double computeNorm_Mat(const Mat& mat,const Vec& vec);
 
 // functions to make computing the energy much easier

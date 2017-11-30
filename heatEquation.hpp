@@ -69,8 +69,8 @@ class HeatEquation
     PetscScalar          _kspTol;
     KSP                  _ksp;
     PC                   _pc;
-    Mat                  _I,_rhoC,_A,_pcMat; // intermediates for Backward Euler
-    Mat                  _D2divRhoC;
+    Mat                  _I,_rcInv,_B,_pcMat; // intermediates for Backward Euler
+    Mat                  _D2ath;
 
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
@@ -100,7 +100,7 @@ class HeatEquation
   public:
 
     Vec _dT; // actually change in temperature
-    Vec _T0; // initial temperature
+    Vec _Tamb; // initial temperature
     Vec _k,_rho,_c,_h,_w;  // thermal conductivity, density, heat capacity, radioactive heat generation, shear zone width (km)
 
     HeatEquation(Domain& D);

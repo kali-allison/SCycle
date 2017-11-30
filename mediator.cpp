@@ -43,7 +43,6 @@ Mediator::Mediator(Domain&D)
     _p = new PressureEq(D);
   }
   if (_hydraulicCoupling.compare("coupled")==0) {
-    assert(0);
     _fault->setSNEff(_p->_p);
   }
 
@@ -399,7 +398,7 @@ PetscErrorCode Mediator::solveSS()
 
     PetscScalar len;
     VecNorm(effVisc_old,NORM_2,&len);
-    err = computeNormDiff_2(effVisc_old,_varSS["effVisc"]) / len * sqrt(_D->_Ny*_D->_Nz);
+    err = computeNormDiff_L2_scaleL2(effVisc_old,_varSS["effVisc"]);
     PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
     Ii++;
   }
@@ -891,14 +890,14 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update temperature in momBal
-  if (_stepCount % _heatCouplingStride == 0 && varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-  //~ if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+  //~ if (_stepCount % _heatCouplingStride == 0 && varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _momBal->updateTemperature(varImo.find("Temp")->second);
     _fault->setTemp(varImo.find("Temp")->second);
   }
 
   // update effective normal stress in fault using pore pressure
-  if (_hydraulicCoupling.compare("coupled")!=0) {
+  if (_hydraulicCoupling.compare("coupled")==0) {
     _fault->setSNEff(_p->_p);
   }
 
@@ -910,7 +909,6 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update shear stress on fault from momentum balance computation
-  //~ ierr = _fault->setTauQS(_momBal->_sxy,_momBal->_sxz); CHKERRQ(ierr);
   Vec sxy,sxz,sdev;
   ierr = _momBal->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
@@ -919,14 +917,17 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   // heat equation
-  if (_stepCount % _heatCouplingStride == 0 && varIm.find("Temp") != varIm.end()) {
-  //~ if (varIm.find("Temp") != varIm.end()) {
+  //~ if (_stepCount % _heatCouplingStride == 0 && varIm.find("Temp") != varIm.end()) {
+  if (varIm.find("Temp") != varIm.end()) {
     //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
-    Vec sxy=NULL,sxz=NULL,sdev = NULL;
+    Vec sxy,sxz,sdev;
     _momBal->getStresses(sxy,sxz,sdev);
-    ierr =  _he->be(time,dvarEx.find("slip")->second,_fault->_tauP,
-      dvarEx.find("gVxy")->second,dvarEx.find("gVxz")->second,
-      sdev,varIm["Temp"],varImo.find("Temp")->second,dt);CHKERRQ(ierr);
+    Vec V = dvarEx.find("slip")->second;
+    Vec tau = _fault->_tauP;
+    Vec gVxy_t = dvarEx.find("gVxy")->second;
+    Vec gVxz_t = dvarEx.find("gVxz")->second;
+    Vec Told = varImo.find("Temp")->second;
+    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 
@@ -956,9 +957,9 @@ PetscErrorCode Mediator::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  _momBal->measureMMSError(_currTime);
+  //~ _momBal->measureMMSError(_currTime);
   //~ _he->measureMMSError(_currTime);
-  //~ _p->measureMMSError(_currTime);
+  _p->measureMMSError(_currTime);
 
   return ierr;
 }
