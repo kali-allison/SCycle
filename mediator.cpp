@@ -177,7 +177,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // if (!_loadICs) { solveSS(); }
+  if (!_loadICs) { solveSS(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -381,29 +381,29 @@ PetscErrorCode Mediator::solveSS()
   _fault->initiateVarSS(_varSS);
 
   // don't iterate on effective viscosity
-  //~ ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
+  ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
 
-  // loop over effective viscosity
-  Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
-  double err = 1e10;
-  int Ii = 0;
-  //~ //while (Ii < 10 && err > 1e-3) {
-  while (Ii < 10 ) {
-    VecCopy(_varSS["effVisc"],effVisc_old);
-    _momBal->updateSSa(_varSS); // compute v, viscous strain rates
+  // // loop over effective viscosity
+  // Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
+  // double err = 1e10;
+  // int Ii = 0;
+  // //~ //while (Ii < 10 && err > 1e-3) {
+  // while (Ii < 10 ) {
+  //   VecCopy(_varSS["effVisc"],effVisc_old);
+  //   _momBal->updateSSa(_varSS); // compute v, viscous strain rates
 
-    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-    PetscScalar f = 0.5;
-    VecScale(_varSS["effVisc"],f);
-    VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+  //   // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
+  //   PetscScalar f = 0.5;
+  //   VecScale(_varSS["effVisc"],f);
+  //   VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
 
-    PetscScalar len;
-    VecNorm(effVisc_old,NORM_2,&len);
-    err = computeNormDiff_2(effVisc_old,_varSS["effVisc"]) / len * sqrt(_D->_Ny*_D->_Nz);
-    PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
-    Ii++;
-  }
-  VecDestroy(&effVisc_old);
+  //   PetscScalar len;
+  //   VecNorm(effVisc_old,NORM_2,&len);
+  //   err = computeNormDiff_2(effVisc_old,_varSS["effVisc"]) / len * sqrt(_D->_Ny*_D->_Nz);
+  //   PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
+  //   Ii++;
+  // }
+  // VecDestroy(&effVisc_old);
 
   // solve for gVxy, gVxz, u, bcL and bcR
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);

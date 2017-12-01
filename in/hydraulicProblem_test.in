@@ -50,7 +50,7 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [8e-3 8e-3] # m or try 16-3 for an easier to resolve problem
+DcVals = [16e-3 16e-3] # m or try 16-3 mfor an easier to resolve problem
 DcDepths = [0 60] # m
 
 ## a,b for geotherm of 30 C/km, from Blanpied 1991 for a-b, 1995 for a
@@ -155,7 +155,7 @@ maxTime = 1e15      # (s)
 initDeltaT = 1e-3   # (s) size of initial time step
 minDeltaT = 1e-3    # (s) minimum allowed time step
 maxDeltaT = 1e10    # (s) maximum allowed time step
-atol = 1e-3 # absolute error for adaptive time stepper
+atol = 1e-8 # absolute error for adaptive time stepper
 timeIntInds = [psi slip]
 #timeIntInds = [pressure]
 
