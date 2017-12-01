@@ -342,9 +342,9 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
 
   // impose floor and ceiling on effective normal stress
   {
-    Vec temp; VecDuplicate(_sNEff,&temp);
-    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
-    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    Vec temp; VecDuplicate(_sN,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sN,_sN,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sN,_sN,temp);
     VecDestroy(&temp);
   }
 
@@ -1141,7 +1141,6 @@ PetscErrorCode SymmFault::setSNEff(const Vec& p)
 
 
   ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
-  assert(0);
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1

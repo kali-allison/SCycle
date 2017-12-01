@@ -38,9 +38,10 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
 SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
 {
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc_coordTrans.cpp.\n");
   #endif
 
+  MatDestroy(&_mu);
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
   MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
   MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
@@ -61,9 +62,10 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   MatDestroy(&_yq); MatDestroy(&_zr);
   MatDestroy(&_qy); MatDestroy(&_rz);
   MatDestroy(&_J); MatDestroy(&_Jinv);
+  MatDestroy(&_Dq_Iz); MatDestroy(&_Iy_Dr); 
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc_coordTrans.cpp.\n");
   #endif
 }
 

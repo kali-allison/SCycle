@@ -42,6 +42,7 @@ PressureEq::PressureEq(Domain&D)
     VecSet(_bcB, zzmms_pSource1D(_L, D._initTime));
   }
 
+
   //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
   #if VERBOSE > 1
@@ -64,6 +65,14 @@ PressureEq::~PressureEq()
   VecDestroy(&_rho_f);
 
   VecDestroy(&_p);
+  VecDestroy(&_bcL);
+  VecDestroy(&_bcT);
+  VecDestroy(&_bcB);
+  VecDestroy(&_p_t);
+  VecDestroy(&_z);
+  KSPDestroy(&_ksp);
+
+  delete _sbp;
 
   for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first]);
@@ -353,6 +362,8 @@ PetscErrorCode PressureEq::setUpSBP()
   _sbp->setLaplaceType("z");
   _sbp->computeMatrices(); // actually create the matrices
 
+  VecDestroy(&coeff);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -380,7 +391,7 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain& D)
 
   ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
   ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-  ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
   ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
   ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
   ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
@@ -737,17 +748,14 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   VecDuplicate(_k_p, &rhs);
   _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
 
-  // // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
-  // VecAXPY(p_t,-1.0,rhs);
-  // if (_sbpType.compare("mfc_coordTrans")==0) {
-  //   Mat J,Jinv,qy,rz,yq,zr;
-  //   ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-  //   Vec temp;
-  //   VecDuplicate(p_t,&temp);
-  //   ierr = MatMult(Jinv,p_t,temp);
-  //   VecCopy(temp,p_t);
-  //   VecDestroy(&temp);
-  // }
+
+  // solve Mx = rhs
+  // M = I - dt/(rho*n*beta)*D2 
+  // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
+
+  // _sbp->H(rhog_y,temp);
+
+  VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
 
   // compute MMS source
   Vec source, Hxsource;
@@ -763,7 +771,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
 
   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
   // VecAXPY(p_t,1.0,source);
-
+  
   Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
   VecDuplicate(_p, &rho_n_beta);
   VecSet(rho_n_beta, 1);
@@ -775,8 +783,28 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
 
   Mat D2_rho_n_beta;
-  MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+
+
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+
+    Vec tmp1;
+    VecDuplicate(_p, &tmp1);
+    ierr = MatMult(Jinv,rhs,tmp1);
+    VecCopy(tmp1,rhs);
+    VecDestroy(&tmp1);
+
+    Mat tmp2;
+    // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &tmp2);
+    MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
+    MatCopy(tmp2, D2_rho_n_beta, SAME_NONZERO_PATTERN);
+    MatDestroy(&tmp2);
+
+  }
 
   MatScale(D2_rho_n_beta, -dt);
 
@@ -784,14 +812,6 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
 
 
-  // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2 
-  // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
-
-
-  // _sbp->H(rhog_y,temp);
-
-  VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
   VecPointwiseMult(rhs, rhs, rho_n_beta); //1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT)
 
 
@@ -815,7 +835,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   // KSPCreate(PETSC_COMM_WORLD, &ksp);
   // ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
   // ierr = KSPSetOperators(ksp,D2_rho_n_beta,D2_rho_n_beta);CHKERRQ(ierr);
-  // ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+  // ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
   // //Set up preconditioner, using the boomerAMG PC from Hypre
   // ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
   // ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
@@ -923,7 +943,7 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
 
   Mat D2_rho_n_beta;
-  MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   MatScale(D2_rho_n_beta, -D._initDeltaT);
@@ -933,6 +953,9 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
 
   setupKSP(D2_rho_n_beta);
 
+  MatDestroy(&Diag_rho_n_beta);
+  MatDestroy(&D2_rho_n_beta);
+  VecDestroy(&rho_n_beta);
   VecDestroy(&rhs);
 
 #if VERBOSE > 1
@@ -955,7 +978,7 @@ PetscErrorCode PressureEq::setupKSP(const Mat& A)
   KSPCreate(PETSC_COMM_WORLD, &_ksp);
   ierr = KSPSetType(_ksp, KSPRICHARDSON);CHKERRQ(ierr);
   ierr = KSPSetOperators(_ksp, A, A);CHKERRQ(ierr);
-  ierr = KSPSetReusePreconditioner(_ksp, PETSC_TRUE);CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(_ksp, PETSC_FALSE);CHKERRQ(ierr);
   // ierr = KSPSetReusePreconditioner(_ksp,PETSC_FALSE);CHKERRQ(ierr);
   //Set up preconditioner, using the boomerAMG PC from Hypre
   ierr = KSPGetPC(_ksp, &pc);CHKERRQ(ierr);

@@ -16,8 +16,8 @@ bulkDeformationType = linearElastic
 
 # coordinate transformation
 #bCoordTrans = 6.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
+sbpType = mfc_coordTrans
+#sbpType = mfc
 
 #======================================================================
 # linear system
@@ -139,7 +139,7 @@ timeIntegrator = IMEX
 timeControlType = P
 stride1D = 50
 stride2D = 50
-maxStepCount = 1e5
+maxStepCount = 10
 initTime = 2e9
 maxTime = 2.25e9      # (s)
 initDeltaT = 1e5   # (s) size of initial time step

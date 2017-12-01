@@ -23,7 +23,7 @@ int runTests(const char * inputFile)
   PetscErrorCode ierr = 0;
 
   Domain d(inputFile);
-  d.write();
+  // d.write();
 
   PressureEq p(d); // pressure equation
   //~ p.writeContext();
@@ -40,7 +40,8 @@ int runMMSTests(const char * inputFile)
              "ord","Ny","dy","errL2u","log2(errL2u)","errL2gxy","log2(errL2gxy)",
              "errL2gxz","log2(errL2gxz)");
 
-  for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
+//for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
+  for(PetscInt Ny=81;Ny<82;Ny=(Ny-1)*2+1)
 
   //~ for(PetscInt Ny=11;Ny<12;Ny=(Ny-1)*2+1)
   {
@@ -92,7 +93,7 @@ int main(int argc,char **args)
     else { runEqCycle(inputFile); }
   }
 
-  //~ runTests(inputFile);
+  // runTests(inputFile);
 
   PetscFinalize();
   return ierr;

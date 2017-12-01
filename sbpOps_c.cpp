@@ -502,6 +502,10 @@ PetscErrorCode SbpOps_c::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& 
   ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
 
+  if (_multByH) { 
+    MatDestroy(&HxHinv);
+  }
+  MatDestroy(&HinvxmuxE);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
