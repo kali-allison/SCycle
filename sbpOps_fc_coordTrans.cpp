@@ -38,8 +38,10 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
 SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
 {
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in SbpOps_fc_coordTrans.cpp.\n");
   #endif
+
+  MatDestroy(&_mu);
 
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
   MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
@@ -61,9 +63,10 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   MatDestroy(&_yq); MatDestroy(&_zr);
   MatDestroy(&_qy); MatDestroy(&_rz);
   MatDestroy(&_J); MatDestroy(&_Jinv);
+  MatDestroy(&_Dq_Iz); MatDestroy(&_Iy_Dr);
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in SbpOps_fc_coordTrans.cpp.\n");
   #endif
 }
 
@@ -833,7 +836,8 @@ PetscErrorCode SbpOps_fc_coordTrans::updateA_BCs()
     TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
-  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+  MatZeroEntries(_A);
+  MatCopy(_D2,_A,SAME_NONZERO_PATTERN);
 
   if (_deleteMats) { MatDestroy(&_D2); }
 

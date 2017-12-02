@@ -196,7 +196,6 @@ Fault::~Fault()
   VecDestroy(&_dTheta);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
-  VecDestroy(&_T);
   VecDestroy(&_z);
 
   // frictional fields
@@ -205,6 +204,7 @@ Fault::~Fault()
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
+  VecDestroy(&_sN);
   VecDestroy(&_cohesion);
 
   // for flash heating
@@ -319,13 +319,9 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecSet(_cohesion,0);
 
   // set depth-independent fields
-  ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
-  ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
-
-  // set a using a vals
   if (_N == 1) {
-    VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
+    VecSet(_b,_bVals[0]);
     //~ VecSet(_sNEff,_sigmaNVals[0]);
     VecSet(_sN,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
@@ -341,6 +337,8 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
   }
+  // set psi
+  ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
 
   // impose floor and ceiling on effective normal stress
   {
@@ -370,15 +368,18 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
   if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }
 
   PetscInt       Istart,Iend;
-  PetscScalar   *tauRSV,*sN,*a=0;
+  PetscScalar   *tauRSV,*sN,*a,*b;
   VecGetOwnershipRange(tauRS,&Istart,&Iend);
   VecGetArray(tauRS,&tauRSV);
   VecGetArray(_sNEff,&sN);
   VecGetArray(_a,&a);
+  VecGetArray(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar psiSS = _f0;
-    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
+    //~ tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
+    PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
+    tauRSV[Jj] = sN[Jj] * f;
     Jj++;
   }
   VecRestoreArray(tauRS,&tauRSV);

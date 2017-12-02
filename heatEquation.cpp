@@ -17,6 +17,7 @@ HeatEquation::HeatEquation(Domain& D)
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   _linSolver("AMG"),_kspTol(1e-10),
   _ksp(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
+  _MapV(NULL),_Gw(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
   _linSolveCount(0),_stride1D(D._stride1D),_stride2D(D._stride2D),
   _dT(NULL),_Tamb(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL)
@@ -29,6 +30,7 @@ HeatEquation::HeatEquation(Domain& D)
   loadSettings(_file);
   checkInput();
   setFields(D);
+  constructMapV();
   if (D._loadICs==1) { loadFieldsFromFiles(); }
   if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(D); }
 
@@ -48,6 +50,9 @@ HeatEquation::~HeatEquation()
   MatDestroy(&_I);
   MatDestroy(&_D2ath);
   MatDestroy(&_pcMat);
+
+  MatDestroy(&_MapV);
+  VecDestroy(&_Gw);
 
   VecDestroy(&_k);
   VecDestroy(&_rho);
@@ -391,6 +396,59 @@ PetscErrorCode HeatEquation::checkInput()
   #endif
   return ierr;
 }
+
+
+PetscErrorCode HeatEquation::constructMapV()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::constructMapV";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  MatCreate(PETSC_COMM_WORLD,&_MapV);
+  MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Nz);
+  MatSetFromOptions(_MapV);
+  MatMPIAIJSetPreallocation(_MapV,_Ny*_Nz,NULL,_Ny*_Nz,NULL);
+  MatSeqAIJSetPreallocation(_MapV,_Ny*_Nz,NULL);
+  MatSetUp(_MapV);
+
+  PetscScalar v=1.0;
+  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  MatGetOwnershipRange(_MapV,&Istart,&Iend);
+  for (Ii = Istart; Ii < Iend; Ii++) {
+    Jj = Ii % _Nz;
+    MatSetValues(_MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(_MapV,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(_MapV,MAT_FINAL_ASSEMBLY);
+
+  //~ writeMat(_MapV,"MapV");
+
+  // construct Gw = exp(-y^2/(2*w)) / sqrt(2*pi)/w
+  VecDuplicate(_Tamb,&_Gw);
+  VecSet(_Gw,0.);
+
+  PetscScalar *y,*g;
+  VecGetOwnershipRange(_Gw,&Istart,&Iend);
+  VecGetArray(*_y,&y);
+  VecGetArray(_Gw,&g);
+  Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    g[Jj] = exp(-y[Jj]*y[Jj] / 2. / _w) / sqrt(2. * M_PI) / _w;
+    Jj++;
+  }
+  VecRestoreArray(*_y,&y);
+  VecRestoreArray(_Gw,&g);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 
 // compute T assuming that dT/dt and viscous strain rates = 0
 PetscErrorCode HeatEquation::computeInitialSteadyStateTemp(Domain& D)

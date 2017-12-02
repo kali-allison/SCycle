@@ -61,8 +61,7 @@ class OdeSolverImex
     PetscReal               _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
     std::map<string,Vec>    _var,_dvar; // explicit integration variable and rate
-    std::map<string,Vec>    _varImMult; // implicit integration variable, at each stage
-    std::map<string,Vec>    _varIm1; // implicit integration variable, once per time step
+    std::map<string,Vec>    _varIm; // implicit integration variable, once per time step
     std::vector<string>     _errInds; // which inds of _var to use for error control
     int                     _lenVar;
     double                  _runTime;
@@ -89,9 +88,7 @@ class OdeSolverImex
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    //~ PetscErrorCode setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm);
-    //~ PetscErrorCode setErrInds(std::vector<int>& errInds);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varImMult,std::map<string,Vec>& varIm1);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);

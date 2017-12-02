@@ -45,6 +45,8 @@ SbpOps_c::~SbpOps_c()
     PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
   #endif
 
+  MatDestroy(&_mu);
+
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
   MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
   MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
@@ -502,6 +504,8 @@ PetscErrorCode SbpOps_c::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& 
   ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
 
+  if (_multByH) { MatDestroy(&HxHinv); }
+  MatDestroy(&HinvxmuxE);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -695,7 +699,8 @@ PetscErrorCode SbpOps_c::updateA_BCs()
     TempMats_c tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
-  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+  MatZeroEntries(_A);
+  MatCopy(_D2,_A,SAME_NONZERO_PATTERN);
 
   if (_deleteMats) { MatDestroy(&_D2); }
 

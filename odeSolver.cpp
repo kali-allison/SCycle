@@ -122,6 +122,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 #endif
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
+  int stopIntegration = 0;
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
@@ -129,7 +130,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -147,7 +148,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -459,6 +460,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   PetscErrorCode ierr=0;
   PetscReal      totErr=0.0;
   PetscInt       attemptCount = 0;
+  int            stopIntegration = 0;
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
@@ -480,7 +482,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->debug(_currT,_stepCount,_var,_dvar,"IC");CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
@@ -556,9 +558,10 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       _deltaT = computeStepSize(totErr);
     }
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
 
-    if (_stepCount > 5) {PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); break; }
+    //~ if (_stepCount > 5) {PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); break; }
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
   }
 
   _runTime += MPI_Wtime() - startTime;

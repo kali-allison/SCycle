@@ -53,10 +53,7 @@ class HeatEquation
 
     // viewers
     std::map <string,PetscViewer>  _viewers;
-    //~ PetscViewer          _TV; // temperature viewer
-    //~ PetscViewer          _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
-    PetscViewer          _timeV; // time output viewer for debugging
-    //~ PetscViewer          _heatFluxV,_surfaceHeatFluxV; // time output viewer for debugging
+    PetscViewer          _timeV; // time output viewer
 
     // which factors to include
     std::string          _wShearHeating,_wFrictionalHeating;
@@ -72,6 +69,12 @@ class HeatEquation
     Mat                  _I,_rcInv,_B,_pcMat; // intermediates for Backward Euler
     Mat                  _D2ath;
 
+    // finite width shear zone
+    Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
+    Vec                  _Gw; // Green's function for shear heating
+    PetscScalar          _w; // width of shear zone (m)
+
+
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
     PetscInt             _linSolveCount;
@@ -86,6 +89,7 @@ class HeatEquation
     PetscErrorCode checkInput();     // check input from file
 
 
+    PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
     PetscErrorCode setUpTransientProblem(Domain& D);
@@ -101,7 +105,7 @@ class HeatEquation
 
     Vec _dT; // actually change in temperature
     Vec _Tamb; // initial temperature
-    Vec _k,_rho,_c,_h,_w;  // thermal conductivity, density, heat capacity, radioactive heat generation, shear zone width (km)
+    Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, radioactive heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();

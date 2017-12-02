@@ -842,7 +842,6 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ PetscScalar strainRate = 1e-12; // guess
   PetscScalar s=0.;
   PetscScalar *A,*B,*n,*T,*effVisc;
   PetscInt Ii,Istart,Iend;
@@ -854,8 +853,8 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   VecGetArray(_effVisc,&effVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    s = pow(strainRate/(A[Jj]*exp(-B[Jj]/T[Jj])),1.0/n[Jj]);
-    effVisc[Jj] =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
+    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] );
+    effVisc[Jj] =  s/strainRate * 1e-3; // (GPa s)  in terms of strain rate
     Jj++;
   }
   VecRestoreArray(_A,&A);
@@ -1005,7 +1004,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   PetscScalar min_Tmax;
   VecMin(Tmax,NULL,&min_Tmax);
 
-  maxTimeStep = 0.3 * min_Tmax;
+  maxTimeStep = 0.9 * min_Tmax;
 
   VecDestroy(&Tmax);
 
