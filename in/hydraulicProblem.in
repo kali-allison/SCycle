@@ -6,7 +6,7 @@ Lz = 1 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = yes
+isMMS = no
 
 # symmetric or general
 geometry = symmetric
@@ -139,7 +139,7 @@ timeIntegrator = IMEX
 timeControlType = P
 stride1D = 50
 stride2D = 50
-maxStepCount = 10
+maxStepCount = 1e5
 initTime = 2e9
 maxTime = 2.25e9      # (s)
 initDeltaT = 1e5   # (s) size of initial time step

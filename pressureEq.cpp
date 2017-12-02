@@ -705,7 +705,118 @@ PetscErrorCode PressureEq::be(const PetscScalar time,const map<string,Vec>& varE
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  double startTime = MPI_Wtime(); // time this section
+
   assert(0);
+  // source term from gravity: d/dz ( rho*k/eta * g )
+  Vec rhog, rhog_y;
+  VecDuplicate(_p, &rhog);
+  VecSet(rhog, _g); //g
+  VecPointwiseMult(rhog, rhog, _rho_f); //rho*g
+  VecPointwiseMult(rhog, rhog, _rho_f); //rho^2*g
+  VecPointwiseMult(rhog, rhog, _k_p);   //rho^2*g * k
+  VecPointwiseDivide(rhog, rhog,_eta_p); //rhog = rho^2*g * k/eta
+  VecDuplicate(_p, &rhog_y);             
+  _sbp->Dz(rhog, rhog_y);                //rhog_y = D1(rho^2*g * k/eta)
+
+  Mat D2;
+  _sbp->getA(D2);
+
+  Mat H;
+  _sbp->getH(H);
+
+  // set up boundary terms
+  Vec rhs;
+  VecDuplicate(_k_p, &rhs);
+  _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
+
+
+  // solve Mx = rhs
+  // M = I - dt/(rho*n*beta)*D2 
+  // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
+
+  // _sbp->H(rhog_y,temp);
+
+  VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
+  
+  //~ writeVec(source,_outputDir + "mms_pSource");
+
+  // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
+  // VecAXPY(p_t,1.0,source);
+  
+  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
+  VecDuplicate(_p, &rho_n_beta);
+  VecSet(rho_n_beta, 1);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
+  Mat Diag_rho_n_beta;
+  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
+
+  Mat D2_rho_n_beta;
+  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+
+    Vec tmp1;
+    VecDuplicate(_p, &tmp1);
+    ierr = MatMult(Jinv,rhs,tmp1);
+    VecCopy(tmp1,rhs);
+    VecDestroy(&tmp1);
+
+    Mat tmp2;
+    // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &tmp2);
+    MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
+    MatCopy(tmp2, D2_rho_n_beta, SAME_NONZERO_PATTERN);
+    MatDestroy(&tmp2);
+
+  }
+
+  MatScale(D2_rho_n_beta, -dt);
+
+  // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
+  MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
+
+
+  VecPointwiseMult(rhs, rhs, rho_n_beta); //1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT)
+
+  // VecView(source, PETSC_VIEWER_STDOUT_WORLD);
+  VecScale(rhs, dt); // dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
+
+  Vec Hxp;
+  VecDuplicate(_p, &Hxp);
+  ierr = _sbp->H(varImo.find("pressure")->second, Hxp); // H * p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) +  dt * H * src
+
+
+  // VecAXPY(rhs, 1, varImo.find("pressure")->second); // p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
+  VecAXPY(rhs, 1, Hxp);
+
+  ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);CHKERRQ(ierr);
+
+  // KSPSetUp(_ksp);
+
+  // ierr = KSPSolve(solver, rhs, varIm["pressure"]);CHKERRQ(ierr);
+  ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
+
+  // VecView(varImo.find("pressure")->second, PETSC_VIEWER_STDOUT_WORLD);
+
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  //~ mapToVec(dvarEx["pressure"], zzmms_pt1D, _z, time);
+  VecDestroy(&rhog);
+  VecDestroy(&rhog_y);
+  VecDestroy(&rhs);
+  VecDestroy(&rho_n_beta);
+  VecDestroy(&Hxp);
+
+  MatDestroy(&Diag_rho_n_beta);
+  MatDestroy(&D2_rho_n_beta);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -787,7 +898,6 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   if (_sbpType.compare("mfc_coordTrans")==0) {
-
 
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
