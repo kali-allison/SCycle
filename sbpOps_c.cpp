@@ -699,7 +699,10 @@ PetscErrorCode SbpOps_c::updateA_BCs()
     TempMats_c tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
-  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+  // MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+  MatZeroEntries(_A);
+  // MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+  MatCopy(_D2, _A, SAME_NONZERO_PATTERN);
 
   if (_deleteMats) { MatDestroy(&_D2); }
 

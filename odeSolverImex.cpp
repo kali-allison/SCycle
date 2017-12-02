@@ -43,6 +43,7 @@ OdeSolverImex::~OdeSolverImex()
 
   destroyVector(_varHalfdTImMult);
   destroyVector(_vardTImMult);
+  destroyVector(_vardTIm1);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex destructor in OdeSolverImex.cpp.\n");

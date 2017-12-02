@@ -75,6 +75,10 @@ Mediator::~Mediator()
     VecDestroy(&it->second);
   }
 
+  // for ( it = _varSS.begin(); it!=_varSS.end(); it++ ) {
+  //   VecDestroy(&it->second);
+  // }
+
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;
   delete _quadWaveEq;  _quadWaveEq = NULL;
@@ -177,7 +181,7 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (!_loadICs) { solveSS(); }
+  // if (!_loadICs) { solveSS(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -366,8 +370,7 @@ PetscErrorCode Mediator::solveSS()
   VecDuplicate(tauRS,&tauSS);
   VecPointwiseMin(tauSS,tauRS,tauVisc);
   //~ VecCopy(tauRS,tauSS);
-  VecDestroy(&tauVisc);
-  VecDestroy(&tauRS);
+
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -379,6 +382,8 @@ PetscErrorCode Mediator::solveSS()
   _varSS["tau"] = tauSS;
   _momBal->initiateVarSS(_varSS);
   _fault->initiateVarSS(_varSS);
+
+
 
   // don't iterate on effective viscosity
   ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
@@ -411,6 +416,11 @@ PetscErrorCode Mediator::solveSS()
   Vec sxy,sxz,sdev;
   ierr = _momBal->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+
+  VecDestroy(&tauVisc);
+  VecDestroy(&tauRS);
+  // VecDestroy(&tauSS);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

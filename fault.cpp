@@ -197,7 +197,7 @@ Fault::~Fault()
   VecDestroy(&_dTheta);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
-  VecDestroy(&_T);
+  // VecDestroy(&_T);
   VecDestroy(&_z);
 
   // frictional fields
@@ -206,6 +206,7 @@ Fault::~Fault()
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
+  VecDestroy(&_sN);
   VecDestroy(&_cohesion);
 
   // for flash heating
@@ -766,7 +767,7 @@ SymmFault::SymmFault(Domain&D, HeatEquation& He)
   #endif
 
   // vectors were allocated in Fault constructor, just need to set values.
-  setSplitNodeFields();
+  // setSplitNodeFields();
 
   Vec Temp;
   VecDuplicate(He._T0,&Temp);

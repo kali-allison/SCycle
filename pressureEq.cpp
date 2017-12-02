@@ -828,63 +828,13 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   // VecAXPY(rhs, 1, varImo.find("pressure")->second); // p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
   VecAXPY(rhs, 1, Hxp);
 
-
-  // KSP ksp;
-  // PC pc;
-
-  // KSPCreate(PETSC_COMM_WORLD, &ksp);
-  // ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  // ierr = KSPSetOperators(ksp,D2_rho_n_beta,D2_rho_n_beta);CHKERRQ(ierr);
-  // ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
-  // //Set up preconditioner, using the boomerAMG PC from Hypre
-  // ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-  // ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-  // ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-  // ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-  // ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
-  
-  // // finish setting up KSP context using options defined above
-  // ierr = KSPSetFromOptions(ksp);CHKERRQ(ierr);
-  // // perform computation of preconditioner now, rather than on first use
-  // ierr = KSPSetUp(ksp);CHKERRQ(ierr);
-
   ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);CHKERRQ(ierr);
 
   // KSPSetUp(_ksp);
 
   // ierr = KSPSolve(solver, rhs, varIm["pressure"]);CHKERRQ(ierr);
   ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
-  // ierr = KSPDestroy(&ksp);CHKERRQ(ierr);
 
-  // KSP solver;
-  // PC pc;
-  // KSPCreate(PETSC_COMM_WORLD,&solver);
-  // KSPSetType(solver,KSPPREONLY);
-  // KSPGetPC(solver,&pc);
-  // PCSetType(pc,PCLU);
-  // KSPSetOperators(solver,D2_rho_n_beta,D2_rho_n_beta);
-  // KSPSolve(solver, rhs, varIm["pressure"]);
-
-  // Vec tmp;
-  // VecDuplicate(_p, &tmp);
-
-
-  // KSPSolve(solver, rhs, tmp);
-  // _sbp->Hinv(tmp, varIm["pressure"]);
-  // VecCopy(tmp, varIm.find("pressure")->second);
-  // VecDestroy(&tmp);
-
-  // MatView(D2_rho_n_beta, PETSC_VIEWER_STDOUT_WORLD);
-  // VecView(rhs, PETSC_VIEWER_STDOUT_WORLD);
-  // PetscPrintf(PETSC_COMM_WORLD,"time %f\n", time);
-  // VecView(varImo.find("pressure")->second, PETSC_VIEWER_STDOUT_WORLD);
-  // VecView(varIm.find("pressure")->second, PETSC_VIEWER_STDOUT_WORLD);
-  // assert(0);
-
-  // Vec pA;
-  // VecDuplicate(_p, &pA);
-  // mapToVec(pA, zzmms_pA1D, _z, time);
-  // varIm["pressure"] = pA;
 
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
@@ -898,8 +848,6 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   VecDestroy(&Hxsource);
   VecDestroy(&Hxp);
 
-  // MatDestroy(&D2);
-  // MatDestroy(&H);
   MatDestroy(&Diag_rho_n_beta);
   MatDestroy(&D2_rho_n_beta);
 
@@ -1220,6 +1168,7 @@ PetscErrorCode  PressureEq::measureMMSError(const double totRunTime)
 
   PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e\n",
     _order,_N,_h,err2pA,log2(err2pA));
+  VecDestroy(&pA);
 
   return 0;
 };
