@@ -7,6 +7,7 @@ Ly = 40 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
 
+isFault = true
 # symmetric or general
 geometry = symmetric
 

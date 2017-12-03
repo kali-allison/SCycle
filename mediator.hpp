@@ -51,7 +51,7 @@ private:
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     const PetscScalar    _vL;
-    std::string          _momBalType; // "dynamic", "static"
+    std::string          _momBalType, _isFault; // "dynamic", "static"
     std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 

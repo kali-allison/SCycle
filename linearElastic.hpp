@@ -57,10 +57,11 @@ class LinearElastic : public MomBalContext
     std::string          _outputDir;  // output data
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz,_dy,_dz;
+    PetscScalar          _alphay, _alphaz;
     Vec                  *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if starting from a previous simulation
-    std::string          _momBalType; // "dynamic", "static"
+    std::string          _momBalType, _isFault; // "dynamic", "static"
     bool                 _bcLTauQS; // true if left boundary is traction
     PetscScalar          _currTime;
     PetscInt             _stepCount;

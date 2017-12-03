@@ -11,7 +11,7 @@ Mediator::Mediator(Domain&D)
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(D._vL),
   _momBalType("static"),_thermalCoupling("no"),_heatEquationType("transient"),
-  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"), _isFault("true"),
   _initialU("gaussian"),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
@@ -122,6 +122,9 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     }
     else if (var.compare("momBalType")==0) {
       _momBalType = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("isFault")==0) {
+      _isFault = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }
 
@@ -708,7 +711,9 @@ PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& va
   VecDuplicate(_D->_y, &_rhoVec);
   _momBal->getRhoVec(_rhoVec);
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
+  if (_isFault.compare("true")){
   ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT,_rhoVec);CHKERRQ(ierr);
+  }
 
   return ierr;
 }

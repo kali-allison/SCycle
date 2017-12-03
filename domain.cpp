@@ -545,6 +545,9 @@ PetscErrorCode Domain::setFields()
     CHKERRQ(ierr);
   #endif
 
+  if (_order == 2 ) { _alphay = 0.5 * _Ly * _dq; _alphaz = 0.5 * _Lz * _dr; }
+  if (_order == 4 ) { _alphay = 0.4567e4/0.14400e5 * _Ly * _dq; _alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
+
   PetscScalar    y,z,r,q= 0;
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);

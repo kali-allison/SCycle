@@ -43,13 +43,14 @@ class Fault: public RootFinderContext
    // fields that are identical on split nodes
    PetscScalar           _f0,_v0,_vL, _deltaT;
    PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
+   PetscScalar           _alphay, _alphaz;
    Vec                   _T,_k,_rho,_c; // for flash heating
    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec                   _a,_b,_Dc;
    std::vector<double>   _cohesionVals,_cohesionDepths;
    Vec                   _cohesion;
    Vec                   _dPsi,_psi,_theta,_dTheta;
-   Vec                   _Phi, _an, _strength;
+   Vec                   _Phi, _an, _constraints_factor;
 
 
     // fields that differ on the split nodes

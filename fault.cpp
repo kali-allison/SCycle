@@ -9,6 +9,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
   _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL), _deltaT(0.0),
   _Ny(D._Ny), _Ly(D._Ly), _order(D._order),
+  _alphay(D._alphay), _alphaz(D._alphaz),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
@@ -17,7 +18,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   _sigmaN_cap(1e14),_sigmaN_floor(0.),_sNEff(NULL),
   _slip(NULL),_slipVel(NULL), _slipPrev(NULL),
   _computeVelTime(0),_stateLawTime(0),
-  _tauQSP(NULL),_tauP(NULL), _Phi(NULL), _an(NULL), _strength(NULL)
+  _tauQSP(NULL),_tauP(NULL), _Phi(NULL), _an(NULL), _constraints_factor(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "Fault::Fault";
@@ -1213,14 +1214,12 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   PetscInt       Ii,Istart,Iend;
-  PetscScalar    alphay, u, uPrev, Laplacian, rho, psi, sigma_N, a, an, Phi, tauQS, strength, slip;
+  PetscScalar    u, uPrev, Laplacian, rho, psi, sigma_N, a, an, Phi, tauQS, constraints_factor, slipVel;
   VecDuplicate(_tauQSP, &_Phi);
   VecDuplicate(_tauQSP, &_an);
-  VecDuplicate(_tauQSP, &_strength);
-  VecDuplicate(_tauQSP, &_slip);
+  VecDuplicate(_tauQSP, &_constraints_factor);
+  VecDuplicate(_tauQSP, &_slipVel);
   VecDuplicate(_tauQSP, &_slipPrev);
-  if (_order == 2 ) { alphay = 0.5 * _Ly / (_Ny - 1);}
-  if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * _Ly / (_Ny - 1);}
   
   ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -1232,11 +1231,10 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
       ierr = VecGetValues(varEx["psi"],1,&Ii,&psi);CHKERRQ(ierr);
       ierr = VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
       ierr = VecGetValues(_tauQSP,1,&Ii,&tauQS);CHKERRQ(ierr);
-      ierr = VecGetValues(varEx["slip"],1,&Ii,&slip);CHKERRQ(ierr);
+      ierr = VecGetValues(dvarEx["slip"],1,&Ii,&slipVel);CHKERRQ(ierr);
       tauQS = 0;
-      an = Laplacian + tauQS / alphay;
+      an = Laplacian + tauQS / _alphay;
       Phi = 2 / deltaT * (u - uPrev) + deltaT * an / rho;
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Phi=%.9e\n",Phi);
       if (isnan(Phi)){
       ierr = PetscPrintf(PETSC_COMM_WORLD,"u=%.9e\n",u);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"uPrev=%.9e\n",uPrev);
@@ -1245,14 +1243,14 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
       ierr = PetscPrintf(PETSC_COMM_WORLD,"a=%.9e\n",a);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Phi=%.9e\n",Phi);
       }
-      strength = deltaT / alphay / rho;
+      constraints_factor = deltaT / _alphay / rho;
 
       ierr = VecSetValues(_Phi,1,&Ii,&Phi,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_an,1,&Ii,&an,INSERT_VALUES);CHKERRQ(ierr);
       ierr = VecSetValues(_psi,1,&Ii,&psi,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_strength,1,&Ii,&strength,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_slip,1,&Ii,&strength,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_slipPrev,1,&Ii,&strength,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_constraints_factor,1,&Ii,&constraints_factor,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_slipVel,1,&Ii,&slipVel,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_slipPrev,1,&Ii,&slipVel,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
   ierr = VecAssemblyBegin(_Phi);CHKERRQ(ierr);
@@ -1261,10 +1259,10 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   ierr = VecAssemblyEnd(_an);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_psi);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_psi);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_strength);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_strength);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_slip);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_slip);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_constraints_factor);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_constraints_factor);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
   ierr = VecAssemblyBegin(_slipPrev);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_slipPrev);CHKERRQ(ierr);
 
@@ -1445,7 +1443,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
 PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slipVel,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar    psi,a,sigma_N, an, strength_factor, Phi;
+  PetscScalar    psi,a,sigma_N, an, constraints_factor, Phi;
   PetscInt       Istart,Iend;
 
   #if VERBOSE > 3
@@ -1460,29 +1458,29 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
   ierr = VecGetValues(_Phi, 1, &ind, &Phi);
   ierr = VecGetValues(_an, 1, &ind, &an);
   ierr = VecGetValues(_psi, 1, &ind, &psi);
-  ierr = VecGetValues(_strength, 1, &ind, &strength_factor);
+  ierr = VecGetValues(_constraints_factor, 1, &ind, &constraints_factor);
   ierr = VecGetValues(_a,1,&ind,&a);CHKERRQ(ierr);
   ierr = VecGetValues(_sNEff,1,&ind,&sigma_N);CHKERRQ(ierr);
 
-  PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+  PetscScalar constraints = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
 
 
   // effect of cohesion
-  strength = strength_factor * strength;
+  constraints = constraints_factor * constraints;
   
   // stress on fault
   if (Phi < 0){Phi = -Phi;}
   
   PetscScalar stress = Phi - slipVel;
 
-  *out = strength - stress;
+  *out = constraints - stress;
 
   if (isnan(*out)) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"isnan(*out) evaluated to true\n");
     CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"(vel/2/_v0)=%.9e\n",slipVel/2/_v0);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"strength=%.9e\n",strength);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"constraints=%.9e\n",constraints);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"stress=%.9e\n",stress);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"slipVel=%.9e\n",slipVel);
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Phi=%.9e\n",Phi);
@@ -1507,7 +1505,7 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
 PetscErrorCode SymmFault::getResid_aging(const PetscInt ind,const PetscScalar state,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar    psi,b,Dc, slip, slipPrev;
+  PetscScalar    psi,b,Dc, slipVel, slipPrev;
   PetscInt       Istart,Iend;
 
   #if VERBOSE > 3
@@ -1522,10 +1520,10 @@ PetscErrorCode SymmFault::getResid_aging(const PetscInt ind,const PetscScalar st
   ierr = VecGetValues(_Dc, 1, &ind, &Dc);
   ierr = VecGetValues(_b, 1, &ind, &b);
   ierr = VecGetValues(_psi, 1, &ind, &psi);
-  ierr = VecGetValues(_slip, 1, &ind, &slip);
+  ierr = VecGetValues(_slipVel, 1, &ind, &slipVel);
   ierr = VecGetValues(_slipPrev,1,&ind,&slipPrev);CHKERRQ(ierr);
 
-  PetscScalar age = (PetscScalar) b*_v0 / Dc * exp( (double) (_f0 - (psi + state) / 2.0) - (slip + slipPrev) / 2.0 / _v0 );
+  PetscScalar age = (PetscScalar) b*_v0 / Dc * exp( (double) (_f0 - (psi + state) / 2.0) - (slipVel + slipPrev) / 2.0 / _v0 );
   
   // stress on fault
   PetscScalar stress = state - psi;
@@ -1677,10 +1675,7 @@ ierr = computeVel_dyn();CHKERRQ(ierr);
 _computeVelTime += MPI_Wtime() - startTime;
 
 PetscInt       Ii,Istart,Iend;
-PetscScalar    alphay, u, uPrev, Laplacian, rho, ind, sigma_N, a, an, tauQS, uNew, vel, fric, alpha, A, slip, Phi, psi;
-
-if (_order == 2 ) { alphay = 0.5 * _Ly / (_Ny - 1);}
-if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * _Ly / (_Ny - 1);}
+PetscScalar    u, uPrev, Laplacian, rho, ind, sigma_N, a, an, tauQS, uNew, slip, slipVel, fric, alpha, A, vel, Phi, psi;
 
 ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
 for (Ii=Istart;Ii<Iend;Ii++) {
@@ -1688,9 +1683,9 @@ for (Ii=Istart;Ii<Iend;Ii++) {
     ierr = VecGetValues(varEx["u"],1,&Ii,&u);CHKERRQ(ierr);
     ierr = VecGetValues(varEx["uPrev"],1,&Ii,&uPrev);CHKERRQ(ierr);
     ierr = VecGetValues(_an,1,&Ii,&an);CHKERRQ(ierr);
-    ierr = VecGetValues(_slipVel,1,&Ii,&slip);CHKERRQ(ierr);
+    ierr = VecGetValues(_slipVel,1,&Ii,&slipVel);CHKERRQ(ierr);
     ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
-    if (slip < 1e-14){
+    if (slipVel < 1e-14){
       uNew = 2 * u - uPrev + _deltaT * _deltaT / rho * an;
       vel = 0;
     }
@@ -1699,11 +1694,11 @@ for (Ii=Istart;Ii<Iend;Ii++) {
       ierr = VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
       ierr = VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
       ierr = VecGetValues(_Phi,1,&Ii,&Phi);CHKERRQ(ierr);
-      fric = (PetscScalar) a*sigma_N*asinh( (double) (slip/2./_v0)*exp(psi/a) );
-      alpha = 1 / (rho * alphay) * fric / slip;
+      fric = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+      alpha = 1 / (rho * _alphay) * fric / slipVel;
       A = 1 + alpha * _deltaT;
       uNew = (2*u + _deltaT * _deltaT / rho * an + (_deltaT*alpha-1)*uPrev) /  A;
-      vel = Phi / (1 + _deltaT*alphay / rho * fric / slip);
+      vel = Phi / (1 + _deltaT*_alphay / rho * fric / slipVel);
     }
 
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"Error : u evaluated to infinitiy");
@@ -1713,21 +1708,24 @@ for (Ii=Istart;Ii<Iend;Ii++) {
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"an=%.9e\n",an);
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"A=%.9e\n",A);
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"vel=%.9e\n",vel);
-
+    slip = 2 * uNew;
     ierr = VecSetValues(varEx["u"],1,&Ii,&uNew,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(varEx["uPrev"],1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(dvarEx["slip"],1,&Ii,&vel,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(varEx["slip"],1,&Ii,&slip,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValues(_slip,1,&Ii,&slip,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_slipVel,1,&Ii,&vel,INSERT_VALUES);CHKERRQ(ierr);
   }
 }
 ierr = VecAssemblyBegin(varEx["u"]);CHKERRQ(ierr);
 ierr = VecAssemblyBegin(varEx["uPrev"]);CHKERRQ(ierr);
+ierr = VecAssemblyBegin(dvarEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyBegin(varEx["slip"]);CHKERRQ(ierr);
-ierr = VecAssemblyBegin(_slip);CHKERRQ(ierr);
+ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(varEx["u"]);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(varEx["uPrev"]);CHKERRQ(ierr);
+ierr = VecAssemblyEnd(dvarEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(varEx["slip"]);CHKERRQ(ierr);
-ierr = VecAssemblyEnd(_slip);CHKERRQ(ierr);
+ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
 
 
 // compute state parameter law
