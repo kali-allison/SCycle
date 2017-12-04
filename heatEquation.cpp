@@ -325,6 +325,7 @@ PetscErrorCode ierr = 0;
   VecDuplicate(_k,&_h);
   VecDuplicate(_k,&_dT);
   VecDuplicate(_k,&_Q); VecSet(_Q,0.);
+  VecDuplicate(_k,&_omega); VecSet(_omega,0.);
 
   VecDuplicate(_dT,&_Tamb);
   VecCopy(_dT,_Tamb);
@@ -442,13 +443,6 @@ PetscErrorCode HeatEquation::constructMapV()
   }
   VecRestoreArray(*_y,&y);
   VecRestoreArray(_Gw,&g);
-
-  VecDuplicate(_Gw,&_omega);
-  VecSet(_omega,0.);
-
-  VecDuplicate(_Gw,&_g_t);
-  VecDuplicate(_Gw,&_V);
-  VecDuplicate(_Gw,&_Tau);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -712,13 +706,8 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   // put variables to be integrated implicity into varIm
   Vec T;
   VecDuplicate(_Tamb,&T);
-  //~ VecCopy(_Tamb,T);
   VecWAXPY(T,1.0,_Tamb,_dT);
   varIm["Temp"] = T;
-
-  writeVec(_dT,_outputDir+"init_dT");
-  writeVec(_Tamb,_outputDir+"init_T0");
-  writeVec(T,_outputDir+"init_T");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1042,6 +1031,14 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   }
 
   ierr = _sbpT->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Vec temp1; VecDuplicate(_Q,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_Q,temp1);
+    VecCopy(temp1,_Q);
+    VecDestroy(&temp1);
+  }
   Mat H; _sbpT->getH(H);
   ierr = MatMultAdd(H,_Q,temp,temp); CHKERRQ(ierr);
   MatMult(_rcInv,temp,rhs);
@@ -1102,6 +1099,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_omega);
+    VecScale(_bcL,-1.);
   }
 
   // compute shear heating component
@@ -1352,7 +1350,7 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
   // if left boundary condition is heat flux
   if (_w == 0) {
     VecPointwiseMult(_bcL,tau,slipVel);
-    VecScale(_bcL,-0.5);
+    VecScale(_bcL,0.5);
     VecSet(_omega,0.);
   }
 
@@ -1362,18 +1360,12 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
     Vec V,Tau;
     VecDuplicate(_Gw,&V);
     VecDuplicate(_Gw,&Tau);
-    ierr = MatMult(_MapV,slipVel,_V); CHKERRQ(ierr);
-    ierr = MatMult(_MapV,tau,_Tau); CHKERRQ(ierr);
-    VecPointwiseMult(_g_t,_V,_Gw);
-    VecPointwiseMult(_omega,_Tau,_g_t);
-    //~ VecDestroy(&V);
-    //~ VecDestroy(&Tau);
-
-    Vec temp1;
-    VecDuplicate(_omega,&temp1);
-    _sbpT->H(_omega,temp1);
-    VecCopy(temp1,_omega);
-    VecDestroy(&temp1);
+    ierr = MatMult(_MapV,slipVel,V); CHKERRQ(ierr);
+    ierr = MatMult(_MapV,tau,Tau); CHKERRQ(ierr);
+    VecPointwiseMult(_omega,V,_Gw);
+    VecPointwiseMult(_omega,Tau,_omega);
+    VecDestroy(&V);
+    VecDestroy(&Tau);
   }
 
 
@@ -1680,26 +1672,12 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
     ierr = appendViewer(_viewers["heatFlux"],outputDir + "heatFlux");
     ierr = appendViewer(_viewers["surfaceHeatFlux"],outputDir + "surfaceHeatFlux");
     ierr = appendViewer(_viewers["omega"],outputDir + "he_omega");
-
-    _viewers["V"] = initiateViewer(outputDir + "he_V");
-    _viewers["Tau"] = initiateViewer(outputDir + "he_Tau");
-    _viewers["g_t"] = initiateViewer(outputDir + "he_g_t");
-    ierr = VecView(_V,_viewers["V"]); CHKERRQ(ierr);
-    ierr = VecView(_Tau,_viewers["Tau"]); CHKERRQ(ierr);
-    ierr = VecView(_g_t,_viewers["g_t"]); CHKERRQ(ierr);
-    ierr = appendViewer(_viewers["V"],outputDir + "he_V");
-    ierr = appendViewer(_viewers["Tau"],outputDir + "he_Tau");
-    ierr = appendViewer(_viewers["g_t"],outputDir + "he_g_t");
   }
   else {
     ierr = VecView(_dT,_viewers["dT"]); CHKERRQ(ierr);
     ierr = VecView(_heatFlux,_viewers["heatFlux"]); CHKERRQ(ierr);
     ierr = VecView(_surfaceHeatFlux,_viewers["surfaceHeatFlux"]); CHKERRQ(ierr);
     ierr = VecView(_omega,_viewers["omega"]); CHKERRQ(ierr);
-
-    ierr = VecView(_V,_viewers["V"]); CHKERRQ(ierr);
-    ierr = VecView(_Tau,_viewers["Tau"]); CHKERRQ(ierr);
-    ierr = VecView(_g_t,_viewers["g_t"]); CHKERRQ(ierr);
   }
 
 

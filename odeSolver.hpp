@@ -100,6 +100,8 @@ class FEuler : public OdeSolver
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
+
+// Based on algorithm from Hairer et al.
 class RK32 : public OdeSolver
 {
   public:
@@ -110,7 +112,7 @@ class RK32 : public OdeSolver
     PetscReal   _absErr[3]; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_y2,_dy2,_y3;
 
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
@@ -131,6 +133,9 @@ class RK32 : public OdeSolver
 };
 
 
+// Based on "ARK4(3)6L[2]SA-ERK" algorithm from Kennedy and Carpenter (2003):
+// "Additive Runge-Kutta schemes for convection-diffusion-reaction equations"
+// Note: Has matching IMEX equivalent
 class RK43 : public OdeSolver
 {
   public:

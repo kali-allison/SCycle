@@ -193,9 +193,9 @@ RK32::~RK32()
   destroyVector(_dvarHalfdT);
   destroyVector(_vardT);
   destroyVector(_dvardT);
-  destroyVector(_var2nd);
-  destroyVector(_dvar2nd);
-  destroyVector(_var3rd);
+  destroyVector(_y2);
+  destroyVector(_dy2);
+  destroyVector(_y3);
 
 
   #if VERBOSE > 1
@@ -286,17 +286,17 @@ PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
     Vec var2nd;
     ierr = VecDuplicate(_var[it->first],&var2nd); CHKERRQ(ierr);
     ierr = VecSet(var2nd,0.0); CHKERRQ(ierr);
-    _var2nd[it->first] = var2nd;
+    _y2[it->first] = var2nd;
 
     Vec dvar2nd;
     ierr = VecDuplicate(_var[it->first],&dvar2nd); CHKERRQ(ierr);
     ierr = VecSet(dvar2nd,0.0); CHKERRQ(ierr);
-    _dvar2nd[it->first] = dvar2nd;
+    _dy2[it->first] = dvar2nd;
 
     Vec var3rd;
     ierr = VecDuplicate(_var[it->first],&var3rd); CHKERRQ(ierr);
     ierr = VecSet(var3rd,0.0); CHKERRQ(ierr);
-    _var3rd[it->first] = var3rd;
+    _y3[it->first] = var3rd;
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -408,10 +408,10 @@ PetscReal RK32::computeError()
     //~ // error based on weighted 2 norm
     //~ Vec errVec;
     //~ PetscScalar    size;
-    //~ VecDuplicate(_var2nd[ind],&errVec);
-    //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
+    //~ VecDuplicate(_y2[ind],&errVec);
+    //~ ierr = VecWAXPY(errVec,-1.0,_y2[ind],_y3[ind]);CHKERRQ(ierr);
     //~ VecNorm(errVec,NORM_2,&err);
-    //~ VecNorm(_var3rd[ind],NORM_2,&size);
+    //~ VecNorm(_y3[ind],NORM_2,&size);
     //~ totErr += err/(size+1.0);
     //~ VecDestroy(&errVec);
   //~ }
@@ -424,10 +424,10 @@ PetscReal RK32::computeError()
     // error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
-    VecDuplicate(_var2nd[key],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_var2nd[key],_var3rd[key]);CHKERRQ(ierr);
+    VecDuplicate(_y2[key],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_y2[key],_y3[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
-    VecNorm(_var3rd[key],NORM_2,&size);
+    VecNorm(_y3[key],NORM_2,&size);
     totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
@@ -435,10 +435,10 @@ PetscReal RK32::computeError()
   //~ // use quasi-static stress to determine rate
   //~ Vec errVec;
   //~ PetscScalar    size;
-  //~ VecDuplicate(_var2nd["tau"],&errVec);
+  //~ VecDuplicate(_y2["tau"],&errVec);
   //~ ierr = VecWAXPY(errVec,-1.0,_vardT["tau"],_varHalfdT["tau"]);CHKERRQ(ierr);
   //~ VecNorm(errVec,NORM_2,&err);
-  //~ VecNorm(_var3rd["tau"],NORM_2,&size);
+  //~ VecNorm(_y3["tau"],NORM_2,&size);
   //~ totErr += err/(size+1.0);
   //~ VecDestroy(&errVec);
 
@@ -501,8 +501,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
         VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
-        VecSet(_var2nd[it->first],0.0);    VecSet(_dvar2nd[it->first],0.0);
-        VecSet(_var3rd[it->first],0.0);
+        VecSet(_y2[it->first],0.0);    VecSet(_dy2[it->first],0.0);
+        VecSet(_y3[it->first],0.0);
       }
 
       // stage 1: integrate fields to _currT + 0.5*deltaT
@@ -522,15 +522,15 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y2[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_y2[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
 
-        ierr = VecWAXPY(_var3rd[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y3[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_y3[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
+        ierr = VecAXPY(_y3[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var2nd,_dvardT,"2nd");CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_var3rd,_dvardT,"3rd");CHKERRQ(ierr);
+      ierr = obj->debug(_currT+_deltaT,_stepCount,_y2,_dvardT,"2nd");CHKERRQ(ierr);
+      ierr = obj->debug(_currT+_deltaT,_stepCount,_y3,_dvardT,"3rd");CHKERRQ(ierr);
 
       // calculate error
       totErr = computeError();
@@ -548,7 +548,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     // accept 3rd order solution as update
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       VecSet(_var[it->first],0.0);
-      ierr = VecCopy(_var3rd[it->first],_var[it->first]);CHKERRQ(ierr);
+      ierr = VecCopy(_y3[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
@@ -602,8 +602,18 @@ RK43::~RK43()
 
   // destruct temporary containers
   destroyVector(_f1);
-
-
+  destroyVector(_f2);
+  destroyVector(_f3);
+  destroyVector(_f4);
+  destroyVector(_f5);
+  destroyVector(_f6);
+  destroyVector(_k2);
+  destroyVector(_k3);
+  destroyVector(_k4);
+  destroyVector(_k5);
+  destroyVector(_k6);
+  destroyVector(_y4);
+  destroyVector(_y3);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending RK43::destructor in odeSolver.cpp.\n");

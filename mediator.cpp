@@ -12,7 +12,6 @@ Mediator::Mediator(Domain&D)
   _vL(D._vL),
   _momBalType("static"),_bulkDeformationType(D._bulkDeformationType),_thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _heatCouplingStride(1),
   _initialU("gaussian"),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
@@ -121,10 +120,6 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     else if (var.compare("momBalType")==0) {
       _momBalType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("heatCouplingStride")==0) {
-      double f = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-      _heatCouplingStride = (PetscInt) f;
-    }
   }
 
   #if VERBOSE > 1
@@ -155,7 +150,8 @@ PetscErrorCode Mediator::checkInput()
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
-      _timeIntegrator.compare("IMEX")==0 ||
+      _timeIntegrator.compare("RK32_WBE")==0 ||
+    _timeIntegrator.compare("RK43_WBE")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
 
   #if VERBOSE > 1
@@ -174,8 +170,8 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
-  //~ if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
+  if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
+  if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -255,7 +251,7 @@ double startTime = MPI_Wtime();
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
     _momBal->computeMaxTimeStep(maxDeltaT_momBal);
     maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
-    if (_timeIntegrator.compare("IMEX")==0) {
+    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
     else if (_momBalType.compare("dynamic") != 0) { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
@@ -284,19 +280,40 @@ PetscErrorCode Mediator::timeMonitor(const PetscScalar time,const PetscInt stepC
   #endif
 double startTime = MPI_Wtime();
 
+  _stepCount = stepCount;
+  _currTime = time;
 
-  timeMonitor(time,stepCount,varEx,dvarEx,stopIntegration);
+  // stopping criteria for time integration
+  //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
+  //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+  //~ if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+
 
   if ( stepCount % _stride1D == 0) {
+    ierr = _momBal->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
   if ( stepCount % _stride2D == 0) {
+    ierr = _momBal->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
+  if (stepCount % 50 == 0) {
+    PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
+    _momBal->computeMaxTimeStep(maxDeltaT_momBal);
+    maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
+    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+    }
+    else if (_momBalType.compare("dynamic") != 0) { _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
+  }
+  #if VERBOSE > 0
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+  #endif
 _writeTime += MPI_Wtime() - startTime;
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -855,15 +872,18 @@ PetscErrorCode Mediator::integrate_qs()
   else if (_timeIntegrator.compare("RK43")==0) {
     _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("IMEX")==0) {
-    _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  else if (_timeIntegrator.compare("RK32_WBE")==0) {
+    _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK43_WBE")==0) {
+    _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
     assert(0); // automatically fail
   }
 
-  if (_timeIntegrator.compare("IMEX")==0) {
+  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
     _quadImex->setTolerance(_atol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
@@ -1002,7 +1022,6 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   // heat equation
-  //~ if (_stepCount % _heatCouplingStride == 0 && varIm.find("Temp") != varIm.end()) {
   if (varIm.find("Temp") != varIm.end()) {
     //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
     Vec sxy,sxz,sdev;

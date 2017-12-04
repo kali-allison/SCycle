@@ -56,7 +56,6 @@ private:
     std::string          _bulkDeformationType; // constitutive law
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int                  _heatCouplingStride;
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time

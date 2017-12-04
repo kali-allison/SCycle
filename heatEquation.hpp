@@ -72,7 +72,6 @@ class HeatEquation
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
     Vec                  _Gw,_omega,_Q; // Green's function for shear heating, d/dt strain in shear zone, total heat
-    Vec                  _g_t,_V,_Tau; // intermediate values for omega
     PetscScalar          _w; // width of shear zone (m)
 
     // runtime data
