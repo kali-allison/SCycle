@@ -56,7 +56,7 @@ class HeatEquation
     PetscViewer          _timeV; // time output viewer
 
     // which factors to include
-    std::string          _wShearHeating,_wFrictionalHeating;
+    std::string          _wViscShearHeating,_wFrictionalHeating;
 
     // linear system data
     std::string          _sbpType;
@@ -71,9 +71,9 @@ class HeatEquation
 
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
-    Vec                  _Gw; // Green's function for shear heating
+    Vec                  _Gw,_omega,_Q; // Green's function for shear heating, d/dt strain in shear zone, total heat
+    Vec                  _g_t,_V,_Tau; // intermediate values for omega
     PetscScalar          _w; // width of shear zone (m)
-
 
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
@@ -94,8 +94,8 @@ class HeatEquation
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
     PetscErrorCode setUpTransientProblem(Domain& D);
     PetscErrorCode setBCsforBE();
-    PetscErrorCode computeViscousShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
-    PetscErrorCode computeFrictionalShearHeating(Vec& shearHeat,const Vec& tau, const Vec& slipVel);
+    PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();

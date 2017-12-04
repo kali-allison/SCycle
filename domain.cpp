@@ -3,7 +3,7 @@
 using namespace std;
 
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_outputDir("unspecificed"),
+: _file(file),_delim(" = "),_outputDir("data/unspecified_"),
   _bulkDeformationType("unspecified"),_geometry("unspecified"),_sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
@@ -396,6 +396,7 @@ PetscErrorCode Domain::checkInput()
 
   assert(_timeIntegrator.compare("FEuler")==0
     || _timeIntegrator.compare("RK32")==0
+    || _timeIntegrator.compare("RK43")==0
     || _timeIntegrator.compare("IMEX")==0
     || _timeIntegrator.compare("WaveEq")==0);
 

@@ -154,6 +154,7 @@ PetscErrorCode Mediator::checkInput()
 
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
+      _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("IMEX")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
 
@@ -173,8 +174,8 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
-  if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -236,8 +237,8 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-  PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-  if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+  //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+  //~ if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
 
 
   if ( stepCount % _stride1D == 0) {
@@ -750,7 +751,7 @@ PetscErrorCode Mediator::integrate_SS()
 
     // create output path with Jj appended on end
     char buff[5];
-    sprintf(buff,"%02d",Jj);
+    sprintf(buff,"%04d",Jj);
     _outputDir = baseOutDir + string(buff) + "_";
 
     PetscPrintf(PETSC_COMM_WORLD,"baseDir = %s\n\n",_outputDir.c_str());
@@ -797,7 +798,7 @@ PetscErrorCode Mediator::integrate_SS()
       }
 
       // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-      PetscScalar f = 0.5;
+      PetscScalar f = 0.3;
       VecScale(_varSS["effVisc"],f);
       VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
 
@@ -850,6 +851,9 @@ PetscErrorCode Mediator::integrate_qs()
   }
   else if (_timeIntegrator.compare("RK32")==0) {
     _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK43")==0) {
+    _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("IMEX")==0) {
     _quadImex = new OdeSolverImex(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);

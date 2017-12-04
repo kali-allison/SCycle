@@ -130,5 +130,38 @@ class RK32 : public OdeSolver
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
+
+class RK43 : public OdeSolver
+{
+  public:
+
+    PetscReal   _minDeltaT,_maxDeltaT;
+    PetscReal   _atol; // absolute and relative tolerances
+    PetscReal   _kappa,_ord; // safety factor in step size determinance
+    PetscReal   _absErr[3]; // safety factor in step size determinance
+    PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
+
+    std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
+    std::map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
+    std::map<string,Vec> _var, _dvar; // accepted stages
+
+    PetscReal computeStepSize(const PetscReal totErr);
+    PetscReal computeError();
+
+  //~ public:
+
+    RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    ~RK43();
+
+    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
+    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
+    PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode view();
+
+    PetscErrorCode integrate(IntegratorContextEx *obj);
+};
+
 #endif
 

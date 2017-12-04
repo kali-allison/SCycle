@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N g30_sNGrad
+#PBS -N bruteForce_al_a7_Dc1_sNGrad
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/g30_sNGrad.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/g30_sNGrad.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/bruteForce_al_a7_Dc1_sNGrad.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/bruteForce_al_a7_Dc1_sNGrad.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

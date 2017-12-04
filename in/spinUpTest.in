@@ -1,7 +1,7 @@
 #======================================================================
 # domain
 order = 4
-Ny = 151
+Ny = 201
 Nz = 201
 Ly = 30 # km
 Lz = 30 # km
@@ -16,14 +16,14 @@ bulkDeformationType = powerLaw
 momBalType = static
 
 # coordinate transformation
-bCoordTrans = 10.0
+bCoordTrans = 8.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/g25SS_l0.4_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_
 loadICs = 0
 bcLTauQS = 0
 
@@ -45,8 +45,8 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [8e-3 8e-3] # m
-DcVals = [16e-3 16e-3] # m
-#DcVals = [1 1] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -62,17 +62,17 @@ DcDepths = [0 60] # m
 #bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
 # FOR SPIN UP: a <- a-b; for creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 # note in the VW region a remains what it was previously
-aVals = [0.0135 0.03 0.0325 0.2155]
-aDepths = [0 10 19.3333 60]
-bVals = [0.0 0.0]
-bDepths = [0 60]
+#aVals = [0.0135 0.03 0.0325 0.2155]
+#aDepths = [0 10 19.3333 60]
+#bVals = [0.0 0.0]
+#bDepths = [0 60]
 
 #sigmaNVals = [50 50] # (MPa) constant
 #sigmaNDepths = [0 60] #(km) constant
@@ -91,7 +91,7 @@ sigmaNDepths = [0 60]
 sigmaN_floor = 5.5; # MPa
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
-stateLaw = constantState
+stateLaw = agingLaw
 v0 = 1e-9
 f0 = 0.6
 
@@ -135,7 +135,7 @@ TDepths = [0 50]
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
 # withFrictionalHeating: no, plane, finiteWidthZone
 heatEquationType = steadyState
-thermalCoupling = no
+thermalCoupling = coupled
 withShearHeating = yes
 withFrictionalHeating = no
 heatCouplingStride = 1
@@ -149,7 +149,7 @@ maxEffViscSS = 1e18
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
+timeIntegrator = IMEX
 timeControlType = PID
 stride1D = 20
 stride2D = 20
@@ -159,7 +159,7 @@ maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-5
+atol = 1e-7
 #timeIntInds = [psi slip]
 timeIntInds = [slip]
 #timeIntInds = [slip gVxy gVxz]
@@ -176,9 +176,19 @@ timeIntInds = [slip]
 #outputDir = /scratch/kallison/it/sc10_atol4_
 #outputDir = /scratch/kallison/ss/g10_cs_
 
-#outputDir = /scratch/kallison/ss/cs_
-#outputDir = /scratch/kallison/ss/cs2_
-#outputDir = /scratch/kallison/ss/testCont_
-outputDir = /scratch/kallison/ss/g30_sNGrad_
+
+# iterative steady state approach
+#outputDir = /scratch/kallison/ss/g30_MUMPS_sNGrad_
+#outputDir = /scratch/kallison/ss/g30_v2_MUMPS_sNGrad_
+#outputDir = /scratch/kallison/ss/g30_v2_AMG_sNGrad_
+#outputDir = /scratch/kallison/ss/g30_AMG_sNGrad_
+#outputDir = /scratch/kallison/ss/g30_v2_MUMPS_sNGrad_Ny201_
+#outputDir = /scratch/kallison/ss/g30_v2_MUMPS_sNGrad_Ny301_
+
+#outputDir = /scratch/kallison/bruteForce/cs_sNGrad_
+#outputDir = /scratch/kallison/bruteForce/cs_a7_sNGrad_
+#outputDir = /scratch/kallison/bruteForce/al_a5_sNGrad_
+#outputDir = /scratch/kallison/bruteForce/al_a7_sNGrad_
+#outputDir = /scratch/kallison/bruteForce/al_a7_Dc1_sNGrad_
 
 
