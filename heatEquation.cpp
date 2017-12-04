@@ -547,27 +547,27 @@ PetscErrorCode HeatEquation::setupKSP_SS(SbpOps* sbp)
   sbp->getA(A);
 
   // reuse preconditioner at each time step
-  //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
-  //~ ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
-  //~ ierr = KSPSetOperators(_ksp,A,A);CHKERRQ(ierr);
-  //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_FALSE);CHKERRQ(ierr);
-  //~ ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
-  //~ ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
-  //~ ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-  //~ ierr = KSPSetTolerances(_ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-  //~ ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
-  //~ ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+  ierr = KSPSetType(_ksp,KSPRICHARDSON);CHKERRQ(ierr);
+  ierr = KSPSetOperators(_ksp,A,A);CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(_ksp,PETSC_FALSE);CHKERRQ(ierr);
+  ierr = KSPGetPC(_ksp,&_pc);CHKERRQ(ierr);
+  ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
+  ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
+  ierr = KSPSetTolerances(_ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(_ksp,PETSC_TRUE);CHKERRQ(ierr);
 
   // use MUMPSCHOLESKY
-  ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
-  ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
-  ierr = KSPSetOperators(_ksp,A,A);CHKERRQ(ierr);
-  ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
-  PC pc;
-  ierr = KSPGetPC(_ksp,&pc);CHKERRQ(ierr);
-  PCSetType(pc,PCCHOLESKY);
-  PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
-  PCFactorSetUpMatSolverPackage(pc);
+  //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+  //~ ierr = KSPSetType(_ksp,KSPPREONLY);CHKERRQ(ierr);
+  //~ ierr = KSPSetOperators(_ksp,A,A);CHKERRQ(ierr);
+  //~ ierr = KSPSetReusePreconditioner(_ksp,PETSC_TRUE);CHKERRQ(ierr);
+  //~ PC pc;
+  //~ ierr = KSPGetPC(_ksp,&pc);CHKERRQ(ierr);
+  //~ PCSetType(pc,PCCHOLESKY);
+  //~ PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
+  //~ PCFactorSetUpMatSolverPackage(pc);
 
   double startTime = MPI_Wtime();
   // finish setting up KSP context using options defined above
