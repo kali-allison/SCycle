@@ -9,7 +9,7 @@ Mediator::Mediator(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(D._vL),
+  _vL(D._vL),_problemType(D._problemType),
   _momBalType("static"),_bulkDeformationType(D._bulkDeformationType),_thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _initialU("gaussian"),
@@ -232,9 +232,11 @@ double startTime = MPI_Wtime();
   _currTime = time;
 
   // stopping criteria for time integration
+  if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-  //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-  //~ if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+  }
 
 
   if ( stepCount % _stride1D == 0) {
@@ -284,9 +286,11 @@ double startTime = MPI_Wtime();
   _currTime = time;
 
   // stopping criteria for time integration
+  if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-  //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-  //~ if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+  }
 
 
   if ( stepCount % _stride1D == 0) {
@@ -718,10 +722,10 @@ PetscErrorCode Mediator::integrate()
   #endif
   double startTime = MPI_Wtime();
 
-  if (_momBalType.compare("dynamic")==0) {
-    integrate_dyn();
-  }
-  else { integrate_qs(); }
+  if (_problemType.compare("dynamic")==0) { integrate_dyn(); }
+  else if (_problemType.compare("quasidynamic")==0) { integrate_qs(); }
+  else if (_problemType.compare("quasidynamic_and_dynamic")==0) { integrate_qs(); } // not yet supported
+  else if (_problemType.compare("steadyStateIts")==0) { integrate_SS(); }
 
   _integrateTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -747,6 +751,17 @@ PetscErrorCode Mediator::integrate_SS()
   Vec T; VecDuplicate(_varSS["effVisc"],&T);
   _varSS["Temp"] = T;
   _he->getTemp(_varSS["Temp"]);
+  // update temperature
+  {
+    Vec sxy=NULL,sxz=NULL,sdev = NULL;
+    _momBal->getStresses(sxy,sxz,sdev);
+    //~ Vec slipVel = _quadEx->_dvar["slip"];
+    Vec gVxy_t = _varSS["gVxy_t"];
+    Vec gVxz_t = _varSS["gVxy_t"];
+    //~ _he->computeSteadyStateTemp(_currTime,slipVel,_fault->_tauQSP,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+    _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+    _momBal->updateTemperature(_varSS["Temp"]);
+  }
 
   _viewers["tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
   VecCopy(_fault->_tauQSP,_varSS["tau"]);
@@ -760,6 +775,10 @@ PetscErrorCode Mediator::integrate_SS()
   _viewers["Temp"] = initiateViewer(_outputDir + "SS_Temp");
   ierr = VecView(_varSS["Temp"],_viewers["Temp"]); CHKERRQ(ierr);
   ierr = appendViewer(_viewers["Temp"],_outputDir + "SS_Temp");
+
+  _viewers["Q"] = initiateViewer(_outputDir + "SS_Q");
+  ierr = VecView(_he->_Q,_viewers["Q"]); CHKERRQ(ierr);
+  ierr = appendViewer(_viewers["Q"],_outputDir + "SS_Q");
 
   PetscInt Jj = 0;
   _currTime = _initTime;
@@ -781,7 +800,7 @@ PetscErrorCode Mediator::integrate_SS()
     _fault->initiateIntegrand(_initTime,_varEx);
     _stepCount = 0;
     _currTime = _initTime;
-    _quadEx = new RK32(1e4,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(1e6,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);
@@ -791,28 +810,14 @@ PetscErrorCode Mediator::integrate_SS()
 
     // compute steady state conditions
     VecCopy(_fault->_tauP,_varSS["tau"]);
-    //~ ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
 
     // loop over effective viscosity
     Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
     double err = 1e10;
     int Ii = 0;
-    //~ while (Ii < 10 && err > 1e-3) {
-    while (Ii < 20 && err > 1e-3) {
+    while (Ii < 50 && err > 1e-3) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
-
-      // update temperature
-      {
-        Vec sxy=NULL,sxz=NULL,sdev = NULL;
-        _momBal->getStresses(sxy,sxz,sdev);
-        //~ Vec slipVel = _quadEx->_dvar["slip"];
-        Vec gVxy_t = _varSS["gVxy_t"];
-        Vec gVxz_t = _varSS["gVxy_t"];
-        //~ _he->computeSteadyStateTemp(_currTime,slipVel,_fault->_tauQSP,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
-        _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
-        _momBal->updateTemperature(_varSS["Temp"]);
-      }
 
       // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
       PetscScalar f = 0.3;
@@ -824,6 +829,17 @@ PetscErrorCode Mediator::integrate_SS()
       Ii++;
     }
     VecDestroy(&effVisc_old);
+    // update temperature
+    {
+      Vec sxy=NULL,sxz=NULL,sdev = NULL;
+      _momBal->getStresses(sxy,sxz,sdev);
+      //~ Vec slipVel = _quadEx->_dvar["slip"];
+      Vec gVxy_t = _varSS["gVxy_t"];
+      Vec gVxz_t = _varSS["gVxy_t"];
+      //~ _he->computeSteadyStateTemp(_currTime,slipVel,_fault->_tauQSP,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+      _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+      _momBal->updateTemperature(_varSS["Temp"]);
+    }
 
     delete _quadEx; _quadEx = NULL;
 

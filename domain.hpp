@@ -23,7 +23,7 @@ class Domain
     std::string    _delim; // format is: var delim value (without the white space)
     std::string    _outputDir; // directory for output
     std::string    _bulkDeformationType; // options: linearElastic, powerLaw
-    std::string    _geometry; // options: general, symmetric (only solve y>0 portion)
+    std::string    _problemType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
     std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files

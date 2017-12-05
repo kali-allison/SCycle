@@ -71,7 +71,7 @@ class HeatEquation
 
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
-    Vec                  _Gw,_omega,_Q; // Green's function for shear heating, d/dt strain in shear zone, total heat
+    Vec                  _Gw,_omega; // Green's function for shear heating, d/dt strain in shear zone, total heat
     PetscScalar          _w; // width of shear zone (m)
 
     // runtime data
@@ -104,7 +104,7 @@ class HeatEquation
 
     Vec _dT; // actually change in temperature
     Vec _Tamb; // initial temperature
-    Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, radioactive heat generation
+    Vec _k,_rho,_c,_h,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();

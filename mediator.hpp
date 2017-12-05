@@ -52,6 +52,7 @@ private:
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     const PetscScalar    _vL;
+    std::string          _problemType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
     std::string          _momBalType; // "dynamic", "static"
     std::string          _bulkDeformationType; // constitutive law
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling

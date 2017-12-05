@@ -1233,8 +1233,10 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   #endif
 
   // update effective viscosity based on changes in temperature
-  //~ VecCopy(varSS["Temp"],_T);
-  //~ ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
+  if (varSS.find("Temp") != varSS.end() ) {
+    VecCopy(varSS["Temp"],_T);
+    ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
+  }
 
   //~ _sbp_eta->updateVarCoeff(_effVisc);
   //~ _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
