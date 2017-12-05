@@ -243,7 +243,7 @@ double startTime = MPI_Wtime();
   if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && _stepCount > 1e3) { stopIntegration = 1; }
   }
 
 
@@ -297,7 +297,7 @@ double startTime = MPI_Wtime();
   if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && _stepCount > 1e3) { stopIntegration = 1; }
   }
 
 
@@ -420,16 +420,20 @@ PetscErrorCode Mediator::solveSS_pl()
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
+  //~ Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
-  while (Ii < 20 && err > 1e-3) {
+  while (Ii < 20 && err > 1e-2) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
 
-    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-    PetscScalar f = 0.5;
+    PetscScalar f = 0.25;
+    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
     VecScale(_varSS["effVisc"],f);
     VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+    // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
+      //~ MyVecLog10AXPBY(temp,1.-f,effVisc_old,f,_varSS["effVisc"]);
+      //~ VecCopy(temp,_varSS["effVisc"]);
 
     PetscScalar len;
     VecNorm(effVisc_old,NORM_2,&len);
@@ -438,6 +442,7 @@ PetscErrorCode Mediator::solveSS_pl()
     Ii++;
   }
   VecDestroy(&effVisc_old);
+  //~ VecDestroy(&temp);
 
   // solve for gVxy, gVxz, u, bcL and bcR
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
@@ -754,7 +759,7 @@ PetscErrorCode Mediator::integrate_SS()
 
   PetscInt Jj = 0;
   _currTime = _initTime;
-  while (Jj < 1) {
+  while (Jj < 1e4) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
     // create output path with Jj appended on end
@@ -770,7 +775,7 @@ PetscErrorCode Mediator::integrate_SS()
     _fault->initiateIntegrand(_initTime,_varEx);
     _stepCount = 0;
     _currTime = _initTime;
-    _quadEx = new RK32(5,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(1e5,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);
@@ -783,22 +788,28 @@ PetscErrorCode Mediator::integrate_SS()
 
     // loop over effective viscosity
     Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
+    Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
     double err = 1e10;
     int Ii = 0;
-    while (Ii < 50 && err > 1e-2) {
+    while (Ii < 20 && err > 6e-2) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
 
+      PetscScalar f = 0.2;
       // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-      PetscScalar f = 0.3;
-      VecScale(_varSS["effVisc"],f);
-      VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+      //~ VecScale(_varSS["effVisc"],f);
+      //~ VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+      // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
+      MyVecLog10AXPBY(temp,1.-f,effVisc_old,f,_varSS["effVisc"]);
+      VecCopy(temp,_varSS["effVisc"]);
 
       err = computeNormDiff_L2_scaleL2(effVisc_old,_varSS["effVisc"]);
       PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
       Ii++;
     }
     VecDestroy(&effVisc_old);
+    VecDestroy(&temp);
+
     // update temperature
     {
       Vec sxy=NULL,sxz=NULL,sdev = NULL;

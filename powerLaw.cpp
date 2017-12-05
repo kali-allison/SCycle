@@ -1239,6 +1239,29 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+PetscErrorCode PowerLaw::updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t)
+{
+   PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateFieldsSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  VecSet(varSS["gVxy_t"],0.);
+  VecSet(varSS["gVxz_t"],0.);
+  VecSet(_gxy,0.);
+  VecSet(_gxz,0.);
+
+  guessSteadyStateEffVisc(ess_t);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 
 // solve for steady-state v, viscous strain rates
 PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)

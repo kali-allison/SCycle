@@ -403,6 +403,31 @@ PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
   return ierr;
 }
 
+// log10(out) = a*log10(vec1) + b*log10(vec2)
+// out may not be the same as vec1 or vec2
+PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const double b, const Vec& vec2)
+{
+
+  if (out == NULL) { VecDuplicate(vec1,&out); }
+
+  // compute effective viscosity
+  PetscScalar *vec1A,*vec2A,*outA;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(vec1,&Istart,&Iend);
+  VecGetArray(vec1,&vec1A);
+  VecGetArray(vec2,&vec2A);
+  VecGetArray(out,&outA);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+   PetscScalar log10Out = a*log10(vec1A[Jj]) + b*log10(vec2A[Jj]);
+    outA[Jj] = pow(10.,log10Out);
+    Jj++;
+  }
+  VecRestoreArray(vec1,&vec1A);
+  VecRestoreArray(vec2,&vec2A);
+  VecRestoreArray(out,&outA);
+}
+
 
 // loads a PETSc Vec from a binary file
 // Note: memory for out MUST be allocated before calling this function

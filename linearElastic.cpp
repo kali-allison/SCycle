@@ -446,6 +446,24 @@ PetscErrorCode LinearElastic::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+PetscErrorCode LinearElastic::updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateFieldsSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // do nothing
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 // compute steady state u, bcs
 PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
 {

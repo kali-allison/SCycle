@@ -1,8 +1,8 @@
 #======================================================================
 # domain
 order = 4
-Ny = 51
-Nz = 51
+Ny = 311
+Nz = 301
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -16,14 +16,14 @@ bulkDeformationType = powerLaw
 momBalType = static
 
 # coordinate transformation
-bCoordTrans = 5.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_
+inputDir = /data/dunham/kallison/eqcycle/inputData/newy_
 loadICs = 0
 bcLTauQS = 0
 
@@ -49,18 +49,6 @@ cohesionDepths = [0 60] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
-# uniformly VS
-#aVals = [0.015 0.02]
-#aDepths = [0 60]
-#bVals = [0.0 0.0]
-#bDepths = [0 60]
-
-# easier to resolve
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
-
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 #aVals = [0.0135 0.0300 0.0700 0.2652]
 #aDepths = [0 11.0000 19.3333 60]
@@ -85,14 +73,14 @@ bDepths = [0 60]
 #sigmaNVals = [0 802.1] # lambda = 0.4
 #sigmaNVals = [0 668.5] # lambda = 0.5
 #sigmaNVals = [0 534.8] # lambda = 0.6
-sigmaNVals = [0 401.1] # lambda = 0.7
+#sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
 sigmaNDepths = [0 60]
 sigmaN_floor = 5.5; # MPa
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
-#stateLaw = constantState
-#v0 = 1e-9
+stateLaw = constantState
+v0 = 1e-9
 f0 = 0.6
 
 
@@ -127,7 +115,7 @@ rhoDepths = [0 60]
 # initial geotherm
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+#TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
@@ -140,26 +128,26 @@ shearZoneWidth = 0
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 1e16
-maxEffViscSS = 1e16
+maxEffVisc = 1e18
+maxEffViscSS = 1e18
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43; RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 20
+stride2D = 20
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-8
-timeIntInds = [psi slip]
+atol = 1e-6
+#timeIntInds = [psi slip]
 #timeIntInds = [slip]
-#timeIntInds = [slip gVxy gVxz]
+timeIntInds = [slip gVxy gVxz]
 
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
@@ -167,19 +155,22 @@ problemType = steadyStateIts
 heatEquationType = steadyState
 thermalCoupling = coupled
 withViscShearHeating = yes
-stateLaw = constantState
-v0 = 1e-9
 
+#sigmaNVals = [0 401.1] # lambda = 0.7
+sigmaNVals = [0 267.4] # lambda = 0.8
+TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
+
+
+#outputDir = /scratch/kallison/test/test_
+outputDir = /scratch/kallison/test/test2_
 
 # g = 25
-#outputDir = /scratch/kallison/agu_ss2/ssg25_Tss_cs_v09_lambda8_Ny251_Nz301_
-#outputDir = /scratch/kallison/agu_ss2/ssg25_Tss_cs_v09_lambda7_Ny251_Nz301_
+#outputDir = /scratch/kallison/agu_ss3/ssg25_Tss_cs_v09_lambda8_
+#outputDir = /scratch/kallison/agu_ss3/ssg25_Tss_cs_v09_lambda7_Ny301_Nz301_
+#outputDir = /scratch/kallison/agu_ss3/ssg25_Tss_cs_v09_lambda7_a6_
 
 # g = 30
-#outputDir = /scratch/kallison/agu_ss2/ssg30_Tss_cs_v09_lambda8_Ny251_Nz301_
-#outputDir = /scratch/kallison/agu_ss2/ssg30_Tss_cs_v09_lambda7_Ny251_Nz301_
-
-outputDir = /scratch/kallison/agu_ss2/memTest_
-
-
+#outputDir = /scratch/kallison/agu_ss3/ssg30_Tss_cs_v09_lambda8_Ny301_Nz301_
+#outputDir = /scratch/kallison/agu_ss3/ssg30_Tss_cs_v09_lambda7_Ny251_Nz301_
 
