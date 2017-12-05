@@ -1124,7 +1124,6 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
     Mat H; _sbpT->getH(H);
     ierr = MatMultAdd(H,_Q,rhs,rhs); CHKERRQ(ierr);
   }
-assert(0);
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
@@ -1310,6 +1309,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   VecWAXPY(T,1.0,_dT,_Tamb); // T = dT + T0
   computeHeatFlux();
 
+  VecDestroy(&rhs);
   _beTime += MPI_Wtime() - beStartTime;
 
   #if VERBOSE > 1

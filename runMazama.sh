@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N ssg25_Tss_cs_v09_lambda8_Ny301_Nz301
+#PBS -N ssg30_Tss_cs_v09_lambda7_Ny251_Nz301
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/ssg25_Tss_cs_v09_lambda8_Ny301_Nz301.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/ssg25_Tss_cs_v09_lambda8_Ny301_Nz301.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/ssg30_Tss_cs_v09_lambda7_Ny251_Nz301.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/ssg30_Tss_cs_v09_lambda7_Ny251_Nz301.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle

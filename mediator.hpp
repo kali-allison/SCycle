@@ -73,7 +73,6 @@ private:
 
     // steady state data
     std::map <string,Vec>  _varSS; // holds variables for steady state iteration
-    Vec                    _prevTau; // shear stress from previous time step, to measure convergence
 
 
     // runtime data

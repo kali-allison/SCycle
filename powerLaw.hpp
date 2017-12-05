@@ -44,7 +44,6 @@ class PowerLaw : public MomBalContext
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
     Vec         _A,_n,_QR,_T;
     Vec         _effVisc;
-    Vec         SATL;
     PetscScalar _effViscCap; // imposed upper limit on effective viscosity
 
     // linear system data
