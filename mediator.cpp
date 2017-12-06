@@ -243,7 +243,7 @@ double startTime = MPI_Wtime();
   if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && _stepCount > 1e3) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
   }
 
 
@@ -297,7 +297,7 @@ double startTime = MPI_Wtime();
   if (_problemType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && _stepCount > 1e3) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
   }
 
 
@@ -759,7 +759,7 @@ PetscErrorCode Mediator::integrate_SS()
 
   PetscInt Jj = 0;
   _currTime = _initTime;
-  while (Jj < 1e4) {
+  while (Jj < 101) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
     // create output path with Jj appended on end
