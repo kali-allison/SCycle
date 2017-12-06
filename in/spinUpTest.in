@@ -145,23 +145,28 @@ atol = 1e-6
 #timeIntInds = [slip]
 timeIntInds = [slip gVxy gVxz]
 
-
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 problemType = steadyStateIts
 heatEquationType = steadyState
 thermalCoupling = coupled
 withViscShearHeating = yes
 
-sigmaNVals = [0 534.8] # lambda = 0.6
-#sigmaNVals = [0 401.1] # lambda = 0.7
+#sigmaNVals = [0 534.8] # lambda = 0.6
+sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
+
+# try fewer steps to prevent fault from changing too much, causing oscillations
+#outputDir = /scratch/kallison/test/test_g30_l7_sc5e3_
+outputDir = /scratch/kallison/test/test2_
+
 
 # g = 25
 #outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda8_
 #outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda7_
 #outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda6_
+#outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda4_
 
 # g = 30
 #outputDir = /scratch/kallison/agu_ss4/ssg30_cs_lambda8_

@@ -759,7 +759,7 @@ PetscErrorCode Mediator::integrate_SS()
 
   PetscInt Jj = 0;
   _currTime = _initTime;
-  while (Jj < 101) {
+  while (Jj < 1001) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
     // create output path with Jj appended on end
@@ -775,7 +775,7 @@ PetscErrorCode Mediator::integrate_SS()
     _fault->initiateIntegrand(_initTime,_varEx);
     _stepCount = 0;
     _currTime = _initTime;
-    _quadEx = new RK32(1e5,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(5e3,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);
@@ -791,7 +791,7 @@ PetscErrorCode Mediator::integrate_SS()
     Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
     double err = 1e10;
     int Ii = 0;
-    while (Ii < 20 && err > 6e-2) {
+    while (Ii < 20 && err > 1e-3) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
 
