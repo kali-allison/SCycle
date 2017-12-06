@@ -1,7 +1,7 @@
 #======================================================================
 # domain
 order = 4
-Ny = 336
+Ny = 319
 Nz = 301
 Ly = 30 # km
 Lz = 30 # km
@@ -151,16 +151,18 @@ heatEquationType = steadyState
 thermalCoupling = coupled
 withViscShearHeating = yes
 
+sigmaNVals = [0 802.1] # lambda = 0.4
 #sigmaNVals = [0 534.8] # lambda = 0.6
-sigmaNVals = [0 401.1] # lambda = 0.7
+#sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
+
 
 # try fewer steps to prevent fault from changing too much, causing oscillations
 #outputDir = /scratch/kallison/test/test_g30_l7_sc5e3_
-outputDir = /scratch/kallison/test/test2_
-
+#outputDir = /scratch/kallison/test/test2_
+#outputDir = /scratch/kallison/test/test3_constEffVisc_
 
 # g = 25
 #outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda8_
@@ -171,5 +173,14 @@ outputDir = /scratch/kallison/test/test2_
 # g = 30
 #outputDir = /scratch/kallison/agu_ss4/ssg30_cs_lambda8_
 #outputDir = /scratch/kallison/agu_ss4/ssg30_cs_lambda7_
+
+
+# try to get it to stop oscillating so much
+#outputDir = /scratch/kallison/agu_ss5/ssg25_cs_lambda7_
+#outputDir = /scratch/kallison/agu_ss5/ssg25_cs_lambda4_
+#outputDir = /scratch/kallison/agu_ss5/ssg30_cs_lambda7_
+
+
+
 
 

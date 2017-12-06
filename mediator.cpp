@@ -759,7 +759,7 @@ PetscErrorCode Mediator::integrate_SS()
 
   PetscInt Jj = 0;
   _currTime = _initTime;
-  while (Jj < 1001) {
+  while (Jj < 1e4) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
     // create output path with Jj appended on end
@@ -775,7 +775,12 @@ PetscErrorCode Mediator::integrate_SS()
     _fault->initiateIntegrand(_initTime,_varEx);
     _stepCount = 0;
     _currTime = _initTime;
-    _quadEx = new RK32(5e3,_maxTime,_initDeltaT,_timeControlType);
+
+    PetscScalar maxTemp; VecMax(_varSS["Temp"],NULL,&maxTemp);
+    PetscInt stepCount = 5e3;
+    if (maxTemp > 90.) { stepCount = 2e4; }
+
+    _quadEx = new RK32(stepCount,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);

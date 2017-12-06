@@ -1,13 +1,12 @@
 #!/bin/bash
-#PBS -N test2
+#PBS -N ssg24_cs_lambda4
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/test2.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/test2.out
-
+#PBS -e /data/dunham/kallison/eqcycle/outFiles5/ssg24_cs_lambda4.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles5/ssg24_cs_lambda4.out
 
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
