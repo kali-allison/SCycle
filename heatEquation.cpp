@@ -31,8 +31,9 @@ HeatEquation::HeatEquation(Domain& D)
   checkInput();
   setFields(D);
   constructMapV();
-  if (D._loadICs==1) { loadFieldsFromFiles(); }
+  //~ if (D._loadICs==1) { loadFieldsFromFiles(); }
   if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(D); }
+  loadFieldsFromFiles();
 
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(D); }
   else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(D); }

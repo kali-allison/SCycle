@@ -411,11 +411,12 @@ PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const d
   if (out == NULL) { VecDuplicate(vec1,&out); }
 
   // compute effective viscosity
-  PetscScalar *vec1A,*vec2A,*outA;
+  PetscScalar *outA;
+  PetscScalar const *vec1A,*vec2A;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(vec1,&Istart,&Iend);
-  VecGetArray(vec1,&vec1A);
-  VecGetArray(vec2,&vec2A);
+  VecGetArrayRead(vec1,&vec1A);
+  VecGetArrayRead(vec2,&vec2A);
   VecGetArray(out,&outA);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
@@ -423,8 +424,8 @@ PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const d
     outA[Jj] = pow(10.,log10Out);
     Jj++;
   }
-  VecRestoreArray(vec1,&vec1A);
-  VecRestoreArray(vec2,&vec2A);
+  VecRestoreArrayRead(vec1,&vec1A);
+  VecRestoreArrayRead(vec2,&vec2A);
   VecRestoreArray(out,&outA);
 }
 

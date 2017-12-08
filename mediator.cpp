@@ -18,6 +18,7 @@ Mediator::Mediator(Domain&D)
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
   _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
   _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
+  _fss_T(0.1),_fss_EffVisc(0.25),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _quadEx(NULL),_quadImex(NULL),_quadWaveEq(NULL),
@@ -128,6 +129,14 @@ PetscErrorCode Mediator::loadSettings(const char *file)
     else if (var.compare("momBalType")==0) {
       _momBalType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+
+    // for steady state iteration
+    else if (var.compare("fss_T")==0) {
+      _fss_T = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("fss_EffVisc")==0) {
+      _fss_EffVisc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
   }
 
   #if VERBOSE > 1
@@ -180,6 +189,32 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
 
   if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
   if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
+
+  _momBal->initiateIntegrand_qs(_initTime,_varEx);
+  _fault->initiateIntegrand(_initTime,_varEx);
+
+  if (_thermalCoupling.compare("no")!=0 ) {
+     _he->initiateIntegrand(_initTime,_varEx,_varIm);
+  }
+
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+     _p->initiateIntegrand(_initTime,_varEx,_varIm);
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// initiate variables to be integrated in time for steady state iteration
+PetscErrorCode Mediator::initiateIntegrand_ss()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mediator::initiateIntegrand_ss()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -363,6 +398,24 @@ PetscErrorCode Mediator::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // output scalar fields
+  std::string str = _outputDir + "mediator_context.txt";
+  PetscViewer    viewer;
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+  ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
+
+  // if steady state oscillation
+  if (_problemType.compare("steadyStateIts")==0) {
+    ierr = PetscViewerASCIIPrintf(viewer,"f_T = %.15e\n",_fss_T);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"f_EffVisc = %.15e\n",_fss_EffVisc);CHKERRQ(ierr);
+  }
+
+  PetscViewerDestroy(&viewer);
+
   _momBal->writeContext(_outputDir);
    _he->writeContext(_outputDir);
   _fault->writeContext(_outputDir);
@@ -392,7 +445,7 @@ PetscErrorCode Mediator::solveSS_pl()
   PetscScalar ess_t = 1e-6; // guess at steady state strain rate
 
   // compute steady state stress on fault
-  Vec tauRS = NULL,tauVisc = NULL,tauSS = NULL;
+  Vec tauRS = NULL,tauVisc = NULL,tauSS=NULL;
   _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
   _momBal->getTauVisc(tauVisc,ess_t); // tau visc from steady state strain rate
 
@@ -423,14 +476,12 @@ PetscErrorCode Mediator::solveSS_pl()
   //~ Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
-  while (Ii < 20 && err > 1e-2) {
+  while (Ii < 20 && err > 5e-3) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
-
-    PetscScalar f = 0.25;
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
-    VecScale(_varSS["effVisc"],f);
-    VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
+    VecScale(_varSS["effVisc"],_fss_EffVisc);
+    VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
       //~ MyVecLog10AXPBY(temp,1.-f,effVisc_old,f,_varSS["effVisc"]);
       //~ VecCopy(temp,_varSS["effVisc"]);
@@ -759,28 +810,27 @@ PetscErrorCode Mediator::integrate_SS()
 
   PetscInt Jj = 0;
   _currTime = _initTime;
-  while (Jj < 1e4) {
+  Vec T_old; VecDuplicate(_varSS["Temp"],&T_old); VecSet(T_old,0.);
+  PetscInt maxItCount = min((int) _maxStepCount, (int)1e4);
+  while (Jj < maxItCount) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
     // create output path with Jj appended on end
     char buff[5];
     sprintf(buff,"%04d",Jj);
     _outputDir = baseOutDir + string(buff) + "_";
-
     PetscPrintf(PETSC_COMM_WORLD,"baseDir = %s\n\n",_outputDir.c_str());
 
-    // iterate to find shear stress on fault
-    //~ _initTime = _currTime;
+
+    // integrate to find the approximate steady state shear stress on the fault
     _momBal->initiateIntegrand_qs(_initTime,_varEx);
     _fault->initiateIntegrand(_initTime,_varEx);
     _stepCount = 0;
     _currTime = _initTime;
 
     PetscScalar maxTemp; VecMax(_varSS["Temp"],NULL,&maxTemp);
-    PetscInt stepCount = 5e3;
-    if (maxTemp > 90.) { stepCount = 2e4; }
 
-    _quadEx = new RK32(stepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(2e4,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);
@@ -788,47 +838,46 @@ PetscErrorCode Mediator::integrate_SS()
     _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
     _quadEx->integrate(this);CHKERRQ(ierr);
 
+
     // compute steady state conditions
     VecCopy(_fault->_tauP,_varSS["tau"]);
+    delete _quadEx; _quadEx = NULL;
+    map<string,Vec>::iterator it;
+    for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+      VecDestroy(&it->second);
+    }
 
     // loop over effective viscosity
     Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
     Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
     double err = 1e10;
     int Ii = 0;
-    while (Ii < 20 && err > 1e-3) {
+    while (Ii < 20 && err > 1e-2) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
-
-      PetscScalar f = 0.2;
-      // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-      //~ VecScale(_varSS["effVisc"],f);
-      //~ VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
-      // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-      MyVecLog10AXPBY(temp,1.-f,effVisc_old,f,_varSS["effVisc"]);
+      MyVecLog10AXPBY(temp, 1.-_fss_EffVisc, effVisc_old, _fss_EffVisc, _varSS["effVisc"]);
       VecCopy(temp,_varSS["effVisc"]);
-
       err = computeNormDiff_L2_scaleL2(effVisc_old,_varSS["effVisc"]);
-      PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
+      PetscPrintf(PETSC_COMM_WORLD,"    eff visc loop: %i %e\n",Ii,err);
       Ii++;
     }
     VecDestroy(&effVisc_old);
     VecDestroy(&temp);
 
-    // update temperature
-    {
+    // update temperature, with damping: Tnew = (1-f)*Told + f*Tnew
+    if (_thermalCoupling.compare("coupled")==0) {
       Vec sxy=NULL,sxz=NULL,sdev = NULL;
       _momBal->getStresses(sxy,sxz,sdev);
       Vec gVxy_t = _varSS["gVxy_t"];
       Vec gVxz_t = _varSS["gVxy_t"];
+      VecCopy(_varSS["Temp"],T_old);
       _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,gVxy_t,gVxz_t,_varSS["Temp"]);
+      VecScale(_varSS["Temp"],_fss_T);
+      VecAXPY(_varSS["Temp"],1.-_fss_T,T_old);
       _momBal->updateTemperature(_varSS["Temp"]);
     }
 
-    delete _quadEx; _quadEx = NULL;
-
     ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
-
     {
       Vec sxy,sxz,sdev;
       ierr = _momBal->getStresses(sxy,sxz,sdev);
@@ -841,6 +890,7 @@ PetscErrorCode Mediator::integrate_SS()
     ierr = VecView(_varSS["Temp"],_viewers["Temp"]); CHKERRQ(ierr);
     Jj++;
   }
+  VecDestroy(&T_old);
 
 
   _integrateTime += MPI_Wtime() - startTime;

@@ -65,7 +65,7 @@ private:
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscScalar              _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
+    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -73,6 +73,7 @@ private:
 
     // steady state data
     std::map <string,Vec>  _varSS; // holds variables for steady state iteration
+    PetscScalar            _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
 
 
     // runtime data
@@ -117,6 +118,7 @@ private:
     PetscErrorCode solveSS_v2(); // iterate for eff visc etc
     PetscErrorCode writeSS(const int Ii);
     PetscErrorCode integrate_SS();
+    PetscErrorCode initiateIntegrand_ss();
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

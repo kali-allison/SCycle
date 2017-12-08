@@ -1041,7 +1041,6 @@ PetscErrorCode PowerLaw::initiateIntegrand_qs(const PetscScalar time,map<string,
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ LinearElastic::initiateIntegrand_qs(time,varEx);
   if (_isMMS) { setMMSInitialConditions(); }
 
   // set slip based on uP

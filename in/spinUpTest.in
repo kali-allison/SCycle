@@ -1,8 +1,9 @@
 #======================================================================
 # domain
 order = 4
+#Ny = 319
 Ny = 319
-Nz = 301
+Nz = 601
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -23,7 +24,8 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/newy_
+inputDir = /data/dunham/kallison/eqcycle/inputData/newy_Nz601_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_ssg25_l8_
 loadICs = 0
 bcLTauQS = 0
 
@@ -69,7 +71,7 @@ bDepths = [0 60]
 #sigmaNVals = [0 534.8] # lambda = 0.6
 #sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
-sigmaNDepths = [0 60]
+#sigmaNDepths = [0 60]
 sigmaN_floor = 5.5; # MPa
 #sigmaN_cap = 50; # MPa
 
@@ -134,7 +136,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 20
 stride2D = 20
-maxStepCount = 1e8
+maxStepCount = 1e3
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -147,38 +149,39 @@ timeIntInds = [slip gVxy gVxz]
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 problemType = steadyStateIts
+fss_T = 0.1
+fss_EffVisc = 0.25
+
 heatEquationType = steadyState
 thermalCoupling = coupled
+#thermalCoupling = no
 withViscShearHeating = yes
+#withViscShearHeating = no
 
-sigmaNVals = [0 802.1] # lambda = 0.4
-#sigmaNVals = [0 534.8] # lambda = 0.6
-#sigmaNVals = [0 401.1] # lambda = 0.7
-#sigmaNVals = [0 267.4] # lambda = 0.8
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+sigmaNVals = [0 401.1] # lambda = 0.4
+#sigmaNVals = [0 200.5] # lambda = 0.7
+#sigmaNVals = [0 167.1] # lambda = 0.75
+#sigmaNVals = [0 133.7] # lambda = 0.8
+sigmaNDepths = [0 30]
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
 
+# try damping temperature
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_
+#outputDir = /scratch/kallison/Tdamp/ssg25_Td1_l7_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td4_l8_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td2_l4_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td3_l4_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_Nz601_
 
-# try fewer steps to prevent fault from changing too much, causing oscillations
-#outputDir = /scratch/kallison/test/test_g30_l7_sc5e3_
-#outputDir = /scratch/kallison/test/test2_
-#outputDir = /scratch/kallison/test/test3_constEffVisc_
+# in case lambda = 4 turns out well
+#outputDir = /scratch/kallison/nhe/nheg25_cs_l4_
+#outputDir = /scratch/kallison/nhe/nheg30_cs_l4_
+#outputDir = /scratch/kallison/nhe/nheg30_cs_l8_
 
-# g = 25
-#outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda8_
-#outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda7_
-#outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda6_
-#outputDir = /scratch/kallison/agu_ss4/ssg25_cs_lambda4_
-
-# g = 30
-#outputDir = /scratch/kallison/agu_ss4/ssg30_cs_lambda8_
-#outputDir = /scratch/kallison/agu_ss4/ssg30_cs_lambda7_
-
-
-# try to get it to stop oscillating so much
-#outputDir = /scratch/kallison/agu_ss5/ssg25_cs_lambda7_
-#outputDir = /scratch/kallison/agu_ss5/ssg25_cs_lambda4_
-#outputDir = /scratch/kallison/agu_ss5/ssg30_cs_lambda7_
+# continue from previous
+#outputDir = /scratch/kallison/cont/ssg25_l82l75_Td1_l75_
+#outputDir = /scratch/kallison/cont/ssg25_l82l7_Td1_l7_
 
 
 
