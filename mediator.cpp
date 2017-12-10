@@ -473,18 +473,18 @@ PetscErrorCode Mediator::solveSS_pl()
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
-  //~ Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
+  Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
-  while (Ii < 20 && err > 5e-3) {
+  while (Ii < 20 && err > 1e-2) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
-    VecScale(_varSS["effVisc"],_fss_EffVisc);
-    VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
+    //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
+    //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-      //~ MyVecLog10AXPBY(temp,1.-f,effVisc_old,f,_varSS["effVisc"]);
-      //~ VecCopy(temp,_varSS["effVisc"]);
+      MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
+      VecCopy(temp,_varSS["effVisc"]);
 
     PetscScalar len;
     VecNorm(effVisc_old,NORM_2,&len);
@@ -493,7 +493,7 @@ PetscErrorCode Mediator::solveSS_pl()
     Ii++;
   }
   VecDestroy(&effVisc_old);
-  //~ VecDestroy(&temp);
+  VecDestroy(&temp);
 
   // solve for gVxy, gVxz, u, bcL and bcR
   ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);

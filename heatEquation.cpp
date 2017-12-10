@@ -392,7 +392,7 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_hVals.size() == _hDepths.size() );
   assert(_cVals.size() == _cDepths.size() );
   assert(_TVals.size() == _TDepths.size() );
-  assert(_TVals.size() == 2 );
+  //~ assert(_TVals.size() == 2 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

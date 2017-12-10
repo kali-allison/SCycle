@@ -1,9 +1,8 @@
 #======================================================================
 # domain
 order = 4
-#Ny = 319
 Ny = 319
-Nz = 601
+Nz = 301
 Ly = 30 # km
 Lz = 30 # km
 vL = 1e-9    # (m/s)
@@ -24,7 +23,8 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-inputDir = /data/dunham/kallison/eqcycle/inputData/newy_Nz601_
+inputDir = /data/dunham/kallison/eqcycle/inputData/newy_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/newy_Nz601_
 #inputDir = /data/dunham/kallison/eqcycle/inputData/cont_ssg25_l8_
 loadICs = 0
 bcLTauQS = 0

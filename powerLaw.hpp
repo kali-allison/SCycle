@@ -62,6 +62,8 @@ class PowerLaw : public MomBalContext
     PC        _pc_eta;
     PetscScalar _effViscCapSS; // imposed upper limit on effective viscosity for steady state computation
     PetscErrorCode initializeSSMatrices(); // compute Bss and Css
+    Mat            _A2;
+    Vec _inv,_inv1;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;
@@ -81,7 +83,7 @@ class PowerLaw : public MomBalContext
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
-    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
 
     // functions needed each time step
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
