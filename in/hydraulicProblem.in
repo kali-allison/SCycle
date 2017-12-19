@@ -6,7 +6,7 @@ Lz = 1 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = no
+isMMS = yes
 
 # symmetric or general
 geometry = symmetric
