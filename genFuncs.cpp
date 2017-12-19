@@ -241,7 +241,7 @@ double computeNorm_Mat(const Mat& mat,const Vec& vec)
 }
 
 
-// computes || vec1 - vec2 ||_2
+// computes || vec1 - vec2 ||_2 / sqrt(length(vec1))
 double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
 {
   PetscErrorCode ierr = 0;
@@ -257,6 +257,28 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
   ierr = VecGetSize(vec1,&len);CHKERRQ(ierr);
 
   err = err/sqrt(len);
+
+  VecDestroy(&diff);
+
+  return err;
+}
+
+// computes || vec1 - vec2 ||_2 / || vec1 ||_2
+double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);CHKERRQ(ierr);
+
+  PetscScalar err;
+  ierr = VecNorm(diff,NORM_2,&err);CHKERRQ(ierr);
+
+  PetscScalar len;
+  ierr = VecNorm(vec1,NORM_2,&len);CHKERRQ(ierr);
+
+  err = err/len;
 
   VecDestroy(&diff);
 
@@ -343,18 +365,11 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
 PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR)
 {
   PetscErrorCode ierr = 0;
-
-  //~ Mat AB;
-  //~ MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB); // has memory leak!!
-  //~ ierr = MatMult(AB,vecR,out); CHKERRQ(ierr);
-  //~ MatDestroy(&AB);
-
   Vec BvecR;
   VecDuplicate(vecR,&BvecR);
   ierr = MatMult(B,vecR,BvecR); CHKERRQ(ierr);
   ierr = MatMult(A,BvecR,out); CHKERRQ(ierr);
   ierr = VecDestroy(&BvecR);
-
   return ierr;
 }
 
@@ -362,23 +377,38 @@ PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR
 PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
 {
   PetscErrorCode ierr = 0;
-
-  //~ Mat AB;
-  //~ MatMatMult(A,B,MAT_INITIAL_MATRIX,1.0,&AB);
-  //~ Vec temp;
-  //~ VecDuplicate(vecR,&temp);
-  //~ ierr = MatMult(AB,vecR,temp); CHKERRQ(ierr);
-  //~ ierr = VecCopy(temp,vecR); CHKERRQ(ierr);
-  //~ VecDestroy(&temp);
-  //~ MatDestroy(&AB);
-
   Vec BvecR;
   VecDuplicate(vecR,&BvecR);
   ierr = MatMult(B,vecR,BvecR); CHKERRQ(ierr);
   ierr = MatMult(A,BvecR,vecR); CHKERRQ(ierr);
   ierr = VecDestroy(&BvecR);
-
   return ierr;
+}
+
+// log10(out) = a*log10(vec1) + b*log10(vec2)
+// out may not be the same as vec1 or vec2
+PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const double b, const Vec& vec2)
+{
+
+  if (out == NULL) { VecDuplicate(vec1,&out); }
+
+  // compute effective viscosity
+  PetscScalar *outA;
+  PetscScalar const *vec1A,*vec2A;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(vec1,&Istart,&Iend);
+  VecGetArrayRead(vec1,&vec1A);
+  VecGetArrayRead(vec2,&vec2A);
+  VecGetArray(out,&outA);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+   PetscScalar log10Out = a*log10(vec1A[Jj]) + b*log10(vec2A[Jj]);
+    outA[Jj] = pow(10.,log10Out);
+    Jj++;
+  }
+  VecRestoreArrayRead(vec1,&vec1A);
+  VecRestoreArrayRead(vec2,&vec2A);
+  VecRestoreArray(out,&outA);
 }
 
 
@@ -602,464 +632,8 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
 }
 
 
-
-
-
-
-
 double MMS_test(const double y,const double z) { return y*10.0 + z; }
 double MMS_test(const double z) { return z; }
-
-
-//======================================================================
-//                  MMS Functions
-
-/*
-// version 1
-double MMS_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
-double MMS_f_y(const double y,const double z) { return -sin(y)*sin(z); }
-double MMS_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
-double MMS_f_z(const double y,const double z) { return cos(y)*cos(z); }
-double MMS_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
-
-
-double MMS_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
-double MMS_uA(const double y,const double z,const double t) { return MMS_f(y,z)*MMS_g(t); }
-double MMS_uA_y(const double y,const double z,const double t) { return MMS_f_y(y,z)*MMS_g(t); }
-double MMS_uA_yy(const double y,const double z,const double t) { return MMS_f_yy(y,z)*MMS_g(t); }
-double MMS_uA_z(const double y,const double z,const double t) { return MMS_f_z(y,z)*MMS_g(t); }
-double MMS_uA_zz(const double y,const double z,const double t) { return MMS_f_zz(y,z)*MMS_g(t); }
-double MMS_uA_t(const double y,const double z,const double t) {
-  return MMS_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
-}
-
-double MMS_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
-double MMS_mu_y(const double y,const double z) { return cos(y)*sin(z); }
-double MMS_mu_z(const double y,const double z) { return sin(y)*cos(z); }
-
-double MMS_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*MMS_uA_y(y,z,t); }
-double MMS_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*MMS_uA_z(y,z,t); }
-
-
-// specific MMS functions
-double MMS_visc(const double y,const double z) { return cos(y)*cos(z) + 2e10; }
-double MMS_invVisc(const double y,const double z) { return 1.0/MMS_visc(y,z); }
-double MMS_invVisc_y(const double y,const double z) { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e10, 2.0); }
-double MMS_invVisc_z(const double y,const double z) { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e10 ,2.0); }
-
-double MMS_gxy(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double fy = MMS_f_y(y,z);
-  //~ return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  return T1*A*fy/(T1*A-1)*(exp(-t/T1)-exp(-A*t))
-       - T2*A*fy/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
-       + T3*A*fy/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
-}
-double MMS_gxy_y(const double y,const double z,const double t)
-{
-  //~return 0.5 * MMS_uA_yy(y,z,t);
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double Ay = MMS_mu_y(y,z)*MMS_invVisc(y,z) + MMS_mu(y,z)*MMS_invVisc_y(y,z);
-  double fy = MMS_f_y(y,z);
-  double fyy = MMS_f_yy(y,z);
-
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
-  double out1 = -pow(T1,2.0)*A*Ay*fy/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fy*Ay/d1 *(exp(-t/T1)-exp(-A*t))
-      +T1*A*Ay*fy*exp(-A*t)*t/d1 + T1*A*fyy/d1*(exp(-t/T1)-exp(-A*t));
-  double out2 = pow(T2,2.0)*A*Ay*fy/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fy*Ay/d2 *(exp(-t/T2)-exp(-A*t))
-       -T2*A*Ay*fy*exp(-A*t)*t/d2 - T2*A*fyy/d2*(exp(-t/T2)-exp(-A*t));
-  double out3 = -pow(T3,2.0)*A*Ay*fy/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fy*Ay/d3 *(exp(-t/T3)-exp(-A*t))
-       +T3*A*Ay*fy*exp(-A*t)*t/d3 + T3*A*fyy/d3*(exp(-t/T3)-exp(-A*t));
-  return out1 + out2 + out3;
-
-}
-double MMS_gxy_t(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double fy = MMS_f_y(y,z);
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  return T1*A*fy/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
-       - T2*A*fy/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
-       + T3*A*fy/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
-}
-
-double MMS_gxz(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double fz = MMS_f_z(y,z);
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  return T1*A*fz/(T1*A-1)*(exp(-t/T1)-exp(-A*t))
-       - T2*A*fz/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
-       + T3*A*fz/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
-}
-double MMS_gxz_z(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double Az = MMS_mu_z(y,z)*MMS_invVisc(y,z) + MMS_mu(y,z)*MMS_invVisc_z(y,z);
-  double fz = MMS_f_z(y,z);
-  double fzz = MMS_f_zz(y,z);
-  //~ double den = A-1.0, B = exp(-t)-exp(-A*t);
-  //~ return t*A*Az*fz*exp(-A*t)/den - A*fz*Az*B/pow(den,2.0) + fz*Az*B/den + A*fzz*B/den;
-
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  double d1 = T1*A-1, d2 = T2*A-1, d3 = T3*A-1;
-  double out1 = -pow(T1,2.0)*A*Az*fz/pow(d1,2.0)*(exp(-t/T1)-exp(-A*t))  + T1*fz*Az/d1 *(exp(-t/T1)-exp(-A*t))
-      +T1*A*Az*fz*exp(-A*t)*t/d1 + T1*A*fzz/d1*(exp(-t/T1)-exp(-A*t));
-  double out2 = pow(T2,2.0)*A*Az*fz/pow(d2,2.0)*(exp(-t/T2)-exp(-A*t)) - T2*fz*Az/d2 *(exp(-t/T2)-exp(-A*t))
-       -T2*A*Az*fz*exp(-A*t)*t/d2 - T2*A*fzz/d2*(exp(-t/T2)-exp(-A*t));
-  double out3 = -pow(T3,2.0)*A*Az*fz/pow(d3,2.0)*(exp(-t/T3)-exp(-A*t))  + T3*fz*Az/d3 *(exp(-t/T3)-exp(-A*t))
-       +T3*A*Az*fz*exp(-A*t)*t/d3 + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
-  return out1 + out2 + out3;
-
-
-
-}
-double MMS_gxz_t(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double fz = MMS_f_z(y,z);
-  //~ return A*fz/(A-1.0)*(-exp(-t) + A*exp(-A*t));
-  double T1 = 60, T2 = 3e7, T3 = 3e9;
-  return T1*A*fz/(T1*A-1)*((-1.0/T1)*exp(-t/T1)+A*exp(-A*t))
-       - T2*A*fz/(T2*A-1)*((-1.0/T2)*exp(-t/T2)+A*exp(-A*t))
-       + T3*A*fz/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
-}
-
-// source terms for viscous strain rates
-double MMS_max_gxy_t_source(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double uy = MMS_uA_y(y,z,t);
-  double g = MMS_gxy(y,z,t);
-
-  return MMS_gxy_t(y,z,t) - A*(uy - g);
-}
-double MMS_max_gxz_t_source(const double y,const double z,const double t)
-{
-  double A = MMS_mu(y,z)*MMS_invVisc(y,z);
-  double uz = MMS_uA_z(y,z,t);
-  double g = MMS_gxz(y,z,t);
-
-  return MMS_gxz_t(y,z,t) - A*(uz - g);
-}
-
-double MMS_gSource(const double y,const double z,const double t)
-{
-  PetscScalar mu = MMS_mu(y,z);
-  PetscScalar mu_y = MMS_mu_y(y,z);
-  PetscScalar mu_z = MMS_mu_z(y,z);
-  PetscScalar gxy = MMS_gxy(y,z,t);
-  PetscScalar gxz = MMS_gxz(y,z,t);
-  PetscScalar gxy_y = MMS_gxy_y(y,z,t);
-  PetscScalar gxz_z = MMS_gxz_z(y,z,t);
-  return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
-}
-
-// specific to power law
-double MMS_A(const double y,const double z) { return cos(y)*cos(z) + 398; }
-double MMS_B(const double y,const double z) { return sin(y)*sin(z) + 4.28e4; }
-double MMS_T(const double y,const double z) { return sin(y)*cos(z) + 800; }
-double MMS_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
-double MMS_pl_sigmaxy(const double y,const double z,const double t) { return MMS_mu(y,z)*(MMS_uA_y(y,z,t) - MMS_gxy(y,z,t)); }
-double MMS_pl_sigmaxz(const double y,const double z, const double t) { return MMS_mu(y,z)*(MMS_uA_z(y,z,t) - MMS_gxz(y,z,t)); }
-double MMS_sigmadev(const double y,const double z,const double t)
-{
-  return sqrt( pow(MMS_pl_sigmaxy(y,z,t),2.0) + pow(MMS_pl_sigmaxz(y,z,t),2.0) );
-}
-
-
-// source terms for viscous strain rates
-double MMS_pl_gxy_t_source(const double y,const double z,const double t)
-{
-  double A = MMS_A(y,z);
-  double B = MMS_B(y,z);
-  double n = MMS_n(y,z);
-  double T = MMS_T(y,z);
-  double sigmadev = MMS_sigmadev(y,z,t) * 1.0;
-  double sigmaxy = MMS_pl_sigmaxy(y,z,t);
-  double effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
-  double v = sigmaxy/effVisc;
-
-  return MMS_gxy_t(y,z,t) - v;
-}
-double MMS_pl_gxz_t_source(const double y,const double z,const double t)
-{
-  double A = MMS_A(y,z);
-  double B = MMS_B(y,z);
-  double n = MMS_n(y,z);
-  double T = MMS_T(y,z);
-  double sigmadev = MMS_sigmadev(y,z,t);
-  double sigmaxz = MMS_pl_sigmaxz(y,z,t);
-  double effVisc = 1.0/( A*pow(sigmadev,n-1.0)*exp(-B/T) ) * 1e-3;
-  double v = sigmaxz/effVisc;
-
-  return MMS_gxz_t(y,z,t) - v;
-}
-
-double MMS_uSource(const double y,const double z,const double t)
-{
-  PetscScalar mu = MMS_mu(y,z);
-  PetscScalar mu_y = MMS_mu_y(y,z);
-  PetscScalar mu_z = MMS_mu_z(y,z);
-  PetscScalar u_y = MMS_uA_y(y,z,t);
-  PetscScalar u_yy = MMS_uA_yy(y,z,t);
-  PetscScalar u_z = MMS_uA_z(y,z,t);
-  PetscScalar u_zz = MMS_uA_zz(y,z,t);
-  return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
-}*/
-
-
-
-//======================================================================
-// 1D MMS
-// version 1
-//~ double MMS_f1D(const double y) { return cos(y) + 2; } // helper function for uA
-//~ double MMS_f_y1D(const double y) { return -sin(y); }
-//~ double MMS_f_yy1D(const double y) { return -cos(y); }
-//~ double MMS_f_z1D(const double y) { return 0; }
-//~ double MMS_f_zz1D(const double y) { return 0; }
-
-//~ double MMS_uA1D(const double y,const double t) { return MMS_f1D(y)*exp(-t); }
-//~ double MMS_uA_y1D(const double y,const double t) { return MMS_f_y1D(y)*exp(-t); }
-//~ double MMS_uA_yy1D(const double y,const double t) { return MMS_f_yy1D(y)*exp(-t); }
-//~ double MMS_uA_z1D(const double y,const double t) { return 0; }
-//~ double MMS_uA_zz1D(const double y,const double t) { return 0; }
-//~ double MMS_uA_t1D(const double y,const double t) { return -MMS_f1D(y)*exp(-t); }
-
-//~ double MMS_mu1D(const double y) { return sin(y) + 2.0; }
-//~ double MMS_mu_y1D(const double y) { return cos(y); }
-//~ double MMS_mu_z1D(const double y) { return 0; }
-
-//~ double MMS_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*MMS_uA_y1D(y,t); }
-
-
-// specific MMS functions
-/*
-double MMS_visc1D(const double y) { return cos(y) + 20.0; }
-double MMS_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
-double MMS_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
-double MMS_invVisc_z1D(const double y) { return 0; }
-
-double MMS_gxy1D(const double y,const double t)
-{
-  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
-  double fy = MMS_f_y1D(y);
-  return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
-}
-double MMS_gxy_y1D(const double y,const double t)
-{
-  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
-  double Ay = MMS_mu_y1D(y)*MMS_invVisc1D(y) + MMS_mu1D(y)*MMS_invVisc_y1D(y);
-  double fy = MMS_f_y1D(y);
-  double fyy = MMS_f_yy1D(y);
-  double den = A-1.0, B = exp(-t)-exp(-A*t);
-  return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
-}
-double MMS_gxy_t1D(const double y,const double t)
-{
-  double A = MMS_mu1D(y)*MMS_invVisc1D(y);
-  double fy = MMS_f_y1D(y);
-  return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
-}
-
-double MMS_gxz1D(const double y,const double t)
-{
-  //~ double A = MMS_mu(y)*MMS_invVisc(y);
-  //~ double fz = MMS_f_z(y);
-  return 0;
-}
-double MMS_gxz_z1D(const double y,const double t)
-{
-  //~ double A = MMS_mu(y)*MMS_invVisc(y);
-  //~ double Az = MMS_mu_z(y)*MMS_invVisc(y) + MMS_mu(y)*MMS_invVisc_z(y);
-  //~ double fz = MMS_f_z(y);
-  //~ double fzz = MMS_f_zz(y);
-  //~ double den = A-1.0, B = exp(-t)-exp(-A*t);
-  return 0;
-}
-double MMS_gxz_t1D(const double y,const double t)
-{
-  //~ double A = MMS_mu(y)*MMS_invVisc(y);
-  //~ double fz = MMS_f_z(y);
-  return 0;
-}
-
-double MMS_gSource1D(const double y,const double t)
-{
-  PetscScalar mu = MMS_mu1D(y);
-  PetscScalar mu_y = MMS_mu_y1D(y);
-  //~ PetscScalar mu_z = MMS_mu_z1D(y);
-  PetscScalar gxy = MMS_gxy1D(y,t);
-  //~ PetscScalar gxz = MMS_gxz1D(y,t);
-  PetscScalar gxy_y = MMS_gxy_y1D(y,t);
-  //~ PetscScalar gxz_z = MMS_gxz_z1D(y,t);
-  //~ return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
-  return -mu*gxy_y - mu_y*gxy;
-}
-
-
-
-// specific to power law
-double MMS_A1D(const double y) { return cos(y) + 1e-9; }
-double MMS_B1D(const double y) { return sin(y) + 1.44e4; }
-double MMS_T1D(const double y) { return sin(y) + 600; }
-double MMS_n1D(const double y) { return cos(y) + 3.0; }
-double MMS_pl_sigmaxy1D(const double y,const double t) { return MMS_mu1D(y)*(MMS_uA_y1D(y,t) - MMS_gxy1D(y,t)); }
-double MMS_pl_sigmaxz1D(const double y,const double t) { return 0; }
-double MMS_sigmadev1D(const double y,const double t) { return sqrt( pow(MMS_pl_sigmaxy1D(y,t),2.0)); }
-
-
-// source terms for viscous strain rates
-double MMS_pl_gxy_t_source1D(const double y,const double t)
-{
-  double A = MMS_A1D(y);
-  double B = MMS_B1D(y);
-  double n = MMS_n1D(y);
-  double T = MMS_T1D(y);
-  double sigmadev = MMS_sigmadev1D(y,t);
-  double sigmaxy = MMS_pl_sigmaxy1D(y,t);
-  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxy*1e-3;
-
-  return MMS_gxy_t1D(y,t) - v;
-}
-double MMS_pl_gxz_t_source1D(const double y,const double t)
-{
-  double A = MMS_A1D(y);
-  double B = MMS_B1D(y);
-  double n = MMS_n1D(y);
-  double T = MMS_T1D(y);
-  double sigmadev = MMS_sigmadev1D(y,t);
-  double sigmaxz = MMS_pl_sigmaxz1D(y,t);
-  double v = A*pow(sigmadev,n-1.0)*exp(-B/T)*sigmaxz*1e-3;
-
-  return MMS_gxz_t1D(y,t) - v;
-}
-
-//~ double MMS_uSource1D(const double y,const double t)
-//~ {
-  //~ PetscScalar mu = MMS_mu1D(y);
-  //~ PetscScalar mu_y = MMS_mu_y1D(y);
-  //~ PetscScalar mu_z = MMS_mu_z1D(y);
-  //~ PetscScalar u_y = MMS_uA_y1D(y,t);
-  //~ PetscScalar u_yy = MMS_uA_yy1D(y,t);
-  //~ PetscScalar u_z = MMS_uA_z1D(y,t);
-  //~ PetscScalar u_zz = MMS_uA_zz1D(y,t);
-  //~ return mu*(u_yy + u_zz) + mu_y*u_y + mu_z*u_z;
-//~ }
-*/
-
-
-
-
-
-
-
-
-
-//======================================================================
-// 2D MMS for heat equation
-// version 1
-//~ double MMS_he1_rho(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he1_c(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he1_k(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he1_h(const double y,const double z)
-//~ {
-  //~ return 0.0;
-//~ }
-
-//~ double MMS_he1_T(const double y,const double z, const double t)
-//~ {
-  //~ return sin(y)*cos(z)*exp(-2*t);
-//~ }
-//~ double MMS_he1_T_t(const double y,const double z, const double t)
-//~ {
-  //~ return -2.0*sin(y)*cos(z)*exp(-2.0*t);
-//~ }
-//~ double MMS_he1_T_y(const double y,const double z, const double t)
-//~ {
-  //~ return cos(y)*cos(z)*exp(-2.0*t);
-//~ }
-//~ double MMS_he1_T_z(const double y,const double z, const double t)
-//~ {
-  //~ return -sin(y)*sin(z)*exp(-2.0*t);
-//~ }
-
-
-//~ // version 2
-//~ double MMS_he2_rho(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he2_c(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he2_k(const double y,const double z)
-//~ {
-  //~ return 1.0;
-//~ }
-
-//~ double MMS_he2_h(const double y,const double z)
-//~ {
-  //~ return 0.0;
-//~ }
-
-//~ double MMS_he2_f(const double t)
-//~ {
-  //~ return 5.*sin(y)*cos(z) + 100.;
-//~ }
-//~ double MMS_he2_f_y(const double t)
-//~ {
-  //~ return 5.*cos(y)*cos(z);
-//~ }
-//~ double MMS_he2_f_z(const double t)
-//~ {
-  //~ return -5.*sin(y)*sin(z);
-//~ }
-//~ double MMS_he2_g(const double t)
-//~ {
-  //~ return sin(2.*t);
-//~ }
-//~ double MMS_he2_g_t(const double t)
-//~ {
-  //~ return 2.*cos(2.*t);
-//~ }
-//~ double MMS_he2_T(const double y,const double z, const double t)
-//~ {
-  //~ return MMS_he2_f(y,z)*MMS_he2_g(t);
-//~ }
-//~ double MMS_he2_T_t(const double y,const double z, const double t)
-//~ {
-  //~ return MMS_he2_f(y,z)*MMS_he2_g_t(t);
-//~ }
-//~ double MMS_he2_T_y(const double y,const double z, const double t)
-//~ {
-  //~ return MMS_he2_f_y(y,z)*MMS_he2_g(t);
-//~ }
-//~ double MMS_he2_T_z(const double y,const double z, const double t)
-//~ {
-  //~ return MMS_he2_f_z(y,z)*MMS_he2_g(t);
-//~ }
-
-
-
 
 
 
@@ -1067,34 +641,38 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const Vec& yV, const double t)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar y,v;
+  PetscScalar const *y;
+  PetscScalar *v;
   PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(yV,&y);
+  ierr = VecGetArray(vec,&v);
+  PetscInt Jj = 0;
   for (Ii=Istart; Ii<Iend; Ii++) {
-    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
-    //~ y = dy*(Ii/N);
-    //~ z = dz*(Ii-N*(Ii/N));
-    v = func(y,t);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    v[Jj] = func(y[Jj],t);
+    Jj++;
   }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  VecRestoreArrayRead(yV,&y);
+  VecRestoreArray(vec,&v);
   return ierr;
 }
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar y,v;
+  PetscScalar const *y;
+  PetscScalar *v;
   PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(yV,&y);
+  ierr = VecGetArray(vec,&v);
+  PetscInt Jj = 0;
   for (Ii=Istart; Ii<Iend; Ii++) {
-    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
-    v = func(y);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    v[Jj] = func(y[Jj]);
+    Jj++;
   }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  VecRestoreArrayRead(yV,&y);
+  VecRestoreArray(vec,&v);
   return ierr;
 }
 
@@ -1103,19 +681,21 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   const Vec& yV,const Vec& zV, const double t)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
+  PetscScalar const *y,*z;
+  PetscScalar *v;
   PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(yV,&y);
+  ierr = VecGetArrayRead(zV,&z);
+  ierr = VecGetArray(vec,&v);
+  PetscInt Jj = 0;
   for (Ii=Istart; Ii<Iend; Ii++) {
-    //~ y = dy*(Ii/N);
-    //~ z = dz*(Ii-N*(Ii/N));
-    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
-    ierr = VecGetValues(zV,1,&Ii,&z);CHKERRQ(ierr);
-    v = func(y,z,t);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    v[Jj] = func(y[Jj],z[Jj],t);
+    Jj++;
   }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  VecRestoreArrayRead(yV,&y);
+  VecRestoreArrayRead(zV,&z);
+  VecRestoreArray(vec,&v);
   return ierr;
 }
 
@@ -1123,75 +703,24 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const Vec& yV,const Vec& zV)
 {
   PetscErrorCode ierr = 0;
-  PetscScalar y,z,v;
+  PetscScalar const *y,*z;
+  PetscScalar *v;
   PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(yV,&y);
+  ierr = VecGetArrayRead(zV,&z);
+  ierr = VecGetArray(vec,&v);
+  PetscInt Jj = 0;
   for (Ii=Istart; Ii<Iend; Ii++) {
-    //~ y = dy*(Ii/N);
-    //~ z = dz*(Ii-N*(Ii/N));
-    ierr = VecGetValues(yV,1,&Ii,&y);CHKERRQ(ierr);
-    ierr = VecGetValues(zV,1,&Ii,&z);CHKERRQ(ierr);
-    v = func(y,z);
-    ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    v[Jj] = func(y[Jj],z[Jj]);
+    Jj++;
   }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
+  VecRestoreArrayRead(yV,&y);
+  VecRestoreArrayRead(zV,&z);
+  VecRestoreArray(vec,&v);
   return ierr;
 }
 
-
-
-
-
-
-
-//~ // scalars args to func are: spatial variable, spatial variable
-//~ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  //~ const int N, const double h1, const double h2)
-//~ {
-  //~ PetscErrorCode ierr = 0;
-
-  //~ if (N == 1) { mapToVec1Dt(vec,func,N,h1,h2); } // h2 is time
-  //~ else { mapToVec2D(vec,func,N,h1,h2); } // h2 is spatial variable
-  //~ return ierr;
-//~ }
-
-//~ // scalars args to func are: spatial variable, spatial variable
-//~ PetscErrorCode mapToVec2D(Vec& vec, double(*func)(double,double),
-  //~ const int N, const double dy, const double dz)
-//~ {
-  //~ PetscErrorCode ierr = 0;
-  //~ PetscScalar y,z,v;
-  //~ PetscInt Ii,Istart,Iend;
-  //~ ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  //~ for (Ii=Istart; Ii<Iend; Ii++) {
-    //~ y = dy*(Ii/N);
-    //~ z = dz*(Ii-N*(Ii/N));
-    //~ v = func(y,z);
-    //~ ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  //~ }
-  //~ ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  //~ return ierr;
-//~ }
-
-//~ // scalars args to func are: spatial variable, time
-//~ PetscErrorCode mapToVec1Dt(Vec& vec, double(*func)(double,double),
-  //~ const int N, const double dy, const double t)
-//~ {
-  //~ PetscErrorCode ierr = 0;
-  //~ PetscScalar y,v;
-  //~ PetscInt Ii,Istart,Iend;
-  //~ ierr = VecGetOwnershipRange(vec,&Istart,&Iend);
-  //~ for (Ii=Istart; Ii<Iend; Ii++) {
-    //y = dy*(Ii/N);
-    //~ v = func(y,t);
-    //~ ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-  //~ }
-  //~ ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-  //~ return ierr;
-//~ }
 
 // Map a function that acts on scalars to a 2D DMDA Vec
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),

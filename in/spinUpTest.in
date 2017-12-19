@@ -1,14 +1,14 @@
 #======================================================================
 # domain
 order = 4
-Ny = 201
-Nz = 202
+Ny = 319
+Nz = 301
 Ly = 30 # km
-Lz = 25 # km
+Lz = 30 # km
 vL = 1e-9    # (m/s)
 
-# symmetric or general
-geometry = symmetric
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+#problemType = steadyStateIts
 
 # linearElastic or powerLaw
 bulkDeformationType = powerLaw
@@ -23,7 +23,9 @@ sbpType = mfc_coordTrans
 #======================================================================
 # linear systems
 
-#inputDir = /data/dunham/kallison/eqcycle/inputData/g25SS_l0.4_
+inputDir = /data/dunham/kallison/eqcycle/inputData/newy_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/newy_Nz601_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_ssg25_l8_
 loadICs = 0
 bcLTauQS = 0
 
@@ -49,31 +51,19 @@ cohesionDepths = [0 60] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
-# uniformly VS
-#aVals = [0.015 0.02]
-#aDepths = [0 60]
-#bVals = [0.0 0.0]
-#bDepths = [0 60]
-
-# easier to resolve
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
-
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
 
+# FOR SPIN UP: a <- a-b; for creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
+# note in the VW region a remains what it was previously
+aVals = [0.0135 0.03 0.0325 0.2155]
+aDepths = [0 10 19.3333 60]
+bVals = [0.0 0.0]
+bDepths = [0 60]
 
-sigmaNVals = [50 50] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
-#sigmaNVals = [5.668 5.668 1336] # MPa
-#sigmaNDepths = [0 0.25 60]
-#sigmaN_cap = 50; # MPa
-#sigmaN_floor = 5.5; # MPa
 
 # with varying degrees of overpressure
 #sigmaNVals = [0 802.1] # lambda = 0.4
@@ -82,11 +72,12 @@ sigmaNDepths = [0 60] #(km) constant
 #sigmaNVals = [0 401.1] # lambda = 0.7
 #sigmaNVals = [0 267.4] # lambda = 0.8
 #sigmaNDepths = [0 60]
-#sigmaN_floor = 5.5; # MPa
+sigmaN_floor = 5.5; # MPa
+#sigmaN_cap = 50; # MPa
+
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
 stateLaw = constantState
-#v0 = 1e-6
 v0 = 1e-9
 f0 = 0.6
 
@@ -123,58 +114,76 @@ rhoDepths = [0 60]
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
-#TDepths = [0 50]
-TVals = [500 1000]
-TDepths = [0 25]
+TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
-heatEquationType = steadyState
-thermalCoupling = coupled
-withShearHeating = yes
+# withFrictionalHeating: no, plane, finiteWidthZone
+#heatEquationType = steadyState
+#thermalCoupling = coupled
+#withViscShearHeating = yes
 withFrictionalHeating = no
-heatCouplingStride = 1e5
-
+shearZoneWidth = 0
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 1e30
-maxEffViscSS = 1e23
+maxEffVisc = 1e18
+maxEffViscSS = 1e18
 
 #======================================================================
-# settings for time integration # options: FEuler, RK32, IMEX
+# settings for time integration # options: FEuler, RK32, RK43; RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 100
-stride2D = 100
-maxStepCount = 1e4
+stride1D = 20
+stride2D = 20
+maxStepCount = 1e3
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
-atol = 1e-8
-timeIntInds = [psi slip]
+atol = 1e-6
+#timeIntInds = [psi slip]
 #timeIntInds = [slip]
-#timeIntInds = [gVxy gVxz]
+timeIntInds = [slip gVxy gVxz]
+
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+problemType = steadyStateIts
+fss_T = 0.1
+fss_EffVisc = 0.25
+
+heatEquationType = steadyState
+thermalCoupling = coupled
+#thermalCoupling = no
+withViscShearHeating = yes
+#withViscShearHeating = no
+
+sigmaNVals = [0 401.1] # lambda = 0.4
+#sigmaNVals = [0 200.5] # lambda = 0.7
+#sigmaNVals = [0 167.1] # lambda = 0.75
+#sigmaNVals = [0 133.7] # lambda = 0.8
+sigmaNDepths = [0 30]
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
+
+# try damping temperature
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_
+#outputDir = /scratch/kallison/Tdamp/ssg25_Td1_l7_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td4_l8_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td2_l4_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td3_l4_Nz601_
+#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_Nz601_
+
+# in case lambda = 4 turns out well
+#outputDir = /scratch/kallison/nhe/nheg25_cs_l4_
+#outputDir = /scratch/kallison/nhe/nheg30_cs_l4_
+#outputDir = /scratch/kallison/nhe/nheg30_cs_l8_
+
+# continue from previous
+#outputDir = /scratch/kallison/cont/ssg25_l82l75_Td1_l75_
+#outputDir = /scratch/kallison/cont/ssg25_l82l7_Td1_l7_
 
 
-# write to laptop
-#outputDir = data/test_
 
-#outputDir = /scratch/kallison/test_
-#outputDir = /data/dunham/kallison/eqcycle/data/test_
-
-#outputDir = /scratch/kallison/test/g25_v0_
-#outputDir = /scratch/kallison/test/g25_v1_
-
-outputDir = /scratch/kallison/test/itTau_
-
-
-#outputDir = /scratch/kallison/viscShearHeat/g25_s1e1_Ny101_Nz101_
-#outputDir = /scratch/kallison/viscShearHeat/g25_s1e4_Ny151_Nz101_
-#outputDir = /scratch/kallison/viscShearHeat/g25_s5e4_Ny151_Nz101_
-#outputDir = /scratch/kallison/viscShearHeat/g25_s1e5_Ny151_Nz101_
-#outputDir = /scratch/kallison/viscShearHeat/g25_s5e5_Ny151_Nz101_
 
 

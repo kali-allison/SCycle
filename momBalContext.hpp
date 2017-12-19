@@ -21,6 +21,7 @@ class MomBalContext
     PetscErrorCode virtual updateSSa(map<string,Vec>& varSS) = 0; // update v, viscous strain rates, viscosity
     PetscErrorCode virtual updateSSb(map<string,Vec>& varSS) = 0; // does nothing for the linear elastic equations
     PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS) = 0; // put viscous strains etc in varSS
+    PetscErrorCode virtual updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t) = 0;
 
     // time stepping function
     PetscErrorCode virtual initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx) = 0;

@@ -24,22 +24,22 @@ PressureEq::PressureEq(Domain&D)
   setFields(D);
   setUpSBP();
 
-  // Back Eular upates
-  if (_hydraulicTimeIntType.compare("implicit")==0) {
-    setUpBe(D);
-  }
+  //~ // Back Eular upates
+  //~ if (_hydraulicTimeIntType.compare("implicit")==0) {
+    //~ setUpBe(D);
+  //~ }
 
   // initial conditions
-  if (!_isMMS) {
-    computeInitialSteadyStatePressure(D);
-  }
+  //~ if (!_isMMS) {
+    //~ computeInitialSteadyStatePressure(D);
+  //~ }
 
-  if (_isMMS) {
-    mapToVec(_p, zzmms_pA1D, _z, D._initTime);
-    VecSet(_bcL, 0);
-    VecSet(_bcT, zzmms_pSource1D(0, D._initTime));
-    VecSet(_bcB, zzmms_pSource1D(_L, D._initTime));
-  }
+  //~ if (_isMMS) {
+    //~ mapToVec(_p, zzmms_pA1D, _z, D._initTime);
+    //~ VecSet(_bcL, 0);
+    //~ VecSet(_bcT, zzmms_pSource1D(0, D._initTime));
+    //~ VecSet(_bcB, zzmms_pSource1D(_L, D._initTime));
+  //~ }
 
   //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
@@ -63,6 +63,8 @@ PressureEq::~PressureEq()
   VecDestroy(&_rho_f);
 
   VecDestroy(&_p);
+
+  KSPDestroy(&_ksp);
 
   for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first]);
