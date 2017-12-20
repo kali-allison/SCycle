@@ -27,9 +27,9 @@ int runTests(const char * inputFile)
 
   Mediator m(d);
 
-  PressureEq p(d); // pressure equation
+  //~ PressureEq p(d); // pressure equation
   //~ p.writeContext();
-  //~ HeatEquation he(d); // heat equation
+  HeatEquation he(d); // heat equation
 
   return ierr;
 }
@@ -72,9 +72,7 @@ int runEqCycle(const char * inputFile)
   ierr = m.writeContext(); CHKERRQ(ierr);
   // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);
-
-  // ~ ierr = m.integrate_SS(); CHKERRQ(ierr);
-  // ~ ierr = m.view();CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }

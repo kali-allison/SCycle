@@ -1,12 +1,12 @@
 order = 4 # SBP order of accuracy
-Ny = 11
-Nz = 12
+Ny = 51
+Nz = 52
 Ly = 1 # (km) horizontal domain size
 Lz = 1 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = yes
+isMMS = no
 
 # symmetric or general
 geometry = symmetric
@@ -18,6 +18,9 @@ bulkDeformationType = linearElastic
 #bCoordTrans = 6.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
+
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+problemType = quasidynamic
 
 #======================================================================
 # linear system
@@ -60,16 +63,17 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 # effective normal stress
-sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNDepths = [0 0.25 60]
+#sigmaNVals = [5.668 5.668 1336] # MPa
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 60]
 #sigmaN_cap = 50; # MPa
 
 
 #======================================================================
 # hydraulic fault inputs
 #hydraulicCoupling = no
-#hydraulicCoupling = uncoupled
-hydraulicCoupling = coupled
+hydraulicCoupling = uncoupled
+#hydraulicCoupling = coupled
 
 #hydraulicTimeIntType = explicit
 hydraulicTimeIntType = implicit
@@ -133,9 +137,9 @@ withShearHeating = no
 withFrictionalHeating = no
 
 #======================================================================
-# settings for time integration # options: FEuler, RK32, IMEX
+# settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = IMEX
+timeIntegrator = RK32_WBE
 timeControlType = P
 stride1D = 50
 stride2D = 50

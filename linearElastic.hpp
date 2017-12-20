@@ -105,6 +105,7 @@ class LinearElastic : public MomBalContext
     PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
+    PetscErrorCode updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t);
 
     // time stepping function
     PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);

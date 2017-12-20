@@ -38,7 +38,7 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
 SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
 {
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc_coordTrans.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in SbpOps_fc_coordTrans.cpp.\n");
   #endif
 
   MatDestroy(&_mu);
@@ -62,10 +62,11 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   MatDestroy(&_yq); MatDestroy(&_zr);
   MatDestroy(&_qy); MatDestroy(&_rz);
   MatDestroy(&_J); MatDestroy(&_Jinv);
-  MatDestroy(&_Dq_Iz); MatDestroy(&_Iy_Dr); 
+  MatDestroy(&_Dq_Iz); MatDestroy(&_Iy_Dr);
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc_coordTrans.cpp.\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in SbpOps_fc_coordTrans.cpp.\n");
+
   #endif
 }
 
@@ -354,7 +355,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
   VecPointwiseDivide(temp,ones,temp); // temp = 1/temp
   ierr = MatDiagonalSet(_rz,temp,INSERT_VALUES); CHKERRQ(ierr);
 
-  // J = yq * zr, J-1
+  // J = yq * zr, J^-1
   ierr = MatMatMult(_yq,_zr,MAT_INITIAL_MATRIX,1.,&_J); CHKERRQ(ierr);
   ierr = MatMatMult(_qy,_rz,MAT_INITIAL_MATRIX,1.,&_Jinv); CHKERRQ(ierr);
 
@@ -835,10 +836,9 @@ PetscErrorCode SbpOps_fc_coordTrans::updateA_BCs()
     TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
-  // MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
   MatZeroEntries(_A);
-  // MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
-  MatCopy(_D2, _A, SAME_NONZERO_PATTERN);
+  MatCopy(_D2,_A,SAME_NONZERO_PATTERN);
 
   if (_deleteMats) { MatDestroy(&_D2); }
 

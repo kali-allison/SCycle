@@ -56,6 +56,7 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
 
   setSurfDisp();
 
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
 #endif
@@ -77,6 +78,8 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcRShift);
 
   // body fields
+  VecDestroy(&_rhoVec);
+  VecDestroy(&_cs);
   VecDestroy(&_muVec);
   VecDestroy(&_rhoVec);
   VecDestroy(&_cs);
@@ -336,6 +339,7 @@ PetscErrorCode LinearElastic::allocateFields()
   VecDuplicate(*_z,&_cs);
   VecDuplicate(_rhs,&_u); VecSet(_u,0.0);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
+  VecDuplicate(_rhs,&_sxz); VecSet(_sxz,0.0);
   VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
 
 #if VERBOSE > 1
@@ -444,6 +448,24 @@ PetscErrorCode LinearElastic::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+PetscErrorCode LinearElastic::updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateFieldsSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // do nothing
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 // compute steady state u, bcs
 PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
 {
@@ -472,7 +494,8 @@ PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
   ierr = KSPSolve(ksp,_rhs,_u);CHKERRQ(ierr);
   KSPDestroy(&ksp);
 
-  _sbp->muxDy(_u,_sxy); // initialize for shear stress
+  _sbp->muxDy(_u,_sxy);
+  _sbp->muxDz(_u,_sxz);
 
   //~ _viewers["SS_ua"] = initiateViewer(_outputDir + "SS_ua");
   //~ ierr = VecView(_u,_viewers["SS_ua"]); CHKERRQ(ierr);
@@ -610,7 +633,9 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -619,7 +644,6 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
-
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
@@ -782,17 +806,21 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
     _viewers["u"] = initiateViewer(outputDir + "u");
     _viewers["sxy"] = initiateViewer(outputDir + "sxy");
+    _viewers["sxz"] = initiateViewer(outputDir + "sxz");
 
     ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
     ierr = appendViewer(_viewers["u"],_outputDir + "u");
     ierr = appendViewer(_viewers["sxy"],outputDir + "sxy");
+    ierr = appendViewer(_viewers["sxz"],outputDir + "sxz");
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
   }
 
 
@@ -1136,6 +1164,7 @@ PetscErrorCode LinearElastic::d_dt_mms(const PetscScalar time,const map<string,V
 
   // solve for shear stress
   _sbp->muxDy(_u,_sxy);
+  _sbp->muxDz(_u,_sxz);
 
   // force u to be correct
   //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);

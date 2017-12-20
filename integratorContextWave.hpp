@@ -21,7 +21,7 @@ class IntegratorContextWave
     virtual PetscErrorCode d_dt_WaveEq(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar, PetscReal _deltaT) = 0;
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar) = 0;
+      const map<string,Vec>& var,const map<string,Vec>& dvar,int& stopIntegration) = 0;
     virtual PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage) = 0;
 };

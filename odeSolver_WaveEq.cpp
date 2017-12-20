@@ -85,6 +85,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
 #endif
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
+  int   stopIntegration = 0;
 
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
@@ -102,7 +103,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
 
   // ierr = VecCopy(uNext, _var["u"])
 
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev);CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     ierr = obj->d_dt_WaveEq(_currT,_var,_varPrev, _deltaT);CHKERRQ(ierr);
@@ -110,7 +111,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev,stopIntegration);CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;

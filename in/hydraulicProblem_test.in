@@ -1,12 +1,12 @@
 order = 4 # SBP order of accuracy
-Ny = 201
-Nz = 202
+Ny = 11
+Nz = 12
 Ly = 30 # (km) horizontal domain size or 60 km is fine
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = no
+isMMS = yes
 
 # symmetric or general
 geometry = symmetric
@@ -18,6 +18,9 @@ bulkDeformationType = linearElastic
 bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
+
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+problemType = quasidynamic
 
 #======================================================================
 # linear system
@@ -77,8 +80,8 @@ sigmaNDepths = [0 60] #km
 
 #======================================================================
 # hydraulic fault inputs
-hydraulicCoupling = no
-#hydraulicCoupling = uncoupled
+#hydraulicCoupling = no
+hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
 #hydraulicTimeIntType = explicit
@@ -143,9 +146,9 @@ withShearHeating = no
 withFrictionalHeating = no
 
 #======================================================================
-# settings for time integration # options: FEuler, RK32, IMEX
+# settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK32
+timeIntegrator = RK32_WBE
 timeControlType = P
 stride1D = 10
 stride2D = 10

@@ -52,19 +52,20 @@ private:
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     const PetscScalar    _vL;
+    std::string          _problemType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
     std::string          _momBalType; // "dynamic", "static"
-    std::string _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    std::string _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int                  _heatCouplingStride;
+    std::string          _bulkDeformationType; // constitutive law
+    std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::string            _initialU; // gaussian
-    std::map <string,Vec>  _varImMult,_varIm1; // holds variables for implicit integration in time
+    std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscScalar              _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
+    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -72,6 +73,7 @@ private:
 
     // steady state data
     std::map <string,Vec>  _varSS; // holds variables for steady state iteration
+    PetscScalar            _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
 
 
     // runtime data
@@ -111,10 +113,12 @@ private:
 
     // to solve a steady-state problem
     std::map <string,PetscViewer>  _viewers;
-    PetscErrorCode solveSS(); // assume bcL is correct and do 1 linear solve
+    PetscErrorCode solveSS_pl(); // assume bcL is correct and do 1 linear solve
+    PetscErrorCode solveSS_linEl(); // assume bcL is correct and do 1 linear solve, no effective viscosity
     PetscErrorCode solveSS_v2(); // iterate for eff visc etc
     PetscErrorCode writeSS(const int Ii);
     PetscErrorCode integrate_SS();
+    PetscErrorCode initiateIntegrand_ss();
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
@@ -130,9 +134,9 @@ private:
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImMult,const map<string,Vec>& varIm1);
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
 
     // debugging and MMS tests
     PetscErrorCode debug(const PetscScalar time,const PetscInt stepCount,
