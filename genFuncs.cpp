@@ -170,6 +170,26 @@ PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir)
   return ierr;
 }
 
+PetscErrorCode io_initiateWriteAppend(std::map <string,std::pair<PetscViewer,string> >& vwL, const std::string key,const Vec& vec, const std::string dir)
+{
+  PetscErrorCode ierr = 0;
+
+  // initiate viewer
+  PetscViewer vw;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_WRITE,&vw);
+  vwL[key].first = vw;
+  vwL[key].second = dir;
+
+  // write vec out
+  ierr = VecView(vec,vw); CHKERRQ(ierr);
+
+  // change viewer to append mode
+  ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_APPEND,&vwL[key].first); CHKERRQ(ierr);
+
+  return ierr;
+}
+
 
 // Print all entries of 2D DMDA global vector to stdout, including which
 // processor each entry lives on, and the corresponding subscripting

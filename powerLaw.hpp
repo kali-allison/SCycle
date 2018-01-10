@@ -67,7 +67,12 @@ class PowerLaw : public MomBalContext
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;
-    std::map <string,PetscViewer>  _viewers;
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;

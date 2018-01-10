@@ -112,7 +112,12 @@ private:
     PetscErrorCode integrate_qs();
 
     // to solve a steady-state problem
-    std::map <string,PetscViewer>  _viewers;
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
     PetscErrorCode solveSS_pl(); // assume bcL is correct and do 1 linear solve
     PetscErrorCode solveSS_linEl(); // assume bcL is correct and do 1 linear solve, no effective viscosity
     PetscErrorCode solveSS_v2(); // iterate for eff visc etc

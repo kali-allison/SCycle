@@ -97,8 +97,8 @@ PowerLaw::~PowerLaw()
   // destroy viewers
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
-  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first]);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
   VecDestroy(&_A);
@@ -1667,8 +1667,11 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   VecGetArray(_effVisc,&effVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
-    effVisc[Jj] = min(effVisc[Jj],viscCap);
+    PetscScalar invEffVisc = 1e3 * A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap;
+    effVisc[Jj] = 1.0/invEffVisc;
+
+    //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
+    //~ effVisc[Jj] = min(effVisc[Jj],viscCap);
 
     assert(~isnan(effVisc[Jj]));
     assert(~isinf(effVisc[Jj]));
@@ -2127,23 +2130,15 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer(outputDir + "surfDisp");
-    _viewers["bcL"] = initiateViewer(outputDir + "bcL");
-    _viewers["bcR"] = initiateViewer(outputDir + "bcR");
-
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["surfDisp"],outputDir + "surfDisp");
-    ierr = appendViewer(_viewers["bcL"],outputDir + "bcL");
-    ierr = appendViewer(_viewers["bcR"],outputDir + "bcR");
+    ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -2165,56 +2160,30 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
   #endif
 
   double startTime = MPI_Wtime();
-  //~ LinearElastic::writeStep2D(stepCount,time);
 
   if (stepCount == 0) {
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["u"] = initiateViewer(outputDir + "u");
-    _viewers["sxy"] = initiateViewer(outputDir + "sxy");
-    _viewers["gTxy"] = initiateViewer(outputDir + "gTxy");
-    _viewers["gxy"] = initiateViewer(outputDir + "gxy");
-    _viewers["effVisc"] = initiateViewer(outputDir + "effVisc");
-
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["u"],outputDir + "u");
-    ierr = appendViewer(_viewers["sxy"],outputDir + "sxy");
-    ierr = appendViewer(_viewers["gTxy"],outputDir + "gTxy");
-    ierr = appendViewer(_viewers["gxy"],outputDir + "gxy");
-    ierr = appendViewer(_viewers["effVisc"],outputDir + "effVisc");
-
-    if (_Nz>1) {
-      _viewers["gTxz"] = initiateViewer(outputDir + "gTxz");
-      _viewers["gxz"] = initiateViewer(outputDir + "gxz");
-      _viewers["sxz"] = initiateViewer(outputDir + "sxz");
-
-      ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
-
-      ierr = appendViewer(_viewers["gTxz"],outputDir + "gTxz");
-      ierr = appendViewer(_viewers["gxz"],outputDir + "gxz");
-      ierr = appendViewer(_viewers["sxz"],outputDir + "sxz");
-    }
+    ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gTxy", _gTxy, outputDir + "gTxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gTxz", _gTxz, outputDir + "gTxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxy", _gxy, outputDir + "gxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxz", _gxz, outputDir + "gxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "effVisc", _effVisc, outputDir + "effVisc"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
-    if (_Nz>1) {
-      ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
-    }
+    ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxy,_viewers["gTxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gxy,_viewers["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_viewers["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxz,_viewers["gTxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_gxz,_viewers["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
