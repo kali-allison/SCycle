@@ -473,7 +473,7 @@ PetscErrorCode Mediator::solveSS_pl()
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
-  while (Ii < 20 && err > 1e-2) {
+  while (Ii < 20 && err > 1e-3) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
@@ -578,23 +578,21 @@ PetscErrorCode Mediator::writeSS(const int Ii)
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], _outputDir + "SS_v"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], _outputDir + "SS_T"); CHKERRQ(ierr);
 
-    ierr = io_initiateWriteAppend(_viewers, "tauExtra", _varSS["tauExtra"], _outputDir + "SS_tauExtra"); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_varSS["slipVel"],_viewers["SS_slipVel"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["tau"],_viewers["SS_tau"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["effVisc"],_viewers["SS_effVisc"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxy_t"],_viewers["SS_gVxy_t"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxz_t"],_viewers["SS_gVxz_t"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxy"],_viewers["SS_sxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxz"],_viewers["SS_sxz"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxy"],_viewers["SS_gxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxz"],_viewers["SS_gxz"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["u"],_viewers["SS_u"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["v"],_viewers["SS_v"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["Temp"],_viewers["SS_T"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["tau"],_viewers["tau"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxy_t"],_viewers["gVxy_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxz_t"],_viewers["gVxz_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxy"],_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxz"],_viewers["sxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxy"],_viewers["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxz"],_viewers["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
 
-    ierr = VecView(_varSS["tauExtra"],_viewers["SS_tauExtra"].first); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -680,7 +678,7 @@ PetscErrorCode Mediator::integrate_SS()
 
     PetscScalar maxTemp; VecMax(_varSS["Temp"],NULL,&maxTemp);
 
-    _quadEx = new RK32(2e4,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(5,_maxTime,_initDeltaT,_timeControlType);
     _quadEx->setTolerance(_atol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     _quadEx->setTimeRange(_initTime,_maxTime);
@@ -702,7 +700,7 @@ PetscErrorCode Mediator::integrate_SS()
     Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
     double err = 1e10;
     int Ii = 0;
-    while (Ii < 20 && err > 1e-2) {
+    while (Ii < 20 && err > 1e-3) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
       MyVecLog10AXPBY(temp, 1.-_fss_EffVisc, effVisc_old, _fss_EffVisc, _varSS["effVisc"]);
@@ -735,7 +733,7 @@ PetscErrorCode Mediator::integrate_SS()
     }
 
     VecCopy(_fault->_tauP,_varSS["tau"]);
-    writeSS(Ii);
+    writeSS(Jj);
     //~ ierr = VecView(_varSS["tau"],_viewers["tauSS"].first); CHKERRQ(ierr);
     //~ ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
     //~ ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
