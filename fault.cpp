@@ -7,8 +7,8 @@ using namespace std;
 
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
-  _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL), _deltaT(0.0),
-  _Ny(D._Ny), _Ly(D._Ly), _order(D._order),
+  _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL), _deltaT(0.0), _is(NULL),
+  _Ny(D._Ny), _Ly(D._Ly), _order(D._order), _rhoLocal(NULL), 
   _alphay(D._alphay), _alphaz(D._alphaz),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(D._vL),
@@ -818,6 +818,58 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   return ierr;
 }
 
+PetscErrorCode SymmFault::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::initiateIntegrand";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+ // put variables to be integrated explicitly into varEx
+  Vec u, uPrev, du;
+  VecDuplicate(_tauQSP, &u);
+  VecDuplicate(_tauQSP, &du);
+  VecDuplicate(_tauQSP, &uPrev);
+  VecSet(u, 0);
+  VecSet(du, 0);
+  VecSet(uPrev, 0);
+  varEx["uFault"] = u;
+  varEx["uPrevFault"] = uPrev;
+  varEx["duFault"] = du;
+
+  VecDuplicate(_tauQSP, &_rhoLocal);
+  VecSet(_rhoLocal, 0);
+
+  PetscInt indexes[_N];
+  PetscInt Ii;
+  VecScatter scattu, scattuPrev, scattrho;
+  for (Ii=0; Ii<_N; Ii++){indexes[Ii] = Ii;}
+
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,_N,indexes, PETSC_COPY_VALUES,&_is);
+
+  ierr = VecScatterCreate(varEx["u"], _is, varEx["uFault"], _is, &scattu);
+  VecScatterBegin(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
+
+  ierr = VecScatterCreate(varEx["uPrev"], _is, varEx["uPrevFault"], _is, &scattuPrev);
+  VecScatterBegin(scattuPrev, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(scattuPrev, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
+
+  ierr = VecScatterCreate(_rhoVec, _is, _rhoLocal, _is, &scattrho);
+  VecScatterBegin(scattrho, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(scattrho, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
+
+  // slip is added by the momentum balance equation
+  //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
+  //~ varEx["slip"] = varSlip;
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 PetscErrorCode SymmFault::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
@@ -945,9 +997,10 @@ PetscErrorCode SymmFault::compute_agingLaw_dyn()
   // constructing right boundary: right = abs(slip)
   ierr = VecDuplicate(_psi, &right);
   ierr = VecSet(right, 10.0);
-
+  ierr = VecAXPY(right, 1.0, _psi);
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,-10.0);CHKERRQ(ierr);
+  ierr = VecAXPY(left, 1.0, _psi);
 
   PetscScalar *leftA,*rightA,*psi=0;
   VecGetArray(left,&leftA);
@@ -990,7 +1043,7 @@ PetscErrorCode SymmFault::compute_agingLaw_dyn()
       _rootIts += rootAlg.getNumIts();
     }
     psi[Jj] = outVal;
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Ii,leftVal,rightVal,outVal);
+    
     Jj++;
   }
   VecRestoreArray(left,&leftA);
@@ -1017,6 +1070,7 @@ PetscErrorCode SymmFault::computeVel_dyn()
 
   // constructing right boundary: right = abs(slip)
   ierr = VecDuplicate(_Phi, &right);
+  ierr = VecCopy(_Phi, right);
   ierr = VecAbs(right);
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
@@ -1206,14 +1260,14 @@ PetscErrorCode SymmFault::setTemp(const Vec& T)
   return ierr;
 }
 
-PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar deltaT, Vec _rhoVec)
+PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "SymmFault::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  PetscInt       Ii,Istart,Iend;
+  PetscInt       Ii,Istart,Iend, IFaultStart, IFaultEnd, size;
   PetscScalar    u, uPrev, Laplacian, rho, psi, sigma_N, a, an, Phi, tauQS, constraints_factor, slipVel;
   VecDuplicate(_tauQSP, &_Phi);
   VecDuplicate(_tauQSP, &_an);
@@ -1222,12 +1276,21 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   VecDuplicate(_tauQSP, &_slipPrev);
   
   ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
-  for (Ii=Istart;Ii<Iend;Ii++) {
+  ierr = VecGetOwnershipRange(varEx["psi"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
+
+  VecScatter scattdu;
+  ierr = VecScatterCreate(dvarEx["u"], _is, varEx["duFault"], _is, &scattdu);
+  VecScatterBegin(scattdu, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(scattdu, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
+
+  ierr = VecGetOwnershipRange(varEx["uFault"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
+
+  for (Ii=IFaultStart;Ii<IFaultEnd;Ii++) {
     if (Ii<_N) {
-      ierr = VecGetValues(varEx["u"],1,&Ii,&u);CHKERRQ(ierr);
-      ierr = VecGetValues(varEx["uPrev"],1,&Ii,&uPrev);CHKERRQ(ierr);
-      ierr = VecGetValues(dvarEx["u"],1,&Ii,&Laplacian);CHKERRQ(ierr);
-      ierr = VecGetValues(_rhoVec, 1, &Ii, &rho);
+      ierr = VecGetValues(varEx["uFault"],1,&Ii,&u);CHKERRQ(ierr);
+      ierr = VecGetValues(varEx["uPrevFault"],1,&Ii,&uPrev);CHKERRQ(ierr);
+      ierr = VecGetValues(varEx["duFault"],1,&Ii,&Laplacian);CHKERRQ(ierr);
+      ierr = VecGetValues(_rhoLocal, 1, &Ii, &rho);
       ierr = VecGetValues(varEx["psi"],1,&Ii,&psi);CHKERRQ(ierr);
       ierr = VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
       ierr = VecGetValues(_tauQSP,1,&Ii,&tauQS);CHKERRQ(ierr);
@@ -1523,13 +1586,16 @@ PetscErrorCode SymmFault::getResid_aging(const PetscInt ind,const PetscScalar st
   ierr = VecGetValues(_slipVel, 1, &ind, &slipVel);
   ierr = VecGetValues(_slipPrev,1,&ind,&slipPrev);CHKERRQ(ierr);
 
-  PetscScalar age = (PetscScalar) b*_v0 / Dc * exp( (double) (_f0 - (psi + state) / 2.0) - (slipVel + slipPrev) / 2.0 / _v0 );
-  
+  PetscScalar age = (PetscScalar) b*_v0 / Dc * exp( (double) (_f0 - (psi - state) / 2.0) / b - (slipVel - slipPrev) / 2.0 / _v0 );
+  if (isnan(age)){
+    age=0;
+  }
+
   // stress on fault
   PetscScalar stress = state - psi;
   if(isinf(age)){age = 0;}
   *out = _deltaT * age - stress;
-  
+
   assert(!isnan(*out));
   assert(!isinf(*out));
 
@@ -1657,7 +1723,7 @@ PetscErrorCode SymmFault::d_dt(const PetscScalar time,const map<string,Vec>& var
   return ierr;
 }
 
-PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT, Vec _rhoVec)
+PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1670,21 +1736,45 @@ PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& va
 
 // compute slip velocity
 double startTime = MPI_Wtime();
-ierr = setPhi(varEx, dvarEx, _deltaT, _rhoVec);
+ierr = setPhi(varEx, dvarEx, _deltaT);
 ierr = computeVel_dyn();CHKERRQ(ierr);
 _computeVelTime += MPI_Wtime() - startTime;
 
 PetscInt       Ii,Istart,Iend;
 PetscScalar    u, uPrev, Laplacian, rho, ind, sigma_N, a, an, tauQS, uNew, slip, slipVel, fric, alpha, A, vel, Phi, psi;
 
-ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
+// ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
+// for (Ii=Istart;Ii<Iend;Ii++) {
+//   if (Ii<_N) {
+//     ierr = VecGetValues(varEx["u"],1,&Ii,&u);CHKERRQ(ierr);
+//     ierr = VecGetValues(varEx["uPrev"],1,&Ii,&uPrev);CHKERRQ(ierr);
+//     ierr = VecGetValues(_an,1,&Ii,&an);CHKERRQ(ierr);
+//     ierr = VecGetValues(_slipVel,1,&Ii,&slipVel);CHKERRQ(ierr);
+//     ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
+//     if (slipVel < 1e-14){
+//       uNew = 2 * u - uPrev + _deltaT * _deltaT / rho * an;
+//       vel = 0;
+//     }
+//     else{
+//       ierr = VecGetValues(varEx["psi"],1,&Ii,&psi);CHKERRQ(ierr);
+//       ierr = VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
+//       ierr = VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
+//       ierr = VecGetValues(_Phi,1,&Ii,&Phi);CHKERRQ(ierr);
+//       fric = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
+//       alpha = 1 / (rho * _alphay) * fric / slipVel;
+//       A = 1 + alpha * _deltaT;
+//       uNew = (2*u + _deltaT * _deltaT / rho * an + (_deltaT*alpha-1)*uPrev) /  A;
+//       vel = Phi / (1 + _deltaT*_alphay / rho * fric / slipVel);
+//     }
+
+ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
 for (Ii=Istart;Ii<Iend;Ii++) {
   if (Ii<_N) {
-    ierr = VecGetValues(varEx["u"],1,&Ii,&u);CHKERRQ(ierr);
-    ierr = VecGetValues(varEx["uPrev"],1,&Ii,&uPrev);CHKERRQ(ierr);
+    ierr = VecGetValues(varEx["uFault"],1,&Ii,&u);CHKERRQ(ierr);
+    ierr = VecGetValues(varEx["uPrevFault"],1,&Ii,&uPrev);CHKERRQ(ierr);
     ierr = VecGetValues(_an,1,&Ii,&an);CHKERRQ(ierr);
     ierr = VecGetValues(_slipVel,1,&Ii,&slipVel);CHKERRQ(ierr);
-    ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
+    ierr = VecGetValues(_rhoLocal,1,&Ii,&rho);CHKERRQ(ierr);
     if (slipVel < 1e-14){
       uNew = 2 * u - uPrev + _deltaT * _deltaT / rho * an;
       vel = 0;
@@ -1709,23 +1799,32 @@ for (Ii=Istart;Ii<Iend;Ii++) {
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"A=%.9e\n",A);
     // ierr = PetscPrintf(PETSC_COMM_WORLD,"vel=%.9e\n",vel);
     slip = 2 * uNew;
-    ierr = VecSetValues(varEx["u"],1,&Ii,&uNew,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValues(varEx["uPrev"],1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(varEx["uFault"],1,&Ii,&uNew,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(varEx["uPrevFault"],1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(dvarEx["slip"],1,&Ii,&vel,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(varEx["slip"],1,&Ii,&slip,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(_slipVel,1,&Ii,&vel,INSERT_VALUES);CHKERRQ(ierr);
   }
 }
-ierr = VecAssemblyBegin(varEx["u"]);CHKERRQ(ierr);
-ierr = VecAssemblyBegin(varEx["uPrev"]);CHKERRQ(ierr);
+ierr = VecAssemblyBegin(varEx["uFault"]);CHKERRQ(ierr);
+ierr = VecAssemblyBegin(varEx["uPrevFault"]);CHKERRQ(ierr);
 ierr = VecAssemblyBegin(dvarEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyBegin(varEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyBegin(_slipVel);CHKERRQ(ierr);
-ierr = VecAssemblyEnd(varEx["u"]);CHKERRQ(ierr);
-ierr = VecAssemblyEnd(varEx["uPrev"]);CHKERRQ(ierr);
+ierr = VecAssemblyEnd(varEx["uFault"]);CHKERRQ(ierr);
+ierr = VecAssemblyEnd(varEx["uPrevFault"]);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(dvarEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(varEx["slip"]);CHKERRQ(ierr);
 ierr = VecAssemblyEnd(_slipVel);CHKERRQ(ierr);
+
+VecScatter scattu, scattuPrev;
+ierr = VecScatterCreate(varEx["uFault"], _is, varEx["u"], _is, &scattu);
+VecScatterBegin(scattu, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_FORWARD);
+VecScatterEnd(scattu, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_FORWARD);
+
+ierr = VecScatterCreate(varEx["uPrevFault"], _is, varEx["uPrev"], _is, &scattuPrev);
+VecScatterBegin(scattuPrev, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
+VecScatterEnd(scattuPrev, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
 
 
 // compute state parameter law

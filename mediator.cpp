@@ -208,6 +208,11 @@ PetscErrorCode Mediator::initiateIntegrand_dyn()
   _fault->initiateIntegrand(_initTime,_varEx);
   _momBal->initiateIntegrand_dyn(_initTime, _varEx);
 
+  Vec _rhoVec;
+  VecDuplicate(_D->_y, &_rhoVec);
+  _momBal->getRhoVec(_rhoVec);
+  _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
+
   //~ if (_thermalCoupling.compare("no")!=0 ) {
      //~ _he->initiateIntegrand(_initTime,_varEx,_varIm1);
   //~ }
@@ -707,14 +712,11 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
 PetscErrorCode Mediator::d_dt_WaveEq(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT)
 {
   PetscErrorCode ierr = 0;
-  Vec _rhoVec;
-  VecDuplicate(_D->_y, &_rhoVec);
-  _momBal->getRhoVec(_rhoVec);
   ierr = _momBal->d_dt_WaveEq(time,varEx,dvarEx, _deltaT); CHKERRQ(ierr);
-  if (_isFault.compare("true")){
-  ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT,_rhoVec);CHKERRQ(ierr);
+  if (_isFault.compare("true") == 0){
+  ierr = _fault->d_dt_WaveEq(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
   }
-
+  _momBal->updateU(varEx);
   return ierr;
 }
 

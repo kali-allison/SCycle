@@ -152,7 +152,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("isFault")==0) {
-      _isFault = atof( (line.substr(pos+_delim.length(),line.npos)) );
+      _isFault = line.substr(pos+_delim.length(),line.npos);
     }
 
   }
@@ -751,7 +751,9 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   return ierr;
 }
 
-
+PetscErrorCode LinearElastic::updateU(map<string,Vec>& varEx){
+  _u = varEx["u"];
+}
 
 PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time)
 {
@@ -905,8 +907,8 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
 
     PetscInt Jj = 0;
     for (Ii=Istart;Ii<Iend;Ii++) {
-      u[Jj] = exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
-      uPrev[Jj] = exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
+      u[Jj] = 10 * exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
+      uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
       Jj++;
     }
     VecRestoreArray(*_y,&y);
@@ -934,10 +936,10 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
       PetscScalar tol;
       if (dy < dz){tol = dy / 10000;}
       else{tol = dz / 10000;}
-      if (abs(zz[Jj]) < tol){ay[Jj] += 0.5 / _alphaz;}
-      if (abs(zz[Jj] - _Lz) < tol){ay[Jj] += 0.5 / _alphaz;}
-      if (abs(yy[Jj]) < tol){ay[Jj] += 0.5 / _alphay;}
-      if (abs(yy[Jj] - _Ly) < tol){ay[Jj] += 0.5 / _alphay;}
+      if (abs(yy[Jj]) < tol){ay[Jj] = 0.5 / _alphay;}
+      if (abs(yy[Jj] - _Ly) < tol){ay[Jj] = 0.5 / _alphay;}
+      if (abs(zz[Jj]) < tol){ay[Jj] = 0.5 / _alphaz;}
+      if (abs(zz[Jj] - _Lz) < tol){ay[Jj] = 0.5 / _alphaz;}
       Jj++;
     }
     VecRestoreArray(*_y,&yy);
@@ -994,29 +996,28 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = VecAXPY(correction, 2, ones);
   ierr = VecPointwiseDivide(uNext, uNext, correction);
 
-  if(_isFault.compare("true")){
-  PetscScalar *yy, *zz, *uu, *varExu;
-  PetscInt Ii,Istart,Iend;
-  PetscInt Jj = 0;
-  VecGetOwnershipRange(*_y,&Istart,&Iend);
-  VecGetArray(_u,&uu);
-  VecGetArray(*_y, &yy);
-  VecGetArray(*_z, &zz);
-  VecGetArray(uNext, &varExu);
-  Jj = 0;
+  // if(_isFault.compare("true") == 0){
+  // PetscScalar *yy, *zz, *uu, *varExu;
+  // PetscInt Ii,Istart,Iend;
+  // PetscInt Jj = 0;
+  // VecGetOwnershipRange(*_y,&Istart,&Iend);
+  // VecGetArray(_u,&uu);
+  // VecGetArray(*_y, &yy);
+  // VecGetArray(*_z, &zz);
+  // VecGetArray(uNext, &varExu);
+  // Jj = 0;
 
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    if (yy[Jj] == 0){
-      varExu[Jj] = uu[Jj];
-      // PetscPrintf(PETSC_COMM_WORLD, "varEx u = %g", varExu[Jj]);
-    }
-    Jj++;
-  }
-  VecRestoreArray(*_y,&yy);
-  VecRestoreArray(*_z,&zz);
-  VecRestoreArray(_u,&uu);
-  VecRestoreArray(uNext, &varExu);
-  }
+  // for (Ii=Istart;Ii<Iend;Ii++) {
+  //   if (yy[Jj] == 0){
+  //     varExu[Jj] = uu[Jj];
+  //   }
+  //   Jj++;
+  // }
+  // VecRestoreArray(*_y,&yy);
+  // VecRestoreArray(*_z,&zz);
+  // VecRestoreArray(_u,&uu);
+  // VecRestoreArray(uNext, &varExu);
+  // }
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
@@ -1025,7 +1026,7 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   VecDestroy(&correction);
   VecDestroy(&previous);
 
-  _u = varEx["u"];
+  // _u = varEx["u"];
   // _u = _ay;
 
   PetscPrintf(PETSC_COMM_WORLD,"");

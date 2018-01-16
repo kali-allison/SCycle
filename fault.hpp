@@ -63,6 +63,8 @@ class Fault: public RootFinderContext
     //~ PetscScalar   *_muArrPlus,*_csArrPlus;
     Vec                 *_muVecP,*_csVecP;
     Vec                  _slip,_slipVel, _slipPrev;
+    Vec                 _rhoLocal;
+    IS                  _is;
 
     // viewers
     std::map <string,PetscViewer>  _viewers;
@@ -110,12 +112,13 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual getResid_dyn(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual getResid_aging(const PetscInt ind,const PetscScalar state,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
-    PetscErrorCode virtual d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT,  Vec _rhoVec) = 0;
+    PetscErrorCode virtual d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT) = 0;
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx) = 0;
+    PetscErrorCode virtual initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec) = 0;
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
-    PetscErrorCode virtual setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT, Vec _rhoVec) = 0;
+    PetscErrorCode virtual setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT) = 0;
     PetscErrorCode virtual setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus) = 0;
     PetscErrorCode virtual setSNEff(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
     PetscErrorCode virtual setSN(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
@@ -171,9 +174,10 @@ class SymmFault: public Fault
 
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT,  Vec _rhoVec);
+    PetscErrorCode d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT);
     PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
@@ -194,7 +198,7 @@ class SymmFault: public Fault
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // set total normal stress from pore pressure and effective normal stress
-    PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT, Vec _rhoVec);
+    PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
 
 };
 
