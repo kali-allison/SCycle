@@ -16,7 +16,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _B(NULL),_C(NULL),_A2(NULL),_inv(NULL),_inv1(NULL),
-  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_effViscCapSS(1e21),
+  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_ssEffViscScale(1e-15),
   _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
@@ -38,10 +38,10 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   he.getTemp(_T);
   setMaterialParameters();
   // define boundary condition types
-  _bcTType = "Neumann";
-  _bcBType = "Neumann";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
+  //~ _bcTType = "Neumann";
+  //~ _bcBType = "Neumann";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
   if (_bcLTauQS==1) { _bcLType = "Neumann"; }
   if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
@@ -227,8 +227,8 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("maxEffVisc")==0) {
       _effViscCap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("maxEffViscSS")==0) {
-      _effViscCapSS = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("ssEffViscScale")==0) {
+      _ssEffViscScale = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
   }
@@ -346,6 +346,8 @@ PetscErrorCode PowerLaw::allocateFields()
 
   VecDuplicate(_u,&_gTxy); VecSet(_gTxy,0.0);
   VecDuplicate(_u,&_gTxz); VecSet(_gTxz,0.0);
+
+  ierr = VecDuplicate(_u,&_effViscTemp);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -833,7 +835,9 @@ PetscErrorCode PowerLaw::initializeSSMatrices()
     _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
     _sbp_eta->setGrid(_y,_z);
   }
   else {
@@ -1289,7 +1293,11 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   // set up rhs vector
   VecCopy(varSS["tau"],_bcL);
   VecSet(_bcR,_vL/2.);
+
   ierr = _sbp_eta->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
+
+  // scale rhs
+  VecScale(_rhs,_ssEffViscScale);
 
   // no preconditioning with eff visc
   Mat A;
@@ -1304,7 +1312,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   //~ _sbp_eta->getA(A);
   //~ MatCopy(A,_A2,SAME_NONZERO_PATTERN);
   //~ VecCopy(_effVisc,_inv);  VecReciprocal(_inv); //VecScale(_inv,1e-8);
-  //~ VecCopy(_effVisc,_inv); VecSet(_inv,1e-25);
+  //~ VecCopy(_effVisc,_inv); VecSet(_inv,1e-10);
   //~ MatDiagonalScale(_A2,_inv,NULL);
   //~ VecPointwiseMult(_rhs,_inv,_rhs);
   //~ KSPDestroy(&_ksp_eta);
@@ -1326,7 +1334,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   ierr = computeSDev(); CHKERRQ(ierr); // deviatoric stress
 
   // update effective viscosity
-  ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
+  ierr = computeViscosity(_effViscCap); CHKERRQ(ierr); // new viscosity
 
 
   #if VERBOSE > 1
@@ -1662,6 +1670,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   // compute effective viscosity
   PetscScalar const *sigmadev,*A,*B,*n,*T=0;
   PetscScalar *effVisc=0;
+  PetscScalar *effViscTemp=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
   VecGetArrayRead(_sdev,&sigmadev);
@@ -1670,10 +1679,13 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   VecGetArrayRead(_n,&n);
   VecGetArrayRead(_T,&T);
   VecGetArray(_effVisc,&effVisc);
+  VecGetArray(_effViscTemp,&effViscTemp);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar invEffVisc = 1e3 * A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap;
     effVisc[Jj] = 1.0/invEffVisc;
+
+    effViscTemp[Jj] = _ssEffViscScale * 1.0 / (A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap);
 
     //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
     //~ effVisc[Jj] = min(effVisc[Jj],viscCap);
@@ -1688,6 +1700,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   VecRestoreArrayRead(_n,&n);
   VecRestoreArrayRead(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
+  VecRestoreArray(_effViscTemp,&effViscTemp);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2076,7 +2089,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"effViscCap = %.15e\n",_effViscCap);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"effViscCapSS = %s.15e\n",_effViscCapSS);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"effViscCapSS = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);
 
 
   PetscMPIInt size;

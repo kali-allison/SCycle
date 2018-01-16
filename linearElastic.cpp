@@ -34,10 +34,10 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
   allocateFields();
   setMaterialParameters();
   // define boundary condition types
-  _bcTType = "Neumann";
-  _bcBType = "Neumann";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
+  //~ _bcTType = "Neumann";
+  //~ _bcBType = "Neumann";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
   if (_bcLTauQS==1) { _bcLType = "Neumann"; }
   if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 

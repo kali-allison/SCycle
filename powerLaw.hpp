@@ -60,10 +60,11 @@ class PowerLaw : public MomBalContext
     SbpOps   *_sbp_eta;
     KSP       _ksp_eta;
     PC        _pc_eta;
-    PetscScalar _effViscCapSS; // imposed upper limit on effective viscosity for steady state computation
+    PetscScalar _ssEffViscScale; // imposed upper limit on effective viscosity for steady state computation
     PetscErrorCode initializeSSMatrices(); // compute Bss and Css
     Mat            _A2;
     Vec _inv,_inv1;
+    Vec _effViscTemp;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;

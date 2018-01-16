@@ -552,8 +552,6 @@ PetscErrorCode Domain::setFields()
     CHKERRQ(ierr);
   #endif
 
-  PetscScalar    y,z,r,q= 0;
-
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
   ierr = VecSetFromOptions(_y); CHKERRQ(ierr);
@@ -566,41 +564,33 @@ PetscErrorCode Domain::setFields()
   // construct coordinate transform
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar *y,*z,*q,*r;
+  VecGetArray(_y,&y);
+  VecGetArray(_z,&z);
+  VecGetArray(_q,&q);
+  VecGetArray(_r,&r);
+  PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-
-    q = _dq*(Ii/_Nz);
-    r = _dr*(Ii-_Nz*(Ii/_Nz));
-    ierr = VecSetValues(_q,1,&Ii,&q,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValues(_r,1,&Ii,&r,INSERT_VALUES);CHKERRQ(ierr);
+    q[Jj] = _dq*(Ii/_Nz);
+    r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
     if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
-      //~ y = q*_Ly;
-      //~ z = r*_Lz;
-
-      y = (_dq*_Ly)*(Ii/_Nz);
-      z = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
-
-      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+      y[Jj] = (_dq*_Ly)*(Ii/_Nz);
+      z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
     }
     else {
       // no transformation
-      //~ y = q*_Ly;
-      z = r*_Lz;
+      //~ y[Jj] = q[Jj]*_Ly;
+      z[Jj] = r[Jj]*_Lz;
 
-      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
-
-      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
     }
+
+    Jj++;
   }
-  VecAssemblyBegin(_q);
-  VecAssemblyBegin(_r);
-  VecAssemblyBegin(_y);
-  VecAssemblyBegin(_z);
-  VecAssemblyEnd(_q);
-  VecAssemblyEnd(_r);
-  VecAssemblyEnd(_y);
-  VecAssemblyEnd(_z);
+  VecRestoreArray(_y,&y);
+  VecRestoreArray(_z,&z);
+  VecRestoreArray(_q,&q);
+  VecRestoreArray(_r,&r);
 
   // load y and z instead
   if (_inputDir.compare("unspecified") != 0) {

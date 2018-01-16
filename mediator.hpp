@@ -121,7 +121,7 @@ private:
     PetscErrorCode solveSS_pl(); // assume bcL is correct and do 1 linear solve
     PetscErrorCode solveSS_linEl(); // assume bcL is correct and do 1 linear solve, no effective viscosity
     PetscErrorCode solveSS_v2(); // iterate for eff visc etc
-    PetscErrorCode writeSS(const int Ii);
+    PetscErrorCode writeSS(const int Ii, const std::string outputDir);
     PetscErrorCode integrate_SS();
     PetscErrorCode initiateIntegrand_ss();
 
