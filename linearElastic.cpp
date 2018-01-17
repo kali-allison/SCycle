@@ -1012,38 +1012,12 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
   ierr = VecAXPY(correction, 2, ones);
   ierr = VecPointwiseDivide(uNext, uNext, correction);
 
-  // if(_isFault.compare("true") == 0){
-  // PetscScalar *yy, *zz, *uu, *varExu;
-  // PetscInt Ii,Istart,Iend;
-  // PetscInt Jj = 0;
-  // VecGetOwnershipRange(*_y,&Istart,&Iend);
-  // VecGetArray(_u,&uu);
-  // VecGetArray(*_y, &yy);
-  // VecGetArray(*_z, &zz);
-  // VecGetArray(uNext, &varExu);
-  // Jj = 0;
-
-  // for (Ii=Istart;Ii<Iend;Ii++) {
-  //   if (yy[Jj] == 0){
-  //     varExu[Jj] = uu[Jj];
-  //   }
-  //   Jj++;
-  // }
-  // VecRestoreArray(*_y,&yy);
-  // VecRestoreArray(*_z,&zz);
-  // VecRestoreArray(_u,&uu);
-  // VecRestoreArray(uNext, &varExu);
-  // }
-
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
   VecDestroy(&uNext);
   VecDestroy(&ones);
   VecDestroy(&correction);
   VecDestroy(&previous);
-
-  // _u = varEx["u"];
-  // _u = _ay;
 
   PetscPrintf(PETSC_COMM_WORLD,"");
   #if VERBOSE > 1
