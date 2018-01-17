@@ -7,9 +7,10 @@ using namespace std;
 PressureEq::PressureEq(Domain&D)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"),
-  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),_M(NULL),
+  _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType(D._sbpType),_linSolveCount(0),
+  _M(NULL),
   _writeTime(0),_linSolveTime(0),_ptTime(0),_startTime(0),_miscTime(0),
   _p(NULL)
 {

@@ -66,7 +66,7 @@ function g = agingLaw(psi,vel,p)
 if isinf(exp(p.f0./p.b))
   g = 0;
 else
-  g = (p.b*p.v0/p.Dc) * exp((p.f0-psi)/p.b - vel/p.v0);
+  g = (p.b*p.v0/p.Dc) * (exp((p.f0-psi)/p.b) - vel/p.v0);
 end
 end
 

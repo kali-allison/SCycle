@@ -8,8 +8,9 @@ using namespace std;
 LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
 : _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),
   _alphay(D._alphay), _alphaz(D._alphaz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
+  _y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),_momBalType("static"),_isFault("true"),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
   _vL(D._vL),
@@ -752,7 +753,9 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 }
 
 PetscErrorCode LinearElastic::updateU(map<string,Vec>& varEx){
+  PetscErrorCode ierr = 0;
   _u = varEx["u"];
+  return ierr;
 }
 
 PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time)
@@ -893,10 +896,6 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
   _varEx["u"] = _u;
   _varEx["uPrev"] = uPrevV;
 
-  //~ if(_initialU.compare("gaussian")==0){
-    // PetscScalar yy[1], zz[1];
-    // PetscScalar uu;
-
     PetscScalar *u, *uPrev, *y, *z;
     PetscInt Ii,Istart,Iend;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
@@ -907,8 +906,8 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
 
     PetscInt Jj = 0;
     for (Ii=Istart;Ii<Iend;Ii++) {
-      u[Jj] = 10 * exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
-      uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.5*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.5*(_Lz), 2) /5);
+      u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
+      uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
       Jj++;
     }
     VecRestoreArray(*_y,&y);
@@ -926,7 +925,7 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
     VecGetArray(*_y, &yy);
     VecGetArray(*_z, &zz);
     Jj = 0;
-    PetscScalar alphay, alphaz;
+
     PetscScalar dy,dz;
     if (_sbpType.compare("mfc_coordTrans")==0) { dy = 1./(_Ny-1); dz = 1./(_Nz-1); }
     else { dy = _Ly/(_Ny-1); dz = _Lz/(_Nz-1); }
@@ -947,7 +946,7 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
     VecRestoreArray(_ay,&ay);
 
     ierr = VecPointwiseMult(_ay, _ay, _cs);
-    //~ }
+
     _u = _varEx["u"];
 
     return ierr;
@@ -1037,7 +1036,9 @@ PetscErrorCode LinearElastic::d_dt_WaveEq(const PetscScalar time, map<string,Vec
 }
 
 PetscErrorCode LinearElastic::getRhoVec(Vec& rho){
+  PetscErrorCode ierr=0;
   rho = _rhoVec;
+  return ierr;
 }
 
 

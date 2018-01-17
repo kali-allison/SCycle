@@ -7,18 +7,23 @@ using namespace std;
 
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
-  _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL), _deltaT(0.0), _is(NULL),
-  _Ny(D._Ny), _Ly(D._Ly), _order(D._order), _rhoLocal(NULL), 
-  _alphay(D._alphay), _alphaz(D._alphaz),
+  _N(D._Nz),_Ny(D._Ny),_order(D._order),
+  _L(D._Lz),_h(D._dr),_Ly(D._Ly),
+  _z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
-  _f0(0.6),_v0(1e-6),_vL(D._vL),
-  _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
+  _f0(0.6),_v0(1e-6),_vL(D._vL),_deltaT(0.0),
+  _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),
+  _alphay(D._alphay), _alphaz(D._alphaz),
+  _T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),
-  _sigmaN_cap(1e14),_sigmaN_floor(0.),_sNEff(NULL),
-  _slip(NULL),_slipVel(NULL), _slipPrev(NULL),
+  _Phi(NULL),_an(NULL),_constraints_factor(NULL),
+  _sigmaN_cap(1e14),_sigmaN_floor(0.),
+  _sNEff(NULL),
+  _slip(NULL),_slipVel(NULL), _slipPrev(NULL),_rhoLocal(NULL),
+  _is(NULL),
   _computeVelTime(0),_stateLawTime(0),
-  _tauQSP(NULL),_tauP(NULL), _Phi(NULL), _an(NULL), _constraints_factor(NULL)
+  _tauQSP(NULL),_tauP(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "Fault::Fault";
@@ -1052,6 +1057,8 @@ PetscErrorCode SymmFault::compute_agingLaw_dyn()
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
+
+return ierr;
 }
 
 
@@ -1267,8 +1274,8 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
     std::string funcName = "SymmFault::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  PetscInt       Ii,Istart,Iend, IFaultStart, IFaultEnd, size;
-  PetscScalar    u, uPrev, Laplacian, rho, psi, sigma_N, a, an, Phi, tauQS, constraints_factor, slipVel;
+  PetscInt       Ii,Istart,Iend, IFaultStart, IFaultEnd;
+  PetscScalar    u, uPrev, Laplacian, rho, psi, sigma_N, an, Phi, tauQS, constraints_factor, slipVel;
   VecDuplicate(_tauQSP, &_Phi);
   VecDuplicate(_tauQSP, &_an);
   VecDuplicate(_tauQSP, &_constraints_factor);
@@ -1303,7 +1310,6 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
       ierr = PetscPrintf(PETSC_COMM_WORLD,"uPrev=%.9e\n",uPrev);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"deltaT=%.9e\n",deltaT);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"rho=%.9e\n",rho);
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"a=%.9e\n",a);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Phi=%.9e\n",Phi);
       }
       constraints_factor = deltaT / _alphay / rho;
@@ -1586,7 +1592,7 @@ PetscErrorCode SymmFault::getResid_aging(const PetscInt ind,const PetscScalar st
   ierr = VecGetValues(_slipVel, 1, &ind, &slipVel);
   ierr = VecGetValues(_slipPrev,1,&ind,&slipPrev);CHKERRQ(ierr);
 
-  PetscScalar age = (PetscScalar) b*_v0 / Dc * exp( (double) (_f0 - (psi - state) / 2.0) / b - (slipVel - slipPrev) / 2.0 / _v0 );
+  PetscScalar age = (PetscScalar) b*_v0 / Dc * (exp( (double) (_f0 - (psi + state) / 2.0) / b) - (slipVel + slipPrev) / 2.0 / _v0 );
   if (isnan(age)){
     age=0;
   }
@@ -1741,31 +1747,7 @@ ierr = computeVel_dyn();CHKERRQ(ierr);
 _computeVelTime += MPI_Wtime() - startTime;
 
 PetscInt       Ii,Istart,Iend;
-PetscScalar    u, uPrev, Laplacian, rho, ind, sigma_N, a, an, tauQS, uNew, slip, slipVel, fric, alpha, A, vel, Phi, psi;
-
-// ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
-// for (Ii=Istart;Ii<Iend;Ii++) {
-//   if (Ii<_N) {
-//     ierr = VecGetValues(varEx["u"],1,&Ii,&u);CHKERRQ(ierr);
-//     ierr = VecGetValues(varEx["uPrev"],1,&Ii,&uPrev);CHKERRQ(ierr);
-//     ierr = VecGetValues(_an,1,&Ii,&an);CHKERRQ(ierr);
-//     ierr = VecGetValues(_slipVel,1,&Ii,&slipVel);CHKERRQ(ierr);
-//     ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
-//     if (slipVel < 1e-14){
-//       uNew = 2 * u - uPrev + _deltaT * _deltaT / rho * an;
-//       vel = 0;
-//     }
-//     else{
-//       ierr = VecGetValues(varEx["psi"],1,&Ii,&psi);CHKERRQ(ierr);
-//       ierr = VecGetValues(_sNEff,1,&Ii,&sigma_N);CHKERRQ(ierr);
-//       ierr = VecGetValues(_a,1,&Ii,&a);CHKERRQ(ierr);
-//       ierr = VecGetValues(_Phi,1,&Ii,&Phi);CHKERRQ(ierr);
-//       fric = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-//       alpha = 1 / (rho * _alphay) * fric / slipVel;
-//       A = 1 + alpha * _deltaT;
-//       uNew = (2*u + _deltaT * _deltaT / rho * an + (_deltaT*alpha-1)*uPrev) /  A;
-//       vel = Phi / (1 + _deltaT*_alphay / rho * fric / slipVel);
-//     }
+PetscScalar    u, uPrev, rho, sigma_N, a, an, uNew, slip, slipVel, fric, alpha, A, vel, Phi, psi;
 
 ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
 for (Ii=Istart;Ii<Iend;Ii++) {
@@ -1791,13 +1773,6 @@ for (Ii=Istart;Ii<Iend;Ii++) {
       vel = Phi / (1 + _deltaT*_alphay / rho * fric / slipVel);
     }
 
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"Error : u evaluated to infinitiy");
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"u=%.9e\n",u);
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"deltaT=%.9e\n",_deltaT);
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"rho=%.9e\n",rho);
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"an=%.9e\n",an);
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"A=%.9e\n",A);
-    // ierr = PetscPrintf(PETSC_COMM_WORLD,"vel=%.9e\n",vel);
     slip = 2 * uNew;
     ierr = VecSetValues(varEx["uFault"],1,&Ii,&uNew,INSERT_VALUES);CHKERRQ(ierr);
     ierr = VecSetValues(varEx["uPrevFault"],1,&Ii,&u,INSERT_VALUES);CHKERRQ(ierr);
