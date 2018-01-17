@@ -25,6 +25,7 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
   _bcTType("Neumann"),_bcRType("Dirichlet"),_bcBType("Neumann"),_bcLType("Dirichlet"),
+  _dynbcTType("outGoing"),_dynbcRType("outGoing"),_dynbcBType("outGoing"),_dynbcLType("outGoing"),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
 #if VERBOSE > 1
@@ -155,6 +156,18 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("isFault")==0) {
       _isFault = line.substr(pos+_delim.length(),line.npos);
     }
+    else if (var.compare("dynbcLType")==0) {
+      _dynbcLType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("dynbcRType")==0) {
+      _dynbcRType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("dynbcTType")==0) {
+      _dynbcTType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("dynbcBType")==0) {
+      _bcBType = line.substr(pos+_delim.length(),line.npos);
+    }
 
   }
 
@@ -179,6 +192,10 @@ PetscErrorCode LinearElastic::checkInput()
          _linSolver.compare("AMG") == 0 );
 
    assert(_momBalType.compare("dynamic") == 0 || _momBalType.compare("static") == 0 );
+   assert(_dynbcTType.compare("outGoing") == 0 || _dynbcTType.compare("freeSurface") == 0 );
+   assert(_dynbcRType.compare("outGoing") == 0 || _dynbcRType.compare("freeSurface") == 0 );
+   assert(_dynbcLType.compare("outGoing") == 0 || _dynbcLType.compare("freeSurface") == 0 );
+   assert(_dynbcBType.compare("outGoing") == 0 || _dynbcBType.compare("freeSurface") == 0 );
 
   if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
@@ -935,10 +952,10 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
       PetscScalar tol;
       if (dy < dz){tol = dy / 10000;}
       else{tol = dz / 10000;}
-      if (abs(yy[Jj]) < tol){ay[Jj] = 0.5 / _alphay;}
-      if (abs(yy[Jj] - _Ly) < tol){ay[Jj] = 0.5 / _alphay;}
-      if (abs(zz[Jj]) < tol){ay[Jj] = 0.5 / _alphaz;}
-      if (abs(zz[Jj] - _Lz) < tol){ay[Jj] = 0.5 / _alphaz;}
+      if (abs(yy[Jj]) < tol && _bcLType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphay;}
+      if (abs(yy[Jj] - _Ly) < tol && _bcRType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphay;}
+      if (abs(zz[Jj]) < tol && _bcTType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphaz;}
+      if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoing") == 0) < tol){ay[Jj] = 0.5 / _alphaz;}
       Jj++;
     }
     VecRestoreArray(*_y,&yy);

@@ -96,6 +96,7 @@ class LinearElastic : public MomBalContext
 
     // boundary conditions
     string               _bcTType,_bcRType,_bcBType,_bcLType; // options: displacement, traction
+    string               _dynbcTType,_dynbcRType,_dynbcBType,_dynbcLType; // options: displacement, traction
     Vec                  _bcT,_bcR,_bcB,_bcL;
 
     LinearElastic(Domain&D,HeatEquation& he);
