@@ -952,10 +952,10 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
       PetscScalar tol;
       if (dy < dz){tol = dy / 10000;}
       else{tol = dz / 10000;}
-      if (abs(yy[Jj]) < tol && _bcLType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphay;}
-      if (abs(yy[Jj] - _Ly) < tol && _bcRType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphay;}
-      if (abs(zz[Jj]) < tol && _bcTType.compare("outGoing") == 0){ay[Jj] = 0.5 / _alphaz;}
-      if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoing") == 0) < tol){ay[Jj] = 0.5 / _alphaz;}
+      if (abs(yy[Jj]) < tol && _bcLType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
+      if (abs(yy[Jj] - _Ly) < tol && _bcRType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
+      if (abs(zz[Jj]) < tol && _bcTType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphaz;}
+      if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoing") == 0) < tol){ay[Jj] += 0.5 / _alphaz;}
       Jj++;
     }
     VecRestoreArray(*_y,&yy);
