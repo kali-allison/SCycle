@@ -187,8 +187,8 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
-  if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);

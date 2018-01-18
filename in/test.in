@@ -1,0 +1,188 @@
+#======================================================================
+# domain
+order = 4
+Ny = 31
+Nz = 31
+Ly = 60 # km
+Lz = 30 # km
+vL = 1e-9    # (m/s)
+
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+problemType = quasidynamic
+
+# linearElastic or powerLaw
+bulkDeformationType = powerLaw
+# dynamic or static
+momBalType = static
+
+# coordinate transformation
+bCoordTrans = 7.0
+sbpType = mfc_coordTrans
+#sbpType = mfc
+
+#======================================================================
+# linear systems
+
+#inputDir = /data/dunham/kallison/eqcycle/inputData/v9_
+loadICs = 0
+bcLTauQS = 1
+
+# algorithm for momentum balance equation: AMG, MUMPSCHOLESKY, MUMPSLU, PCG
+linSolver = MUMPSCHOLESKY
+kspTol = 1e-9
+
+
+# algorithm for heat equation
+linSolver_heateq = AMG
+kspTol_heateq = 1e-9
+
+#======================================================================
+# rate-and-state parameters
+rootTol = 1e-9
+
+impedanceVals = [9.4868 9.4868]
+impedanceDepths = [0 60]
+cohesionVals = [0 0] # m
+cohesionDepths = [0 60] # m
+DcVals = [1 1] # m
+#DcVals = [12e-3 12e-3] # m
+DcDepths = [0 60] # m
+
+# creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
+
+# with varying degrees of overpressure
+#sigmaNVals = [0 802.1] # lambda = 0.4
+#sigmaNVals = [0 668.5] # lambda = 0.5
+#sigmaNVals = [0 534.8] # lambda = 0.6
+#sigmaNVals = [0 401.1] # lambda = 0.7
+sigmaNVals = [0 267.4] # lambda = 0.8
+sigmaNDepths = [0 60]
+sigmaN_floor = 5.5; # MPa
+#sigmaN_floor = 1; # MPa
+#sigmaN_cap = 50; # MPa
+
+
+# state variable law: agingLaw, slipLaw, flashHeating, constantState
+stateLaw = agingLaw
+v0 = 1e-9
+f0 = 0.6
+
+
+#======================================================================
+# off-fault material parameters
+
+shearModDistribution = constant
+problem = symmetric
+muPlus = 30 # GPa
+rhoPlus = 3.0 # g/cm^3
+
+# power law properties: quartz-diorite
+#AVals = [1.3e-3 1.3e-3]
+#ADepths = [0 60]
+#BVals = [2.6341e+04 2.6341e+04]
+#BDepths = [0 60]
+#nVals = [2.4 2.4]
+#nDepths = [0 60]
+
+# power law properties: wet quartz
+AVals = [1e-9 1e-9]
+ADepths = [0 60]
+BVals = [1.62e4 1.62e4]
+BDepths = [0 60]
+nVals = [4 4]
+nDepths = [0 60]
+
+# power law properties: wet feldspar
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [4.28e4 4.28e4]
+#BDepths = [0 60]
+#nVals = [3 3]
+#nDepths = [0 60]
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
+hVals = [0 0]
+hDepths = [0 60]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 60]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60]
+
+
+# initial geotherm
+#TVals = [293 1293] # 20 C/km
+#TVals = [293 1543] # 25 C/km
+#TVals = [293 1793] # 30 C/km
+TVals = [400 1793] # trial
+TDepths = [0 50]
+
+# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
+# withFrictionalHeating: no, plane, finiteWidthZone
+heatEquationType = steadyState
+thermalCoupling = no
+withViscShearHeating = no
+withFrictionalHeating = no
+shearZoneWidth = 0
+
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
+maxEffVisc = 1e30
+ssEffViscScale = 1e-15
+
+#======================================================================
+# settings for time integration # options: FEuler, RK32, RK43; RK32_WBE, RK43_WBE
+
+timeIntegrator = RK32
+timeControlType = P
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
+initTime = 0
+maxTime = 1e15
+initDeltaT = 5
+minDeltaT = 1e-3
+maxDeltaT = 1e12
+atol = 1e-6
+#timeIntInds = [psi slip]
+#timeIntInds = [slip gVxy gVxz]
+timeIntInds = [gVxy gVxz]
+
+
+#outputDir = /scratch/kallison/test/test_
+#outputDir = /scratch/kallison/its/wf_g30_b5_
+#outputDir = /scratch/kallison/its/wqwf_g30_b5_
+#outputDir = /scratch/kallison/its/qd_g30_b5_
+#outputDir = /scratch/kallison/its/qd_g30_b5_Ny201_Nz202_
+
+#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Ny201_Nz202_
+#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_b5_Ny201_Nz404_
+#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_noSSIC_
+#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Dc12_Ny201_Nz404_
+
+
+
+
+#outputDir = /scratch/kallison/versions/v1_
+#outputDir = /scratch/kallison/versions/v2_
+#outputDir = /scratch/kallison/versions/v3_
+#outputDir = /scratch/kallison/versions/v4_
+#outputDir = /scratch/kallison/versions/v5_
+#outputDir = /scratch/kallison/versions/v6_
+#outputDir = /scratch/kallison/versions/v7_
+
+#outputDir = /scratch/kallison/versions/v8_
+#outputDir = /scratch/kallison/versions/v9_
+outputDir = /scratch/kallison/versions/v10_
+
+
+
+
+
+
