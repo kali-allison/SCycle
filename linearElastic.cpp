@@ -771,7 +771,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
 PetscErrorCode LinearElastic::updateU(map<string,Vec>& varEx){
   PetscErrorCode ierr = 0;
-  _u = varEx["u"];
+  VecCopy(varEx["u"], _u);
   return ierr;
 }
 
@@ -909,9 +909,8 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
   _varEx["slip"] = slip;
 
   Vec uPrevV;
-  VecDuplicate(_u, &uPrevV); VecSet(uPrevV,0.);
-  _varEx["u"] = _u;
-  _varEx["uPrev"] = uPrevV;
+  VecDuplicate(_u, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
+  VecDuplicate(_u, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
     PetscScalar *u, *uPrev, *y, *z;
     PetscInt Ii,Istart,Iend;
@@ -952,10 +951,10 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
       PetscScalar tol;
       if (dy < dz){tol = dy / 10000;}
       else{tol = dz / 10000;}
-      if (abs(yy[Jj]) < tol && _bcLType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
-      if (abs(yy[Jj] - _Ly) < tol && _bcRType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
-      if (abs(zz[Jj]) < tol && _bcTType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphaz;}
-      if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoing") == 0) < tol){ay[Jj] += 0.5 / _alphaz;}
+      if (abs(yy[Jj]) < tol && _dynbcLType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
+      if (abs(yy[Jj] - _Ly) < tol && _dynbcRType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphay;}
+      if (abs(zz[Jj]) < tol && _dynbcTType.compare("outGoing") == 0){ay[Jj] += 0.5 / _alphaz;}
+      if (abs(zz[Jj] - _Lz && _dynbcBType.compare("outGoing") == 0) < tol){ay[Jj] += 0.5 / _alphaz;}
       Jj++;
     }
     VecRestoreArray(*_y,&yy);
@@ -963,9 +962,8 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
     VecRestoreArray(_ay,&ay);
 
     ierr = VecPointwiseMult(_ay, _ay, _cs);
-
-    _u = _varEx["u"];
-
+    
+    VecCopy(_varEx["u"], _u);
     return ierr;
 }
 

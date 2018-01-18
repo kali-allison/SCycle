@@ -865,6 +865,10 @@ PetscErrorCode SymmFault::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rho
   VecScatterBegin(scattrho, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(scattrho, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
 
+  VecScatterDestroy(&scattu);
+  VecScatterDestroy(&scattuPrev);
+  VecScatterDestroy(&scattrho);
+
   // slip is added by the momentum balance equation
   //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
   //~ varEx["slip"] = varSlip;
@@ -1274,7 +1278,7 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
     std::string funcName = "SymmFault::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  PetscInt       Ii,Istart,Iend, IFaultStart, IFaultEnd;
+  PetscInt       Ii,IFaultStart, IFaultEnd;
   PetscScalar    u, uPrev, Laplacian, rho, psi, sigma_N, an, Phi, tauQS, constraints_factor, slipVel;
   VecDuplicate(_tauQSP, &_Phi);
   VecDuplicate(_tauQSP, &_an);
@@ -1282,7 +1286,6 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   VecDuplicate(_tauQSP, &_slipVel);
   VecDuplicate(_tauQSP, &_slipPrev);
   
-  ierr = VecGetOwnershipRange(varEx["u"],&Istart,&Iend);CHKERRQ(ierr);
   ierr = VecGetOwnershipRange(varEx["psi"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
 
   VecScatter scattdu;
@@ -1290,6 +1293,7 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   VecScatterBegin(scattdu, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(scattdu, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
 
+  VecScatterDestroy(&scattdu);
   ierr = VecGetOwnershipRange(varEx["uFault"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
 
   for (Ii=IFaultStart;Ii<IFaultEnd;Ii++) {
@@ -1801,6 +1805,8 @@ ierr = VecScatterCreate(varEx["uPrevFault"], _is, varEx["uPrev"], _is, &scattuPr
 VecScatterBegin(scattuPrev, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
 VecScatterEnd(scattuPrev, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
 
+VecScatterDestroy(&scattu);
+VecScatterDestroy(&scattuPrev);
 
 // compute state parameter law
 compute_agingLaw_dyn();
