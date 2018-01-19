@@ -69,8 +69,8 @@ Mediator::~Mediator()
   for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
     VecDestroy(&it->second);
   }
-  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first]);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
   if (_varSS.find("Temp") != _varSS.end()) { VecDestroy(&_varSS["Temp"]); }
@@ -187,8 +187,8 @@ PetscErrorCode Mediator::initiateIntegrand_qs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
-  if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("linearElastic")==0) { solveSS_linEl(); }
+  //~ if (!_loadICs && _bulkDeformationType.compare("powerLaw")==0) { solveSS_pl(); }
 
   _momBal->initiateIntegrand_qs(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -442,7 +442,7 @@ PetscErrorCode Mediator::solveSS_pl()
 
   //~ PetscScalar H = 10; // seismogenic depth
   //~ PetscScalar ess_t = _vL*0.5/H; // guess at steady state strain rate
-  PetscScalar ess_t = 1e-6; // guess at steady state strain rate
+  PetscScalar ess_t = 1e-7; // guess at steady state strain rate
 
   // compute steady state stress on fault
   Vec tauRS = NULL,tauVisc = NULL,tauSS=NULL;
@@ -458,8 +458,7 @@ PetscErrorCode Mediator::solveSS_pl()
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
   }
-  _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
-  ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "SS_tauSS", tauSS, _outputDir + "SS_tauSS"); CHKERRQ(ierr);
 
   // first, set up _varSS
   _varSS["tau"] = tauSS;
@@ -467,14 +466,14 @@ PetscErrorCode Mediator::solveSS_pl()
   _fault->initiateVarSS(_varSS);
 
   // don't iterate on effective viscosity
-  ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
+  //~ ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
-  while (Ii < 20 && err > 1e-2) {
+  while (Ii < 50 && err > 1e-3) {
     VecCopy(_varSS["effVisc"],effVisc_old);
     _momBal->updateSSa(_varSS); // compute v, viscous strain rates
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
@@ -533,8 +532,7 @@ PetscErrorCode Mediator::solveSS_linEl()
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
   }
-  _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
-  ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // first, set up _varSS
   _varSS["tau"] = tauSS;
@@ -558,114 +556,7 @@ PetscErrorCode Mediator::solveSS_linEl()
 }
 
 
-PetscErrorCode Mediator::solveSS_v2()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Mediator::solveSS";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  PetscScalar H = 10; // seismogenic depth
-  PetscScalar ess_t = _vL*0.5/H; // steady state strain rate
-
-  // compute steady state stress on fault
-  Vec tauRS = NULL,tauVisc = NULL,tauSS = NULL;
-  _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
-  _momBal->getTauVisc(tauVisc,ess_t); // tau visc from steady state strain rate
-
-  // tauSS = min(tauRS,tauVisc)
-  VecDuplicate(tauRS,&tauSS);
-  PetscScalar *tauRSV,*tauViscV,*tauSSV=0;
-  PetscInt Istart,Iend;
-  VecGetOwnershipRange(tauRS,&Istart,&Iend);
-  VecGetArray(tauRS,&tauRSV);
-  VecGetArray(tauVisc,&tauViscV);
-  VecGetArray(tauSS,&tauSSV);
-  PetscInt Jj = 0;
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    tauSSV[Jj] = min(tauRSV[Jj],tauViscV[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(tauRS,&tauRSV);
-  VecRestoreArray(tauVisc,&tauViscV);
-  VecRestoreArray(tauSS,&tauSSV);
-
-  if (_inputDir.compare("unspecified") != 0) {
-    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
-  }
-
-  std::map <string,PetscViewer>  _viewers;
-  _viewers["SS_tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
-  ierr = VecView(tauSS,_viewers["SS_tauSS"]); CHKERRQ(ierr);
-
-
-  // now try to converge to steady state
-
-  // first, set up _varSS
-  _varSS["tau"] = tauSS;
-  //~ Vec tauExtra; VecDuplicate(tauSS,&tauExtra); VecCopy(tauSS,tauExtra); _varSS["tauExtra"] = tauExtra;
-
-  //~ _fault->initiateVarSS(_varSS);
-  //~ _momBal->initiateVarSS(_varSS);
-  //~ _he->initiateVarSS(_varSS);
-
-  // for the linear elastic problem, this only requires one step
-  //~ if (_D->_bulkDeformationType.compare("linearElastic")==0) {
-    ierr = _momBal->updateSSa( _varSS); CHKERRQ(ierr);
-    #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    #endif
-    return ierr;
-  //~ }
-  ierr = _momBal->updateSSb(_varSS); CHKERRQ(ierr);
-
-/*
-  // for power-law problem, try to converge
-  Vec effVisc_old;
-  VecDuplicate(_varSS["effVisc"],&effVisc_old);
-
-
-  // outer loop: iterate on tauSS
-  writeSS(0);
-  for (int Jj=0; Jj < 1; Jj++) {
-    // inner loop: iterate on effective viscosity
-    double err = 1e10;
-    int Ii = 0;
-    while (Ii < 10 && err > 1e-3) {
-      VecCopy(_varSS["effVisc"],effVisc_old);
-      _momBal->updateSSa(*_D, _varSS); // compute v, viscous strain rates
-
-
-      // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity)
-      PetscScalar f = 0.1;
-      VecScale(_varSS["effVisc"],f);
-      VecAXPY(_varSS["effVisc"],1.-f,effVisc_old);
-
-      PetscScalar len;
-      VecNorm(_varSS["effVisc"],NORM_2,&len);
-      err = computeNormDiff_2(effVisc_old,_varSS["effVisc"]) / len * sqrt(_D->_Ny*_D->_Nz);
-      PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
-      Ii++;
-    }
-    _momBal->updateSSb(*_D, _varSS);
-    _fault->updateSS(_varSS); // compute tauSS from v(y=0)
-    //~ _he->updateSS(_varSS); // update steady state temperature
-
-    //~ VecSet(_varSS["tauExtra"],Jj);
-    PetscPrintf(PETSC_COMM_WORLD,"Jj: %i\n",Jj);
-    writeSS(Jj);
-  }
-
-  VecDestroy(&effVisc_old);
-*/
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode Mediator::writeSS(const int Ii)
+PetscErrorCode Mediator::writeSS(const int Ii, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -674,63 +565,34 @@ PetscErrorCode Mediator::writeSS(const int Ii)
   #endif
 
   if (Ii == 0) {
-    _viewers["SS_slipVel"] = initiateViewer(_outputDir + "SS_slipVel");
-    _viewers["SS_tau"] = initiateViewer(_outputDir + "SS_tau");
-    _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
-    _viewers["SS_gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
-    _viewers["SS_gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
-    _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
-    _viewers["SS_sxz"] = initiateViewer(_outputDir + "SS_sxz");
-    _viewers["SS_gxy"] = initiateViewer(_outputDir + "SS_gxy");
-    _viewers["SS_gxz"] = initiateViewer(_outputDir + "SS_gxz");
-    _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-    _viewers["SS_v"] = initiateViewer(_outputDir + "SS_v");
-    _viewers["SS_T"] = initiateViewer(_outputDir + "SS_T");
+    ierr = io_initiateWriteAppend(_viewers, "slipVel", _varSS["slipVel"], outputDir + "SS_slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tau", _varSS["tau"], outputDir + "SS_tau"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], outputDir + "SS_effVisc"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxy_t", _varSS["gVxy_t"], outputDir + "SS_gVxy_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxz_t", _varSS["gVxz_t"], outputDir + "SS_gVxz_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxy", _varSS["sxy"], outputDir + "SS_sxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxz", _varSS["sxz"], outputDir + "SS_sxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxy", _varSS["gxy"], outputDir + "SS_gxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxz", _varSS["gxz"], outputDir + "SS_gxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
 
-    ierr = VecView(_varSS["slipVel"],_viewers["SS_slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["tau"],_viewers["SS_tau"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["effVisc"],_viewers["SS_effVisc"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxy_t"],_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxz_t"],_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxy"],_viewers["SS_sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxz"],_viewers["SS_sxz"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxy"],_viewers["SS_gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxz"],_viewers["SS_gxz"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["u"],_viewers["SS_u"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["v"],_viewers["SS_v"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["Temp"],_viewers["SS_T"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["SS_tau"],_outputDir + "SS_tau");
-    ierr = appendViewer(_viewers["SS_effVisc"],_outputDir + "SS_effVisc");
-    ierr = appendViewer(_viewers["SS_gVxy_t"],_outputDir + "SS_gVxy_t");
-    ierr = appendViewer(_viewers["SS_gVxz_t"],_outputDir + "SS_gVxz_t");
-    ierr = appendViewer(_viewers["SS_sxy"],_outputDir + "SS_sxy");
-    ierr = appendViewer(_viewers["SS_sxz"],_outputDir + "SS_sxz");
-    ierr = appendViewer(_viewers["SS_gxy"],_outputDir + "SS_gxy");
-    ierr = appendViewer(_viewers["SS_gxz"],_outputDir + "SS_gxz");
-    ierr = appendViewer(_viewers["SS_u"],_outputDir + "SS_u");
-    ierr = appendViewer(_viewers["SS_v"],_outputDir + "SS_v");
-    ierr = appendViewer(_viewers["SS_T"],_outputDir + "SS_T");
-
-    _viewers["SS_tauExtra"] = initiateViewer(_outputDir + "SS_tauExtra");
-    ierr = VecView(_varSS["tauExtra"],_viewers["SS_tauExtra"]); CHKERRQ(ierr);
-    ierr = appendViewer(_viewers["SS_tauExtra"],_outputDir + "SS_tauExtra");
   }
   else {
-    ierr = VecView(_varSS["slipVel"],_viewers["SS_slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["tau"],_viewers["SS_tau"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["effVisc"],_viewers["SS_effVisc"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxy_t"],_viewers["SS_gVxy_t"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gVxz_t"],_viewers["SS_gVxz_t"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxy"],_viewers["SS_sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["sxz"],_viewers["SS_sxz"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxy"],_viewers["SS_gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["gxz"],_viewers["SS_gxz"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["u"],_viewers["SS_u"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["v"],_viewers["SS_v"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["Temp"],_viewers["SS_T"]); CHKERRQ(ierr);
+    ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["tau"],_viewers["tau"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxy_t"],_viewers["gVxy_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxz_t"],_viewers["gVxz_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxy"],_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxz"],_viewers["sxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxy"],_viewers["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxz"],_viewers["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
 
-    ierr = VecView(_varSS["tauExtra"],_viewers["SS_tauExtra"]); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -789,22 +651,10 @@ PetscErrorCode Mediator::integrate_SS()
     _momBal->updateTemperature(_varSS["Temp"]);
   }
 
-  _viewers["tauSS"] = initiateViewer(_outputDir + "SS_tauSS");
   VecCopy(_fault->_tauQSP,_varSS["tau"]);
-  ierr = VecView(_varSS["tau"],_viewers["tauSS"]); CHKERRQ(ierr);
-  ierr = appendViewer(_viewers["SS_tauSS"],_outputDir + "SS_tauSS");
-
-  _viewers["effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
-  ierr = VecView(_varSS["effVisc"],_viewers["effVisc"]); CHKERRQ(ierr);
-  ierr = appendViewer(_viewers["effVisc"],_outputDir + "SS_effVisc");
-
-  _viewers["Temp"] = initiateViewer(_outputDir + "SS_Temp");
-  ierr = VecView(_varSS["Temp"],_viewers["Temp"]); CHKERRQ(ierr);
-  ierr = appendViewer(_viewers["Temp"],_outputDir + "SS_Temp");
-
-  _viewers["Q"] = initiateViewer(_outputDir + "SS_Q");
-  ierr = VecView(_he->_Q,_viewers["Q"]); CHKERRQ(ierr);
-  ierr = appendViewer(_viewers["Q"],_outputDir + "SS_Q");
+  ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], _outputDir + "SS_effVisc"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], _outputDir + "SS_Temp"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "Q", _he->_Q, _outputDir + "SS_Q"); CHKERRQ(ierr);
 
   PetscInt Jj = 0;
   _currTime = _initTime;
@@ -850,7 +700,7 @@ PetscErrorCode Mediator::integrate_SS()
     Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
     double err = 1e10;
     int Ii = 0;
-    while (Ii < 20 && err > 1e-2) {
+    while (Ii < 50 && err > 1e-3) {
       VecCopy(_varSS["effVisc"],effVisc_old);
       _momBal->updateSSa(_varSS); // compute steady state: v, gVij_t, sij, effVisc
       MyVecLog10AXPBY(temp, 1.-_fss_EffVisc, effVisc_old, _fss_EffVisc, _varSS["effVisc"]);
@@ -883,9 +733,10 @@ PetscErrorCode Mediator::integrate_SS()
     }
 
     VecCopy(_fault->_tauP,_varSS["tau"]);
-    ierr = VecView(_varSS["tau"],_viewers["tauSS"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["effVisc"],_viewers["effVisc"]); CHKERRQ(ierr);
-    ierr = VecView(_varSS["Temp"],_viewers["Temp"]); CHKERRQ(ierr);
+    writeSS(Jj,baseOutDir);
+    //~ ierr = VecView(_varSS["tau"],_viewers["tauSS"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
     Jj++;
   }
   VecDestroy(&T_old);
@@ -1046,7 +897,6 @@ PetscErrorCode Mediator::d_dt(const PetscScalar time,const map<string,Vec>& varE
   }
 
   // update temperature in momBal
-  //~ if (_stepCount % _heatCouplingStride == 0 && varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _momBal->updateTemperature(varImo.find("Temp")->second);
     _fault->setTemp(varImo.find("Temp")->second);

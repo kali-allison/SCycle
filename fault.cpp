@@ -214,8 +214,8 @@ Fault::~Fault()
   VecDestroy(&_rho);
   VecDestroy(&_c);
 
-  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first]);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
   #if VERBOSE > 1
@@ -1114,7 +1114,7 @@ PetscErrorCode SymmFault::getTau(Vec& tau)
 }
 
 // use pore pressure to compute total normal stress
-// sNEff = sN - rho*g*z - dp 
+// sNEff = sN - rho*g*z - dp
 // sNEff sigma Normal effective
 PetscErrorCode SymmFault::setSN(const Vec& p)
 {
@@ -1579,30 +1579,18 @@ PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar 
 
 
   if (stepCount == 0) {
-    _viewers["slip"] = initiateViewer(outputDir + "slip");
-    _viewers["slipVel"] = initiateViewer(outputDir + "slipVel");
-    _viewers["tauQSP"] = initiateViewer(outputDir + "tauQSP");
-    _viewers["psi"] = initiateViewer(outputDir + "psi");
-    _viewers["fault_T"] = initiateViewer(outputDir + "fault_T");
-
-    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
-    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
-    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["slip"],outputDir + "slip");
-    ierr = appendViewer(_viewers["slipVel"],outputDir + "slipVel");
-    ierr = appendViewer(_viewers["tauQSP"],outputDir + "tauQSP");
-    ierr = appendViewer(_viewers["psi"],outputDir + "psi");
-    ierr = appendViewer(_viewers["fault_T"],outputDir + "fault_T");
+    ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "fault_T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
-    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
-    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
+    ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
+    ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
+    ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
+    ierr = VecView(_T,_viewers["fault_T"].first); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1

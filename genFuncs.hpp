@@ -66,6 +66,7 @@ PetscErrorCode appendViewer(PetscViewer& vw,const std::string str);
 // loop over all viewers in the map vwL and switch then all to append mode
 PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir);
 
+PetscErrorCode io_initiateWriteAppend(std::map <string,std::pair<PetscViewer,string> >& vwL, const std::string key,const Vec& vec, const std::string dir);
 
 // Print all entries of 2D DMDA global vector out, including which
 // processor each entry lives on, and the corresponding subscripting

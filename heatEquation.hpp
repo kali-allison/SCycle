@@ -51,8 +51,12 @@ class HeatEquation
     // heat fluxes
     Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
 
-    // viewers
-    std::map <string,PetscViewer>  _viewers;
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
     PetscViewer          _timeV; // time output viewer
 
     // which factors to include
