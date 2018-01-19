@@ -1,10 +1,12 @@
 #======================================================================
 # domain
 order = 2
-Ny = 200
-Nz = 150
-Ly = 40 # km
-Lz = 30 # km
+Ny = 101
+Nz = 81
+Ly = 30
+# km
+Lz = 25
+# km
 vL = 1e-9    # (m/s)
 
 isFault = true
@@ -19,6 +21,11 @@ momBalType = dynamic
 #bCoordTrans = 5.0
 #sbpType = mfc_coordTrans
 sbpType = mfc
+
+dynbcTType = outGoing
+dynbcRType = outGoing
+dynbcLType = outGoing
+dynbcBType = outGoing
 
 #======================================================================
 # linear systems
@@ -57,16 +64,16 @@ DcDepths = [0 60] # m
 #bDepths = [0 60]
 
 # easier to resolve
-aVals = [0.015 0.015]
-aDepths = [0 60]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 60]
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.02 0.02]
+#bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.135 0.300 0.700 2.652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.230 0.379 0.350 0.375 0.497]
+bDepths = [0 10 11 19.3333 60]
 
 
 sigmaNVals = [50 50] # (MPa) constant
@@ -133,9 +140,9 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5000
+maxStepCount = 2000
 initTime = 0
-maxTime = 20
+maxTime = 15
 initDeltaT = 5e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
