@@ -376,6 +376,29 @@ PetscErrorCode LinearElastic::setMaterialParameters()
 
   VecSet(_muVec,_muVal);
   VecSet(_rhoVec,_rhoVal);
+
+  bool custommmu=false;
+
+  if (custommmu){
+  PetscInt Ii, Istart, Iend;
+  PetscScalar y, z, mu, rho;
+  VecGetOwnershipRange(_muVec,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart; Ii < Iend; Ii++){
+      ierr = VecGetValues(_muVec,1,&Ii,&mu);CHKERRQ(ierr);
+      ierr = VecGetValues(_rhoVec,1,&Ii,&rho);CHKERRQ(ierr);
+      ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+      ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+      mu = mu + sin(y) + sin(z);
+      rho = rho + z;
+      ierr = VecSetValues(_muVec,1,&Ii,&mu,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_rhoVec,1,&Ii,&rho,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  ierr = VecAssemblyBegin(_muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_muVec);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_rhoVec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_rhoVec);CHKERRQ(ierr);
+  }
+
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
   VecSqrtAbs(_cs);
 
@@ -907,8 +930,7 @@ PetscErrorCode LinearElastic::initiateIntegrand_dyn(const PetscScalar time, map<
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
-
-  Vec uPrevV;
+  
   VecDuplicate(_u, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(_u, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
