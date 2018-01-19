@@ -21,6 +21,7 @@ class MomBalContext
     PetscErrorCode virtual updateSSa(map<string,Vec>& varSS) = 0; // update v, viscous strain rates, viscosity
     PetscErrorCode virtual updateSSb(map<string,Vec>& varSS) = 0; // does nothing for the linear elastic equations
     PetscErrorCode virtual initiateVarSS(map<string,Vec>& varSS) = 0; // put viscous strains etc in varSS
+    PetscErrorCode virtual updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t) = 0;
 
     // time stepping function
     PetscErrorCode virtual initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx) = 0;
@@ -46,9 +47,9 @@ class MomBalContext
 
     // IO commands
     PetscErrorCode virtual view(const double totRunTime) = 0;
-    PetscErrorCode virtual writeContext() = 0;
-    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 1D fields
-    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time) = 0; // write out 2D fields
+    PetscErrorCode virtual writeContext(const std::string outputDir) = 0;
+    PetscErrorCode virtual writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir) = 0; // write out 1D fields
+    PetscErrorCode virtual writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir) = 0; // write out 2D fields
 
     PetscErrorCode virtual getRhoVec(Vec& rho){return 1;}; // compute initial tauVisc
     PetscErrorCode virtual updateU(map<string,Vec>& varEx){return 1;}; // update _u for vizualise

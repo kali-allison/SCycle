@@ -1,11 +1,8 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
-
 ### What is this repository for? ###
 
-* Quick summary
-* Version
+* Scyle is a parallelized code that simulates earthquake cycles.
 * [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
 
 ### How do I get set up? ###
@@ -17,13 +14,34 @@ This README would normally document whatever steps are necessary to get your app
 * How to run tests
 * Deployment instructions
 
-### Contribution guidelines ###
+### Input Parameters ###
 
-* Writing tests
-* Code review
-* Other guidelines
+* The input file does not use base SI units! 
 
-### Who do I talk to? ###
+- Fluid diffusion equation
 
-* Repo owner or admin
-* Other community or team contact
+**Variables:**
+
+n : porosity
+
+beta : compressibility
+
+k : permeability
+
+eta : viscosity
+
+rho_f : density of fluid
+
+
+**Values:**
+
+n=0.1
+
+beta =  10^{-8} Pa^{-1} = 10  GPa^{-1}
+
+k = 10^{-13} m^2 = 10^{-19} km^2
+
+eta = 10^{-3} Pa s = 10^{-12} GPa s
+
+rho_f = 10^3 kg/m^3 = 1 g/cm^3
+

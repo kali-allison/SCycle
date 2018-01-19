@@ -46,6 +46,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
   VecDuplicate(_tauQSP,&_dTheta);  PetscObjectSetName((PetscObject) _dTheta, "dTheta"); VecSet(_dTheta,0.0);
   VecDuplicate(_tauQSP,&_slip);    PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel); PetscObjectSetName((PetscObject) _slipVel, "slipVel");
+
   VecSet(_slipVel,0.0);
 
 
@@ -72,8 +73,6 @@ Fault::Fault(Domain&D, HeatEquation& He)
 
   setFrictionFields(D);
   VecCopy(_psi,_theta);
-
-  //~ if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -110,7 +109,8 @@ PetscErrorCode Fault::checkInput()
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
     || _stateLaw.compare("flashHeating")==0
-    || _stateLaw.compare("stronglyVWLaw")==0);
+    || _stateLaw.compare("stronglyVWLaw")==0
+    || _stateLaw.compare("constantState")==0);
 
   assert(_v0 > 0);
   assert(_f0 > 0);
@@ -204,7 +204,6 @@ Fault::~Fault()
   VecDestroy(&_dTheta);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
-  VecDestroy(&_T);
   VecDestroy(&_z);
 
   // frictional fields
@@ -213,6 +212,7 @@ Fault::~Fault()
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
+  VecDestroy(&_sN);
   VecDestroy(&_cohesion);
 
   // for flash heating
@@ -221,8 +221,8 @@ Fault::~Fault()
   VecDestroy(&_rho);
   VecDestroy(&_c);
 
-  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first]);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
   #if VERBOSE > 1
@@ -322,42 +322,43 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
-  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "_cohesion");
+  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion");
+  VecDuplicate(_tauQSP,&_sN); PetscObjectSetName((PetscObject) _sN, "sN");
+
   VecSet(_cohesion,0);
 
   // set depth-independent fields
-  ierr = VecSet(_psi,_f0);CHKERRQ(ierr); // in terms of psi
-  ierr = VecSet(_theta,1e9);CHKERRQ(ierr); // correct
-
-  // set a using a vals
   if (_N == 1) {
-    VecSet(_b,_bVals[0]);
     VecSet(_a,_aVals[0]);
-    VecSet(_sNEff,_sigmaNVals[0]);
+    VecSet(_b,_bVals[0]);
+    VecSet(_sN,_sigmaNVals[0]);
     VecSet(_Dc,_DcVals[0]);
     VecSet(_cohesion,_cohesionVals[0]);
+    VecSet(_zP,_impedanceVals[0]);
   }
   else {
     ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sNEff,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+    ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
   }
+  // set psi
+  ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
 
   // impose floor and ceiling on effective normal stress
   {
-    Vec temp; VecDuplicate(_sNEff,&temp);
-    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
-    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    Vec temp; VecDuplicate(_sN,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sN,_sN,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sN,_sN,temp);
     VecDestroy(&temp);
   }
 
-  //~ VecWAXPY(_sN,1.0,_p,_sNEff);
-  VecDuplicate(_sNEff,&_sN);
-  VecCopy(_sNEff,_sN);
 
+  VecCopy(_sN,_sNEff);
+
+  // VecView(_sN, PETSC_VIEWER_STDOUT_WORLD);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -377,15 +378,18 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
   if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }
 
   PetscInt       Istart,Iend;
-  PetscScalar   *tauRSV,*sN,*a=0;
+  PetscScalar   *tauRSV,*sN,*a,*b;
   VecGetOwnershipRange(tauRS,&Istart,&Iend);
   VecGetArray(tauRS,&tauRSV);
   VecGetArray(_sNEff,&sN);
   VecGetArray(_a,&a);
+  VecGetArray(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar psiSS = _f0;
-    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
+    //~ tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
+    PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
+    tauRSV[Jj] = sN[Jj] * f;
     Jj++;
   }
   VecRestoreArray(tauRS,&tauRSV);
@@ -687,8 +691,8 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
 
-  PetscScalar Vw = (M_PI*ath/_D) * pow((_Tw-T)/(_tau_c/rc),2);
-  //~ PetscScalar Vw = _Vw;
+  //~ PetscScalar Vw = (M_PI*ath/_D) * pow(rc*(_Tw-T)/_tau_c,2);
+  PetscScalar Vw = _Vw;
 
   if (abs(slipVel) > Vw) { fss = _fw + (fLV - _fw)*(Vw/slipVel); }
   //~ if (a-b > 0.0) { fss = fLV; }
@@ -772,10 +776,10 @@ SymmFault::SymmFault(Domain&D, HeatEquation& He)
   #endif
 
   // vectors were allocated in Fault constructor, just need to set values.
-  setSplitNodeFields();
+  // setSplitNodeFields();
 
   Vec Temp;
-  VecDuplicate(He._T0,&Temp);
+  VecDuplicate(He._Tamb,&Temp);
   He.getTemp(Temp);
   setTemp(Temp);
   VecDestroy(&Temp);
@@ -814,8 +818,7 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
   varEx["psi"] = varPsi;
 
   // slip is added by the momentum balance equation
-  //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
-  //~ varEx["slip"] = varSlip;
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -923,9 +926,8 @@ PetscErrorCode SymmFault::computeVel()
   // set up boundaries and output for rootfinder algorithm
   ierr = VecDuplicate(_tauQSP,&right);CHKERRQ(ierr);
   ierr = VecCopy(tauQS,right);CHKERRQ(ierr);
-  ierr = VecAXPY(right,-1.0,_cohesion);CHKERRQ(ierr); // add effect of cohesion!
+  //~ ierr = VecAXPY(right,-1.0,_cohesion);CHKERRQ(ierr); // add effect of cohesion!
   ierr = VecPointwiseDivide(right,right,eta);CHKERRQ(ierr);
-
 
   ierr = VecDuplicate(right,&left);CHKERRQ(ierr);
   ierr = VecSet(left,0.0);CHKERRQ(ierr);
@@ -984,6 +986,10 @@ PetscErrorCode SymmFault::computeVel()
   ierr = VecDestroy(&eta);CHKERRQ(ierr);
   ierr = VecDestroy(&left);CHKERRQ(ierr);
   ierr = VecDestroy(&right);CHKERRQ(ierr);
+
+  //~ VecView(_slipVel,PETSC_VIEWER_STDOUT_WORLD);
+  //~ VecView(_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+  //~ assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1204,6 +1210,7 @@ PetscErrorCode SymmFault::setSplitNodeFields()
   //~ ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   //~ ierr = VecLoad(_zP,inv);CHKERRQ(ierr);
 
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1348,7 +1355,7 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
 
 
 
-PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMinus)
+PetscErrorCode SymmFault::setTauQS(const Vec& sxyP,const Vec& sxzP)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1359,10 +1366,10 @@ PetscErrorCode SymmFault::setTauQS(const Vec&sigma_xyPlus,const Vec& sigma_xyMin
   PetscInt       Ii,Istart,Iend;
   PetscScalar    v;
 
-  ierr = VecGetOwnershipRange(sigma_xyPlus,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(sxyP,&Istart,&Iend);CHKERRQ(ierr);
   for (Ii=Istart;Ii<Iend;Ii++) {
     if (Ii<_N) {
-      ierr = VecGetValues(sigma_xyPlus,1,&Ii,&v);CHKERRQ(ierr);
+      ierr = VecGetValues(sxyP,1,&Ii,&v);CHKERRQ(ierr);
       ierr = VecSetValues(_tauQSP,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -1397,6 +1404,7 @@ PetscErrorCode SymmFault::getTau(Vec& tau)
 
 // use pore pressure to compute total normal stress
 // sNEff = sN - rho*g*z - dp
+// sNEff sigma Normal effective
 PetscErrorCode SymmFault::setSN(const Vec& p)
 {
   PetscErrorCode ierr = 0;
@@ -1423,7 +1431,7 @@ PetscErrorCode SymmFault::setSNEff(const Vec& p)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
-  //~ ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+  ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1
@@ -1455,11 +1463,11 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
 
-  if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
+  //~ if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
     // in terms of psi
     ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
     //PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-  }
+  /*}
   else { // if aging law
     //~ // in terms of theta
     PetscScalar state,b,Dc=0;
@@ -1468,7 +1476,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
     psi = _f0 + b*log( (double) (state*_v0)/Dc);
     //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-  }
+  }*/
   PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
 
 
@@ -1639,11 +1647,11 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
   ierr = VecGetValues(_tauQSP,1,&ind,&tauQS);CHKERRQ(ierr);
   ierr = VecGetValues(_cohesion,1,&ind,&Co);CHKERRQ(ierr);
 
-  if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
+  //~ if (!_stateLaw.compare("flashHeating") || !_stateLaw.compare("slipLaw") || !_stateLaw.compare("agingLaw")) {
     // in terms of psi
     ierr = VecGetValues(_psi,1,&ind,&psi);CHKERRQ(ierr);
     //PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-  }
+  /*}
   else { // if aging law
     //~ // in terms of theta
     PetscScalar state,b,Dc=0;
@@ -1652,7 +1660,7 @@ PetscErrorCode SymmFault::getResid(const PetscInt ind,const PetscScalar slipVel,
     ierr = VecGetValues(_Dc,1,&ind,&Dc);CHKERRQ(ierr);
     psi = _f0 + b*log( (double) (state*_v0)/Dc);
     //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
-  }
+  }*/
   PetscScalar A = a*sigma_N;
   PetscScalar B = exp(psi/a)/(2.*_v0);
   //~ PetscScalar strength = (PetscScalar) a*sigma_N*asinh( (double) (slipVel/2./_v0)*exp(psi/a) );
@@ -1864,7 +1872,7 @@ PetscErrorCode SymmFault::d_dt_eqCycle(const PetscScalar time,const map<string,V
   // compute slip velocity
 double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
-  VecCopy(_slipVel,dvarEx.find("slip")->second);
+  VecCopy(_slipVel,dvarEx["slip"]);
 _computeVelTime += MPI_Wtime() - startTime;
 
 
@@ -1881,14 +1889,17 @@ _computeVelTime += MPI_Wtime() - startTime;
     if (!_stateLaw.compare("agingLaw")) {
       //~ ierr = agingLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = agingLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-      }
+    }
     else if (!_stateLaw.compare("slipLaw")) {
       //~ ierr = slipLaw_theta(Ii,theta,dtheta);CHKERRQ(ierr);
       ierr = slipLaw_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-      }
+    }
     else if (!_stateLaw.compare("flashHeating")) {
       ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-      }
+    }
+    else if (!_stateLaw.compare("constantState")) {
+      dpsi = 0;
+    }
     //~ else if (!_stateLaw.compare("stronglyVWLaw")) { ierr = stronglyVWLaw(Ii,stateVal,val);CHKERRQ(ierr); }
     else { PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n"); assert(0); }
 
@@ -1898,7 +1909,10 @@ _computeVelTime += MPI_Wtime() - startTime;
   VecRestoreArray(_psi,&psiA);
   VecRestoreArray(dvarEx.find("psi")->second,&dpsiA);
 
-  //~ dvarEx["tau"] = _tauQSP;
+  // set tauP = tauQS - z/2 *slipVel
+  VecCopy(_slipVel,_tauP);
+  VecPointwiseMult(_tauP,_zP,_tauP);
+  VecAYPX(_tauP,-0.5,_tauQSP);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1908,7 +1922,7 @@ _computeVelTime += MPI_Wtime() - startTime;
 
 
 
-PetscErrorCode SymmFault::writeContext()
+PetscErrorCode SymmFault::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1919,14 +1933,14 @@ PetscErrorCode SymmFault::writeContext()
   PetscViewer    viewer;
 
   // write out scalar info
-  std::string str = _outputDir + "fault_context.txt";
+  std::string str = outputDir + "fault_context.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
 
   ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %.15e\n",_rootTol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %.15e\n",_f0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
   if (!_stateLaw.compare("flashHeating")) {
@@ -1941,35 +1955,35 @@ PetscErrorCode SymmFault::writeContext()
 
   // output vector fields
 
-  str = _outputDir + "a";
+  str = outputDir + "fault_a";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_a,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  str = _outputDir + "b";
+  str = outputDir + "fault_b";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_b,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
-  str = _outputDir + "zPlus";
+  str = outputDir + "fault_imp";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_zP,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output normal stress vector
-  str =  _outputDir + "sigma_N";
+  str =  outputDir + "fault_sNEff";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output critical distance
-  str =  _outputDir + "Dc";
+  str =  outputDir + "fault_Dc";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_Dc,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output cohesion
-  str =  _outputDir + "cohesion";
+  str =  outputDir + "fault_cohesion";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_cohesion,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
@@ -1982,7 +1996,7 @@ PetscErrorCode SymmFault::writeContext()
 }
 
 
-PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1993,31 +2007,35 @@ PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar 
 
 
   if (stepCount == 0) {
-    _viewers["slip"] = initiateViewer(_outputDir + "slip");
-    _viewers["slipVel"] = initiateViewer(_outputDir + "slipVel");
-    _viewers["tauQSP"] = initiateViewer(_outputDir + "tauQSP");
-    _viewers["psi"] = initiateViewer(_outputDir + "psi");
-    _viewers["fault_T"] = initiateViewer(_outputDir + "fault_T");
-
-    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
-    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
-    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["slip"],_outputDir + "slip");
-    ierr = appendViewer(_viewers["slipVel"],_outputDir + "slipVel");
-    ierr = appendViewer(_viewers["tauQSP"],_outputDir + "tauQSP");
-    ierr = appendViewer(_viewers["psi"],_outputDir + "psi");
-    ierr = appendViewer(_viewers["fault_T"],_outputDir + "fault_T");
+    ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "fault_T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_slip,_viewers["slip"]); CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_viewers["slipVel"]); CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_viewers["tauQSP"]); CHKERRQ(ierr);
-    ierr = VecView(_psi,_viewers["psi"]); CHKERRQ(ierr);
-    ierr = VecView(_T,_viewers["fault_T"]); CHKERRQ(ierr);
+    ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
+    ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
+    ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
+    ierr = VecView(_T,_viewers["fault_T"].first); CHKERRQ(ierr);
   }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode SymmFault::writeStep(const PetscInt stepCount, const PetscScalar time)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "SymmFault::writeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  writeStep(stepCount,time,_outputDir);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

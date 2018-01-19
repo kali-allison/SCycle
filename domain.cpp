@@ -3,8 +3,8 @@
 using namespace std;
 
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_outputDir("unspecificed"),
-  _bulkDeformationType("unspecified"),_geometry("unspecified"),_sbpType("mfc_coordTrans"),
+: _file(file),_delim(" = "),_outputDir("data/unspecified_"),
+  _bulkDeformationType("unspecified"),_problemType("quasidynamic"),_sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
@@ -62,7 +62,7 @@ Domain::Domain(const char *file)
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_outputDir("unspecificed"),
-  _bulkDeformationType("unspecified"),_geometry("unspecified"),_sbpType("mfc_coordTrans"),
+  _bulkDeformationType("unspecified"),_problemType("quasidynamic"),_sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
@@ -176,8 +176,8 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("bulkDeformationType")==0) {
       _bulkDeformationType = line.substr(pos+_delim.length(),line.npos);
     }
-    else if (var.compare("geometry")==0) {
-      _geometry = line.substr(pos+_delim.length(),line.npos);
+    else if (var.compare("problemType")==0) {
+      _problemType = line.substr(pos+_delim.length(),line.npos);
     }
     else if (var.compare("loadICs")==0) {
       _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
@@ -346,7 +346,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
     ierr = PetscPrintf(PETSC_COMM_SELF,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"geometry = %s\n",_geometry.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
@@ -396,7 +396,9 @@ PetscErrorCode Domain::checkInput()
 
   assert(_timeIntegrator.compare("FEuler")==0
     || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("IMEX")==0
+    || _timeIntegrator.compare("RK43")==0
+    || _timeIntegrator.compare("RK32_WBE")==0
+    || _timeIntegrator.compare("RK43_WBE")==0
     || _timeIntegrator.compare("WaveEq")==0);
 
   assert(_timeControlType.compare("P")==0 ||
@@ -414,7 +416,12 @@ PetscErrorCode Domain::checkInput()
 
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
     _bulkDeformationType.compare("powerLaw")==0 );
-  assert(_geometry.compare("symmetric")==0);
+
+  assert(_problemType.compare("quasidynamic")==0 ||
+    _problemType.compare("dynamic")==0 ||
+    _problemType.compare("quasidynamic_and_dynamic")==0 ||
+    _problemType.compare("steadyStateIts")==0 );
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -456,7 +463,7 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"geometry = %s\n",_geometry.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
@@ -562,45 +569,33 @@ PetscErrorCode Domain::setFields()
   // construct coordinate transform
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar *y,*z,*q,*r;
+  VecGetArray(_y,&y);
+  VecGetArray(_z,&z);
+  VecGetArray(_q,&q);
+  VecGetArray(_r,&r);
+  PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-
-    q = _dq*(Ii/_Nz);
-    r = _dr*(Ii-_Nz*(Ii/_Nz));
-    ierr = VecSetValues(_q,1,&Ii,&q,INSERT_VALUES);CHKERRQ(ierr);
-    ierr = VecSetValues(_r,1,&Ii,&r,INSERT_VALUES);CHKERRQ(ierr);
+    q[Jj] = _dq*(Ii/_Nz);
+    r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
     if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
-      //~ y = q*_Ly;
-      //~ z = r*_Lz;
-
-      y = (_dq*_Ly)*(Ii/_Nz);
-      z = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
-
-      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+      y[Jj] = (_dq*_Ly)*(Ii/_Nz);
+      z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
     }
     else {
       // no transformation
-      //~ y = q*_Ly;
-      z = r*_Lz;
+      //~ y[Jj] = q[Jj]*_Ly;
+      z[Jj] = r[Jj]*_Lz;
 
-      y = _Ly * sinh(_bCoordTrans*q)/sinh(_bCoordTrans); // reg. transformation
-      //~ y = _Ly * exp(_bCoordTrans*q)/exp(_bCoordTrans); // new transformation
-
-      // z = _Lz * sinh(2*(r-1.0))/sinh(2) + _Lz;
-      //~ z = _Lz*(r+exp(r/0.125)-1.0)/exp(1.0/0.125);
-
-      ierr = VecSetValues(_y,1,&Ii,&y,INSERT_VALUES);CHKERRQ(ierr);
-      ierr = VecSetValues(_z,1,&Ii,&z,INSERT_VALUES);CHKERRQ(ierr);
+      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
     }
+
+    Jj++;
   }
-  VecAssemblyBegin(_q);
-  VecAssemblyBegin(_r);
-  VecAssemblyBegin(_y);
-  VecAssemblyBegin(_z);
-  VecAssemblyEnd(_q);
-  VecAssemblyEnd(_r);
-  VecAssemblyEnd(_y);
-  VecAssemblyEnd(_z);
+  VecRestoreArray(_y,&y);
+  VecRestoreArray(_z,&z);
+  VecRestoreArray(_q,&q);
+  VecRestoreArray(_r,&r);
 
   // load y and z instead
   if (_inputDir.compare("unspecified") != 0) {

@@ -44,7 +44,6 @@ class PowerLaw : public MomBalContext
     std::vector<double> _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
     Vec         _A,_n,_QR,_T;
     Vec         _effVisc;
-    Vec         SATL;
     PetscScalar _effViscCap; // imposed upper limit on effective viscosity
 
     // linear system data
@@ -61,12 +60,20 @@ class PowerLaw : public MomBalContext
     SbpOps   *_sbp_eta;
     KSP       _ksp_eta;
     PC        _pc_eta;
-    PetscScalar _effViscCapSS; // imposed upper limit on effective viscosity for steady state computation
+    PetscScalar _ssEffViscScale; // imposed upper limit on effective viscosity for steady state computation
     PetscErrorCode initializeSSMatrices(); // compute Bss and Css
+    Mat            _A2;
+    Vec _inv,_inv1;
+    Vec _effViscTemp;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;
-    std::map <string,PetscViewer>  _viewers;
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
@@ -82,7 +89,7 @@ class PowerLaw : public MomBalContext
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
-    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
 
     // functions needed each time step
     PetscErrorCode setViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
@@ -120,6 +127,7 @@ class PowerLaw : public MomBalContext
     PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode updateSSb(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
+    PetscErrorCode updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t);
 
     // methods for explicit time stepping
     PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
@@ -147,10 +155,12 @@ class PowerLaw : public MomBalContext
 
     PetscErrorCode measureMMSError(const PetscScalar time);
 
-    PetscErrorCode writeDomain();
-    PetscErrorCode writeContext();
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode view(const double totRunTime);
 
 

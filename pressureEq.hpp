@@ -41,7 +41,7 @@ class PressureEq
     int                  _linSolveCount;
     Vec                  _bcL,_bcT,_bcB;
     Vec                  _p_t;
-    Mat                  _M;
+    // Mat                  _M;
 
 
     // input fields
@@ -100,8 +100,9 @@ class PressureEq
 
     // IO
     PetscErrorCode view(const double totRunTime);
-    PetscErrorCode writeContext();
+    PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     //~ PetscErrorCode view();
 
     // mms error

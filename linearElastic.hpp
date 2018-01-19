@@ -86,7 +86,11 @@ class LinearElastic : public MomBalContext
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;
-    std::map <string,PetscViewer>  _viewers;
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
@@ -108,6 +112,7 @@ class LinearElastic : public MomBalContext
     PetscErrorCode updateSSa(map<string,Vec>& varSS); // update v, viscous strain rates, viscosity
     PetscErrorCode updateSSb(map<string,Vec>& varSS); // does nothing for the linear elastic equations
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS); // put viscous strains etc in varSS
+    PetscErrorCode updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t);
 
     // time stepping function
     PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
@@ -133,10 +138,11 @@ class LinearElastic : public MomBalContext
 
     // IO commands
     PetscErrorCode view(const double totRunTime);
-    PetscErrorCode writeContext();
+    PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
-
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
     static double zzmms_f(const double y,const double z);

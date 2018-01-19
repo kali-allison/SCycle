@@ -1,12 +1,12 @@
 order = 4 # SBP order of accuracy
-Ny = 51
-Nz = 52
-Ly = 1 # (km) horizontal domain size
-Lz = 1 # (km) vertical domain size
+Ny = 11
+Nz = 12
+Ly = 30 # (km) horizontal domain size or 60 km is fine
+Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # yes or no
-isMMS = no
+isMMS = yes
 
 # symmetric or general
 geometry = symmetric
@@ -15,7 +15,7 @@ geometry = symmetric
 bulkDeformationType = linearElastic
 
 # coordinate transformation
-#bCoordTrans = 6.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -53,19 +53,28 @@ impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [1 1] # m
+DcVals = [16e-3 16e-3] # m or try 16-3 mfor an easier to resolve problem
 DcDepths = [0 60] # m
 
-# a,b for geotherm of 30 C/km, from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+## a,b for geotherm of 30 C/km, from Blanpied 1991 for a-b, 1995 for a
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
+
+# easier to resolve
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.0 0.0]
+bDepths = [0 12 15 60]
+
+# normal stress
+sigmaNVals = [50 50] #(MPa)
+sigmaNDepths = [0 60] #km
 
 # effective normal stress
 #sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 60]
+#sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
 
 
@@ -141,15 +150,15 @@ withFrictionalHeating = no
 
 timeIntegrator = RK32_WBE
 timeControlType = P
-stride1D = 50
-stride2D = 50
-maxStepCount = 1e5
-initTime = 2e9
-maxTime = 2.25e9      # (s)
-initDeltaT = 1e5   # (s) size of initial time step
-minDeltaT = 1e5    # (s) minimum allowed time step
-maxDeltaT = 1e5    # (s) maximum allowed time step
-atol = 1e-9 # absolute error for adaptive time stepper
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
+initTime = 0
+maxTime = 1e15      # (s)
+initDeltaT = 1e-3   # (s) size of initial time step
+minDeltaT = 1e-3    # (s) minimum allowed time step
+maxDeltaT = 1e10    # (s) maximum allowed time step
+atol = 1e-8 # absolute error for adaptive time stepper
 timeIntInds = [psi slip]
 #timeIntInds = [pressure]
 

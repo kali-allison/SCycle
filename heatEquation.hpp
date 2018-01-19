@@ -51,15 +51,16 @@ class HeatEquation
     // heat fluxes
     Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
 
-    // viewers
-    std::map <string,PetscViewer>  _viewers;
-    //~ PetscViewer          _TV; // temperature viewer
-    //~ PetscViewer          _bcRVw,_bcTVw,_bcLVw,_bcBVw; // output BCs
-    PetscViewer          _timeV; // time output viewer for debugging
-    //~ PetscViewer          _heatFluxV,_surfaceHeatFluxV; // time output viewer for debugging
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    PetscViewer          _timeV; // time output viewer
 
     // which factors to include
-    std::string          _wShearHeating,_wFrictionalHeating;
+    std::string          _wViscShearHeating,_wFrictionalHeating;
 
     // linear system data
     std::string          _sbpType;
@@ -69,8 +70,13 @@ class HeatEquation
     PetscScalar          _kspTol;
     KSP                  _ksp;
     PC                   _pc;
-    Mat                  _I,_rhoC,_A,_pcMat; // intermediates for Backward Euler
-    Mat                  _D2divRhoC;
+    Mat                  _I,_rcInv,_B,_pcMat; // intermediates for Backward Euler
+    Mat                  _D2ath;
+
+    // finite width shear zone
+    Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
+    Vec                  _Gw,_omega; // Green's function for shear heating, d/dt strain in shear zone, total heat
+    PetscScalar          _w; // width of shear zone (m)
 
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
@@ -86,11 +92,13 @@ class HeatEquation
     PetscErrorCode checkInput();     // check input from file
 
 
+    PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
     PetscErrorCode setUpTransientProblem(Domain& D);
     PetscErrorCode setBCsforBE();
-    PetscErrorCode computeShearHeating(Vec& shearHeat,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
     PetscErrorCode computeHeatFlux();
@@ -99,8 +107,8 @@ class HeatEquation
   public:
 
     Vec _dT; // actually change in temperature
-    Vec _T0; // initial temperature
-    Vec _k,_rho,_c,_h;  // thermal conductivity, density, heat capacity, heat generation
+    Vec _Tamb; // initial temperature
+    Vec _k,_rho,_c,_h,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();
@@ -134,18 +142,14 @@ class HeatEquation
     PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
-    PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx);
-    PetscErrorCode debug(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar, const char *stage);
     PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode view();
-    PetscErrorCode writeDomain();
-    PetscErrorCode writeContext();
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     static double zzmms_rho(const double y,const double z);
     static double zzmms_c(const double y,const double z);

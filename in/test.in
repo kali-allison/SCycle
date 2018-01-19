@@ -1,12 +1,9 @@
 order = 4 # SBP order of accuracy
 Ny = 51
 Nz = 52
-Ly = 1 # (km) horizontal domain size
-Lz = 1 # (km) vertical domain size
+Ly = 30 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
-
-# yes or no
-isMMS = no
 
 # symmetric or general
 geometry = symmetric
@@ -32,10 +29,6 @@ bcLTauQS = 0
 linSolver = MUMPSCHOLESKY
 #kspTol = 1e-10
 
-# algorithm for heat equation
-linSolver_heateq = AMG
-kspTol_heateq = 1e-9
-
 # algorithm for hydraulic problem (1D on fault)
 linSolver_p = AMG
 kspTol_p = 1e-10
@@ -45,7 +38,7 @@ kspTol_p = 1e-10
 rootTol = 1e-9
 
 stateLaw = agingLaw
-v0 = 1e-6
+v0 = 1e-9
 f0 = 0.6
 
 impedanceVals = [9.4868 9.4868]
@@ -56,7 +49,7 @@ cohesionDepths = [0 60] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
-# a,b for geotherm of 30 C/km, from Blanpied 1991 for a-b, 1995 for a
+# creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
 aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
@@ -71,8 +64,8 @@ sigmaNDepths = [0 60]
 
 #======================================================================
 # hydraulic fault inputs
-#hydraulicCoupling = no
-hydraulicCoupling = uncoupled
+hydraulicCoupling = no
+#hydraulicCoupling = uncoupled
 #hydraulicCoupling = coupled
 
 #hydraulicTimeIntType = explicit
@@ -93,31 +86,54 @@ rho_fDepths = [0 30]
 pVals = [0.0 0.0]
 pDepths = [0 30]
 
+# with varying degrees of overpressure
+#sigmaNVals = [0 802.1] # lambda = 0.4
+#sigmaNVals = [0 668.5] # lambda = 0.5
+#sigmaNVals = [0 534.8] # lambda = 0.6
+#sigmaNVals = [0 401.1] # lambda = 0.7
+sigmaNVals = [0 267.4] # lambda = 0.8
+sigmaNDepths = [0 60]
+sigmaN_floor = 5.5; # MPa
+#sigmaN_floor = 1; # MPa
+#sigmaN_cap = 50; # MPa
 
-#n_pVals = [1 1]
-#n_pDepths = [0 30]
-#beta_pVals = [1 1] # 1/MPa
-#beta_pDepths = [0 30]
-#k_pVals = [1 1] # km^2
-#k_pDepths = [0 30]
-#eta_pVals = [1 1] # MPa s
-#eta_pDepths = [0 30]
-#g = 0
-#rho_fVals = [1 1] # g/cm^3
-#rho_fDepths = [0 30]
-#pVals = [0.0 0.0]
-#pDepths = [0 30]
+
+# state variable law: agingLaw, slipLaw, flashHeating, constantState
+stateLaw = agingLaw
+v0 = 1e-9
+f0 = 0.6
 
 #======================================================================
 # off-fault material parameters
 
-# shear modulus distribution
-shearDistribution = constant
-{
+shearModDistribution = constant
 problem = symmetric
 muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
-}
+
+# power law properties: quartz-diorite
+#AVals = [1.3e-3 1.3e-3]
+#ADepths = [0 60]
+#BVals = [2.6341e+04 2.6341e+04]
+#BDepths = [0 60]
+#nVals = [2.4 2.4]
+#nDepths = [0 60]
+
+# power law properties: wet quartz
+AVals = [1e-9 1e-9]
+ADepths = [0 60]
+BVals = [1.62e4 1.62e4]
+BDepths = [0 60]
+nVals = [4 4]
+nDepths = [0 60]
+
+# power law properties: wet feldspar
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [4.28e4 4.28e4]
+#BDepths = [0 60]
+#nVals = [3 3]
+#nDepths = [0 60]
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -139,22 +155,49 @@ withFrictionalHeating = no
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK32_WBE
+timeIntegrator = RK32
 timeControlType = P
-stride1D = 50
-stride2D = 50
-maxStepCount = 1e5
-initTime = 2e9
-maxTime = 2.25e9      # (s)
-initDeltaT = 1e5   # (s) size of initial time step
-minDeltaT = 1e5    # (s) minimum allowed time step
-maxDeltaT = 1e5    # (s) maximum allowed time step
-atol = 1e-9 # absolute error for adaptive time stepper
-timeIntInds = [psi slip]
-#timeIntInds = [pressure]
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
+initTime = 0
+maxTime = 1e15
+initDeltaT = 5
+minDeltaT = 1e-3
+maxDeltaT = 1e12
+atol = 1e-6
+#timeIntInds = [psi slip]
+#timeIntInds = [slip gVxy gVxz]
+timeIntInds = [gVxy gVxz]
 
 
-outputDir = data/mms_
+#outputDir = /scratch/kallison/test/test_
+#outputDir = /scratch/kallison/its/wf_g30_b5_
+#outputDir = /scratch/kallison/its/wqwf_g30_b5_
+#outputDir = /scratch/kallison/its/qd_g30_b5_
+#outputDir = /scratch/kallison/its/qd_g30_b5_Ny201_Nz202_
+
+#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Ny201_Nz202_
+#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_b5_Ny201_Nz404_
+#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_noSSIC_
+#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Dc12_Ny201_Nz404_
+
+
+
+
+#outputDir = /scratch/kallison/versions/v1_
+#outputDir = /scratch/kallison/versions/v2_
+#outputDir = /scratch/kallison/versions/v3_
+#outputDir = /scratch/kallison/versions/v4_
+#outputDir = /scratch/kallison/versions/v5_
+#outputDir = /scratch/kallison/versions/v6_
+#outputDir = /scratch/kallison/versions/v7_
+
+#outputDir = /scratch/kallison/versions/v8_
+#outputDir = /scratch/kallison/versions/v9_
+outputDir = /scratch/kallison/versions/v10_
+
+
 
 
 

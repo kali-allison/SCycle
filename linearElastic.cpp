@@ -37,10 +37,10 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
   allocateFields();
   setMaterialParameters();
   // define boundary condition types
-  _bcTType = "Neumann";
-  _bcBType = "Neumann";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
+  //~ _bcTType = "Neumann";
+  //~ _bcBType = "Neumann";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
   if (_bcLTauQS==1) { _bcLType = "Neumann"; }
   if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
@@ -58,6 +58,7 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
   }
 
   setSurfDisp();
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
@@ -80,7 +81,11 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcRShift);
 
   // body fields
+  VecDestroy(&_rhoVec);
+  VecDestroy(&_cs);
   VecDestroy(&_muVec);
+  VecDestroy(&_rhoVec);
+  VecDestroy(&_cs);
   VecDestroy(&_rhs);
   VecDestroy(&_u);
   VecDestroy(&_sxy);
@@ -94,8 +99,8 @@ LinearElastic::~LinearElastic()
   // destroy viewers
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
-  for (map<string,PetscViewer>::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first]);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
 
@@ -356,6 +361,7 @@ PetscErrorCode LinearElastic::allocateFields()
   VecDuplicate(*_z,&_cs);
   VecDuplicate(_rhs,&_u); VecSet(_u,0.0);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
+  VecDuplicate(_rhs,&_sxz); VecSet(_sxz,0.0);
   VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
 
 #if VERBOSE > 1
@@ -487,6 +493,24 @@ PetscErrorCode LinearElastic::initiateVarSS(map<string,Vec>& varSS)
   return ierr;
 }
 
+PetscErrorCode LinearElastic::updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::updateFieldsSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // do nothing
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 // compute steady state u, bcs
 PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
 {
@@ -515,7 +539,13 @@ PetscErrorCode LinearElastic::updateSSa(map<string,Vec>& varSS)
   ierr = KSPSolve(ksp,_rhs,_u);CHKERRQ(ierr);
   KSPDestroy(&ksp);
 
-  _sbp->muxDy(_u,_sxy); // initialize for shear stress
+  _sbp->muxDy(_u,_sxy);
+  _sbp->muxDz(_u,_sxz);
+
+  //~ _viewers["SS_ua"] = initiateViewer(_outputDir + "SS_ua");
+  //~ ierr = VecView(_u,_viewers["SS_ua"]); CHKERRQ(ierr);
+  //~ _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
+  //~ ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -537,13 +567,20 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   VecDuplicate(_bcL,&uL);
   PetscScalar minVal = 0;
   VecMin(_u,NULL,&minVal);
+  if (minVal < 0) { minVal = abs(minVal); }
+
+  Vec temp;
+  VecDuplicate(_u,&temp);
+  VecSet(temp,minVal);
+  VecAXPY(_u,1.,temp);
+  VecDestroy(&temp);
+
   PetscScalar v = 0.0;
   ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     // extract left boundary info for bcL
     if ( Ii < _Nz ) {
       ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-      v = v + abs(minVal);
       ierr = VecSetValues(uL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
 
@@ -552,7 +589,6 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
       PetscInt zI =  Ii - (_Ny*_Nz - _Nz);
       //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
       ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-      v = v + abs(minVal);
       ierr = VecSetValues(_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -565,13 +601,11 @@ PetscErrorCode LinearElastic::updateSSb(map<string,Vec>& varSS)
   if (!_bcLTauQS) {
     VecCopy(uL,_bcL);
   }
+
+  ierr = io_initiateWriteAppend(_viewers, "SS_u", _bcR, _outputDir + "SS_u"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "SS_uL", uL, _outputDir + "SS_uL"); CHKERRQ(ierr);
+
   VecDestroy(&uL);
-
-
-  _viewers["SS_sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  ierr = VecView(_sxy,_viewers["SS_sxy"]); CHKERRQ(ierr);
-  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -598,13 +632,14 @@ PetscErrorCode LinearElastic::setInitialSlip(Vec& out)
     ierr = loadVecFromInputFile(out,_inputDir,"slip"); CHKERRQ(ierr);
   }
   else {
-    PetscScalar minVal = 0;
-    VecMin(_u,NULL,&minVal);
+    //~ PetscScalar minVal = 0;
+    //~ VecMin(_u,NULL,&minVal);
     ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
     for (Ii=Istart;Ii<Iend;Ii++) {
       if (Ii<_Nz) {
         ierr = VecGetValues(_u,1,&Ii,&v);CHKERRQ(ierr);
-        v = 2. * (v + abs(minVal));
+        //~ v = 2. * (v + abs(minVal));
+        v = 2. * v;
         ierr = VecSetValues(out,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
       }
     }
@@ -640,7 +675,9 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -649,7 +686,6 @@ PetscErrorCode LinearElastic::setUpSBPContext(Domain& D)
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
-
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc);
@@ -712,7 +748,7 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   return ierr;
 }
 
-PetscErrorCode LinearElastic::writeContext()
+PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -723,7 +759,7 @@ PetscErrorCode LinearElastic::writeContext()
   PetscViewer    viewer;
 
   // write out scalar info
-  std::string str = _outputDir + "linEl_context.txt";
+  std::string str = outputDir + "momBal_context.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -738,7 +774,7 @@ PetscErrorCode LinearElastic::writeContext()
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
 
-  ierr = writeVec(_muVec,_outputDir + "mu"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,outputDir + "momBal_mu"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -747,7 +783,7 @@ PetscErrorCode LinearElastic::writeContext()
 }
 
 
-PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep1D";
@@ -760,28 +796,20 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
-    ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer(_outputDir + "surfDisp");
-    _viewers["bcL"] = initiateViewer(_outputDir + "bcL");
-    _viewers["bcR"] = initiateViewer(_outputDir + "bcR");
-
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["surfDisp"],_outputDir + "surfDisp");
-    ierr = appendViewer(_viewers["bcL"],_outputDir + "bcL");
-    ierr = appendViewer(_viewers["bcR"],_outputDir + "bcR");
+    ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -798,7 +826,7 @@ PetscErrorCode LinearElastic::updateU(map<string,Vec>& varEx){
   return ierr;
 }
 
-PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   string funcName = "LinearElastic::writeStep2D";
@@ -811,24 +839,19 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
 
   if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["u"] = initiateViewer(_outputDir + "u");
-    _viewers["sxy"] = initiateViewer(_outputDir + "sxy");
-
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["u"],_outputDir + "u");
-    ierr = appendViewer(_viewers["sxy"],_outputDir + "sxy");
+    ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
+    ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
   }
-
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -1135,6 +1158,7 @@ PetscErrorCode LinearElastic::d_dt_mms(const PetscScalar time,const map<string,V
 
   // solve for shear stress
   _sbp->muxDy(_u,_sxy);
+  _sbp->muxDz(_u,_sxz);
 
   // force u to be correct
   //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
@@ -1289,40 +1313,41 @@ PetscErrorCode LinearElastic::debug(const PetscReal time,const PetscInt stepCoun
 {
   PetscErrorCode ierr = 0;
 
-#if ODEPRINT > 0
-  PetscInt       Istart,Iend;
-  PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
+// #if ODEPRINT > 0
+//   PetscInt       Istart,Iend;
+//   PetscScalar    bcRval,uVal,psiVal,velVal,dQVal,tauQS;
 
-  //~PetscScalar k = _muArrPlus[0]/2/_Ly;
+//   //~PetscScalar k = _muArrPlus[0]/2/_Ly;
 
-  ierr= VecGetOwnershipRange(varEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(varEx.find("psi"),1,&Istart,&psiVal);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(varEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(varEx.find("psi"),1,&Istart,&psiVal);CHKERRQ(ierr);
 
-  ierr = VecGetValues(varEx.find("slip"),1,&Istart,&uVal);CHKERRQ(ierr);
+//   ierr = VecGetValues(varEx.find("slip"),1,&Istart,&uVal);CHKERRQ(ierr);
 
-  ierr= VecGetOwnershipRange(dvarEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(dvarEx.find("psi"),1,&Istart,&dQVal);CHKERRQ(ierr);
-  ierr = VecGetValues(dvarEx.find("slip"),1,&Istart,&velVal);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(dvarEx.find("psi"),&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(dvarEx.find("psi"),1,&Istart,&dQVal);CHKERRQ(ierr);
+//   ierr = VecGetValues(dvarEx.find("slip"),1,&Istart,&velVal);CHKERRQ(ierr);
 
-  ierr= VecGetOwnershipRange(_bcR,&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetValues(_bcR,1,&Istart,&bcRval);CHKERRQ(ierr);
+//   ierr= VecGetOwnershipRange(_bcR,&Istart,&Iend);CHKERRQ(ierr);
+//   ierr = VecGetValues(_bcR,1,&Istart,&bcRval);CHKERRQ(ierr);
 
-  ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
+//   ierr = VecGetValues(_fault->_tauQSP,1,&Istart,&tauQS);CHKERRQ(ierr);
 
-  if (stepCount == 0) {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
-                       "Step","Stage","bcR","D","Q","tauQS","V","dQ","time");
-    CHKERRQ(ierr);
-  }
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,psiVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,dQVal);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
+//   if (stepCount == 0) {
+//     ierr = PetscPrintf(PETSC_COMM_WORLD,"%-4s %-6s | %-15s %-15s %-15s | %-15s %-15s %-16s | %-15s\n",
+//                        "Step","Stage","bcR","D","Q","tauQS","V","dQ","time");
+//     CHKERRQ(ierr);
+//   }
+//   ierr = PetscPrintf(PETSC_COMM_WORLD,"%4i %-6s ",stepCount,stage);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",bcRval,uVal,psiVal);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e %.9e %.9e ",tauQS,velVal,dQVal);CHKERRQ(ierr);
+//   ierr = PetscPrintf(PETSC_COMM_WORLD," | %.9e\n",time);CHKERRQ(ierr);
 
 
-  //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
-#endif
+//   //~VecView(_fault->_tauQSP,PETSC_VIEWER_STDOUT_WORLD);
+// #endif
   return ierr;
+
 }
 
 PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)

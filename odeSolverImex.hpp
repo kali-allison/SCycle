@@ -60,9 +60,8 @@ class OdeSolverImex
 
     PetscReal               _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
-    std::map<string,Vec>    _var,_dvar; // explicit integration variable and rate
-    std::map<string,Vec>    _varImMult; // implicit integration variable, at each stage
-    std::map<string,Vec>    _varIm1; // implicit integration variable, once per time step
+    std::map<string,Vec>    _varEx,_dvar; // explicit integration variable and rate
+    std::map<string,Vec>    _varIm; // implicit integration variable, once per time step
     std::vector<string>     _errInds; // which inds of _var to use for error control
     int                     _lenVar;
     double                  _runTime;
@@ -76,22 +75,82 @@ class OdeSolverImex
     PetscReal   _absErr[3]; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
+    OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    virtual ~OdeSolverImex() {};
+
+    virtual PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT) = 0;
+    virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
+
+    virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
+    virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
+    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm) = 0;
+    virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
+    virtual PetscErrorCode view() = 0;
+    virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
+
+
+    virtual PetscReal computeStepSize(const PetscReal totErr) = 0;
+    virtual PetscReal computeError() = 0;
+};
+
+// Explicit RK32 scheme from Hairer et al., with added Backward Euler implicit scheme once per time step
+class RK32_WBE : public OdeSolverImex
+{
+  public:
+
     // intermediate values for time stepping for the explicit variable
     std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
-    std::map<string,Vec> _varHalfdTImMult,_vardTImMult,_vardTIm1;
+    std::map<string,Vec> _vardTIm;
 
 
-    OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~OdeSolverImex();
+    RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    ~RK32_WBE();
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
 
     PetscErrorCode setTolerance(const PetscReal atol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    //~ PetscErrorCode setInitialConds(std::vector<Vec>& varEx,std::vector<Vec>& varIm);
-    //~ PetscErrorCode setErrInds(std::vector<int>& errInds);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varImMult,std::map<string,Vec>& varIm1);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
+    PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode view();
+    PetscErrorCode integrate(IntegratorContextImex *obj);
+
+
+    PetscReal computeStepSize(const PetscReal totErr);
+    PetscReal computeError();
+};
+
+
+// Runge-Kutta 4(3) scheme for explicit time integration, with added
+// Backward Euler implicit scheme once per time step.
+// Based on "ARK4(3)6L[2]SA-ERK" algorithm from Kennedy and Carpenter (2003):
+// "Additive Runge-Kutta schemes for convection-diffusion-reaction equations"
+// Note: Has matching IMEX equivalent
+class RK43_WBE : public OdeSolverImex
+{
+  public:
+
+    // intermediate values for time stepping for the explicit variable
+    std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
+    std::map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
+
+    // intermediate value for implict variable
+    std::map<string,Vec> _vardTIm;
+
+    std::map<string,Vec> _var, _dvar; // accepted stages
+
+
+
+    RK43_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+    ~RK43_WBE();
+
+    PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
+    PetscErrorCode setStepSize(const PetscReal deltaT);
+
+    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);

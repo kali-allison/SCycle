@@ -11,12 +11,12 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),_vL(D._vL),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_ay(NULL),_muVal(30.0),_rhoVal(3.0),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
-  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),SATL(NULL),_effViscCap(1e30),
+  _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
-  _B(NULL),_C(NULL),
-  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_effViscCapSS(1e21),
+  _B(NULL),_C(NULL),_A2(NULL),_inv(NULL),_inv1(NULL),
+  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_ssEffViscScale(1e-15),
   _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
@@ -38,24 +38,15 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   he.getTemp(_T);
   setMaterialParameters();
   // define boundary condition types
-  _bcTType = "Neumann";
-  _bcBType = "Neumann";
-  _bcRType = "Dirichlet";
-  _bcLType = "Dirichlet";
+  //~ _bcTType = "Neumann";
+  //~ _bcBType = "Neumann";
+  //~ _bcRType = "Dirichlet";
+  //~ _bcLType = "Dirichlet";
   if (_bcLTauQS==1) { _bcLType = "Neumann"; }
   if (_momBalType.compare("dynamic")==0){_bcLType = "Neumann";_bcRType = "Neumann";}
 
-  // for MMS tests
-  //~ _bcTType = "Neumann";
-  //~ _bcBType = "Dirichlet";
-  //~ _bcRType = "Dirichlet";
-  //~ _bcLType = "Dirichlet";
-  setUpSBPContext(D); // set up matrix operators
-
   // set up matrix operators and KSP environment
-  // guess steady state conditions
-  //~ guessSteadyStateEffVisc(1e-14);
-  //~ setSSInitialConds(D,tau);
+  setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
   if (_inputDir.compare("unspecified") != 0) {
@@ -80,14 +71,41 @@ PowerLaw::~PowerLaw()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecDestroy(&SATL);
+  // boundary conditions
+  VecDestroy(&_bcL);
+  VecDestroy(&_bcR);
+  VecDestroy(&_bcT);
+  VecDestroy(&_bcB);
+  VecDestroy(&_bcRShift);
+
+  // body fields
+  VecDestroy(&_rhoVec);
+  VecDestroy(&_cs);
+  VecDestroy(&_muVec);
+  VecDestroy(&_rhs);
+  VecDestroy(&_u);
+  VecDestroy(&_sxy);
+  VecDestroy(&_sxz);
+  VecDestroy(&_surfDisp);
+
+  KSPDestroy(&_ksp);
+  KSPDestroy(&_ksp_eta);
+
+  delete _sbp; _sbp = NULL;
+  delete _sbp_eta; _sbp_eta = NULL;
+
+  // destroy viewers
+  PetscViewerDestroy(&_timeV1D);
+  PetscViewerDestroy(&_timeV2D);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
+  }
 
   VecDestroy(&_A);
   VecDestroy(&_n);
   VecDestroy(&_T);
   VecDestroy(&_QR);
   VecDestroy(&_effVisc);
-  VecDestroy(&_sxz);
   VecDestroy(&_sdev);
   VecDestroy(&_gTxy);
   VecDestroy(&_gTxz);
@@ -209,8 +227,8 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("maxEffVisc")==0) {
       _effViscCap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("maxEffViscSS")==0) {
-      _effViscCapSS = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("ssEffViscScale")==0) {
+      _ssEffViscScale = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
   }
@@ -329,7 +347,7 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_u,&_gTxy); VecSet(_gTxy,0.0);
   VecDuplicate(_u,&_gTxz); VecSet(_gTxz,0.0);
 
-  VecDuplicate(_bcL,&SATL); VecSet(SATL,0.0);
+  ierr = VecDuplicate(_u,&_effViscTemp);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -483,7 +501,9 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    _sbp->setGrid(_y,_z);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -495,7 +515,8 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc);
+  Mat A; _sbp->getA(A);
+  setupKSP(A,_ksp,_pc);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -526,7 +547,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode PowerLaw::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
+PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -534,14 +555,11 @@ PetscErrorCode PowerLaw::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Mat A;
-  sbp->getA(A);
-
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr); // necessary for solving steady state power law
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr); // necessary for solving steady state power law
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
@@ -552,24 +570,29 @@ PetscErrorCode PowerLaw::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
     //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
   else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    // use direct LU from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCLU);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
     PCSetType(pc,PCCHOLESKY);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
+  }
+  else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
+    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
@@ -625,8 +648,9 @@ PetscErrorCode PowerLaw::setSSInitialConds(Domain& D,Vec& tauRS)
   _sbp->computeMatrices(); // actually create the matrices
 
   KSPDestroy(&_ksp);
+  Mat A; _sbp->getA(A);
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc);
+  setupKSP(A,_ksp,_pc);
 
   // set up boundary conditions
   VecSet(_bcR,0.0);
@@ -811,7 +835,9 @@ PetscErrorCode PowerLaw::initializeSSMatrices()
     _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
     _sbp_eta->setGrid(_y,_z);
   }
   else {
@@ -821,9 +847,6 @@ PetscErrorCode PowerLaw::initializeSSMatrices()
   _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
   _sbp_eta->setMultiplyByH(1);
   _sbp_eta->computeMatrices(); // actually create the matrices
-
-  KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
-  setupKSP(_sbp_eta,_ksp_eta,_pc_eta);
 
   return ierr;
   #if VERBOSE > 1
@@ -840,7 +863,6 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ PetscScalar strainRate = 1e-12; // guess
   PetscScalar s=0.;
   PetscScalar *A,*B,*n,*T,*effVisc;
   PetscInt Ii,Istart,Iend;
@@ -852,8 +874,8 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   VecGetArray(_effVisc,&effVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    s = pow(strainRate/(A[Jj]*exp(-B[Jj]/T[Jj])),1.0/n[Jj]);
-    effVisc[Jj] =  s/strainRate* 1e-3; // (GPa s)  in terms of strain rate
+    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] );
+    effVisc[Jj] =  s/strainRate * 1e-3; // (GPa s)  in terms of strain rate
     Jj++;
   }
   VecRestoreArray(_A,&A);
@@ -1003,7 +1025,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   PetscScalar min_Tmax;
   VecMin(Tmax,NULL,&min_Tmax);
 
-  maxTimeStep = 0.3 * min_Tmax;
+  maxTimeStep = 0.9 * min_Tmax;
 
   VecDestroy(&Tmax);
 
@@ -1022,7 +1044,6 @@ PetscErrorCode PowerLaw::initiateIntegrand_qs(const PetscScalar time,map<string,
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ LinearElastic::initiateIntegrand_qs(time,varEx);
   if (_isMMS) { setMMSInitialConditions(); }
 
   // set slip based on uP
@@ -1213,6 +1234,40 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   varSS["gxy"] = _gxy; // included so it'll be written out
   varSS["gxz"] = _gxz; // included so it'll be written out
 
+  Mat A;
+  _sbp->getA(A);
+  MatDuplicate(A,MAT_COPY_VALUES,&_A2);
+
+  VecDuplicate(_effVisc,&_inv);
+  VecCopy(_effVisc,_inv); VecReciprocal(_inv);
+  VecDuplicate(_effVisc,&_inv1);
+  //~ ierr = loadVecFromInputFile(_inv1,_inputDir,"inv1"); CHKERRQ(ierr);
+  //~ VecPointwiseMult(_inv,_inv,_inv1);
+  MatDiagonalScale(_A2,_inv,NULL);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PowerLaw::updateFieldsSS(map<string,Vec>& varSS, const PetscScalar ess_t)
+{
+   PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateFieldsSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  VecSet(varSS["gVxy_t"],0.);
+  VecSet(varSS["gVxz_t"],0.);
+  VecSet(_gxy,0.);
+  VecSet(_gxz,0.);
+
+  guessSteadyStateEffVisc(ess_t);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
       CHKERRQ(ierr);
@@ -1231,25 +1286,40 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
     CHKERRQ(ierr);
   #endif
 
-  // update effective viscosity based on changes in temperature
-  //~ VecCopy(varSS["Temp"],_T);
-  //~ ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
-
-  //~ _sbp_eta->updateVarCoeff(_effVisc);
-  _viewers["SS_effVisc"] = initiateViewer(_outputDir + "SS_effVisc");
-  ierr = VecView(_effVisc,_viewers["SS_effVisc"]); CHKERRQ(ierr);
 
   delete _sbp_eta;
   initializeSSMatrices();
-  Mat A;
-  _sbp_eta->getA(A);
-
-  ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
 
   // set up rhs vector
   VecCopy(varSS["tau"],_bcL);
   VecSet(_bcR,_vL/2.);
+
   ierr = _sbp_eta->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
+
+  // scale rhs
+  VecScale(_rhs,_ssEffViscScale);
+
+  // no preconditioning with eff visc
+  Mat A;
+  _sbp_eta->getA(A);
+  KSPDestroy(&_ksp_eta);
+  KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
+  setupKSP(A,_ksp_eta,_pc_eta);
+  //~ ierr = KSPSetOperators(_ksp_eta,A,A);CHKERRQ(ierr); // update operator
+
+  // with preconditioning
+  //~ Mat A;
+  //~ _sbp_eta->getA(A);
+  //~ MatCopy(A,_A2,SAME_NONZERO_PATTERN);
+  //~ VecCopy(_effVisc,_inv);  VecReciprocal(_inv); //VecScale(_inv,1e-8);
+  //~ VecCopy(_effVisc,_inv); VecSet(_inv,1e-10);
+  //~ MatDiagonalScale(_A2,_inv,NULL);
+  //~ VecPointwiseMult(_rhs,_inv,_rhs);
+  //~ KSPDestroy(&_ksp_eta);
+  //~ KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
+  //~ setupKSP(_A2,_ksp_eta,_pc_eta);
+  //~ ierr = KSPSetOperators(_ksp_eta,_A2,_A2);CHKERRQ(ierr); // update operator
+
 
   // solve for steady-state velocity
   ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);
@@ -1264,18 +1334,8 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   ierr = computeSDev(); CHKERRQ(ierr); // deviatoric stress
 
   // update effective viscosity
-  ierr = computeViscosity(_effViscCapSS); CHKERRQ(ierr); // new viscosity
+  ierr = computeViscosity(_effViscCap); CHKERRQ(ierr); // new viscosity
 
-  _viewers["v"] = initiateViewer(_outputDir + "SS_v");
-  ierr = VecView(varSS["v"],_viewers["v"]); CHKERRQ(ierr);
-  _viewers["gVxy_t"] = initiateViewer(_outputDir + "SS_gVxy_t");
-  ierr = VecView(varSS["gVxy_t"],_viewers["gVxy_t"]); CHKERRQ(ierr);
-  _viewers["gVxz_t"] = initiateViewer(_outputDir + "SS_gVxz_t");
-  ierr = VecView(varSS["gVxz_t"],_viewers["gVxz_t"]); CHKERRQ(ierr);
-  _viewers["sxy"] = initiateViewer(_outputDir + "SS_sxy");
-  ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-  _viewers["sxz"] = initiateViewer(_outputDir + "SS_sxz");
-  ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1301,7 +1361,6 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   VecCopy(varSS["v"],_u);
   VecScale(_u,time);
 
-  //~ LinearElastic::updateSSb(varSS); // update BCs based on u
   // extract boundary condition information from u
   Vec uL;
   PetscInt Istart,Iend;
@@ -1338,8 +1397,8 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   }
   VecDestroy(&uL);
 
-  _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
-  ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
+  //~ _viewers["SS_u"] = initiateViewer(_outputDir + "SS_u");
+  //~ ierr = VecView(_u,_viewers["SS_u"]); CHKERRQ(ierr);
 
   PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;
   VecGetOwnershipRange(_sxy,&Istart,&Iend);
@@ -1366,10 +1425,10 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   VecRestoreArray(varSS["gVxy_t"],&gVxy_t);
   VecRestoreArray(varSS["gVxz_t"],&gVxz_t);
 
-  _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
-  ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
-  _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
-  ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
+  //~ _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
+  //~ ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
+  //~ _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
+  //~ ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1609,30 +1668,39 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   #endif
 
   // compute effective viscosity
-  PetscScalar *sigmadev,*A,*B,*n,*T,*effVisc=0;
+  PetscScalar const *sigmadev,*A,*B,*n,*T=0;
+  PetscScalar *effVisc=0;
+  PetscScalar *effViscTemp=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
-  VecGetArray(_sdev,&sigmadev);
-  VecGetArray(_A,&A);
-  VecGetArray(_QR,&B);
-  VecGetArray(_n,&n);
-  VecGetArray(_T,&T);
+  VecGetArrayRead(_sdev,&sigmadev);
+  VecGetArrayRead(_A,&A);
+  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_T,&T);
   VecGetArray(_effVisc,&effVisc);
+  VecGetArray(_effViscTemp,&effViscTemp);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
-    effVisc[Jj] = min(effVisc[Jj],viscCap);
+    PetscScalar invEffVisc = 1e3 * A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap;
+    effVisc[Jj] = 1.0/invEffVisc;
+
+    effViscTemp[Jj] = _ssEffViscScale * 1.0 / (A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap);
+
+    //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
+    //~ effVisc[Jj] = min(effVisc[Jj],viscCap);
 
     assert(~isnan(effVisc[Jj]));
     assert(~isinf(effVisc[Jj]));
     Jj++;
   }
-  VecRestoreArray(_sdev,&sigmadev);
-  VecRestoreArray(_A,&A);
-  VecRestoreArray(_QR,&B);
-  VecRestoreArray(_n,&n);
-  VecRestoreArray(_T,&T);
+  VecRestoreArrayRead(_sdev,&sigmadev);
+  VecRestoreArrayRead(_A,&A);
+  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_n,&n);
+  VecRestoreArrayRead(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
+  VecRestoreArray(_effViscTemp,&effViscTemp);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1656,7 +1724,6 @@ PetscErrorCode PowerLaw::setViscStrainRates(const PetscScalar time,const Vec& gV
   Vec SAT;
   VecDuplicate(_gTxy,&SAT);
   ierr = setViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
-  //~ VecSet(SAT,0.0); // !!!
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
   VecPointwiseMult(gVxy_t,_muVec,SAT);
@@ -1994,7 +2061,7 @@ PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 
 // Save all scalar fields to text file named pl_domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.
-PetscErrorCode PowerLaw::writeDomain()
+PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2004,7 +2071,7 @@ PetscErrorCode PowerLaw::writeDomain()
   #endif
 
   // output scalar fields
-  std::string str = _outputDir + "pl_context.txt";
+  std::string str = outputDir + "pl_context.txt";
   PetscViewer    viewer;
 
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
@@ -2021,6 +2088,10 @@ PetscErrorCode PowerLaw::writeDomain()
   ierr = PetscViewerASCIIPrintf(viewer,"viscDistribution = %s\n",_viscDistribution.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"effViscCap = %.15e\n",_effViscCap);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"effViscCapSS = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);
+
+
   PetscMPIInt size;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
@@ -2035,7 +2106,7 @@ PetscErrorCode PowerLaw::writeDomain()
   return ierr;
 }
 
-PetscErrorCode PowerLaw::writeContext()
+PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2044,12 +2115,12 @@ PetscErrorCode PowerLaw::writeContext()
     CHKERRQ(ierr);
   #endif
 
-  writeDomain();
+  writeDomain(outputDir);
 
-  ierr = writeVec(_muVec,_outputDir + "mu"); CHKERRQ(ierr);
-  ierr = writeVec(_A,_outputDir + "powerLawA"); CHKERRQ(ierr);
-  ierr = writeVec(_QR,_outputDir + "powerLawB"); CHKERRQ(ierr);
-  ierr = writeVec(_n,_outputDir + "n"); CHKERRQ(ierr);
+  ierr = writeVec(_muVec,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  ierr = writeVec(_A,outputDir + "momBal_A"); CHKERRQ(ierr);
+  ierr = writeVec(_QR,outputDir + "momBal_QR"); CHKERRQ(ierr);
+  ierr = writeVec(_n,outputDir + "momBal_n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2059,7 +2130,7 @@ PetscErrorCode PowerLaw::writeContext()
 }
 
 
-PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2071,41 +2142,21 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
-  //~ LinearElastic::writeStep1D(stepCount,time);
-
   if (stepCount == 0) {
-    ierr = _sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["surfDisp"] = initiateViewer(_outputDir + "surfDisp");
-    _viewers["bcL"] = initiateViewer(_outputDir + "bcL");
-    _viewers["bcR"] = initiateViewer(_outputDir + "bcR");
-
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["surfDisp"],_outputDir + "surfDisp");
-    ierr = appendViewer(_viewers["bcL"],_outputDir + "bcL");
-    ierr = appendViewer(_viewers["bcR"],_outputDir + "bcR");
-    //~ _viewers["pl_SATL"] = initiateViewer(_outputDir + "pl_SATL");
-    //~ _viewers["pl_SATR"] = initiateViewer(_outputDir + "pl_SATR");
-
-    //~ ierr = VecView(SATL,_viewers["pl_SATL"]); CHKERRQ(ierr);
-    //~ ierr = VecView(SATR,_viewers["pl_SATR"]); CHKERRQ(ierr);
-
-    //~ ierr = appendViewer(_viewers["pl_SATL"],_outputDir + "pl_SATL");
-    //~ ierr = appendViewer(_viewers["pl_SATR"],_outputDir + "pl_SATR");
+    ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_surfDisp,_viewers["surfDisp"]); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"]); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"]); CHKERRQ(ierr);
-    //~ ierr = VecView(SATL,_viewers["pl_SATL"]);CHKERRQ(ierr);
-    //~ ierr = VecView(SATR,_viewers["pl_SATR"]);CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -2117,7 +2168,7 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
 }
 
 
-PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2127,59 +2178,30 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
   #endif
 
   double startTime = MPI_Wtime();
-  //~ LinearElastic::writeStep2D(stepCount,time);
 
   if (stepCount == 0) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(_outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
 
-    _viewers["u"] = initiateViewer(_outputDir + "u");
-    _viewers["sxy"] = initiateViewer(_outputDir + "sxy");
-
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["u"],_outputDir + "u");
-    ierr = appendViewer(_viewers["sxy"],_outputDir + "sxy");
-
-    _viewers["gTxy"] = initiateViewer(_outputDir + "gTxy");
-    _viewers["gxy"] = initiateViewer(_outputDir + "gxy");
-    _viewers["effVisc"] = initiateViewer(_outputDir + "effVisc");
-
-    ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
-
-    ierr = appendViewer(_viewers["gTxy"],_outputDir + "gTxy");
-    ierr = appendViewer(_viewers["gxy"],_outputDir + "gxy");
-    ierr = appendViewer(_viewers["effVisc"],_outputDir + "effVisc");
-
-    if (_Nz>1) {
-      _viewers["gTxz"] = initiateViewer(_outputDir + "gTxz");
-      _viewers["gxz"] = initiateViewer(_outputDir + "gxz");
-      _viewers["sxz"] = initiateViewer(_outputDir + "sxz");
-
-      ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
-
-      ierr = appendViewer(_viewers["gTxz"],_outputDir + "gTxz");
-      ierr = appendViewer(_viewers["gxz"],_outputDir + "gxz");
-      ierr = appendViewer(_viewers["sxz"],_outputDir + "sxz");
-    }
+    ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gTxy", _gTxy, outputDir + "gTxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gTxz", _gTxz, outputDir + "gTxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxy", _gxy, outputDir + "gxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxz", _gxz, outputDir + "gxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "effVisc", _effVisc, outputDir + "effVisc"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = VecView(_u,_viewers["u"]); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gTxy,_viewers["gTxy"]); CHKERRQ(ierr);
-    ierr = VecView(_gxy,_viewers["gxy"]); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers["effVisc"]); CHKERRQ(ierr);
-    if (_Nz>1) {
-      ierr = VecView(_gTxz,_viewers["gTxz"]); CHKERRQ(ierr);
-      ierr = VecView(_gxz,_viewers["gxz"]); CHKERRQ(ierr);
-      ierr = VecView(_sxz,_viewers["sxz"]); CHKERRQ(ierr);
-    }
+    ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxy,_viewers["gTxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gxy,_viewers["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_viewers["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxz,_viewers["gTxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_gxz,_viewers["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

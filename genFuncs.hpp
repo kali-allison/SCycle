@@ -66,6 +66,7 @@ PetscErrorCode appendViewer(PetscViewer& vw,const std::string str);
 // loop over all viewers in the map vwL and switch then all to append mode
 PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir);
 
+PetscErrorCode io_initiateWriteAppend(std::map <string,std::pair<PetscViewer,string> >& vwL, const std::string key,const Vec& vec, const std::string dir);
 
 // Print all entries of 2D DMDA global vector out, including which
 // processor each entry lives on, and the corresponding subscripting
@@ -75,6 +76,7 @@ PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm);
 // vector norms
 double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2);
 double computeNormDiff_2(const Vec& vec1,const Vec& vec2);
+double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2);
 double computeNorm_Mat(const Mat& mat,const Vec& vec);
 
 // functions to make computing the energy much easier
@@ -85,6 +87,9 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
 PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR);
 PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR);
 
+// log10(out) = a*log10(vec1) + b*log10(vec2)
+// out may be not be the same as vec1 or vec2
+PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const double b, const Vec& vec2);
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);

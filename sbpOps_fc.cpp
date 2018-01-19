@@ -44,6 +44,8 @@ SbpOps_fc::~SbpOps_fc()
     PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
   #endif
 
+  MatDestroy(&_mu);
+
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
   MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
   MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
@@ -59,6 +61,7 @@ SbpOps_fc::~SbpOps_fc()
   MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
   MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
   MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
@@ -499,8 +502,10 @@ PetscErrorCode SbpOps_fc::constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat&
   ierr = MatMatMatMult(HxHinv,BD1T,E,scall,PETSC_DECIDE,&out); CHKERRQ(ierr);
   ierr = MatAXPY(out,alphaD,HinvxmuxE,SUBSET_NONZERO_PATTERN);
 
-  // MatDestroy(&HxHinv);
-  // MatDestroy(&HinvxmuxE);
+
+  if (_multByH) { MatDestroy(&HxHinv); }
+
+  MatDestroy(&HinvxmuxE);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -689,7 +694,8 @@ PetscErrorCode SbpOps_fc::updateA_BCs()
     constructD2(tempMats);
   }
   MatZeroEntries(_A);
-  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
+  MatCopy(_D2,_A,SAME_NONZERO_PATTERN);
 
   if (_deleteMats) { MatDestroy(&_D2); }
 
