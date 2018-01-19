@@ -1748,7 +1748,8 @@ PetscErrorCode SymmFault::d_dt_WaveEq(const PetscScalar time,map<string,Vec>& va
 double startTime = MPI_Wtime();
 ierr = setPhi(varEx, dvarEx, _deltaT);
 ierr = computeVel_dyn();CHKERRQ(ierr);
-_computeVelTime += MPI_Wtime() - startTime;
+double intermediateTime = MPI_Wtime();
+_computeVelTime += intermediateTime - startTime;
 
 PetscInt       Ii,Istart,Iend;
 PetscScalar    u, uPrev, rho, sigma_N, a, an, uNew, slip, slipVel, fric, alpha, A, vel, Phi, psi;
@@ -1809,7 +1810,9 @@ VecScatterDestroy(&scattu);
 VecScatterDestroy(&scattuPrev);
 
 // compute state parameter law
+double startAgingTime = MPI_Wtime();
 compute_agingLaw_dyn();
+_stateLawTime += MPI_Wtime() - startAgingTime;
 varEx["psi"] = _psi;
 #if VERBOSE > 1
 PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
