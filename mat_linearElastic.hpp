@@ -39,8 +39,8 @@ class Mat_LinearElastic_qd
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setInitialSlip(Vec& out);
-    PetscErrorCode setUpSBPContext(Domain& D);
-    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
+    PetscErrorCode setUpSBPContext();
+    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A);
 
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
@@ -98,7 +98,9 @@ class Mat_LinearElastic_qd
     PetscErrorCode computeStresses();
     PetscErrorCode computeSDev();
     PetscErrorCode setSurfDisp();
-    PetscErrorCode computeU(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode setRHS();
+    PetscErrorCode computeU();
+    PetscErrorCode changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype);
 
 
     // IO commands

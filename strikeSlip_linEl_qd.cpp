@@ -11,6 +11,7 @@ StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+  _guessSteadyStateICs(0.),
   _timeIntegrator(D._timeIntegrator),
   _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
   _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
@@ -48,35 +49,35 @@ StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
   }
 
   // initiate momentum balance equation
-  std::string mat_bcRType,mat_bcTType,mat_bcLType,mat_bcBType = "Dirichlet";
   if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
-    mat_bcRType = "Dirichlet";
+    _mat_bcRType = "Dirichlet";
   }
   else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
-    mat_bcRType = "Neumann";
+    _mat_bcRType = "Neumann";
   }
 
   if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
-    mat_bcTType = "Dirichlet";
+    _mat_bcTType = "Dirichlet";
   }
   else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
-    mat_bcTType = "Neumann";
+    _mat_bcTType = "Neumann";
   }
 
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    mat_bcLType = "Dirichlet";
+    _mat_bcLType = "Dirichlet";
   }
   else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
-    mat_bcLType = "Neumann";
+    _mat_bcLType = "Neumann";
   }
 
   if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
-    mat_bcBType = "Dirichlet";
+    _mat_bcBType = "Dirichlet";
   }
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
-    mat_bcBType = "Neumann";
+    _mat_bcBType = "Neumann";
   }
-  _material = new Mat_LinearElastic_qd(D,mat_bcRType,mat_bcTType,mat_bcLType,mat_bcBType);
+  if (_guessSteadyStateICs) { _material = new Mat_LinearElastic_qd(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
+  else {_material = new Mat_LinearElastic_qd(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -140,6 +141,11 @@ PetscErrorCode StrikeSlip_linEl_qd::loadSettings(const char *file)
     else if (var.compare("hydraulicCoupling")==0) {
       _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
     }
+
+    else if (var.compare("guessSteadyStateICs")==0) {
+      _guessSteadyStateICs = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
     else if (var.compare("timeControlType")==0) {
       _timeControlType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
@@ -177,6 +183,9 @@ PetscErrorCode StrikeSlip_linEl_qd::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
+  assert(_guessSteadyStateICs == 0 || _guessSteadyStateICs == 1);
+  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
 
   assert(_thermalCoupling.compare("coupled")==0 ||
       _thermalCoupling.compare("uncoupled")==0 ||
@@ -243,8 +252,8 @@ PetscErrorCode StrikeSlip_linEl_qd::initiateIntegrand()
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecSet(slip,0.);
-  //~ setInitialSlip(slip);
   _varEx["slip"] = slip;
+  if (_guessSteadyStateICs) { solveSS(); }
 
   _fault->initiateIntegrand(_initTime,_varEx);
 
@@ -582,11 +591,119 @@ PetscErrorCode StrikeSlip_linEl_qd::computeStresses(const PetscScalar time,const
   PetscErrorCode ierr = 0;
 
   // update rhs
-  ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-
-  _material->computeU(time,varEx,dvarEx);
+  _material->setRHS();
+  _material->computeU();
   _material->computeStresses();
 
+  return ierr;
+}
+
+// guess at the steady-state solution
+PetscErrorCode StrikeSlip_linEl_qd::solveSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_linEl_qd::solveSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // compute steady state stress on fault
+  Vec tauSS = NULL;
+  _fault->getTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+
+  if (_inputDir.compare("unspecified") != 0) {
+    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+  }
+  //~ ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+
+  // compute compute u that satisfies tau at left boundary
+  VecCopy(tauSS,_material->_bcL);
+  _material->setRHS();
+  _material->computeU();
+  _material->computeStresses();
+
+
+  // update fault to contain correct stresses
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+
+  // update boundary conditions, stresses
+  solveSSb();
+  _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
+
+
+  VecDestroy(&tauSS);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// update the boundary conditions based on new steady state u
+PetscErrorCode StrikeSlip_linEl_qd::solveSSb()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_linEl_qd::solveSSb";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscInt Ny = _material->_Ny;
+  PetscInt Nz = _material->_Nz;
+
+  // extract boundary condition information from u
+  Vec uL;
+  PetscInt Istart,Iend;
+  VecDuplicate(_material->_bcL,&uL);
+  PetscScalar minVal = 0;
+  VecMin(_material->_u,NULL,&minVal);
+  if (minVal < 0) { minVal = abs(minVal); }
+
+  Vec temp;
+  VecDuplicate(_material->_u,&temp);
+  VecSet(temp,minVal);
+  VecAXPY(_material->_u,1.,temp);
+  VecDestroy(&temp);
+
+  PetscScalar v = 0.0;
+  ierr = VecGetOwnershipRange(_material->_u,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    // extract left boundary info for bcL
+    if ( Ii < Nz ) {
+      ierr = VecGetValues(_material->_u,1,&Ii,&v);CHKERRQ(ierr);
+      ierr = VecSetValues(uL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+
+    // put right boundary data into bcR
+    if ( Ii > (Ny*Nz - Nz - 1) ) {
+      PetscInt zI =  Ii - (Ny*Nz - Nz);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
+      ierr = VecGetValues(_material->_u,1,&Ii,&v);CHKERRQ(ierr);
+      ierr = VecSetValues(_material->_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(_material->_bcRShift);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(uL);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_material->_bcRShift);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(uL);CHKERRQ(ierr);
+  VecCopy(_material->_bcRShift,_material->_bcR);
+
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
+    VecCopy(uL,_material->_bcL);
+  }
+
+  VecCopy(uL,_varEx["slip"]);
+  if (_bcLType.compare("symm_fault")==0) {
+    VecScale(_varEx["slip"],2.);
+  }
+
+  VecDestroy(&uL);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 

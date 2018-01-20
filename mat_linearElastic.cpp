@@ -32,7 +32,7 @@ Mat_LinearElastic_qd::Mat_LinearElastic_qd(Domain&D,std::string bcRTtype,std::st
   allocateFields();
   setMaterialParameters();
 
-  setUpSBPContext(D); // set up matrix operators
+  setUpSBPContext(); // set up matrix operators
 
   if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
@@ -194,16 +194,13 @@ PetscErrorCode Mat_LinearElastic_qd::checkInput()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode Mat_LinearElastic_qd::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc)
+PetscErrorCode Mat_LinearElastic_qd::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Mat_LinearElastic_qd::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
-
-  Mat A;
-  sbp->getA(A);
 
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
@@ -367,7 +364,7 @@ PetscErrorCode Mat_LinearElastic_qd::loadFieldsFromFiles()
 
 
 // set up SBP operators
-PetscErrorCode Mat_LinearElastic_qd::setUpSBPContext(Domain& D)
+PetscErrorCode Mat_LinearElastic_qd::setUpSBPContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -399,8 +396,12 @@ PetscErrorCode Mat_LinearElastic_qd::setUpSBPContext(Domain& D)
   _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
 
+
+  Mat A;
+  _sbp->getA(A);
+
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc);
+  setupKSP(_sbp,_ksp,_pc,A);
 
   return ierr;
   #if VERBOSE > 1
@@ -410,7 +411,7 @@ PetscErrorCode Mat_LinearElastic_qd::setUpSBPContext(Domain& D)
 
 
 // solve momentum balance equation for u
-PetscErrorCode Mat_LinearElastic_qd::computeU(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode Mat_LinearElastic_qd::computeU()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -424,6 +425,43 @@ PetscErrorCode Mat_LinearElastic_qd::computeU(const PetscScalar time,const map<s
   _linSolveCount++;
 
   ierr = setSurfDisp();
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// solve momentum balance equation for u
+PetscErrorCode Mat_LinearElastic_qd::setRHS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+
+  VecSet(_rhs,0.);
+  ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode Mat_LinearElastic_qd::changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+
+  _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
+  KSPDestroy(&_ksp);
+  Mat A; _sbp->getA(A);
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
+  setupKSP(_sbp,_ksp,_pc,A);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);

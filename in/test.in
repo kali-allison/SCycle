@@ -14,6 +14,9 @@ bulkDeformationType = linearElastic
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
 
+# whether or not to estimate steady state initial conditions
+guessSteadyStateICs = 1
+
 # coordinate transformation
 bCoordTrans = 6.0
 sbpType = mfc_coordTrans
@@ -41,15 +44,21 @@ impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
+DcVals = [12e-3 12e-3] # m
 #DcVals = [32e-3 32e-3] # m
-DcVals = [1 1] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
+
+aVals = [0.015 0.051]
+aDepths = [0 60]
+bVals = [0.02 0.02]
+bDepths = [0 60]
 
 # effective normal stress
 #sigmaNVals = [5.668 5.668 1336] # MPa
@@ -132,11 +141,11 @@ withFrictionalHeating = no
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e8
 initTime = 0
-maxTime = 1e15
+maxTime = 1e11
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12

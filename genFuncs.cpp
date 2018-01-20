@@ -429,6 +429,8 @@ PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const d
   VecRestoreArrayRead(vec1,&vec1A);
   VecRestoreArrayRead(vec2,&vec2A);
   VecRestoreArray(out,&outA);
+
+  return 0;
 }
 
 

@@ -53,6 +53,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    int          _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -74,6 +75,7 @@ private:
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
     string              _bcRType,_bcTType,_bcLType,_bcBType;
+    string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
 
     PetscErrorCode loadSettings(const char *file);
@@ -91,6 +93,10 @@ private:
 
     StrikeSlip_linEl_qd(Domain&D);
     ~StrikeSlip_linEl_qd();
+
+    // estimating steady state conditions
+    PetscErrorCode solveSS();
+    PetscErrorCode solveSSb();
 
 
     // time stepping functions

@@ -24,14 +24,16 @@
  *    setBCTypes("Dirichlet","Neumann","Dirichlet","Neumann"); // sets what types of boundaries will be enforced
  *    computeMatrices(); // this call actually creates the matrices
  *
- * Optional additional functions:
+ * Optional additional functions, which must be called prior to computeMatrices:
  *    setGrid(y,z); // y- and z- coordinate vectors
  *    setLaplaceType("yz"); // (default: "yz") determines whether to
  *        // construct d/dy(coeff * d/dy) + d/dz(coeff * d/dz) or only 1 or the other term
  *    setMultiplyByH(1); // (default: 0) 1 for yes, 0 for no
- *    changeBCTypes("Neumann","Neumann","Neumann","Neumann");  // if you want to switch
- *              // which type of BC to enforce (will compute the new matrices for you if necessary)
  *    setDeleteIntermediateFields(1); // (default: 0) removes intermediate matrices and old BC matrices to save on memory usage
+ *
+ * It is possible to change the type of the boundary conditions:
+ * changeBCTypes("Neumann","Neumann","Neumann","Neumann");  // if you want to switch
+ *              // which type of BC to enforce (will compute the new matrices for you if necessary)
  *
  */
 
