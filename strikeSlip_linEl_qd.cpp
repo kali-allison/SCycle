@@ -512,7 +512,6 @@ PetscErrorCode StrikeSlip_linEl_qd::d_dt(const PetscScalar time,const map<string
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+

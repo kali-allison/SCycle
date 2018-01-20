@@ -417,8 +417,6 @@ PetscErrorCode Mat_LinearElastic_qd::computeU(const PetscScalar time,const map<s
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
   #endif
 
-
-
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
@@ -575,13 +573,13 @@ PetscErrorCode Mat_LinearElastic_qd::writeStep2D(const PetscInt stepCount, const
 
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
+    if (_computeSxz) { ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr); }
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
+    if (_computeSxz) { ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr); }
   }
 
   _writeTime += MPI_Wtime() - startTime;
