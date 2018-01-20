@@ -1,23 +1,23 @@
 order = 4 # SBP order of accuracy
-Ny = 51
-Nz = 52
+Ny = 101
+Nz = 1
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
-# symmetric or general
-geometry = symmetric
+# strikeSlip or iceStream
+problemType = strikeSlip
 
 # linearElastic or powerLaw
 bulkDeformationType = linearElastic
 
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+momentumBalanceType = quasidynamic
+
 # coordinate transformation
-#bCoordTrans = 6.0
+bCoordTrans = 6.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
-
-# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-problemType = quasidynamic
 
 #======================================================================
 # linear system

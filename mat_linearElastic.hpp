@@ -1,5 +1,5 @@
-#ifndef LINEARELASTIC_H_INCLUDED
-#define LINEARELASTIC_H_INCLUDED
+#ifndef MAT_LINEARELASTIC_H_INCLUDED
+#define MAT_LINEARELASTIC_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -10,7 +10,6 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
-#include "momBalContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -20,8 +19,6 @@
 #include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
-#include "heatEquation.hpp"
-
 
 
 // Class for a linear elastic material
@@ -45,11 +42,9 @@ class Mat_LinearElastic_qd
     PetscErrorCode setUpSBPContext(Domain& D);
     PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc);
 
-    PetscErrorCode computeShearStress();
-    PetscErrorCode setSurfDisp();
-
     PetscErrorCode setMMSInitialConditions();
     PetscErrorCode setMMSBoundaryConditions(const double time);
+
 
     // domain properties
     std::string          _delim; // format is: var delim value (without the white space)
@@ -91,30 +86,20 @@ class Mat_LinearElastic_qd
     PetscInt     _linSolveCount;
 
     // boundary conditions
-    string               _bcTType,_bcRType,_bcBType,_bcLType; // options: Dirichlet, Neumann
-    Vec                  _bcT,_bcR,_bcB,_bcL;
+    string               _bcRType,_bcTType,_bcLType,_bcBType; // options: Dirichlet, Neumann
+    Vec                  _bcR,_bcT,_bcL,_bcB;
 
     // constructors and destructors
-    Mat_LinearElastic_qd(Domain&D,std::string bcTRtype,std::string bcTTtype,std::string bcTLtype,std::string bcTBtype);
+    Mat_LinearElastic_qd(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
     ~Mat_LinearElastic_qd();
 
     // time stepping function
-    PetscErrorCode initiateIntegrand_qs(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
     PetscErrorCode computeStresses();
     PetscErrorCode computeSDev();
+    PetscErrorCode setSurfDisp();
+    PetscErrorCode computeU(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    // methods for explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-
-    // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // IMEX backward Euler
-
-    PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode view(const double totRunTime);
@@ -125,6 +110,8 @@ class Mat_LinearElastic_qd
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
+    PetscErrorCode measureMMSError(const PetscScalar time);
+
     static double zzmms_f(const double y,const double z);
     static double zzmms_f_y(const double y,const double z);
     static double zzmms_f_yy(const double y,const double z);

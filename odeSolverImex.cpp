@@ -840,7 +840,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   int            stopIntegration = 0;
 
   // coefficients
-  PetscScalar c1 = 0.;
+  //~ PetscScalar c1 = 0.;
   PetscScalar c2 = 1./2.;
   PetscScalar c3 = 83./250.;
   PetscScalar c4 = 31./50.;
@@ -848,7 +848,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   PetscScalar c6 = 1.;
 
   PetscScalar b1 = 82889./524892.;
-  PetscScalar b2 = 0.;
+  //~ PetscScalar b2 = 0.;
   PetscScalar b3 = 15625./83664.;
   PetscScalar b4 = 69875./102672.;
   PetscScalar b5 = -2260./8211.;
@@ -856,7 +856,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
 
 
   PetscScalar hb1 = 4586570599./29645900160.;
-  PetscScalar hb2 = 0.;
+  //~ PetscScalar hb2 = 0.;
   PetscScalar hb3 = 178811875./945068544.;
   PetscScalar hb4 = 814220225./1159782912.;
   PetscScalar hb5 = -3700637./11593932.;

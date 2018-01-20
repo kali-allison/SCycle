@@ -1,11 +1,11 @@
-#include "linearElastic.hpp"
+#include "mat_linearElastic.hpp"
 
-#define FILENAME "linearElastic.cpp"
+#define FILENAME "mat_linearElastic.cpp"
 
 using namespace std;
 
 
-Mat_LinearElastic_qd::Mat_LinearElastic_qd(Domain&D,std::string bcTRtype,std::string bcTTtype,std::string bcTLtype,std::string bcTBtype)
+Mat_LinearElastic_qd::Mat_LinearElastic_qd(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
 : _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
@@ -20,8 +20,8 @@ Mat_LinearElastic_qd::Mat_LinearElastic_qd(Domain&D,std::string bcTRtype,std::st
   _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
-  _bcTType(bcTTtype),_bcRType(bcRTtype),_bcBType(bcBTtype),_bcLType(bcLTtype),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
+  _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
+  _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"\nStarting Mat_LinearElastic_qd::Mat_LinearElastic_qd in linearElastic.cpp.\n");
@@ -122,15 +122,20 @@ PetscErrorCode Mat_LinearElastic_qd::loadSettings(const char *file)
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    else if (var.compare("bcLTauQS")==0) {
-      _bcLTauQS = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
 
     else if (var.compare("muPlus")==0) {
       _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("rhoPlus")==0) {
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    // switches for computing extra stresses
+    else if (var.compare("momBal_computeSxz")==0) {
+      _computeSxz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("momBal_computeSdev")==0) {
+      _computeSdev = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
   }
@@ -271,7 +276,7 @@ PetscErrorCode Mat_LinearElastic_qd::allocateFields()
   VecDuplicate(_bcL,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
   VecSet(_bcRShift,0.0);
   VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
-  VecSet(_bcR,_vL*_currTime/2.0);
+  VecSet(_bcR,0.);
 
 
   VecCreate(PETSC_COMM_WORLD,&_bcT);
@@ -401,6 +406,31 @@ PetscErrorCode Mat_LinearElastic_qd::setUpSBPContext(Domain& D)
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+}
+
+
+// solve momentum balance equation for u
+PetscErrorCode Mat_LinearElastic_qd::computeU(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+
+
+
+  // solve for displacement
+  double startTime = MPI_Wtime();
+  ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+
+  ierr = setSurfDisp();
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+  #endif
+  return ierr;
 }
 
 
@@ -621,123 +651,6 @@ PetscErrorCode Mat_LinearElastic_qd::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
   sxz = _sxz;
   sdev = _sdev;
   return 0;
-}
-
-
-PetscErrorCode Mat_LinearElastic_qd::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Mat_LinearElastic_qd::updateFields()";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  _currTime = time;
-  if (_bcLTauQS==0) { // var holds slip, bcL is displacement at y=0+
-    ierr = VecCopy(varEx.find("slip")->second,_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_bcL,0.5);CHKERRQ(ierr);
-  } // else do nothing
-  ierr = VecSet(_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_bcR,1.0,_bcRShift);CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-
-// explicit time stepping
-PetscErrorCode Mat_LinearElastic_qd::d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Mat_LinearElastic_qd::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-
-  ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-
-  // solve for displacement
-  double startTime = MPI_Wtime();
-  ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
-  ierr = setSurfDisp();
-
-  // solve for shear stress
-  ierr = _sbp->muxDy(_u,_sxy); CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Mat_LinearElastic_qd::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
-
-// implicit/explicit time stepping
-PetscErrorCode Mat_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Mat_LinearElastic_qd::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-
-  ierr = d_dt_eqCycle(time,varEx,dvarEx);CHKERRQ(ierr);
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Mat_LinearElastic_qd::d_dt IMEX in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-
-PetscErrorCode Mat_LinearElastic_qd::d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Mat_LinearElastic_qd::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-
-  Vec source,Hxsource;
-  VecDuplicate(_u,&source);
-  VecDuplicate(_u,&Hxsource);
-  if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
-  else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
-  ierr = _sbp->H(source,Hxsource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
-    Mat J,Jinv,qy,rz,yq,zr;
-    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    multMatsVec(yq,zr,Hxsource);
-  }
-  VecDestroy(&source);
-
-
-  // set rhs, including body source term
-  setMMSBoundaryConditions(time); // modifies _bcL,_bcR,_bcT, and _bcB
-  ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  ierr = VecAXPY(_rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
-  VecDestroy(&Hxsource);
-
-
-  // solve for displacement
-  double startTime = MPI_Wtime();
-  ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
-  ierr = setSurfDisp();
-
-  // solve for shear stress
-  _sbp->muxDy(_u,_sxy);
-  _sbp->muxDz(_u,_sxz);
-
-  // force u to be correct
-  //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Mat_LinearElastic_qd::d_dt_mms in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
-  #endif
-  return ierr;
 }
 
 

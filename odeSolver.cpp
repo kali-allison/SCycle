@@ -129,18 +129,11 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
-    //~ ierr = obj->d_dt(_currT,_var.begin(),_dvar.begin());CHKERRQ(ierr);
-    //~ ierr = obj->debug(_currT,_stepCount,_var.begin(),_dvar.begin(),"FE");CHKERRQ(ierr);
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var,_dvar,"FE");CHKERRQ(ierr);
-    //~ for (int varInd=0;varInd<_lenVar;varInd++) {
-      //~ ierr = VecAXPY(_var[varInd],_deltaT,_dvar[varInd]);CHKERRQ(ierr); // var = var + deltaT*dvar
-    //~ }
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       ierr = VecAXPY(_var[it->first],_deltaT,_dvar[it->first]);CHKERRQ(ierr); // var = var + deltaT*dvar
     }
@@ -481,7 +474,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->debug(_currT,_stepCount,_var,_dvar,"IC");CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
 
   if (_finalT==_initT) { return ierr; }
@@ -510,7 +502,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
         ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
-      ierr = obj->debug(_currT+0.5*_deltaT,_stepCount,_varHalfdT,_dvarHalfdT,"t+dt/2");CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -518,7 +509,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
         ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_vardT,_dvardT,"t+dt");CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -529,8 +519,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
         ierr = VecAXPY(_y3[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_y2,_dvardT,"2nd");CHKERRQ(ierr);
-      ierr = obj->debug(_currT+_deltaT,_stepCount,_y3,_dvardT,"3rd");CHKERRQ(ierr);
 
       // calculate error
       totErr = computeError();
@@ -552,7 +540,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    ierr = obj->debug(_currT,_stepCount,_var,_dvar,"F");CHKERRQ(ierr);
 
     if (totErr!=0.0) {
       _deltaT = computeStepSize(totErr);
@@ -882,7 +869,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   int            stopIntegration = 0;
 
   // coefficients
-  PetscScalar c1 = 0.;
+  //~ PetscScalar c1 = 0.;
   PetscScalar c2 = 1./2.;
   PetscScalar c3 = 83./250.;
   PetscScalar c4 = 31./50.;
@@ -890,7 +877,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   PetscScalar c6 = 1.;
 
   PetscScalar b1 = 82889./524892.;
-  PetscScalar b2 = 0.;
+  //~ PetscScalar b2 = 0.;
   PetscScalar b3 = 15625./83664.;
   PetscScalar b4 = 69875./102672.;
   PetscScalar b5 = -2260./8211.;
@@ -898,7 +885,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
 
 
   PetscScalar hb1 = 4586570599./29645900160.;
-  PetscScalar hb2 = 0.;
+  //~ PetscScalar hb2 = 0.;
   PetscScalar hb3 = 178811875./945068544.;
   PetscScalar hb4 = 814220225./1159782912.;
   PetscScalar hb5 = -3700637./11593932.;
@@ -970,7 +957,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       }
 
       // stage 1: k1 = var, compute f1 = f(k1)
-      //~ ierr = obj->d_dt(_currT+c1*_deltaT,_var,_f1);CHKERRQ(ierr); // compute f1
       _f1 = _dvar;
 
       // stage 2: compute k2

@@ -1,5 +1,5 @@
-#ifndef Mediator_H_INCLUDED
-#define Mediator_H_INCLUDED
+#ifndef STRIKESLIP_LINEL_QD_H_INCLUDED
+#define STRIKESLIP_LINEL_QD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -11,12 +11,9 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
-#include "integratorContextWave.hpp"
-#include "momBalContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
-#include "odeSolver_WaveEq.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -26,8 +23,7 @@
 #include "fault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "linearElastic.hpp"
-#include "powerLaw.hpp"
+#include "mat_linearElastic.hpp"
 
 
 
@@ -37,12 +33,12 @@
  */
 
 
-class MomBal_linEl_qd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_linEl_qd: public IntegratorContextEx, public IntegratorContextImex
 {
 private:
     // disable default copy constructor and assignment operator
-    MomBal_linEl_qd(const MomBal_linEl_qd &that);
-    MomBal_linEl_qd& operator=(const MomBal_linEl_qd &rhs);
+    StrikeSlip_linEl_qd(const StrikeSlip_linEl_qd &that);
+    StrikeSlip_linEl_qd& operator=(const StrikeSlip_linEl_qd &rhs);
 
     Domain *_D;
 
@@ -51,20 +47,15 @@ private:
 
     // problem properties
     const bool           _isMMS; // true if running mms test
-    bool                 _bcLTauQS; // true if spinning up viscoelastic problem from constant stress on left boundary
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
-    const PetscScalar    _vL;
-    std::string          _problemType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-    std::string          _momBalType; // "dynamic", "static"
-    std::string          _bulkDeformationType; // constitutive law
+    PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
-    std::string            _initialU; // gaussian
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
@@ -81,8 +72,8 @@ private:
 
 
     // boundary conditions
-    // Options: freeSurface, fault, driven, tau
-    string               _bcTType,_bcRType,_bcBType,_bcLType;
+    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
+    string              _bcRType,_bcTType,_bcLType,_bcBType;
 
 
     PetscErrorCode loadSettings(const char *file);
@@ -93,31 +84,27 @@ private:
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     Fault                      *_fault;
-    Mat_LinearElastic_qd       *_momBal; // linear elastic off-fault material properties
+    Mat_LinearElastic_qd       *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 
 
-    MomBal_linEl_qd(Domain&D);
-    ~MomBal_linEl_qd();
+    StrikeSlip_linEl_qd(Domain&D);
+    ~StrikeSlip_linEl_qd();
 
+
+    // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-
-
-    // adaptive time stepping functions for quasi-static problem
-    PetscErrorCode initiateIntegrand_qs();
-    PetscErrorCode integrate_qs();
-
+    PetscErrorCode initiateIntegrand();
+    PetscErrorCode computeStresses(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+
 
     // IO functions
     PetscErrorCode view();

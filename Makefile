@@ -57,6 +57,11 @@ heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp
 helloWorld.o: helloWorld.cpp
+mat_linEl_qd.o: mat_linEl_qd.cpp mat_linEl_qd.hpp \
+ integratorContextEx.hpp genFuncs.hpp odeSolver.hpp \
+ integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
+ sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp \
+ sbpOps_fc_coordTrans.hpp heatEquation.hpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp \
  momBalContext.hpp integratorContextEx.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
@@ -67,7 +72,15 @@ main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp momBalContext.hpp odeSolver.hpp \
  integratorContextImex.hpp odeSolverImex.hpp rootFinderContext.hpp \
  rootFinder.hpp linearElastic.hpp pressureEq.hpp powerLaw.hpp \
- mediator.hpp integratorContextWave.hpp odeSolver_WaveEq.hpp
+ mediator.hpp integratorContextWave.hpp odeSolver_WaveEq.hpp \
+ mat_linearElastic.hpp strikeSlip_linEl_qd.hpp
+strikeSlip_linEl_qd.o: strikeSlip_linEl_qd.cpp strikeSlip_linEl_qd.hpp integratorContextEx.hpp \
+ genFuncs.hpp odeSolver.hpp integratorContextImex.hpp \
+ domain.hpp odeSolverImex.hpp \
+ sbpOps.hpp sbpOps_c.hpp \
+ spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp fault.hpp \
+ heatEquation.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
+ mat_linearElastic.hpp
 mediator.o: mediator.cpp mediator.hpp momBalContext.hpp integratorContextEx.hpp \
  genFuncs.hpp odeSolver.hpp integratorContextImex.hpp \
  integratorContextWave.hpp domain.hpp odeSolverImex.hpp \

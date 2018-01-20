@@ -9,9 +9,12 @@
 #include "sbpOps.hpp"
 #include "fault.hpp"
 #include "linearElastic.hpp"
-#include "pressureEq.hpp"
 #include "powerLaw.hpp"
+#include "pressureEq.hpp"
+#include "heatEquation.hpp"
 #include "mediator.hpp"
+#include "mat_linearElastic.hpp"
+#include "strikeSlip_linEl_qd.hpp"
 
 
 
@@ -68,11 +71,18 @@ int runEqCycle(const char * inputFile)
   Domain d(inputFile);
   d.write();
 
-  Mediator m(d);
-  ierr = m.writeContext(); CHKERRQ(ierr);
-  // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  ierr = m.integrate(); CHKERRQ(ierr);
-  ierr = m.view();CHKERRQ(ierr);
+  //~ Mediator m(d);
+  //~ ierr = m.writeContext(); CHKERRQ(ierr);
+  //~ // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = m.integrate(); CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
+
+
+  StrikeSlip_linEl_qd m(d);
+  //~ ierr = m.writeContext(); CHKERRQ(ierr);
+  //~ // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  //~ ierr = m.integrate(); CHKERRQ(ierr);
+  //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;
 }
