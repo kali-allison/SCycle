@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,HeatEquation& he)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),_momBalType("static"),
   _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),
-  _vL(D._vL),
+  _vL(1e-9),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_ay(NULL),_muVal(30.0),_rhoVal(3.0),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),

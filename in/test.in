@@ -29,10 +29,6 @@ bcLTauQS = 0
 linSolver = MUMPSCHOLESKY
 #kspTol = 1e-10
 
-# algorithm for hydraulic problem (1D on fault)
-linSolver_p = AMG
-kspTol_p = 1e-10
-
 #======================================================================
 # rate-and-state parameters
 rootTol = 1e-9
@@ -63,28 +59,7 @@ sigmaNDepths = [0 60]
 
 
 #======================================================================
-# hydraulic fault inputs
-hydraulicCoupling = no
-#hydraulicCoupling = uncoupled
-#hydraulicCoupling = coupled
-
-#hydraulicTimeIntType = explicit
-hydraulicTimeIntType = implicit
-
-# actual, physical values
-n_pVals = [0.1 0.1]
-n_pDepths = [0 30]
-beta_pVals = [10 10] # 1/gPa
-beta_pDepths = [0 30]
-k_pVals = [1e-19 1e-19] # km^2
-k_pDepths = [0 30]
-eta_pVals = [1e-12 1e-12] # GPa s
-eta_pDepths = [0 30]
-g = 0
-rho_fVals = [1 1] # g/cm^3
-rho_fDepths = [0 30]
-pVals = [0.0 0.0]
-pDepths = [0 30]
+# fault inputs
 
 # with varying degrees of overpressure
 #sigmaNVals = [0 802.1] # lambda = 0.4
@@ -162,27 +137,13 @@ stride2D = 1
 maxStepCount = 5
 initTime = 0
 maxTime = 1e15
-initDeltaT = 5
+initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12
-atol = 1e-6
-#timeIntInds = [psi slip]
+atol = 1e-8
+timeIntInds = [psi slip]
 #timeIntInds = [slip gVxy gVxz]
-timeIntInds = [gVxy gVxz]
-
-
-#outputDir = /scratch/kallison/test/test_
-#outputDir = /scratch/kallison/its/wf_g30_b5_
-#outputDir = /scratch/kallison/its/wqwf_g30_b5_
-#outputDir = /scratch/kallison/its/qd_g30_b5_
-#outputDir = /scratch/kallison/its/qd_g30_b5_Ny201_Nz202_
-
-#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Ny201_Nz202_
-#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_b5_Ny201_Nz404_
-#outputDir = /scratch/kallison/bcLTau/fromSS_qd_g30_noSSIC_
-#outputDir = /scratch/kallison/eqs/fromSS_qd_g30_b5_Dc12_Ny201_Nz404_
-
-
+#timeIntInds = [gVxy gVxz]
 
 
 #outputDir = /scratch/kallison/versions/v1_
@@ -195,7 +156,11 @@ timeIntInds = [gVxy gVxz]
 
 #outputDir = /scratch/kallison/versions/v8_
 #outputDir = /scratch/kallison/versions/v9_
-outputDir = /scratch/kallison/versions/v10_
+#outputDir = /scratch/kallison/versions/v10_
+
+
+
+outputDir = data/v0_
 
 
 

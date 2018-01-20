@@ -8,7 +8,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he)
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),_momBalType("static"),_thermalCoupling("no"),
-  _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),_vL(D._vL),
+  _bcLTauQS(0),_currTime(D._initTime),_stepCount(0),_vL(1e-9),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_ay(NULL),_muVal(30.0),_rhoVal(3.0),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),

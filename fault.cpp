@@ -9,7 +9,7 @@ Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
   _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _rootTol(0),_rootIts(0),_maxNumIts(1e8),
-  _f0(0.6),_v0(1e-6),_vL(D._vL),
+  _f0(0.6),_v0(1e-6),_vL(1e-9),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
   _dPsi(NULL),_psi(NULL),_theta(NULL),

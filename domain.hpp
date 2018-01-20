@@ -23,7 +23,8 @@ class Domain
     std::string    _delim; // format is: var delim value (without the white space)
     std::string    _outputDir; // directory for output
     std::string    _bulkDeformationType; // options: linearElastic, powerLaw
-    std::string    _problemType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+    std::string    _problemType; // options: strikeSlip or iceStream
+    std::string    _momBalType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
     std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
@@ -34,7 +35,6 @@ class Domain
     PetscScalar  _Ly,_Lz;
     std::string  _yInputDir; // directory to load y from
     std::string  _zInputDir; // directory to load z from
-    PetscScalar  _vL; // loading velocity
 
     // coordinate system
     Vec   _q,_r,_y,_z; // q(y), r(z)

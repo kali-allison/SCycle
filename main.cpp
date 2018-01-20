@@ -79,9 +79,9 @@ int runEqCycle(const char * inputFile)
 
 
   StrikeSlip_linEl_qd m(d);
-  //~ ierr = m.writeContext(); CHKERRQ(ierr);
-  //~ // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-  //~ ierr = m.integrate(); CHKERRQ(ierr);
+  ierr = m.writeContext(); CHKERRQ(ierr);
+  // PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+  ierr = m.integrate(); CHKERRQ(ierr);
   //~ ierr = m.view();CHKERRQ(ierr);
 
   return ierr;

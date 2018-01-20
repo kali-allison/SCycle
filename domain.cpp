@@ -4,11 +4,11 @@ using namespace std;
 
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/unspecified_"),
-  _bulkDeformationType("unspecified"),_problemType("quasidynamic"),_sbpType("mfc_coordTrans"),
+  _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momBalType("quasidynamic"),
+  _sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
-  _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
@@ -61,12 +61,12 @@ Domain::Domain(const char *file)
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_outputDir("unspecificed"),
-  _bulkDeformationType("unspecified"),_problemType("quasidynamic"),_sbpType("mfc_coordTrans"),
+: _file(file),_delim(" = "),_outputDir("data/unspecified_"),
+  _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momBalType("quasidynamic"),
+  _sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
-  _order(0),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
+  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
-  _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _timeControlType("unspecified"),_timeIntegrator("unspecified"),
@@ -163,7 +163,6 @@ PetscErrorCode Domain::loadData(const char *file)
     { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("isMMS")==0) {
       _isMMS = 0;
@@ -173,12 +172,17 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("sbpType")==0) {
       _sbpType = line.substr(pos+_delim.length(),line.npos);
     }
+
     else if (var.compare("bulkDeformationType")==0) {
       _bulkDeformationType = line.substr(pos+_delim.length(),line.npos);
     }
     else if (var.compare("problemType")==0) {
       _problemType = line.substr(pos+_delim.length(),line.npos);
     }
+    else if (var.compare("momentumBalanceType")==0) {
+      _momBalType = line.substr(pos+_delim.length(),line.npos);
+    }
+
     else if (var.compare("loadICs")==0) {
       _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
@@ -342,11 +346,9 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"Lz = %e\n",_Lz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-    ierr = PetscPrintf(PETSC_COMM_SELF,"vL = %.15e\n",_vL);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
     ierr = PetscPrintf(PETSC_COMM_SELF,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"momBalType = %s\n",_momBalType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
@@ -404,6 +406,7 @@ PetscErrorCode Domain::checkInput()
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
          _timeControlType.compare("PID")==0 );
+
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
@@ -417,10 +420,13 @@ PetscErrorCode Domain::checkInput()
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
     _bulkDeformationType.compare("powerLaw")==0 );
 
-  assert(_problemType.compare("quasidynamic")==0 ||
-    _problemType.compare("dynamic")==0 ||
-    _problemType.compare("quasidynamic_and_dynamic")==0 ||
-    _problemType.compare("steadyStateIts")==0 );
+  assert(_problemType.compare("strikeSlip")==0 ||
+    _problemType.compare("iceStream")==0 );
+
+  assert(_momBalType.compare("quasidynamic")==0 ||
+    _momBalType.compare("dynamic")==0 ||
+    _momBalType.compare("quasidynamic_and_dynamic")==0 ||
+    _momBalType.compare("steadyStateIts")==0 );
 
 
   #if VERBOSE > 1
@@ -464,13 +470,10 @@ PetscErrorCode Domain::write()
 
   ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"problemType = %s\n",_problemType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBalType = %s\n",_momBalType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
-
-  // fault properties
-  ierr = PetscViewerASCIIPrintf(viewer,"vL = %.15e # (m/s)\n",_vL);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"bCoordTrans = %.15e\n",_bCoordTrans);CHKERRQ(ierr);

@@ -5,7 +5,6 @@
 #include <string>
 #include <assert.h>
 #include "domain.hpp"
-#include "debuggingFuncs.hpp"
 #include "spmat.hpp"
 #include "sbpOps.hpp"
 

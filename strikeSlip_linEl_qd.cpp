@@ -50,31 +50,31 @@ StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
   // initiate momentum balance equation
   std::string mat_bcRType,mat_bcTType,mat_bcLType,mat_bcBType = "Dirichlet";
   if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
-    std::string mat_bcRType = "Dirichlet";
+    mat_bcRType = "Dirichlet";
   }
   else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
-    std::string mat_bcRType = "Neumann";
+    mat_bcRType = "Neumann";
   }
 
   if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
-    std::string mat_bcTType = "Dirichlet";
+    mat_bcTType = "Dirichlet";
   }
   else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
-    std::string mat_bcTType = "Neumann";
+    mat_bcTType = "Neumann";
   }
 
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    std::string mat_bcLType = "Dirichlet";
+    mat_bcLType = "Dirichlet";
   }
   else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
-    std::string mat_bcLType = "Neumann";
+    mat_bcLType = "Neumann";
   }
 
   if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
-    std::string mat_bcBType = "Dirichlet";
+    mat_bcBType = "Dirichlet";
   }
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
-    std::string mat_bcBType = "Neumann";
+    mat_bcBType = "Neumann";
   }
   _material = new Mat_LinearElastic_qd(D,mat_bcRType,mat_bcTType,mat_bcLType,mat_bcBType);
 

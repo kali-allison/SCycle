@@ -9,7 +9,7 @@ Mediator::Mediator(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _bcLTauQS(0),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(D._vL),_problemType(D._problemType),
+  _vL(1e-9),_problemType(D._problemType),
   _momBalType("static"),_bulkDeformationType(D._bulkDeformationType),_thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _initialU("gaussian"),
