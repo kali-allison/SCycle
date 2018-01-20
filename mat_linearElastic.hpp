@@ -8,11 +8,6 @@
 #include <vector>
 #include <map>
 
-#include "integratorContextEx.hpp"
-#include "integratorContextImex.hpp"
-
-#include "odeSolver.hpp"
-#include "odeSolverImex.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -22,29 +17,14 @@
 
 
 // Class for a linear elastic material
-class Mat_LinearElastic_qd
+class Mat_LinearElastic
 {
   private:
     // disable default copy constructor and assignment operator
-    Mat_LinearElastic_qd(const Mat_LinearElastic_qd &that);
-    Mat_LinearElastic_qd& operator=(const Mat_LinearElastic_qd &rhs);
+    Mat_LinearElastic(const Mat_LinearElastic &that);
+    Mat_LinearElastic& operator=(const Mat_LinearElastic &rhs);
 
   public:
-
-
-    // initialize data members
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode checkInput();
-    PetscErrorCode allocateFields(); // allocate space for member fields
-    PetscErrorCode setMaterialParameters();
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode setInitialSlip(Vec& out);
-    PetscErrorCode setUpSBPContext();
-    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A);
-
-    PetscErrorCode setMMSInitialConditions();
-    PetscErrorCode setMMSBoundaryConditions(const double time);
-
 
     // domain properties
     std::string          _delim; // format is: var delim value (without the white space)
@@ -90,8 +70,18 @@ class Mat_LinearElastic_qd
     Vec                  _bcR,_bcT,_bcL,_bcB;
 
     // constructors and destructors
-    Mat_LinearElastic_qd(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
-    ~Mat_LinearElastic_qd();
+    Mat_LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
+    ~Mat_LinearElastic();
+
+
+    // allocate and initialize data members
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput();
+    PetscErrorCode allocateFields(); // allocate space for member fields
+    PetscErrorCode setMaterialParameters();
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode setUpSBPContext();
+    PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A);
 
     // time stepping function
     PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
@@ -112,8 +102,11 @@ class Mat_LinearElastic_qd
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
+    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError(const PetscScalar time);
 
+    // 2D
     static double zzmms_f(const double y,const double z);
     static double zzmms_f_y(const double y,const double z);
     static double zzmms_f_yy(const double y,const double z);

@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_LINEL_QD_H_INCLUDED
-#define STRIKESLIP_LINEL_QD_H_INCLUDED
+#ifndef STRIKESLIP_POWERLAW_QD_H_INCLUDED
+#define STRIKESLIP_POWERLAW_QD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -23,27 +23,30 @@
 #include "fault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "mat_linearElastic.hpp"
+#include "mat_powerLaw.hpp"
 
 
 
 /*
- * Mediator-level class for the simulation of earthquake cycles with linear elastic material properties.
+ * Mediator-level class for the simulation of earthquake cycles with power-law viscoelastic material properties.
  * Uses the quasi-dynamic approximation.
  */
 
 
-class StrikeSlip_linEl_qd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorContextImex
 {
-private:
+
+  private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_linEl_qd(const StrikeSlip_linEl_qd &that);
-    StrikeSlip_linEl_qd& operator=(const StrikeSlip_linEl_qd &rhs);
+    StrikeSlip_PowerLaw_qd(const StrikeSlip_PowerLaw_qd &that);
+    StrikeSlip_PowerLaw_qd& operator=(const StrikeSlip_PowerLaw_qd &rhs);
+
+  public:
 
     Domain *_D;
 
     // IO information
-    std::string       _delim; // format is: var delim value (without the white space)
+    std::string          _delim; // format is: var delim value (without the white space)
 
     // problem properties
     const bool           _isMMS; // true if running mms test
@@ -53,7 +56,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -77,22 +80,20 @@ private:
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
-
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode checkInput();
-
-  public:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     Fault                      *_fault;
-    Mat_LinearElastic       *_material; // linear elastic off-fault material properties
+    Mat_PowerLaw_qd            *_material; // power-law viscoelastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 
 
-    StrikeSlip_linEl_qd(Domain&D);
-    ~StrikeSlip_linEl_qd();
+    StrikeSlip_PowerLaw_qd(Domain&D);
+    ~StrikeSlip_PowerLaw_qd();
+
+    PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode checkInput();
 
     // estimating steady state conditions
     PetscErrorCode solveSS();
