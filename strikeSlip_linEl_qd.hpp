@@ -33,12 +33,12 @@
  */
 
 
-class StrikeSlip_linEl_qd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
 {
 private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_linEl_qd(const StrikeSlip_linEl_qd &that);
-    StrikeSlip_linEl_qd& operator=(const StrikeSlip_linEl_qd &rhs);
+    StrikeSlip_LinearElastic_qd(const StrikeSlip_LinearElastic_qd &that);
+    StrikeSlip_LinearElastic_qd& operator=(const StrikeSlip_LinearElastic_qd &rhs);
 
     Domain *_D;
 
@@ -91,8 +91,8 @@ private:
     PressureEq                 *_p;
 
 
-    StrikeSlip_linEl_qd(Domain&D);
-    ~StrikeSlip_linEl_qd();
+    StrikeSlip_LinearElastic_qd(Domain&D);
+    ~StrikeSlip_LinearElastic_qd();
 
     // estimating steady state conditions
     PetscErrorCode solveSS();

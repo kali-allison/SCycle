@@ -5,7 +5,7 @@
 using namespace std;
 
 
-StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
+StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
@@ -24,7 +24,7 @@ StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::StrikeSlip_linEl_qd()";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -85,10 +85,10 @@ StrikeSlip_linEl_qd::StrikeSlip_linEl_qd(Domain&D)
 }
 
 
-StrikeSlip_linEl_qd::~StrikeSlip_linEl_qd()
+StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::~StrikeSlip_linEl_qd()";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -114,7 +114,7 @@ StrikeSlip_linEl_qd::~StrikeSlip_linEl_qd()
 }
 
 // loads settings from the input text file
-PetscErrorCode StrikeSlip_linEl_qd::loadSettings(const char *file)
+PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -175,7 +175,7 @@ PetscErrorCode StrikeSlip_linEl_qd::loadSettings(const char *file)
 }
 
 // Check that required fields have been set by the input file
-PetscErrorCode StrikeSlip_linEl_qd::checkInput()
+PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -239,11 +239,11 @@ PetscErrorCode StrikeSlip_linEl_qd::checkInput()
 }
 
 // initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_linEl_qd::initiateIntegrand()
+PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::initiateIntegrand()";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -273,12 +273,12 @@ PetscErrorCode StrikeSlip_linEl_qd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_linEl_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::timeMonitor for explicit";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -307,14 +307,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_linEl_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -345,7 +345,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode StrikeSlip_linEl_qd::view()
+PetscErrorCode StrikeSlip_LinearElastic_qd::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -360,18 +360,18 @@ PetscErrorCode StrikeSlip_linEl_qd::view()
   if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_linEl_qd Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_qd Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_linEl_qd::writeContext()
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::writeContext";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -405,11 +405,11 @@ PetscErrorCode StrikeSlip_linEl_qd::writeContext()
 // Adaptive time stepping functions
 //======================================================================
 
-PetscErrorCode StrikeSlip_linEl_qd::integrate()
+PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::integrate";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -466,7 +466,7 @@ PetscErrorCode StrikeSlip_linEl_qd::integrate()
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_linEl_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -512,12 +512,12 @@ PetscErrorCode StrikeSlip_linEl_qd::d_dt(const PetscScalar time,const map<string
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_linEl_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::d_dt";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -586,7 +586,7 @@ PetscErrorCode StrikeSlip_linEl_qd::d_dt(const PetscScalar time,const map<string
 }
 
 // momentum balance equation and constitutive laws portion of d_dt
-PetscErrorCode StrikeSlip_linEl_qd::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -599,11 +599,11 @@ PetscErrorCode StrikeSlip_linEl_qd::solveMomentumBalance(const PetscScalar time,
 }
 
 // guess at the steady-state solution
-PetscErrorCode StrikeSlip_linEl_qd::solveSS()
+PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::solveSS";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -642,11 +642,11 @@ PetscErrorCode StrikeSlip_linEl_qd::solveSS()
 }
 
 // update the boundary conditions based on new steady state u
-PetscErrorCode StrikeSlip_linEl_qd::solveSSb()
+PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_linEl_qd::solveSSb";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSSb";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -707,7 +707,7 @@ PetscErrorCode StrikeSlip_linEl_qd::solveSSb()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_linEl_qd::measureMMSError()
+PetscErrorCode StrikeSlip_LinearElastic_qd::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 

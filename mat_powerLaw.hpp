@@ -78,10 +78,10 @@ class Mat_PowerLaw
     Vec          _gxy,_dgxy; // viscoelastic strain and strain rate
     Vec          _gxz,_dgxz; // viscoelastic strain and strain rate
     Vec          _gTxy,_gTxz; // total strain
-    std::string  _bcTType,_bcRType,_bcBType,_bcLType; // options: Neumann, Dirichlet
+    std::string  _bcRType,_bcTType,_bcLType,_bcBType; // options: Neumann, Dirichlet
     Vec          _bcT,_bcR,_bcB,_bcL;
 
-    Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
+    Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     ~Mat_PowerLaw();
 
     // initialize and set data
@@ -101,16 +101,24 @@ class Mat_PowerLaw
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
 
     // methods for explicit time stepping
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+    PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
-    PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
-    PetscErrorCode computViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
+    PetscErrorCode computeViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
     PetscErrorCode computeViscStrainRates(const PetscScalar time,const Vec& gVxy,const Vec& gVxz,Vec& gVxy_t,Vec& gVxz_t);
     PetscErrorCode computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode computeTotalStrains();
     PetscErrorCode computeStresses();
     PetscErrorCode computeSDev();
     PetscErrorCode computeViscosity(const PetscScalar viscCap);
+    PetscErrorCode computeU();
+    PetscErrorCode setRHS();
+    PetscErrorCode changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype);
     PetscErrorCode setSurfDisp();
+    PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
+
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);

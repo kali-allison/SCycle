@@ -11,7 +11,8 @@ OBJECTS := domain.o mediator.o fault.o genFuncs.o linearElastic.o\
  spmat.o powerLaw.o heatEquation.o \
  sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
  odeSolverImex.o odeSolver_WaveEq.o pressureEq.o \
- strikeSlip_linEl_qd.o mat_linearElastic.o
+ strikeSlip_linEl_qd.o mat_linearElastic.o \
+ strikeSlip_powerLaw_qd.o mat_powerLaw.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -74,6 +75,11 @@ mat_linearElastic.o: mat_linearElastic.cpp mat_linearElastic.hpp \
  integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
  sbpOps_c.hpp  spmat.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp
+mat_powerLaw.o: mat_powerLaw.cpp mat_powerLaw.hpp \
+ integratorContextEx.hpp genFuncs.hpp odeSolver.hpp \
+ integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
+ sbpOps_c.hpp  spmat.hpp sbpOps_fc.hpp \
+ sbpOps_fc_coordTrans.hpp
 mediator.o: mediator.cpp mediator.hpp integratorContextEx.hpp \
  genFuncs.hpp odeSolver.hpp integratorContextImex.hpp \
  integratorContextWave.hpp domain.hpp momBalContext.hpp odeSolverImex.hpp \
@@ -117,3 +123,10 @@ strikeSlip_linEl_qd.o: strikeSlip_linEl_qd.cpp strikeSlip_linEl_qd.hpp \
  sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
  rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
  mat_linearElastic.hpp
+strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp strikeSlip_powerLaw_qd.hpp \
+ integratorContextEx.hpp genFuncs.hpp odeSolver.hpp \
+ integratorContextImex.hpp odeSolverImex.hpp domain.hpp sbpOps.hpp \
+ sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp \
+ sbpOps_fc_coordTrans.hpp fault.hpp heatEquation.hpp \
+ rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
+ mat_powerLaw.hpp

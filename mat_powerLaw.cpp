@@ -3,7 +3,7 @@
 #define FILENAME "mat_powerLaw.cpp"
 
 
-Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType)
+Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
@@ -15,7 +15,7 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRTtype,std::
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
-  _B(NULL),_C(NULL),_A2(NULL),
+  _B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_ssEffViscScale(1e-15),
   _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
@@ -24,7 +24,7 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRTtype,std::
   _gxy(NULL),_dgxy(NULL),
   _gxz(NULL),_dgxz(NULL),
   _gTxy(NULL),_gTxz(NULL),
-  _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
+  _bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
   #if VERBOSE > 1
@@ -46,8 +46,8 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRTtype,std::
     loadFieldsFromFiles(); // load from previous simulation
   }
 
-  computeTotalStrains(_currTime);
-  computeStresses(_currTime);
+  computeTotalStrains();
+  computeStresses();
   computeViscosity(_effViscCap);
 
   if (_isMMS) { setMMSInitialConditions(); }
@@ -150,10 +150,6 @@ PetscErrorCode Mat_PowerLaw::loadSettings(const char *file)
     }
     else if (var.compare("kspTol")==0) {
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-
-    else if (var.compare("linSolver")==0) {
-      _momBalType = line.substr(pos+_delim.length(),line.npos);
     }
 
     else if (var.compare("muPlus")==0) {
@@ -278,7 +274,7 @@ PetscErrorCode Mat_PowerLaw::allocateFields()
   VecDuplicate(_bcL,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
   VecSet(_bcRShift,0.0);
   VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
-  VecSet(_bcR,_vL*_currTime/2.0);
+  VecSet(_bcR,0.);
 
 
   VecCreate(PETSC_COMM_WORLD,&_bcT);
@@ -829,7 +825,7 @@ PetscErrorCode Mat_PowerLaw::setMMSInitialConditions()
   ierr = VecDuplicate(_u,&uSource); CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&HxuSource); CHKERRQ(ierr);
 
-  ierr = setViscStrainSourceTerms(viscSource,_gxy,_gxz);CHKERRQ(ierr);
+  ierr = computeViscStrainSourceTerms(viscSource,_gxy,_gxz);CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,_currTime); }
   else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,_currTime); }
   ierr = _sbp->H(viscSourceMMS,HxviscSourceMMS); CHKERRQ(ierr);
@@ -862,8 +858,8 @@ PetscErrorCode Mat_PowerLaw::setMMSInitialConditions()
   ierr = setSurfDisp(); CHKERRQ(ierr);
 
   // set stresses
-  ierr = computeTotalStrains(time); CHKERRQ(ierr);
-  ierr = computeStresses(time); CHKERRQ(ierr);
+  ierr = computeTotalStrains(); CHKERRQ(ierr);
+  ierr = computeStresses(); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1009,7 +1005,7 @@ PetscErrorCode Mat_PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTT
   KSPDestroy(&_ksp);
   Mat A; _sbp->getA(A);
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(A,_sbp,_ksp,_pc);
+  setupKSP(A,_ksp,_pc);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1018,11 +1014,11 @@ PetscErrorCode Mat_PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTT
 }
 
 
-PetscErrorCode Mat_PowerLaw::computViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
+PetscErrorCode Mat_PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computViscStrainSourceTerms";
+    string funcName = "Mat_PowerLaw::computeViscStrainSourceTerms";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1140,25 +1136,27 @@ PetscErrorCode Mat_PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &g
 
   VecSet(out,0.0);
 
-  Vec GL, GR,temp1;
+  Vec GL, GR, temp1;
   VecDuplicate(u,&GL); VecSet(GL,0.0);
   VecDuplicate(u,&GR); VecSet(GR,0.0);
   VecDuplicate(u,&temp1); VecSet(temp1,0.0);
 
-  // left displacement boundary
-  if (_bcLTauQS==0) {
+  // left Dirichlet boundary
+  if (_bcLType.compare("Dirichlet")==0) {
     ierr = _sbp->HyinvxE0y(u,temp1);CHKERRQ(ierr);
     ierr = _sbp->Hyinvxe0y(gL,GL);CHKERRQ(ierr);
     VecAXPY(out,1.0,temp1);
     VecAXPY(out,-1.0,GL);
   }
 
-  // right displacement boundary
-  VecSet(temp1,0.0);
-  ierr = _sbp->HyinvxENy(u,temp1);CHKERRQ(ierr);
-  ierr = _sbp->HyinvxeNy(gR,GR);CHKERRQ(ierr);
-  VecAXPY(out,-1.0,temp1);
-  VecAXPY(out,1.0,GR);
+  // right Dirichlet boundary
+  if (_bcRType.compare("Dirichlet")==0) {
+    VecSet(temp1,0.0);
+    ierr = _sbp->HyinvxENy(u,temp1);CHKERRQ(ierr);
+    ierr = _sbp->HyinvxeNy(gR,GR);CHKERRQ(ierr);
+    VecAXPY(out,-1.0,temp1);
+    VecAXPY(out,1.0,GR);
+  }
 
   VecDestroy(&GL);
   VecDestroy(&GR);
@@ -1297,6 +1295,46 @@ PetscErrorCode Mat_PowerLaw::setSurfDisp()
   }
   ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
+PetscErrorCode Mat_PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+  #if VERBOSE > 1
+    string funcName = "Mat_PowerLaw::setVecFromVectors";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
+    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+        z0 = depths[0+ind];
+        z1 = depths[0+ind+1];
+        v0 = vals[0+ind];
+        v1 = vals[0+ind+1];
+        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
+        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    }
+  }
+  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

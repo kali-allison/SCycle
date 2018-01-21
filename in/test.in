@@ -9,13 +9,13 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
-guessSteadyStateICs = 1
+guessSteadyStateICs = 0
 
 # coordinate transformation
 bCoordTrans = 6.0

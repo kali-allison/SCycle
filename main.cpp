@@ -14,7 +14,9 @@
 #include "heatEquation.hpp"
 #include "mediator.hpp"
 #include "mat_linearElastic.hpp"
+#include "mat_powerLaw.hpp"
 #include "strikeSlip_linEl_qd.hpp"
+#include "strikeSlip_powerLaw_qd.hpp"
 
 
 
@@ -78,7 +80,8 @@ int runEqCycle(const char * inputFile)
   //~ ierr = m.view();CHKERRQ(ierr);
 
 
-  StrikeSlip_linEl_qd m(d);
+  //~ StrikeSlip_LinearElastic_qd m(d);
+  StrikeSlip_PowerLaw_qd m(d);
   ierr = m.writeContext(); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);
