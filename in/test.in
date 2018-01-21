@@ -136,6 +136,11 @@ thermalCoupling = no
 withShearHeating = no
 withFrictionalHeating = no
 
+#viscDistribution = loadFromFile
+viscDistribution = effectiveVisc
+maxEffVisc = 5e12
+maxEffViscSS = 5e12
+
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
@@ -145,7 +150,7 @@ stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
 initTime = 0
-maxTime = 1e11
+maxTime = 1e12
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12

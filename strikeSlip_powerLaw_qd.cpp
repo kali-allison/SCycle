@@ -72,8 +72,9 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
     _mat_bcBType = "Neumann";
   }
-  if (_guessSteadyStateICs) { _material = new Mat_PowerLaw(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
-  else {_material = new Mat_PowerLaw(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
+  //~ if (_guessSteadyStateICs) { _material = new Mat_PowerLaw(D,_he,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
+  //~ else {_material = new Mat_PowerLaw(D,_he,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
+  _material = new Mat_PowerLaw(D,*_he,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -295,7 +296,7 @@ double startTime = MPI_Wtime();
 
   if (stepCount % 50 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-    _momBal->computeMaxTimeStep(maxDeltaT_momBal);
+    _material->computeMaxTimeStep(maxDeltaT_momBal);
     maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
@@ -343,7 +344,7 @@ double startTime = MPI_Wtime();
 
   if (stepCount % 50 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-    _momBal->computeMaxTimeStep(maxDeltaT_momBal);
+    _material->computeMaxTimeStep(maxDeltaT_momBal);
     maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
@@ -609,24 +610,27 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
 
   // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
   Vec viscSource;
-  ierr = VecDuplicate(_gxy,&viscSource);CHKERRQ(ierr);
+  ierr = VecDuplicate(_material->_gxy,&viscSource);CHKERRQ(ierr);
   ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  ierr = computeViscStrainSourceTerms(viscSource,_gxy,_gxz); CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gxy,_material->_gxz); CHKERRQ(ierr);
 
   // set up rhs vector
   _material->setRHS();
-  ierr = VecAXPY(_rhs,1.0,viscSource); CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
   VecDestroy(&viscSource);
 
   // solve for displacement
   ierr = _material->computeU(); CHKERRQ(ierr);
 
   // update stresses, viscosity, and set shear traction on fault
-  ierr = computeTotalStrains(); CHKERRQ(ierr);
-  ierr = computeStresses(); CHKERRQ(ierr);
-  ierr = computeViscosity(_effViscCap); CHKERRQ(ierr);
+  ierr = _material->computeTotalStrains(); CHKERRQ(ierr);
+  ierr = _material->computeStresses(); CHKERRQ(ierr);
+  ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
 
-  ierr = setViscStrainRates(time,varEx["gVxy"],varEx["gVxz"],dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  // compute viscous strain rates
+  Vec gVxy = varEx.find("gVxy")->second;
+  Vec gVxz = varEx.find("gVxz")->second;
+  ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
 
   return ierr;
 }

@@ -1,5 +1,5 @@
-#ifndef POWERLAW_H_INCLUDED
-#define POWERLAW_H_INCLUDED
+#ifndef MAT_POWERLAW_H_INCLUDED
+#define MAT_POWERLAW_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -9,10 +9,14 @@
 #include "domain.hpp"
 #include "heatEquation.hpp"
 
-// models a 1D Maxwell slider assuming symmetric boundary condition
-// on the fault.
+
 class Mat_PowerLaw
 {
+  private:
+    // disable default copy constructor and assignment operator
+    Mat_PowerLaw(const Mat_PowerLaw &that);
+    Mat_PowerLaw& operator=(const Mat_PowerLaw &rhs);
+
   public:
 
     const char          *_file;
