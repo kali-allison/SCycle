@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 101
-Nz = 1
+Ny = 51
+Nz = 51
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,13 +9,13 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
-guessSteadyStateICs = 0
+guessSteadyStateICs = 1
 
 # coordinate transformation
 bCoordTrans = 6.0

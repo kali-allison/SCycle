@@ -153,16 +153,16 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // boundary conditions for momentum balance equation
-    else if (var.compare("momBal_bcR")==0) {
+    else if (var.compare("momBal_bcR_qd")==0) {
       _bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("momBal_bcT")==0) {
+    else if (var.compare("momBal_bcT_qd")==0) {
       _bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("momBal_bcL")==0) {
+    else if (var.compare("momBal_bcL_qd")==0) {
       _bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("momBal_bcB")==0) {
+    else if (var.compare("momBal_bcB_qd")==0) {
       _bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }

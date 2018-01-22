@@ -80,8 +80,8 @@ int runEqCycle(const char * inputFile)
   //~ ierr = m.view();CHKERRQ(ierr);
 
 
-  //~ StrikeSlip_LinearElastic_qd m(d);
-  StrikeSlip_PowerLaw_qd m(d);
+  StrikeSlip_LinearElastic_qd m(d);
+  //~ StrikeSlip_PowerLaw_qd m(d);
   ierr = m.writeContext(); CHKERRQ(ierr);
   PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
   ierr = m.integrate(); CHKERRQ(ierr);

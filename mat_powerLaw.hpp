@@ -100,9 +100,14 @@ class Mat_PowerLaw
 
 
     // for steady state computations
-    PetscErrorCode setSSInitialConds(Domain& D,Vec& tauRS); // try to skip some spin up steps
+    PetscErrorCode updateSSa(map<string,Vec>& varSS);
+    PetscErrorCode updateSSb(map<string,Vec>& varSS);
+    PetscErrorCode initiateVarSS(map<string,Vec>& varSS);
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
+    PetscErrorCode setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
+    PetscErrorCode initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
+
 
     // methods for explicit time stepping
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);

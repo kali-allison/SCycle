@@ -674,82 +674,6 @@ PetscErrorCode Mat_PowerLaw::initializeMomBalMats()
   #endif
 }
 
-// compute Bss and Css
-PetscErrorCode Mat_PowerLaw::initializeSSMatrices()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::initializeSSMatrices";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  // set up SBP operators
-  std::string bcRType = "Dirichlet";
-  std::string bcTType = "Neumann";
-  std::string bcLType = "Neumann";
-  std::string bcBType = "Neumann";
-  if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-  }
-  else if (_sbpType.compare("mfc")==0) {
-    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-  }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
-    _sbp_eta->setGrid(_y,_z);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    assert(0); // automatically fail
-  }
-  _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  _sbp_eta->setMultiplyByH(1);
-  _sbp_eta->computeMatrices(); // actually create the matrices
-
-  return ierr;
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-}
-
-// inititialize effective viscosity
-PetscErrorCode Mat_PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::guessSteadyStateEffVisc";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  PetscScalar s=0.;
-  PetscScalar *A,*B,*n,*T,*effVisc;
-  PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_effVisc,&Istart,&Iend);
-  VecGetArray(_A,&A);
-  VecGetArray(_QR,&B);
-  VecGetArray(_n,&n);
-  VecGetArray(_T,&T);
-  VecGetArray(_effVisc,&effVisc);
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] );
-    effVisc[Jj] =  s/strainRate * 1e-3; // (GPa s)  in terms of strain rate
-    Jj++;
-  }
-  VecRestoreArray(_A,&A);
-  VecRestoreArray(_QR,&B);
-  VecRestoreArray(_n,&n);
-  VecRestoreArray(_T,&T);
-  VecRestoreArray(_effVisc,&effVisc);
-
-  return ierr;
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-}
-
 // for steady state computations
 // compute initial tauVisc (from guess at effective viscosity)
 PetscErrorCode Mat_PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
@@ -907,11 +831,13 @@ PetscErrorCode Mat_PowerLaw::initiateIntegrand(const PetscScalar time,map<string
 
   if (_isMMS) { setMMSInitialConditions(); }
 
-  // add viscous strain to integrated variables, stored in _var
-  Vec vargxyP; VecDuplicate(_u,&vargxyP); VecCopy(_gxy,vargxyP);
-  Vec vargxzP; VecDuplicate(_u,&vargxzP); VecCopy(_gxz,vargxzP);
-  varEx["gVxy"] = vargxyP;
-  varEx["gVxz"] = vargxzP;
+
+  // add deep copies of viscous strains to integrated variables, stored in _var
+  if (varEx.find("gVxy") != varEx.end() ) { VecCopy(_gxy,varEx["gVxy"]); }
+  else { Vec vargxyP; VecDuplicate(_u,&vargxyP); VecCopy(_gxy,vargxyP); varEx["gVxy"] = vargxyP; }
+
+  if (varEx.find("gVxz") != varEx.end() ) { VecCopy(_gxz,varEx["gVxz"]); }
+  else { Vec vargxzP; VecDuplicate(_u,&vargxzP); VecCopy(_gxz,vargxzP); varEx["gVxz"] = vargxzP; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1303,6 +1229,248 @@ PetscErrorCode Mat_PowerLaw::setSurfDisp()
   return ierr;
 }
 
+
+
+//======================================================================
+// Steady state functions
+//======================================================================
+
+
+
+// inititialize effective viscosity
+PetscErrorCode Mat_PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mat_PowerLaw::guessSteadyStateEffVisc";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar s=0.;
+  PetscScalar *A,*B,*n,*T,*effVisc;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+  VecGetArray(_A,&A);
+  VecGetArray(_QR,&B);
+  VecGetArray(_n,&n);
+  VecGetArray(_T,&T);
+  VecGetArray(_effVisc,&effVisc);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] );
+    effVisc[Jj] =  s/strainRate * 1e-3; // (GPa s)  in terms of strain rate
+    Jj++;
+  }
+  VecRestoreArray(_A,&A);
+  VecRestoreArray(_QR,&B);
+  VecRestoreArray(_n,&n);
+  VecRestoreArray(_T,&T);
+  VecRestoreArray(_effVisc,&effVisc);
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+
+// compute Bss and Css
+PetscErrorCode Mat_PowerLaw::initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mat_PowerLaw::initializeSSMatrices";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // set up SBP operators
+  if (_sbpType.compare("mc")==0) {
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+  }
+  else if (_sbpType.compare("mfc")==0) {
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+  }
+  else if (_sbpType.compare("mfc_coordTrans")==0) {
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
+    _sbp_eta->setGrid(_y,_z);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    assert(0); // automatically fail
+  }
+  _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  _sbp_eta->setMultiplyByH(1);
+  _sbp_eta->computeMatrices(); // actually create the matrices
+
+  return ierr;
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+PetscErrorCode Mat_PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mat_PowerLaw::setSSRHS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecSet(_rhs,0.);
+
+  delete _sbp_eta;
+  initializeSSMatrices(bcRType,bcTType,bcLType,bcBType);
+
+  ierr = _sbp_eta->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // update rhs from BCs
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// put viscous strains etc in varSS
+PetscErrorCode Mat_PowerLaw::initiateVarSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mat_PowerLaw::initiateVarSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  Vec v,gVxy_t,gVxz_t;
+  VecDuplicate(_u,&v); VecSet(v,0.); varSS["v"] = v;
+  VecDuplicate(_u,&gVxy_t); VecSet(gVxy_t,0.); varSS["gVxy_t"] = gVxy_t;
+  VecDuplicate(_u,&gVxz_t); VecSet(gVxz_t,0.); varSS["gVxz_t"] = gVxz_t;
+  varSS["effVisc"] = _effVisc;
+  varSS["sDev"] = _sdev;
+  varSS["sxy"] = _sxy; // included so it'll be written out
+  varSS["sxz"] = _sxz; // included so it'll be written out
+  varSS["u"] = _u; // included so it'll be written out
+  varSS["gxy"] = _gxy; // included so it'll be written out
+  varSS["gxz"] = _gxz; // included so it'll be written out
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// solve for steady-state v, viscous strain rates
+PetscErrorCode Mat_PowerLaw::updateSSa(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PowerLaw::updateSSa";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // scale rhs
+  //~ VecScale(_rhs,_ssEffViscScale);
+
+  Mat A;
+  _sbp_eta->getA(A);
+  KSPDestroy(&_ksp_eta);
+  KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
+  setupKSP(A,_ksp_eta,_pc_eta);
+
+
+  // solve for steady-state velocity
+  ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);
+
+  // update viscous strain rates
+  _sbp_eta->Dy(varSS["v"],varSS["gVxy_t"]);
+  _sbp_eta->Dz(varSS["v"],varSS["gVxz_t"]);
+
+  // update stresses
+  ierr = VecPointwiseMult(_sxy,_effVisc,varSS["gVxy_t"]); CHKERRQ(ierr);
+  ierr = VecPointwiseMult(_sxz,_effVisc,varSS["gVxz_t"]); CHKERRQ(ierr);
+  ierr = computeSDev(); CHKERRQ(ierr); // deviatoric stress
+
+  // update effective viscosity
+  ierr = computeViscosity(_effViscCap); CHKERRQ(ierr); // new viscosity
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// solve for steady-state u, gVxy
+PetscErrorCode Mat_PowerLaw::updateSSb(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Mat_PowerLaw::updateSSb";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  // compute u
+  PetscScalar time = 1.0;
+  VecCopy(varSS["v"],_u);
+  VecScale(_u,time);
+
+  // make u always positive
+  PetscScalar minVal = 0;
+  VecMin(_u,NULL,&minVal);
+  if (minVal < 0) {
+    minVal = abs(minVal);
+    Vec temp;
+    VecDuplicate(_u,&temp);
+    VecSet(temp,minVal);
+    VecAXPY(_u,1.,temp);
+    VecDestroy(&temp);
+  }
+
+
+  PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(_sxy,&Istart,&Iend);
+  VecGetArray(_muVec,&mu);
+  VecGetArray(_sxy,&sxy);
+  VecGetArray(_sxz,&sxz);
+  VecGetArray(_gxy,&gxy);
+  VecGetArray(_gxz,&gxz);
+  VecGetArray(varSS["gVxy_t"],&gVxy_t);
+  VecGetArray(varSS["gVxz_t"],&gVxz_t);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscScalar gVxy0 = -sxy[Jj]/mu[Jj];
+    PetscScalar gVxz0 = -sxz[Jj]/mu[Jj];
+    gxy[Jj] = gVxy_t[Jj] * time + gVxy0;
+    gxz[Jj] = gVxz_t[Jj] * time + gVxz0;
+    Jj++;
+  }
+  VecRestoreArray(_muVec,&mu);
+  VecRestoreArray(_sxy,&sxy);
+  VecRestoreArray(_sxz,&sxz);
+  VecRestoreArray(_gxy,&gxy);
+  VecRestoreArray(_gxz,&gxz);
+  VecRestoreArray(varSS["gVxy_t"],&gVxy_t);
+  VecRestoreArray(varSS["gVxz_t"],&gVxz_t);
+
+  //~ _viewers["SS_gVxy"] = initiateViewer(_outputDir + "SS_gVxy");
+  //~ ierr = VecView(_gxy,_viewers["SS_gVxy"]); CHKERRQ(ierr);
+  //~ _viewers["SS_gVxz"] = initiateViewer(_outputDir + "SS_gVxz");
+  //~ ierr = VecView(_gxz,_viewers["SS_gVxz"]); CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+      CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 
 PetscErrorCode Mat_PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)

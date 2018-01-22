@@ -96,8 +96,22 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     PetscErrorCode checkInput();
 
     // estimating steady state conditions
-    PetscErrorCode solveSS();
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    std::map <string,Vec>         _varSS; // holds variables for steady state iteration
+    PetscScalar                   _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    PetscErrorCode writeSS(const int Ii, const std::string outputDir);
+    PetscErrorCode computeSSEffVisc();
+    PetscErrorCode guessTauSS(map<string,Vec>& varSS);
     PetscErrorCode solveSSb();
+    PetscErrorCode integrateSS();
+    PetscErrorCode solveSS();
+    PetscErrorCode setSSBCs();
+    PetscErrorCode solveSSViscoelasticProblem();
 
 
     // time stepping functions
