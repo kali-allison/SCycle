@@ -23,7 +23,7 @@
 #include "fault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "mat_powerLaw.hpp"
+#include "powerLaw.hpp"
 
 
 

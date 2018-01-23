@@ -23,7 +23,7 @@
 #include "fault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "mat_linearElastic.hpp"
+#include "linearElastic.hpp"
 
 
 
