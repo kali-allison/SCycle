@@ -93,8 +93,8 @@ class HeatEquation
 
 
     PetscErrorCode constructMapV();
-    PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
-    PetscErrorCode setUpSteadyStateProblem(Domain& D);
+    PetscErrorCode computeInitialSteadyStateTemp();
+    PetscErrorCode setUpSteadyStateProblem();
     PetscErrorCode setUpTransientProblem();
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);

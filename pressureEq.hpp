@@ -20,6 +20,7 @@ class PressureEq
     std::string       _outputDir; // directory for output
     const bool        _isMMS; // true if running mms test
     std::string       _hydraulicTimeIntType; // time integration type (explicit vs implicit)
+    PetscScalar          _initTime,_initDeltaT;
 
     // domain properties
     const int          _order;

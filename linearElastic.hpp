@@ -35,7 +35,6 @@ class LinearElastic
     Vec                  *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar          _currTime;
     PetscInt             _stepCount;
 
     // off-fault material fields

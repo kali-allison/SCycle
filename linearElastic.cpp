@@ -10,7 +10,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _currTime(D._initTime),_stepCount(0),
+  _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_muVal(30.0),_rhoVal(3.0),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
@@ -863,19 +863,18 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
 PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  _currTime = time;
 
   // measure error between analytical and numerical solution
   Vec uA;
   VecDuplicate(_u,&uA);
-  if (_Nz == 1) { mapToVec(uA,zzmms_uA1D,*_y,_currTime); }
-  else { mapToVec(uA,zzmms_uA,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(uA,zzmms_uA1D,*_y,time); }
+  else { mapToVec(uA,zzmms_uA,*_y,*_z,time); }
 
   Vec sigmaxyA;
   VecDuplicate(_u,&sigmaxyA);
   //~ mapToVec(sigmaxyA,zzmms_sigmaxy,_Nz,_dy,_dz,_currTime);
-    if (_Nz == 1) { mapToVec(sigmaxyA,zzmms_sigmaxy1D,*_y,_currTime); }
-  else { mapToVec(sigmaxyA,zzmms_sigmaxy,*_y,*_z,_currTime); }
+    if (_Nz == 1) { mapToVec(sigmaxyA,zzmms_sigmaxy1D,*_y,time); }
+  else { mapToVec(sigmaxyA,zzmms_sigmaxy,*_y,*_z,time); }
 
 
   double err2uA = computeNormDiff_2(_u,uA);

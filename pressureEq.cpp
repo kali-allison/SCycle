@@ -7,6 +7,7 @@ using namespace std;
 PressureEq::PressureEq(Domain&D)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"),
+  _initTime(0),_initDeltaT(1e-3),
   _order(D._order),_N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
   _n_p(NULL),_beta_p(NULL),_k_p(NULL),_eta_p(NULL),_rho_f(NULL),_g(9.8),
   _linSolver("AMG"),_ksp(NULL),_kspTol(1e-10),_sbp(NULL),_sbpType(D._sbpType),_linSolveCount(0),
@@ -36,10 +37,10 @@ PressureEq::PressureEq(Domain&D)
   //~ }
 
   if (_isMMS) {
-    mapToVec(_p, zzmms_pA1D, _z, D._initTime);
+    mapToVec(_p, zzmms_pA1D, _z, _initTime);
     VecSet(_bcL, 0);
-    VecSet(_bcT, zzmms_pSource1D(0, D._initTime));
-    VecSet(_bcB, zzmms_pSource1D(_L, D._initTime));
+    VecSet(_bcT, zzmms_pSource1D(0, _initTime));
+    VecSet(_bcB, zzmms_pSource1D(_L, _initTime));
   }
 
 
@@ -206,6 +207,13 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("pDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_pDepths);
+    }
+
+    else if (var.compare("initTime")==0) {
+      _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("initDeltaT")==0) {
+      _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
   }
 
@@ -719,7 +727,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time,const map<string,Vec>& varE
   VecPointwiseMult(rhog, rhog, _rho_f); //rho^2*g
   VecPointwiseMult(rhog, rhog, _k_p);   //rho^2*g * k
   VecPointwiseDivide(rhog, rhog,_eta_p); //rhog = rho^2*g * k/eta
-  VecDuplicate(_p, &rhog_y);             
+  VecDuplicate(_p, &rhog_y);
   _sbp->Dz(rhog, rhog_y);                //rhog_y = D1(rho^2*g * k/eta)
 
   Mat D2;
@@ -735,18 +743,18 @@ PetscErrorCode PressureEq::be(const PetscScalar time,const map<string,Vec>& varE
 
 
   // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2 
+  // M = I - dt/(rho*n*beta)*D2
   // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
 
   // _sbp->H(rhog_y,temp);
 
   VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
-  
+
   //~ writeVec(source,_outputDir + "mms_pSource");
 
   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
   // VecAXPY(p_t,1.0,source);
-  
+
   Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
   VecDuplicate(_p, &rho_n_beta);
   VecSet(rho_n_beta, 1);
@@ -848,7 +856,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   VecPointwiseMult(rhog, rhog, _rho_f); //rho^2*g
   VecPointwiseMult(rhog, rhog, _k_p);   //rho^2*g * k
   VecPointwiseDivide(rhog, rhog,_eta_p); //rhog = rho^2*g * k/eta
-  VecDuplicate(_p, &rhog_y);             
+  VecDuplicate(_p, &rhog_y);
   _sbp->Dz(rhog, rhog_y);                //rhog_y = D1(rho^2*g * k/eta)
 
   Mat D2;
@@ -864,7 +872,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
 
 
   // solve Mx = rhs
-  // M = I - dt/(rho*n*beta)*D2 
+  // M = I - dt/(rho*n*beta)*D2
   // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
 
   // _sbp->H(rhog_y,temp);
@@ -880,12 +888,12 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string,Vec>&
   mapToVec(source, zzmms_pSource1D, _z, time);
 
   ierr = _sbp->H(source, Hxsource);
-  
+
   //~ writeVec(source,_outputDir + "mms_pSource");
 
   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
   // VecAXPY(p_t,1.0,source);
-  
+
   Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
   VecDuplicate(_p, &rho_n_beta);
   VecSet(rho_n_beta, 1);
@@ -1007,7 +1015,7 @@ PetscErrorCode PressureEq::setUpBe(Domain& D)
   // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-  MatScale(D2_rho_n_beta, -D._initDeltaT);
+  MatScale(D2_rho_n_beta, -_initDeltaT);
 
   // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
   MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
@@ -1047,7 +1055,7 @@ PetscErrorCode PressureEq::setupKSP(const Mat& A)
   ierr = PCHYPRESetType(pc, "boomeramg");CHKERRQ(ierr);
   ierr = PCFactorSetLevels(pc, 4);CHKERRQ(ierr);
   ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE);CHKERRQ(ierr);
-  
+
   // finish setting up KSP context using options defined above
   ierr = KSPSetFromOptions(_ksp);CHKERRQ(ierr);
 
@@ -1126,7 +1134,7 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
   #endif
 
 
-    
+
     writeStep(stepCount,time,_outputDir);
 
   #if VERBOSE > 1

@@ -32,11 +32,11 @@ HeatEquation::HeatEquation(Domain& D)
   setFields();
   constructMapV();
   //~ if (D._loadICs==1) { loadFieldsFromFiles(); }
-  if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(D); }
+  if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(); }
   loadFieldsFromFiles();
 
-  if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(D); }
-  else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(D); }
+  if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(); }
+  else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -460,7 +460,7 @@ PetscErrorCode HeatEquation::constructMapV()
 
 
 // compute T assuming that dT/dt and viscous strain rates = 0
-PetscErrorCode HeatEquation::computeInitialSteadyStateTemp(Domain& D)
+PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1404,7 +1404,7 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
 }
 
 // set up KSP, matrices, boundary conditions for the steady state heat equation problem
-PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
+PetscErrorCode HeatEquation::setUpSteadyStateProblem()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1495,7 +1495,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   Mat H;
   _sbpT->getH(H);
   MatDuplicate(H,MAT_COPY_VALUES,&_I);
-  if (D._sbpType.compare("mfc_coordTrans")==0) {
+  if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatMatMult(J,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_I);
