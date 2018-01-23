@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 51
-Nz = 51
+Ny = 151
+Nz = 201
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,16 +9,25 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
+# steady state stuff
+maxSSIts_effVisc = 3
+maxSSIts_tau = 6
+maxSSIts_timesteps = 8
+
+
+
+momBal_bcL_qd = tau
+
 # coordinate transformation
-bCoordTrans = 6.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 #sbpType = mfc
 
@@ -26,7 +35,6 @@ sbpType = mfc_coordTrans
 # linear system
 #inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_
 loadICs = 0
-bcLTauQS = 0
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
@@ -44,28 +52,21 @@ impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
-DcVals = [12e-3 12e-3] # m
+#DcVals = [12e-3 12e-3] # m
 #DcVals = [32e-3 32e-3] # m
-#DcVals = [1 1] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
-aVals = [0.015 0.051]
-aDepths = [0 60]
-bVals = [0.02 0.02]
-bDepths = [0 60]
-
-# effective normal stress
-#sigmaNVals = [5.668 5.668 1336] # MPa
-sigmaNVals = [50 50] # MPa
-sigmaNDepths = [0 60]
-#sigmaN_cap = 50; # MPa
-
+#aVals = [0.015 0.051]
+#aDepths = [0 60]
+#bVals = [0.02 0.02]
+#bDepths = [0 60]
 
 #======================================================================
 # fault inputs
@@ -75,7 +76,8 @@ sigmaNDepths = [0 60]
 #sigmaNVals = [0 668.5] # lambda = 0.5
 #sigmaNVals = [0 534.8] # lambda = 0.6
 #sigmaNVals = [0 401.1] # lambda = 0.7
-sigmaNVals = [0 267.4] # lambda = 0.8
+#sigmaNVals = [0 267.4] # lambda = 0.8
+sigmaNVals = [50 50] # MPa
 sigmaNDepths = [0 60]
 sigmaN_floor = 5.5; # MPa
 #sigmaN_floor = 1; # MPa
@@ -96,20 +98,20 @@ muPlus = 30 # GPa
 rhoPlus = 3.0 # g/cm^3
 
 # power law properties: quartz-diorite
-#AVals = [1.3e-3 1.3e-3]
-#ADepths = [0 60]
-#BVals = [2.6341e+04 2.6341e+04]
-#BDepths = [0 60]
-#nVals = [2.4 2.4]
-#nDepths = [0 60]
+AVals = [1.3e-3 1.3e-3]
+ADepths = [0 60]
+BVals = [2.6341e+04 2.6341e+04]
+BDepths = [0 60]
+nVals = [2.4 2.4]
+nDepths = [0 60]
 
 # power law properties: wet quartz
-AVals = [1e-9 1e-9]
-ADepths = [0 60]
-BVals = [1.62e4 1.62e4]
-BDepths = [0 60]
-nVals = [4 4]
-nDepths = [0 60]
+#AVals = [1e-9 1e-9]
+#ADepths = [0 60]
+#BVals = [1.62e4 1.62e4]
+#BDepths = [0 60]
+#nVals = [4 4]
+#nDepths = [0 60]
 
 # power law properties: wet feldspar
 #AVals = [398 398]
@@ -138,17 +140,17 @@ withFrictionalHeating = no
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 5e12
-maxEffViscSS = 5e12
+maxEffVisc = 1e20
+
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
 timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e12
 initDeltaT = 1e-3

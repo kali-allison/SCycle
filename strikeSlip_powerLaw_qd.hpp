@@ -102,8 +102,12 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     // 3rd string = full file path name for output
     //~ std::map <string,PetscViewer>  _viewers;
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
-    std::map <string,Vec>         _varSS; // holds variables for steady state iteration
-    PetscScalar                   _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    std::map <string,Vec>                             _varSS; // holds variables for steady state iteration
+    PetscScalar                                       _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    PetscScalar                                       _gss_t; // guess steady state strain rate
+    PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
+    PetscScalar              _atolSS_effVisc;
+
     PetscErrorCode writeSS(const int Ii, const std::string outputDir);
     PetscErrorCode computeSSEffVisc();
     PetscErrorCode guessTauSS(map<string,Vec>& varSS);

@@ -1283,17 +1283,20 @@ PetscErrorCode Mat_PowerLaw::initializeSSMatrices(std::string bcRType,std::strin
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
+
   // set up SBP operators
   if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    //~ VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
-    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
     _sbp_eta->setGrid(_y,_z);
   }
   else {
@@ -1373,7 +1376,7 @@ PetscErrorCode Mat_PowerLaw::updateSSa(map<string,Vec>& varSS)
   #endif
 
   // scale rhs
-  //~ VecScale(_rhs,_ssEffViscScale);
+  VecScale(_rhs,_ssEffViscScale);
 
   Mat A;
   _sbp_eta->getA(A);

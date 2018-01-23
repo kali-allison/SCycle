@@ -806,7 +806,7 @@ PetscErrorCode SymmFault::initiateIntegrand(const PetscScalar time,map<string,Ve
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
- // put variables to be integrated explicitly into varEx
+  // put variables to be integrated explicitly into varEx
   Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi);
   varEx["psi"] = varPsi;
 

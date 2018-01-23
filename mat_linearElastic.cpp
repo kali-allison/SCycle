@@ -296,7 +296,9 @@ PetscErrorCode Mat_LinearElastic::allocateFields()
   VecDuplicate(_rhs,&_u); VecSet(_u,0.0);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
   if (_computeSxz) { VecDuplicate(_rhs,&_sxz); VecSet(_sxz,0.0); }
+  else { _sxz = NULL; }
   if (_computeSdev) { VecDuplicate(_rhs,&_sdev); VecSet(_sdev,0.0); }
+  else { _sdev = NULL; }
   VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
 
 #if VERBOSE > 1
@@ -642,7 +644,7 @@ PetscErrorCode Mat_LinearElastic::computeStresses()
   // solve for shear stress
   ierr = _sbp->muxDy(_u,_sxy); CHKERRQ(ierr);
 
-  if (_computeSxz) { ierr = _sbp->muxDz(_u,_sxy); CHKERRQ(ierr); }
+  if (_computeSxz) { ierr = _sbp->muxDz(_u,_sxz); CHKERRQ(ierr); }
   if (_computeSdev) { ierr = computeSDev(); CHKERRQ(ierr); }
 
   #if VERBOSE > 1
