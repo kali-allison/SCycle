@@ -8,7 +8,7 @@ using namespace std;
 Fault::Fault(Domain&D, HeatEquation& He)
 : _file(D._file),_delim(D._delim),_outputDir(D._outputDir),_isMMS(D._isMMS),_bcLTauQS(0),_stateLaw("agingLaw"),
   _N(D._Nz),_L(D._Lz),_h(D._dr),_z(NULL),
-  _rootTol(0),_rootIts(0),_maxNumIts(1e8),
+  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e8),
   _f0(0.6),_v0(1e-6),_vL(1e-9),
   _fw(0.64),_Vw(0.12),_tau_c(0),_Tw(0),_D(0),_T(NULL),_k(NULL),_rho(NULL),_c(NULL),
   _a(NULL),_b(NULL),_Dc(NULL),_cohesion(NULL),
@@ -94,7 +94,6 @@ PetscErrorCode Fault::checkInput()
   assert(_aVals.size() != 0 );
   assert(_bVals.size() != 0 );
   assert(_sigmaNVals.size() != 0 );
-  assert(_cohesionVals.size() != 0 );
   assert(_impedanceVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
@@ -315,10 +314,10 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
   VecDuplicate(_tauQSP,&_zP); PetscObjectSetName((PetscObject) _zP, "zP");
   VecDuplicate(_tauQSP,&_a); PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b); PetscObjectSetName((PetscObject) _b, "b");
-  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion");
+  VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion"); VecSet(_cohesion,0);
   VecDuplicate(_tauQSP,&_sN); PetscObjectSetName((PetscObject) _sN, "sN");
 
-  VecSet(_cohesion,0);
+
 
   // set depth-independent fields
   if (_N == 1) {
@@ -334,7 +333,7 @@ PetscErrorCode Fault::setFrictionFields(Domain&D)
     ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
     ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths);CHKERRQ(ierr);
+    if (_cohesionVals.size() > 0 ) { ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths); CHKERRQ(ierr);assert(0); }
     ierr = setVecFromVectors(_zP,_impedanceVals,_impedanceDepths);CHKERRQ(ierr);
   }
   // set psi

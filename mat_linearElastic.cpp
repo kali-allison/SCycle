@@ -14,7 +14,7 @@ Mat_LinearElastic::Mat_LinearElastic(Domain&D,std::string bcRTtype,std::string b
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_muVal(30.0),_rhoVal(3.0),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
-  _linSolver("unspecified_"),_ksp(NULL),_pc(NULL),
+  _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _timeV1D(NULL),_timeV2D(NULL),
@@ -122,10 +122,10 @@ PetscErrorCode Mat_LinearElastic::loadSettings(const char *file)
     }
 
 
-    else if (var.compare("muPlus")==0) {
+    else if (var.compare("mu")==0) {
       _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("rhoPlus")==0) {
+    else if (var.compare("rho")==0) {
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 

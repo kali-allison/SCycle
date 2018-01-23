@@ -988,7 +988,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
 // for thermomechanical problem using implicit time stepping (backward Euler)
 PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1023,9 +1023,9 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   }
 
   // compute shear heating component
-  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sigmadev!=NULL) {
+  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
     Vec Qvisc;
-    computeViscousShearHeating(Qvisc,sigmadev, dgxy, dgxz);
+    computeViscousShearHeating(Qvisc,sdev, dgxy, dgxz);
     VecAXPY(_Q,1.0,Qvisc);
     VecDestroy(&Qvisc);
   }
@@ -1079,7 +1079,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
 // for thermomechanical problem only the steady-state heat equation
 PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1103,9 +1103,9 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   }
 
   // compute shear heating component
-  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sigmadev!=NULL) {
+  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
     Vec Qvisc;
-    computeViscousShearHeating(Qvisc,sigmadev, dgxy, dgxz);
+    computeViscousShearHeating(Qvisc,sdev, dgxy, dgxz);
     VecAXPY(_Q,-1.0,Qvisc);
     VecDestroy(&Qvisc);
   }

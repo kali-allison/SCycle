@@ -41,14 +41,6 @@ class Domain
     PetscScalar _dq,_dr;
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
-    // time integration settings
-    std::string  _timeControlType,_timeIntegrator;
-    PetscInt     _stride1D,_stride2D,_maxStepCount;
-    PetscScalar  _initTime,_maxTime;
-    PetscScalar  _minDeltaT,_maxDeltaT,_initDeltaT;
-    PetscScalar  _atol;
-    std::vector<string> _timeIntInds; // keys of variables to be used in time integration
-
 
     // DMDA for all vectors
     DM _da;

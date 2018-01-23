@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_LINEL_QD_H_INCLUDED
-#define STRIKESLIP_LINEL_QD_H_INCLUDED
+#ifndef STRIKESLIP_LINEARELASTIC_QD_H_INCLUDED
+#define STRIKESLIP_LINEARELASTIC_QD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -28,17 +28,17 @@
 
 
 /*
- * Mediator-level class for the simulation of earthquake cycles with linear elastic material properties.
+ * Mediator-level class for the simulation of earthquake cycles for an ice stream with linear elastic material properties.
  * Uses the quasi-dynamic approximation.
  */
 
 
-class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
+class IceStream_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
 {
 private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_LinearElastic_qd(const StrikeSlip_LinearElastic_qd &that);
-    StrikeSlip_LinearElastic_qd& operator=(const StrikeSlip_LinearElastic_qd &rhs);
+    IceStream_LinearElastic_qd(const IceStream_LinearElastic_qd &that);
+    IceStream_LinearElastic_qd& operator=(const IceStream_LinearElastic_qd &rhs);
 
     Domain *_D;
 
@@ -53,7 +53,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -91,8 +91,8 @@ private:
     PressureEq                 *_p;
 
 
-    StrikeSlip_LinearElastic_qd(Domain&D);
-    ~StrikeSlip_LinearElastic_qd();
+    IceStream_LinearElastic_qd(Domain&D);
+    ~IceStream_LinearElastic_qd();
 
     // estimating steady state conditions
     PetscErrorCode solveSS();

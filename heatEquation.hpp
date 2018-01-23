@@ -97,7 +97,7 @@ class HeatEquation
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
     PetscErrorCode setUpTransientProblem(Domain& D);
     PetscErrorCode setBCsforBE();
-    PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
     PetscErrorCode setupKSP_SS(SbpOps* sbp);
@@ -129,11 +129,11 @@ class HeatEquation
 
     // implicitly solve for temperature using backward Euler
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
-      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+      const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
     PetscErrorCode be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau,
-      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+      const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
     PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
-      const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+      const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
     PetscErrorCode setMMSBoundaryConditions(const double time,
         std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);

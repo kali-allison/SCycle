@@ -3,18 +3,14 @@
 using namespace std;
 
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_outputDir("data/unspecified_"),
+: _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
+  _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
-  _timeControlType("unspecified"),_timeIntegrator("unspecified"),
-  _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
-  _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),
   _da(NULL)
 {
   #if VERBOSE > 1
@@ -33,8 +29,6 @@ Domain::Domain(const char *file)
   else (_dq = 1);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
   else (_dr = 1);
-
-  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -61,18 +55,14 @@ Domain::Domain(const char *file)
 
 
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_outputDir("data/unspecified_"),
+: _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
-  _order(0),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
+  _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
-  _timeControlType("unspecified"),_timeIntegrator("unspecified"),
-  _stride1D(-1),_stride2D(-1),_maxStepCount(-1),_initTime(-1),_maxTime(-1),
-  _minDeltaT(-1),_maxDeltaT(-1),_initDeltaT(_minDeltaT),
-  _atol(-1),
   _da(NULL)
 {
   #if VERBOSE > 1
@@ -90,8 +80,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   else (_dq = 1);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
   else (_dr = 1);
-
-  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
@@ -200,27 +188,6 @@ PetscErrorCode Domain::loadData(const char *file)
 
     else if (var.compare("bCoordTrans")==0) {
        _bCoordTrans = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-
-    // time integration properties
-    else if (var.compare("timeIntegrator")==0) {
-      _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("timeControlType")==0) {
-      _timeControlType = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("timeIntInds")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_timeIntInds);
     }
 
     // output directory
@@ -352,21 +319,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
-
-    // time monitering
-    ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"strideLength = %i\n",_stride1D);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"initTime = %.15e\n",_initTime);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"maxTime = %.15e\n",_maxTime);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"atol = %.15e\n",_atol);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"minDeltaT = %.15e\n",_minDeltaT);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"maxDeltaT = %.15e\n",_maxDeltaT);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"initDeltaT = %.15e\n",_initDeltaT);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
     ierr = PetscPrintf(PETSC_COMM_SELF,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
@@ -390,33 +342,6 @@ PetscErrorCode Domain::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  assert( _order==2 || _order==4 );
-  assert( _Ly > 0 && _Lz > 0);
-  assert( _dq > 0 && !isnan(_dq) );
-  assert( _dr > 0 && !isnan(_dr) );
-
-
-  assert(_timeIntegrator.compare("FEuler")==0
-    || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("RK43")==0
-    || _timeIntegrator.compare("RK32_WBE")==0
-    || _timeIntegrator.compare("RK43_WBE")==0
-    || _timeIntegrator.compare("WaveEq")==0);
-
-  assert(_timeControlType.compare("P")==0 ||
-         _timeControlType.compare("PI")==0 ||
-         _timeControlType.compare("PID")==0 );
-
-  assert(_maxStepCount >= 0);
-  assert(_initTime >= 0);
-  assert(_maxTime >= 0 && _maxTime>=_initTime);
-  assert(_stride1D >= 1);
-  assert(_stride2D >= 1);
-  assert(_atol >= 1e-14);
-  assert(_minDeltaT >= 1e-14);
-  assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
-  assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
     _bulkDeformationType.compare("powerLaw")==0 );
 
@@ -427,6 +352,11 @@ PetscErrorCode Domain::checkInput()
     _momentumBalanceType.compare("dynamic")==0 ||
     _momentumBalanceType.compare("quasidynamic_and_dynamic")==0 ||
     _momentumBalanceType.compare("steadyStateIts")==0 );
+
+  assert( _order==2 || _order==4 );
+  assert( _Ly > 0 && _Lz > 0);
+  assert( _dq > 0 && !isnan(_dq) );
+  assert( _dr > 0 && !isnan(_dr) );
 
 
   #if VERBOSE > 1
@@ -477,21 +407,6 @@ PetscErrorCode Domain::write()
 
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"bCoordTrans = %.15e\n",_bCoordTrans);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-  // time integration settings
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);

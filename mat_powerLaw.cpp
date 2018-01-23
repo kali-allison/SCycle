@@ -150,10 +150,10 @@ PetscErrorCode Mat_PowerLaw::loadSettings(const char *file)
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    else if (var.compare("muPlus")==0) {
+    else if (var.compare("mu")==0) {
       _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("rhoPlus")==0) {
+    else if (var.compare("rho")==0) {
       _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 

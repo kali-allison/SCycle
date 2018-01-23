@@ -1,38 +1,35 @@
-#include "strikeSlip_linEl_qd.hpp"
+#include "iceStream_linearElastic_qd.hpp"
 
-#define FILENAME "strikeSlip_linEl_qd.cpp"
+#define FILENAME "iceStream_linearElastic_qd.cpp"
 
 using namespace std;
 
 
-StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
+IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _timeIntegrator(D._timeIntegrator),
-  _stride1D(D._stride1D),_stride2D(D._stride2D),_maxStepCount(D._maxStepCount),
-  _initTime(D._initTime),_currTime(_initTime),_maxTime(D._maxTime),
-  _minDeltaT(D._minDeltaT),_maxDeltaT(D._maxDeltaT),
-  _stepCount(0),_atol(D._atol),_initDeltaT(D._initDeltaT),_timeIntInds(D._timeIntInds),
+  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+  _initTime(0),_currTime(0),_maxTime(1e15),
+  _minDeltaT(1e-3),_maxDeltaT(1e10),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
-  _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
+  _bcRType("freeSurface"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd()";
+    std::string funcName = "IceStream_LinearElastic_qd::IceStream_LinearElastic_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  _startTime = MPI_Wtime();
-
   loadSettings(D._file);
   checkInput();
-
 
   // heat equation
   //~ if (_thermalCoupling.compare("no")!=0) {
@@ -85,10 +82,10 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 }
 
 
-StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
+IceStream_LinearElastic_qd::~IceStream_LinearElastic_qd()
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()";
+    std::string funcName = "IceStream_LinearElastic_qd::~IceStream_LinearElastic_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -114,7 +111,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
 }
 
 // loads settings from the input text file
-PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
+PetscErrorCode IceStream_LinearElastic_qd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -146,8 +143,25 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
       _guessSteadyStateICs = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
+    // time integration properties
+    else if (var.compare("timeIntegrator")==0) {
+      _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
+    }
     else if (var.compare("timeControlType")==0) {
-      _timeControlType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _timeControlType = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("timeIntInds")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_timeIntInds);
     }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -175,7 +189,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
 }
 
 // Check that required fields have been set by the input file
-PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
+PetscErrorCode IceStream_LinearElastic_qd::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -201,6 +215,28 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
       _timeIntegrator.compare("RK32_WBE")==0 ||
     _timeIntegrator.compare("RK43_WBE")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
+
+  assert(_timeIntegrator.compare("FEuler")==0
+    || _timeIntegrator.compare("RK32")==0
+    || _timeIntegrator.compare("RK43")==0
+    || _timeIntegrator.compare("RK32_WBE")==0
+    || _timeIntegrator.compare("RK43_WBE")==0
+    || _timeIntegrator.compare("WaveEq")==0);
+
+  assert(_timeControlType.compare("P")==0 ||
+         _timeControlType.compare("PI")==0 ||
+         _timeControlType.compare("PID")==0 );
+
+  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
+  assert(_maxStepCount >= 0);
+  assert(_initTime >= 0);
+  assert(_maxTime >= 0 && _maxTime>=_initTime);
+  assert(_stride1D >= 1);
+  assert(_stride2D >= 1);
+  assert(_atol >= 1e-14);
+  assert(_minDeltaT >= 1e-14);
+  assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
+  assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   // check boundary condition types for momentum balance equation
   assert(_bcLType.compare("outGoingCharacteristics")==0 ||
@@ -239,11 +275,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
 }
 
 // initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
+PetscErrorCode IceStream_LinearElastic_qd::initiateIntegrand()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::initiateIntegrand()";
+    std::string funcName = "IceStream_LinearElastic_qd::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -275,12 +311,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode IceStream_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for explicit";
+    std::string funcName = "IceStream_LinearElastic_qd::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -309,14 +345,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode IceStream_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for IMEX";
+    std::string funcName = "IceStream_LinearElastic_qd::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -347,7 +383,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode StrikeSlip_LinearElastic_qd::view()
+PetscErrorCode IceStream_LinearElastic_qd::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -362,18 +398,18 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_qd Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"IceStream_LinearElastic_qd Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
+PetscErrorCode IceStream_LinearElastic_qd::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::writeContext";
+    std::string funcName = "IceStream_LinearElastic_qd::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -386,6 +422,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+
+  // time integration settings
+  ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
 
@@ -407,11 +458,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
 // Adaptive time stepping functions
 //======================================================================
 
-PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
+PetscErrorCode IceStream_LinearElastic_qd::integrate()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::integrate";
+    std::string funcName = "IceStream_LinearElastic_qd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -468,7 +519,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -512,12 +563,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::d_dt";
+    std::string funcName = "IceStream_LinearElastic_qd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -586,7 +637,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 }
 
 // momentum balance equation and constitutive laws portion of d_dt
-PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -595,6 +646,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
   _material->setRHS();
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
+  //!!! add source term for driving the ice stream here
+
   _material->computeU();
   _material->computeStresses();
 
@@ -602,11 +655,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
 }
 
 // guess at the steady-state solution
-PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
+PetscErrorCode IceStream_LinearElastic_qd::solveSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSS";
+    std::string funcName = "IceStream_LinearElastic_qd::solveSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -645,11 +698,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 }
 
 // update the boundary conditions based on new steady state u
-PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
+PetscErrorCode IceStream_LinearElastic_qd::solveSSb()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSSb";
+    std::string funcName = "IceStream_LinearElastic_qd::solveSSb";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -709,7 +762,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_qd::measureMMSError()
+PetscErrorCode IceStream_LinearElastic_qd::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
