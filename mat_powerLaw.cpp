@@ -1610,6 +1610,7 @@ PetscErrorCode Mat_PowerLaw::writeStep1D(const PetscInt stepCount, const PetscSc
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "bcRShift"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);

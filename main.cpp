@@ -95,7 +95,6 @@ int runEqCycle(const char * inputFile)
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
-    //~ ierr = m.integrateSS(); CHKERRQ(ierr);
     ierr = m.view();CHKERRQ(ierr);
   }
 

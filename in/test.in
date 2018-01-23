@@ -12,19 +12,16 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # steady state stuff
+ssEffViscScale = 1
 maxSSIts_effVisc = 3
 maxSSIts_tau = 6
 maxSSIts_timesteps = 8
-
-
-
-momBal_bcL_qd = tau
 
 # coordinate transformation
 bCoordTrans = 5.0
@@ -62,11 +59,6 @@ aVals = [0.0135 0.0300 0.0700 0.2652]
 aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
-
-#aVals = [0.015 0.051]
-#aDepths = [0 60]
-#bVals = [0.02 0.02]
-#bDepths = [0 60]
 
 #======================================================================
 # fault inputs

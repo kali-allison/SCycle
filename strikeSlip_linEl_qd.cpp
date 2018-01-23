@@ -679,7 +679,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
     // put right boundary data into bcR
     if ( Ii > (Ny*Nz - Nz - 1) ) {
       PetscInt zI =  Ii - (Ny*Nz - Nz);
-      //~ PetscPrintf(PETSC_COMM_WORLD,"Ny*Nz = %i, Ii = %i, zI = %i\n",_Ny*_Nz,Ii,zI);
       ierr = VecGetValues(_material->_u,1,&Ii,&v);CHKERRQ(ierr);
       ierr = VecSetValues(_material->_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
