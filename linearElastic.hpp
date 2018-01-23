@@ -1,5 +1,5 @@
-#ifndef MAT_LINEARELASTIC_H_INCLUDED
-#define MAT_LINEARELASTIC_H_INCLUDED
+#ifndef LINEARELASTIC_H_INCLUDED
+#define LINEARELASTIC_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -17,12 +17,12 @@
 
 
 // Class for a linear elastic material
-class Mat_LinearElastic
+class LinearElastic
 {
   private:
     // disable default copy constructor and assignment operator
-    Mat_LinearElastic(const Mat_LinearElastic &that);
-    Mat_LinearElastic& operator=(const Mat_LinearElastic &rhs);
+    LinearElastic(const LinearElastic &that);
+    LinearElastic& operator=(const LinearElastic &rhs);
 
   public:
 
@@ -70,8 +70,8 @@ class Mat_LinearElastic
     Vec                  _bcR,_bcT,_bcL,_bcB;
 
     // constructors and destructors
-    Mat_LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
-    ~Mat_LinearElastic();
+    LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLType,std::string bcBType);
+    ~LinearElastic();
 
 
     // allocate and initialize data members

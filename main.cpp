@@ -13,8 +13,8 @@
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "mediator.hpp"
-#include "mat_linearElastic.hpp"
-#include "mat_powerLaw.hpp"
+#include "linearElastic.hpp"
+#include "powerLaw.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
 #include "strikeSlip_powerLaw_qd.hpp"
 

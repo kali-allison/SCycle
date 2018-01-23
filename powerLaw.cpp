@@ -1,9 +1,9 @@
-#include "mat_powerLaw.hpp"
+#include "powerLaw.hpp"
 
-#define FILENAME "mat_powerLaw.cpp"
+#define FILENAME "powerLaw.cpp"
 
 
-Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
@@ -28,7 +28,7 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::s
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::Mat_PowerLaw";
+    std::string funcName = "PowerLaw::PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -55,10 +55,10 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::s
   #endif
 }
 
-Mat_PowerLaw::~Mat_PowerLaw()
+PowerLaw::~PowerLaw()
 {
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::~Mat_PowerLaw";
+    std::string funcName = "PowerLaw::~PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -121,11 +121,11 @@ Mat_PowerLaw::~Mat_PowerLaw()
 
 
 // loads settings from the input text file
-PetscErrorCode Mat_PowerLaw::loadSettings(const char *file)
+PetscErrorCode PowerLaw::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::loadSettings()";
+    std::string funcName = "PowerLaw::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -217,11 +217,11 @@ PetscErrorCode Mat_PowerLaw::loadSettings(const char *file)
 }
 
 // Check that required fields have been set by the input file
-PetscErrorCode Mat_PowerLaw::checkInput()
+PetscErrorCode PowerLaw::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::checkInput";
+    std::string funcName = "PowerLaw::checkInput";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -254,11 +254,11 @@ PetscErrorCode Mat_PowerLaw::checkInput()
 }
 
 // allocate space for member fields
-PetscErrorCode Mat_PowerLaw::allocateFields()
+PetscErrorCode PowerLaw::allocateFields()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::allocateFields";
+    std::string funcName = "PowerLaw::allocateFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -330,11 +330,11 @@ PetscErrorCode Mat_PowerLaw::allocateFields()
 }
 
 // set off-fault material properties
-PetscErrorCode Mat_PowerLaw::setMaterialParameters()
+PetscErrorCode PowerLaw::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::setMaterialParameters";
+    std::string funcName = "PowerLaw::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -385,11 +385,11 @@ return ierr;
 
 
 //parse input file and load values into data members
-PetscErrorCode Mat_PowerLaw::loadEffViscFromFiles()
+PetscErrorCode PowerLaw::loadEffViscFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::loadEffViscFromFiles()";
+    std::string funcName = "PowerLaw::loadEffViscFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -407,11 +407,11 @@ PetscErrorCode Mat_PowerLaw::loadEffViscFromFiles()
 }
 
 //parse input file and load values into data members
-PetscErrorCode Mat_PowerLaw::loadFieldsFromFiles()
+PetscErrorCode PowerLaw::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::loadFieldsFromFiles()";
+    std::string funcName = "PowerLaw::loadFieldsFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -455,11 +455,11 @@ PetscErrorCode Mat_PowerLaw::loadFieldsFromFiles()
 }
 
 // set up SBP operators
-PetscErrorCode Mat_PowerLaw::setUpSBPContext(Domain& D)
+PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::setUpSBPContext";
+    std::string funcName = "PowerLaw::setUpSBPContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -521,11 +521,11 @@ PetscErrorCode Mat_PowerLaw::setUpSBPContext(Domain& D)
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode Mat_PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
+PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::setupKSP";
+    std::string funcName = "PowerLaw::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -589,11 +589,11 @@ PetscErrorCode Mat_PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
 // compute B and C
 // B = H*Dy*mu + SAT terms
 // C = H*Dz*mu + SAT terms
-PetscErrorCode Mat_PowerLaw::initializeMomBalMats()
+PetscErrorCode PowerLaw::initializeMomBalMats()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::initializeMomBalMats";
+    std::string funcName = "PowerLaw::initializeMomBalMats";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -674,11 +674,11 @@ PetscErrorCode Mat_PowerLaw::initializeMomBalMats()
 
 // for steady state computations
 // compute initial tauVisc (from guess at effective viscosity)
-PetscErrorCode Mat_PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
+PetscErrorCode PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::getTauVisc";
+    std::string funcName = "PowerLaw::getTauVisc";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -710,11 +710,11 @@ PetscErrorCode Mat_PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
 }
 
 
-PetscErrorCode Mat_PowerLaw::setMMSInitialConditions(const PetscScalar time)
+PetscErrorCode PowerLaw::setMMSInitialConditions(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::setMMSInitialConditions()";
+    string funcName = "PowerLaw::setMMSInitialConditions()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
@@ -789,10 +789,10 @@ PetscErrorCode Mat_PowerLaw::setMMSInitialConditions(const PetscScalar time)
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::forceMMSSolutions_u(const PetscScalar time)
+PetscErrorCode PowerLaw::forceMMSSolutions_u(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "Mat_PowerLaw::forceMMSSolutions_u";
+  string funcName = "PowerLaw::forceMMSSolutions_u";
   string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -814,11 +814,11 @@ PetscErrorCode Mat_PowerLaw::forceMMSSolutions_u(const PetscScalar time)
 }
 
 // compute source term for MMS test and add it to rhs vector
-PetscErrorCode Mat_PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
+PetscErrorCode PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::addRHS_MMSSource";
+    string funcName = "PowerLaw::addRHS_MMSSource";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -857,11 +857,11 @@ PetscErrorCode Mat_PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
 }
 
 // compute source terms for MMS test and add to viscous strain rates
-PetscErrorCode Mat_PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time,Vec& gVxy_t,Vec& gVxz_t)
+PetscErrorCode PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time,Vec& gVxy_t,Vec& gVxz_t)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::addViscStrainRates_MMSSource";
+    string funcName = "PowerLaw::addViscStrainRates_MMSSource";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -887,11 +887,11 @@ PetscErrorCode Mat_PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time
 }
 
 // limited by Maxwell time
-PetscErrorCode Mat_PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
+PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeMaxTimeStep";
+    string funcName = "PowerLaw::computeMaxTimeStep";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -915,11 +915,11 @@ PetscErrorCode Mat_PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
 }
 
 
-PetscErrorCode Mat_PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
+PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::initiateIntegrand()";
+    std::string funcName = "PowerLaw::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -937,11 +937,11 @@ PetscErrorCode Mat_PowerLaw::initiateIntegrand(const PetscScalar time,map<string
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
+PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::updateFields()";
+    std::string funcName = "PowerLaw::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -955,11 +955,11 @@ PetscErrorCode Mat_PowerLaw::updateFields(const PetscScalar time,const map<strin
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::updateTemperature(const Vec& T)
+PetscErrorCode PowerLaw::updateTemperature(const Vec& T)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::updateTemperature()";
+    std::string funcName = "PowerLaw::updateTemperature()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -971,11 +971,11 @@ PetscErrorCode Mat_PowerLaw::updateTemperature(const Vec& T)
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::setRHS()
+PetscErrorCode PowerLaw::setRHS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::setRHS()";
+    std::string funcName = "PowerLaw::setRHS()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -989,11 +989,11 @@ PetscErrorCode Mat_PowerLaw::setRHS()
 }
 
 // solve momentum balance equation for u
-PetscErrorCode Mat_PowerLaw::computeU()
+PetscErrorCode PowerLaw::computeU()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::computeU";
+    std::string funcName = "PowerLaw::computeU";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1011,11 +1011,11 @@ PetscErrorCode Mat_PowerLaw::computeU()
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
+PetscErrorCode PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::changeBCTypes()";
+    std::string funcName = "PowerLaw::changeBCTypes()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1032,11 +1032,11 @@ PetscErrorCode Mat_PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTT
 }
 
 
-PetscErrorCode Mat_PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
+PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeViscStrainSourceTerms";
+    string funcName = "PowerLaw::computeViscStrainSourceTerms";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1055,11 +1055,11 @@ PetscErrorCode Mat_PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec
 }
 
 
-PetscErrorCode Mat_PowerLaw::computeViscosity(const PetscScalar viscCap)
+PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeViscosity";
+    string funcName = "PowerLaw::computeViscosity";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1107,12 +1107,12 @@ PetscErrorCode Mat_PowerLaw::computeViscosity(const PetscScalar viscCap)
 }
 
 
-PetscErrorCode Mat_PowerLaw::computeViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
+PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
   Vec& gVxy_t, Vec& gVxz_t)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeViscStrainRates";
+    string funcName = "PowerLaw::computeViscStrainRates";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1143,11 +1143,11 @@ PetscErrorCode Mat_PowerLaw::computeViscStrainRates(const PetscScalar time,const
 }
 
 
-PetscErrorCode Mat_PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out)
+PetscErrorCode PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeViscousStrainRateSAT";
+    string funcName = "PowerLaw::computeViscousStrainRateSAT";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1199,11 +1199,11 @@ PetscErrorCode Mat_PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &g
 }
 
 // computes gTxy and gTxz
-PetscErrorCode Mat_PowerLaw::computeTotalStrains()
+PetscErrorCode PowerLaw::computeTotalStrains()
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeTotalStrains";
+    string funcName = "PowerLaw::computeTotalStrains";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1221,11 +1221,11 @@ PetscErrorCode Mat_PowerLaw::computeTotalStrains()
 }
 
 // computes sigmaxy, sigmaxz, and sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
-PetscErrorCode Mat_PowerLaw::computeStresses()
+PetscErrorCode PowerLaw::computeStresses()
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeStresses";
+    string funcName = "PowerLaw::computeStresses";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1255,11 +1255,11 @@ PetscErrorCode Mat_PowerLaw::computeStresses()
 }
 
 // computes sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
-PetscErrorCode Mat_PowerLaw::computeSDev()
+PetscErrorCode PowerLaw::computeSDev()
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::computeStresses";
+    string funcName = "PowerLaw::computeStresses";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1286,7 +1286,7 @@ PetscErrorCode Mat_PowerLaw::computeSDev()
   return ierr = 0;
 }
 
-PetscErrorCode Mat_PowerLaw::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
+PetscErrorCode PowerLaw::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
 {
   sxy = _sxy;
   sxz = _sxz;
@@ -1294,11 +1294,11 @@ PetscErrorCode Mat_PowerLaw::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
   return 0;
 }
 
-PetscErrorCode Mat_PowerLaw::setSurfDisp()
+PetscErrorCode PowerLaw::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::setSurfDisp";
+    string funcName = "PowerLaw::setSurfDisp";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1335,11 +1335,11 @@ PetscErrorCode Mat_PowerLaw::setSurfDisp()
 
 
 // inititialize effective viscosity
-PetscErrorCode Mat_PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
+PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::guessSteadyStateEffVisc";
+    std::string funcName = "PowerLaw::guessSteadyStateEffVisc";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1372,11 +1372,11 @@ PetscErrorCode Mat_PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRat
 
 
 // compute Bss and Css
-PetscErrorCode Mat_PowerLaw::initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::initializeSSMatrices";
+    std::string funcName = "PowerLaw::initializeSSMatrices";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1410,11 +1410,11 @@ PetscErrorCode Mat_PowerLaw::initializeSSMatrices(std::string bcRType,std::strin
   #endif
 }
 
-PetscErrorCode Mat_PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+PetscErrorCode PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::setSSRHS";
+    std::string funcName = "PowerLaw::setSSRHS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1433,11 +1433,11 @@ PetscErrorCode Mat_PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType
 }
 
 // put viscous strains etc in varSS
-PetscErrorCode Mat_PowerLaw::initiateVarSS(map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::initiateVarSS";
+    std::string funcName = "PowerLaw::initiateVarSS";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1463,7 +1463,7 @@ PetscErrorCode Mat_PowerLaw::initiateVarSS(map<string,Vec>& varSS)
 
 
 // solve for steady-state v, viscous strain rates
-PetscErrorCode Mat_PowerLaw::updateSSa(map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1506,11 +1506,11 @@ PetscErrorCode Mat_PowerLaw::updateSSa(map<string,Vec>& varSS)
 }
 
 // solve for steady-state u, gVxy
-PetscErrorCode Mat_PowerLaw::updateSSb(map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Mat_PowerLaw::updateSSb";
+    std::string funcName = "PowerLaw::updateSSb";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1573,13 +1573,13 @@ PetscErrorCode Mat_PowerLaw::updateSSb(map<string,Vec>& varSS)
 }
 
 
-PetscErrorCode Mat_PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
   PetscScalar    v,z,z0,z1,v0,v1;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::setVecFromVectors";
+    string funcName = "PowerLaw::setVecFromVectors";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1620,11 +1620,11 @@ PetscErrorCode Mat_PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,ve
 
 // Save all scalar fields to text file named pl_domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.
-PetscErrorCode Mat_PowerLaw::writeDomain(const std::string outputDir)
+PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::writeDomain";
+    string funcName = "PowerLaw::writeDomain";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1662,11 +1662,11 @@ PetscErrorCode Mat_PowerLaw::writeDomain(const std::string outputDir)
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::writeContext(const std::string outputDir)
+PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::writeContext";
+    string funcName = "PowerLaw::writeContext";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -1686,11 +1686,11 @@ PetscErrorCode Mat_PowerLaw::writeContext(const std::string outputDir)
 }
 
 
-PetscErrorCode Mat_PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::writeStep1D";
+    string funcName = "PowerLaw::writeStep1D";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1725,11 +1725,11 @@ PetscErrorCode Mat_PowerLaw::writeStep1D(const PetscInt stepCount, const PetscSc
 }
 
 
-PetscErrorCode Mat_PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Mat_PowerLaw::writeStep2D";
+    string funcName = "PowerLaw::writeStep2D";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
@@ -1769,7 +1769,7 @@ PetscErrorCode Mat_PowerLaw::writeStep2D(const PetscInt stepCount, const PetscSc
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::view(const double totRunTime)
+PetscErrorCode PowerLaw::view(const double totRunTime)
 {
   PetscErrorCode ierr = 0;
 
@@ -1796,10 +1796,10 @@ PetscErrorCode Mat_PowerLaw::view(const double totRunTime)
 
 
 
-PetscErrorCode Mat_PowerLaw::setMMSBoundaryConditions(const double time)
+PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "Mat_PowerLaw::setMMSBoundaryConditions";
+  string funcName = "PowerLaw::setMMSBoundaryConditions";
   string fileName = "maxwellViscoelastic.cpp";
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
@@ -1875,7 +1875,7 @@ PetscErrorCode Mat_PowerLaw::setMMSBoundaryConditions(const double time)
   return ierr;
 }
 
-PetscErrorCode Mat_PowerLaw::measureMMSError(const PetscScalar time)
+PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   _currTime = time;
@@ -1915,39 +1915,39 @@ PetscErrorCode Mat_PowerLaw::measureMMSError(const PetscScalar time)
 }
 
 
-double Mat_PowerLaw::zzmms_sigmaxz(const double y,const double z, const double t)
+double PowerLaw::zzmms_sigmaxz(const double y,const double z, const double t)
 { return zzmms_mu(y,z)*zzmms_uA_z(y,z,t); }
-double Mat_PowerLaw::zzmms_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
-double Mat_PowerLaw::zzmms_f_y(const double y,const double z) { return -sin(y)*sin(z); }
-double Mat_PowerLaw::zzmms_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
-double Mat_PowerLaw::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
-double Mat_PowerLaw::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
+double PowerLaw::zzmms_f(const double y,const double z) { return cos(y)*sin(z); } // helper function for uA
+double PowerLaw::zzmms_f_y(const double y,const double z) { return -sin(y)*sin(z); }
+double PowerLaw::zzmms_f_yy(const double y,const double z) { return -cos(y)*sin(z); }
+double PowerLaw::zzmms_f_z(const double y,const double z) { return cos(y)*cos(z); }
+double PowerLaw::zzmms_f_zz(const double y,const double z) { return -cos(y)*sin(z); }
 
-double Mat_PowerLaw::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
-double Mat_PowerLaw::zzmms_g_t(const double t) {
+double PowerLaw::zzmms_g(const double t) { return exp(-t/60.0) - exp(-t/3e7) + exp(-t/3e9); }
+double PowerLaw::zzmms_g_t(const double t) {
   return (-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9);
 }
 
-double Mat_PowerLaw::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
-double Mat_PowerLaw::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
-double Mat_PowerLaw::zzmms_uA_yy(const double y,const double z,const double t) { return zzmms_f_yy(y,z)*zzmms_g(t); }
-double Mat_PowerLaw::zzmms_uA_z(const double y,const double z,const double t) { return zzmms_f_z(y,z)*zzmms_g(t); }
-double Mat_PowerLaw::zzmms_uA_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
-//~ double Mat_PowerLaw::zzmms_uA_t(const double y,const double z,const double t) {
+double PowerLaw::zzmms_uA(const double y,const double z,const double t) { return zzmms_f(y,z)*zzmms_g(t); }
+double PowerLaw::zzmms_uA_y(const double y,const double z,const double t) { return zzmms_f_y(y,z)*zzmms_g(t); }
+double PowerLaw::zzmms_uA_yy(const double y,const double z,const double t) { return zzmms_f_yy(y,z)*zzmms_g(t); }
+double PowerLaw::zzmms_uA_z(const double y,const double z,const double t) { return zzmms_f_z(y,z)*zzmms_g(t); }
+double PowerLaw::zzmms_uA_zz(const double y,const double z,const double t) { return zzmms_f_zz(y,z)*zzmms_g(t); }
+//~ double PowerLaw::zzmms_uA_t(const double y,const double z,const double t) {
   //~ return zzmms_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
 //~ }
-double Mat_PowerLaw::zzmms_uA_t(const double y,const double z,const double t) {
+double PowerLaw::zzmms_uA_t(const double y,const double z,const double t) {
   return zzmms_f(y,z)*zzmms_g_t(t);
 }
 
-double Mat_PowerLaw::zzmms_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
-double Mat_PowerLaw::zzmms_mu_y(const double y,const double z) { return cos(y)*sin(z); }
-double Mat_PowerLaw::zzmms_mu_z(const double y,const double z) { return sin(y)*cos(z); }
+double PowerLaw::zzmms_mu(const double y,const double z) { return sin(y)*sin(z) + 30; }
+double PowerLaw::zzmms_mu_y(const double y,const double z) { return cos(y)*sin(z); }
+double PowerLaw::zzmms_mu_z(const double y,const double z) { return sin(y)*cos(z); }
 
-double Mat_PowerLaw::zzmms_sigmaxy(const double y,const double z,const double t)
+double PowerLaw::zzmms_sigmaxy(const double y,const double z,const double t)
 { return zzmms_mu(y,z)*zzmms_uA_y(y,z,t); }
 
-double Mat_PowerLaw::zzmms_uSource(const double y,const double z,const double t)
+double PowerLaw::zzmms_uSource(const double y,const double z,const double t)
 {
   PetscScalar mu = zzmms_mu(y,z);
   PetscScalar mu_y = zzmms_mu_y(y,z);
@@ -1961,25 +1961,25 @@ double Mat_PowerLaw::zzmms_uSource(const double y,const double z,const double t)
 
 
 // 1D
-double Mat_PowerLaw::zzmms_f1D(const double y) { return cos(y) + 2; } // helper function for uA
-double Mat_PowerLaw::zzmms_f_y1D(const double y) { return -sin(y); }
-double Mat_PowerLaw::zzmms_f_yy1D(const double y) { return -cos(y); }
-//~ double Mat_PowerLaw::zzmms_f_z1D(const double y) { return 0; }
-//~ double Mat_PowerLaw::zzmms_f_zz1D(const double y) { return 0; }
+double PowerLaw::zzmms_f1D(const double y) { return cos(y) + 2; } // helper function for uA
+double PowerLaw::zzmms_f_y1D(const double y) { return -sin(y); }
+double PowerLaw::zzmms_f_yy1D(const double y) { return -cos(y); }
+//~ double PowerLaw::zzmms_f_z1D(const double y) { return 0; }
+//~ double PowerLaw::zzmms_f_zz1D(const double y) { return 0; }
 
-double Mat_PowerLaw::zzmms_uA1D(const double y,const double t) { return zzmms_f1D(y)*exp(-t); }
-double Mat_PowerLaw::zzmms_uA_y1D(const double y,const double t) { return zzmms_f_y1D(y)*exp(-t); }
-double Mat_PowerLaw::zzmms_uA_yy1D(const double y,const double t) { return zzmms_f_yy1D(y)*exp(-t); }
-double Mat_PowerLaw::zzmms_uA_z1D(const double y,const double t) { return 0; }
-double Mat_PowerLaw::zzmms_uA_zz1D(const double y,const double t) { return 0; }
-double Mat_PowerLaw::zzmms_uA_t1D(const double y,const double t) { return -zzmms_f1D(y)*exp(-t); }
+double PowerLaw::zzmms_uA1D(const double y,const double t) { return zzmms_f1D(y)*exp(-t); }
+double PowerLaw::zzmms_uA_y1D(const double y,const double t) { return zzmms_f_y1D(y)*exp(-t); }
+double PowerLaw::zzmms_uA_yy1D(const double y,const double t) { return zzmms_f_yy1D(y)*exp(-t); }
+double PowerLaw::zzmms_uA_z1D(const double y,const double t) { return 0; }
+double PowerLaw::zzmms_uA_zz1D(const double y,const double t) { return 0; }
+double PowerLaw::zzmms_uA_t1D(const double y,const double t) { return -zzmms_f1D(y)*exp(-t); }
 
-double Mat_PowerLaw::zzmms_mu1D(const double y) { return sin(y) + 2.0; }
-double Mat_PowerLaw::zzmms_mu_y1D(const double y) { return cos(y); }
-//~ double Mat_PowerLaw::zzmms_mu_z1D(const double y) { return 0; }
+double PowerLaw::zzmms_mu1D(const double y) { return sin(y) + 2.0; }
+double PowerLaw::zzmms_mu_y1D(const double y) { return cos(y); }
+//~ double PowerLaw::zzmms_mu_z1D(const double y) { return 0; }
 
-double Mat_PowerLaw::zzmms_sigmaxy1D(const double y,const double t) { return zzmms_mu1D(y)*zzmms_uA_y1D(y,t); }
-double Mat_PowerLaw::zzmms_uSource1D(const double y,const double t)
+double PowerLaw::zzmms_sigmaxy1D(const double y,const double t) { return zzmms_mu1D(y)*zzmms_uA_y1D(y,t); }
+double PowerLaw::zzmms_uSource1D(const double y,const double t)
 {
   PetscScalar mu = zzmms_mu1D(y);
   PetscScalar mu_y = zzmms_mu_y1D(y);
@@ -1993,14 +1993,14 @@ double Mat_PowerLaw::zzmms_uSource1D(const double y,const double t)
 
 
 // power-law specific MMS functions
-double Mat_PowerLaw::zzmms_visc(const double y,const double z) { return cos(y)*cos(z) + 2e10; }
-double Mat_PowerLaw::zzmms_invVisc(const double y,const double z) { return 1.0/zzmms_visc(y,z); }
-double Mat_PowerLaw::zzmms_invVisc_y(const double y,const double z)
+double PowerLaw::zzmms_visc(const double y,const double z) { return cos(y)*cos(z) + 2e10; }
+double PowerLaw::zzmms_invVisc(const double y,const double z) { return 1.0/zzmms_visc(y,z); }
+double PowerLaw::zzmms_invVisc_y(const double y,const double z)
 { return sin(y)*cos(z)/pow( cos(y)*cos(z)+2e10, 2.0); }
-double Mat_PowerLaw::zzmms_invVisc_z(const double y,const double z)
+double PowerLaw::zzmms_invVisc_z(const double y,const double z)
 { return cos(y)*sin(z)/pow( cos(y)*cos(z)+2e10 ,2.0); }
 
-double Mat_PowerLaw::zzmms_gxy(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxy(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double fy = zzmms_f_y(y,z);
@@ -2010,7 +2010,7 @@ double Mat_PowerLaw::zzmms_gxy(const double y,const double z,const double t)
        - T2*A*fy/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
        + T3*A*fy/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
 }
-double Mat_PowerLaw::zzmms_gxy_y(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxy_y(const double y,const double z,const double t)
 {
   //~return 0.5 * zzmms_uA_yy(y,z,t);
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
@@ -2029,7 +2029,7 @@ double Mat_PowerLaw::zzmms_gxy_y(const double y,const double z,const double t)
   return out1 + out2 + out3;
 
 }
-double Mat_PowerLaw::zzmms_gxy_t(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxy_t(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double fy = zzmms_f_y(y,z);
@@ -2039,7 +2039,7 @@ double Mat_PowerLaw::zzmms_gxy_t(const double y,const double z,const double t)
        + T3*A*fy/(T3*A-1)*((-1.0/T3)*exp(-t/T3)+A*exp(-A*t));
 }
 
-double Mat_PowerLaw::zzmms_gxz(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxz(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double fz = zzmms_f_z(y,z);
@@ -2048,7 +2048,7 @@ double Mat_PowerLaw::zzmms_gxz(const double y,const double z,const double t)
        - T2*A*fz/(T2*A-1)*(exp(-t/T2)-exp(-A*t))
        + T3*A*fz/(T3*A-1)*(exp(-t/T3)-exp(-A*t));
 }
-double Mat_PowerLaw::zzmms_gxz_z(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxz_z(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double Az = zzmms_mu_z(y,z)*zzmms_invVisc(y,z) + zzmms_mu(y,z)*zzmms_invVisc_z(y,z);
@@ -2067,7 +2067,7 @@ double Mat_PowerLaw::zzmms_gxz_z(const double y,const double z,const double t)
        +T3*A*Az*fz*exp(-A*t)*t/d3 + T3*A*fzz/d3*(exp(-t/T3)-exp(-A*t));
   return out1 + out2 + out3;
 }
-double Mat_PowerLaw::zzmms_gxz_t(const double y,const double z,const double t)
+double PowerLaw::zzmms_gxz_t(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double fz = zzmms_f_z(y,z);
@@ -2079,7 +2079,7 @@ double Mat_PowerLaw::zzmms_gxz_t(const double y,const double z,const double t)
 }
 
 // source terms for viscous strain rates
-double Mat_PowerLaw::zzmms_max_gxy_t_source(const double y,const double z,const double t)
+double PowerLaw::zzmms_max_gxy_t_source(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double uy = zzmms_uA_y(y,z,t);
@@ -2087,7 +2087,7 @@ double Mat_PowerLaw::zzmms_max_gxy_t_source(const double y,const double z,const 
 
   return zzmms_gxy_t(y,z,t) - A*(uy - g);
 }
-double Mat_PowerLaw::zzmms_max_gxz_t_source(const double y,const double z,const double t)
+double PowerLaw::zzmms_max_gxz_t_source(const double y,const double z,const double t)
 {
   double A = zzmms_mu(y,z)*zzmms_invVisc(y,z);
   double uz = zzmms_uA_z(y,z,t);
@@ -2096,7 +2096,7 @@ double Mat_PowerLaw::zzmms_max_gxz_t_source(const double y,const double z,const 
   return zzmms_gxz_t(y,z,t) - A*(uz - g);
 }
 
-double Mat_PowerLaw::zzmms_gSource(const double y,const double z,const double t)
+double PowerLaw::zzmms_gSource(const double y,const double z,const double t)
 {
   PetscScalar mu = zzmms_mu(y,z);
   PetscScalar mu_y = zzmms_mu_y(y,z);
@@ -2108,20 +2108,20 @@ double Mat_PowerLaw::zzmms_gSource(const double y,const double z,const double t)
   return -mu*(gxy_y + gxz_z) - mu_y*gxy - mu_z*gxz; // full answer
 }
 
-double Mat_PowerLaw::zzmms_A(const double y,const double z) { return cos(y)*cos(z) + 398; }
-double Mat_PowerLaw::zzmms_B(const double y,const double z) { return sin(y)*sin(z) + 4.28e4; }
-double Mat_PowerLaw::zzmms_T(const double y,const double z) { return sin(y)*cos(z) + 800; }
-double Mat_PowerLaw::zzmms_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
-double Mat_PowerLaw::zzmms_pl_sigmaxy(const double y,const double z,const double t) { return zzmms_mu(y,z)*(zzmms_uA_y(y,z,t) - zzmms_gxy(y,z,t)); }
-double Mat_PowerLaw::zzmms_pl_sigmaxz(const double y,const double z, const double t) { return zzmms_mu(y,z)*(zzmms_uA_z(y,z,t) - zzmms_gxz(y,z,t)); }
-double Mat_PowerLaw::zzmms_sdev(const double y,const double z,const double t)
+double PowerLaw::zzmms_A(const double y,const double z) { return cos(y)*cos(z) + 398; }
+double PowerLaw::zzmms_B(const double y,const double z) { return sin(y)*sin(z) + 4.28e4; }
+double PowerLaw::zzmms_T(const double y,const double z) { return sin(y)*cos(z) + 800; }
+double PowerLaw::zzmms_n(const double y,const double z) { return cos(y)*sin(z) + 3.0; }
+double PowerLaw::zzmms_pl_sigmaxy(const double y,const double z,const double t) { return zzmms_mu(y,z)*(zzmms_uA_y(y,z,t) - zzmms_gxy(y,z,t)); }
+double PowerLaw::zzmms_pl_sigmaxz(const double y,const double z, const double t) { return zzmms_mu(y,z)*(zzmms_uA_z(y,z,t) - zzmms_gxz(y,z,t)); }
+double PowerLaw::zzmms_sdev(const double y,const double z,const double t)
 {
   return sqrt( pow(zzmms_pl_sigmaxy(y,z,t),2.0) + pow(zzmms_pl_sigmaxz(y,z,t),2.0) );
 }
 
 
 // source terms for viscous strain rates
-double Mat_PowerLaw::zzmms_pl_gxy_t_source(const double y,const double z,const double t)
+double PowerLaw::zzmms_pl_gxy_t_source(const double y,const double z,const double t)
 {
   double A = zzmms_A(y,z);
   double B = zzmms_B(y,z);
@@ -2134,7 +2134,7 @@ double Mat_PowerLaw::zzmms_pl_gxy_t_source(const double y,const double z,const d
 
   return zzmms_gxy_t(y,z,t) - v;
 }
-double Mat_PowerLaw::zzmms_pl_gxz_t_source(const double y,const double z,const double t)
+double PowerLaw::zzmms_pl_gxz_t_source(const double y,const double z,const double t)
 {
   double A = zzmms_A(y,z);
   double B = zzmms_B(y,z);
@@ -2149,18 +2149,18 @@ double Mat_PowerLaw::zzmms_pl_gxz_t_source(const double y,const double z,const d
 }
 
 
-double Mat_PowerLaw::zzmms_visc1D(const double y) { return cos(y) + 20.0; }
-double Mat_PowerLaw::zzmms_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
-double Mat_PowerLaw::zzmms_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
-double Mat_PowerLaw::zzmms_invVisc_z1D(const double y) { return 0; }
+double PowerLaw::zzmms_visc1D(const double y) { return cos(y) + 20.0; }
+double PowerLaw::zzmms_invVisc1D(const double y) { return 1.0/(cos(y) + 20.0); }
+double PowerLaw::zzmms_invVisc_y1D(const double y) { return sin(y)/pow( cos(y)+20.0, 2.0); }
+double PowerLaw::zzmms_invVisc_z1D(const double y) { return 0; }
 
-double Mat_PowerLaw::zzmms_gxy1D(const double y,const double t)
+double PowerLaw::zzmms_gxy1D(const double y,const double t)
 {
   double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
   double fy = zzmms_f_y1D(y);
   return A*fy/(A-1.0)*(exp(-t) - exp(-A*t));
 }
-double Mat_PowerLaw::zzmms_gxy_y1D(const double y,const double t)
+double PowerLaw::zzmms_gxy_y1D(const double y,const double t)
 {
   double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
   double Ay = zzmms_mu_y1D(y)*zzmms_invVisc1D(y) + zzmms_mu1D(y)*zzmms_invVisc_y1D(y);
@@ -2169,14 +2169,14 @@ double Mat_PowerLaw::zzmms_gxy_y1D(const double y,const double t)
   double den = A-1.0, B = exp(-t)-exp(-A*t);
   return t*A*Ay*fy*exp(-A*t)/den - A*fy*Ay*B/pow(den,2.0) + fy*Ay*B/den + A*fyy*B/den;
 }
-double Mat_PowerLaw::zzmms_gxy_t1D(const double y,const double t)
+double PowerLaw::zzmms_gxy_t1D(const double y,const double t)
 {
   double A = zzmms_mu1D(y)*zzmms_invVisc1D(y);
   double fy = zzmms_f_y1D(y);
   return A*fy*(-exp(-t) + A*exp(-A*t))/(A-1.0);
 }
 
-double Mat_PowerLaw::zzmms_gSource1D(const double y,const double t)
+double PowerLaw::zzmms_gSource1D(const double y,const double t)
 {
   PetscScalar mu = zzmms_mu1D(y);
   PetscScalar mu_y = zzmms_mu_y1D(y);
@@ -2188,19 +2188,19 @@ double Mat_PowerLaw::zzmms_gSource1D(const double y,const double t)
 
 
 // specific to power law
-double Mat_PowerLaw::zzmms_A1D(const double y) { return cos(y) + 1e-9; }
-double Mat_PowerLaw::zzmms_B1D(const double y) { return sin(y) + 1.44e4; }
-double Mat_PowerLaw::zzmms_T1D(const double y) { return sin(y) + 600; }
-double Mat_PowerLaw::zzmms_n1D(const double y) { return cos(y) + 3.0; }
-double Mat_PowerLaw::zzmms_pl_sigmaxy1D(const double y,const double t)
+double PowerLaw::zzmms_A1D(const double y) { return cos(y) + 1e-9; }
+double PowerLaw::zzmms_B1D(const double y) { return sin(y) + 1.44e4; }
+double PowerLaw::zzmms_T1D(const double y) { return sin(y) + 600; }
+double PowerLaw::zzmms_n1D(const double y) { return cos(y) + 3.0; }
+double PowerLaw::zzmms_pl_sigmaxy1D(const double y,const double t)
 { return zzmms_mu1D(y)*(zzmms_uA_y1D(y,t) - zzmms_gxy1D(y,t)); }
-double Mat_PowerLaw::zzmms_pl_sigmaxz1D(const double y,const double t) { return 0; }
-double Mat_PowerLaw::zzmms_sdev1D(const double y,const double t)
+double PowerLaw::zzmms_pl_sigmaxz1D(const double y,const double t) { return 0; }
+double PowerLaw::zzmms_sdev1D(const double y,const double t)
 { return sqrt( pow(zzmms_pl_sigmaxy1D(y,t),2.0)); }
 
 
 // source terms for viscous strain rates
-double Mat_PowerLaw::zzmms_pl_gxy_t_source1D(const double y,const double t)
+double PowerLaw::zzmms_pl_gxy_t_source1D(const double y,const double t)
 {
   double A = zzmms_A1D(y);
   double B = zzmms_B1D(y);
@@ -2212,7 +2212,7 @@ double Mat_PowerLaw::zzmms_pl_gxy_t_source1D(const double y,const double t)
 
   return zzmms_gxy_t1D(y,t) - v;
 }
-double Mat_PowerLaw::zzmms_pl_gxz_t_source1D(const double y,const double t)
+double PowerLaw::zzmms_pl_gxz_t_source1D(const double y,const double t)
 {
   double A = zzmms_A1D(y);
   double B = zzmms_B1D(y);

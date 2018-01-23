@@ -1,5 +1,5 @@
-#ifndef MAT_POWERLAW_H_INCLUDED
-#define MAT_POWERLAW_H_INCLUDED
+#ifndef POWERLAW_H_INCLUDED
+#define POWERLAW_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -10,12 +10,12 @@
 #include "heatEquation.hpp"
 
 
-class Mat_PowerLaw
+class PowerLaw
 {
   private:
     // disable default copy constructor and assignment operator
-    Mat_PowerLaw(const Mat_PowerLaw &that);
-    Mat_PowerLaw& operator=(const Mat_PowerLaw &rhs);
+    PowerLaw(const PowerLaw &that);
+    PowerLaw& operator=(const PowerLaw &rhs);
 
   public:
 
@@ -85,8 +85,8 @@ class Mat_PowerLaw
     std::string  _bcRType,_bcTType,_bcLType,_bcBType; // options: Neumann, Dirichlet
     Vec          _bcT,_bcR,_bcB,_bcL;
 
-    Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
-    ~Mat_PowerLaw();
+    PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
+    ~PowerLaw();
 
     // initialize and set data
     PetscErrorCode loadSettings(const char *file); // load settings from input file
