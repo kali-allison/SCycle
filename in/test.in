@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 151
-Nz = 201
+Ny = 101
+Nz = 101
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -12,21 +12,20 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # steady state stuff
-ssEffViscScale = 1
-maxSSIts_effVisc = 3
+maxSSIts_effVisc = 4
 maxSSIts_tau = 6
 maxSSIts_timesteps = 8
 
 # coordinate transformation
-bCoordTrans = 5.0
-sbpType = mfc_coordTrans
-#sbpType = mfc
+#bCoordTrans = 5.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear system
@@ -142,7 +141,7 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e12
 initDeltaT = 1e-3

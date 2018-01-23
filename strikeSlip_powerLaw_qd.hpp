@@ -114,7 +114,6 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     PetscErrorCode solveSSb();
     PetscErrorCode integrateSS();
     PetscErrorCode solveSS();
-    PetscErrorCode solveSS_pl();
     PetscErrorCode setSSBCs();
     PetscErrorCode solveSSViscoelasticProblem();
 

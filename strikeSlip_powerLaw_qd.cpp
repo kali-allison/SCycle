@@ -272,10 +272,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   VecSet(slip,0.);
   _varEx["slip"] = slip;
 
-  if (_guessSteadyStateICs) {
-    solveSS();
-    writeSS(0,_outputDir);
-  } // doesn't solve for steady state tau
+  if (_guessSteadyStateICs) { solveSS(); } // doesn't solve for steady state tau
 
   _material->initiateIntegrand(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -673,7 +670,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   Vec sxy=NULL,sxz=NULL,sdev = NULL;
   std::string baseOutDir = _outputDir;
 
-   // initial guess for thermomechanical problem
+   // initial guess for (thermo)mechanical problem
   solveSS();
 
     Vec T; VecDuplicate(_varSS["effVisc"],&T);
@@ -713,7 +710,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     _quadEx->integrate(this);CHKERRQ(ierr);
     delete _quadEx; _quadEx = NULL;
 
-    // compute steady state conditions
+    // compute steady state viscous strain rates and stresses
     VecCopy(_fault->_tauP,_varSS["tau"]);
     solveSSViscoelasticProblem(); // iterate to find effective viscosity etc
 
@@ -777,75 +774,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   _varSS["tau"] = tauSS;
   _material->initiateVarSS(_varSS);
   _fault->initiateVarSS(_varSS);
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS_pl()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::solveSS_pl";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  //~ PetscScalar H = 10; // seismogenic depth
-  //~ PetscScalar ess_t = _vL*0.5/H; // guess at steady state strain rate
-  PetscScalar ess_t = 1e-7; // guess at steady state strain rate
-
-  // compute steady state stress on fault
-  Vec tauRS = NULL,tauVisc = NULL,tauSS=NULL;
-  _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
-  _material->getTauVisc(tauVisc,ess_t); // tau visc from steady state strain rate
-
-  // tauSS = min(tauRS,tauVisc)
-  VecDuplicate(tauRS,&tauSS);
-  VecPointwiseMin(tauSS,tauRS,tauVisc);
-
-  ierr = io_initiateWriteAppend(_viewers, "SS_tauSS", tauSS, _outputDir + "SS_tauSS"); CHKERRQ(ierr);
-
-  // first, set up _varSS
-  _varSS["tau"] = tauSS;
-  _material->initiateVarSS(_varSS);
-  _fault->initiateVarSS(_varSS);
-
-  // don't iterate on effective viscosity
-  //~ ierr = _momBal->updateSSa(_varSS); CHKERRQ(ierr);
-
-  // loop over effective viscosity
-  Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
-  Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
-  double err = 1e10;
-  int Ii = 0;
-  while (Ii < 50 && err > 1e-3) {
-    VecCopy(_varSS["effVisc"],effVisc_old);
-    _material->updateSSa(_varSS); // compute v, viscous strain rates
-    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
-    //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
-    //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
-    // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-      MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
-      VecCopy(temp,_varSS["effVisc"]);
-
-    PetscScalar len;
-    VecNorm(effVisc_old,NORM_2,&len);
-    err = computeNormDiff_L2_scaleL2(effVisc_old,_varSS["effVisc"]);
-    PetscPrintf(PETSC_COMM_WORLD,"    inner loop: %i %e\n",Ii,err);
-    Ii++;
-  }
-  VecDestroy(&effVisc_old);
-  VecDestroy(&temp);
-
-  // solve for gVxy, gVxz, u, bcL and bcR
-  ierr = _material->updateSSb(_varSS); CHKERRQ(ierr);
-  setSSBCs();
-
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -933,19 +861,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
   #endif
 
   if (Ii == 0) {
-    //~ ierr = io_initiateWriteAppend(_viewers, "slipVel", _varSS["slipVel"], outputDir + "SS_slipVel"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "tau", _varSS["tau"], outputDir + "SS_tau"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "slipVel", _varSS["slipVel"], outputDir + "SS_slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tau", _varSS["tau"], outputDir + "SS_tau"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], outputDir + "SS_effVisc"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "gVxy_t", _varSS["gVxy_t"], outputDir + "SS_gVxy_t"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "gVxz_t", _varSS["gVxz_t"], outputDir + "SS_gVxz_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxy_t", _varSS["gVxy_t"], outputDir + "SS_gVxy_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxz_t", _varSS["gVxz_t"], outputDir + "SS_gVxz_t"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _varSS["sxy"], outputDir + "SS_sxy"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxz", _varSS["sxz"], outputDir + "SS_sxz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "gxy", _varSS["gxy"], outputDir + "SS_gxy"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "gxz", _varSS["gxz"], outputDir + "SS_gxz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
-
+    ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
@@ -960,7 +887,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
-
   }
 
   #if VERBOSE > 1
