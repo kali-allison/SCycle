@@ -247,6 +247,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
+
   VecSet(_material->_bcR,_vL*_initTime/2.0);
 
   Vec slip;
@@ -470,8 +472,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 {
   PetscErrorCode ierr = 0;
 
-  // update fields based on varEx, varIm
-
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_bcLType.compare("symm_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
@@ -591,7 +591,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
   PetscErrorCode ierr = 0;
 
   // update rhs
+  //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
   _material->setRHS();
+  //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
+
   _material->computeU();
   _material->computeStresses();
 
@@ -710,10 +713,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
-  // _material->measureMMSError(_currTime);
-
+  _material->measureMMSError(_currTime);
   //~ _he->measureMMSError(_currTime);
-  _p->measureMMSError(_currTime);
+  //~ _p->measureMMSError(_currTime);
 
   return ierr;
 }

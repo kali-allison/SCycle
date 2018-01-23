@@ -138,9 +138,13 @@ class Mat_PowerLaw
 
 
     // MMS functions
-    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSInitialConditions(const double time);
     PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError(const PetscScalar time);
+    PetscErrorCode forceMMSSolutions_u(const PetscScalar time);
+    PetscErrorCode forceMMSSolutions_viscStrainRates(const PetscScalar time,Vec& gVxy_t,Vec& gVxz_t);
+    PetscErrorCode addRHS_MMSSource(const PetscScalar time,Vec& rhs);
+    PetscErrorCode addViscStrainRates_MMSSource(const PetscScalar time,Vec& gVxy_t,Vec& gVxz_t);
 
     static double zzmms_f(const double y,const double z);
     static double zzmms_f_y(const double y,const double z);

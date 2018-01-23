@@ -50,8 +50,6 @@ Mat_PowerLaw::Mat_PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::s
   computeStresses();
   computeViscosity(_effViscCap);
 
-  if (_isMMS) { setMMSInitialConditions(); }
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -712,7 +710,7 @@ PetscErrorCode Mat_PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
 }
 
 
-PetscErrorCode Mat_PowerLaw::setMMSInitialConditions()
+PetscErrorCode Mat_PowerLaw::setMMSInitialConditions(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -720,7 +718,6 @@ PetscErrorCode Mat_PowerLaw::setMMSInitialConditions()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
-  PetscScalar time = _currTime;
   if (_Nz == 1) { mapToVec(_gxy,zzmms_gxy1D,*_y,time); }
   else { mapToVec(_gxy,zzmms_gxy,*_y,*_z,time); }
   if (_Nz == 1) { VecSet(_gxz,0.0); }
@@ -792,6 +789,103 @@ PetscErrorCode Mat_PowerLaw::setMMSInitialConditions()
   return ierr;
 }
 
+PetscErrorCode Mat_PowerLaw::forceMMSSolutions_u(const PetscScalar time)
+{
+  PetscErrorCode ierr = 0;
+  string funcName = "Mat_PowerLaw::forceMMSSolutions_u";
+  string fileName = "linearElastic.cpp";
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #endif
+
+  // force u to be correct
+  ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
+
+  // force viscous strains to be correct
+  if (_Nz == 1) { mapToVec(_gxy,zzmms_gxy1D,*_y,time); }
+  else { mapToVec(_gxy,zzmms_gxy,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(_gxz,zzmms_gxy1D,*_y,time); }
+  else { mapToVec(_gxz,zzmms_gxz,*_y,*_z,time); }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
+// compute source term for MMS test and add it to rhs vector
+PetscErrorCode Mat_PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Mat_PowerLaw::addRHS_MMSSource";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  Vec viscSourceMMS,HxviscSourceMMS,viscSource,uSource,HxuSource;
+  ierr = VecDuplicate(_u,&viscSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&viscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&HxviscSourceMMS); CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&uSource); CHKERRQ(ierr);
+  ierr = VecDuplicate(_u,&HxuSource); CHKERRQ(ierr);
+
+  if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,time); }
+  else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,time); }
+  ierr = _sbp->H(viscSourceMMS,HxviscSourceMMS);
+  VecDestroy(&viscSourceMMS);
+  if (_Nz == 1) { mapToVec(uSource,zzmms_uSource1D,*_y,time); }
+  else { mapToVec(uSource,zzmms_uSource,*_y,*_z,time); }
+  ierr = _sbp->H(uSource,HxuSource);
+  VecDestroy(&uSource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
+    ierr = multMatsVec(yq,zr,HxuSource); CHKERRQ(ierr);
+  }
+
+  ierr = VecAXPY(_rhs,1.0,HxviscSourceMMS); CHKERRQ(ierr); // add MMS source for viscous strains
+  ierr = VecAXPY(_rhs,1.0,HxuSource); CHKERRQ(ierr); // add MMS source for u
+  VecDestroy(&HxviscSourceMMS);
+  VecDestroy(&HxuSource);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
+// compute source terms for MMS test and add to viscous strain rates
+PetscErrorCode Mat_PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time,Vec& gVxy_t,Vec& gVxz_t)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Mat_PowerLaw::addViscStrainRates_MMSSource";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  Vec source;
+  VecDuplicate(_u,&source);
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxy_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,zzmms_pl_gxy_t_source,*_y,*_z,_currTime); }
+  VecAXPY(gVxy_t,1.0,source);
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxz_t_source1D,*_y,_currTime); }
+  else { mapToVec(source,zzmms_pl_gxz_t_source,*_y,*_z,_currTime); }
+  VecAXPY(gVxz_t,1.0,source);
+  VecDestroy(&source);
+
+  // force rates to be correct
+  //~ mapToVec(gVxy_t,zzmms_gxy_t,*_y,*_z,time);
+  //~ mapToVec(gVxz_t,zzmms_gxz_t,*_y,*_z,time);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
 // limited by Maxwell time
 PetscErrorCode Mat_PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
 {
@@ -828,8 +922,6 @@ PetscErrorCode Mat_PowerLaw::initiateIntegrand(const PetscScalar time,map<string
     std::string funcName = "Mat_PowerLaw::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  if (_isMMS) { setMMSInitialConditions(); }
 
 
   // add deep copies of viscous strains to integrated variables, stored in _var
@@ -1149,6 +1241,11 @@ PetscErrorCode Mat_PowerLaw::computeStresses()
   }
 
   computeSDev();
+
+  // force stresses to be correct for MMS test
+  //~ mapToVec(_sxy,zzmms_pl_sigmaxy,*_y,*_z,time);
+  //~ mapToVec(_sxz,zzmms_pl_sigmaxz,*_y,*_z,time);
+  //~ mapToVec(_sdev,zzmms_sdev,*_y,*_z,time);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

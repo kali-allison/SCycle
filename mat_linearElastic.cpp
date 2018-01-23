@@ -40,9 +40,6 @@ Mat_LinearElastic::Mat_LinearElastic(Domain&D,std::string bcRTtype,std::string b
 
   setSurfDisp();
 
-  if (_isMMS) { setMMSInitialConditions(); }
-
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending Mat_LinearElastic::Mat_LinearElastic in linearElastic.cpp.\n\n");
 #endif
@@ -431,6 +428,9 @@ PetscErrorCode Mat_LinearElastic::computeU()
 
   ierr = setSurfDisp();
 
+  // force solution to be accurate to debug MMS test
+  //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -698,10 +698,10 @@ PetscErrorCode Mat_LinearElastic::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)
 PetscErrorCode Mat_LinearElastic::setMMSBoundaryConditions(const double time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "Mat_LinearElastic::setMMSBoundaryConditions";
-  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+    string funcName = "Mat_LinearElastic::setMMSBoundaryConditions";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
   #endif
 
   // set up boundary conditions: L and R
@@ -776,7 +776,40 @@ PetscErrorCode Mat_LinearElastic::setMMSBoundaryConditions(const double time)
   return ierr;
 }
 
-PetscErrorCode Mat_LinearElastic::setMMSInitialConditions()
+// compute source term for MMS test and add it to rhs vector
+PetscErrorCode Mat_LinearElastic::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Mat_LinearElastic::addRHS_MMSSource";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+
+  Vec source,Hxsource;
+  VecDuplicate(_u,&source);
+  VecDuplicate(_u,&Hxsource);
+  if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
+  else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
+  ierr = _sbp->H(source,Hxsource);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    multMatsVec(yq,zr,Hxsource);
+  }
+  VecDestroy(&source);
+
+  ierr = VecAXPY(_rhs,1.0,Hxsource);CHKERRQ(ierr); // rhs = rhs + H*source
+  VecDestroy(&Hxsource);
+
+  #if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Mat_LinearElastic::setMMSInitialConditions(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   string funcName = "Mat_LinearElastic::setMMSInitialConditions";
@@ -786,15 +819,12 @@ PetscErrorCode Mat_LinearElastic::setMMSInitialConditions()
   #endif
 
 
-  PetscScalar time = _currTime;
-
   Vec source,Hxsource;
   VecDuplicate(_u,&source);
   VecDuplicate(_u,&Hxsource);
 
-  if (_Nz == 1) { mapToVec(source,zzmms_uSource1D,*_y,_currTime); }
-  else { mapToVec(source,zzmms_uSource,*_y,*_z,_currTime); }
-  //~ ierr = mapToVec(source,zzmms_uSource,_Nz,_dy,_dz,time); CHKERRQ(ierr);
+  if (_Nz == 1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
+  else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -816,7 +846,6 @@ PetscErrorCode Mat_LinearElastic::setMMSInitialConditions()
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_ksp,_rhs,_u);CHKERRQ(ierr);
-  writeVec(_u,"data/mms_uuu");
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   ierr = setSurfDisp();

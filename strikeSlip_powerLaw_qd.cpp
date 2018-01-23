@@ -267,6 +267,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
+
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecSet(slip,0.);
@@ -629,6 +631,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
 {
   PetscErrorCode ierr = 0;
 
+
+
   // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
   Vec viscSource;
   ierr = VecDuplicate(_material->_gxy,&viscSource);CHKERRQ(ierr);
@@ -636,9 +640,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
   ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gxy,_material->_gxz); CHKERRQ(ierr);
 
   // set up rhs vector
+  //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
   _material->setRHS();
   ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
   VecDestroy(&viscSource);
+  //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   // solve for displacement
   ierr = _material->computeU(); CHKERRQ(ierr);
@@ -652,6 +658,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
   Vec gVxy = varEx.find("gVxy")->second;
   Vec gVxz = varEx.find("gVxz")->second;
   ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  //~ if (_isMMS) { _material->addViscStrainRates_MMSSource(time,dvarEx["gVxy"],dvarEx["gVxz"]); }
 
   return ierr;
 }

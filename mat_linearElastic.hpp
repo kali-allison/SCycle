@@ -102,9 +102,10 @@ class Mat_LinearElastic
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
-    PetscErrorCode setMMSInitialConditions();
+    PetscErrorCode setMMSInitialConditions(const double time);
     PetscErrorCode setMMSBoundaryConditions(const double time);
     PetscErrorCode measureMMSError(const PetscScalar time);
+    PetscErrorCode addRHS_MMSSource(const PetscScalar time,Vec& rhs);
 
     // 2D
     static double zzmms_f(const double y,const double z);
