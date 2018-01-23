@@ -8,7 +8,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _currTime(D._initTime),_stepCount(0),
+  _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),_muVal(30.0),_rhoVal(3.0),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
@@ -747,12 +747,12 @@ PetscErrorCode PowerLaw::setMMSInitialConditions(const PetscScalar time)
   ierr = VecDuplicate(_u,&HxuSource); CHKERRQ(ierr);
 
   ierr = computeViscStrainSourceTerms(viscSource,_gxy,_gxz);CHKERRQ(ierr);
-  if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,_currTime); }
-  else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,time); }
+  else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,time); }
   ierr = _sbp->H(viscSourceMMS,HxviscSourceMMS); CHKERRQ(ierr);
   VecDestroy(&viscSourceMMS);
-  if (_Nz == 1) { mapToVec(uSource,zzmms_uSource1D,*_y,_currTime); }
-  else { mapToVec(uSource,zzmms_uSource,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(uSource,zzmms_uSource1D,*_y,time); }
+  else { mapToVec(uSource,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(uSource,HxuSource); CHKERRQ(ierr);
   VecDestroy(&uSource);
   if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -868,11 +868,11 @@ PetscErrorCode PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time,Vec
 
   Vec source;
   VecDuplicate(_u,&source);
-  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxy_t_source1D,*_y,_currTime); }
-  else { mapToVec(source,zzmms_pl_gxy_t_source,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxy_t_source1D,*_y,time); }
+  else { mapToVec(source,zzmms_pl_gxy_t_source,*_y,*_z,time); }
   VecAXPY(gVxy_t,1.0,source);
-  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxz_t_source1D,*_y,_currTime); }
-  else { mapToVec(source,zzmms_pl_gxz_t_source,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(source,zzmms_pl_gxz_t_source1D,*_y,time); }
+  else { mapToVec(source,zzmms_pl_gxz_t_source,*_y,*_z,time); }
   VecAXPY(gVxz_t,1.0,source);
   VecDestroy(&source);
 
@@ -1878,7 +1878,6 @@ PetscErrorCode PowerLaw::setMMSBoundaryConditions(const double time)
 PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  _currTime = time;
 
   // measure error between analytical and numerical solution
   Vec uA,gxyA,gxzA;
@@ -1886,12 +1885,12 @@ PetscErrorCode PowerLaw::measureMMSError(const PetscScalar time)
   VecDuplicate(_u,&gxyA);
   VecDuplicate(_u,&gxzA);
 
-  if (_Nz == 1) { mapToVec(uA,zzmms_uA1D,*_y,_currTime); }
-  else { mapToVec(uA,zzmms_uA,*_y,*_z,_currTime); }
-    if (_Nz == 1) { mapToVec(gxyA,zzmms_gxy1D,*_y,_currTime); }
-  else { mapToVec(gxyA,zzmms_gxy,*_y,*_z,_currTime); }
-  if (_Nz == 1) { mapToVec(gxzA,zzmms_gxy1D,*_y,_currTime); }
-  else { mapToVec(gxzA,zzmms_gxz,*_y,*_z,_currTime); }
+  if (_Nz == 1) { mapToVec(uA,zzmms_uA1D,*_y,time); }
+  else { mapToVec(uA,zzmms_uA,*_y,*_z,time); }
+    if (_Nz == 1) { mapToVec(gxyA,zzmms_gxy1D,*_y,time); }
+  else { mapToVec(gxyA,zzmms_gxy,*_y,*_z,time); }
+  if (_Nz == 1) { mapToVec(gxzA,zzmms_gxy1D,*_y,time); }
+  else { mapToVec(gxzA,zzmms_gxz,*_y,*_z,time); }
 
   writeVec(uA,_outputDir+"mms_uA");
   writeVec(gxyA,_outputDir+"mms_gxyA");

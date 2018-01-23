@@ -36,6 +36,7 @@ class HeatEquation
     Vec                 *_y,*_z; // to handle variable grid spacing
     std::string          _heatEquationType;
     int                  _isMMS;
+    PetscScalar          _initTime,_initDeltaT;
 
     // IO information
     const char       *_file; // input ASCII file location
@@ -81,12 +82,11 @@ class HeatEquation
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
     PetscInt             _linSolveCount;
-    PetscInt             _stride1D,_stride2D; // stride
 
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode setFields(Domain& D);
+    PetscErrorCode setFields();
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode checkInput();     // check input from file
@@ -95,7 +95,7 @@ class HeatEquation
     PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp(Domain& D);
     PetscErrorCode setUpSteadyStateProblem(Domain& D);
-    PetscErrorCode setUpTransientProblem(Domain& D);
+    PetscErrorCode setUpTransientProblem();
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
@@ -135,14 +135,10 @@ class HeatEquation
     PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
-    PetscErrorCode setMMSBoundaryConditions(const double time,
-        std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-
-    PetscErrorCode measureMMSError(const PetscScalar time);
 
     // IO commands
     PetscErrorCode view();
@@ -150,6 +146,11 @@ class HeatEquation
     PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+
+    // MMS functions
+    PetscErrorCode measureMMSError(const PetscScalar time);
+    PetscErrorCode setMMSBoundaryConditions(const double time,
+        std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
 
     static double zzmms_rho(const double y,const double z);
     static double zzmms_c(const double y,const double z);

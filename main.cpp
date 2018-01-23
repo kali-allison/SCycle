@@ -12,7 +12,6 @@
 #include "powerLaw.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "mediator.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
@@ -29,8 +28,6 @@ int runTests(const char * inputFile)
 
   Domain d(inputFile);
   // d.write();
-
-  Mediator m(d);
 
   //~ PressureEq p(d); // pressure equation
   //~ p.writeContext();
@@ -56,10 +53,10 @@ for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
     //~ Domain d(inputFile,Ny,1);
     d.write();
 
-    Mediator m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
-    ierr = m.integrate();CHKERRQ(ierr);
-    ierr = m.measureMMSError();CHKERRQ(ierr);
+    //~ Mediator m(d);
+    //~ ierr = m.writeContext(); CHKERRQ(ierr);
+    //~ ierr = m.integrate();CHKERRQ(ierr);
+    //~ ierr = m.measureMMSError();CHKERRQ(ierr);
   }
 
   return ierr;

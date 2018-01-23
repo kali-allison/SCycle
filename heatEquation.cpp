@@ -19,7 +19,7 @@ HeatEquation::HeatEquation(Domain& D)
   _ksp(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_omega(NULL),_w(0),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
-  _linSolveCount(0),_stride1D(D._stride1D),_stride2D(D._stride2D),
+  _linSolveCount(0),
   _dT(NULL),_Tamb(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL),_Q(NULL)
 {
   #if VERBOSE > 1
@@ -29,7 +29,7 @@ HeatEquation::HeatEquation(Domain& D)
 
   loadSettings(_file);
   checkInput();
-  setFields(D);
+  setFields();
   constructMapV();
   //~ if (D._loadICs==1) { loadFieldsFromFiles(); }
   if (!_isMMS && D._loadICs!=1) { computeInitialSteadyStateTemp(D); }
@@ -227,6 +227,13 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("shearZoneWidth")==0) {
       _w = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
+
+    else if (var.compare("initTime")==0) {
+      _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("initDeltaT")==0) {
+      _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
   }
 
   #if VERBOSE > 1
@@ -289,7 +296,7 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
 
 // initialize all fields
-PetscErrorCode HeatEquation::setFields(Domain& D)
+PetscErrorCode HeatEquation::setFields()
 {
 PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -351,9 +358,9 @@ PetscErrorCode ierr = 0;
       mapToVec(_rho,zzmms_rho,*_y,*_z);
       mapToVec(_c,zzmms_c,*_y,*_z);
       mapToVec(_h,zzmms_h,*_y,*_z);
-      mapToVec(_Tamb,zzmms_T,*_y,*_z,D._initTime);
-      mapToVec(_dT,zzmms_dT,*_y,*_z,D._initTime);
-      setMMSBoundaryConditions(D._initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
+      mapToVec(_Tamb,zzmms_T,*_y,*_z,_initTime);
+      mapToVec(_dT,zzmms_dT,*_y,*_z,_initTime);
+      setMMSBoundaryConditions(_initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
     }
     else {
       ierr = setVecFromVectors(_k,_kVals,_kDepths);CHKERRQ(ierr);
@@ -1448,7 +1455,7 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem(Domain& D)
 }
 
 // set up KSP, matrices, boundary conditions for the transient heat equation problem
-PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
+PetscErrorCode HeatEquation::setUpTransientProblem()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1523,7 +1530,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem(Domain& D)
 
   VecDestroy(&rhocV);
 
-  setupKSP(_sbpT,D._initDeltaT);
+  setupKSP(_sbpT,_initDeltaT);
 
 #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
