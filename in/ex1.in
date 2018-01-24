@@ -1,0 +1,81 @@
+# required domain arguments
+Ny = 201
+Nz = 202
+Ly = 30 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
+vL = 1e-9    # (m/s) loading velocity
+
+# control what problem is solved
+problemType = strikeSlip
+bulkDeformationType = linearElastic
+momentumBalanceType = quasidynamic
+guessSteadyStateICs = 1
+
+#======================================================================
+# rate-and-state parameters
+
+impedanceVals = [9.4868 9.4868]
+impedanceDepths = [0 60]
+DcVals = [12e-3 12e-3] # m
+DcDepths = [0 60] # m
+
+# creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
+
+sigmaNVals = [50 50] # MPa
+sigmaNDepths = [0 60]
+
+#======================================================================
+# off-fault material parameters
+
+mu = 30 # GPa
+rho = 3.0 # g/cm^3
+
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
+hVals = [0 0]
+hDepths = [0 60]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 60]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60]
+
+TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
+TDepths = [0 50]
+thermalCoupling = no
+withShearHeating = no
+withFrictionalHeating = no
+
+viscDistribution = effectiveVisc
+maxEffVisc = 1e20
+
+
+#======================================================================
+# settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
+
+timeIntegrator = RK32
+stride1D = 1
+stride2D = 1
+maxStepCount = 1e8
+initTime = 0
+maxTime = 1e12
+initDeltaT = 1e-3
+minDeltaT = 1e-3
+maxDeltaT = 1e12
+atol = 1e-8
+timeIntInds = [psi slip]
+
+
+outputDir = data/ex1_
+
+
+
+
+
+
