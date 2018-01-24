@@ -792,10 +792,9 @@ PetscErrorCode PowerLaw::setMMSInitialConditions(const PetscScalar time)
 PetscErrorCode PowerLaw::forceMMSSolutions_u(const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "PowerLaw::forceMMSSolutions_u";
-  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+    string funcName = "PowerLaw::forceMMSSolutions_u";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
   // force u to be correct
@@ -808,7 +807,7 @@ PetscErrorCode PowerLaw::forceMMSSolutions_u(const PetscScalar time)
   else { mapToVec(_gxz,zzmms_gxz,*_y,*_z,time); }
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -851,7 +850,7 @@ PetscErrorCode PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
   VecDestroy(&HxuSource);
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -881,7 +880,7 @@ PetscErrorCode PowerLaw::addViscStrainRates_MMSSource(const PetscScalar time,Vec
   //~ mapToVec(gVxz_t,zzmms_gxz_t,*_y,*_z,time);
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }

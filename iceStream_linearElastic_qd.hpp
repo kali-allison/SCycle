@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_LINEARELASTIC_QD_H_INCLUDED
-#define STRIKESLIP_LINEARELASTIC_QD_H_INCLUDED
+#ifndef ICESTREAM_LINEARELASTIC_QD_H_INCLUDED
+#define ICESTREAM_LINEARELASTIC_QD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -86,7 +86,7 @@ private:
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     Fault                      *_fault;
-    Mat_LinearElastic       *_material; // linear elastic off-fault material properties
+    LinearElastic       *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 

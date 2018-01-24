@@ -11,9 +11,6 @@
 #include "heatEquation.hpp"
 #include "rootFinderContext.hpp"
 
-// defines if state is in terms of psi (=1) or in terms of theta (=0)
-//~ #define STATE_PSI 1
-
 class RootFinder;
 
 
@@ -83,7 +80,7 @@ class Fault: public RootFinderContext
     PetscErrorCode  setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
       const PetscScalar maxVal);
 
-  //~public:
+
     Vec            _tauQSP;
     Vec            _tauP; // not quasi-static
 
@@ -162,8 +159,6 @@ class SymmFault: public Fault
 
   public:
 
-
-
     SymmFault(Domain&D, HeatEquation& He);
     ~SymmFault();
 
@@ -171,13 +166,12 @@ class SymmFault: public Fault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT);
-    PetscErrorCode virtual d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode virtual d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt_mms(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
-    PetscErrorCode virtual writeContext(const std::string outputDir);
+    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
+    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
@@ -192,64 +186,6 @@ class SymmFault: public Fault
     PetscErrorCode setSN(const Vec& p); // set total normal stress from pore pressure and effective normal stress
 
 };
-
-
-
-
-
-/*
-class FullFault: public Fault
-{
-
-  //~protected:
-  public:
-
-    // fields that exist on left split nodes
-    Vec            _zM;
-    PetscScalar   *_muArrMinus,*_csArrMinus;
-    PetscInt       _arrSize; // size of _muArrMinus
-    Vec            _uP,_uM,_velPlus,_velMinus;
-
-
-    // time-integrated variables
-    //~std::vector<Vec>    _var;
-
-    // viewers
-    PetscViewer    _uPlusViewer,_uMV,_velPlusViewer,_velMinusViewer,
-                   _tauQSMinusViewer,_stateViewer;
-
-
-    PetscErrorCode setSplitNodeFields();
-    PetscErrorCode computeVel();
-
-    // disable default copy constructor and assignment operator
-    FullFault(const FullFault & that);
-    FullFault& operator=( const FullFault& rhs);
-
-  //~public:
-
-    Vec            _tauQSMinus;
-
-    // iterators for _var
-    typedef std::vector<Vec>::iterator it_vec;
-    typedef std::vector<Vec>::const_iterator const_it_vec;
-
-    FullFault(Domain&D, HeatEquation& He);
-    ~FullFault();
-
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
-
-    PetscErrorCode d_dt(const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-
-
-    PetscErrorCode setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus);
-    PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
-
-    PetscErrorCode writeStep(const std::string outputDir,const PetscInt step);
-    PetscErrorCode writeContext(const std::string outputDir);
-};
-*/
 
 
 #include "rootFinder.hpp"

@@ -3,10 +3,11 @@ Ny = 201
 Nz = 202
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
+
 vL = 1e-9    # (m/s) loading velocity
 
 # control what problem is solved
-problemType = strikeSlip
+problemType = iceStream
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1
@@ -52,16 +53,12 @@ thermalCoupling = no
 withShearHeating = no
 withFrictionalHeating = no
 
-viscDistribution = effectiveVisc
-maxEffVisc = 1e20
-
-
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e8
 initTime = 0
 maxTime = 1e12

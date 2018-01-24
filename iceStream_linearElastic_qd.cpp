@@ -19,7 +19,7 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
-  _bcRType("freeSurface"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
+  _bcRType("freeSurface"),_bcTType("freeSurface"),_bcLType("rigid_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
 {
@@ -73,8 +73,8 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
     _mat_bcBType = "Neumann";
   }
-  if (_guessSteadyStateICs) { _material = new Mat_LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
-  else {_material = new Mat_LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
+  if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
+  else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -647,6 +647,7 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   //!!! add source term for driving the ice stream here
+  // rhs = rhs + (term)
 
   _material->computeU();
   _material->computeStresses();

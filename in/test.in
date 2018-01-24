@@ -1,14 +1,12 @@
 order = 4 # SBP order of accuracy
-Ny = 101
+Ny = 201
 Nz = 101
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
-isMMS = 1
-
 # strikeSlip or iceStream
-problemType = strikeSlip
+problemType = iceStream
 
 # linearElastic or powerLaw
 bulkDeformationType = linearElastic
@@ -17,7 +15,7 @@ bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
-guessSteadyStateICs = 0
+guessSteadyStateICs = 1
 
 # steady state stuff
 maxSSIts_effVisc = 4

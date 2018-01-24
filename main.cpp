@@ -14,6 +14,7 @@
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
+#include "iceStream_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
 #include "strikeSlip_powerLaw_qd.hpp"
 
@@ -100,7 +101,7 @@ int runEqCycle(const char * inputFile)
 
   // solving linear elastic, quasi-dynamic simulation for an ice stream
   if (d._problemType.compare("iceStream")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
-    StrikeSlip_LinearElastic_qd m(d);
+    IceStream_LinearElastic_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);

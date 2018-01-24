@@ -12,7 +12,8 @@ OBJECTS := domain.o fault.o genFuncs.o\
  sbpOps_c.o sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
  odeSolverImex.o odeSolver_WaveEq.o pressureEq.o \
  strikeSlip_linearElastic_qd.o linearElastic.o \
- strikeSlip_powerLaw_qd.o powerLaw.o
+ strikeSlip_powerLaw_qd.o powerLaw.o \
+ iceStream_linearElastic_qd.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
