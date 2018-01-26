@@ -131,23 +131,20 @@ class NewFault_qd: public NewFault
 struct ComputeVel_qd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta;
+  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi;
   PetscInt      _N; // length of the arrays
   PetscScalar   _v0;
-
-  // tolerances for linear and nonlinear (for vel) solve
-  PetscScalar    _rootTol;
-  PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
   // constructor and destructor
   ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0);
   //~ ~ComputeVel_qd(); // use default destructor
 
   // command to perform root-finding process, once contextual variables have been set
-  PetscErrorCode computeVel(const PetscScalar rootTol, const PetscScalar rootIts, const PetscScalar maxNumits);
+  PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
 
   // function that matches root finder template
-  PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
 
