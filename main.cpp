@@ -8,6 +8,8 @@
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "fault.hpp"
+#include "newFault.hpp"
+#include "newFault.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
 #include "pressureEq.hpp"

@@ -8,7 +8,6 @@
 #include <cmath>
 #include "genFuncs.hpp"
 #include "domain.hpp"
-#include "heatEquation.hpp"
 #include "rootFinderContext.hpp"
 
 class RootFinder;
@@ -33,11 +32,14 @@ class NewFault
     const PetscScalar  _L; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
+    Vec            _tauQSP;
+    Vec            _tauP; // not quasi-static
+
     // rate-and-state parameters
     PetscScalar           _f0,_v0;
     std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
     Vec                   _a,_b,_Dc;
-    std::vector<double>   _cohesionVals,_cohesionDepths;
+    std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths;
     Vec                   _cohesion;
     Vec                   _dPsi,_psi;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
@@ -48,8 +50,8 @@ class NewFault
     PetscScalar           _muVal,_rhoVal; // if constant
     Vec                   _slip,_slipVel;
 
-    Vec            _tauQSP;
-    Vec            _tauP; // not quasi-static
+    PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
+    Vec                   _T,_k,_rho,_c; // for flash heating
 
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
@@ -81,11 +83,13 @@ class NewFault
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode loadFieldsFromFiles(std::string inputDir);
     PetscErrorCode setFields(Domain&D);
+    PetscErrorCode setThermalFields(const Vec& T, const Vec& k, const Vec& c);
+    PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
       const PetscScalar maxVal);
 
-    PetscErrorCode setTauQS(const Vec& tau);
+    PetscErrorCode setTauQS(const Vec& sxy);
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 
@@ -132,12 +136,12 @@ struct ComputeVel_qd : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi;
-  PetscInt      _N; // length of the arrays
-  PetscScalar   _v0;
+  const PetscInt      _N; // length of the arrays
+  const PetscScalar   _v0;
 
   // constructor and destructor
   ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0);
-  //~ ~ComputeVel_qd(); // use default destructor
+  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
@@ -152,177 +156,33 @@ struct ComputeVel_qd : public RootFinderContext
 // common rate-and-state functions
 
 // state evolution law: aging law, state variable: psi
-PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
-{
-  PetscScalar A = exp( (double) (f0-psi)/b );
-  PetscScalar dstate = 0.;
-  if ( ~isinf(A) ) {
-    dstate = (PetscScalar) (b*v0/Dc)*( A - slipVel/v0 );
-  }
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
-  return dstate;
-}
+PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
 
 // applies the aging law to a Vec
-PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar *psiA,*dstateA,*slipVelA,*aA,*bA,*DcA = 0;
-  VecGetArray(dstate,&dstateA);
-  VecGetArray(psi,&psiA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(a,&aA);
-  VecGetArray(b,&bA);
-  VecGetArray(Dc,&DcA);
-  PetscInt Jj = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    dstateA[Jj] = agingLaw_psi(psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(psi,&psiA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(a,&aA);
-  VecRestoreArray(b,&bA);
-  VecRestoreArray(Dc,&DcA);
-
-  return ierr;
-}
+PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc);
 
 // state evolution law: aging law, state variable: theta
-PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel, const PetscScalar& Dc)
-{
-  PetscScalar dstate = 1. - theta*slipVel/Dc;
-
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
-  return dstate;
-}
+PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel, const PetscScalar& Dc);
 
 // applies the aging law to a Vec
-PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar *thetaA,*dstateA,*slipVelA,*DcA = 0;
-  VecGetArray(dstate,&dstateA);
-  VecGetArray(theta,&thetaA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(Dc,&DcA);
-  PetscInt Jj = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(theta,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    dstateA[Jj] = agingLaw_theta(thetaA[Jj], slipVelA[Jj], DcA[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(theta,&thetaA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(Dc,&DcA);
-
-  return ierr;
-}
+PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
 // state evolution law: slip law, state variable: psi
-PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
-{
-  PetscScalar fss = f0 + (a-b)*log(slipVel/v0);
-  PetscScalar f = psi + a*log(slipVel/v0);
-  PetscScalar dstate = -slipVel/Dc *(f - fss);
-
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
-  return dstate;
-}
+PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
 
 // applies the state law to a Vec
-PetscScalar slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar *psiA,*dstateA,*slipVelA,*aA,*bA,*DcA = 0;
-  VecGetArray(dstate,&dstateA);
-  VecGetArray(psi,&psiA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(a,&aA);
-  VecGetArray(b,&bA);
-  VecGetArray(Dc,&DcA);
-  PetscInt Jj = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    dstateA[Jj] = slipLaw_psi(psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(psi,&psiA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(a,&aA);
-  VecRestoreArray(b,&bA);
-  VecRestoreArray(Dc,&DcA);
-
-  return ierr;
-}
+PetscScalar slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc);
 
 // state evolution law: slip law, state variable: theta
-PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, const PetscScalar& Dc)
-{
-  PetscScalar A = state*slipVel/Dc;
-  PetscScalar dstate = 0.;
-  if (A != 0.) { dstate = -A*log(A); }
-
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
-  return dstate;
-}
+PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, const PetscScalar& Dc);
 
 // applies the state law to a Vec
-PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar *thetaA,*dstateA,*slipVelA,*DcA = 0;
-  VecGetArray(dstate,&dstateA);
-  VecGetArray(theta,&thetaA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(Dc,&DcA);
-  PetscInt Jj = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(theta,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    dstateA[Jj] = slipLaw_theta(thetaA[Jj], slipVelA[Jj], DcA[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(theta,&thetaA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(Dc,&DcA);
-
-  return ierr;
-}
-
+PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
 // frictional strength, regularized form, for state variable psi
-PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0)
-{
-  PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
-  return strength;
-}
-
-
-
-
+PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0);
 
 
 #include "rootFinder.hpp"
-
-
-
-
 
 #endif

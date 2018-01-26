@@ -36,7 +36,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   //~ if (_thermalCoupling.compare("no")!=0) {
     _he = new HeatEquation(D);
   //~ }
-  _fault = new SymmFault(D,*_he); // fault
+  //~ _fault = new SymmFault(D,*_he); // fault
+  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -551,7 +552,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -594,7 +595,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // update temperature in momBal
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    _fault->setTemp(varImo.find("Temp")->second);
+    _fault->updateTemperature(varImo.find("Temp")->second);
   }
 
   // update effective normal stress in fault using pore pressure
@@ -612,7 +613,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -664,7 +665,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 
   // compute steady state stress on fault
   Vec tauSS = NULL;
-  _fault->getTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+  _fault->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -681,7 +682,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   // update boundary conditions, stresses
   solveSSb();
