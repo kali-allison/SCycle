@@ -647,6 +647,7 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   //!!! add source term for driving the ice stream here
+  // remember to multiply this term by H*J (the H matrix and the Jacobian)
   // rhs = rhs + (term)
 
   _material->computeU();

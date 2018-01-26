@@ -54,7 +54,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time

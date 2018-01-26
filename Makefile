@@ -13,7 +13,8 @@ OBJECTS := domain.o fault.o genFuncs.o\
  odeSolverImex.o odeSolver_WaveEq.o pressureEq.o \
  strikeSlip_linearElastic_qd.o linearElastic.o \
  strikeSlip_powerLaw_qd.o powerLaw.o \
- iceStream_linearElastic_qd.o strikeSlip_linearElastic_dyn.o
+ iceStream_linearElastic_qd.o strikeSlip_linearElastic_dyn.o \
+ newFault.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -52,6 +53,9 @@ fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp heatEquation.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp rootFinderContext.hpp rootFinder.hpp
+newFault.o: newFault.cpp newFault.hpp genFuncs.hpp domain.hpp heatEquation.hpp \
+ sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
+ rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
 heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \

@@ -10,7 +10,6 @@
 SbpOps_sc::SbpOps_sc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type)
 : _order(D._order),_Ny(Ny),_Nz(Nz),_dy(D._dq),_dz(D._dr),
   _muVec(muVec),
-  _da(D._da),
   _bcTType(bcT),_bcRType(bcR),_bcBType(bcB),_bcLType(bcL),
   _alphaT(-1.0),_alphaDy(-4.0/_dy),_alphaDz(-4.0/_dz),_beta(1.0)
 

@@ -41,10 +41,11 @@ class Domain
     PetscScalar _dq,_dr;
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
-
-    // DMDA for all vectors
-    DM _da;
-    PetscInt _yS,_yE,_zS,_zE; // Start and End indices for loops (does NOT include ghost points)
+    // scatters to take values from body field(s) to 1D fields
+    // naming convention for key (string): body2<boundary>, example: "body2L>"
+    std::map <string, VecScatter>  _scatters;
+    Vec _y0; // y = 0 vector, size Nz
+    Vec _z0; // z = 0 vector, size Ny
 
     Domain(const char * file);
     Domain(const char *file,PetscInt Ny, PetscInt Nz);
@@ -64,6 +65,7 @@ class Domain
     PetscErrorCode loadData(const char *file); // load settings from input file
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode setFields();
+    PetscErrorCode setScatters();
 };
 
 #endif
