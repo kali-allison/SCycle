@@ -34,7 +34,8 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   checkInput();
 
   _he = new HeatEquation(D); // heat equation
-  _fault = new SymmFault(D,*_he); // fault
+  //~ _fault = new SymmFault(D,*_he); // fault
+  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -592,7 +593,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -637,7 +638,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   // update temperature in momBal
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    _fault->setTemp(varImo.find("Temp")->second);
+    _fault->updateTemperature(varImo.find("Temp")->second);
   }
 
   // update effective normal stress in fault using pore pressure
@@ -654,7 +655,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -787,7 +788,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     ierr = _material->updateSSb(_varSS); CHKERRQ(ierr);
     setSSBCs();
     ierr = _material->getStresses(sxy,sxz,sdev);
-    ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
 
     VecCopy(_fault->_tauP,_varSS["tau"]);
@@ -818,7 +819,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
 
   // compute steady state stress on fault
   Vec tauRS = NULL,tauVisc = NULL,tauSS=NULL;
-  _fault->getTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
+  _fault->computeTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
   _material->getTauVisc(tauVisc,_gss_t); // tau visc from steady state strain rate
 
   // tauSS = min(tauRS,tauVisc)
@@ -833,7 +834,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   // first, set up _varSS
   _varSS["tau"] = tauSS;
   _material->initiateVarSS(_varSS);
-  _fault->initiateVarSS(_varSS);
+  //~ _fault->initiateVarSS(_varSS);
+  _varSS["slipVel"] = _fault->_slipVel;
+
+  VecDestroy(&tauRS);
+  VecDestroy(&tauVisc);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -859,7 +864,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
 
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -127,4 +127,4 @@ strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
- pressureEq.hpp powerLaw.hpp
+ pressureEq.hpp powerLaw.hpp newFault.hpp

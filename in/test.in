@@ -1,6 +1,6 @@
-order = 4 # SBP order of accuracy
-Ny = 101
-Nz = 1
+order = 2 # SBP order of accuracy
+Ny = 5
+Nz = 4
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,7 +9,7 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
@@ -131,7 +131,7 @@ withFrictionalHeating = no
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 1e20
+maxEffVisc = 5e12
 
 
 #======================================================================

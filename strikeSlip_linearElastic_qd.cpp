@@ -33,9 +33,9 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 
 
   // heat equation
-  //~ if (_thermalCoupling.compare("no")!=0) {
+  if (_thermalCoupling.compare("no")!=0) {
     _he = new HeatEquation(D);
-  //~ }
+  }
   //~ _fault = new SymmFault(D,*_he); // fault
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
 

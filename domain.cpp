@@ -444,6 +444,8 @@ PetscErrorCode Domain::setScatters()
   VecCreate(PETSC_COMM_WORLD,&_y0); VecSetSizes(_y0,PETSC_DECIDE,_Nz); VecSetFromOptions(_y0); VecSet(_y0,0.0);
   VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
 
+
+
   { // set up scatter context to take values for y=0 from body field and put them on a Vec of size Nz
     PetscInt *indices; PetscMalloc1(_Nz,&indices);
     for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii; }
@@ -454,16 +456,81 @@ PetscErrorCode Domain::setScatters()
     ISDestroy(&is);
   }
 
-  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Nz
-    PetscInt *indices; PetscMalloc1(_Ny,&indices);
-    for (PetscInt Ii=0; Ii<_Ny; Ii++) { indices[Ii] = Ii; }
+  { // set up scatter context to take values for y=Ly from body field and put them on a Vec of size Nz
+    PetscInt *indices; PetscMalloc1(_Nz,&indices);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii + (_Ny*_Nz-_Nz); }
     IS is;
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, indices, PETSC_COPY_VALUES, &is);
-    ierr = VecScatterCreate(_y, is, _z0, is, &_scatters["body2T"]); CHKERRQ(ierr);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
+    ierr = VecScatterCreate(_y, is, _y0, NULL, &_scatters["body2R"]); CHKERRQ(ierr);
     PetscFree(indices);
     ISDestroy(&is);
   }
 
+  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Ny
+    PetscInt *indices; PetscMalloc1(_Ny,&indices);
+    IS is;
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &is);
+    ierr = VecScatterCreate(_y, is, _z0, NULL, &_scatters["body2T"]); CHKERRQ(ierr);
+    PetscFree(indices);
+    ISDestroy(&is);
+  }
+
+  { // set up scatter context to take values for z=Lz from body field and put them on a Vec of size Ny
+    PetscInt *indices; PetscMalloc1(_Ny,&indices);
+    IS is;
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &is);
+    ierr = VecScatterCreate(_y, is, _z0, NULL, &_scatters["body2B"]); CHKERRQ(ierr);
+    PetscFree(indices);
+    ISDestroy(&is);
+  }
+
+/*
+  // create example vector for testing purposes
+  Vec body; VecDuplicate(_y,&body);
+  PetscInt       Istart,Iend;
+  PetscScalar   *bodyA;
+  VecGetOwnershipRange(body,&Istart,&Iend);
+  VecGetArray(body,&bodyA);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscInt Iy = Ii/_Nz;
+    PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
+    bodyA[Jj] = 10.*Iy + Iz;
+    PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
+    Jj++;
+  }
+  VecRestoreArray(body,&bodyA);
+
+
+  // test various mappings
+
+  //~ // y = 0: mapping to L
+  //~ Vec out; VecDuplicate(_y0,&out);
+  //~ VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+
+  //~ // y = Ly: mapping to R
+  //~ Vec out; VecDuplicate(_y0,&out); VecSet(out,-1.);
+  //~ VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+
+  //~ // z=0: mapping to T
+  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
+  //~ VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+
+  // z=Lz: mapping to B
+  Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
+  VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+
+  VecDestroy(&body);
+  assert(0);
+*/
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -471,3 +538,10 @@ PetscErrorCode Domain::setScatters()
   #endif
 return ierr;
 }
+
+
+
+
+
+
+
