@@ -484,7 +484,7 @@ PetscErrorCode Domain::setScatters()
     ISDestroy(&is);
   }
 
-/*
+
   // create example vector for testing purposes
   Vec body; VecDuplicate(_y,&body);
   PetscInt       Istart,Iend;
@@ -522,15 +522,21 @@ PetscErrorCode Domain::setScatters()
   //~ VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
   //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
 
-  // z=Lz: mapping to B
-  Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
-  VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  //~ // z=Lz: mapping to B
+  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
+  //~ VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
 
-  VecDestroy(&body);
-  assert(0);
-*/
+  // z=Lz: mapping from B to body
+  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
+  //~ VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+  //~ VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+  //~ VecView(body,PETSC_VIEWER_STDOUT_WORLD);
+
+  //~ VecDestroy(&body);
+  //~ assert(0);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

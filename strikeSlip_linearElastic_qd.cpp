@@ -709,49 +709,36 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
   PetscInt Ny = _material->_Ny;
   PetscInt Nz = _material->_Nz;
 
-  // extract boundary condition information from u
-  Vec uL;
-  PetscInt Istart,Iend;
-  VecDuplicate(_material->_bcL,&uL);
+
+  // adjust u so it has no negative values
   PetscScalar minVal = 0;
   VecMin(_material->_u,NULL,&minVal);
-  if (minVal < 0) { minVal = abs(minVal); }
-
-  Vec temp;
-  VecDuplicate(_material->_u,&temp);
-  VecSet(temp,minVal);
-  VecAXPY(_material->_u,1.,temp);
-  VecDestroy(&temp);
-
-  PetscScalar v = 0.0;
-  ierr = VecGetOwnershipRange(_material->_u,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    // extract left boundary info for bcL
-    if ( Ii < Nz ) {
-      ierr = VecGetValues(_material->_u,1,&Ii,&v);CHKERRQ(ierr);
-      ierr = VecSetValues(uL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-
-    // put right boundary data into bcR
-    if ( Ii > (Ny*Nz - Nz - 1) ) {
-      PetscInt zI =  Ii - (Ny*Nz - Nz);
-      ierr = VecGetValues(_material->_u,1,&Ii,&v);CHKERRQ(ierr);
-      ierr = VecSetValues(_material->_bcRShift,1,&zI,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
+  if (minVal < 0) {
+    minVal = abs(minVal);
+    Vec temp;
+    VecDuplicate(_material->_u,&temp);
+    VecSet(temp,minVal);
+    VecAXPY(_material->_u,1.,temp);
+    VecDestroy(&temp);
   }
-  ierr = VecAssemblyBegin(_material->_bcRShift);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(uL);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_material->_bcRShift);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(uL);CHKERRQ(ierr);
+
+  // extract R boundary from u, to set _material->bcR
+  VecScatterBegin(_scatters["body2R"], body, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2R"], body, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecCopy(_material->_bcRShift,_material->_bcR);
 
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    VecCopy(uL,_material->_bcL);
-  }
+  // extract L boundary from u to set slip, possibly _material->_bcL
+  Vec uL; VecDuplicate(_material->_bcL,&uL);
+  VecScatterBegin(_scatters["body2L"], body, uL, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2L"], body, uL, INSERT_VALUES, SCATTER_FORWARD);
 
   VecCopy(uL,_varEx["slip"]);
   if (_bcLType.compare("symm_fault")==0) {
     VecScale(_varEx["slip"],2.);
+  }
+
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
+    VecCopy(uL,_material->_bcL);
   }
 
   VecDestroy(&uL);

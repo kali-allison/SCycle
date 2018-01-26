@@ -688,19 +688,9 @@ PetscErrorCode PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
   // use effective viscosity to compute strength of off-fault material
   if (tauVisc == NULL) { VecDuplicate(_bcL,&tauVisc); }
 
-  // first get viscosity just on fault
-  PetscInt Istart,Iend;
-  PetscScalar v = 0;
-  ierr = VecGetOwnershipRange(_effVisc,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    if (Ii<_Nz) {
-      ierr = VecGetValues(_effVisc,1,&Ii,&v);CHKERRQ(ierr);
-      ierr = VecSetValues(tauVisc,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(tauVisc);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(tauVisc);CHKERRQ(ierr);
-
+  // extract viscosity on fault and use it to compute viscous strength, tauVisc
+  VecScatterBegin(_scatters["body2L"], body, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2L"], body, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
   VecScale(tauVisc,ess_t);
 
   #if VERBOSE > 1
