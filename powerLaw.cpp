@@ -9,7 +9,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
-  _muVec(NULL),_rhoVec(NULL),_cs(NULL),_muVal(30.0),_rhoVal(3.0),
+  _muVec(NULL),_rhoVec(NULL),_cs(NULL),
   _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
@@ -150,11 +150,21 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
       _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    else if (var.compare("mu")==0) {
-      _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("muVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muVals);
     }
-    else if (var.compare("rho")==0) {
-      _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("muDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muDepths);
+    }
+    else if (var.compare("rhoVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_rhoVals);
+    }
+    else if (var.compare("rhoDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_rhoDepths);
     }
 
     // viscosity
@@ -339,42 +349,26 @@ PetscErrorCode PowerLaw::setMaterialParameters()
     CHKERRQ(ierr);
   #endif
 
-  VecSet(_muVec,_muVal);
-  VecSet(_rhoVec,_rhoVal);
-  VecPointwiseDivide(_cs, _muVec, _rhoVec);
-
-  PetscScalar *cs;
-  VecGetArray(_cs,&cs);
-  VecSqrtAbs(_cs);
-
-  if (_isMMS) {
+  // set each field using it's vals and depths std::vectors
+  ierr = setVec(_muVec,*_z,_muVals,_muDepths);        CHKERRQ(ierr);
+  ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);  CHKERRQ(ierr);
+  ierr = setVec(_A,*_z,_AVals,_ADepths);           CHKERRQ(ierr);
+  ierr = setVec(_QR,*_z,_BVals,_BDepths);        CHKERRQ(ierr);
+  ierr = setVec(_n,*_z,_nVals,_nDepths);         CHKERRQ(ierr);
+  if (_viscDistribution.compare("mms")==0) {
+    if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
+    else { mapToVec(_A,zzmms_A,*_y,*_z); }
+    if (_Nz == 1) { mapToVec(_QR,zzmms_B1D,*_y); }
+    else { mapToVec(_QR,zzmms_B,*_y,*_z); }
+    if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
+    else { mapToVec(_n,zzmms_n,*_y,*_z); }
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
     else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   }
+  if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
 
-
-  // set each field using it's vals and depths std::vectors
-  if (_Nz == 1) {
-    VecSet(_A,_AVals[0]);
-    VecSet(_QR,_BVals[0]);
-    VecSet(_n,_nVals[0]);
-  }
-  else {
-    if (_viscDistribution.compare("mms")==0) {
-      if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
-      else { mapToVec(_A,zzmms_A,*_y,*_z); }
-      if (_Nz == 1) { mapToVec(_QR,zzmms_B1D,*_y); }
-      else { mapToVec(_QR,zzmms_B,*_y,*_z); }
-      if (_Nz == 1) { mapToVec(_n,zzmms_n1D,*_y); }
-      else { mapToVec(_n,zzmms_n,*_y,*_z); }
-    }
-    else if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
-    else {
-      ierr = setVecFromVectors(_A,_AVals,_ADepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_QR,_BVals,_BDepths);CHKERRQ(ierr);
-      ierr = setVecFromVectors(_n,_nVals,_nDepths);CHKERRQ(ierr);
-    }
-  }
+  VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  VecSqrtAbs(_cs);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1766,7 +1760,6 @@ PetscErrorCode PowerLaw::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Power Law Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   Ny = %i, Nz = %i\n",_Ny,_Nz);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   solver algorithm = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);

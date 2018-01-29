@@ -6,12 +6,12 @@ using namespace std;
 
 
 NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
-: _inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
+: _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _stateLaw("agingLaw"),
   _N(D._Nz),_L(D._Lz),
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
-  _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D(5),
+  _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D_fh(5),
   _rootTol(1e-9),_rootIts(0),_maxNumIts(1e3),
   _computeVelTime(0),_stateLawTime(0),
   _body2fault(&scatter2fault)
@@ -98,6 +98,14 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cohesionDepths);
     }
+    else if (var.compare("muVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muVals);
+    }
+    else if (var.compare("muDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muDepths);
+    }
     else if (var.compare("rhoVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoVals);
@@ -105,9 +113,6 @@ PetscErrorCode NewFault::loadSettings(const char *file)
     else if (var.compare("rhoDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoDepths);
-    }
-    else if (var.compare("mu")==0) {
-      _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     else if (var.compare("stateLaw")==0) {
@@ -138,7 +143,7 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       _Tw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("D")==0) {
-      _D = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _D_fh = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("tau_c")==0) {
       _tau_c = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
@@ -176,6 +181,7 @@ PetscErrorCode NewFault::loadFieldsFromFiles(std::string inputDir)
   // load quasi-static shear stress
   ierr = loadVecFromInputFile(_eta_rad,inputDir,"eta_rad"); CHKERRQ(ierr);
 
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending NewFault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -196,11 +202,15 @@ PetscErrorCode NewFault::checkInput()
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
   assert(_cohesionVals.size() == _cohesionDepths.size() );
+  assert(_rhoVals.size() == _rhoDepths.size() );
+  assert(_muVals.size() == _muDepths.size() );
 
   assert(_DcVals.size() != 0 );
   assert(_aVals.size() != 0 );
   assert(_bVals.size() != 0 );
   assert(_sigmaNVals.size() != 0 );
+  assert(_rhoVals.size() != 0 );
+  assert(_muVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
 
@@ -244,6 +254,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauQSP,&_sNEff);    PetscObjectSetName((PetscObject) _sNEff, "sNEff");
   VecDuplicate(_tauQSP,&_z);    PetscObjectSetName((PetscObject) _z, "z_fault");
   VecDuplicate(_tauQSP,&_rho);  PetscObjectSetName((PetscObject) _rho, "rho_fault");
+  VecDuplicate(_tauQSP,&_mu);  PetscObjectSetName((PetscObject) _mu, "mu_fault");
 
   // create z from D._z
   VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
@@ -258,20 +269,28 @@ PetscErrorCode NewFault::setFields(Domain& D)
 
 
   // set fields
-  ierr = setVec(_a,_z,_aVals,_aDepths);CHKERRQ(ierr);
-  ierr = setVec(_b,_z,_bVals,_bDepths);CHKERRQ(ierr);
-  ierr = setVec(_sN,_z,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
-  ierr = setVec(_Dc,_z,_DcVals,_DcDepths);CHKERRQ(ierr);
-  ierr = setVec(_rho,_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-  if (_cohesionVals.size() > 0 ) { ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); }
+  ierr = setVec(_a,_z,_aVals,_aDepths); CHKERRQ(ierr);
+  ierr = setVec(_b,_z,_bVals,_bDepths); CHKERRQ(ierr);
+  ierr = setVec(_sN,_z,_sigmaNVals,_sigmaNDepths); CHKERRQ(ierr);
+  ierr = setVec(_Dc,_z,_DcVals,_DcDepths); CHKERRQ(ierr);
+  if (_cohesionVals.size() > 0 ) { ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); CHKERRQ(ierr); }
+  {
+    Vec temp; VecDuplicate(_D->_y,&temp);
+    ierr = setVec(temp,_D->_z,_rhoVals,_rhoDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+
+    ierr = setVec(temp,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+
+    VecDestroy(&temp);
+  }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   { // radiation damping parameter: 0.5 * sqrt(mu*rho)
-    Vec mu;
-    VecDuplicate(_tauQSP,&mu); VecSet(mu,_muVal);
-    ierr = VecPointwiseMult(_eta_rad,mu,_rho); CHKERRQ(ierr);
+    ierr = VecPointwiseMult(_eta_rad,_mu,_rho); CHKERRQ(ierr);
     ierr = VecSqrtAbs(_eta_rad); CHKERRQ(ierr);
     ierr = VecScale(_eta_rad,0.5); CHKERRQ(ierr);
-    VecDestroy(&mu);
   }
 
   { // impose floor and ceiling on effective normal stress

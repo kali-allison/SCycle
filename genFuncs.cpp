@@ -469,7 +469,6 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
   return ierr;
 }
 
-
 // loads a std library vector from a list in the input file
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
 {

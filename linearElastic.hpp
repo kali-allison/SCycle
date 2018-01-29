@@ -40,7 +40,7 @@ class LinearElastic
 
     // off-fault material fields
     Vec                  _muVec, _rhoVec, _cs;
-    PetscScalar          _muVal,_rhoVal; // if constant
+    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
     Vec                  _rhs,_u,_sxy,_sxz,_sdev;
     int                  _computeSxz,_computeSdev; // 0 = no, 1 = yes
@@ -62,7 +62,7 @@ class LinearElastic
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
     PetscInt     _linSolveCount;
 
     // boundary conditions

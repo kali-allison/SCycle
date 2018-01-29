@@ -22,6 +22,7 @@ class NewFault
     NewFault& operator=( const NewFault& rhs);
 
   public:
+    Domain           *_D; // shallow copy of domain
     const char       *_inputFile; // input file
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
@@ -39,19 +40,18 @@ class NewFault
     PetscScalar           _f0,_v0;
     std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
     Vec                   _a,_b,_Dc;
-    std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths;
-    Vec                   _cohesion;
+    std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
+    Vec                   _cohesion,_mu,_rho;
     Vec                   _dPsi,_psi;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
     Vec                   _eta_rad; // radiation damping parameter
-    PetscScalar           _muVal,_rhoVal; // if constant
     Vec                   _slip,_slipVel;
 
-    PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
-    Vec                   _T,_k,_rho,_c; // for flash heating
+    PetscScalar           _fw,_Vw,_tau_c,_Tw,_D_fh; // flash heating parameters
+    Vec                   _T,_k,_c; // for flash heating
 
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;

@@ -9,18 +9,18 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
-guessSteadyStateICs = 1
+guessSteadyStateICs = 0
 
 # steady state stuff
-#maxSSIts_effVisc = 4
-#maxSSIts_tau = 6
-#maxSSIts_timesteps = 8
+maxSSIts_effVisc = 4
+maxSSIts_tau = 6
+maxSSIts_timesteps = 8
 
 # coordinate transformation
 bCoordTrans = 5.0
@@ -74,10 +74,10 @@ f0 = 0.6
 #======================================================================
 # off-fault material parameters
 
-shearModDistribution = constant
-problem = symmetric
-mu = 30 # GPa
-rho = 3.0 # g/cm^3
+muVals = [30 30] # GPa
+muDepths = [0 60] # m
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60] # m
 
 # power law properties: quartz-diorite
 AVals = [1.3e-3 1.3e-3]
@@ -111,8 +111,6 @@ hVals = [0 0]
 hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
-rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 60]
 
 TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
 TDepths = [0 50]
@@ -122,16 +120,16 @@ withFrictionalHeating = no
 
 #viscDistribution = loadFromFile
 viscDistribution = effectiveVisc
-maxEffVisc = 5e12
+maxEffVisc = 1e20
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
-stride1D = 1
-stride2D = 1
-maxStepCount = 5
+stride1D = 10
+stride2D = 10
+maxStepCount = 1e3
 initTime = 0
 maxTime = 1e12
 initDeltaT = 1e-3
@@ -143,16 +141,6 @@ timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
 
 
-#outputDir = /scratch/kallison/versions/v1_
-#outputDir = /scratch/kallison/versions/v2_
-#outputDir = /scratch/kallison/versions/v3_
-#outputDir = /scratch/kallison/versions/v4_
-#outputDir = /scratch/kallison/versions/v5_
-#outputDir = /scratch/kallison/versions/v6_
-#outputDir = /scratch/kallison/versions/v7_
-
-#outputDir = /scratch/kallison/versions/v8_
-#outputDir = /scratch/kallison/versions/v9_
 #outputDir = /scratch/kallison/versions/v10_
 
 
