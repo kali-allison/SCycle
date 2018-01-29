@@ -178,6 +178,8 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_rhoVals.size() == _rhoDepths.size() );
   assert(_rhoVals.size() != 0 );
 
+  if (_computeSdev == 1) { _computeSxz = 1; }
+
   #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
   #endif
