@@ -21,7 +21,6 @@ NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // set a, b, normal stress, and Dc
   loadSettings(_inputFile);
   checkInput();
   setFields(D);
@@ -246,6 +245,10 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauQSP,&_z);    PetscObjectSetName((PetscObject) _z, "z_fault");
   VecDuplicate(_tauQSP,&_rho);  PetscObjectSetName((PetscObject) _rho, "rho_fault");
 
+  // create z from D._z
+  VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
+
   if (_stateLaw.compare("flashHeating") == 0) {
     VecDuplicate(_tauQSP,&_T);    PetscObjectSetName((PetscObject) _T, "T_fault");
     VecDuplicate(_tauQSP,&_k);    PetscObjectSetName((PetscObject) _k, "k_fault");
@@ -255,22 +258,12 @@ PetscErrorCode NewFault::setFields(Domain& D)
 
 
   // set fields
-  if (_N == 1) {
-    VecSet(_a,_aVals[0]);
-    VecSet(_b,_bVals[0]);
-    VecSet(_sN,_sigmaNVals[0]);
-    VecSet(_Dc,_DcVals[0]);
-    if (_cohesionVals.size() > 0 ) { VecSet(_cohesion,_cohesionVals[0]); }
-    VecSet(_rho,_rhoVals[0]);
-  }
-  else {
-    ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-    if (_cohesionVals.size() > 0 ) { ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths); }
-  }
+  ierr = setVec(_a,_z,_aVals,_aDepths);CHKERRQ(ierr);
+  ierr = setVec(_b,_z,_bVals,_bDepths);CHKERRQ(ierr);
+  ierr = setVec(_sN,_z,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
+  ierr = setVec(_Dc,_z,_DcVals,_DcDepths);CHKERRQ(ierr);
+  ierr = setVec(_rho,_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+  if (_cohesionVals.size() > 0 ) { ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
   { // radiation damping parameter: 0.5 * sqrt(mu*rho)
     Vec mu;
@@ -289,10 +282,6 @@ PetscErrorCode NewFault::setFields(Domain& D)
   }
   VecCopy(_sN,_sNEff);
 
-
-  // create z from D._z
-  VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -566,85 +555,6 @@ NewFault::~NewFault()
   #endif
 }
 
-// Fills vec with the linear interpolation between the pairs of points (vals,depths).
-PetscErrorCode NewFault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    std::string funcName = "NewFault::setVecFromVectors";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  VecSet(vec,vals[0]);
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-      z0 = depths[0+ind];
-      z1 = depths[0+ind+1];
-      v0 = vals[0+ind];
-      v1 = vals[0+ind+1];
-      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// Fills vec with the linear interpolation between the pairs of points (vals,depths), but always below the specified max value
-PetscErrorCode NewFault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
-  const PetscScalar maxVal)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    std::string funcName = "NewFault::setVecFromVectors";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-      z0 = depths[0+ind];
-      z1 = depths[0+ind+1];
-      v0 = vals[0+ind];
-      v1 = vals[0+ind+1];
-      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-      v = min(maxVal,v);
-      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-
 PetscErrorCode NewFault::computeTauRS(Vec& tauRS, const PetscScalar vL)
 {
   PetscErrorCode ierr = 0;
@@ -864,7 +774,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   #endif
 
   PetscScalar left, right, out, temp;
-  for (PetscInt Jj = 0; Jj<= _N; Jj++) {
+  for (PetscInt Jj = 0; Jj< _N; Jj++) {
 
     left = 0.;
     right = _tauQS[Jj] / _eta[Jj];
@@ -900,7 +810,6 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       //~ rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
-    Jj++;
   }
 
 

@@ -31,12 +31,9 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-
-  // heat equation
-  if (_thermalCoupling.compare("no")!=0) {
+  if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
-  //~ _fault = new SymmFault(D,*_he); // fault
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
 
   // pressure diffusion equation
@@ -300,7 +297,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
   if (_thermalCoupling.compare("no")!=0 ) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
   }
-
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
   }
@@ -443,9 +439,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   PetscViewerDestroy(&viewer);
 
   _material->writeContext(_outputDir);
-   _he->writeContext(_outputDir);
   _fault->writeContext(_outputDir);
-
+  if (_thermalCoupling.compare("no")!=0) {
+    _he->writeContext(_outputDir);
+  }
   if (_hydraulicCoupling.compare("no")!=0) {
     _p->writeContext(_outputDir);
   }
@@ -558,7 +555,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
-
   return ierr;
 }
 
@@ -706,10 +702,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscInt Ny = _material->_Ny;
-  PetscInt Nz = _material->_Nz;
-
-
   // adjust u so it has no negative values
   PetscScalar minVal = 0;
   VecMin(_material->_u,NULL,&minVal);
@@ -723,14 +715,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
   }
 
   // extract R boundary from u, to set _material->bcR
-  VecScatterBegin(_scatters["body2R"], body, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2R"], body, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecCopy(_material->_bcRShift,_material->_bcR);
 
   // extract L boundary from u to set slip, possibly _material->_bcL
   Vec uL; VecDuplicate(_material->_bcL,&uL);
-  VecScatterBegin(_scatters["body2L"], body, uL, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2L"], body, uL, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
 
   VecCopy(uL,_varEx["slip"]);
   if (_bcLType.compare("symm_fault")==0) {

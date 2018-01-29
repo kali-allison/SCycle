@@ -27,6 +27,7 @@ class LinearElastic
   public:
 
     // domain properties
+    Domain              *_D; // shallow copy of domain
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
     std::string          _outputDir;  // output data

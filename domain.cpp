@@ -485,21 +485,21 @@ PetscErrorCode Domain::setScatters()
   }
 
 
-  // create example vector for testing purposes
-  Vec body; VecDuplicate(_y,&body);
-  PetscInt       Istart,Iend;
-  PetscScalar   *bodyA;
-  VecGetOwnershipRange(body,&Istart,&Iend);
-  VecGetArray(body,&bodyA);
-  PetscInt Jj = 0;
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    PetscInt Iy = Ii/_Nz;
-    PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
-    bodyA[Jj] = 10.*Iy + Iz;
-    PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
-    Jj++;
-  }
-  VecRestoreArray(body,&bodyA);
+  //~ // create example vector for testing purposes
+  //~ Vec body; VecDuplicate(_y,&body);
+  //~ PetscInt       Istart,Iend;
+  //~ PetscScalar   *bodyA;
+  //~ VecGetOwnershipRange(body,&Istart,&Iend);
+  //~ VecGetArray(body,&bodyA);
+  //~ PetscInt Jj = 0;
+  //~ for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    //~ PetscInt Iy = Ii/_Nz;
+    //~ PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
+    //~ bodyA[Jj] = 10.*Iy + Iz;
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
+    //~ Jj++;
+  //~ }
+  //~ VecRestoreArray(body,&bodyA);
 
 
   // test various mappings

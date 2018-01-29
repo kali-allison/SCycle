@@ -4,7 +4,7 @@
 
 
 PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
-: _file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
@@ -689,8 +689,8 @@ PetscErrorCode PowerLaw::getTauVisc(Vec& tauVisc, const PetscScalar ess_t)
   if (tauVisc == NULL) { VecDuplicate(_bcL,&tauVisc); }
 
   // extract viscosity on fault and use it to compute viscous strength, tauVisc
-  VecScatterBegin(_scatters["body2L"], body, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2L"], body, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_D->_scatters["body2L"], _effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2L"], _effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
   VecScale(tauVisc,ess_t);
 
   #if VERBOSE > 1

@@ -1,6 +1,6 @@
-order = 2 # SBP order of accuracy
-Ny = 5
-Nz = 4
+order = 4 # SBP order of accuracy
+Ny = 101
+Nz = 102
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,7 +9,7 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
@@ -18,9 +18,9 @@ momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1
 
 # steady state stuff
-maxSSIts_effVisc = 4
-maxSSIts_tau = 6
-maxSSIts_timesteps = 8
+#maxSSIts_effVisc = 4
+#maxSSIts_tau = 6
+#maxSSIts_timesteps = 8
 
 # coordinate transformation
 bCoordTrans = 5.0
@@ -38,14 +38,7 @@ linSolver = MUMPSCHOLESKY
 
 #======================================================================
 # rate-and-state parameters
-rootTol = 1e-9
 
-stateLaw = agingLaw
-v0 = 1e-9
-f0 = 0.6
-
-impedanceVals = [9.4868 9.4868]
-impedanceDepths = [0 60]
 cohesionVals = [0 0] # m
 cohesionDepths = [0 60] # m
 DcVals = [12e-3 12e-3] # m
@@ -59,8 +52,6 @@ aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
-#======================================================================
-# fault inputs
 
 # with varying degrees of overpressure
 #sNVals = [0 802.1] # lambda = 0.4
@@ -138,10 +129,9 @@ maxEffVisc = 5e12
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
-timeControlType = P
-stride1D = 10
-stride2D = 10
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e12
 initDeltaT = 1e-3

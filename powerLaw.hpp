@@ -19,6 +19,7 @@ class PowerLaw
 
   public:
 
+    Domain              *_D;
     const char          *_file;
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from

@@ -107,6 +107,8 @@ double MMS_test(double z);
 double MMS_test(double y,double z);
 
 
+
+PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<double>& depths);
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV);
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
