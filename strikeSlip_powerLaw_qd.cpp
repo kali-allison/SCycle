@@ -733,10 +733,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
    // initial guess for (thermo)mechanical problem
   solveSS();
-
-    Vec T; VecDuplicate(_varSS["effVisc"],&T);
-    _varSS["Temp"] = T;
-    _he->getTemp(_varSS["Temp"]);
+  Vec T; VecDuplicate(_varSS["effVisc"],&T); _varSS["Temp"] = T; _he->getTemp(_varSS["Temp"]);
   if (_thermalCoupling.compare("coupled")==0) {
     _material->getStresses(sxy,sxz,sdev);
     _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
@@ -746,11 +743,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], _outputDir + "SS_effVisc"); CHKERRQ(ierr);
   ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], _outputDir + "SS_Temp"); CHKERRQ(ierr);
 
+
   PetscInt Jj = 0;
   _currTime = _initTime;
   Vec T_old; VecDuplicate(_varSS["Temp"],&T_old); VecSet(T_old,0.);
   _material->initiateIntegrand(_initTime,_varEx);
-    _fault->initiateIntegrand(_initTime,_varEx);
+  _fault->initiateIntegrand(_initTime,_varEx);
   while (Jj < _maxSSIts_tau) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
 
@@ -885,7 +883,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem()
   VecCopy(_varSS["tau"],_material->_bcL);
   VecSet(_material->_bcR,_vL/2.);
 
-
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
@@ -899,8 +896,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem()
     //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
     //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-      MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
-      VecCopy(temp,_varSS["effVisc"]);
+    MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
+    VecCopy(temp,_varSS["effVisc"]);
 
     PetscScalar len;
     VecNorm(effVisc_old,NORM_2,&len);
