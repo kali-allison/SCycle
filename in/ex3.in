@@ -1,14 +1,14 @@
-# Example input file for a 1D linear elastic simulation, using the quasi-dynamic
-# approximation.
+# Example input file for a 2D linear elastic simulation for an ice stream,
+# using the quasi-dynamic approximation.
 
 # set up the computational domain
-Ny = 101 # points in y-direction
-Nz = 1 # points in z-direction
+Ny = 201 # points in y-direction
+Nz = 601 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
 # specify what problem to simulate
-problemType = strikeSlip
+problemType = iceStream
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
@@ -56,7 +56,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-outputDir = data/ex1_
+outputDir = data/ex3_
 
 
 

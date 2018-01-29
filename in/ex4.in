@@ -1,0 +1,95 @@
+# Example input file for a 2D thermomechanical power-law viscoelastic simulation.
+# Demonstrates how to use the fixed-point iteration method to estimate steady
+# state conditions. Includes the steady state heat equation.
+
+# set up the computational domain
+Ny = 201 # points in y-direction
+Nz = 202 # points in z-direction
+Ly = 60 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
+
+# specify what problem to simulate
+problemType = strikeSlip
+bulkDeformationType = powerLaw
+momentumBalanceType = steadyStateIts
+
+#=======================================================================
+# rate-and-state parameters
+
+# state variable evolution law
+stateLaw = agingLaw
+
+DcVals = [1 1] # (m)
+DcDepths = [0 60] # (km)
+
+# from Blanpied 1991 for a-b, 1995 for a, assuming 30 K/km
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
+
+sNVals = [50 50] # (MPa)
+sNDepths = [0 60] # (km)
+sNVals = [0 267.4] # (MPa) effective normal stress, some overpressure, lambda = 0.8
+sNDepths = [0 60]
+sN_floor = 5.5; # MPa
+
+#=======================================================================
+# off-fault material parameters
+
+muVals = [30 30] # (GPa) shear modulus
+muDepths = [0 60] # (km)
+rhoVals = [3 3] # (g/cm^3)
+rhoDepths = [0 60] # (km)
+
+# power law properties: quartz-diorite
+AVals = [1.3e-3 1.3e-3]
+ADepths = [0 60]
+BVals = [2.6341e+04 2.6341e+04]
+BDepths = [0 60]
+nVals = [2.4 2.4]
+nDepths = [0 60]
+
+maxEffVisc = 1e20 # GPa s
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
+hVals = [0 0]
+hDepths = [0 60]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 60]
+
+TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
+TDepths = [0 50]
+thermalCoupling = coupled
+withShearHeating = yes
+withFrictionalHeating = no
+
+
+
+#=======================================================================
+# settings for time integration
+
+timeIntegrator = RK32
+stride1D = 10 # how often to write out fields that live on the fault
+stride2D = 20 # how often to write out body fields
+maxStepCount = 1e8 # maximum number of time steps
+initTime = 0 # (s) initial time
+maxTime = 1e12 # (s) final time
+initDeltaT = 1e-3 # (s) size of initial time step
+minDeltaT = 1e-3 # (s) size of minimum time step
+maxDeltaT = 1e12 # (s) size of maximum time step
+atol = 1e-8 # absolute tolerance for time integration
+timeIntInds = [psi slip] # variables to use to compute time step
+
+
+# directory for output
+outputDir = data/ex2_
+
+
+
+
+
+

@@ -10,7 +10,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),
-  _viscDistribution("unspecified"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
+  _viscDistribution("effectiveVisc"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
@@ -355,7 +355,7 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   ierr = setVec(_A,*_z,_AVals,_ADepths);           CHKERRQ(ierr);
   ierr = setVec(_QR,*_z,_BVals,_BDepths);        CHKERRQ(ierr);
   ierr = setVec(_n,*_z,_nVals,_nDepths);         CHKERRQ(ierr);
-  if (_viscDistribution.compare("mms")==0) {
+  if (_isMMS) {
     if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
     else { mapToVec(_A,zzmms_A,*_y,*_z); }
     if (_Nz == 1) { mapToVec(_QR,zzmms_B1D,*_y); }
