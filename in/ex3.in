@@ -34,6 +34,9 @@ sNDepths = [0 60]
 #======================================================================
 # off-fault material parameters
 
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3)

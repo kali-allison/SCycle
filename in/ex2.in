@@ -34,6 +34,9 @@ sNDepths = [0 60] # (km)
 #=======================================================================
 # off-fault material parameters
 
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3)
@@ -47,7 +50,7 @@ stride1D = 10 # how often to write out fields that live on the fault
 stride2D = 20 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 1e12 # (s) final time
+maxTime = 2e11 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step

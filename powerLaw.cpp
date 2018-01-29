@@ -245,13 +245,6 @@ PetscErrorCode PowerLaw::checkInput()
     assert(_kspTol >= 1e-14);
   }
 
-  assert(_viscDistribution.compare("layered")==0 ||
-      _viscDistribution.compare("mms")==0 ||
-      _viscDistribution.compare("loadFromFile")==0 ||
-      _viscDistribution.compare("effectiveVisc")==0 );
-
-  if (_viscDistribution.compare("loadFromFile")==0) { assert(_inputDir.compare("unspecified")); }
-
   assert(_AVals.size() == _ADepths.size() );
   assert(_BVals.size() == _BDepths.size() );
   assert(_nVals.size() == _nDepths.size() );

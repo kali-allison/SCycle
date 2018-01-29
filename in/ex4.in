@@ -18,6 +18,7 @@ momentumBalanceType = steadyStateIts
 
 # state variable evolution law
 stateLaw = agingLaw
+v0 = 1e-9
 
 DcVals = [1 1] # (m)
 DcDepths = [0 60] # (km)
@@ -36,6 +37,9 @@ sN_floor = 5.5; # MPa
 
 #=======================================================================
 # off-fault material parameters
+
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
 
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
