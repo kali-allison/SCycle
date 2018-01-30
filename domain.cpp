@@ -445,7 +445,6 @@ PetscErrorCode Domain::setScatters()
   VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
 
 
-
   { // set up scatter context to take values for y=0 from body field and put them on a Vec of size Nz
     PetscInt *indices; PetscMalloc1(_Nz,&indices);
     for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii; }
@@ -457,35 +456,51 @@ PetscErrorCode Domain::setScatters()
   }
 
   { // set up scatter context to take values for y=Ly from body field and put them on a Vec of size Nz
-    PetscInt *indices; PetscMalloc1(_Nz,&indices);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii + (_Ny*_Nz-_Nz); }
-    IS is;
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
-    ierr = VecScatterCreate(_y, is, _y0, NULL, &_scatters["body2R"]); CHKERRQ(ierr);
-    PetscFree(indices);
-    ISDestroy(&is);
+    // indices to scatter from
+    PetscInt *fi; PetscMalloc1(_Nz,&fi);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) { fi[Ii] = Ii + (_Ny*_Nz-_Nz); }
+    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf);
+
+    // indices to scatter to
+    PetscInt *ti; PetscMalloc1(_Nz,&ti);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist);
+
+    ierr = VecScatterCreate(_y, isf, _y0, ist, &_scatters["body2R"]); CHKERRQ(ierr);
+    PetscFree(fi); PetscFree(ti);
+    ISDestroy(&isf); ISDestroy(&ist);
   }
 
   { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Ny
-    PetscInt *indices; PetscMalloc1(_Ny,&indices);
-    IS is;
-    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &is);
-    ierr = VecScatterCreate(_y, is, _z0, NULL, &_scatters["body2T"]); CHKERRQ(ierr);
-    PetscFree(indices);
-    ISDestroy(&is);
+    // indices to scatter from
+    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
+
+    // indices to scatter to
+    PetscInt *ti; PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+
+    ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2T"]); CHKERRQ(ierr);
+    PetscFree(ti);
+    ISDestroy(&isf); ISDestroy(&ist);
   }
 
-  { // set up scatter context to take values for z=Lz from body field and put them on a Vec of size Ny
-    PetscInt *indices; PetscMalloc1(_Ny,&indices);
-    IS is;
-    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &is);
-    ierr = VecScatterCreate(_y, is, _z0, NULL, &_scatters["body2B"]); CHKERRQ(ierr);
-    PetscFree(indices);
-    ISDestroy(&is);
+  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Ny
+    // indices to scatter from
+    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &isf);
+
+    // indices to scatter to
+    PetscInt *ti; PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+
+    ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2B"]); CHKERRQ(ierr);
+    PetscFree(ti);
+    ISDestroy(&isf); ISDestroy(&ist);
   }
 
 
-  //~ // create example vector for testing purposes
+  // create example vector for testing purposes
   //~ Vec body; VecDuplicate(_y,&body);
   //~ PetscInt       Istart,Iend;
   //~ PetscScalar   *bodyA;
@@ -504,7 +519,7 @@ PetscErrorCode Domain::setScatters()
 
   // test various mappings
 
-  //~ // y = 0: mapping to L
+  // y = 0: mapping to L
   //~ Vec out; VecDuplicate(_y0,&out);
   //~ VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
   //~ VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
