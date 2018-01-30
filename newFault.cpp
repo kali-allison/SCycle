@@ -216,7 +216,8 @@ PetscErrorCode NewFault::checkInput()
 
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
-    || _stateLaw.compare("flashHeating")==0 );
+    || _stateLaw.compare("flashHeating")==0
+    || _stateLaw.compare("constantState")==0 );
 
   assert(_v0 > 0);
   assert(_f0 > 0);
@@ -702,9 +703,11 @@ PetscErrorCode NewFault_qd::computeVel()
   VecGetArray(_b,&bA);
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
+
   PetscInt N = Iend - Istart;
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+
   VecGetArray(_slipVel,&slipVelA);
   VecGetArray(_eta_rad,&etaA);
   VecGetArray(_tauQSP,&tauQSA);
@@ -801,6 +804,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
     // check bounds
     if (isnan(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
       assert(0);
     }
     if (isnan(right)) {
@@ -815,17 +819,25 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       left = temp;
     }
 
+    out = right;
     if (abs(left-right)<1e-14) { out = left; }
     else {
       Bisect rootFinder(maxNumIts,rootTol);
-      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
+
 
       //~ PetscScalar x0 = slipVelA[Jj];
       //~ BracketedNewton rootFinder(maxNumIts,rootTol);
       //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out);CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); //assert(ierr == 0); CHKERRQ(ierr);
+      //~ if (ierr == 1) {
+        //~ PetscPrintf(PETSC_COMM_WORLD,"Error: Bracketed Newton failed to converge!");
+        //~ PetscPrintf(PETSC_COMM_WORLD,"[%i], left = %g, right = %g, x0 = %g, psi = %g, tauQS = %g, eta = %g, a = %g, b = %g\n",
+        //~ Jj,left,right,x0,_psi[Jj],_tauQS[Jj],_eta[Jj],_a[Jj],_b[Jj]);
+        //~ assert(0);
+      //~ }
       //~ rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
@@ -845,7 +857,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _b[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - 0.5*_eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   assert(!isnan(*out));
@@ -860,21 +872,17 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _b[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - 0.5*_eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
-  PetscScalar B = exp(_psi[Jj]/_a[Jj])/(2.*_v0);
-  *J = A*B/sqrt(B*B*vel*vel + 1.) + 0.5*_eta[Jj]; // derivative with respect to slipVel
+  PetscScalar B = exp(_psi[Jj]/_a[Jj]) / (2.*_v0);
+  *J = A*B/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
 
   assert(!isnan(*out)); assert(!isinf(*out));
   assert(!isnan(*J)); assert(!isinf(*J));
   return ierr;
 }
-
-
-
-
 
 
 
@@ -887,11 +895,11 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
 {
   PetscScalar A = exp( (double) (f0-psi)/b );
   PetscScalar dstate = 0.;
-  if ( ~isinf(A) ) {
-    dstate = (PetscScalar) (b*v0/Dc)*( A - slipVel/v0 );
+  if ( !isinf(A) && b>1e-3 ) {
+    dstate = (PetscScalar) (b*v0/Dc)*( A - abs(slipVel)/v0 );
   }
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
+  //~ assert(!isnan(dstate));
+  //~ assert(!isinf(dstate));
   return dstate;
 }
 
@@ -912,6 +920,12 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     dstateA[Jj] = agingLaw_psi(psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
+    if ( isnan(dstateA[Jj]) || isinf(dstateA[Jj]) ) {
+      PetscPrintf(PETSC_COMM_WORLD,"[%i]: dpsi = %g, psi = %g, slipVel = %g, a = %g, b = %g, f0 = %g, v0 = %g, Dc = %g\n",
+      Jj,dstateA[Jj], psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
+      assert(!isnan(dstateA[Jj]));
+      assert(!isinf(dstateA[Jj]));
+    }
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
@@ -927,7 +941,7 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
 // state evolution law: aging law, state variable: theta
 PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel, const PetscScalar& Dc)
 {
-  PetscScalar dstate = 1. - theta*slipVel/Dc;
+  PetscScalar dstate = 1. - theta*abs(slipVel)/Dc;
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
@@ -1044,9 +1058,6 @@ PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const Pe
   PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
   return strength;
 }
-
-
-
 
 
 

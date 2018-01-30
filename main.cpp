@@ -100,7 +100,7 @@ int runEqCycle(const char * inputFile)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  // solving viscoelastic, quasi-dynamic simulation with a vertical strike-slip fault
+  // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("steadyStateIts")==0) {
     StrikeSlip_PowerLaw_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);

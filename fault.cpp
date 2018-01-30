@@ -907,7 +907,7 @@ PetscErrorCode SymmFault::computeVel()
       //~ BracketedNewton rootAlg(_maxNumIts,_rootTol);
       //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
       //~ ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
-      _rootIts += rootAlg.getNumIts();
+      //~ _rootIts += rootAlg.getNumIts();
     }
     slipVel[Jj] = outVal;
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Ii,leftVal,rightVal,outVal);

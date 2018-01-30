@@ -1,7 +1,7 @@
 order = 4 # SBP order of accuracy
 Ny = 201
 Nz = 301
-Ly = 60 # (km) horizontal domain size
+Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -9,10 +9,10 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
@@ -33,12 +33,16 @@ kspTol = 1e-10
 #======================================================================
 # rate-and-state parameters
 
-cohesionVals = [0 0] # m
-cohesionDepths = [0 60] # m
 #DcVals = [12e-3 12e-3] # m
 #DcVals = [32e-3 32e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
+
+# easier to resolve
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.0 0.0]
+#bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -106,29 +110,30 @@ thermalCoupling = no
 withShearHeating = no
 withFrictionalHeating = no
 
-maxEffVisc = 1e20
-#maxSSIts_tau = 300
+maxEffVisc = 1e25
+maxSSIts_tau = 300
 
-maxSSIts_effVisc = 3
-maxSSIts_tau = 4
-maxSSIts_timesteps = 20
+#maxSSIts_effVisc = 3
+#maxSSIts_tau = 4
+#maxSSIts_timesteps = 20
+momBal_computeSxz = 1
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
-stride1D = 20
-stride2D = 20
-maxStepCount = 1e3
+stride1D = 10
+stride2D = 0
+maxStepCount = 2e4
 initTime = 0
 maxTime = 1e15
-initDeltaT = 5
+initDeltaT = 1e-3
 minDeltaT = 1e-3
-maxDeltaT = 1e12
-atol = 1e-6
-#timeIntInds = [psi slip]
+maxDeltaT = 1e10
+atol = 1e-8
+timeIntInds = [psi slip]
 #timeIntInds = [slip]
-timeIntInds = [slip gVxy gVxz]
+#timeIntInds = [slip gVxy gVxz]
 
 
 
