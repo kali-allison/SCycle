@@ -33,11 +33,15 @@ class Domain
     // domain properties
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz;
+    PetscScalar  _alphay,_alphaz;
     std::string  _yInputDir; // directory to load y from
     std::string  _zInputDir; // directory to load z from
+    PetscScalar  _vL; // loading velocity
 
     // coordinate system
     Vec   _q,_r,_y,_z; // q(y), r(z)
+    std::map <string, VecScatter>  _scatters;
+    Vec _y0, _z0;
     PetscScalar _dq,_dr;
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
@@ -64,6 +68,7 @@ class Domain
     PetscErrorCode loadData(const char *file); // load settings from input file
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode setFields();
+    PetscErrorCode setScatters();
 };
 
 #endif

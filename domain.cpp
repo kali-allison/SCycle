@@ -9,6 +9,7 @@ Domain::Domain(const char *file)
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
+  _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _da(NULL)
@@ -41,6 +42,7 @@ Domain::Domain(const char *file)
   checkInput(); // perform some basic value checking to prevent NaNs
   setFields();
 
+  setScatters();
   //~ DMDACreate2d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,
     //~ DMDA_STENCIL_BOX,_Nz,_Ny,PETSC_DECIDE,PETSC_DECIDE,1,1,NULL,NULL, &_da);
   //~ PetscInt zn,yn;
@@ -61,6 +63,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _isMMS(0),_loadICs(0),_inputDir("unspecified"),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
+  _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0),
   _da(NULL)
@@ -91,6 +94,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 
   checkInput(); // perform some basic value checking to prevent NaNs
   setFields();
+  setScatters();
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -114,6 +118,11 @@ Domain::~Domain()
   VecDestroy(&_z);
 
   DMDestroy(&_da);
+
+  map<string,VecScatter>::iterator it;
+  for (it = _scatters.begin(); it!=_scatters.end(); it++ ) {
+    VecScatterDestroy(&it->second);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -194,6 +203,8 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("outputDir")==0) {
       _outputDir =  line.substr(pos+_delim.length(),line.npos);
     }
+    
+    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -470,10 +481,16 @@ PetscErrorCode Domain::setFields()
     CHKERRQ(ierr);
   #endif
 
+  if (_order == 2 ) { _alphay = 0.5 * _Ly * _dq; _alphaz = 0.5 * _Lz * _dr; }
+  if (_order == 4 ) { _alphay = 0.4567e4/0.14400e5 * _Ly * _dq; _alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
+
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
   ierr = VecSetFromOptions(_y); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _y, "y"); CHKERRQ(ierr);
+
+  VecCreate(PETSC_COMM_WORLD,&_y0); VecSetSizes(_y0,PETSC_DECIDE,_Nz); VecSetFromOptions(_y0); VecSet(_y0,0.0);
+  VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
 
   VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
   VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
@@ -518,6 +535,48 @@ PetscErrorCode Domain::setFields()
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
+    CHKERRQ(ierr);
+  #endif
+return ierr;
+}
+
+PetscErrorCode Domain::setScatters()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Domain::setFields";
+    std::string FILENAME = "domain.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // some example 1D vectors
+  VecCreate(PETSC_COMM_WORLD,&_y0); VecSetSizes(_y0,PETSC_DECIDE,_Nz); VecSetFromOptions(_y0); VecSet(_y0,0.0);
+  VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
+
+  { // set up scatter context to take values for y=0 from body field and put them on a Vec of size Nz
+    PetscInt *indices; PetscMalloc1(_Nz,&indices);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii; }
+    IS is;
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
+    ierr = VecScatterCreate(_z, is, _y0, is, &_scatters["body2L"]); CHKERRQ(ierr);
+    PetscFree(indices);
+    ISDestroy(&is);
+  }
+
+  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Nz
+    PetscInt *indices; PetscMalloc1(_Ny,&indices);
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) { indices[Ii] = Ii; }
+    IS is;
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, indices, PETSC_COPY_VALUES, &is);
+    ierr = VecScatterCreate(_y, is, _z0, is, &_scatters["body2T"]); CHKERRQ(ierr);
+    PetscFree(indices);
+    ISDestroy(&is);
+  }
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 return ierr;

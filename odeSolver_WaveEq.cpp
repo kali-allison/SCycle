@@ -63,7 +63,7 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  _var = var;
+  _var = *(&var);
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
     Vec temp;
     ierr = VecDuplicate(_var[it->first],&temp); CHKERRQ(ierr);
@@ -91,22 +91,12 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   // set initial condition
-  ierr = obj->d_dt_WaveEq(_currT,_var,_varPrev, _deltaT);CHKERRQ(ierr);
-
-  // Vec uNext;
-  // VecDuplicate(_var["u"], &uNext);
-  // VecCopy(_var["u"], uNext)
-  // ierr = VecAYPX(uNext, 0, _var["u"]);
-  // ierr = VecAXPY(uNext, pow(_deltaT, 2), _dvar["u"]);
-  // ierr = VecAXPY(uNext, 2, _var["u"]);
-  // ierr = VecAXPY(uNext, -1, _var["uPrev"]);
-
-  // ierr = VecCopy(uNext, _var["u"])
+  ierr = obj->d_dt(_currT,_var,_varPrev);CHKERRQ(ierr);
 
   ierr = obj->timeMonitor(_currT,_stepCount,_var,_varPrev,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
-    ierr = obj->d_dt_WaveEq(_currT,_var,_varPrev, _deltaT);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_varPrev);CHKERRQ(ierr);
 
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }

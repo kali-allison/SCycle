@@ -32,8 +32,10 @@ class RootFinder
 
     virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out) = 0;
     virtual PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out) = 0;
+    // virtual PetscErrorCode findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select) = 0;
     virtual PetscErrorCode setBounds(PetscScalar left,PetscScalar right) = 0;
-
+    virtual PetscErrorCode setBounds(PetscScalar left, PetscScalar right, PetscScalar x0) = 0;
+  
     PetscInt getNumIts() const;
 };
 
@@ -54,7 +56,9 @@ class Bisect : public RootFinder
 
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
+    // PetscErrorCode findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select);
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
+    PetscErrorCode setBounds(PetscScalar left,PetscScalar right, PetscScalar x0){return 1;}
 };
 
 
@@ -79,7 +83,27 @@ class BracketedNewton : public RootFinder
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
 };
 
+class RegulaFalsi : public RootFinder
+{
+  private:
 
+    PetscScalar _left,_fLeft;
+    PetscScalar _right,_fRight;
+    //~ PetscScalar _mid,_fMid;
+    //~ PetscScalar _prev,_x,_f,_fPrime;
+    PetscScalar _x,_f;
+
+  public:
+
+    RegulaFalsi(const PetscInt maxNumIts,const PetscScalar atol);
+    ~RegulaFalsi();
+
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out);
+    PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
+    // PetscErrorCode findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select);
+    PetscErrorCode setBounds(PetscScalar left,PetscScalar right, PetscScalar x0);
+    PetscErrorCode setBounds(PetscScalar left,PetscScalar right){return 1;}
+};
 
 
 #endif
