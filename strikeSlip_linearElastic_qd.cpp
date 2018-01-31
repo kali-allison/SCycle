@@ -12,7 +12,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _timeIntegrator("RK32"),_timeControlType("P"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
@@ -321,6 +321,7 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
+
   if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
@@ -398,7 +399,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_qd Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",(_writeTime/_integrateTime)*100.);CHKERRQ(ierr);
   return ierr;
 }
 
@@ -508,7 +509,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
 
-  _integrateTime += MPI_Wtime() - startTime;
+  _integrateTime = MPI_Wtime() - startTime;
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

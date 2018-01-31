@@ -416,8 +416,8 @@ PetscErrorCode NewFault::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"NewFault Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   compute slip vel time (s): %g\n",_computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   state law time (s): %g\n",_stateLawTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",_computeVelTime/totRunTime*100.);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",_stateLawTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",(_computeVelTime/totRunTime)*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",(_stateLawTime/totRunTime)*100.);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
@@ -819,7 +819,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       left = temp;
     }
 
-    out = right;
+    out = slipVelA[Jj];
     if (abs(left-right)<1e-14) { out = left; }
     else {
       Bisect rootFinder(maxNumIts,rootTol);
@@ -831,13 +831,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       //~ PetscScalar x0 = slipVelA[Jj];
       //~ BracketedNewton rootFinder(maxNumIts,rootTol);
       //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); //assert(ierr == 0); CHKERRQ(ierr);
-      //~ if (ierr == 1) {
-        //~ PetscPrintf(PETSC_COMM_WORLD,"Error: Bracketed Newton failed to converge!");
-        //~ PetscPrintf(PETSC_COMM_WORLD,"[%i], left = %g, right = %g, x0 = %g, psi = %g, tauQS = %g, eta = %g, a = %g, b = %g\n",
-        //~ Jj,left,right,x0,_psi[Jj],_tauQS[Jj],_eta[Jj],_a[Jj],_b[Jj]);
-        //~ assert(0);
-      //~ }
+      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
       //~ rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;

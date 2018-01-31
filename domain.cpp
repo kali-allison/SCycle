@@ -552,7 +552,6 @@ PetscErrorCode Domain::setScatters()
   //~ VecDestroy(&body);
   //~ assert(0);
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);

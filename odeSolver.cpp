@@ -158,7 +158,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : OdeSolver(maxNumSteps,finalT,deltaT,controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(2.0),
+  _atol(1e-9),_kappa(0.9),_ord(3.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
@@ -167,6 +167,16 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
   double startTime = MPI_Wtime();
 
   _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
+
+  //~ _errorArray.resize(2);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"%i\n",_errorArray.capacity());
+  //~ _errorArray.push_front(0);
+  //~ _errorArray.push_front(1);
+  //~ _errorArray.push_front(2);
+  //~ _errorArray.push_front(3);
+  //~ _errorArray.push_front(4);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"[%g %g]\n",_errorArray[0],_errorArray[1]);
+  //~ assert(0);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -352,13 +362,13 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
     }
     else {
       stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
+                        *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
+                        *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
     }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    assert(0>1); // automatically fail
   }
 
     //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
@@ -394,23 +404,7 @@ PetscReal RK32::computeError()
   PetscReal      err,totErr=0.0;
 
 
-  //~ // relative error
-  //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    //~ PetscInt ind = _errInds[i];
-
-    //~ // error based on weighted 2 norm
-    //~ Vec errVec;
-    //~ PetscScalar    size;
-    //~ VecDuplicate(_y2[ind],&errVec);
-    //~ ierr = VecWAXPY(errVec,-1.0,_y2[ind],_y3[ind]);CHKERRQ(ierr);
-    //~ VecNorm(errVec,NORM_2,&err);
-    //~ VecNorm(_y3[ind],NORM_2,&size);
-    //~ totErr += err/(size+1.0);
-    //~ VecDestroy(&errVec);
-  //~ }
-
-  // relative error
-
+  // absolute error
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
 
@@ -420,21 +414,10 @@ PetscReal RK32::computeError()
     VecDuplicate(_y2[key],&errVec);
     ierr = VecWAXPY(errVec,-1.0,_y2[key],_y3[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
-    VecNorm(_y3[key],NORM_2,&size);
+    VecNorm(_y3[key],NORM_2,&size); // relative error
     totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
-
-  //~ // use quasi-static stress to determine rate
-  //~ Vec errVec;
-  //~ PetscScalar    size;
-  //~ VecDuplicate(_y2["tau"],&errVec);
-  //~ ierr = VecWAXPY(errVec,-1.0,_vardT["tau"],_varHalfdT["tau"]);CHKERRQ(ierr);
-  //~ VecNorm(errVec,NORM_2,&err);
-  //~ VecNorm(_y3["tau"],NORM_2,&size);
-  //~ totErr += err/(size+1.0);
-  //~ VecDestroy(&errVec);
-
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
@@ -525,7 +508,9 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       #if ODEPRINT > 0
         ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
       #endif
-      if (totErr<_atol) { break; }
+      if (totErr <= _atol) {
+        break;
+      }
       _deltaT = computeStepSize(totErr);
       if (_minDeltaT == _deltaT) { break; }
 
@@ -565,7 +550,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : OdeSolver(maxNumSteps,finalT,deltaT,controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(2.0),
+  _atol(1e-9),_kappa(0.9),_ord(4.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1

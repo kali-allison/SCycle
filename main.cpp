@@ -66,11 +66,11 @@ for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
 }
 
 
-int runEqCycle(const char * inputFile)
+int runEqCycle(Domain& d)
 {
   PetscErrorCode ierr = 0;
 
-  Domain d(inputFile);
+  //~ Domain d(inputFile);
   d.write();
 
   // solving linear elastic, quasi-dynamic simulation with a vertical strike-slip fault
@@ -133,9 +133,9 @@ int main(int argc,char **args)
   else { inputFile = "init.in"; }
 
   {
-    Domain domain(inputFile);
-    if (domain._isMMS) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
+    Domain d(inputFile);
+    if (d._isMMS) { runMMSTests(inputFile); }
+    else { runEqCycle(d); }
   }
 
   // runTests(inputFile);

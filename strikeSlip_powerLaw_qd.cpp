@@ -12,7 +12,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _timeIntegrator("RK32"),_timeControlType("P"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-8),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-9),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -344,6 +344,13 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
+  // stopping criteria for time integration
+  if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
+  //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
+    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+  }
+
   if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
@@ -389,6 +396,13 @@ double startTime = MPI_Wtime();
 
   _stepCount = stepCount;
   _currTime = time;
+
+  // stopping criteria for time integration
+  if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
+  //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
+    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+  }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);

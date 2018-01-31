@@ -1,29 +1,29 @@
 order = 4 # SBP order of accuracy
 Ny = 201
-Nz = 301
-Ly = 30 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Nz = 401
+Ly = 50 # (km) horizontal domain size
+Lz = 35 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 7.0
+bCoordTrans = 4.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/qdwo_Nz301_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -37,12 +37,6 @@ kspTol = 1e-10
 #DcVals = [32e-3 32e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
-
-# easier to resolve
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.0 0.0]
-#bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -59,13 +53,13 @@ bDepths = [0 10 11 19.3333 60]
 sNVals = [0 267.4] # lambda = 0.8
 #sNVals = [50 50] # MPa
 sNDepths = [0 60]
-sN_floor = 5.5; # MPa
-#sN_floor = 1; # MPa
+#sN_floor = 5.5; # MPa
+sN_floor = 1; # MPa
 #sN_cap = 50; # MPa
 
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
-stateLaw = agingLaw
+stateLaw = constantState
 v0 = 1e-9
 f0 = 0.6
 
@@ -107,11 +101,12 @@ cDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 thermalCoupling = no
+heatEquationType = steadyState
 withShearHeating = no
 withFrictionalHeating = no
 
-maxEffVisc = 1e25
-maxSSIts_tau = 300
+maxEffVisc = 1e23
+maxSSIts_tau = 2000
 
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 4
@@ -122,23 +117,32 @@ momBal_computeSxz = 1
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
-stride1D = 10
-stride2D = 0
-maxStepCount = 2e4
+timeControlType = P
+stride1D = 20
+stride2D = 20
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
-maxDeltaT = 1e10
-atol = 1e-8
-timeIntInds = [psi slip]
-#timeIntInds = [slip]
-#timeIntInds = [slip gVxy gVxz]
+maxDeltaT = 1e12
+atol = 1e-7
+#timeIntInds = [psi slip]
+timeIntInds = [slip gVxy gVxz]
 
 
+#outputDir = /scratch/kallison/versions/v15_
+#outputDir = /scratch/kallison/versions/v16_
+#outputDir = /scratch/kallison/versions/v17_
+#outputDir = /scratch/kallison/versions/v18_
+#outputDir = /scratch/kallison/versions/v19_
+#outputDir = /scratch/kallison/versions/v20_
+#outputDir = /scratch/kallison/versions/v21_
 
-outputDir = /scratch/kallison/versions/v0_
-
+#outputDir = /scratch/kallison/versions/test2_
+outputDir = /scratch/kallison/versions/test3_
+#outputDir = /scratch/kallison/versions/test_
+#outputDir = /scratch/kallison/versions/g30_
 
 
 

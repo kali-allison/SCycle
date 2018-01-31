@@ -1616,7 +1616,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"viscDistribution = %s\n",_viscDistribution.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"effViscCap = %.15e\n",_effViscCap);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"effViscCapSS = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"ssEffViscScale = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);
 
 
   PetscMPIInt size;
