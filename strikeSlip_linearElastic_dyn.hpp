@@ -60,6 +60,7 @@ private:
     std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    std::string          _initialConditions;
     int          _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data

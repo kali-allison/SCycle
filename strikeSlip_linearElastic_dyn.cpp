@@ -14,7 +14,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _isFault("true"),
+  _isFault("true"),_initialConditions("u"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -105,6 +105,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
@@ -208,16 +209,17 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   
   VecDuplicate(_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
-
+  
+  PetscInt Ii,Istart,Iend;
+  PetscInt Jj = 0;
+  if (_initialConditions.compare("u") == 0){
     PetscScalar *u, *uPrev, *y, *z;
-    PetscInt Ii,Istart,Iend;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
     VecGetArray(_varEx["u"],&u);
     VecGetArray(_varEx["uPrev"],&uPrev);
     VecGetArray(_y, &y);
     VecGetArray(_z, &z);
 
-    PetscInt Jj = 0;
     for (Ii=Istart;Ii<Iend;Ii++) {
       u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
       uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
@@ -227,7 +229,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     VecRestoreArray(_z,&z);
     VecRestoreArray(_varEx["u"],&u);
     VecRestoreArray(_varEx["uPrev"],&uPrev);
-
+  }
     // Create matrix _ay
     VecDuplicate(_y, &_ay);
     VecSet(_ay, 0.0);
@@ -473,7 +475,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   VecDestroy(&ones);
   VecDestroy(&correction);
   VecDestroy(&previous);
-
+  if (_initialConditions.compare("tau")==0){
+    PetscScalar currT;
+    _quadWaveEx->getCurrT(currT);
+    ierr = _fault->updateTau(currT);
+  }
   if (_isFault.compare("true") == 0){
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 }

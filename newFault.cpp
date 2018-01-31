@@ -143,6 +143,23 @@ PetscErrorCode NewFault::loadSettings(const char *file)
     else if (var.compare("tau_c")==0) {
       _tau_c = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
+
+    // Tau dynamic parameters
+    else if (var.compare("tCenterTau")==0) {
+      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zCenterTau")==0) {
+      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("tStdTau")==0) {
+      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zStdTau")==0) {
+      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("ampTau")==0) {
+      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
   }
 
 #if VERBOSE > 1
@@ -1149,6 +1166,25 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
   return ierr;
 }
 
+PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
+  PetscScalar *zz, *tauQS;
+
+  PetscInt Ii, IBegin, IEnd;
+  PetscInt Jj = 0;
+  VecGetArray(_z, &zz);
+  VecGetArray(_tauQSP, &tauQS);
+  VecGetOwnershipRange(_z, &IBegin, &IEnd);
+
+  PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
+  for (Ii=IBegin;Ii<IEnd;Ii++){
+    tauQS[Jj] = _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / pow(_zStdTau, 2)) * timeOffset;
+    Jj++;
+  }
+  VecRestoreArray(_z, &zz);
+  VecRestoreArray(_tauQSP, &tauQS);
+  return 0;
+}
+
 
 PetscErrorCode NewFault_dyn::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar deltaT)
 {
@@ -1275,7 +1311,6 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
   ierr = VecGetArray(_constraints_factor, &constraints_factor);
 
   for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
-    tauQS[Jj] = 0;
     an[Jj] = Laplacian[Jj] + tauQS[Jj] / _alphay;
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     constraints_factor[Jj] = deltaT / _alphay / rho[Jj];
@@ -1381,7 +1416,7 @@ PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,
 
 
 ComputeAging_dyn::ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_b(b),_psi(psi),_slipVel(slipVel),_slipPrev(slipPrev),_N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+: _Dc(Dc),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
 PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)

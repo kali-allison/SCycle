@@ -53,6 +53,8 @@ class NewFault
     PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
     Vec                   _T,_k,_rho,_c; // for flash heating
 
+    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
@@ -158,6 +160,7 @@ class NewFault_qd: public NewFault
     PetscErrorCode computeVel();
     PetscErrorCode computeAgingLaw();
     PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
+    PetscErrorCode updateTau(const PetscScalar currT);
 };
 
 
