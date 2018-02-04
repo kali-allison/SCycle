@@ -444,7 +444,6 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   ierr = _material->_sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
   VecDestroy(&temp);
-  PetscPrintf(PETSC_COMM_WORLD, "managed to build Laplacian");
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
@@ -453,9 +452,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   VecSet(ones, 1.0);
   VecSet(correction, 0.0);
   ierr = VecAXPY(correction, _deltaT, _ay);
-  PetscPrintf(PETSC_COMM_WORLD, "managed to multiply by deltat");
   ierr = VecAXPY(correction, -1.0, ones);
-  PetscPrintf(PETSC_COMM_WORLD, "managed to remove ones");
   VecDuplicate(varEx["u"], &previous);
   VecSet(previous, 0.0);
   ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
