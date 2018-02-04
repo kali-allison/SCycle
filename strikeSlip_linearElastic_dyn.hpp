@@ -50,7 +50,7 @@ private:
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz,_dy,_dz;
     PetscScalar          _deltaT;
-    Vec                  _y,_z; // to handle variable grid spacing
+    Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     PetscScalar          _alphay, _alphaz;
     std::string          _outputDir; // output data

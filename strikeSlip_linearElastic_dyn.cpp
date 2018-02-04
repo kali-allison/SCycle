@@ -10,7 +10,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),
   _deltaT(1e-3), 
-  _y(*(&(D._y))),_z(*(&(D._z))),
+  _y(&D._y),_z(&D._z),
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
@@ -207,8 +207,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
   
-  VecDuplicate(_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
-  VecDuplicate(_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
+  VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
+  VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
   
   PetscInt Ii,Istart,Iend;
   PetscInt Jj = 0;
@@ -217,28 +217,28 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
     VecGetArray(_varEx["u"],&u);
     VecGetArray(_varEx["uPrev"],&uPrev);
-    VecGetArray(_y, &y);
-    VecGetArray(_z, &z);
+    VecGetArray(*_y, &y);
+    VecGetArray(*_z, &z);
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
       uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
       Jj++;
     }
-    VecRestoreArray(_y,&y);
-    VecRestoreArray(_z,&z);
+    VecRestoreArray(*_y,&y);
+    VecRestoreArray(*_z,&z);
     VecRestoreArray(_varEx["u"],&u);
     VecRestoreArray(_varEx["uPrev"],&uPrev);
   }
     // Create matrix _ay
-    VecDuplicate(_y, &_ay);
+    VecDuplicate(*_z, &_ay);
     VecSet(_ay, 0.0);
 
     PetscScalar *yy, *zz, *ay;
-    VecGetOwnershipRange(_y,&Istart,&Iend);
+    VecGetOwnershipRange(*_y,&Istart,&Iend);
     VecGetArray(_ay,&ay);
-    VecGetArray(_y, &yy);
-    VecGetArray(_z, &zz);
+    VecGetArray(*_y, &yy);
+    VecGetArray(*_z, &zz);
     Jj = 0;
 
     PetscScalar dy,dz;
@@ -256,8 +256,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
       if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoingCharacteristics") == 0) < tol){ay[Jj] += 0.5 / _alphaz;}
       Jj++;
     }
-    VecRestoreArray(_y,&yy);
-    VecRestoreArray(_z,&zz);
+    VecRestoreArray(*_y,&yy);
+    VecRestoreArray(*_z,&zz);
     VecRestoreArray(_ay,&ay);
 
     ierr = VecPointwiseMult(_ay, _ay, _cs);
@@ -438,13 +438,13 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
 
   // Update the laplacian
   Vec Laplacian, temp;
-  VecDuplicate(_y, &Laplacian);
-  VecDuplicate(_y, &temp);
+  VecDuplicate(*_y, &Laplacian);
+  VecDuplicate(*_y, &temp);
   ierr = MatMult(A, varEx["u"], temp);
   ierr = _material->_sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
   VecDestroy(&temp);
-
+  PetscPrintf(PETSC_COMM_WORLD, "managed to build Laplacian");
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
@@ -453,8 +453,9 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   VecSet(ones, 1.0);
   VecSet(correction, 0.0);
   ierr = VecAXPY(correction, _deltaT, _ay);
+  PetscPrintf(PETSC_COMM_WORLD, "managed to multiply by deltat");
   ierr = VecAXPY(correction, -1.0, ones);
-
+  PetscPrintf(PETSC_COMM_WORLD, "managed to remove ones");
   VecDuplicate(varEx["u"], &previous);
   VecSet(previous, 0.0);
   ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);

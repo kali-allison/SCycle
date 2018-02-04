@@ -880,7 +880,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   #endif
 
   PetscScalar left, right, out, temp;
-  for (PetscInt Jj = 0; Jj<= _N; Jj++) {
+  for (PetscInt Jj = 0; Jj< _N; Jj++) {
 
     left = 0.;
     right = _tauQS[Jj] / _eta[Jj];
@@ -1356,7 +1356,7 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
 
   Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
-  for (PetscInt Jj = 0; Jj<=_N; Jj++) {
+  for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
     left = 0.;
     right = abs(_Phi[Jj]);
@@ -1429,7 +1429,7 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
 
   RegulaFalsi rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
-  for (PetscInt Jj = 0; Jj<=_N; Jj++) {
+  for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
     left = -10.;
     right = 10.;
