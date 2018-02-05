@@ -33,8 +33,12 @@ class NewFault
     const PetscScalar  _L; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
-    Vec            _tauQSP;
-    Vec            _tauP; // not quasi-static
+    Vec                _tauQSP;
+    Vec                _tauP; // not quasi-static
+
+    // for locking the fault
+    std::vector<double>   _lockedVals,_lockedDepths;
+    Vec                   _locked;
 
     // rate-and-state parameters
     PetscScalar           _f0,_v0;
@@ -53,8 +57,8 @@ class NewFault
     Vec                   _T,_k,_c; // for flash heating
 
     // tolerances for linear and nonlinear (for vel) solve
-    PetscScalar    _rootTol;
-    PetscInt       _rootIts,_maxNumIts; // total number of iterations
+    PetscScalar           _rootTol;
+    PetscInt              _rootIts,_maxNumIts; // total number of iterations
 
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
@@ -146,7 +150,7 @@ class NewFault_dyn: public NewFault
     NewFault_dyn& operator=( const NewFault_dyn& rhs);
 
   public:
-   Vec                  _Phi, _an, _constraints_factor;
+    Vec                  _Phi, _an, _constraints_factor;
     Vec                 _slipPrev;
     Vec                 _rhoLocal;
     IS                  _is;
@@ -181,12 +185,12 @@ class NewFault_dyn: public NewFault
 struct ComputeVel_qd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi;
+  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi,*_locked;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0;
 
   // constructor and destructor
-  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0);
+  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar *locked);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
