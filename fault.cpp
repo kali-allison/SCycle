@@ -858,7 +858,7 @@ PetscErrorCode SymmFault::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rho
   for (Ii=0; Ii<_N; Ii++){indexes[Ii] = Ii;}
 
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,_N,indexes, PETSC_COPY_VALUES,&_is);
-  
+
   ierr = VecScatterCreate(varEx["u"], _is, varEx["uFault"], _is, &scattu);
   VecScatterBegin(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
@@ -1118,12 +1118,12 @@ PetscErrorCode SymmFault::compute_agingLaw_dyn()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      ierr = rootAlg.setBounds(leftVal,rightVal, psi[Jj]);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,psi[Jj],&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     psi[Jj] = outVal;
-    
+
     Jj++;
   }
   VecRestoreArray(left,&leftA);
@@ -1609,10 +1609,10 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
 
   // effect of cohesion
   constraints = constraints_factor * constraints;
-  
+
   // stress on fault
   if (Phi < 0){Phi = -Phi;}
-  
+
   PetscScalar stress = Phi - slipVel;
 
   *out = constraints - stress;
@@ -1634,7 +1634,7 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
     CHKERRQ(ierr);
   }
-  
+
   assert(!isnan(*out));
   assert(!isinf(*out));
 

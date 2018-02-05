@@ -291,18 +291,21 @@ RegulaFalsi::~RegulaFalsi()
 
 
 
-PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
 {
-  return findRoot(obj,ind,out);
+  return findRoot(obj,ind,0.5*(_left+_right),out);
 }
 
-PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi in rootFinder.cpp\n");
   ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g Ii=%i\n",_left,_right,ind);CHKERRQ(ierr);
 #endif
+
+  // initial guess
+  _x = in;
 
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
@@ -359,13 +362,10 @@ PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,P
   return ierr;
 }
 
-PetscErrorCode RegulaFalsi::setBounds(PetscScalar left,PetscScalar right, PetscScalar x0)
+PetscErrorCode RegulaFalsi::setBounds(PetscScalar left,PetscScalar right)
 {
   assert(left <= right);
-  assert(left <= x0);
-  assert(right >= x0);
 
-  _x = x0;
   _left=left;
   _right=right;
 

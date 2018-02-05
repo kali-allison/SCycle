@@ -875,17 +875,17 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
     out = slipVelA[Jj];
     if (abs(left-right)<1e-14) { out = left; }
     else {
-      Bisect rootFinder(maxNumIts,rootTol);
-      ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
-      rootIts += rootFinder.getNumIts();
-
-
-      //~ PetscScalar x0 = slipVelA[Jj];
-      //~ BracketedNewton rootFinder(maxNumIts,rootTol);
-      //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+      //~ Bisect rootFinder(maxNumIts,rootTol);
+      //~ ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
       //~ rootIts += rootFinder.getNumIts();
+
+
+      PetscScalar x0 = slipVelA[Jj];
+      BracketedNewton rootFinder(maxNumIts,rootTol);
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+      rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
   }
@@ -1468,8 +1468,8 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
 
     if (abs(left-right)<1e-14) { out = left; }
     else {
-      ierr = rootFinder.setBounds(left,right,_psi[Jj]);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     _psi[Jj] = out;
