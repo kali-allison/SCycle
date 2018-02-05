@@ -1,12 +1,7 @@
 all: main
 
-<<<<<<< HEAD
-DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0
-CFLAGS          = $(DEBUG_MODULES) -pg
-=======
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
->>>>>>> 2cf534376d02b132ecf6b6df329566b24a4005c1
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
