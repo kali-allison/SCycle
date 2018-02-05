@@ -9,7 +9,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),
-  _deltaT(1e-3), 
+  _deltaT(1e-3), _CFL(0),
   _y(&D._y),_z(&D._z),
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
@@ -47,6 +47,13 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _cs = *(&(_material->_cs));
   _rhoVec = *(&(_material->_rhoVec));
   _muVec = *(&(_material->_muVec));
+
+  if (_CFL !=0){
+    PetscInt max_index;
+    PetscScalar max_speed;
+    VecMax(_cs,&max_index,&max_speed);
+    _deltaT = 0.5 / max_speed * max(_dy, _dz);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -103,6 +110,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
     else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
