@@ -150,23 +150,6 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       _tau_c = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-
-    // Tau dynamic parameters
-    else if (var.compare("tCenterTau")==0) {
-      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zCenterTau")==0) {
-      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("tStdTau")==0) {
-      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zStdTau")==0) {
-      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("ampTau")==0) {
-      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
   }
 
 #if VERBOSE > 1
@@ -196,9 +179,6 @@ PetscErrorCode NewFault::loadFieldsFromFiles(std::string inputDir)
 
   // load quasi-static shear stress
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
-
-  // load quasi-static shear stress
-  ierr = loadVecFromInputFile(_eta_rad,inputDir,"eta_rad"); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending NewFault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
@@ -265,7 +245,6 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauQSP,&_slip);     PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel);  PetscObjectSetName((PetscObject) _slipVel, "slipVel"); VecSet(_slipVel,0.0);
   VecDuplicate(_tauQSP,&_Dc);       PetscObjectSetName((PetscObject) _Dc, "Dc");
-  VecDuplicate(_tauQSP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
   VecDuplicate(_tauQSP,&_a);        PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b);        PetscObjectSetName((PetscObject) _b, "b");
   VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion"); VecSet(_cohesion,0);
@@ -306,11 +285,6 @@ PetscErrorCode NewFault::setFields(Domain& D)
     VecDestroy(&temp);
   }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
-  { // radiation damping parameter: 0.5 * sqrt(mu*rho)
-    ierr = VecPointwiseMult(_eta_rad,_mu,_rho); CHKERRQ(ierr);
-    ierr = VecSqrtAbs(_eta_rad); CHKERRQ(ierr);
-    ierr = VecScale(_eta_rad,0.5); CHKERRQ(ierr);
-  }
 
   { // impose floor and ceiling on effective normal stress
     Vec temp; VecDuplicate(_sN,&temp);
@@ -445,7 +419,7 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "NewFault_qd::writeContext";
+    std::string funcName = "NewFault::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -482,11 +456,6 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
   str = outputDir + "fault_b";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_b,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "fault_eta_rad";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_eta_rad,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output normal stress vector
@@ -577,7 +546,6 @@ NewFault::~NewFault()
 
   // frictional fields
   VecDestroy(&_Dc);
-  VecDestroy(&_eta_rad);
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
@@ -640,7 +608,16 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
+  // radiation damping parameter: 0.5 * sqrt(mu*rho)
+  VecDuplicate(_tauQSP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
+  VecPointwiseMult(_eta_rad,_mu,_rho);
+  VecSqrtAbs(_eta_rad);
+  VecScale(_eta_rad,0.5);
+
+  if (D._loadICs==1) {
+    //~ loadFieldsFromFiles(D._inputDir);
+    loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -654,11 +631,44 @@ NewFault_qd::~NewFault_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // this is covered by the NewFault destructor.
+  VecDestroy(&_eta_rad);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+}
+
+PetscErrorCode NewFault_qd::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "NewFault_qd::loadSettings";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // nothing to do yet
+
+  //~ PetscMPIInt rank,size;
+  //~ MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  //~ MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  //~ ifstream infile( file );
+  //~ string line,var;
+  //~ size_t pos = 0;
+  //~ while (getline(infile, line))
+  //~ {
+    //~ istringstream iss(line);
+    //~ pos = line.find(_delim); // find position of the delimiter
+    //~ var = line.substr(0,pos);
+
+
+  //~ }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
 }
 
 PetscErrorCode NewFault_qd::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
@@ -792,6 +802,31 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
   return ierr;
 }
 
+PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "NewFault_qd::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  NewFault::writeContext(outputDir);
+
+  PetscViewer    viewer;
+
+  // output vector fields
+
+  std::string str = outputDir + "fault_eta_rad";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_eta_rad,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 
 
@@ -931,6 +966,51 @@ NewFault_dyn::~NewFault_dyn()
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+}
+
+PetscErrorCode NewFault_dyn::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "NewFault_dyn::~loadSettings";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( file );
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+
+    // Tau dynamic parameters
+    if (var.compare("tCenterTau")==0) {
+      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zCenterTau")==0) {
+      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("tStdTau")==0) {
+      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zStdTau")==0) {
+      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("ampTau")==0) {
+      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
 }
 
 PetscErrorCode NewFault_dyn::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)

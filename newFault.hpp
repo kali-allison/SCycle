@@ -47,13 +47,10 @@ class NewFault
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
-    Vec                   _eta_rad; // radiation damping parameter
     Vec                   _slip,_slipVel;
 
     PetscScalar           _fw,_Vw,_tau_c,_Tw,_D_fh; // flash heating parameters
     Vec                   _T,_k,_c; // for flash heating
-
-    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
 
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
@@ -118,8 +115,12 @@ class NewFault_qd: public NewFault
 
   public:
 
+    Vec _eta_rad; // radiation damping term
+
     NewFault_qd(Domain& D,VecScatter& scatter2fault);
     ~NewFault_qd();
+
+    PetscErrorCode loadSettings(const char *file);
 
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
@@ -128,9 +129,15 @@ class NewFault_qd: public NewFault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
-  };
 
-  class NewFault_dyn: public NewFault
+    PetscErrorCode writeContext(const std::string outputDir);
+};
+
+
+
+
+// fully dynamic implementation of one-sided fault
+class NewFault_dyn: public NewFault
 {
   private:
 
@@ -147,8 +154,12 @@ class NewFault_qd: public NewFault
 
     PetscScalar         _alphay, _alphaz;
 
+    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+
     NewFault_dyn(Domain&, VecScatter& scatter2fault);
     ~NewFault_dyn();
+
+    PetscErrorCode loadSettings(const char *file);
 
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
@@ -187,7 +198,7 @@ struct ComputeVel_qd : public RootFinderContext
 };
 
 
-// computing the slip velocity for the quasi-dynamic problem
+// computing the slip velocity for the dynamic problem
 struct ComputeVel_dyn : public RootFinderContext
 {
   // shallow copies of contextual fields
@@ -207,7 +218,7 @@ struct ComputeVel_dyn : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
 };
 
-// computing the slip velocity for the quasi-dynamic problem
+// computing the slip velocity for the dynamic problem
 struct ComputeAging_dyn : public RootFinderContext
 {
   // shallow copies of contextual fields
