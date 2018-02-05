@@ -1,8 +1,8 @@
 order = 4 # SBP order of accuracy
-Ny = 201
-Nz = 401
-Ly = 50 # (km) horizontal domain size
-Lz = 35 # (km) vertical domain size
+Ny = 251
+Nz = 301
+Ly = 30 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
@@ -18,12 +18,13 @@ momentumBalanceType = steadyStateIts
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 4.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
 #inputDir = /data/dunham/kallison/eqcycle/inputData/qdwo_Nz301_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/contEqs_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -32,6 +33,9 @@ kspTol = 1e-10
 
 #======================================================================
 # rate-and-state parameters
+
+impedanceVals = [9.4868 9.4868]
+impedanceDepths = [0 60]
 
 #DcVals = [12e-3 12e-3] # m
 #DcVals = [32e-3 32e-3] # m
@@ -79,6 +83,14 @@ BDepths = [0 60]
 nVals = [2.4 2.4]
 nDepths = [0 60]
 
+# power law properties: wet quartz
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [1.62e4 1.62e4]
+#BDepths = [0 60]
+#nVals = [4 4]
+#nDepths = [0 60]
+
 # power law properties: wet feldspar
 #AVals = [398 398]
 #ADepths = [0 60]
@@ -105,7 +117,7 @@ heatEquationType = steadyState
 withShearHeating = no
 withFrictionalHeating = no
 
-maxEffVisc = 1e23
+maxEffVisc = 1e18
 maxSSIts_tau = 2000
 
 #maxSSIts_effVisc = 3
@@ -126,7 +138,7 @@ maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12
-atol = 1e-7
+atol = 1e-8
 #timeIntInds = [psi slip]
 timeIntInds = [slip gVxy gVxz]
 
@@ -138,11 +150,18 @@ timeIntInds = [slip gVxy gVxz]
 #outputDir = /scratch/kallison/versions/v19_
 #outputDir = /scratch/kallison/versions/v20_
 #outputDir = /scratch/kallison/versions/v21_
+#outputDir = /scratch/kallison/versions/v22_
 
-#outputDir = /scratch/kallison/versions/test2_
-outputDir = /scratch/kallison/versions/test3_
+#outputDir = /scratch/kallison/versions/v23_
+#outputDir = /scratch/kallison/versions/v24_
+#outputDir = /scratch/kallison/versions/v25_
+#outputDir = /scratch/kallison/versions/v26_
+#outputDir = /scratch/kallison/versions/v27_
+#outputDir = /scratch/kallison/versions/v28_
+outputDir = /scratch/kallison/versions/v29_
+
 #outputDir = /scratch/kallison/versions/test_
-#outputDir = /scratch/kallison/versions/g30_
+outputDir = /scratch/kallison/versions/test2_
 
 
 

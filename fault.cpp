@@ -1659,18 +1659,18 @@ PetscErrorCode Fault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_impedanceDepths);
     }
-    else if (var.compare("sigmaNVals")==0) {
+    else if (var.compare("sNVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNVals);
     }
-    else if (var.compare("sigmaNDepths")==0) {
+    else if (var.compare("sNDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNDepths);
     }
-    else if (var.compare("sigmaN_cap")==0) {
+    else if (var.compare("sN_cap")==0) {
       _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("sigmaN_floor")==0) {
+    else if (var.compare("sN_floor")==0) {
       _sigmaN_floor = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 

@@ -85,7 +85,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     //~ Fault                      *_fault;
-    NewFault_qd                      *_fault;
+    NewFault_qd                *_fault;
     PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

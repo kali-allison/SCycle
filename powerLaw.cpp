@@ -16,7 +16,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _B(NULL),_C(NULL),
-  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_ssEffViscScale(1e-15),
+  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),_ssEffViscScale(1),
   _timeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
@@ -1353,20 +1353,20 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
+  //~ VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
 
   // set up SBP operators
   if (_sbpType.compare("mc")==0) {
-    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
+    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc")==0) {
-    //~ _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
+    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
+    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
     _sbp_eta->setGrid(_y,_z);
   }
   else {
@@ -1446,7 +1446,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   #endif
 
   // set up linear system
-  VecScale(_rhs,_ssEffViscScale); // scale rhs to improve condition number of linear system
+  //~ VecScale(_rhs,_ssEffViscScale); // scale rhs to improve condition number of linear system
   Mat A;
   _sbp_eta->getA(A);
   KSPDestroy(&_ksp_eta);

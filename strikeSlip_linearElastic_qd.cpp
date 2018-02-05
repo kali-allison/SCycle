@@ -724,9 +724,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
 
-  VecCopy(uL,_varEx["slip"]);
-  if (_bcLType.compare("symm_fault")==0) {
-    VecScale(_varEx["slip"],2.);
+  if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
+  else {
+    Vec slip;
+    VecDuplicate(_material->_bcL,&slip);
+    VecCopy(uL,slip);
+    _varEx["slip"] = slip;
   }
 
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {

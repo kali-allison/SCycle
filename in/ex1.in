@@ -58,10 +58,7 @@ atol = 1e-8 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output
-#outputDir = data/ex1_
-#outputDir = data/ord2_
-#outputDir = data/ord3_
-outputDir = data/atol_
+outputDir = data/ex1_
 
 
 
