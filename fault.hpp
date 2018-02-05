@@ -28,8 +28,8 @@ class Fault: public RootFinderContext
     std::string       _stateLaw; // state evolution law
 
     // domain properties
-    const PetscInt     _N;  //number of nodes on fault
-    const PetscScalar  _L,_h; // length of fault, grid spacing on fault
+    const PetscInt     _N, _Ny, _order;  //number of nodes on fault
+    const PetscScalar  _L,_h, _Ly; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
     const std::string  _problemType; // symmetric (only y>0) or full
 
@@ -38,14 +38,16 @@ class Fault: public RootFinderContext
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
 
    // fields that are identical on split nodes
-   PetscScalar           _f0,_v0,_vL;
+   PetscScalar           _f0,_v0,_vL, _deltaT;
    PetscScalar           _fw,_Vw,_tau_c,_Tw,_D; // flash heating parameters
+   PetscScalar           _alphay, _alphaz;
    Vec                   _T,_k,_rho,_c; // for flash heating
    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
    Vec                   _a,_b,_Dc;
    std::vector<double>   _cohesionVals,_cohesionDepths;
    Vec                   _cohesion;
    Vec                   _dPsi,_psi,_theta,_dTheta;
+   Vec                   _Phi, _an, _constraints_factor;
 
 
     // fields that differ on the split nodes
@@ -57,8 +59,9 @@ class Fault: public RootFinderContext
     Vec                  _zP;
     //~ PetscScalar   *_muArrPlus,*_csArrPlus;
     Vec                 *_muVecP,*_csVecP;
-    Vec                  _slip,_slipVel;
-
+    Vec                  _slip,_slipVel, _slipPrev;
+    Vec                 _rhoLocal;
+    IS                  _is;
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
@@ -100,13 +103,17 @@ class Fault: public RootFinderContext
     PetscErrorCode flashHeating_psi(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
     PetscErrorCode stronglyVWLaw_theta(const PetscInt ind,const PetscScalar state,PetscScalar &dstate);
 
-
     PetscErrorCode virtual computeVel() = 0;
+    PetscErrorCode virtual computeVel_dyn() = 0;
+    PetscErrorCode virtual compute_agingLaw_dyn() = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
     PetscErrorCode virtual getResid(const PetscInt ind,const PetscScalar vel,PetscScalar *out,PetscScalar *J) = 0;
+    PetscErrorCode virtual getResid_dyn(const PetscInt ind,const PetscScalar vel,PetscScalar *out) = 0;
+    PetscErrorCode virtual getResid_aging(const PetscInt ind,const PetscScalar state,PetscScalar *out) = 0;
     PetscErrorCode virtual d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
     PetscErrorCode virtual d_dt_WaveEq(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar _deltaT) = 0;
     PetscErrorCode virtual initiateIntegrand(const PetscScalar time, map<string,Vec>& varEx) = 0;
+    PetscErrorCode virtual initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec) = 0;
     PetscErrorCode virtual updateFields(const PetscScalar time,const map<string,Vec>& varEx) = 0;
 
     PetscErrorCode virtual setTauQS(const Vec& sigma_xyPlus,const Vec& sigma_xyMinus) = 0;
@@ -114,6 +121,7 @@ class Fault: public RootFinderContext
     PetscErrorCode virtual setSNEff(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
     PetscErrorCode virtual setSN(const Vec& p) = 0; // update effective normal stress to reflect new pore pressure
     PetscErrorCode virtual setTemp(const Vec& T) = 0;
+    PetscErrorCode virtual setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT) = 0;
 
 
     // for steady state computations
@@ -164,6 +172,7 @@ class SymmFault: public Fault
 
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode virtual initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_eqCycle(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
@@ -176,7 +185,11 @@ class SymmFault: public Fault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out,PetscScalar* J);
+    PetscErrorCode getResid_dyn(const PetscInt ind,const PetscScalar vel,PetscScalar *out);
+    PetscErrorCode getResid_aging(const PetscInt ind,const PetscScalar state,PetscScalar *out);
     PetscErrorCode computeVel();
+    PetscErrorCode computeVel_dyn();
+    PetscErrorCode compute_agingLaw_dyn();
 
     // don't technically need the 2nd argument
     PetscErrorCode setTemp(const Vec& T);
@@ -185,6 +198,7 @@ class SymmFault: public Fault
     PetscErrorCode setFaultDisp(Vec const &uhatPlus,const Vec &uhatMinus);
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // set total normal stress from pore pressure and effective normal stress
+    PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
 
 };
 

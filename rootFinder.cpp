@@ -148,6 +148,8 @@ PetscErrorCode Bisect::setBounds(PetscScalar left,PetscScalar right)
 
   _mid = (_left + _right)*0.5;
 
+  _fMid = 2 * _atol;
+
   return 0;
 }
 
@@ -192,7 +194,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting BracketedNewton::findRoot in rootFinder.cpp\n");
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
+  // ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
 #endif
 
   // check if initial input is the root
@@ -253,6 +255,117 @@ PetscErrorCode BracketedNewton::setBounds(PetscScalar left,PetscScalar right)
 {
   assert(left < right);
 
+  _left=left;
+  _right=right;
+
+  return 0;
+}
+
+
+//=============== RegulaFalsi member functions ==============================
+
+RegulaFalsi::RegulaFalsi(const PetscInt maxNumIts,const PetscScalar atol)
+: RootFinder(maxNumIts,atol),
+  _left(0),_fLeft(0),_right(0),_fRight(0),_x(0),_f(2*atol)
+{
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi::RegulaFalsi in rootFinder.cpp.\n");
+#endif
+
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Ending RegulaFalsi::RegulaFalsi in rootFinder.cpp.\n");
+#endif
+}
+
+RegulaFalsi::~RegulaFalsi()
+{
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi::~RegulaFalsi in rootFinder.cpp.\n");
+#endif
+
+
+#if VERBOSE > 3
+  PetscPrintf(PETSC_COMM_WORLD,"Ending RegulaFalsi::~RegulaFalsi in rootFinder.cpp.\n");
+#endif
+};
+
+
+
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
+{
+  return findRoot(obj,ind,out);
+}
+
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi in rootFinder.cpp\n");
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g Ii=%i\n",_left,_right,ind);CHKERRQ(ierr);
+#endif
+
+  ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
+  ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
+  ierr = obj->getResid(ind,_x,&_f);CHKERRQ(ierr);
+
+  assert(!isnan(_fLeft)); assert(!isnan(_fRight));
+  assert(!isinf(_fLeft)); assert(!isinf(_fRight));
+
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
+#endif
+
+  if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
+  else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
+
+  PetscInt numIts = 0;
+  PetscScalar diff = 10*_atol;
+  PetscScalar prev = _x;
+
+  while ( (numIts <= _maxNumIts) & (sqrt(_f*_f) >= _atol) & (sqrt(diff*diff) >= _atol)) {
+#if VERBOSE > 4
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
+                       ind,numIts,_left,_right,_mid,_f);CHKERRQ(ierr);
+#endif
+    prev = _x;
+    if (_fLeft*_f > _atol) {
+      _left = _x;
+      _x = _right - (_right - _left) * (_fRight / (_fRight - _fLeft));
+      _fLeft = _f;
+    }
+    else {
+      _right = _x;
+      _x = _right - (_right - _left) * (_fRight / (_fRight - _fLeft));
+      _fRight = _f;
+    }
+
+  diff = (_x-prev)/_x;
+  ierr = obj->getResid(ind,_x,&_f);CHKERRQ(ierr);
+  numIts++;
+  }
+
+#if VERBOSE > 3
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
+                     numIts,_maxNumIts,_mid,_f);CHKERRQ(ierr);
+#endif
+
+  *out = _x;
+  if ( (sqrt(_f*_f) > _atol) & (sqrt(diff*diff) > _atol)) {
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
+    assert(sqrt(_f*_f) < _atol);
+    return 1;
+  }
+
+  return ierr;
+}
+
+PetscErrorCode RegulaFalsi::setBounds(PetscScalar left,PetscScalar right, PetscScalar x0)
+{
+  assert(left <= right);
+  assert(left <= x0);
+  assert(right >= x0);
+
+  _x = x0;
   _left=left;
   _right=right;
 

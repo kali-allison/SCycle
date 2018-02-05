@@ -1,23 +1,35 @@
 #======================================================================
 # domain
-order = 4
-Ny = 51
-Nz = 52
-Ly = 30 # km
-Lz = 40 # km
+order = 2
+Ny = 101
+Nz = 81
+Ly = 30
+# km
+Lz = 25
+# km
 vL = 1e-9    # (m/s)
 
+isFault = true
 # symmetric or general
 geometry = symmetric
 
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+problemType = strikeSlip
+
 # linearElastic or powerLaw
 bulkDeformationType = linearElastic
-momBalType = dynamic
+# dynamic or static
+momentumBalanceType = dynamic
 
 # coordinate transformation
 #bCoordTrans = 5.0
 #sbpType = mfc_coordTrans
 sbpType = mfc
+
+momBal_bcR_dyn = outGoingCharacteristics
+momBal_bcL_dyn = outGoingCharacteristics
+momBal_bcT_dyn = outGoingCharacteristics
+momBal_bcB_dyn = outGoingCharacteristics
 
 #======================================================================
 # linear systems
@@ -38,7 +50,7 @@ kspTol_heateq = 1e-9
 
 #======================================================================
 # rate-and-state parameters
-rootTol = 1e-9
+rootTol = 1e-14
 
 impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
@@ -56,20 +68,26 @@ DcDepths = [0 60] # m
 #bDepths = [0 60]
 
 # easier to resolve
-aVals = [0.015 0.015]
-aDepths = [0 60]
-bVals = [0.02 0.02 0.0 0.0]
-bDepths = [0 12 15 60]
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.02 0.02]
+#bDepths = [0 12 15 60]
+
+# easier to resolve
+#aVals = [0.015 0.015]
+#aDepths = [0 60]
+#bVals = [0.02 0.02 0.02 0.02]
+#bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
 
-sigmaNVals = [50 50] # (MPa) constant
-sigmaNDepths = [0 60] #(km) constant
+sNVals = [50 50] # (MPa) constant
+sNDepths = [0 60] #(km) constant
 #sigmaNVals = [5.668 5.668 1336] # MPa
 #sigmaNDepths = [0 0.25 60]
 #sigmaN_cap = 50; # MPa
@@ -84,8 +102,8 @@ f0 = 0.6
 
 shearModDistribution = constant
 problem = symmetric
-muPlus = 30 # GPa
-rhoPlus = 2.6702 # g/cm^3
+mu = 30 # GPa
+rho = 2.6702 # g/cm^3
 
 # power law properties: quartz-diorite
 AVals = [1.3e-3 1.3e-3]
@@ -132,12 +150,10 @@ timeIntegrator = RK32
 timeControlType = P
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 2000
 initTime = 0
-maxTime = 8
-initDeltaT = 1e-3
-minDeltaT = 1e-3
-maxDeltaT = 1e10
+maxTime = 15
+deltaT = 5e-3
 atol = 1e-8
 timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
@@ -146,6 +162,6 @@ timeIntInds = [psi slip]
 # write to laptop
 #outputDir = data/maxVisc1e16_
 
-outputDir = /scratch/kallison/test_
+outputDir = ./test_Maxime/test_
 
 

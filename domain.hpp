@@ -33,16 +33,18 @@ class Domain
     // domain properties
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz;
+    PetscScalar  _alphay,_alphaz;
     std::string  _yInputDir; // directory to load y from
     std::string  _zInputDir; // directory to load z from
+    PetscScalar  _vL; // loading velocity
 
     // coordinate system
     Vec   _q,_r,_y,_z; // q(y), r(z)
     PetscScalar _dq,_dr;
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
-    // scatters to take values from body field(s) to 1D fields
-    // naming convention for key (string): body2<boundary>, example: "body2L>"
+  // scatters to take values from body field(s) to 1D fields
+  // naming convention for key (string): body2<boundary>, example: "body2L>"
     std::map <string, VecScatter>  _scatters;
     Vec _y0; // y = 0 vector, size Nz
     Vec _z0; // z = 0 vector, size Ny

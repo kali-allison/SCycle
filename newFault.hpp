@@ -53,6 +53,8 @@ class NewFault
     PetscScalar           _fw,_Vw,_tau_c,_Tw,_D_fh; // flash heating parameters
     Vec                   _T,_k,_c; // for flash heating
 
+    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar    _rootTol;
     PetscInt       _rootIts,_maxNumIts; // total number of iterations
@@ -126,6 +128,39 @@ class NewFault_qd: public NewFault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
+  };
+
+  class NewFault_dyn: public NewFault
+{
+  private:
+
+    // disable default copy constructor and assignment operator
+    NewFault_dyn(const NewFault_dyn & that);
+    NewFault_dyn& operator=( const NewFault_dyn& rhs);
+
+  public:
+   Vec                  _Phi, _an, _constraints_factor;
+    Vec                 _slipPrev;
+    Vec                 _rhoLocal;
+    IS                  _is;
+    PetscScalar         _deltaT;
+
+    PetscScalar         _alphay, _alphaz;
+
+    NewFault_dyn(Domain&, VecScatter& scatter2fault);
+    ~NewFault_dyn();
+
+    // for interaction with mediator
+    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+    PetscErrorCode initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec);
+    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+    PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,PetscScalar _deltaT);
+
+    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+    PetscErrorCode computeVel();
+    PetscErrorCode computeAgingLaw();
+    PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
+    PetscErrorCode updateTau(const PetscScalar currT);
 };
 
 
@@ -152,11 +187,52 @@ struct ComputeVel_qd : public RootFinderContext
 };
 
 
+// computing the slip velocity for the quasi-dynamic problem
+struct ComputeVel_dyn : public RootFinderContext
+{
+  // shallow copies of contextual fields
+  const PetscScalar  *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
+  const PetscInt      _N; // length of the arrays
+  const PetscScalar   _v0;
+
+  // constructor and destructor
+  ComputeVel_dyn(const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0);
+  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
+
+  // command to perform root-finding process, once contextual variables have been set
+  PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
+
+  // function that matches root finder template
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+};
+
+// computing the slip velocity for the quasi-dynamic problem
+struct ComputeAging_dyn : public RootFinderContext
+{
+  // shallow copies of contextual fields
+  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
+  PetscScalar        *_psi;
+  const PetscInt      _N; // length of the arrays
+  const PetscScalar   _v0, _deltaT, _f0;
+
+  // constructor and destructor
+  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
+
+  // command to perform root-finding process, once contextual variables have been set
+  PetscErrorCode computeAging(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
+
+  // function that matches root finder template
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+};
+
 
 // common rate-and-state functions
 
 // state evolution law: aging law, state variable: psi
-PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
+PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
 
 // applies the aging law to a Vec
 PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc);
@@ -180,7 +256,7 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
 PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
 // frictional strength, regularized form, for state variable psi
-PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0);
+PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0);
 
 
 #include "rootFinder.hpp"
