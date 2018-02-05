@@ -19,6 +19,7 @@ class PowerLaw
 
   public:
 
+    Domain              *_D;
     const char          *_file;
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
@@ -32,8 +33,8 @@ class PowerLaw
     PetscInt             _stepCount;
 
     // material properties
-    Vec                  _muVec, _rhoVec, _cs, _ay;
-    PetscScalar          _muVal,_rhoVal; // if constant
+    Vec                  _muVec, _rhoVec, _cs;
+    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
 
     std::string          _viscDistribution; // options: mms, fromVector,loadFromFile

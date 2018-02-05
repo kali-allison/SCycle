@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <assert.h>
+#include <boost/circular_buffer.hpp>
 #include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 
@@ -108,9 +109,16 @@ class RK32 : public OdeSolver
 
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol; // absolute and relative tolerances
-    PetscReal   _kappa,_ord; // safety factor in step size determinance
-    PetscReal   _absErr[3]; // safety factor in step size determinance
+    PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
+    PetscReal   _absErr[3];
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
+
+    // for PID error control
+    //~ typedef boost::circular_buffer<double> circular_buffer;
+    //~ circular_buffer _errorArray;
+    //~ boost::circular_buffer<double> _errorArray;
+
+
 
     std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_y2,_dy2,_y3;
 

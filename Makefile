@@ -1,7 +1,12 @@
 all: main
 
+<<<<<<< HEAD
 DEBUG_MODULES   = -DVERBOSE=2 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES) -pg
+=======
+DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
+CFLAGS          = $(DEBUG_MODULES)
+>>>>>>> 2cf534376d02b132ecf6b6df329566b24a4005c1
 CPPFLAGS        = $(CFLAGS)
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
@@ -127,4 +132,4 @@ strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
- pressureEq.hpp powerLaw.hpp
+ pressureEq.hpp powerLaw.hpp newFault.hpp

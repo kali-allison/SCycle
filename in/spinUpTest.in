@@ -1,79 +1,65 @@
-#======================================================================
-# domain
-order = 4
-Ny = 319
+order = 4 # SBP order of accuracy
+Ny = 251
 Nz = 301
-Ly = 30 # km
-Lz = 30 # km
-vL = 1e-9    # (m/s)
+Ly = 30 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
+vL = 1e-9    # (m/s) loading velocity
 
-# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-#problemType = steadyStateIts
+# strikeSlip or iceStream
+problemType = strikeSlip
 
 # linearElastic or powerLaw
 bulkDeformationType = powerLaw
-# dynamic or static
-momBalType = static
+
+# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+momentumBalanceType = steadyStateIts
+
+# whether or not to estimate steady state initial conditions
+guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 10.0
+bCoordTrans = 7.0
 sbpType = mfc_coordTrans
-#sbpType = mfc
 
 #======================================================================
-# linear systems
-
-inputDir = /data/dunham/kallison/eqcycle/inputData/newy_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/newy_Nz601_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_ssg25_l8_
+# linear system
+#inputDir = /data/dunham/kallison/eqcycle/inputData/qdwo_Nz301_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/contEqs_
 loadICs = 0
-bcLTauQS = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
 linSolver = MUMPSCHOLESKY
 kspTol = 1e-10
 
-
-# algorithm for heat equation
-linSolver_heateq = AMG
-kspTol_heateq = 1e-9
-
 #======================================================================
 # rate-and-state parameters
-rootTol = 1e-9
 
 impedanceVals = [9.4868 9.4868]
 impedanceDepths = [0 60]
-cohesionVals = [0 0] # m
-cohesionDepths = [0 60] # m
-#DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
+
+#DcVals = [12e-3 12e-3] # m
+#DcVals = [32e-3 32e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
-
-# FOR SPIN UP: a <- a-b; for creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-# note in the VW region a remains what it was previously
-aVals = [0.0135 0.03 0.0325 0.2155]
-aDepths = [0 10 19.3333 60]
-bVals = [0.0 0.0]
-bDepths = [0 60]
+aVals = [0.0135 0.0300 0.0700 0.2652]
+aDepths = [0 11.0000 19.3333 60]
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+bDepths = [0 10 11 19.3333 60]
 
 
 # with varying degrees of overpressure
-#sigmaNVals = [0 802.1] # lambda = 0.4
-#sigmaNVals = [0 668.5] # lambda = 0.5
-#sigmaNVals = [0 534.8] # lambda = 0.6
-#sigmaNVals = [0 401.1] # lambda = 0.7
-#sigmaNVals = [0 267.4] # lambda = 0.8
-#sigmaNDepths = [0 60]
-sigmaN_floor = 5.5; # MPa
-#sigmaN_cap = 50; # MPa
+#sNVals = [0 802.1] # lambda = 0.4
+#sNVals = [0 668.5] # lambda = 0.5
+#sNVals = [0 534.8] # lambda = 0.6
+#sNVals = [0 401.1] # lambda = 0.7
+sNVals = [0 267.4] # lambda = 0.8
+#sNVals = [50 50] # MPa
+sNDepths = [0 60]
+#sN_floor = 5.5; # MPa
+sN_floor = 1; # MPa
+#sN_cap = 50; # MPa
 
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
@@ -81,14 +67,13 @@ stateLaw = constantState
 v0 = 1e-9
 f0 = 0.6
 
-
 #======================================================================
 # off-fault material parameters
 
-shearModDistribution = constant
-problem = symmetric
-muPlus = 30 # GPa
-rhoPlus = 3.0 # g/cm^3
+muVals = [30 30] # GPa
+muDepths = [0 60] # m
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60] # m
 
 # power law properties: quartz-diorite
 AVals = [1.3e-3 1.3e-3]
@@ -98,6 +83,22 @@ BDepths = [0 60]
 nVals = [2.4 2.4]
 nDepths = [0 60]
 
+# power law properties: wet quartz
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [1.62e4 1.62e4]
+#BDepths = [0 60]
+#nVals = [4 4]
+#nDepths = [0 60]
+
+# power law properties: wet feldspar
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [4.28e4 4.28e4]
+#BDepths = [0 60]
+#nVals = [3 3]
+#nDepths = [0 60]
+
 # heat equation properties
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
@@ -106,84 +107,61 @@ hVals = [0 0]
 hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
-rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 60]
 
-
-# initial geotherm
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
-
-# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
-# withFrictionalHeating: no, plane, finiteWidthZone
-#heatEquationType = steadyState
-#thermalCoupling = coupled
-#withViscShearHeating = yes
+thermalCoupling = no
+heatEquationType = steadyState
+withShearHeating = no
 withFrictionalHeating = no
-shearZoneWidth = 0
 
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
 maxEffVisc = 1e18
-maxEffViscSS = 1e18
+maxSSIts_tau = 2000
+
+#maxSSIts_effVisc = 3
+#maxSSIts_tau = 4
+#maxSSIts_timesteps = 20
+momBal_computeSxz = 1
 
 #======================================================================
-# settings for time integration # options: FEuler, RK32, RK43; RK32_WBE, RK43_WBE
+# settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK32
 timeControlType = P
 stride1D = 20
 stride2D = 20
-maxStepCount = 1e3
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
-maxDeltaT = 1e10
-atol = 1e-6
+maxDeltaT = 1e12
+atol = 1e-8
 #timeIntInds = [psi slip]
-#timeIntInds = [slip]
 timeIntInds = [slip gVxy gVxz]
 
-# quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-problemType = steadyStateIts
-fss_T = 0.1
-fss_EffVisc = 0.25
 
-heatEquationType = steadyState
-thermalCoupling = coupled
-#thermalCoupling = no
-withViscShearHeating = yes
-#withViscShearHeating = no
+#outputDir = /scratch/kallison/versions/v15_
+#outputDir = /scratch/kallison/versions/v16_
+#outputDir = /scratch/kallison/versions/v17_
+#outputDir = /scratch/kallison/versions/v18_
+#outputDir = /scratch/kallison/versions/v19_
+#outputDir = /scratch/kallison/versions/v20_
+#outputDir = /scratch/kallison/versions/v21_
+#outputDir = /scratch/kallison/versions/v22_
 
-sigmaNVals = [0 401.1] # lambda = 0.4
-#sigmaNVals = [0 200.5] # lambda = 0.7
-#sigmaNVals = [0 167.1] # lambda = 0.75
-#sigmaNVals = [0 133.7] # lambda = 0.8
-sigmaNDepths = [0 30]
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
+#outputDir = /scratch/kallison/versions/v23_
+#outputDir = /scratch/kallison/versions/v24_
+#outputDir = /scratch/kallison/versions/v25_
+#outputDir = /scratch/kallison/versions/v26_
+#outputDir = /scratch/kallison/versions/v27_
+#outputDir = /scratch/kallison/versions/v28_
+outputDir = /scratch/kallison/versions/v29_
 
-# try damping temperature
-#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_
-#outputDir = /scratch/kallison/Tdamp/ssg25_Td1_l7_
-#outputDir = /scratch/kallison/Tdamp/ssg30_Td4_l8_Nz601_
-#outputDir = /scratch/kallison/Tdamp/ssg30_Td2_l4_Nz601_
-#outputDir = /scratch/kallison/Tdamp/ssg30_Td3_l4_Nz601_
-#outputDir = /scratch/kallison/Tdamp/ssg30_Td1_l4_Nz601_
-
-# in case lambda = 4 turns out well
-#outputDir = /scratch/kallison/nhe/nheg25_cs_l4_
-#outputDir = /scratch/kallison/nhe/nheg30_cs_l4_
-#outputDir = /scratch/kallison/nhe/nheg30_cs_l8_
-
-# continue from previous
-#outputDir = /scratch/kallison/cont/ssg25_l82l75_Td1_l75_
-#outputDir = /scratch/kallison/cont/ssg25_l82l7_Td1_l7_
-
-
+#outputDir = /scratch/kallison/versions/test_
+outputDir = /scratch/kallison/versions/test2_
 
 
 

@@ -469,7 +469,6 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
   return ierr;
 }
 
-
 // loads a std library vector from a list in the input file
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
@@ -658,6 +657,54 @@ double MMS_test(const double y,const double z) { return y*10.0 + z; }
 double MMS_test(const double z) { return z; }
 
 
+
+
+// Fills vec with the linear interpolation between the pairs of points (vals,depths).
+PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<double>& depths)
+{
+  PetscErrorCode ierr = 0;
+  PetscInt       Istart,Iend;
+  PetscScalar    v,z,z0,z1,v0,v1;
+
+
+  VecSet(vec,vals[0]);
+
+  PetscInt N;
+  VecGetSize(coord,&N);
+  if (N == 1) { return ierr; }
+
+
+  // build structure from generalized input
+  size_t vecLen = depths.size();
+  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
+  PetscScalar *vecA;
+  const PetscScalar *coordA;
+  PetscInt Jj = 0;
+  VecGetArray(vec,&vecA);
+  VecGetArrayRead(coord,&coordA);
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
+  {
+    z = coordA[Jj];
+    for (size_t ind = 0; ind < vecLen-1; ind++) {
+      z0 = depths[0+ind];
+      z1 = depths[0+ind+1];
+      v0 = vals[0+ind];
+      v1 = vals[0+ind+1];
+      if (z>=z0 && z<=z1) {
+        v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
+        vecA[Jj] = v;
+      }
+      else if (z>z1 && ind == vecLen-2) {
+        v = (v1 - v0)/(z1-z0) * (z-z0) + v0;
+        vecA[Jj] = v;
+      }
+    }
+    Jj++;
+  }
+  VecRestoreArray(vec,&vecA);
+  VecRestoreArrayRead(coord,&coordA);
+  return ierr;
+}
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const Vec& yV, const double t)

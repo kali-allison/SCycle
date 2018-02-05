@@ -21,6 +21,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
+#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
@@ -54,7 +55,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -86,7 +87,8 @@ private:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    Fault                      *_fault;
+    //~ Fault                      *_fault;
+    NewFault_qd                      *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

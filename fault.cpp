@@ -858,7 +858,7 @@ PetscErrorCode SymmFault::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rho
   for (Ii=0; Ii<_N; Ii++){indexes[Ii] = Ii;}
 
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,_N,indexes, PETSC_COPY_VALUES,&_is);
-  
+
   ierr = VecScatterCreate(varEx["u"], _is, varEx["uFault"], _is, &scattu);
   VecScatterBegin(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
@@ -974,7 +974,7 @@ PetscErrorCode SymmFault::computeVel()
       //~ BracketedNewton rootAlg(_maxNumIts,_rootTol);
       //~ ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
       //~ ierr = rootAlg.findRoot(this,Ii,x0,&outVal);CHKERRQ(ierr);
-      _rootIts += rootAlg.getNumIts();
+      //~ _rootIts += rootAlg.getNumIts();
     }
     slipVel[Jj] = outVal;
     //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Ii,leftVal,rightVal,outVal);
@@ -1118,12 +1118,12 @@ PetscErrorCode SymmFault::compute_agingLaw_dyn()
 
     if (abs(leftVal-rightVal)<1e-14) { outVal = leftVal; }
     else {
-      ierr = rootAlg.setBounds(leftVal,rightVal, psi[Jj]);CHKERRQ(ierr);
-      ierr = rootAlg.findRoot(this,Ii,&outVal);CHKERRQ(ierr);
+      ierr = rootAlg.setBounds(leftVal,rightVal);CHKERRQ(ierr);
+      ierr = rootAlg.findRoot(this,Ii,psi[Jj],&outVal);CHKERRQ(ierr);
       _rootIts += rootAlg.getNumIts();
     }
     psi[Jj] = outVal;
-    
+
     Jj++;
   }
   VecRestoreArray(left,&leftA);
@@ -1609,10 +1609,10 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
 
   // effect of cohesion
   constraints = constraints_factor * constraints;
-  
+
   // stress on fault
   if (Phi < 0){Phi = -Phi;}
-  
+
   PetscScalar stress = Phi - slipVel;
 
   *out = constraints - stress;
@@ -1634,7 +1634,7 @@ PetscErrorCode SymmFault::getResid_dyn(const PetscInt ind,const PetscScalar slip
     ierr = PetscPrintf(PETSC_COMM_WORLD,"exp(psi/a)=%.9e\n",exp(psi/a));
     CHKERRQ(ierr);
   }
-  
+
   assert(!isnan(*out));
   assert(!isinf(*out));
 
@@ -2063,18 +2063,18 @@ PetscErrorCode Fault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_impedanceDepths);
     }
-    else if (var.compare("sigmaNVals")==0) {
+    else if (var.compare("sNVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNVals);
     }
-    else if (var.compare("sigmaNDepths")==0) {
+    else if (var.compare("sNDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_sigmaNDepths);
     }
-    else if (var.compare("sigmaN_cap")==0) {
+    else if (var.compare("sN_cap")==0) {
       _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("sigmaN_floor")==0) {
+    else if (var.compare("sN_floor")==0) {
       _sigmaN_floor = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 

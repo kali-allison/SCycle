@@ -6,13 +6,13 @@ using namespace std;
 
 
 NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
-: _inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
+: _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _stateLaw("agingLaw"),
   _N(D._Nz),_L(D._Lz),
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
-  _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D(5),
-  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e8),
+  _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D_fh(5),
+  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e3),
   _computeVelTime(0),_stateLawTime(0),
   _body2fault(&scatter2fault)
 {
@@ -21,7 +21,6 @@ NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // set a, b, normal stress, and Dc
   loadSettings(_inputFile);
   checkInput();
   setFields(D);
@@ -98,6 +97,15 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cohesionDepths);
     }
+    else if (var.compare("muVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muVals);
+    }
+    else if (var.compare("muDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muDepths);
+    }
+
     else if (var.compare("rhoVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoVals);
@@ -106,9 +114,7 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoDepths);
     }
-    else if (var.compare("mu")==0) {
-      _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+
 
     else if (var.compare("stateLaw")==0) {
       _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
@@ -138,28 +144,12 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       _Tw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("D")==0) {
-      _D = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _D_fh = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("tau_c")==0) {
       _tau_c = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
-    // Tau dynamic parameters
-    else if (var.compare("tCenterTau")==0) {
-      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zCenterTau")==0) {
-      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("tStdTau")==0) {
-      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zStdTau")==0) {
-      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("ampTau")==0) {
-      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
   }
 
 #if VERBOSE > 1
@@ -190,9 +180,6 @@ PetscErrorCode NewFault::loadFieldsFromFiles(std::string inputDir)
   // load quasi-static shear stress
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
 
-  // load quasi-static shear stress
-  ierr = loadVecFromInputFile(_eta_rad,inputDir,"eta_rad"); CHKERRQ(ierr);
-
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending NewFault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
@@ -213,17 +200,23 @@ PetscErrorCode NewFault::checkInput()
   assert(_bVals.size() == _bDepths.size() );
   assert(_sigmaNVals.size() == _sigmaNDepths.size() );
   assert(_cohesionVals.size() == _cohesionDepths.size() );
+  assert(_rhoVals.size() == _rhoDepths.size() );
+  assert(_muVals.size() == _muDepths.size() );
+
 
   assert(_DcVals.size() != 0 );
   assert(_aVals.size() != 0 );
   assert(_bVals.size() != 0 );
   assert(_sigmaNVals.size() != 0 );
+  assert(_rhoVals.size() != 0 );
+  assert(_muVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
 
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
-    || _stateLaw.compare("flashHeating")==0 );
+    || _stateLaw.compare("flashHeating")==0
+    || _stateLaw.compare("constantState")==0 );
 
   assert(_v0 > 0);
   assert(_f0 > 0);
@@ -231,7 +224,6 @@ PetscErrorCode NewFault::checkInput()
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  //~}
   return ierr;
 }
 
@@ -253,7 +245,6 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauQSP,&_slip);     PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauQSP,&_slipVel);  PetscObjectSetName((PetscObject) _slipVel, "slipVel"); VecSet(_slipVel,0.0);
   VecDuplicate(_tauQSP,&_Dc);       PetscObjectSetName((PetscObject) _Dc, "Dc");
-  VecDuplicate(_tauQSP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
   VecDuplicate(_tauQSP,&_a);        PetscObjectSetName((PetscObject) _a, "a");
   VecDuplicate(_tauQSP,&_b);        PetscObjectSetName((PetscObject) _b, "b");
   VecDuplicate(_tauQSP,&_cohesion); PetscObjectSetName((PetscObject) _cohesion, "cohesion"); VecSet(_cohesion,0);
@@ -261,6 +252,12 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauQSP,&_sNEff);    PetscObjectSetName((PetscObject) _sNEff, "sNEff");
   VecDuplicate(_tauQSP,&_z);    PetscObjectSetName((PetscObject) _z, "z_fault");
   VecDuplicate(_tauQSP,&_rho);  PetscObjectSetName((PetscObject) _rho, "rho_fault");
+  VecDuplicate(_tauQSP,&_mu);  PetscObjectSetName((PetscObject) _mu, "mu_fault");
+
+  // create z from D._z
+  VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
+
 
   if (_stateLaw.compare("flashHeating") == 0) {
     VecDuplicate(_tauQSP,&_T);    PetscObjectSetName((PetscObject) _T, "T_fault");
@@ -269,36 +266,25 @@ PetscErrorCode NewFault::setFields(Domain& D)
   }
   else { _T = NULL; _k = NULL; _c = NULL;}
 
-  // create z from D._z
-  VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
-
   // set fields
-  if (_N == 1) {
-    VecSet(_a,_aVals[0]);
-    VecSet(_b,_bVals[0]);
-    VecSet(_sN,_sigmaNVals[0]);
-    VecSet(_Dc,_DcVals[0]);
-    if (_cohesionVals.size() > 0 ) { VecSet(_cohesion,_cohesionVals[0]); }
-    VecSet(_rho,_rhoVals[0]);
-  }
-  else {
-    ierr = setVecFromVectors(_a,_aVals,_aDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_b,_bVals,_bDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_sN,_sigmaNVals,_sigmaNDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_Dc,_DcVals,_DcDepths);CHKERRQ(ierr);
-    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-    if (_cohesionVals.size() > 0 ) { ierr = setVecFromVectors(_cohesion,_cohesionVals,_cohesionDepths); }
+  ierr = setVec(_a,_z,_aVals,_aDepths); CHKERRQ(ierr);
+  ierr = setVec(_b,_z,_bVals,_bDepths); CHKERRQ(ierr);
+  ierr = setVec(_sN,_z,_sigmaNVals,_sigmaNDepths); CHKERRQ(ierr);
+  ierr = setVec(_Dc,_z,_DcVals,_DcDepths); CHKERRQ(ierr);
+  if (_cohesionVals.size() > 0 ) { ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); CHKERRQ(ierr); }
+  {
+    Vec temp; VecDuplicate(_D->_y,&temp);
+    ierr = setVec(temp,_D->_z,_rhoVals,_rhoDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+
+    ierr = setVec(temp,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+
+    VecDestroy(&temp);
   }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
-  { // radiation damping parameter: 0.5 * sqrt(mu*rho)
-    Vec mu;
-    VecDuplicate(_tauQSP,&mu); VecSet(mu,_muVal);
-    ierr = VecPointwiseMult(_eta_rad,mu,_rho); CHKERRQ(ierr);
-    ierr = VecSqrtAbs(_eta_rad); CHKERRQ(ierr);
-    ierr = VecScale(_eta_rad,0.5); CHKERRQ(ierr);
-    VecDestroy(&mu);
-  }
 
   { // impose floor and ceiling on effective normal stress
     Vec temp; VecDuplicate(_sN,&temp);
@@ -307,7 +293,6 @@ PetscErrorCode NewFault::setFields(Domain& D)
     VecDestroy(&temp);
   }
   VecCopy(_sN,_sNEff);
-
 
 
   #if VERBOSE > 1
@@ -423,8 +408,8 @@ PetscErrorCode NewFault::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"NewFault Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   compute slip vel time (s): %g\n",_computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   state law time (s): %g\n",_stateLawTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",_computeVelTime/totRunTime*100.);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",_stateLawTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",(_computeVelTime/totRunTime)*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",(_stateLawTime/totRunTime)*100.);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
@@ -434,7 +419,7 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "NewFault_qd::writeContext";
+    std::string funcName = "NewFault::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -471,11 +456,6 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
   str = outputDir + "fault_b";
   ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(_b,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "fault_eta_rad";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_eta_rad,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output normal stress vector
@@ -566,7 +546,6 @@ NewFault::~NewFault()
 
   // frictional fields
   VecDestroy(&_Dc);
-  VecDestroy(&_eta_rad);
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
@@ -581,85 +560,6 @@ NewFault::~NewFault()
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 }
-
-// Fills vec with the linear interpolation between the pairs of points (vals,depths).
-PetscErrorCode NewFault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    std::string funcName = "NewFault::setVecFromVectors";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  VecSet(vec,vals[0]);
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-    // PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-      z0 = depths[0+ind];
-      z1 = depths[0+ind+1];
-      v0 = vals[0+ind];
-      v1 = vals[0+ind+1];
-      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// Fills vec with the linear interpolation between the pairs of points (vals,depths), but always below the specified max value
-PetscErrorCode NewFault::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
-  const PetscScalar maxVal)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    std::string funcName = "NewFault::setVecFromVectors";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~ PetscPrintf(PETSC_COMM_SELF,"%i: z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-      z0 = depths[0+ind];
-      z1 = depths[0+ind+1];
-      v0 = vals[0+ind];
-      v1 = vals[0+ind+1];
-      if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-      v = min(maxVal,v);
-      ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
 
 PetscErrorCode NewFault::computeTauRS(Vec& tauRS, const PetscScalar vL)
 {
@@ -708,7 +608,16 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (D._loadICs==1) { loadFieldsFromFiles(D._inputDir); }
+  // radiation damping parameter: 0.5 * sqrt(mu*rho)
+  VecDuplicate(_tauQSP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
+  VecPointwiseMult(_eta_rad,_mu,_rho);
+  VecSqrtAbs(_eta_rad);
+  VecScale(_eta_rad,0.5);
+
+  if (D._loadICs==1) {
+    //~ loadFieldsFromFiles(D._inputDir);
+    loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -722,11 +631,44 @@ NewFault_qd::~NewFault_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // this is covered by the NewFault destructor.
+  VecDestroy(&_eta_rad);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+}
+
+PetscErrorCode NewFault_qd::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "NewFault_qd::loadSettings";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // nothing to do yet
+
+  //~ PetscMPIInt rank,size;
+  //~ MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  //~ MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  //~ ifstream infile( file );
+  //~ string line,var;
+  //~ size_t pos = 0;
+  //~ while (getline(infile, line))
+  //~ {
+    //~ istringstream iss(line);
+    //~ pos = line.find(_delim); // find position of the delimiter
+    //~ var = line.substr(0,pos);
+
+
+  //~ }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
 }
 
 PetscErrorCode NewFault_qd::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
@@ -789,9 +731,11 @@ PetscErrorCode NewFault_qd::computeVel()
   VecGetArray(_b,&bA);
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
+
   PetscInt N = Iend - Istart;
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+
   VecGetArray(_slipVel,&slipVelA);
   VecGetArray(_eta_rad,&etaA);
   VecGetArray(_tauQSP,&tauQSA);
@@ -858,6 +802,31 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
   return ierr;
 }
 
+PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "NewFault_qd::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  NewFault::writeContext(outputDir);
+
+  PetscViewer    viewer;
+
+  // output vector fields
+
+  std::string str = outputDir + "fault_eta_rad";
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = VecView(_eta_rad,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 
 
@@ -888,6 +857,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
     // check bounds
     if (isnan(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
       assert(0);
     }
     if (isnan(right)) {
@@ -902,21 +872,22 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       left = temp;
     }
 
+    out = slipVelA[Jj];
     if (abs(left-right)<1e-14) { out = left; }
     else {
-      Bisect rootFinder(maxNumIts,rootTol);
-      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
-      rootIts += rootFinder.getNumIts();
-
-      //~ PetscScalar x0 = slipVelA[Jj];
-      //~ BracketedNewton rootFinder(maxNumIts,rootTol);
-      //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out);CHKERRQ(ierr);
+      //~ Bisect rootFinder(maxNumIts,rootTol);
+      //~ ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
       //~ rootIts += rootFinder.getNumIts();
+
+
+      PetscScalar x0 = slipVelA[Jj];
+      BracketedNewton rootFinder(maxNumIts,rootTol);
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+      rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
-    Jj++;
   }
 
 
@@ -933,7 +904,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - 0.5*_eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   assert(!isnan(*out));
@@ -948,12 +919,12 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - 0.5*_eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
-  PetscScalar B = exp(_psi[Jj]/_a[Jj])/(2.*_v0);
-  *J = A*B/sqrt(B*B*vel*vel + 1.) + 0.5*_eta[Jj]; // derivative with respect to slipVel
+  PetscScalar B = exp(_psi[Jj]/_a[Jj]) / (2.*_v0);
+  *J = A*B/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
 
   assert(!isnan(*out)); assert(!isinf(*out));
   assert(!isnan(*J)); assert(!isinf(*J));
@@ -995,6 +966,51 @@ NewFault_dyn::~NewFault_dyn()
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+}
+
+PetscErrorCode NewFault_dyn::loadSettings(const char *file)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "NewFault_dyn::~loadSettings";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( file );
+  string line,var;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+
+    // Tau dynamic parameters
+    if (var.compare("tCenterTau")==0) {
+      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zCenterTau")==0) {
+      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("tStdTau")==0) {
+      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("zStdTau")==0) {
+      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("ampTau")==0) {
+      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
 }
 
 PetscErrorCode NewFault_dyn::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
@@ -1139,7 +1155,7 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
   for (Ii=0; Ii<_N; Ii++){indexes[Ii] = Ii;}
 
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,_N,indexes, PETSC_COPY_VALUES,&_is);
-  
+
   ierr = VecScatterCreate(varEx["u"], _is, varEx["uFault"], _is, &scattu);
   VecScatterBegin(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(scattu, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
@@ -1452,8 +1468,8 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
 
     if (abs(left-right)<1e-14) { out = left; }
     else {
-      ierr = rootFinder.setBounds(left,right,_psi[Jj]);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     _psi[Jj] = out;
@@ -1488,15 +1504,12 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
 {
   PetscScalar A = exp( (double) (f0-psi)/b );
   PetscScalar dstate = 0.;
-  if ( !isinf(A) && !isnan(A)) {
-    dstate = (PetscScalar) (b*v0/Dc)*( A - slipVel/v0 );
+  if ( !isinf(A) && b>1e-3 ) {
+    dstate = (PetscScalar) (b*v0/Dc)*( A - abs(slipVel)/v0 );
   }
-  if ( isinf(dstate) || isnan(dstate) ){
-    dstate = 0;
-  }
-  assert(!isnan(dstate));
-  assert(!isinf(dstate));
-  return (PetscScalar)dstate;
+  //~ assert(!isnan(dstate));
+  //~ assert(!isinf(dstate));
+  return dstate;
 }
 
 // applies the aging law to a Vec
@@ -1516,6 +1529,12 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     dstateA[Jj] = agingLaw_psi(psiA[Jj], slipVelA[Jj], bA[Jj], f0, v0, DcA[Jj]);
+    if ( isnan(dstateA[Jj]) || isinf(dstateA[Jj]) ) {
+      PetscPrintf(PETSC_COMM_WORLD,"[%i]: dpsi = %g, psi = %g, slipVel = %g, a = %g, b = %g, f0 = %g, v0 = %g, Dc = %g\n",
+      Jj,dstateA[Jj], psiA[Jj], slipVelA[Jj], aA[Jj], bA[Jj], f0, v0, DcA[Jj]);
+      assert(!isnan(dstateA[Jj]));
+      assert(!isinf(dstateA[Jj]));
+    }
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
@@ -1531,7 +1550,7 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
 // state evolution law: aging law, state variable: theta
 PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel, const PetscScalar& Dc)
 {
-  PetscScalar dstate = 1. - theta*slipVel/Dc;
+  PetscScalar dstate = 1. - theta*abs(slipVel)/Dc;
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
@@ -1648,9 +1667,4 @@ PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const Pe
   PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
   return strength;
 }
-
-
-
-
-
 

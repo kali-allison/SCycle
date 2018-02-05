@@ -66,11 +66,11 @@ for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
 }
 
 
-int runEqCycle(const char * inputFile)
+int runEqCycle(Domain& d)
 {
   PetscErrorCode ierr = 0;
 
-  Domain d(inputFile);
+  //~ Domain d(inputFile);
   d.write();
 
   // solving linear elastic, quasi-dynamic simulation with a vertical strike-slip fault
@@ -100,7 +100,7 @@ int runEqCycle(const char * inputFile)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  // solving viscoelastic, quasi-dynamic simulation with a vertical strike-slip fault
+  // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("steadyStateIts")==0) {
     StrikeSlip_PowerLaw_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
@@ -108,7 +108,6 @@ int runEqCycle(const char * inputFile)
     ierr = m.integrateSS(); CHKERRQ(ierr);
     ierr = m.view();CHKERRQ(ierr);
   }
-
 
   // solving linear elastic, quasi-dynamic simulation for an ice stream
   if (d._problemType.compare("iceStream")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
@@ -134,9 +133,9 @@ int main(int argc,char **args)
   else { inputFile = "init.in"; }
 
   {
-    Domain domain(inputFile);
-    if (domain._isMMS) { runMMSTests(inputFile); }
-    else { runEqCycle(inputFile); }
+    Domain d(inputFile);
+    if (d._isMMS) { runMMSTests(inputFile); }
+    else { runEqCycle(d); }
   }
 
   // runTests(inputFile);

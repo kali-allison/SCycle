@@ -7,7 +7,7 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),_runTime(0),_controlType(controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(2.0),
+  _atol(1e-9),_kappa(0.9),_ord(3.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
@@ -31,6 +31,8 @@ RK32_WBE::RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE constructor in RK32_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
+
+  _ord = 3.0;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -483,6 +485,8 @@ RK43_WBE::RK43_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE constructor in RK32_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
+
+  _ord = 3.0;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1

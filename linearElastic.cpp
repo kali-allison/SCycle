@@ -6,19 +6,19 @@ using namespace std;
 
 
 LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
-: _delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
-  _muVec(NULL),_rhoVec(NULL),_cs(NULL),_muVal(30.0),_rhoVal(3.0),
+  _muVec(NULL),_rhoVec(NULL),_cs(NULL),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _timeV1D(NULL),_timeV2D(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
+  _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
   _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
@@ -122,11 +122,21 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     }
 
 
-    else if (var.compare("mu")==0) {
-      _muVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("muVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muVals);
     }
-    else if (var.compare("rho")==0) {
-      _rhoVal = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("muDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_muDepths);
+    }
+    else if (var.compare("rhoVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_rhoVals);
+    }
+    else if (var.compare("rhoDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_rhoDepths);
     }
 
     // switches for computing extra stresses
@@ -162,6 +172,13 @@ PetscErrorCode LinearElastic::checkInput()
   if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
   }
+
+  assert(_muVals.size() == _muDepths.size() );
+  assert(_muVals.size() != 0 );
+  assert(_rhoVals.size() == _rhoDepths.size() );
+  assert(_rhoVals.size() != 0 );
+
+  if (_computeSdev == 1) { _computeSxz = 1; }
 
   #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
@@ -314,15 +331,16 @@ PetscErrorCode LinearElastic::setMaterialParameters()
     CHKERRQ(ierr);
   #endif
 
-  VecSet(_muVec,_muVal);
-  VecSet(_rhoVec,_rhoVal);
+  //~ ierr = setVec(_muVec,*_z,_muVals,_muDepths);CHKERRQ(ierr);
+  ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
+  ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
   VecSqrtAbs(_cs);
 
-  //~ if (_isMMS) {
-    //~ if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
-    //~ else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
-  //~ }
+  if (_isMMS) {
+    if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
+    else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

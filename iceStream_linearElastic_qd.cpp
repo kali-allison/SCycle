@@ -12,7 +12,7 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _timeIntegrator("RK32"),_timeControlType("P"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
@@ -324,13 +324,13 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if ( stepCount % _stride1D == 0) {
+  if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if ( stepCount % _stride2D == 0) {
+  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
@@ -360,14 +360,14 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if ( stepCount % _stride1D == 0) {
+  if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if ( stepCount % _stride2D == 0) {
+  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
@@ -647,6 +647,7 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   //!!! add source term for driving the ice stream here
+  // remember to multiply this term by H*J (the H matrix and the Jacobian)
   // rhs = rhs + (term)
 
   _material->computeU();

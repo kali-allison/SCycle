@@ -131,74 +131,12 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
   *out = _mid;
   if (sqrt(_fMid*_fMid) > _atol) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
-    assert(sqrt(_fMid*_fMid) < _atol);
+    //~ assert(sqrt(_fMid*_fMid) < _atol);
     return 1;
   }
 
   return ierr;
 }
-
-// PetscErrorCode Bisect::findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select)
-// {
-//   PetscErrorCode ierr = 0;
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting bisect in rootFinder.cpp\n");
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
-// #endif
-//   if (select){
-//   ierr = obj->getResid_dyn(ind,_left,&_fLeft);CHKERRQ(ierr);
-//   ierr = obj->getResid_dyn(ind,_right,&_fRight);CHKERRQ(ierr);
-//   }
-//   else{
-//     ierr = obj->getResid_aging(ind,_left,&_fLeft);CHKERRQ(ierr);
-//     ierr = obj->getResid_aging(ind,_right,&_fRight);CHKERRQ(ierr);
-//   }
-//   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
-//   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
-// #endif
-
-//   if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
-//   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
-
-//   PetscInt numIts = 0;
-//   while ( (numIts <= _maxNumIts) & (sqrt(_fMid*_fMid) >= _atol) ) {
-//     _mid = (_left + _right)*0.5;
-//     if(select){
-//     ierr = obj->getResid_dyn(ind,_mid,&_fMid);CHKERRQ(ierr);
-//     }
-//     else{
-//       ierr = obj->getResid_aging(ind,_mid,&_fMid);CHKERRQ(ierr);
-//     }
-// #if VERBOSE > 4
-//     ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
-//                        ind,numIts,_left,_right,_mid,_fMid);CHKERRQ(ierr);
-// #endif
-//     if (_fLeft*_fMid <= 0) {
-//       _right = _mid;
-//       _fRight = _fMid;
-//     }
-//     else {
-//       _left = _mid;
-//       _fLeft = _fMid;
-//     }
-//    numIts++;
-//   }
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
-//                      numIts,_maxNumIts,_mid,_fMid);CHKERRQ(ierr);
-// #endif
-
-//   *out = _mid;
-//   if (sqrt(_fMid*_fMid) > _atol) {
-//     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
-//     assert(sqrt(_fMid*_fMid) < _atol);
-//     return 1;
-//   }
-
-//   return ierr;
-// }
 
 
 PetscErrorCode Bisect::setBounds(PetscScalar left,PetscScalar right)
@@ -286,12 +224,12 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
     // update x
     if (n > _left || n < _right) { _x = n; } // keep if new value stayed in bounds
     else { _x = 0.5*(_left + _right); } // otherwise use midpoint instead
-    ierr = obj->getResid(ind,_x,&_f,&_fPrime);CHKERRQ(ierr);
+    ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
 
     // update bounds
     if (_fLeft*_f <= 0) {
       _right = _x;
-      //~ _fRight = f;
+      _fRight = _f;
     }
     else {
       _left = _x;
@@ -304,7 +242,8 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   *out = _x;
   if (abs(_f) > _atol) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder BracketedNewton did not converge in %i iterations\n",numIts);
-    assert(abs(_f) < _atol);
+    PetscPrintf(PETSC_COMM_WORLD,"ind = %i, residual = %g\n",ind,_f);
+    //~ assert(abs(_f) < _atol);
     return 1;
   }
 
@@ -352,18 +291,21 @@ RegulaFalsi::~RegulaFalsi()
 
 
 
-PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
 {
-  return findRoot(obj,ind,out);
+  return findRoot(obj,ind,0.5*(_left+_right),out);
 }
 
-PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
+PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi in rootFinder.cpp\n");
   ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g Ii=%i\n",_left,_right,ind);CHKERRQ(ierr);
 #endif
+
+  // initial guess
+  _x = in;
 
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
@@ -399,7 +341,7 @@ PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,P
       _x = _right - (_right - _left) * (_fRight / (_fRight - _fLeft));
       _fRight = _f;
     }
-  
+
   diff = (_x-prev)/_x;
   ierr = obj->getResid(ind,_x,&_f);CHKERRQ(ierr);
   numIts++;
@@ -420,85 +362,10 @@ PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,P
   return ierr;
 }
 
-// PetscErrorCode RegulaFalsi::findRoot_dyn(RootFinderContext *obj,const PetscInt ind,PetscScalar *out, bool select)
-// {
-//   PetscErrorCode ierr = 0;
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting RegulaFalsi in rootFinder.cpp\n");
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g Ii=%i\n",_left,_right,ind);CHKERRQ(ierr);
-// #endif
-//   if (select){
-//   ierr = obj->getResid_dyn(ind,_left,&_fLeft);CHKERRQ(ierr);
-//   ierr = obj->getResid_dyn(ind,_right,&_fRight);CHKERRQ(ierr);
-//   ierr = obj->getResid_dyn(ind,_x,&_f);CHKERRQ(ierr);
-//   }
-//   else{
-//     ierr = obj->getResid_aging(ind,_left,&_fLeft);CHKERRQ(ierr);
-//   ierr = obj->getResid_aging(ind,_right,&_fRight);CHKERRQ(ierr);
-//   ierr = obj->getResid_aging(ind,_x,&_f);CHKERRQ(ierr);
-//   }
-//   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
-//   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
-// #endif
-
-//   if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
-//   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
-
-//   PetscInt numIts = 0;
-//   PetscScalar diff = 10*_atol;
-//   PetscScalar prev = _x;
-
-//   while ( (numIts <= _maxNumIts) & (sqrt(_f*_f) >= _atol) & (sqrt(diff*diff) >= _atol)) {
-// #if VERBOSE > 4
-//     ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
-//                        ind,numIts,_left,_right,_mid,_f);CHKERRQ(ierr);
-// #endif
-//     prev = _x;
-//     if (_fLeft*_f > _atol) {
-//       _left = _x;
-//       _x = _right - (_right - _left) * (_fRight / (_fRight - _fLeft));
-//       _fLeft = _f;
-//     }
-//     else {
-//       _right = _x;
-//       _x = _right - (_right - _left) * (_fRight / (_fRight - _fLeft));
-//       _fRight = _f;
-//     }
-  
-//   diff = (_x-prev)/_x;
-//   if (select){
-//     ierr = obj->getResid_dyn(ind,_x,&_f);CHKERRQ(ierr);
-//   }
-//   else{
-//     ierr = obj->getResid_aging(ind,_x,&_f);CHKERRQ(ierr);
-//   }
-//   numIts++;
-//   }
-
-// #if VERBOSE > 3
-//   ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
-//                      numIts,_maxNumIts,_mid,_f);CHKERRQ(ierr);
-// #endif
-
-//   *out = _x;
-//   if ( (sqrt(_f*_f) > _atol) & (sqrt(diff*diff) > _atol)) {
-//     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
-//     assert(sqrt(_f*_f) < _atol);
-//     return 1;
-//   }
-
-//   return ierr;
-// }
-PetscErrorCode RegulaFalsi::setBounds(PetscScalar left,PetscScalar right, PetscScalar x0)
+PetscErrorCode RegulaFalsi::setBounds(PetscScalar left,PetscScalar right)
 {
   assert(left <= right);
-  assert(left <= x0);
-  assert(right >= x0);
 
-  _x = x0;
   _left=left;
   _right=right;
 
