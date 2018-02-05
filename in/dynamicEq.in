@@ -28,8 +28,18 @@ sbpType = mfc
 
 momBal_bcR_dyn = outGoingCharacteristics
 momBal_bcL_dyn = outGoingCharacteristics
-momBal_bcT_dyn = outGoingCharacteristics
+momBal_bcT_dyn = freeSurface
 momBal_bcB_dyn = outGoingCharacteristics
+
+# tau on fault (u or tau)
+initialConditions = u
+zCenterTau = 20.
+tCenterTau = 1.0
+zStdTau = 1.0
+tStdTau = 1.0
+ampTau = 5.0
+
+
 
 #======================================================================
 # linear systems
@@ -74,16 +84,16 @@ DcDepths = [0 60] # m
 #bDepths = [0 12 15 60]
 
 # easier to resolve
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.02 0.02]
-#bDepths = [0 12 15 60]
+aVals = [0.015 0.015]
+aDepths = [0 60]
+bVals = [0.02 0.02 0.02 0.02]
+bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+#aVals = [0.0135 0.0300 0.0700 0.2652]
+#aDepths = [0 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
 
 
 sNVals = [50 50] # (MPa) constant
@@ -154,6 +164,7 @@ maxStepCount = 2000
 initTime = 0
 maxTime = 15
 deltaT = 5e-3
+CFL = 0.5
 atol = 1e-8
 timeIntInds = [psi slip]
 #timeIntInds = [gVxy gVxz]
@@ -163,5 +174,4 @@ timeIntInds = [psi slip]
 #outputDir = data/maxVisc1e16_
 
 outputDir = ./test_Maxime/test_
-
 
