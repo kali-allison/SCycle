@@ -1,8 +1,8 @@
 order = 4 # SBP order of accuracy
-Ny = 51
-Nz = 51
+Ny = 201
+Nz = 201
 Ly = 30 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Lz = 15 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
@@ -12,7 +12,7 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
@@ -49,10 +49,11 @@ bDepths = [0 10 11 19.3333 60]
 #sNVals = [0 668.5] # lambda = 0.5
 #sNVals = [0 534.8] # lambda = 0.6
 #sNVals = [0 401.1] # lambda = 0.7
-#sNVals = [0 267.4] # lambda = 0.8
-sNVals = [50 50] # MPa
+sNVals = [0 267.4] # lambda = 0.8
+#sNVals = [50 50] # MPa
 sNDepths = [0 60]
-sN_floor = 5.5; # MPa
+#sN_floor = 5.5; # MPa
+sN_floor = 0.1; # MPa
 #sN_cap = 50; # MPa
 
 
@@ -70,20 +71,20 @@ rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60] # m
 
 # power law properties: quartz-diorite
-AVals = [1.3e-3 1.3e-3]
-ADepths = [0 60]
-BVals = [2.6341e+04 2.6341e+04]
-BDepths = [0 60]
-nVals = [2.4 2.4]
-nDepths = [0 60]
+#AVals = [1.3e-3 1.3e-3]
+#ADepths = [0 60]
+#BVals = [2.6341e+04 2.6341e+04]
+#BDepths = [0 60]
+#nVals = [2.4 2.4]
+#nDepths = [0 60]
 
 # power law properties: wet quartz
-#AVals = [398 398]
-#ADepths = [0 60]
-#BVals = [1.62e4 1.62e4]
-#BDepths = [0 60]
-#nVals = [4 4]
-#nDepths = [0 60]
+AVals = [398 398]
+ADepths = [0 60]
+BVals = [1.62e4 1.62e4]
+BDepths = [0 60]
+nVals = [4 4]
+nDepths = [0 60]
 
 # power law properties: wet feldspar
 #AVals = [398 398]
@@ -111,9 +112,10 @@ heatEquationType = steadyState
 withShearHeating = no
 withFrictionalHeating = no
 
-maxEffVisc = 1e20
+maxEffVisc = 1e18
 maxSSIts_tau = 300
 
+fss_EffVisc = 0.1
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 4
 #maxSSIts_timesteps = 20
@@ -123,20 +125,21 @@ momBal_computeSxz = 1
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-stride1D = 5
-stride2D = 5
-maxStepCount = 1e4
+stride1D = 20
+stride2D = 20
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
-maxDeltaT = 1e12
-atol = 1e-8
-timeIntInds = [psi slip]
-#timeIntInds = [slip gVxy gVxz]
+maxDeltaT = 1e10
+atol = 1e-6
+#timeIntInds = [psi slip]
+timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/test/sspl_quartz_
+outputDir = /scratch/kallison/test/pl_quartz_sN0.1_
+#outputDir = /scratch/kallison/test/pl_quartz_sN1_
 
 
 

@@ -12,7 +12,7 @@ NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D_fh(5),
-  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e3),
+  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e4),
   _computeVelTime(0),_stateLawTime(0),
   _body2fault(&scatter2fault)
 {
@@ -914,10 +914,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       PetscScalar x0 = slipVelA[Jj];
       BracketedNewton rootFinder(maxNumIts,rootTol);
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,x0,&out);
-      //~ PetscPrintf(PETSC_COMM_WORLD,"%ii: left = %g, right = %g\n",Jj,left, right);
-      //~ PetscPrintf(PETSC_COMM_WORLD,"psi = %g\n",_psi[Jj]);
-      assert(ierr == 0); CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;

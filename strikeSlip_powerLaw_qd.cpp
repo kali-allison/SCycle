@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-12),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-12),_maxSSIts_effVisc(30),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -850,7 +850,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   // tauSS = min(tauRS,tauVisc)
   VecDuplicate(tauRS,&tauSS);
   VecPointwiseMin(tauSS,tauRS,tauVisc);
-  VecScale(tauSS,0.5);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -889,7 +888,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
   setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
 
   Vec sxy,sxz,sdev;
-  ierr = _material->computeStresses();
   ierr = _material->getStresses(sxy,sxz,sdev);
   //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
