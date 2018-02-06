@@ -911,11 +911,13 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
       //~ rootIts += rootFinder.getNumIts();
 
-
       PetscScalar x0 = slipVelA[Jj];
       BracketedNewton rootFinder(maxNumIts,rootTol);
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,x0,&out);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"%ii: left = %g, right = %g\n",Jj,left, right);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"psi = %g\n",_psi[Jj]);
+      assert(ierr == 0); CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;

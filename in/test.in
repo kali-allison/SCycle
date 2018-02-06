@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 201
-Nz = 301
+Ny = 51
+Nz = 51
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,7 +9,7 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
@@ -18,7 +18,7 @@ momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 7.0
+bCoordTrans = 5.0
 sbpType = mfc_coordTrans
 
 #======================================================================
@@ -33,8 +33,8 @@ kspTol = 1e-10
 #======================================================================
 # rate-and-state parameters
 
-DcVals = [12e-3 12e-3] # m
-#DcVals = [1 1] # m
+#DcVals = [12e-3 12e-3] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -49,15 +49,15 @@ bDepths = [0 10 11 19.3333 60]
 #sNVals = [0 668.5] # lambda = 0.5
 #sNVals = [0 534.8] # lambda = 0.6
 #sNVals = [0 401.1] # lambda = 0.7
-sNVals = [0 267.4] # lambda = 0.8
-#sNVals = [50 50] # MPa
+#sNVals = [0 267.4] # lambda = 0.8
+sNVals = [50 50] # MPa
 sNDepths = [0 60]
 sN_floor = 5.5; # MPa
 #sN_cap = 50; # MPa
 
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
-stateLaw = agingLaw
+stateLaw = constantState
 v0 = 1e-9
 f0 = 0.6
 
@@ -76,6 +76,14 @@ BVals = [2.6341e+04 2.6341e+04]
 BDepths = [0 60]
 nVals = [2.4 2.4]
 nDepths = [0 60]
+
+# power law properties: wet quartz
+#AVals = [398 398]
+#ADepths = [0 60]
+#BVals = [1.62e4 1.62e4]
+#BDepths = [0 60]
+#nVals = [4 4]
+#nDepths = [0 60]
 
 # power law properties: wet feldspar
 #AVals = [398 398]
@@ -117,20 +125,18 @@ momBal_computeSxz = 1
 timeIntegrator = RK43
 stride1D = 5
 stride2D = 5
-maxStepCount = 1e8
+maxStepCount = 1e4
 initTime = 0
-maxTime = 5e10
+maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12
-atol = 1e-6
+atol = 1e-8
 timeIntInds = [psi slip]
-#timeIntInds = [slip]
 #timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/test/cvg_
-#outputDir = /scratch/kallison/versions/test2_
+outputDir = /scratch/kallison/test/sspl_quartz_
 
 
 

@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-9),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _fss_T(0.1),_fss_EffVisc(0.25),_gss_t(1e-12),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -307,7 +307,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
+  //~ if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -850,6 +850,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   // tauSS = min(tauRS,tauVisc)
   VecDuplicate(tauRS,&tauSS);
   VecPointwiseMin(tauSS,tauRS,tauVisc);
+  VecScale(tauSS,0.5);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -888,6 +889,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
   setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
 
   Vec sxy,sxz,sdev;
+  ierr = _material->computeStresses();
   ierr = _material->getStresses(sxy,sxz,sdev);
   //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
@@ -995,6 +997,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // adjust u so it has no negative values
+  PetscScalar minVal = 0;
+  VecMin(_material->_u,NULL,&minVal);
+  if (minVal < 0) {
+    minVal = abs(minVal);
+    Vec temp;
+    VecDuplicate(_material->_u,&temp);
+    VecSet(temp,minVal);
+    VecAXPY(_material->_u,1.,temp);
+    VecDestroy(&temp);
+  }
+
   // extract R boundary from u, to set _material->bcR
   VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
@@ -1004,10 +1018,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   Vec uL; VecDuplicate(_material->_bcL,&uL);
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
-
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    VecCopy(uL,_material->_bcL);
-  }
 
   if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
   else {
@@ -1021,9 +1031,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   }
 
   VecDestroy(&uL);
-
-  //~ VecView(_material->_bcRShift,PETSC_VIEWER_STDOUT_WORLD);
-  //~ assert(0);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

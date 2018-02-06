@@ -216,25 +216,30 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   // proceed with iteration
   PetscInt numIts = 0;
   PetscScalar _x = x0;
+  PetscScalar xMid = 0.5 * (_left + _right);
+  PetscScalar dxOld = _right - _left;
+  PetscScalar dx = dxOld;
+  ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
 
-  while ( (numIts <= _maxNumIts) & (abs(_f) >= _atol) ) {
+  while ( (numIts <= _maxNumIts) && (abs(_f) >= _atol) ) {
 
-    PetscScalar n = _x - (1./_fPrime)*_f; // take Newton step
-
-    // update x
-    if (n > _left || n < _right) { _x = n; } // keep if new value stayed in bounds
-    else { _x = 0.5*(_left + _right); } // otherwise use midpoint instead
-    ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
-
-    // update bounds
-    if (_fLeft*_f <= 0) {
-      _right = _x;
-      _fRight = _f;
+    // use bisection if Newton out of range or not converging quickly enough
+    if( ((_x-_right)*_fPrime-_f)*((_x-_left)*_fPrime-_f) > 0.0
+      || fabs(2.0*_f) > fabs(dxOld*_fPrime) )
+    {
+      dxOld = dx;
+      dx = 0.5*(_right - _left);
+      _x = _left + dx;
     }
     else {
-      _left = _x;
-      _fLeft = _f;
+      // Newton step is acceptable
+      dxOld = dx;
+      dx = (1./_fPrime)*_f;
+      _x -= dx;
     }
+    ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
+    if (_f < 0.0) { _left = _x; }
+    else { _right = _x; }
 
    numIts++;
   }

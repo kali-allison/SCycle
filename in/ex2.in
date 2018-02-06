@@ -60,8 +60,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-#outputDir = data/ex2_
-outputDir = /scratch/kallison/PID/linEl_
+outputDir = data/ex2_
 
 # compute stress component sxz
 momBal_computeSxz = 1

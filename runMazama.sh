@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N cvg
+#PBS -N sspl_quartz
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/cvg.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/cvg.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/sspl_quartz.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/sspl_quartz.out
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
 INIT_DIR=/data/dunham/kallison/eqcycle/in
