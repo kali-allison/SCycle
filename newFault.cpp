@@ -604,9 +604,9 @@ PetscErrorCode NewFault::computeTauRS(Vec& tauRS, const PetscScalar vL)
   VecGetArray(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    //~ tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(_f0/a[Jj])/_v0 );
-    PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
-    tauRSV[Jj] = sN[Jj] * f;
+    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(_f0/a[Jj])/_v0 );
+    //~ PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
+    //~ tauRSV[Jj] = sN[Jj] * f;
     Jj++;
   }
   VecRestoreArray(tauRS,&tauRSV);

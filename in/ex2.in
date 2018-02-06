@@ -48,19 +48,20 @@ rhoDepths = [0 60] # (km)
 
 timeIntegrator = RK43
 stride1D = 10 # how often to write out fields that live on the fault
-stride2D = 20 # how often to write out body fields
+stride2D = 10 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 1e10 # (s) final time
+maxTime = 3e10 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-5 # absolute tolerance for time integration
+atol = 1e-6 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-outputDir = data/ex2_
+#outputDir = data/ex2_
+outputDir = /scratch/kallison/PID/linEl_
 
 # compute stress component sxz
 momBal_computeSxz = 1

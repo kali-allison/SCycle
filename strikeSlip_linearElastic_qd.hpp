@@ -79,6 +79,8 @@ private:
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();

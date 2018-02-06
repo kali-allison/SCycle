@@ -89,6 +89,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+{
   map<string,Vec>::iterator it;
   for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
     VecDestroy(&it->second);
@@ -96,6 +97,11 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
     VecDestroy(&it->second);
   }
+}
+
+  //~ for (std::map <string,std::pair<PetscViewer,string> > it = _viewers.begin(); it!=_viewers.end(); it++ ) {
+    //~ PetscViewerDestroy(&it->second);
+  //~ }
 
 
   delete _quadImex;    _quadImex = NULL;
@@ -421,6 +427,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
+
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
@@ -666,7 +674,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
   }
-  //~ ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
   VecCopy(tauSS,_material->_bcL);
@@ -734,6 +742,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
 
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
     VecCopy(uL,_material->_bcL);
+  }
+  if (_bcLType.compare("symm_fault")==0) {
+    VecScale(_varEx["slip"],2.0);
   }
 
   VecDestroy(&uL);

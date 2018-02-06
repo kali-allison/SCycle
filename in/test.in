@@ -1,8 +1,8 @@
 order = 4 # SBP order of accuracy
-Ny = 101
-Nz = 101
+Ny = 201
+Nz = 301
 Ly = 30 # (km) horizontal domain size
-Lz = 20 # (km) vertical domain size
+Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
@@ -15,7 +15,7 @@ bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
-guessSteadyStateICs = 0
+guessSteadyStateICs = 1
 
 # coordinate transformation
 bCoordTrans = 7.0
@@ -33,9 +33,8 @@ kspTol = 1e-10
 #======================================================================
 # rate-and-state parameters
 
-#DcVals = [12e-3 12e-3] # m
-#DcVals = [32e-3 32e-3] # m
-DcVals = [1 1] # m
+DcVals = [12e-3 12e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -50,11 +49,10 @@ bDepths = [0 10 11 19.3333 60]
 #sNVals = [0 668.5] # lambda = 0.5
 #sNVals = [0 534.8] # lambda = 0.6
 #sNVals = [0 401.1] # lambda = 0.7
-#sNVals = [0 267.4] # lambda = 0.8
-sNVals = [50 50] # MPa
+sNVals = [0 267.4] # lambda = 0.8
+#sNVals = [50 50] # MPa
 sNDepths = [0 60]
 sN_floor = 5.5; # MPa
-#sN_floor = 1; # MPa
 #sN_cap = 50; # MPa
 
 
@@ -116,23 +114,22 @@ momBal_computeSxz = 1
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK32
-timeControlType = P
+timeIntegrator = RK43
 stride1D = 5
 stride2D = 5
-maxStepCount = 1e4
+maxStepCount = 1e8
 initTime = 0
-maxTime = 1e15
-initDeltaT = 5
+maxTime = 5e10
+initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e12
-atol = 1e-8
+atol = 1e-6
 timeIntInds = [psi slip]
 #timeIntInds = [slip]
 #timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/test/lock_
+outputDir = /scratch/kallison/test/cvg_
 #outputDir = /scratch/kallison/versions/test2_
 
 
