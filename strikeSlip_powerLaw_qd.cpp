@@ -1010,7 +1010,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   }
 
   if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
-else {
+  else {
     Vec slip;
     VecDuplicate(_material->_bcL,&slip);
     VecCopy(uL,slip);
