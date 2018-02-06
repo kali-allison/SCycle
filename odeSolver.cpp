@@ -166,17 +166,9 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 #endif
   double startTime = MPI_Wtime();
 
-  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
-
-  //~ _errorArray.resize(2);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"%i\n",_errorArray.capacity());
-  //~ _errorArray.push_front(0);
-  //~ _errorArray.push_front(1);
-  //~ _errorArray.push_front(2);
-  //~ _errorArray.push_front(3);
-  //~ _errorArray.push_front(4);
-  //~ PetscPrintf(PETSC_COMM_WORLD,"[%g %g]\n",_errorArray[0],_errorArray[1]);
-  //~ assert(0);
+  _errA.resize(2);
+  _errA.push_front(0);
+  _errA.push_front(0);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -351,19 +343,25 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   else if (_controlType.compare("PID") == 0) {
 
     //if using proportional-integral-derivative feedback (PID)
-    _absErr[(_stepCount+_numRejectedSteps-1)%3] = totErr;
+    //~ _absErr[(_stepCount+_numRejectedSteps-1)%3] = _totErr;
 
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    if (_stepCount < 4) {
+    if (_stepCount < 3) {
       stepRatio = _kappa*pow(_atol/totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                        *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                        *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
+      //~ step_ratio = kappa*(tol/err(1))**alpha*(err(0)/tol)**beta*(tol/err(-1))**gamma
+      stepRatio = _kappa * pow(_atol/totErr,alpha)
+                         * pow(_errA[0]/_atol,beta)
+                         * pow(_atol/_errA[1],gamma);
+
+
+      //~ stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
+                        //~ *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
+                        //~ *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
     }
   }
   else {
@@ -401,7 +399,7 @@ PetscReal RK32::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::computeError in odeSolver.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,totErr=0.0;
+  PetscReal      err,_totErr=0.0;
 
 
   // absolute error
@@ -415,14 +413,14 @@ PetscReal RK32::computeError()
     ierr = VecWAXPY(errVec,-1.0,_y2[key],_y3[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_y3[key],NORM_2,&size); // relative error
-    totErr += err/(size+1.0);
+    _totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
 #endif
-  return totErr;
+  return _totErr;
 }
 
 
@@ -434,7 +432,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   double startTime = MPI_Wtime();
 
   PetscErrorCode ierr=0;
-  PetscReal      totErr=0.0;
+  PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
   int            stopIntegration = 0;
 
@@ -504,21 +502,21 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       }
 
       // calculate error
-      totErr = computeError();
+      _totErr = computeError();
       #if ODEPRINT > 0
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"    _totErr = %.15e\n",_totErr);
       #endif
-      if (totErr <= _atol) {
+      if (_totErr <= _atol) {
         break;
       }
-      _deltaT = computeStepSize(totErr);
+      _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
     }
-    _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
+    _currT = _currT+_deltaT;
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       VecSet(_var[it->first],0.0);
       ierr = VecCopy(_y3[it->first],_var[it->first]);CHKERRQ(ierr);
@@ -526,9 +524,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
-    if (totErr!=0.0) {
-      _deltaT = computeStepSize(totErr);
-    }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
 
     ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
 
@@ -558,7 +555,9 @@ RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 #endif
   double startTime = MPI_Wtime();
 
-  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
+  _errA.resize(2);
+  _errA.push_front(0);
+  _errA.push_front(0);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -772,10 +771,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
     stepRatio = _kappa*pow(_atol/totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
-
     //if using proportional-integral-derivative feedback (PID)
-    _absErr[(_stepCount+_numRejectedSteps-1)%3] = totErr;
-
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
@@ -784,9 +780,9 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
       stepRatio = _kappa*pow(_atol/totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
+      stepRatio = _kappa * pow(_atol/totErr,alpha)
+                         * pow(_errA[0]/_atol,beta)
+                         * pow(_atol/_errA[1],gamma);
     }
   }
   else {
@@ -814,7 +810,7 @@ PetscReal RK43::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::computeError in odeSolver.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,totErr=0.0;
+  PetscReal      err,_totErr=0.0;
 
 
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
@@ -827,17 +823,17 @@ PetscReal RK43::computeError()
     ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_y4[key],NORM_2,&size);
-    totErr += err/(size+1.0);
+    _totErr += err/(size+1.0);
     VecDestroy(&errVec);
 
     //~ err = computeNormDiff_L2_scaleL2(_y4[key],_y3[key]); CHKERRQ(ierr);
-    //~ totErr += err/2.;
+    //~ _totErr += err/2.;
   }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43::computeError in odeSolver.cpp.\n");
 #endif
-  return totErr;
+  return _totErr;
 }
 
 
@@ -849,7 +845,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   double startTime = MPI_Wtime();
 
   PetscErrorCode ierr=0;
-  PetscReal      totErr=0.0;
+  PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
   int            stopIntegration = 0;
 
@@ -1003,16 +999,16 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       }
 
       // calculate error
-      totErr = computeError();
-      if (totErr<_atol) { break; } // accept step
-      _deltaT = computeStepSize(totErr);
+      _totErr = computeError();
+      if (_totErr<_atol) { break; } // accept step
+      _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
     }
-    _currT = _currT+_deltaT;
 
     // accept 4th order solution as update
+    _currT = _currT+_deltaT;
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       ierr = VecCopy(_y4[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
@@ -1021,7 +1017,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n"); break; }
 
-    if (totErr!=0.0) { _deltaT = computeStepSize(totErr); }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
   }
 
   _runTime += MPI_Wtime() - startTime;

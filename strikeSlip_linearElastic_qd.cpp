@@ -12,7 +12,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _timeIntegrator("RK32"),_timeControlType("P"),
+  _timeIntegrator("RK32"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),

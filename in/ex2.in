@@ -3,7 +3,7 @@
 
 # set up the computational domain
 Ny = 201 # points in y-direction
-Nz = 302 # points in z-direction
+Nz = 301 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
@@ -46,23 +46,23 @@ rhoDepths = [0 60] # (km)
 #=======================================================================
 # settings for time integration
 
-timeIntegrator = RK32
+timeIntegrator = RK43
 stride1D = 10 # how often to write out fields that live on the fault
 stride2D = 20 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 2e11 # (s) final time
+maxTime = 1e10 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-8 # absolute tolerance for time integration
+atol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-#outputDir = data/ex2_
-outputDir = /scratch/kallison/test/ex2_
+outputDir = data/ex2_
 
+# compute stress component sxz
 momBal_computeSxz = 1
 
 

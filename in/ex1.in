@@ -11,7 +11,7 @@ Lz = 30 # (km) vertical domain size
 problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
-guessSteadyStateICs = 1 # estimate steady-state initial conditions
+guessSteadyStateICs = 0 # estimate steady-state initial conditions
 
 #======================================================================
 # rate-and-state parameters
@@ -46,15 +46,16 @@ rhoDepths = [0 60] # (km)
 # settings for time integration
 
 timeIntegrator = RK32
+timeControlType = PID
 stride1D = 10 # how often to write out fields that live on the fault
 stride2D = 20 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 1e11 # (s) final time
+maxTime = 1.5e11 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-8 # absolute tolerance for time integration
+atol = 1e-6 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output

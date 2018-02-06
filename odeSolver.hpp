@@ -110,13 +110,13 @@ class RK32 : public OdeSolver
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol; // absolute and relative tolerances
     PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
-    PetscReal   _absErr[3];
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     // for PID error control
     //~ typedef boost::circular_buffer<double> circular_buffer;
-    //~ circular_buffer _errorArray;
-    //~ boost::circular_buffer<double> _errorArray;
+    //~ circular_buffer _errA;
+    boost::circular_buffer<double> _errA;
+    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
 
 
@@ -151,8 +151,10 @@ class RK43 : public OdeSolver
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol; // absolute and relative tolerances
     PetscReal   _kappa,_ord; // safety factor in step size determinance
-    PetscReal   _absErr[3]; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
+
+    boost::circular_buffer<double> _errA;
+    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
     std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
     std::map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;

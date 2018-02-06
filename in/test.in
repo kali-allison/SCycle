@@ -45,11 +45,6 @@ bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
 
-# lock part of the fault
-lockedVals = [1 1 0 0]
-lockedDepths = [0 10 10 30]
-
-
 # with varying degrees of overpressure
 #sNVals = [0 802.1] # lambda = 0.4
 #sNVals = [0 668.5] # lambda = 0.5
