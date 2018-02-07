@@ -965,7 +965,8 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 //================= Functions assuming only + side exists ========================
 NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
 : NewFault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
-  _alphay(D._alphay), _alphaz(D._alphaz)
+  _alphay(D._alphay), _alphaz(D._alphaz), _timeMode("Gaussian"), _isLocked("False"),
+  _lockLimit(25.0)
 {
   #if VERBOSE > 1
     std::string funcName = "NewFault_dyn::NewFault_dyn";
@@ -978,6 +979,8 @@ NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
   VecDuplicate(_tauQSP,&_Phi); PetscObjectSetName((PetscObject) _Phi, "Phi");VecSet(_Phi, 0.0);
   VecDuplicate(_tauQSP,&_constraints_factor); PetscObjectSetName((PetscObject) _constraints_factor, "constraintsFactor");VecSet(_constraints_factor, 0.0);
   VecDuplicate(_tauQSP,&_an); PetscObjectSetName((PetscObject) _an, "an");VecSet(_an, 0.0);
+
+  loadSettings(_inputFile);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1034,6 +1037,15 @@ PetscErrorCode NewFault_dyn::loadSettings(const char *file)
     }
     else if (var.compare("ampTau")==0) {
       _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+    else if (var.compare("timeMode")==0) {
+      _timeMode = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("isLocked")==0) {
+      _isLocked = line.substr(pos+_delim.length(),line.npos);
+    }
+    else if (var.compare("lockLimit")==0) {
+      _lockLimit = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
   }
 
@@ -1220,10 +1232,18 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   VecGetArray(_z, &zz);
   VecGetArray(_tauQSP, &tauQS);
   VecGetOwnershipRange(_z, &IBegin, &IEnd);
-
-  PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
+  PetscScalar timeOffset = 1.0;
+  if(_timeMode.compare("Gaussian") == 0){
+    PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
+  }
+  else if (_timeMode.compare("Dirac") == 0 && currT > 0){
+    timeOffset = 0.0;
+  }
+  else if (_timeMode.compare("Heaviside") == 0){
+    timeOffset = 1.0;
+  }
   for (Ii=IBegin;Ii<IEnd;Ii++){
-    tauQS[Jj] = _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / pow(_zStdTau, 2)) * timeOffset;
+    tauQS[Jj] = _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / (2.0 * pow(_zStdTau, 2))) * timeOffset;
     Jj++;
   }
   VecRestoreArray(_z, &zz);
@@ -1249,7 +1269,7 @@ double intermediateTime = MPI_Wtime();
 _computeVelTime += intermediateTime - startTime;
 PetscInt       Ii,Istart,Iend;
 PetscInt       Jj = 0;
-PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi;
+PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z;
 ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
 ierr = VecGetArray(varEx["uFault"], &u);
 ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
@@ -1262,10 +1282,16 @@ ierr = VecGetArray(_a, &a);
 ierr = VecGetArray(_Phi, &Phi);
 ierr = VecGetArray(varEx["slip"], &slip);
 ierr = VecGetArray(dvarEx["slip"], &vel);
+ierr = VecGetArray(_z, &z);
 PetscScalar *b;
 ierr = VecGetArray(_b, &b);
 
 for (Ii = Istart; Ii<Iend; Ii++){
+  if(_isLocked.compare("True") == 0){
+    if(z[Jj] > _lockLimit){
+      slipVel[Jj] = 0;
+    }
+  }
   if (slipVel[Jj] < 1e-14){
     uTemp = uPrev[Jj];
     uPrev[Jj] = u[Jj];
@@ -1297,6 +1323,7 @@ ierr = VecRestoreArray(_a, &a);
 ierr = VecRestoreArray(_Phi, &Phi);
 ierr = VecRestoreArray(varEx["slip"], &slip);
 ierr = VecRestoreArray(dvarEx["slip"], &vel);
+ierr = VecRestoreArray(_z, &z);
 
 VecScatter scattu, scattuPrev;
 ierr = VecScatterCreate(varEx["uFault"], _is, varEx["u"], _is, &scattu);
@@ -1357,7 +1384,7 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
   ierr = VecGetArray(_constraints_factor, &constraints_factor);
 
   for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
-    an[Jj] = Laplacian[Jj] + tauQS[Jj] / _alphay;
+    an[Jj] = Laplacian[Jj] + (tauQS[Jj] + 30.0) / _alphay;
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     constraints_factor[Jj] = deltaT / _alphay / rho[Jj];
     slipPrev[Jj] = slipVel[Jj];
@@ -1408,11 +1435,11 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     right = abs(_Phi[Jj]);
     // check bounds
     if (isnan(left)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_dyn::computeVel: left bound evaluated to NaN.\n");
       assert(0);
     }
     if (isnan(right)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_dyn::computeVel: right bound evaluated to NaN.\n");
       assert(0);
     }
     // correct for left-lateral fault motion

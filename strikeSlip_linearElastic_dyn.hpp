@@ -48,8 +48,8 @@ private:
     const bool           _isMMS; // true if running mms test
 
     const PetscInt       _order,_Ny,_Nz;
-    PetscScalar          _Ly,_Lz,_dy,_dz;
-    PetscScalar          _deltaT;
+    PetscScalar          _Ly,_Lz;
+    PetscScalar          _deltaT, _CFL;
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     PetscScalar          _alphay, _alphaz;
