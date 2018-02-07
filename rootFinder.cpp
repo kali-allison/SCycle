@@ -213,11 +213,19 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
 
+  // ensure that _fLeft < 0
+  if (_fLeft > 0) {
+    PetscReal temp = _left;
+    PetscReal fTemp = _fLeft;
+    _left = _right; _fLeft = _fRight;
+    _right = temp; _fRight = fTemp;
+  }
+
   // proceed with iteration
   PetscInt numIts = 0;
   PetscScalar _x = x0;
   PetscScalar xMid = 0.5 * (_left + _right);
-  PetscScalar dxOld = _right - _left;
+  PetscScalar dxOld = fabs(_right - _left);
   PetscScalar dx = dxOld;
   ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
 
@@ -238,6 +246,8 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
       _x -= dx;
     }
     ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
+
+    // update bounds
     if (_f < 0.0) { _left = _x; }
     else { _right = _x; }
 
