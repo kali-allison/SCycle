@@ -8,7 +8,7 @@ using namespace std;
 StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),
+  _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(1e-3), _CFL(0),
   _y(&D._y),_z(&D._z),
   _alphay(D._alphay), _alphaz(D._alphaz),
@@ -52,7 +52,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
     PetscInt max_index;
     PetscScalar max_speed;
     VecMax(_cs,&max_index,&max_speed);
-    _deltaT = 0.5 / max_speed * max(_dy, _dz);
+    _deltaT = 0.5 * _CFL / max_speed * max(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
   }
 
   #if VERBOSE > 1
@@ -439,7 +439,6 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::integrate()
 PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
-
   // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
   Mat A;
   ierr = _material->_sbp->getA(A);
@@ -490,6 +489,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 }
   VecCopy(varEx["u"], _material->_u);
+  _material->computeStresses();
 
   return ierr;
 }

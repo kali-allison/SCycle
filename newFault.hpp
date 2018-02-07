@@ -155,6 +155,8 @@ class NewFault_dyn: public NewFault
     PetscScalar         _alphay, _alphaz;
 
     PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+    std::string         _timeMode, _isLocked;
+    PetscScalar         _lockLimit;
 
     NewFault_dyn(Domain&, VecScatter& scatter2fault);
     ~NewFault_dyn();
