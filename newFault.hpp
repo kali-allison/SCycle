@@ -35,6 +35,7 @@ class NewFault
 
     Vec                _tauQSP;
     Vec                _tauP; // not quasi-static
+    Vec                _tau0; // prestress
 
     // for locking the fault
     std::vector<double>   _lockedVals,_lockedDepths;
@@ -208,12 +209,12 @@ struct ComputeVel_qd : public RootFinderContext
 struct ComputeVel_dyn : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
+  const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0;
 
   // constructor and destructor
-  ComputeVel_dyn(const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0);
+  ComputeVel_dyn(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
