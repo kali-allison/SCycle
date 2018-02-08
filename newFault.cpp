@@ -520,12 +520,14 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
     ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
   }
@@ -594,27 +596,59 @@ PetscErrorCode NewFault::computeTauRS(Vec& tauRS, const PetscScalar vL)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  computePsiSS(vL);
+  VecSet(_slipVel,vL);
+
   if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }
 
   PetscInt       Istart,Iend;
-  PetscScalar   *tauRSV,*sN,*a,*b;
+  PetscScalar   *tauRSV;
+  PetscScalar const *sN,*a,*psi;
   VecGetOwnershipRange(tauRS,&Istart,&Iend);
   VecGetArray(tauRS,&tauRSV);
-  VecGetArray(_sNEff,&sN);
-  VecGetArray(_a,&a);
-  VecGetArray(_b,&b);
+  VecGetArrayRead(_sNEff,&sN);
+  VecGetArrayRead(_psi,&psi);
+  VecGetArrayRead(_a,&a);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(_f0/a[Jj])/_v0 );
-    //~ PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
-    //~ tauRSV[Jj] = sN[Jj] * f;
+    tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psi[Jj]/a[Jj])/_v0 );
     Jj++;
   }
   VecRestoreArray(tauRS,&tauRSV);
-  VecRestoreArray(_sNEff,&sN);
-  VecRestoreArray(_a,&a);
+  VecRestoreArrayRead(_sNEff,&sN);
+  VecRestoreArrayRead(_psi,&psi);
+  VecRestoreArrayRead(_a,&a);
 
-  VecSet(_slipVel,vL);
+
+
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode NewFault::computePsiSS(const PetscScalar vL)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 2
+    std::string funcName = "NewFault::computePsiSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  PetscInt           Istart,Iend;
+  PetscScalar       *psi;
+  PetscScalar const *b;
+  VecGetOwnershipRange(_psi,&Istart,&Iend);
+  VecGetArray(_psi,&psi);
+  VecGetArrayRead(_b,&b);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    psi[Jj] = _f0 - b[Jj]*log(abs(vL)/_v0);
+    Jj++;
+  }
+  VecRestoreArray(_psi,&psi);
+  VecRestoreArrayRead(_b,&b);
 
   #if VERBOSE > 3
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
