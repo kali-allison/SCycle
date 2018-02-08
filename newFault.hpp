@@ -98,6 +98,7 @@ class NewFault
 
     // for steady state computations
     PetscErrorCode computeTauRS(Vec& tauRS, const PetscScalar vL);
+    PetscErrorCode computePsiSS(const PetscScalar vL);
 
     // IO
     PetscErrorCode virtual view(const double totRunTime);

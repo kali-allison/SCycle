@@ -1494,7 +1494,6 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   // create identity matrix I (multiplied by H)
   Mat H;
   _sbpT->getH(H);
-  MatDuplicate(H,MAT_COPY_VALUES,&_I);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbpT->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
