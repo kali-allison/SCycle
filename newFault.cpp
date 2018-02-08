@@ -264,7 +264,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauP,&_rho);      PetscObjectSetName((PetscObject) _rho, "rho_fault");
   VecDuplicate(_tauP,&_mu);       PetscObjectSetName((PetscObject) _mu, "mu_fault");
   VecDuplicate(_tauP,&_locked);       PetscObjectSetName((PetscObject) _locked, "locked");
-  VecDuplicate(_tauP,&_tau0);       PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0)
+  VecDuplicate(_tauP,&_tau0);       PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
 
   // create z from D._z
   VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
