@@ -64,8 +64,6 @@ class OdeSolver
     double                  _runTime;
     string                  _controlType;
 
-  //~ public:
-
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 
@@ -81,9 +79,9 @@ class OdeSolver
     virtual PetscErrorCode integrate(IntegratorContextEx *obj){return 1;};
 };
 
-PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
-PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
-                               const Vec *var, const int lenVar, void*userContext);
+//~ PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
+//~ PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
+                               //~ const Vec *var, const int lenVar, void*userContext);
 
 
 class FEuler : public OdeSolver
