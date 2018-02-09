@@ -490,6 +490,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
 }
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
+  
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  VecCopy(_fault->_tauQSP, _fault->_tauP);
 
   return ierr;
 }
