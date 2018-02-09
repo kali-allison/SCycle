@@ -18,6 +18,7 @@
  * SOLVER TYPE      ALGORITHM
  *  FEuler        forward Euler
  *  RK32          explicit Runge-Kutta (2,3)
+ *  RK43          explicit Runge-Kutta (3,4)
  *
  * To obtain solutions at user-specified times, use FEuler and call setStepSize
  * in the routine f(t,y).

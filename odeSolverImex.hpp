@@ -20,11 +20,11 @@
  *
  * Containers for integration:
  *   var          map<string,Vec> of explicitly integrated variables
- *   varImMult    map<string,Vec> of implicitly integrated variables, computed at intermediate stages
- *   varIm1       map<string,Vec> of implicitly integrated variables, computed once per time step
+ *   varIm    map<string,Vec> of implicitly integrated variables
  *
- * SOLVER TYPE      ALGORITHM
- *  IMEX        explicit part Runge-Kutta (2,3), implicit controlled by user
+ * SOLVER TYPE        ALGORITHM
+ *  RK32_WBE        explicit part Runge-Kutta (2,3), implicit controlled by user
+ *  RK43_WBE        explicit part Runge-Kutta (3,4), implicit controlled by user
  *
  *
  * At minimum, the user must specify:
