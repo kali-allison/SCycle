@@ -97,9 +97,7 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
 
   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-#if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
-#endif
+
 
   if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
@@ -107,11 +105,8 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
   PetscInt numIts = 0;
   while ( (numIts <= _maxNumIts) & (sqrt(_fMid*_fMid) >= _atol) ) {
     _mid = (_left + _right)*0.5;
-    ierr = obj->getResid(ind,_mid,&_fMid);CHKERRQ(ierr);
-#if VERBOSE > 4
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"!!%i: %i %.15f %.15f %.15f %.15f\n",
-                       ind,numIts,_left,_right,_mid,_fMid);CHKERRQ(ierr);
-#endif
+    ierr = obj->getResid(ind,_mid,&_fMid); CHKERRQ(ierr);
+
     if (_fLeft*_fMid <= 0) {
       _right = _mid;
       _fRight = _fMid;
@@ -122,11 +117,6 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
     }
    numIts++;
   }
-
-#if VERBOSE > 3
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"numIts/maxIts = %u/%u, final mid = %g, fMid = %g\n",
-                     numIts,_maxNumIts,_mid,_fMid);CHKERRQ(ierr);
-#endif
 
   *out = _mid;
   if (sqrt(_fMid*_fMid) > _atol) {
@@ -141,13 +131,17 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
 
 PetscErrorCode Bisect::setBounds(PetscScalar left,PetscScalar right)
 {
-  assert(left < right);
-
-  _left=left;
-  _right=right;
+  // assign left and right bounds, ensuring left < right
+  if (left > right) {
+    _left = right;
+    _right = _left;
+  }
+  else {
+    _left=left;
+    _right=right;
+  }
 
   _mid = (_left + _right)*0.5;
-
   _fMid = 2 * _atol;
 
   return 0;
@@ -242,7 +236,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
     else {
       // Newton step is acceptable
       dxOld = dx;
-      dx = (1./_fPrime)*_f;
+      dx = _f/_fPrime;
       _x -= dx;
     }
     ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
@@ -268,11 +262,9 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
 
 PetscErrorCode BracketedNewton::setBounds(PetscScalar left,PetscScalar right)
 {
-  assert(left < right);
-
+  // it is ok if left < right or vice versa
   _left=left;
   _right=right;
-
   return 0;
 }
 

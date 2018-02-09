@@ -931,12 +931,6 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
       assert(0);
     }
-    // correct for left-lateral fault motion
-    if (left > right) {
-      temp = right;
-      right = left;
-      left = temp;
-    }
 
     out = slipVelA[Jj];
     if (abs(left-right)<1e-14) { out = left; }
