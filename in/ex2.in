@@ -18,7 +18,6 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 # state variable evolution law
 stateLaw = agingLaw
-v0 = 1e-9
 
 DcVals = [12e-3 12e-3] # m
 DcDepths = [0 60] # (km)
