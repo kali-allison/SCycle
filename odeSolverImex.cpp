@@ -7,15 +7,13 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),_runTime(0),_controlType(controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(3.0),
+  _atol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex constructor in RK32_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
-
-  _absErr[0] = 0;_absErr[1] = 0;_absErr[2] = 0;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -25,14 +23,17 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 
 
 RK32_WBE::RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolverImex(maxNumSteps,finalT,deltaT,controlType)
+: OdeSolverImex(maxNumSteps,finalT,deltaT,controlType),
+  _kappa(0.9),_ord(3.0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE constructor in RK32_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
-  _ord = 3.0;
+  _errA.resize(2);
+  _errA.push_front(0);
+  _errA.push_front(0);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -240,7 +241,7 @@ PetscErrorCode RK32_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
+PetscReal RK32_WBE::computeStepSize(const PetscReal _totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeStepSize in RK32_WBE.cpp.\n");
@@ -250,35 +251,28 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
   if (_controlType.compare("P") == 0) {
     // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
-    stepRatio = _kappa*pow(_atol/totErr,alpha);
+    stepRatio = _kappa*pow(_atol/_totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
-
     //if using proportional-integral-derivative feedback (PID)
-    _absErr[(_stepCount+_numRejectedSteps-1)%3] = totErr;
 
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    if (_stepCount < 4) {
-      stepRatio = _kappa*pow(_atol/totErr,1./(1.+_ord));
+    if (_stepCount < 3) {
+      stepRatio = _kappa*pow(_atol/_totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
+      stepRatio = _kappa * pow(_atol/_totErr,alpha)
+                         * pow(_errA[0]/_atol,beta)
+                         * pow(_atol/_errA[1],gamma);
     }
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR in odeSolverImex: timeControlType not understood\n");
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
+    assert(0>1); // automatically fail
   }
-
-    //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
-                //~_stepCount,_absErr[0],_absErr[1],_absErr[2]);
-    //~PetscPrintf(PETSC_COMM_WORLD,"   (_stepCount-1)%%3 = %i,(_stepCount-2)%%3 = %i,(_stepCount-3)%%3=%i\n",
-                //~(_stepCount+_numRejectedSteps-2)%3,(_stepCount+_numRejectedSteps-3)%3,(_stepCount+_numRejectedSteps-4)%3);
 
   PetscReal deltaT = stepRatio*_deltaT;
 
@@ -305,7 +299,7 @@ PetscReal RK32_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeError in RK32_WBE.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,totErr=0.0;
+  PetscReal      err,_totErr=0.0;
 
 
   //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
@@ -318,7 +312,7 @@ PetscReal RK32_WBE::computeError()
     //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
     //~ VecDot(errVec,errVec,&err);
     //~ VecGetSize(errVec,&size);
-    //~ totErr += sqrt(err/size);
+    //~ _totErr += sqrt(err/size);
     //~ VecDestroy(&errVec);
   //~ }
 
@@ -332,7 +326,7 @@ PetscReal RK32_WBE::computeError()
     ierr = VecWAXPY(errVec,-1.0,_var2nd[key],_var3rd[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_var3rd[key],NORM_2,&size);
-    totErr += err/(size+1.0);
+    _totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
   //~ // include effect of implicit variable
@@ -342,14 +336,14 @@ PetscReal RK32_WBE::computeError()
   //~ ierr = VecWAXPY(errVec,-1.0,_varHalfdTIm["Temp"],_vardTIm["Temp"]);CHKERRQ(ierr);
   //~ VecNorm(errVec,NORM_2,&err);
   //~ VecNorm(_vardTIm["Temp"],NORM_2,&size);
-  //~ totErr += err/(size+1.0);
+  //~ _totErr += err/(size+1.0);
 
 
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::computeError in RK32_WBE.cpp.\n");
 #endif
-  return totErr;
+  return _totErr;
 }
 
 
@@ -363,7 +357,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
   double startTime = MPI_Wtime();
 
   PetscErrorCode ierr=0;
-  PetscReal      totErr=0.0;
+  PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
   int            stopIntegration = 0;
 
@@ -433,12 +427,9 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
       }
 
       // calculate error
-      totErr = computeError();
-      #if ODEPRINT > 0
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"    totErr = %.15e\n",totErr);
-      #endif
-      if (totErr<_atol) { break; } // !!!orig
-      _deltaT = computeStepSize(totErr);
+      _totErr = computeError();
+      if (_totErr<_atol) { break; } // !!!orig
+      _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
@@ -460,9 +451,8 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
     }
 
-    if (totErr!=0.0) {
-      _deltaT = computeStepSize(totErr);
-    }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
 
     ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
   }
@@ -479,14 +469,17 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
 //======================================================================
 
 RK43_WBE::RK43_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolverImex(maxNumSteps,finalT,deltaT,controlType)
+: OdeSolverImex(maxNumSteps,finalT,deltaT,controlType),
+  _kappa(0.9),_ord(4.0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE constructor in RK32_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
-  _ord = 3.0;
+  _errA.resize(2);
+  _errA.push_front(0);
+  _errA.push_front(0);
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -733,7 +726,7 @@ PetscErrorCode RK43_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
+PetscReal RK43_WBE::computeStepSize(const PetscReal _totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeStepSize in RK32_WBE.cpp.\n");
@@ -743,35 +736,28 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
   if (_controlType.compare("P") == 0) {
     // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
-    stepRatio = _kappa*pow(_atol/totErr,alpha);
+    stepRatio = _kappa*pow(_atol/_totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
-
     //if using proportional-integral-derivative feedback (PID)
-    _absErr[(_stepCount+_numRejectedSteps-1)%3] = totErr;
 
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    if (_stepCount < 4) {
-      stepRatio = _kappa*pow(_atol/totErr,1./(1.+_ord));
+    if (_stepCount < 3) {
+      stepRatio = _kappa*pow(_atol/_totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                             *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
+      stepRatio = _kappa * pow(_atol/_totErr,alpha)
+                         * pow(_errA[0]/_atol,beta)
+                         * pow(_atol/_errA[1],gamma);
     }
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"ERROR in odeSolverImex: timeControlType not understood\n");
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
+    assert(0>1); // automatically fail
   }
-
-    //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
-                //~_stepCount,_absErr[0],_absErr[1],_absErr[2]);
-    //~PetscPrintf(PETSC_COMM_WORLD,"   (_stepCount-1)%%3 = %i,(_stepCount-2)%%3 = %i,(_stepCount-3)%%3=%i\n",
-                //~(_stepCount+_numRejectedSteps-2)%3,(_stepCount+_numRejectedSteps-3)%3,(_stepCount+_numRejectedSteps-4)%3);
 
   PetscReal deltaT = stepRatio*_deltaT;
 
@@ -798,7 +784,7 @@ PetscReal RK43_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeError in RK32_WBE.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,totErr=0.0;
+  PetscReal      err,_totErr=0.0;
 
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
@@ -810,7 +796,7 @@ PetscReal RK43_WBE::computeError()
     ierr = VecWAXPY(errVec,-1.0,_y3[key],_y4[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_y4[key],NORM_2,&size);
-    totErr += err/(size+1.0);
+    _totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }
   //~ // include effect of implicit variable
@@ -820,12 +806,12 @@ PetscReal RK43_WBE::computeError()
   //~ ierr = VecWAXPY(errVec,-1.0,_varHalfdTIm["Temp"],_vardTIm["Temp"]);CHKERRQ(ierr);
   //~ VecNorm(errVec,NORM_2,&err);
   //~ VecNorm(_vardTIm["Temp"],NORM_2,&size);
-  //~ totErr += err/(size+1.0);
+  //~ _totErr += err/(size+1.0);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeError in RK32_WBE.cpp.\n");
 #endif
-  return totErr;
+  return _totErr;
 }
 
 
@@ -839,7 +825,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   double startTime = MPI_Wtime();
 
   PetscErrorCode ierr=0;
-  PetscReal      totErr=0.0;
+  PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
   int            stopIntegration = 0;
 
@@ -932,7 +918,6 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       }
 
       // stage 1: k1 = var, compute f1 = f(k1)
-      //~ ierr = obj->d_dt(_currT+c1*_deltaT,_varEx,_f1);CHKERRQ(ierr); // compute f1
       _f1 = _dvar;
 
       // stage 2: compute k2
@@ -994,9 +979,9 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       }
 
       // calculate error
-      totErr = computeError();
-      if (totErr<_atol) { break; } // accept step
-      _deltaT = computeStepSize(totErr);
+      _totErr = computeError();
+      if (_totErr<_atol) { break; } // accept step
+      _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
@@ -1018,7 +1003,8 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
-    if (totErr!=0.0) { _deltaT = computeStepSize(totErr); }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
   }
 
   _runTime += MPI_Wtime() - startTime;

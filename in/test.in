@@ -9,10 +9,10 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
@@ -23,7 +23,7 @@ sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_
+inputDir = /data/dunham/kallison/eqcycle/inputData/he/qdwo_Nz301_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -65,6 +65,7 @@ f0 = 0.6
 
 #======================================================================
 # off-fault material parameters
+
 
 muVals = [30 30] # GPa
 muDepths = [0 60] # m
@@ -114,7 +115,7 @@ withShearHeating = no
 withFrictionalHeating = no
 
 maxEffVisc = 1e18
-maxSSIts_tau = 300
+maxSSIts_tau = 500
 
 fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
@@ -126,7 +127,7 @@ fss_EffVisc = 0.2
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-stride1D = 10
+stride1D = 20
 stride2D = 20
 maxStepCount = 1e8
 initTime = 0
@@ -135,15 +136,11 @@ initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-6
-timeIntInds = [psi slip]
-#timeIntInds = [slip gVxy gVxz]
+#timeIntInds = [psi slip]
+timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/versions/v25_
-#outputDir = /scratch/kallison/versions/v26_
-#outputDir = /scratch/kallison/versions/v27_
-#outputDir = /scratch/kallison/versions/v28_
-
+outputDir = /scratch/kallison/versions/v29_
 
 
 

@@ -8,6 +8,7 @@
 #include <map>
 #include <algorithm>
 #include <assert.h>
+#include <boost/circular_buffer.hpp>
 #include "integratorContextImex.hpp"
 #include "genFuncs.hpp"
 
@@ -19,11 +20,11 @@
  *
  * Containers for integration:
  *   var          map<string,Vec> of explicitly integrated variables
- *   varImMult    map<string,Vec> of implicitly integrated variables, computed at intermediate stages
- *   varIm1       map<string,Vec> of implicitly integrated variables, computed once per time step
+ *   varIm    map<string,Vec> of implicitly integrated variables
  *
- * SOLVER TYPE      ALGORITHM
- *  IMEX        explicit part Runge-Kutta (2,3), implicit controlled by user
+ * SOLVER TYPE        ALGORITHM
+ *  RK32_WBE        explicit part Runge-Kutta (2,3), implicit controlled by user
+ *  RK43_WBE        explicit part Runge-Kutta (3,4), implicit controlled by user
  *
  *
  * At minimum, the user must specify:
@@ -71,8 +72,6 @@ class OdeSolverImex
 
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol; // absolute and relative tolerances
-    PetscReal   _kappa,_ord; // safety factor in step size determinance
-    PetscReal   _absErr[3]; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
@@ -97,6 +96,11 @@ class OdeSolverImex
 class RK32_WBE : public OdeSolverImex
 {
   public:
+
+    // for P or PID error control
+    PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
+    boost::circular_buffer<double> _errA;
+    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
     // intermediate values for time stepping for the explicit variable
     std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
@@ -130,6 +134,11 @@ class RK32_WBE : public OdeSolverImex
 class RK43_WBE : public OdeSolverImex
 {
   public:
+
+    // for P or PID error control
+    PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
+    boost::circular_buffer<double> _errA;
+    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
     // intermediate values for time stepping for the explicit variable
     std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;

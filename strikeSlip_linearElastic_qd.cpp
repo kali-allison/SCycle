@@ -541,7 +541,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
-
+  if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
+    _fault->setSNEff(varEx.find("pressure")->second);
+  }
   _fault->updateFields(time,varEx);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
@@ -559,7 +561,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
-  if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
+
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state

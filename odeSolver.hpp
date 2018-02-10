@@ -18,6 +18,7 @@
  * SOLVER TYPE      ALGORITHM
  *  FEuler        forward Euler
  *  RK32          explicit Runge-Kutta (2,3)
+ *  RK43          explicit Runge-Kutta (3,4)
  *
  * To obtain solutions at user-specified times, use FEuler and call setStepSize
  * in the routine f(t,y).
@@ -64,8 +65,6 @@ class OdeSolver
     double                  _runTime;
     string                  _controlType;
 
-  //~ public:
-
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 
@@ -81,9 +80,9 @@ class OdeSolver
     virtual PetscErrorCode integrate(IntegratorContextEx *obj){return 1;};
 };
 
-PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
-PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
-                               const Vec *var, const int lenVar, void*userContext);
+//~ PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
+//~ PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
+                               //~ const Vec *var, const int lenVar, void*userContext);
 
 
 class FEuler : public OdeSolver
@@ -113,12 +112,8 @@ class RK32 : public OdeSolver
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     // for PID error control
-    //~ typedef boost::circular_buffer<double> circular_buffer;
-    //~ circular_buffer _errA;
     boost::circular_buffer<double> _errA;
     PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
-
-
 
     std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_y2,_dy2,_y3;
 

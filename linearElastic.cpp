@@ -840,7 +840,6 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
-
   Vec source,Hxsource;
   VecDuplicate(_u,&source);
   VecDuplicate(_u,&Hxsource);
