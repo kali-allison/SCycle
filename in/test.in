@@ -1,7 +1,7 @@
 order = 4 # SBP order of accuracy
 Ny = 201
-Nz = 301
-Ly = 30 # (km) horizontal domain size
+Nz = 202
+Ly = 60 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -61,11 +61,9 @@ sN_floor = 1.0; # MPa
 
 # state variable law: agingLaw, slipLaw, flashHeating, constantState
 stateLaw = agingLaw
-f0 = 0.6
 
 #======================================================================
 # off-fault material parameters
-
 
 muVals = [30 30] # GPa
 muDepths = [0 60] # m
@@ -127,9 +125,9 @@ fss_EffVisc = 0.2
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-stride1D = 10
-stride2D = 20
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 3
 initTime = 0
 maxTime = 1e11
 initDeltaT = 1e-3
@@ -140,7 +138,9 @@ timeIntInds = [psi slip]
 #timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/versions/v25_
+outputDir = data/linEl_
+
+#outputDir = /scratch/kallison/versions/v25_
 #outputDir = /scratch/kallison/versions/v26_
 #outputDir = /scratch/kallison/versions/v27_
 #outputDir = /scratch/kallison/versions/v28_

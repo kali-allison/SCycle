@@ -511,7 +511,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
     ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
 
-    //~ if (_stepCount > 5) {PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); break; }
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
   }
 
