@@ -13,7 +13,7 @@ NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D_fh(5),
   _rootTol(1e-9),_rootIts(0),_maxNumIts(1e4),
-  _computeVelTime(0),_stateLawTime(0),
+  _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
   _body2fault(&scatter2fault)
 {
   #if VERBOSE > 1
@@ -267,8 +267,10 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauP,&_tau0);       PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
 
   // create z from D._z
+  double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
+  _scatterTime += MPI_Wtime() - scatterStart;
 
 
   if (_stateLaw.compare("flashHeating") == 0) {
@@ -287,6 +289,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   else { VecSet(_locked,0.); }
   if (_cohesionVals.size() > 0 ) { ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); CHKERRQ(ierr); }
   {
+    double scatterStart = MPI_Wtime();
     Vec temp; VecDuplicate(_D->_y,&temp);
     ierr = setVec(temp,_D->_z,_rhoVals,_rhoDepths); CHKERRQ(ierr);
     VecScatterBegin(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
@@ -295,6 +298,8 @@ PetscErrorCode NewFault::setFields(Domain& D)
     ierr = setVec(temp,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
     VecScatterBegin(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
     VecScatterEnd(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+
+    _scatterTime += MPI_Wtime() - scatterStart;
 
     VecDestroy(&temp);
   }
@@ -323,6 +328,7 @@ PetscErrorCode NewFault::setThermalFields(const Vec& T, const Vec& k, const Vec&
     std::string funcName = "NewFault::setThermalFields";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
+  double scatterStart = MPI_Wtime();
 
   VecScatterBegin(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
@@ -332,6 +338,8 @@ PetscErrorCode NewFault::setThermalFields(const Vec& T, const Vec& k, const Vec&
 
   VecScatterBegin(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
+
+  _scatterTime += MPI_Wtime() - scatterStart;
 
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -348,8 +356,10 @@ PetscErrorCode NewFault::updateTemperature(const Vec& T)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
+  double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
+  _scatterTime += MPI_Wtime() - scatterStart;
 
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -365,9 +375,10 @@ PetscErrorCode NewFault::setTauQS(const Vec& sxy)
     std::string funcName = "NewFault::setTauQS";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
-
+  double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
+  _scatterTime += MPI_Wtime() - scatterStart;
 
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -422,8 +433,10 @@ PetscErrorCode NewFault::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"NewFault Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   compute slip vel time (s): %g\n",_computeVelTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   state law time (s): %g\n",_stateLawTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   scatter time (s): %g\n",_scatterTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent finding slip vel law: %g\n",(_computeVelTime/totRunTime)*100.);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in state law: %g\n",(_stateLawTime/totRunTime)*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent in scatters: %g\n",(_scatterTime/totRunTime)*100.);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
@@ -1213,9 +1226,9 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
 
  // put variables to be integrated explicitly into varEx
   Vec u, uPrev, du;
-  VecDuplicate(_tauQSP, &u);
-  VecDuplicate(_tauQSP, &du);
-  VecDuplicate(_tauQSP, &uPrev);
+  VecDuplicate(_tauP, &u);
+  VecDuplicate(_tauP, &du);
+  VecDuplicate(_tauP, &uPrev);
   VecSet(u, 0);
   VecSet(du, 0);
   VecSet(uPrev, 0);
@@ -1226,6 +1239,7 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
   VecDuplicate(_tauQSP, &_rhoLocal);
   VecSet(_rhoLocal, 0);
 
+  double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
 
@@ -1234,6 +1248,7 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
 
   VecScatterBegin(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
+  _scatterTime += MPI_Wtime() - scatterStart;
 
   // slip is added by the momentum balance equation
   //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
@@ -1342,12 +1357,16 @@ ierr = VecRestoreArray(varEx["slip"], &slip);
 ierr = VecRestoreArray(dvarEx["slip"], &vel);
 ierr = VecRestoreArray(_z, &z);
 
+  double scatterStart = MPI_Wtime();
 
-VecScatterBegin(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_FORWARD);
-VecScatterEnd(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
+  
+  VecScatterBegin(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
+  
+  _scatterTime += MPI_Wtime() - scatterStart;
 
-VecScatterBegin(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
-VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_FORWARD);
 
 // compute state parameter law
 double startAgingTime = MPI_Wtime();
@@ -1370,9 +1389,11 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
   #endif
   PetscInt       Ii,IFaultStart, IFaultEnd;
 
+  double scatterStart = MPI_Wtime();
 
   VecScatterBegin(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
+  _scatterTime += MPI_Wtime() - scatterStart;
 
   ierr = VecGetOwnershipRange(varEx["uFault"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
 

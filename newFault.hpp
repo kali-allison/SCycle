@@ -69,7 +69,7 @@ class NewFault
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
-    double               _computeVelTime,_stateLawTime;
+    double               _computeVelTime,_stateLawTime, _scatterTime;
 
     // for mapping from body fields to the fault
     VecScatter* _body2fault;

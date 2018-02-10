@@ -158,8 +158,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::checkInput()
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
-  assert(_stride1D >= 1);
-  assert(_stride2D >= 1);
+  // assert(_stride1D >= 1);
+  // assert(_stride2D >= 1);
   assert(_atol >= 1e-14);
 
     // check boundary condition types for momentum balance equation
@@ -293,12 +293,12 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if ( stepCount % _stride1D == 0) {
+  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
-  if ( stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
