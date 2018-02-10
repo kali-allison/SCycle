@@ -341,9 +341,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
     stepRatio = _kappa*pow(_atol/totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
-
     //if using proportional-integral-derivative feedback (PID)
-    //~ _absErr[(_stepCount+_numRejectedSteps-1)%3] = _totErr;
 
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
@@ -353,26 +351,15 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
       stepRatio = _kappa*pow(_atol/totErr,1./(1.+_ord));
     }
     else {
-      //~ step_ratio = kappa*(tol/err(1))**alpha*(err(0)/tol)**beta*(tol/err(-1))**gamma
       stepRatio = _kappa * pow(_atol/totErr,alpha)
                          * pow(_errA[0]/_atol,beta)
                          * pow(_atol/_errA[1],gamma);
-
-
-      //~ stepRatio = _kappa*pow(_atol/_absErr[(_stepCount+_numRejectedSteps-1)%3],alpha)
-                        //~ *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-2)%3],beta)
-                        //~ *pow(_atol/_absErr[(_stepCount+_numRejectedSteps-3)%3],gamma);
     }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
     assert(0>1); // automatically fail
   }
-
-    //~PetscPrintf(PETSC_COMM_WORLD,"   _stepCount %i,absErr[0]=%e,absErr[1]=%e,absErr[2]=%e\n",
-                //~_stepCount,_absErr[0],_absErr[1],_absErr[2]);
-    //~PetscPrintf(PETSC_COMM_WORLD,"   (_stepCount-1)%%3 = %i,(_stepCount-2)%%3 = %i,(_stepCount-3)%%3=%i\n",
-                //~(_stepCount+_numRejectedSteps-2)%3,(_stepCount+_numRejectedSteps-3)%3,(_stepCount+_numRejectedSteps-4)%3);
 
   PetscReal deltaT = stepRatio*_deltaT;
 
@@ -503,12 +490,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
       // calculate error
       _totErr = computeError();
-      #if ODEPRINT > 0
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"    _totErr = %.15e\n",_totErr);
-      #endif
-      if (_totErr <= _atol) {
-        break;
-      }
+      if (_totErr <= _atol) { break; }
       _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) { break; }
 
@@ -529,7 +511,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
     ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
 
-    //~ if (_stepCount > 5) {PetscPrintf(PETSC_COMM_WORLD,"hi!\n"); break; }
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
   }
 

@@ -898,7 +898,7 @@ PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
 //======================================================================
 
 ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar* locked)
-: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_N(N),_v0(v0),_locked(locked)
+: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_locked(locked),_N(N),_v0(v0)
 { }
 
 PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -909,7 +909,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscScalar left, right, out, temp;
+  PetscScalar left, right, out;
   for (PetscInt Jj = 0; Jj< _N; Jj++) {
 
     if (_locked[Jj] > 0.) { // if fault is locked, hold slip velocity at 0
@@ -930,12 +930,6 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
       PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
       assert(0);
-    }
-    // correct for left-lateral fault motion
-    if (left > right) {
-      temp = right;
-      right = left;
-      left = temp;
     }
 
     out = slipVelA[Jj];
