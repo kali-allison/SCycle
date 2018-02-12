@@ -13,9 +13,5 @@ INIT_DIR=/data/dunham/kallison/eqcycle/in
 cd $PBS_O_WORKDIR
 
 mpirun $EXEC_DIR/main $INIT_DIR/test.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/exploreLambda.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/aguEqs.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/spinUpTest.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/ex2.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/flashHeating.in
 

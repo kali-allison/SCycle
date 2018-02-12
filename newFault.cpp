@@ -672,8 +672,8 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,0.5);
 
-  if (D._loadICs==1) {
-    //~ loadFieldsFromFiles(D._inputDir);
+  if (D._inputDir.compare("unspecified") != 0) {
+    loadFieldsFromFiles(D._inputDir);
     loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
   }
 
