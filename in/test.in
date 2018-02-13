@@ -1,7 +1,7 @@
 order = 4 # SBP order of accuracy
-Ny = 201
+Ny = 401
 Nz = 301
-Ly = 60 # (km) horizontal domain size
+Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -9,7 +9,7 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
@@ -19,11 +19,12 @@ guessSteadyStateICs = 1
 
 # coordinate transformation
 bCoordTrans = 8.0
-sbpType = mfc_coordTrans
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear system
-inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v27_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v28_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -35,6 +36,7 @@ momBal_computeSxz = 1
 #======================================================================
 # rate-and-state parameters
 
+#DcVals = [9e-3 9e-3] # m
 DcVals = [12e-3 12e-3] # m
 #DcVals = [1 1] # m
 DcDepths = [0 60] # m
@@ -107,15 +109,15 @@ cDepths = [0 60]
 #TVals = [293 1543] # 25 C/km
 TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
-thermalCoupling = coupled
+thermalCoupling = no
 heatEquationType = transient
-withShearHeating = yes
+withShearHeating = no
 withFrictionalHeating = no
 
 maxEffVisc = 1e17
-maxSSIts_tau = 180
+maxSSIts_tau = 250
 
-fss_EffVisc = 0.2
+#fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 5
 #maxSSIts_timesteps = 10
@@ -124,12 +126,12 @@ fss_EffVisc = 0.2
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43_WBE
+timeIntegrator = RK43
 stride1D = 10
 stride2D = 10
 maxStepCount = 1e8
 initTime = 0
-maxTime = 1e15
+maxTime = 1e11
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
@@ -138,7 +140,7 @@ timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/versions/v31_
+outputDir = /scratch/kallison/versions/v25_
 
 
 
