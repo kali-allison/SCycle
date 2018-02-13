@@ -205,6 +205,25 @@ struct ComputeVel_qd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
+// computing the slip velocity for the quasi-dynamic problem with constant state variable
+struct ComputeVel_qd_constPsi : public RootFinderContext
+{
+  // shallow copies of contextual fields
+  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_locked;
+  const PetscInt      _N; // length of the arrays
+  const PetscScalar   _v0,_f0;
+
+  // constructor and destructor
+  ComputeVel_qd_constPsi(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& f0,const PetscScalar *locked);
+
+  // command to perform root-finding process, once contextual variables have been set
+  PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
+
+  // function that matches root finder template
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
+};
+
 
 // computing the slip velocity for the dynamic problem
 struct ComputeVel_dyn : public RootFinderContext
@@ -274,9 +293,18 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
 // applies the state law to a Vec
 PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
+
+// computes steady-state psi
+PetscScalar agingLaw_constPsi_Vec(Vec& psi, const Vec& slipVel, const Vec& b, const PetscScalar& v0,const PetscScalar& f0);
+
+
+
+
 // frictional strength, regularized form, for state variable psi
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0);
 
+// frictional strength, regularized form, for steady-state state variable psi
+PetscScalar strength_constPsi(const PetscScalar& sN, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0, const PetscScalar& f0);
 
 #include "rootFinder.hpp"
 
