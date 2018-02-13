@@ -421,8 +421,8 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   Mat A;
   _sbp->getA(A);
 
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc,A);
+  // KSPCreate(PETSC_COMM_WORLD,&_ksp);
+  // setupKSP(_sbp,_ksp,_pc,A);
 
   return ierr;
   #if VERBOSE > 1
