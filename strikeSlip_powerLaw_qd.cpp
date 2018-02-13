@@ -352,7 +352,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 3e11) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 5e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {

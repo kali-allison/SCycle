@@ -790,10 +790,16 @@ PetscErrorCode NewFault_qd::computeVel()
   VecGetArray(_locked,&lockedA);
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
-
   PetscInt N = Iend - Istart;
-  ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA);
-  ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+
+  if (_stateLaw.compare("constantState") == 0) {
+    ComputeVel_qd_constPsi temp(N,etaA,tauQSA,sNA,aA,bA,_v0,_f0,lockedA);
+    ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+  }
+  else {
+    ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA);
+    ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+  }
 
   VecGetArray(_slipVel,&slipVelA);
   VecGetArray(_eta_rad,&etaA);
@@ -819,22 +825,32 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+
+  // compute slip velocity
+  double startTime = MPI_Wtime();
+  ierr = computeVel();CHKERRQ(ierr);
+  VecCopy(_slipVel,dvarEx["slip"]);
+  _computeVelTime += MPI_Wtime() - startTime;
+
+
   // compute rate of state variable
   Vec dstate = dvarEx.find("psi")->second;
-  double startTime = MPI_Wtime();
+  startTime = MPI_Wtime();
   if (_stateLaw.compare("agingLaw") == 0) {
     //~ ierr = agingLaw_theta_Vec(dstate, _theta, _slipVel, _Dc) CHKERRQ(ierr);
     ierr = agingLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("slipLaw") == 0) {
     //~ ierr = slipLaw_theta_Vec(dstate, _theta, _slipVel, _Dc); CHKERRQ(ierr);
-    ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc);  CHKERRQ(ierr);
+    ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
   //~ else if (_stateLaw.compare("flashHeating") == 0) {
     //~ ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
   //~ }
   else if (_stateLaw.compare("constantState") == 0) {
+    // dpsi = 0; psi = f0 - b*ln(|V|/v0)
     VecSet(dstate,0.);
+    ierr = agingLaw_constPsi_Vec(_psi,_slipVel, _b, _v0,_f0); CHKERRQ(ierr);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n");
@@ -843,11 +859,7 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
   _stateLawTime += MPI_Wtime() - startTime;
 
 
-  // compute slip velocity
-  startTime = MPI_Wtime();
-  ierr = computeVel();CHKERRQ(ierr);
-  VecCopy(_slipVel,dvarEx["slip"]);
-  _computeVelTime += MPI_Wtime() - startTime;
+
 
 
 
@@ -996,7 +1008,113 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 }
 
 
-//================= Functions assuming only + side exists ========================
+
+
+ComputeVel_qd_constPsi::ComputeVel_qd_constPsi(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& f0,const PetscScalar *locked)
+: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_N(N),_v0(v0),_f0(f0),_locked(locked)
+{ }
+
+PetscErrorCode ComputeVel_qd_constPsi::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "ComputeVel_qd_constPsi::computeVel";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar left, right, out, temp;
+  for (PetscInt Jj = 0; Jj< _N; Jj++) {
+
+    if (_locked[Jj] > 0.) { // if fault is locked, hold slip velocity at 0
+      slipVelA[Jj] = 0.;
+      break;
+    }
+
+    if (_a[Jj] <= _b[Jj]) { // make VW region slip at SS rate
+      slipVelA[Jj] = 1e-9;
+      break;
+    }
+
+    left = 0.;
+    right = _tauQS[Jj] / _eta[Jj];
+
+    // check bounds
+    if (isnan(left)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd_constPsi::computeVel: left bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
+      assert(0);
+    }
+    if (isnan(right)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd_constPsi::computeVel: right bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
+      assert(0);
+    }
+    // correct for left-lateral fault motion
+    if (left > right) {
+      temp = right;
+      right = left;
+      left = temp;
+    }
+
+    out = slipVelA[Jj];
+    if (abs(left-right)<1e-14) { out = left; }
+    else {
+      Bisect rootFinder(maxNumIts,rootTol);
+      ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+      rootIts += rootFinder.getNumIts();
+
+      //~ PetscScalar x0 = slipVelA[Jj];
+      //~ BracketedNewton rootFinder(maxNumIts,rootTol);
+      //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+      //~ rootIts += rootFinder.getNumIts();
+    }
+    slipVelA[Jj] = out;
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// Compute residual for equation to find slip velocity.
+// This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
+PetscErrorCode ComputeVel_qd_constPsi::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar strength = strength_constPsi(_sN[Jj], vel, _a[Jj], _b[Jj], _v0, _f0); // frictional strength
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
+
+  *out = strength - stress;
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+// compute residual for equation to find slip velocity
+// This form is for root finding algorithms that require the Jacobian, such as the bracketed Newton method.
+PetscErrorCode ComputeVel_qd_constPsi::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar *out,PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar strength = strength = strength_constPsi(_sN[Jj], vel, _a[Jj], _b[Jj], _v0, _f0); // frictional strength
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
+
+  *out = strength - stress;
+  PetscScalar A = _a[Jj]*_sN[Jj];
+  PetscScalar B = exp(_f0/_a[Jj]) / (2.*_v0);
+  *J = A*B/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
+
+  assert(!isnan(*out)); assert(!isinf(*out));
+  assert(!isnan(*J)); assert(!isinf(*J));
+  return ierr;
+}
+
+
+
 NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
 : NewFault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
   _alphay(D._alphay), _alphaz(D._alphaz), _timeMode("Gaussian"), _isLocked("False"),
@@ -1588,6 +1706,7 @@ PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar st
 }
 
 
+
 // common rate-and-state functions
 
 // state evolution law: aging law, state variable: psi
@@ -1608,13 +1727,14 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar *psiA,*dstateA,*slipVelA,*aA,*bA,*DcA = 0;
+  PetscScalar *dstateA;
+  PetscScalar const *psiA,*slipVelA,*aA,*bA,*DcA;
   VecGetArray(dstate,&dstateA);
-  VecGetArray(psi,&psiA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(a,&aA);
-  VecGetArray(b,&bA);
-  VecGetArray(Dc,&DcA);
+  VecGetArrayRead(psi,&psiA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(a,&aA);
+  VecGetArrayRead(b,&bA);
+  VecGetArrayRead(Dc,&DcA);
   PetscInt Jj = 0; // local array index
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
@@ -1629,11 +1749,11 @@ PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, co
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(psi,&psiA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(a,&aA);
-  VecRestoreArray(b,&bA);
-  VecRestoreArray(Dc,&DcA);
+  VecRestoreArrayRead(psi,&psiA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(a,&aA);
+  VecRestoreArrayRead(b,&bA);
+  VecRestoreArrayRead(Dc,&DcA);
 
   return ierr;
 }
@@ -1653,11 +1773,12 @@ PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar *thetaA,*dstateA,*slipVelA,*DcA = 0;
+  PetscScalar *dstateA;
+  PetscScalar const *thetaA,*slipVelA,*DcA;
   VecGetArray(dstate,&dstateA);
-  VecGetArray(theta,&thetaA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(Dc,&DcA);
+  VecGetArrayRead(theta,&thetaA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(Dc,&DcA);
   PetscInt Jj = 0; // local array index
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(theta,&Istart,&Iend); // local portion of global Vec index
@@ -1666,9 +1787,9 @@ PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(theta,&thetaA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(Dc,&DcA);
+  VecRestoreArrayRead(theta,&thetaA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(Dc,&DcA);
 
   return ierr;
 }
@@ -1690,13 +1811,14 @@ PetscScalar slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,cons
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar *psiA,*dstateA,*slipVelA,*aA,*bA,*DcA = 0;
+  PetscScalar *dstateA;
+  PetscScalar const *psiA,*slipVelA,*aA,*bA,*DcA;
   VecGetArray(dstate,&dstateA);
-  VecGetArray(psi,&psiA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(a,&aA);
-  VecGetArray(b,&bA);
-  VecGetArray(Dc,&DcA);
+  VecGetArrayRead(psi,&psiA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(a,&aA);
+  VecGetArrayRead(b,&bA);
+  VecGetArrayRead(Dc,&DcA);
   PetscInt Jj = 0; // local array index
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
@@ -1705,11 +1827,11 @@ PetscScalar slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,cons
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(psi,&psiA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(a,&aA);
-  VecRestoreArray(b,&bA);
-  VecRestoreArray(Dc,&DcA);
+  VecRestoreArrayRead(psi,&psiA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(a,&aA);
+  VecRestoreArrayRead(b,&bA);
+  VecRestoreArrayRead(Dc,&DcA);
 
   return ierr;
 }
@@ -1731,11 +1853,12 @@ PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel,
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar *thetaA,*dstateA,*slipVelA,*DcA = 0;
+  PetscScalar *dstateA;
+  PetscScalar const *thetaA,*slipVelA,*DcA;
   VecGetArray(dstate,&dstateA);
-  VecGetArray(theta,&thetaA);
-  VecGetArray(slipVel,&slipVelA);
-  VecGetArray(Dc,&DcA);
+  VecGetArrayRead(theta,&thetaA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(Dc,&DcA);
   PetscInt Jj = 0; // local array index
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(theta,&Istart,&Iend); // local portion of global Vec index
@@ -1744,12 +1867,38 @@ PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel,
     Jj++;
   }
   VecRestoreArray(dstate,&dstateA);
-  VecRestoreArray(theta,&thetaA);
-  VecRestoreArray(slipVel,&slipVelA);
-  VecRestoreArray(Dc,&DcA);
+  VecRestoreArrayRead(theta,&thetaA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(Dc,&DcA);
 
   return ierr;
 }
+
+// computes steady-state psi
+PetscScalar agingLaw_constPsi_Vec(Vec& psi, const Vec& slipVel, const Vec& b, const PetscScalar& v0,const PetscScalar& f0)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar *psiA;
+  PetscScalar const *V,*bA;
+  VecGetArray(psi,&psiA);
+  VecGetArrayRead(slipVel,&V);
+  VecGetArrayRead(b,&bA);
+  PetscInt Jj = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    psiA[Jj] = f0 - bA[Jj]*log(abs(V[Jj])/v0);
+    Jj++;
+  }
+  VecRestoreArray(psi,&psiA);
+  VecRestoreArrayRead(slipVel,&V);
+  VecRestoreArrayRead(b,&bA);
+
+  return ierr;
+}
+
+
 
 
 // frictional strength, regularized form, for state variable psi
@@ -1758,4 +1907,21 @@ PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const Pe
   PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
   return strength;
 }
+
+// frictional strength, regularized form, for steady-state state variable psi
+PetscScalar strength_constPsi(const PetscScalar& sN, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0, const PetscScalar& f0)
+{
+  PetscScalar strength = 0;
+  if (slipVel != 0) {
+    strength = (PetscScalar) a*sN*asinh( (double) exp(f0/a)*0.5/v0 * slipVel*pow(abs(slipVel),-b/a));
+  }
+  else {
+    strength = (PetscScalar) a*sN*asinh( (double) exp(f0/a)*0.5/v0 * slipVel);
+  }
+  return strength;
+}
+
+
+
+
 
