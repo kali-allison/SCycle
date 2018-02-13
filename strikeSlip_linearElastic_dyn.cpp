@@ -52,7 +52,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
     PetscInt max_index;
     PetscScalar max_speed;
     VecMax(_cs,&max_index,&max_speed);
-    _deltaT = 0.5 * _CFL / max_speed * max(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
   }
 
   #if VERBOSE > 1
@@ -214,12 +214,13 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
-  
+
   VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
-  
+
   PetscInt Ii,Istart,Iend;
   PetscInt Jj = 0;
+  /*
   if (_initialConditions.compare("u") == 0){
     PetscScalar *u, *uPrev, *y, *z;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
@@ -237,7 +238,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     VecRestoreArray(*_z,&z);
     VecRestoreArray(_varEx["u"],&u);
     VecRestoreArray(_varEx["uPrev"],&uPrev);
-  }
+  }*/
     // Create matrix _ay
     VecDuplicate(*_z, &_ay);
     VecSet(_ay, 0.0);
@@ -490,7 +491,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
 }
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
-  
+
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);

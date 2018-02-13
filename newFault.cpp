@@ -873,10 +873,6 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
   _stateLawTime += MPI_Wtime() - startTime;
 
 
-
-
-
-
   // set tauP = tauQS - eta_rad *slipVel
   VecCopy(_slipVel,_tauP);
   VecPointwiseMult(_tauP,_eta_rad,_tauP);
@@ -1439,7 +1435,7 @@ for (Ii = Istart; Ii<Iend; Ii++){
   if (slipVel[Jj] < 1e-14){
     uTemp = uPrev[Jj];
     uPrev[Jj] = u[Jj];
-    u[Jj] = 2 * u[Jj] - uTemp + _deltaT * _deltaT / rho[Jj] * an[Jj];
+    u[Jj] = 2. * u[Jj] - uTemp + _deltaT * _deltaT / rho[Jj] * an[Jj];
     vel[Jj] = 0;
     slipVel[Jj] = 0;
   }
@@ -1449,11 +1445,11 @@ for (Ii = Istart; Ii<Iend; Ii++){
     A = 1 + alpha * _deltaT;
     uTemp = uPrev[Jj];
     uPrev[Jj] = u[Jj];
-    u[Jj] = (2*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1)*uTemp) /  A;
-    vel[Jj] = Phi[Jj] / (1 + _deltaT*_alphay / rho[Jj] * fric / slipVel[Jj]);
+    u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
+    vel[Jj] = Phi[Jj] / (1. + _deltaT*_alphay / rho[Jj] * fric / slipVel[Jj]);
     slipVel[Jj] = vel[Jj];
   }
-  slip[Jj] = 2 * u[Jj];
+  slip[Jj] = 2. * u[Jj];
   Jj++;
 }
 ierr = VecRestoreArray(varEx["uFault"], &u);
@@ -1473,10 +1469,10 @@ ierr = VecRestoreArray(_z, &z);
 
   VecScatterBegin(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
   VecScatterEnd(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
-  
+
   VecScatterBegin(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
   VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
-  
+
   _scatterTime += MPI_Wtime() - scatterStart;
 
 
@@ -1574,10 +1570,10 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
   PetscScalar left, right, out, temp;
 
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
-    if (_locked[Jj] == 1){
+    if (_locked[Jj] > 0.){
       slipVelA[Jj] = 0.0;
-      }
-    else{
+      break;
+    }
     left = 0.;
     right = abs(_Phi[Jj]);
     // check bounds
@@ -1604,7 +1600,6 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     }
     slipVelA[Jj] = out;
     // PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Jj,left,right,out);
-  }
   }
 
 

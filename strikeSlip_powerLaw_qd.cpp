@@ -581,7 +581,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 {
   PetscErrorCode ierr = 0;
 
-  // update fields based on varEx, varIm
+  // update fields based on varEx
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_bcLType.compare("symm_fault")==0) {
@@ -629,7 +629,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::d_dt";
+    std::string funcName = "StrikeSlip_PowerLaw_qd::d_dt IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -654,9 +654,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   }
 
   // update temperature in momBal
-  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    _fault->updateTemperature(varImo.find("Temp")->second);
-  }
+  //~ if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+    //~ _fault->updateTemperature(varImo.find("Temp")->second);
+  //~ }
 
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) {
@@ -678,9 +678,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
+
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
-    PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
     Vec sxy,sxz,sdev;
     _material->getStresses(sxy,sxz,sdev);
     Vec V = dvarEx.find("slip")->second;

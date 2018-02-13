@@ -884,7 +884,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
     }
     assert(_varEx.find(key) != _varEx.end());
   }

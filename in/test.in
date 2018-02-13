@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
 Ny = 201
-Nz = 151
+Nz = 301
 Ly = 60 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -12,7 +12,7 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
@@ -23,11 +23,7 @@ sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-<<<<<<< HEAD
-inputDir = /data/dunham/kallison/eqcycle/inputData/he/qdwo_Nz301_
-=======
-inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v29_
->>>>>>> kali
+inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v27_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -39,8 +35,8 @@ momBal_computeSxz = 1
 #======================================================================
 # rate-and-state parameters
 
-#DcVals = [12e-3 12e-3] # m
-DcVals = [1 1] # m
+DcVals = [12e-3 12e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -48,12 +44,6 @@ aVals = [0.0135 0.0300 0.0700 0.2652]
 aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
-
-# VS
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.01 0.01 0.0350 0.0375 0.0497]
-#bDepths = [0 13 13 19.3333 60]
 
 
 # with varying degrees of overpressure
@@ -74,7 +64,6 @@ stateLaw = agingLaw
 
 #======================================================================
 # off-fault material parameters
-
 
 muVals = [30 30] # GPa
 muDepths = [0 60] # m
@@ -119,35 +108,25 @@ cDepths = [0 60]
 TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 thermalCoupling = coupled
-heatEquationType = steadyState
+heatEquationType = transient
 withShearHeating = yes
 withFrictionalHeating = no
 
-<<<<<<< HEAD
-maxEffVisc = 1e18
-maxSSIts_tau = 500
-=======
 maxEffVisc = 1e17
 maxSSIts_tau = 180
->>>>>>> kali
 
 fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 5
-#maxSSIts_timesteps = 5
+#maxSSIts_timesteps = 10
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43
-<<<<<<< HEAD
-stride1D = 20
-stride2D = 20
-=======
-stride1D = 50
-stride2D = 50
->>>>>>> kali
+timeIntegrator = RK43_WBE
+stride1D = 10
+stride2D = 10
 maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
@@ -155,19 +134,11 @@ initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e10
 atol = 1e-6
-<<<<<<< HEAD
-#timeIntInds = [psi slip]
-timeIntInds = [slip gVxy gVxz]
-
-=======
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
 
 outputDir = /scratch/kallison/versions/v31_
->>>>>>> kali
-
-outputDir = /scratch/kallison/versions/v29_
 
 
 
