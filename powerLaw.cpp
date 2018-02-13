@@ -1492,16 +1492,16 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   VecScale(_u,time);
 
   // make u always positive
-  //~ PetscScalar minVal = 0;
-  //~ VecMin(_u,NULL,&minVal);
-  //~ if (minVal < 0) {
-    //~ minVal = abs(minVal);
-    //~ Vec temp;
-    //~ VecDuplicate(_u,&temp);
-    //~ VecSet(temp,minVal);
-    //~ VecAXPY(_u,1.,temp);
-    //~ VecDestroy(&temp);
-  //~ }
+  PetscScalar minVal = 0;
+  VecMin(_u,NULL,&minVal);
+  if (minVal < 0) {
+    minVal = abs(minVal);
+    Vec temp;
+    VecDuplicate(_u,&temp);
+    VecSet(temp,minVal);
+    VecAXPY(_u,1.,temp);
+    VecDestroy(&temp);
+  }
 
 
   PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;

@@ -287,6 +287,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   VecSet(_material->_bcR,_vL*_initTime/2.0);

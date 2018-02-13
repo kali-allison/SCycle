@@ -220,6 +220,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
 
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
+
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
@@ -418,11 +420,7 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   _sbp->computeMatrices(); // actually create the matrices
 
 
-  Mat A;
-  _sbp->getA(A);
 
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc,A);
 
   return ierr;
   #if VERBOSE > 1
