@@ -22,8 +22,8 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.1),_fss_EffVisc(0.2),_gss_t(1e-12),_maxSSIts_effVisc(30),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
-  _atolSS_effVisc(1e-3)
+  _fss_T(0.1),_fss_EffVisc(0.2),_gss_t(1e-12),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _atolSS_effVisc(1e-4)
 {
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd()";
@@ -307,6 +307,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(A,_material->_ksp,_material->_pc);
   //~ if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   Vec slip;
@@ -352,7 +355,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 5e10) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 1e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -368,7 +371,7 @@ double startTime = MPI_Wtime();
   if (stepCount % 50 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
     _material->computeMaxTimeStep(maxDeltaT_momBal);
-    maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
+    maxTimeStep_tot = min(_maxDeltaT,0.8*maxDeltaT_momBal);
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
@@ -423,7 +426,7 @@ double startTime = MPI_Wtime();
   if (stepCount % 50 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
     _material->computeMaxTimeStep(maxDeltaT_momBal);
-    maxTimeStep_tot = min(_maxDeltaT,maxDeltaT_momBal);
+    maxTimeStep_tot = min(_maxDeltaT,0.8*maxDeltaT_momBal);
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
@@ -615,8 +618,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
   // rates for fault
-  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
-  //~ ierr = _fault->d_dt_mms(time,varEx,dvarEx); // for MMS tests
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+    ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+  }
+  else {
+    VecSet(dvarEx["psi"],0.);
+    VecSet(dvarEx["slip"],0.);
+  }
 
   return ierr;
 }
@@ -676,7 +684,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
 
   // rates for fault
-  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+    ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+  }
+  else {
+    VecSet(dvarEx["psi"],0.);
+    VecSet(dvarEx["slip"],0.);
+  }
 
 
   // heat equation
@@ -867,6 +881,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   _material->initiateVarSS(_varSS);
   //~ _fault->initiateVarSS(_varSS);
   _varSS["slipVel"] = _fault->_slipVel;
+  VecCopy(_varSS["tau"],_fault->_tauQSP);
+  VecCopy(_varSS["tau"],_fault->_tauP);
 
   VecDestroy(&tauRS);
   VecDestroy(&tauVisc);
@@ -929,6 +945,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem()
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
     //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
     //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
+
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
     MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
     VecCopy(temp,_varSS["effVisc"]);

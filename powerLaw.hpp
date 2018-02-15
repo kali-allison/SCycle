@@ -61,7 +61,6 @@ class PowerLaw
     PC               _pc_eta;
     PetscScalar      _ssEffViscScale; // imposed upper limit on effective viscosity for steady state computation
     PetscErrorCode    initializeSSMatrices(); // compute Bss and Css
-    Vec              _effViscTemp;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;

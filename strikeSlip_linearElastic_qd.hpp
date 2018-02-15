@@ -90,7 +90,7 @@ private:
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     //~ Fault                      *_fault;
-    NewFault_qd                      *_fault;
+    NewFault_qd                *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

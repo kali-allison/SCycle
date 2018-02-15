@@ -324,8 +324,6 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_u,&_gTxy); VecSet(_gTxy,0.0);
   VecDuplicate(_u,&_gTxz); VecSet(_gTxz,0.0);
 
-  ierr = VecDuplicate(_u,&_effViscTemp);CHKERRQ(ierr);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -475,9 +473,9 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   _sbp->computeMatrices(); // actually create the matrices
 
 
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  Mat A; _sbp->getA(A);
-  setupKSP(A,_ksp,_pc);
+  //~ KSPCreate(PETSC_COMM_WORLD,&_ksp);
+  //~ Mat A; _sbp->getA(A);
+  //~ setupKSP(A,_ksp,_pc);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1049,16 +1047,10 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   VecGetArrayRead(_n,&n);
   VecGetArrayRead(_T,&T);
   VecGetArray(_effVisc,&effVisc);
-  VecGetArray(_effViscTemp,&effViscTemp);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar invEffVisc = 1e3 * A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap;
     effVisc[Jj] = 1.0/invEffVisc;
-
-    effViscTemp[Jj] = _ssEffViscScale * 1.0 / (A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) + 1./viscCap);
-
-    //~ effVisc[Jj] = 1e-3 / ( A[Jj]*pow(sigmadev[Jj],n[Jj]-1.0)*exp(-B[Jj]/T[Jj]) ) ;
-    //~ effVisc[Jj] = min(effVisc[Jj],viscCap);
 
     assert(~isnan(effVisc[Jj]));
     assert(~isinf(effVisc[Jj]));
@@ -1070,7 +1062,6 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   VecRestoreArrayRead(_n,&n);
   VecRestoreArrayRead(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
-  VecRestoreArray(_effViscTemp,&effViscTemp);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1353,20 +1344,15 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ VecCopy(_effVisc,_effViscTemp); VecScale(_effViscTemp,_ssEffViscScale);
-
   // set up SBP operators
   if (_sbpType.compare("mc")==0) {
     _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc")==0) {
     _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    //~ _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effViscTemp);
     _sbp_eta->setGrid(_y,_z);
   }
   else {

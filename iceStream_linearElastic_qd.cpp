@@ -31,11 +31,10 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  // heat equation
-  //~ if (_thermalCoupling.compare("no")!=0) {
+  if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
-  //~ }
-  _fault = new SymmFault(D,*_he); // fault
+  }
+  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -76,6 +75,8 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
+  constructForcingTerm();
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -96,6 +97,8 @@ IceStream_LinearElastic_qd::~IceStream_LinearElastic_qd()
   for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
     VecDestroy(&it->second);
   }
+
+  VecDestroy(&_forcingTerm);
 
 
   delete _quadImex;    _quadImex = NULL;
@@ -283,9 +286,16 @@ PetscErrorCode IceStream_LinearElastic_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
-  VecSet(_material->_bcR,_vL*_initTime/2.0);
+  //~ VecSet(_material->_bcR,_vL*_initTime/2.0);
+  VecSet(_material->_bcR,0.0);
+  VecSet(_material->_bcT,0.0);
+  VecSet(_material->_bcB,0.0);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -442,10 +452,13 @@ PetscErrorCode IceStream_LinearElastic_qd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
-  _material->writeContext(_outputDir);
-   _he->writeContext(_outputDir);
-  _fault->writeContext(_outputDir);
+  ierr = writeVec(_forcingTerm,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
 
+  _material->writeContext(_outputDir);
+  _fault->writeContext(_outputDir);
+  if (_thermalCoupling.compare("no")!=0) { // heat equation
+    _he->writeContext(_outputDir);
+  }
   if (_hydraulicCoupling.compare("no")!=0) {
     _p->writeContext(_outputDir);
   }
@@ -533,9 +546,6 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-
 
   _fault->updateFields(time,varEx);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
@@ -552,7 +562,7 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -584,8 +594,6 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _fault->updateFields(time,varEx);
 
@@ -593,10 +601,10 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
     _p->updateFields(time,varEx,varImo);
   }
 
-  // update temperature in momBal
-  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    _fault->setTemp(varImo.find("Temp")->second);
-  }
+  //~ // update temperature in momBal
+  //~ if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+    //~ _fault->setTemp(varImo.find("Temp")->second);
+  //~ }
 
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) {
@@ -613,7 +621,7 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -648,9 +656,21 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
   _material->setRHS();
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
-  //!!! add source term for driving the ice stream here
-  // remember to multiply this term by H*J (the H matrix and the Jacobian)
-  // rhs = rhs + (term)
+  // add source term for driving the ice stream
+  // multiply this term by H*J (the H matrix and the Jacobian)
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+    VecDestroy(&temp1);
+  }
+  else{
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+  }
 
   _material->computeU();
   _material->computeStresses();
@@ -669,16 +689,33 @@ PetscErrorCode IceStream_LinearElastic_qd::solveSS()
 
   // compute steady state stress on fault
   Vec tauSS = NULL;
-  _fault->getTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+  _fault->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
   }
-  //~ ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
   VecCopy(tauSS,_material->_bcL);
+  VecSet(_material->_bcR,0.);
+  VecSet(_material->_bcT,0.);
+  VecSet(_material->_bcB,0.);
+
   _material->setRHS();
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+    VecDestroy(&temp1);
+  }
+  else{
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+  }
   _material->computeU();
   _material->computeStresses();
 
@@ -686,7 +723,7 @@ PetscErrorCode IceStream_LinearElastic_qd::solveSS()
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr);
+  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
   // update boundary conditions, stresses
   solveSSb();
@@ -751,6 +788,60 @@ PetscErrorCode IceStream_LinearElastic_qd::solveSSb()
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode IceStream_LinearElastic_qd::constructForcingTerm()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "IceStream_LinearElastic_qd::constructForcingTerm";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+
+
+  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  Mat MapV;
+  MatCreate(PETSC_COMM_WORLD,&MapV);
+  MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
+  MatSetFromOptions(MapV);
+  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
+  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  MatSetUp(MapV);
+
+  PetscScalar v=1.0;
+  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  MatGetOwnershipRange(MapV,&Istart,&Iend);
+  for (Ii = Istart; Ii < Iend; Ii++) {
+    Jj = Ii % _D->_Nz;
+    MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+
+
+  // compute forcing term for momentum balance equation
+
+  Vec temp = NULL;
+  _fault->computeTauRS(temp,_vL);
+  VecScale(temp,-1./_D->_Ly);
+
+
+  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  MatMult(MapV,temp,_forcingTerm);
+
+  //~ VecSet(_forcingTerm,5e-3);
+
+  MatDestroy(&MapV);
+  VecDestroy(&temp);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }

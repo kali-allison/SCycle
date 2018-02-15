@@ -419,9 +419,6 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   _sbp->setMultiplyByH(1);
   _sbp->computeMatrices(); // actually create the matrices
 
-
-
-
   return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -600,12 +597,16 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "bcB"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "bcT"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

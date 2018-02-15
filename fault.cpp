@@ -391,7 +391,7 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar psiSS = _f0;
     //~ tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
-    PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log(vL/_v0);
+    PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log10(vL/_v0);
     tauRSV[Jj] = sN[Jj] * f;
     Jj++;
   }
