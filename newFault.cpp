@@ -855,9 +855,10 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
     //~ ierr = slipLaw_theta_Vec(dstate, _theta, _slipVel, _Dc); CHKERRQ(ierr);
     ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
-  //~ else if (_stateLaw.compare("flashHeating") == 0) {
-    //~ ierr = flashHeating_psi(Ii,psi,dpsi);CHKERRQ(ierr);
-  //~ }
+  else if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_D_fh,_Tw,_tau_c,_Vw,_fw,_Dc,_a,_b,_f0,_v0);
+    CHKERRQ(ierr);
+  }
   else if (_stateLaw.compare("constantState") == 0) {
     // dpsi = 0; psi = f0 - b*ln(|V|/v0)
     VecSet(dstate,0.);

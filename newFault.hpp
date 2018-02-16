@@ -269,7 +269,7 @@ PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipV
 // flash heating: slip law, state variable: psi
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0);
 
-PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, const Vec& D, const PetscScalar& Tw, const Vec& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0);
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0);
 
 
 // frictional strength, regularized form, for state variable psi
