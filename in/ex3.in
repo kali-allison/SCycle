@@ -46,8 +46,8 @@ vL = 1.15e-5
 linSolver = MUMPSCHOLESKY
 
 # coordinate transformation
-bCoordTrans = 3.0
-sbpType = mfc_coordTrans
+#bCoordTrans = 3.0
+#sbpType = mfc_coordTrans
 #sbpType = mfc
 
 muVals = [3.6 3.6] # (GPa) shear modulus

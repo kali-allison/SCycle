@@ -100,7 +100,7 @@ class PowerLaw
 
     // for steady state computations
     PetscErrorCode updateSSa(map<string,Vec>& varSS);
-    PetscErrorCode updateSSb(map<string,Vec>& varSS);
+    PetscErrorCode updateSSb(map<string,Vec>& varSS,const PetscScalar time);
     PetscErrorCode initiateVarSS(map<string,Vec>& varSS);
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
     PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc

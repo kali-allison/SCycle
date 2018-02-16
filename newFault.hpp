@@ -189,12 +189,12 @@ class NewFault_dyn: public NewFault
 struct ComputeVel_qd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi,*_locked;
+  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi,*_locked,*_Co;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0;
 
   // constructor and destructor
-  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar *locked);
+  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar *locked,const PetscScalar *Co);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -204,26 +204,6 @@ struct ComputeVel_qd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
-
-// computing the slip velocity for the quasi-dynamic problem with constant state variable
-struct ComputeVel_qd_constPsi : public RootFinderContext
-{
-  // shallow copies of contextual fields
-  const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_locked;
-  const PetscInt      _N; // length of the arrays
-  const PetscScalar   _v0,_f0;
-
-  // constructor and destructor
-  ComputeVel_qd_constPsi(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& f0,const PetscScalar *locked);
-
-  // command to perform root-finding process, once contextual variables have been set
-  PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
-
-  // function that matches root finder template
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
-};
-
 
 // computing the slip velocity for the dynamic problem
 struct ComputeVel_dyn : public RootFinderContext

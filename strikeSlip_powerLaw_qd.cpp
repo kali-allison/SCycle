@@ -22,8 +22,8 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.1),_fss_EffVisc(0.2),_gss_t(1e-12),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
-  _atolSS_effVisc(1e-4)
+  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd()";
@@ -307,9 +307,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Mat A;
-  _material->_sbp->getA(A);
-  _material->setupKSP(A,_material->_ksp,_material->_pc);
+  //~ Mat A;
+  //~ _material->_sbp->getA(A);
+  //~ _material->setupKSP(A,_material->_ksp,_material->_pc);
   //~ if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   Vec slip;
@@ -355,7 +355,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 1e10) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 2e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -408,7 +408,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && _stepCount > 500) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -827,7 +827,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _material->updateTemperature(_varSS["Temp"]);
     }
 
-    ierr = _material->updateSSb(_varSS); CHKERRQ(ierr);
+    ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);
     setSSBCs();
     ierr = _material->getStresses(sxy,sxz,sdev);
     //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
@@ -869,6 +869,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   // tauSS = min(tauRS,tauVisc)
   VecDuplicate(tauRS,&tauSS);
   VecPointwiseMin(tauSS,tauRS,tauVisc);
+  //~ VecCopy(tauRS,tauSS);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -906,7 +907,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
   _material->initiateVarSS(_varSS);
 
   solveSSViscoelasticProblem(); // converge to steady state eta etc
-  ierr = _material->updateSSb(_varSS); CHKERRQ(ierr); // solve for gVxy, gVxz
+  ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr); // solve for gVxy, gVxz
   setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
 
   Vec sxy,sxz,sdev;

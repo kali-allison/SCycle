@@ -473,9 +473,9 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   _sbp->computeMatrices(); // actually create the matrices
 
 
-  //~ KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  //~ Mat A; _sbp->getA(A);
-  //~ setupKSP(A,_ksp,_pc);
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
+  Mat A; _sbp->getA(A);
+  setupKSP(A,_ksp,_pc);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1463,7 +1463,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 }
 
 // solve for steady-state u, gVxy
-PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
+PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1473,7 +1473,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS)
   #endif
 
   // compute u
-  PetscScalar time = 1.0;
+  //~ PetscScalar time = 1.0;
   VecCopy(varSS["v"],_u);
   VecScale(_u,time);
 

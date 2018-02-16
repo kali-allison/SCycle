@@ -793,36 +793,33 @@ PetscErrorCode NewFault_qd::computeVel()
   #endif
 
   // initialize struct to solve for the slip velocity
-  PetscScalar *etaA, *tauQSA, *sNA, *psiA, *aA,*bA,*slipVelA,*lockedA;
+  PetscScalar *slipVelA;
+  PetscScalar const *etaA, *tauQSA, *sNA, *psiA, *aA,*bA,*lockedA,*Co;
   VecGetArray(_slipVel,&slipVelA);
-  VecGetArray(_eta_rad,&etaA);
-  VecGetArray(_tauQSP,&tauQSA);
-  VecGetArray(_sNEff,&sNA);
-  VecGetArray(_psi,&psiA);
-  VecGetArray(_a,&aA);
-  VecGetArray(_b,&bA);
-  VecGetArray(_locked,&lockedA);
+  VecGetArrayRead(_eta_rad,&etaA);
+  VecGetArrayRead(_tauQSP,&tauQSA);
+  VecGetArrayRead(_sNEff,&sNA);
+  VecGetArrayRead(_psi,&psiA);
+  VecGetArrayRead(_a,&aA);
+  VecGetArrayRead(_b,&bA);
+  VecGetArrayRead(_locked,&lockedA);
+  VecGetArrayRead(_cohesion,&Co);
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
 
-  if (_stateLaw.compare("constantState") == 0) {
-    ComputeVel_qd_constPsi temp(N,etaA,tauQSA,sNA,aA,bA,_v0,_f0,lockedA);
-    ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
-  }
-  else {
-    ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA);
-    ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
-  }
+  ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA,Co);
+  ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
   VecGetArray(_slipVel,&slipVelA);
-  VecGetArray(_eta_rad,&etaA);
-  VecGetArray(_tauQSP,&tauQSA);
-  VecGetArray(_sNEff,&sNA);
-  VecGetArray(_psi,&psiA);
-  VecGetArray(_a,&aA);
-  VecGetArray(_b,&bA);
-  VecGetArray(_locked,&lockedA);
+  VecGetArrayRead(_eta_rad,&etaA);
+  VecGetArrayRead(_tauQSP,&tauQSA);
+  VecGetArrayRead(_sNEff,&sNA);
+  VecGetArrayRead(_psi,&psiA);
+  VecGetArrayRead(_a,&aA);
+  VecGetArrayRead(_b,&bA);
+  VecGetArrayRead(_locked,&lockedA);
+  VecGetArrayRead(_cohesion,&Co);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -864,7 +861,6 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
   else if (_stateLaw.compare("constantState") == 0) {
     // dpsi = 0; psi = f0 - b*ln(|V|/v0)
     VecSet(dstate,0.);
-    ierr = agingLaw_constPsi_Vec(_psi,_slipVel, _b, _v0,_f0); CHKERRQ(ierr);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"_stateLaw not understood!\n");
@@ -918,8 +914,8 @@ PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
 // functions for structs
 //======================================================================
 
-ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar* locked)
-: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_locked(locked),_N(N),_v0(v0)
+ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar* locked,const PetscScalar* Co)
+: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_locked(locked),_Co(Co),_N(N),_v0(v0)
 { }
 
 PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -984,7 +980,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel + _Co[Jj]; // stress on fault
 
   *out = strength - stress;
   assert(!isnan(*out));
@@ -999,7 +995,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel + _Co[Jj]; // stress on fault
 
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
@@ -1010,114 +1006,6 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   assert(!isnan(*J)); assert(!isinf(*J));
   return ierr;
 }
-
-
-
-
-ComputeVel_qd_constPsi::ComputeVel_qd_constPsi(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& f0,const PetscScalar *locked)
-: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_N(N),_v0(v0),_f0(f0),_locked(locked)
-{ }
-
-PetscErrorCode ComputeVel_qd_constPsi::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd_constPsi::computeVel";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  PetscScalar left, right, out, temp;
-  for (PetscInt Jj = 0; Jj< _N; Jj++) {
-
-    if (_locked[Jj] > 0.) { // if fault is locked, hold slip velocity at 0
-      slipVelA[Jj] = 0.;
-      break;
-    }
-
-    if (_a[Jj] <= _b[Jj]) { // make VW region slip at SS rate
-      slipVelA[Jj] = 1e-9;
-      break;
-    }
-
-    left = 0.;
-    right = _tauQS[Jj] / _eta[Jj];
-
-    // check bounds
-    if (isnan(left)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd_constPsi::computeVel: left bound evaluated to NaN.\n");
-      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
-      assert(0);
-    }
-    if (isnan(right)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd_constPsi::computeVel: right bound evaluated to NaN.\n");
-      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
-      assert(0);
-    }
-    // correct for left-lateral fault motion
-    if (left > right) {
-      temp = right;
-      right = left;
-      left = temp;
-    }
-
-    out = slipVelA[Jj];
-    if (abs(left-right)<1e-14) { out = left; }
-    else {
-      Bisect rootFinder(maxNumIts,rootTol);
-      ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
-      rootIts += rootFinder.getNumIts();
-
-      //~ PetscScalar x0 = slipVelA[Jj];
-      //~ BracketedNewton rootFinder(maxNumIts,rootTol);
-      //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
-      //~ rootIts += rootFinder.getNumIts();
-    }
-    slipVelA[Jj] = out;
-  }
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// Compute residual for equation to find slip velocity.
-// This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeVel_qd_constPsi::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar strength = strength_constPsi(_sN[Jj], vel, _a[Jj], _b[Jj], _v0, _f0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
-
-  *out = strength - stress;
-  assert(!isnan(*out));
-  assert(!isinf(*out));
-  return ierr;
-}
-
-// compute residual for equation to find slip velocity
-// This form is for root finding algorithms that require the Jacobian, such as the bracketed Newton method.
-PetscErrorCode ComputeVel_qd_constPsi::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar *out,PetscScalar *J)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar strength = strength = strength_constPsi(_sN[Jj], vel, _a[Jj], _b[Jj], _v0, _f0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
-
-  *out = strength - stress;
-  PetscScalar A = _a[Jj]*_sN[Jj];
-  PetscScalar B = exp(_f0/_a[Jj]) / (2.*_v0);
-  *J = A*B/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
-
-  assert(!isnan(*out)); assert(!isinf(*out));
-  assert(!isnan(*J)); assert(!isinf(*J));
-  return ierr;
-}
-
-
 
 NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
 : NewFault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
@@ -1864,33 +1752,6 @@ PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel,
 
   return ierr;
 }
-
-// computes steady-state psi
-PetscScalar agingLaw_constPsi_Vec(Vec& psi, const Vec& slipVel, const Vec& b, const PetscScalar& v0,const PetscScalar& f0)
-{
-  PetscErrorCode ierr = 0;
-
-  PetscScalar *psiA;
-  PetscScalar const *V,*bA;
-  VecGetArray(psi,&psiA);
-  VecGetArrayRead(slipVel,&V);
-  VecGetArrayRead(b,&bA);
-  PetscInt Jj = 0; // local array index
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    psiA[Jj] = f0 - bA[Jj]*log(abs(V[Jj])/v0);
-    Jj++;
-  }
-  VecRestoreArray(psi,&psiA);
-  VecRestoreArrayRead(slipVel,&V);
-  VecRestoreArrayRead(b,&bA);
-
-  return ierr;
-}
-
-
-
 
 // frictional strength, regularized form, for state variable psi
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0)
