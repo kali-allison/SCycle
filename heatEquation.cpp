@@ -9,7 +9,7 @@ HeatEquation::HeatEquation(Domain& D)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _heatEquationType("transient"),_isMMS(D._isMMS),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
-  _heatFieldsDistribution("unspecified"),_kFile("unspecified"),
+  _kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
   _surfaceHeatFlux(NULL),_heatFlux(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),
@@ -145,9 +145,6 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
 
     if (var.compare("heatEquationType")==0) {
       _heatEquationType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    if (var.compare("heatFieldsDistribution")==0) {
-      _heatFieldsDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("withViscShearHeating")==0) {
       _wViscShearHeating = line.substr(pos+_delim.length(),line.npos).c_str();
@@ -389,10 +386,6 @@ PetscErrorCode HeatEquation::checkInput()
 
   assert(_heatEquationType.compare("transient")==0 ||
       _heatEquationType.compare("steadyState")==0 );
-
-  assert(_heatFieldsDistribution.compare("mms")==0 ||
-      _heatFieldsDistribution.compare("layered")==0 ||
-      _heatFieldsDistribution.compare("loadFromFile")==0 );
 
   assert(_kVals.size() == _kDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );

@@ -1,7 +1,7 @@
 order = 4 # SBP order of accuracy
 Ny = 227
 Nz = 201
-Ly = 60 # (km) horizontal domain size
+Ly = 30 # (km) horizontal domain size
 Lz = 40 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -36,8 +36,8 @@ momBal_computeSxz = 1
 # rate-and-state parameters
 
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [12e-3 12e-3] # m
-DcVals = [1 1] # m
+DcVals = [12e-3 12e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -54,9 +54,9 @@ bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
 # with varying degrees of overpressure
-#sNVals = [0 505.1] # lambda = 0.37
+sNVals = [0 505.1] # lambda = 0.37
 #sNVals = [0 320.9] # lambda = 0.6
-sNVals = [0 160.4] # lambda = 0.8
+#sNVals = [0 160.4] # lambda = 0.8
 #sNVals = [50 50] # MPa
 sNDepths = [0 40]
 sN_floor = 5.0; # MPa
@@ -146,7 +146,7 @@ timeIntInds = [psi slip]
 #timeIntInds = [slip gVxy gVxz]
 
 
-outputDir = /scratch/kallison/sheet4/v1b_
+#outputDir = /scratch/kallison/sheet4/v1b_
 
 
 

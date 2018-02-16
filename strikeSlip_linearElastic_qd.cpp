@@ -553,7 +553,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     _p->updateFields(time,varEx);
   }
 
-
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
@@ -564,8 +563,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
-
-
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -631,15 +628,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
     //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
-    //~ Vec sxy,sxz,sdev;
-    //~ _material->getStresses(sxy,sxz,sdev);
-    //~ Vec V = dvarEx.find("slip")->second;
-    //~ Vec tau = _fault->_tauP;
-    //~ Vec gVxy_t = dvarEx.find("gVxy")->second;
-    //~ Vec gVxz_t = dvarEx.find("gVxz")->second;
-    //~ Vec Told = varImo.find("Temp")->second;
-    //~ ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
-    //~ // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+    Vec sxy,sxz,sdev;
+    _material->getStresses(sxy,sxz,sdev);
+    Vec V = dvarEx.find("slip")->second;
+    Vec tau = _fault->_tauP;
+    Vec gVxy_t = NULL;
+    Vec gVxz_t = NULL;
+    Vec Told = varImo.find("Temp")->second;
+    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 
   #if VERBOSE > 1

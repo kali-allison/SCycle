@@ -249,7 +249,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
 
   // Allocate fields. All fields in this class match the parallel structure of Domain's y0 Vec
   VecDuplicate(D._y0,&_tauP);     PetscObjectSetName((PetscObject) _tauP, "tau"); VecSet(_tauP,0.0);
-  VecDuplicate(_tauP,&_tauQSP);     PetscObjectSetName((PetscObject) _tauQSP, "tauQS");  VecSet(_tauQSP,0.0);
+  VecDuplicate(_tauP,&_tauQSP);   PetscObjectSetName((PetscObject) _tauQSP, "tauQS");  VecSet(_tauQSP,0.0);
   VecDuplicate(_tauP,&_psi);      PetscObjectSetName((PetscObject) _psi, "psi"); VecSet(_psi,0.0);
   VecDuplicate(_tauP,&_dPsi);     PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
   VecDuplicate(_tauP,&_slip);     PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
@@ -263,8 +263,8 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauP,&_z);        PetscObjectSetName((PetscObject) _z, "z_fault");
   VecDuplicate(_tauP,&_rho);      PetscObjectSetName((PetscObject) _rho, "rho_fault");
   VecDuplicate(_tauP,&_mu);       PetscObjectSetName((PetscObject) _mu, "mu_fault");
-  VecDuplicate(_tauP,&_locked);       PetscObjectSetName((PetscObject) _locked, "locked");
-  VecDuplicate(_tauP,&_tau0);       PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
+  VecDuplicate(_tauP,&_locked);   PetscObjectSetName((PetscObject) _locked, "locked");
+  VecDuplicate(_tauP,&_tau0);     PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
 
   // create z from D._z
   double scatterStart = MPI_Wtime();
@@ -355,12 +355,12 @@ PetscErrorCode NewFault::updateTemperature(const Vec& T)
     std::string funcName = "NewFault::updateTemperature";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
-
-  double scatterStart = MPI_Wtime();
-  VecScatterBegin(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
-  _scatterTime += MPI_Wtime() - scatterStart;
-
+  if (_stateLaw.compare("flashHeating") == 0) {
+    double scatterStart = MPI_Wtime();
+    VecScatterBegin(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
+    _scatterTime += MPI_Wtime() - scatterStart;
+  }
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -375,12 +375,13 @@ PetscErrorCode NewFault::setTauQS(const Vec& sxy)
     std::string funcName = "NewFault::setTauQS";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
-  double scatterStart = MPI_Wtime();
-  VecScatterBegin(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
-  _scatterTime += MPI_Wtime() - scatterStart;
 
-   #if VERBOSE > 1
+    double scatterStart = MPI_Wtime();
+    VecScatterBegin(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
+    _scatterTime += MPI_Wtime() - scatterStart;
+
+  #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
@@ -657,7 +658,7 @@ PetscErrorCode NewFault::computePsiSS(const PetscScalar vL)
   VecGetArrayRead(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    psi[Jj] = _f0 - b[Jj]*log10(abs(vL)/_v0);
+    psi[Jj] = _f0 - b[Jj]*log(abs(vL)/_v0);
     Jj++;
   }
   VecRestoreArray(_psi,&psi);
@@ -1678,8 +1679,8 @@ PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slip
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
 {
   PetscScalar absV = abs(slipVel);
-  PetscScalar fss = f0 + (a-b)*log10(absV/v0);
-  PetscScalar f = psi + a*log10(absV/v0);
+  PetscScalar fss = f0 + (a-b)*log(absV/v0);
+  PetscScalar f = psi + a*log(absV/v0);
   PetscScalar dstate = -absV/Dc *(f - fss);
 
   assert(!isnan(dstate));
@@ -1722,7 +1723,7 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
 {
   PetscScalar A = state*slipVel/Dc;
   PetscScalar dstate = 0.;
-  if (A != 0.) { dstate = -A*log10(A); }
+  if (A != 0.) { dstate = -A*log(A); }
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
@@ -1764,17 +1765,17 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
   // compute Vw
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
-  PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
-  //~ PetscScalar Vw = Vwi;
+  //~ PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
+  PetscScalar Vw = Vwi;
 
   if (absV == 0.0) { absV += 1e-14; }
 
   // compute f
-  PetscScalar fLV = f0 + (a-b)*log10(absV/v0);
+  PetscScalar fLV = f0 + (a-b)*log(absV/v0);
   PetscScalar fss = fLV;
 
   if (absV > Vw) { fss = fw + (fLV - fw)*(Vw/absV); }
-  PetscScalar f = psi + a*log10(absV/v0);
+  PetscScalar f = psi + a*log(absV/v0);
   PetscScalar dpsi = -absV/Dc *(f - fss);
 
   //~ assert(!isnan(dpsi));

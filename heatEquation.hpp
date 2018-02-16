@@ -46,7 +46,6 @@ class HeatEquation
     std::string       _inputDir; // directory to load fields from
 
     // material parameters
-    std::string       _heatFieldsDistribution;
     std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
     std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
 
