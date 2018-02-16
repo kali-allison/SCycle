@@ -657,7 +657,7 @@ PetscErrorCode NewFault::computePsiSS(const PetscScalar vL)
   VecGetArrayRead(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    psi[Jj] = _f0 - b[Jj]*log(abs(vL)/_v0);
+    psi[Jj] = _f0 - b[Jj]*log10(abs(vL)/_v0);
     Jj++;
   }
   VecRestoreArray(_psi,&psi);
@@ -1602,7 +1602,7 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
 }
 
 // applies the aging law to a Vec
-PetscScalar agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
+PetscErrorCode agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
 {
   PetscErrorCode ierr = 0;
 
@@ -1648,7 +1648,7 @@ PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel,
 }
 
 // applies the aging law to a Vec
-PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
+PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
 {
   PetscErrorCode ierr = 0;
 
@@ -1676,9 +1676,10 @@ PetscScalar agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel
 // state evolution law: slip law, state variable: psi
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
 {
-  PetscScalar fss = f0 + (a-b)*log(slipVel/v0);
-  PetscScalar f = psi + a*log(slipVel/v0);
-  PetscScalar dstate = -slipVel/Dc *(f - fss);
+  PetscScalar absV = abs(slipVel);
+  PetscScalar fss = f0 + (a-b)*log10(absV/v0);
+  PetscScalar f = psi + a*log10(absV/v0);
+  PetscScalar dstate = -absV/Dc *(f - fss);
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
@@ -1686,7 +1687,7 @@ PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, cons
 }
 
 // applies the state law to a Vec
-PetscScalar slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
+PetscErrorCode slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc)
 {
   PetscErrorCode ierr = 0;
 
@@ -1720,15 +1721,15 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
 {
   PetscScalar A = state*slipVel/Dc;
   PetscScalar dstate = 0.;
-  if (A != 0.) { dstate = -A*log(A); }
+  if (A != 0.) { dstate = -A*log10(A); }
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
   return dstate;
 }
 
-// applies the state law to a Vec
-PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
+// applies the slip law to a Vec
+PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc)
 {
   PetscErrorCode ierr = 0;
 
@@ -1753,27 +1754,76 @@ PetscScalar slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel,
   return ierr;
 }
 
+
+// flash heating state evolution law
+PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
+{
+  PetscScalar absV = abs(slipVel);
+
+  // compute Vw
+  PetscScalar rc = rho * c;
+  PetscScalar ath = k/rc;
+  PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
+  //~ PetscScalar Vw = Vwi;
+
+  if (absV == 0.0) { absV += 1e-14; }
+
+  // compute f
+  PetscScalar fLV = f0 + (a-b)*log10(absV/v0);
+  PetscScalar fss = fLV;
+
+  if (absV > Vw) { fss = fw + (fLV - fw)*(Vw/absV); }
+  PetscScalar f = psi + a*log10(absV/v0);
+  PetscScalar dpsi = -absV/Dc *(f - fss);
+
+  //~ assert(!isnan(dpsi));
+  //~ assert(!isinf(dpsi));
+  return dpsi;
+}
+
+// applies the flash heating state law to a Vec
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar *dpsiA;
+  PetscScalar const *psiA,*slipVelA,*DcA,*TA,*rhoA,*cA,*kA,*aA,*bA;
+  VecGetArray(dpsi,&dpsiA);
+  VecGetArrayRead(psi,&psiA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(T,&TA);
+  VecGetArrayRead(rho,&rhoA);
+  VecGetArrayRead(c,&cA);
+  VecGetArrayRead(k,&kA);
+  VecGetArrayRead(Dc,&DcA);
+  VecGetArrayRead(a,&aA);
+  VecGetArrayRead(b,&bA);
+  PetscInt Jj = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],TA[Jj],rhoA[Jj],cA[Jj],kA[Jj],D,Tw,tau_c,Vwi,fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
+    Jj++;
+  }
+  VecRestoreArray(dpsi,&dpsiA);
+  VecRestoreArrayRead(psi,&psiA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(T,&TA);
+  VecRestoreArrayRead(rho,&rhoA);
+  VecRestoreArrayRead(c,&cA);
+  VecRestoreArrayRead(k,&kA);
+  VecRestoreArrayRead(Dc,&DcA);
+  VecRestoreArrayRead(a,&aA);
+  VecRestoreArrayRead(b,&bA);
+
+  return ierr;
+}
+
 // frictional strength, regularized form, for state variable psi
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0)
 {
   PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
   return strength;
 }
-
-// frictional strength, regularized form, for steady-state state variable psi
-PetscScalar strength_constPsi(const PetscScalar& sN, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& v0, const PetscScalar& f0)
-{
-  PetscScalar strength = 0;
-  if (slipVel != 0) {
-    strength = (PetscScalar) a*sN*asinh( (double) exp(f0/a)*0.5/v0 * slipVel*pow(abs(slipVel),-b/a));
-  }
-  else {
-    strength = (PetscScalar) a*sN*asinh( (double) exp(f0/a)*0.5/v0 * slipVel);
-  }
-  return strength;
-}
-
-
-
 
 

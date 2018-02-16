@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N v1c
+#PBS -N v1b
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outFiles/v1c.err
-#PBS -o /data/dunham/kallison/eqcycle/outFiles/v1c.out
+#PBS -e /data/dunham/kallison/eqcycle/outFiles/v1b.err
+#PBS -o /data/dunham/kallison/eqcycle/outFiles/v1b.out
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
 INIT_DIR=/data/dunham/kallison/eqcycle/in
