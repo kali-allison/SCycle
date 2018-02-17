@@ -16,7 +16,7 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _bcRType("freeSurface"),_bcTType("freeSurface"),_bcLType("rigid_fault"),_bcBType("freeSurface"),
@@ -165,6 +165,9 @@ PetscErrorCode IceStream_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
+    }
+    else if (var.compare("normType")==0) {
+      _normType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -507,22 +510,24 @@ PetscErrorCode IceStream_LinearElastic_qd::integrate()
   }
 
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
-    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    ierr = _quadImex->setTimeRange(_initTime,_maxTime);
+    ierr = _quadImex->setTolerance(_atol); CHKERRQ(ierr);
+    ierr = _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT); CHKERRQ(ierr);
+    ierr = _quadImex->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
+    ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds); // control which fields are used to select step size
 
-    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this); CHKERRQ(ierr);
   }
   else {
-    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
-    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    ierr = _quadEx->setTimeRange(_initTime,_maxTime);
+    ierr = _quadEx->setTolerance(_atol);CHKERRQ(ierr); CHKERRQ(ierr);
+    ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT); CHKERRQ(ierr);
+    ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
+    ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
 
-    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this); CHKERRQ(ierr);
   }
 
   _integrateTime += MPI_Wtime() - startTime;
@@ -551,7 +556,6 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
   }
-
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);

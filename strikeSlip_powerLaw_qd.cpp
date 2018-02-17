@@ -32,11 +32,13 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
-
   _he = new HeatEquation(D); // heat equation
-  //~ _fault = new SymmFault(D,*_he); // fault
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
-
+  if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
+    Vec T; VecDuplicate(_D->_y,&T);
+    _he->getTemp(T);
+    _fault->setThermalFields(T,_he->_k,_he->_c);
+  }
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
     _p = new PressureEq(D);
@@ -140,6 +142,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     }
     else if (var.compare("hydraulicCoupling")==0) {
       _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("stateLaw")==0) {
+      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     else if (var.compare("guessSteadyStateICs")==0) {
@@ -291,6 +296,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
     _bcBType.compare("symm_fault")==0 ||
     _bcBType.compare("rigid_fault")==0 );
 
+  if (_stateLaw.compare("flashHeating")==0) {
+    assert(_thermalCoupling.compare("no")!=0);
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -355,7 +364,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 2e10) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 5e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -408,7 +417,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && time > 5e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -483,6 +492,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
@@ -768,7 +779,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   Vec T; VecDuplicate(_varSS["effVisc"],&T); _varSS["Temp"] = T; _he->getTemp(_varSS["Temp"]);
   if (_thermalCoupling.compare("coupled")==0) {
     _material->getStresses(sxy,sxz,sdev);
-    _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+    _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
     _material->updateTemperature(_varSS["Temp"]);
   }
   VecCopy(_fault->_tauQSP,_varSS["tau"]);
@@ -821,10 +832,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     if (_thermalCoupling.compare("coupled")==0) {
       _material->getStresses(sxy,sxz,sdev);
       VecCopy(_varSS["Temp"],T_old);
-      _he->computeSteadyStateTemp(_currTime,NULL,NULL,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+      _he->computeSteadyStateTemp(_currTime,_varEx["slip"],_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
       VecScale(_varSS["Temp"],_fss_T);
       VecAXPY(_varSS["Temp"],1.-_fss_T,T_old);
       _material->updateTemperature(_varSS["Temp"]);
+      _fault->updateTemperature(_varSS["Temp"]);
     }
 
     ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);

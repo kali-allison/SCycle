@@ -1,9 +1,9 @@
-# Example input file for a 2D linear elastic simulation for an ice stream,
+# Example input file for a 2D linear elastic simulation of an ice stream,
 # using the quasi-dynamic approximation.
 
 # set up the computational domain
 Ny = 101 # points in y-direction
-Nz = 101 # points in z-direction
+Nz = 102 # points in z-direction
 Ly = 0.8 # (km) horizontal domain size
 Lz = 200 # (km) vertical domain size
 
@@ -25,7 +25,8 @@ v0 = 1e-5
 #lockedVals = [1 1 0 0 1 1]
 #lockedDepths = [0 10 10 20 20 200]
 
-DcVals = [3e-2 3e-2] # m
+#DcVals = [3e-2 3e-2] # m
+DcVals = [1 1] # m
 DcDepths = [0 200] # m
 
 # ice stream values
@@ -48,7 +49,7 @@ linSolver = MUMPSCHOLESKY
 # coordinate transformation
 #bCoordTrans = 3.0
 #sbpType = mfc_coordTrans
-#sbpType = mfc
+sbpType = mfc
 
 muVals = [3.6 3.6] # (GPa) shear modulus
 muDepths = [0 200] # (km)
@@ -57,6 +58,7 @@ rhoDepths = [0 200] # (km)
 
 # boundary conditions
 momBal_bcR_qd = freeSurface
+#momBal_bcR_qd = remoteLoading
 momBal_bcT_qd = freeSurface
 momBal_bcL_qd = rigid_fault
 momBal_bcB_qd = freeSurface
@@ -72,13 +74,14 @@ stride2D = 10 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 1e15 # (s) final time
-initDeltaT = 1e-4 # (s) size of initial time step
-minDeltaT = 1e-4 # (s) size of minimum time step
-maxDeltaT = 1e8 # (s) size of maximum time step
-atol = 1e-6 # absolute tolerance for time integration
-#timeIntInds = [psi slip] # variables to use to compute time step
-timeIntInds = [slip] # variables to use to compute time step
-
+initDeltaT = 1e-5 # (s) size of initial time step
+minDeltaT = 1e-5 # (s) size of minimum time step
+maxDeltaT = 1e12 # (s) size of maximum time step
+atol = 1e-8 # absolute tolerance for time integration
+#timeIntInds = [psi] # variables to use to compute time step
+timeIntInds = [psi slip] # variables to use to compute time step
+#timeIntInds = [slip] # variables to use to compute time step
+normType = L2_absolute
 
 # directory for output
 #outputDir = data/ex3_

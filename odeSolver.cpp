@@ -7,7 +7,7 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,stri
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),
   _runTime(0),
-  _controlType(controlType)
+  _controlType(controlType),_normType("L2_relative")
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -53,6 +53,26 @@ PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
 #endif
   return 0;
 }
+
+PetscErrorCode OdeSolver::setToleranceType(const std::string normType)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setToleranceType in odeSolver.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  _normType = normType;
+  assert(_normType.compare("L2_relative")==0 ||
+      _normType.compare("L2_absolute")==0 ||
+      _normType.compare("max")==0 );
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver::setToleranceType in odeSolver.cpp.\n");
+#endif
+  return 0;
+}
+
+
 
 //================= FEuler child class functions =======================
 
@@ -388,21 +408,64 @@ PetscReal RK32::computeError()
   PetscErrorCode ierr = 0;
   PetscReal      err,_totErr=0.0;
 
+  if (_normType.compare("L2_relative")==0) { // relative error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y3[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecNorm(_y3[key],NORM_2,&size);
+      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      else { _totErr += err/(size); }
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
 
-  // absolute error
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+  if (_normType.compare("L2_absolute")==0) { // weighted absolute error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscInt size;
+      VecDuplicate(_y3[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecGetSize(_y3[key],&size);
+      _totErr += err/(size);
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
+
+  if (_normType.compare("max")==0) { // max norm
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y3[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_INFINITY,&err);
+      _totErr = max(_totErr,err);
+      VecDestroy(&errVec);
+    }
+  }
+
+
+  /*for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
 
-    // error based on weighted 2 norm
+    // asbolute error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
-    VecDuplicate(_y2[key],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_y2[key],_y3[key]);CHKERRQ(ierr);
+    VecDuplicate(_y3[key],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
-    VecNorm(_y3[key],NORM_2,&size); // relative error
+    VecNorm(_y3[key],NORM_2,&size);
     _totErr += err/(size+1.0);
     VecDestroy(&errVec);
-  }
+  }*/
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
@@ -793,11 +856,55 @@ PetscReal RK43::computeError()
   PetscErrorCode ierr = 0;
   PetscReal      err,_totErr=0.0;
 
+  if (_normType.compare("L2_relative")==0) { // relative error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecNorm(_y4[key],NORM_2,&size);
+      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      else { _totErr += err/(size); }
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
 
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+  if (_normType.compare("L2_absolute")==0) { // weighted absolute error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscInt size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecGetSize(_y4[key],&size);
+      _totErr += err/(size);
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
+
+  if (_normType.compare("max")==0) { // max norm
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_INFINITY,&err);
+      _totErr = max(_totErr,err);
+      VecDestroy(&errVec);
+    }
+  }
+
+
+  /*for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
 
-    // error based on weighted 2 norm
+    // asbolute error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
     VecDuplicate(_y4[key],&errVec);
@@ -806,10 +913,7 @@ PetscReal RK43::computeError()
     VecNorm(_y4[key],NORM_2,&size);
     _totErr += err/(size+1.0);
     VecDestroy(&errVec);
-
-    //~ err = computeNormDiff_L2_scaleL2(_y4[key],_y3[key]); CHKERRQ(ierr);
-    //~ _totErr += err/2.;
-  }
+  }*/
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43::computeError in odeSolver.cpp.\n");

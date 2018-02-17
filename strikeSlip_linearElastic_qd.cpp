@@ -30,11 +30,16 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
-
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
+    Vec T; VecDuplicate(_D->_y,&T);
+    _he->getTemp(T);
+    _fault->setThermalFields(T,_he->_k,_he->_c);
+  }
+
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -143,6 +148,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     }
     else if (var.compare("hydraulicCoupling")==0) {
       _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("stateLaw")==0) {
+      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     else if (var.compare("guessSteadyStateICs")==0) {
@@ -270,6 +278,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _bcBType.compare("remoteLoading")==0 ||
     _bcBType.compare("symm_fault")==0 ||
     _bcBType.compare("rigid_fault")==0 );
+
+  if (_stateLaw.compare("flashHeating")==0) {
+    assert(_thermalCoupling.compare("no")!=0);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -696,6 +708,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   VecDestroy(&tauSS);
+
+  // steady state temperature
+  //~ if (_thermalCoupling.compare("no")!=0) {
+    //~ ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
+    //~ _material->getStresses(sxy,sxz,sdev);
+    //~ Vec T; VecDuplicate(sxy,&T);
+    //~ _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
+    //~ VecCopy(T,_he->_Tamb);
+    //~ ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    //~ VecDestroy(&T);
+  //~ }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

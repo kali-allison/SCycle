@@ -64,12 +64,14 @@ class OdeSolver
     int                     _lenVar;
     double                  _runTime;
     string                  _controlType;
+    string                  _normType;
 
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
+    PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 
     virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;

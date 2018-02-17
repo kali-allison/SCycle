@@ -15,7 +15,7 @@ momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 # coordinate transformation
-bCoordTrans = 15.0
+bCoordTrans = 8.0
 sbpType = mfc_coordTrans
 
 #======================================================================
@@ -65,13 +65,13 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
 rhoVals = [3 3] # g/cm^3
 rhoDepths = [0 60]
-shearZoneWidth = 1e-2 # m
+shearZoneWidth = 1e-4 # km
 
 # geotherm
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
-TVals = [400 400]
+TVals = [200 200]
 TDepths = [0 50]
 
 # heat equation parameters: steadyState or transient; coupled, uncoupled, or no
@@ -88,11 +88,11 @@ stride1D = 10 # how often to write out fields that live on the fault
 stride2D = 10 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 1.5e11 # (s) final time
+maxTime = 2e11 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-6 # absolute tolerance for time integration
+atol = 1e-8 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output

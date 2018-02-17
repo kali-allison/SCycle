@@ -21,6 +21,24 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 #endif
 }
 
+PetscErrorCode OdeSolverImex::setToleranceType(const std::string normType)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setToleranceType in odeSolver.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  _normType = normType;
+  assert(_normType.compare("L2_relative")==0 ||
+      _normType.compare("L2_absolute")==0 ||
+      _normType.compare("max")==0 );
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolverImex::setToleranceType in odeSolver.cpp.\n");
+#endif
+  return 0;
+}
+
 
 RK32_WBE::RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : OdeSolverImex(maxNumSteps,finalT,deltaT,controlType),
@@ -302,41 +320,64 @@ PetscReal RK32_WBE::computeError()
   PetscReal      err,_totErr=0.0;
 
 
-  //~ for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    //~ PetscInt ind = _errInds[i];
+  if (_normType.compare("L2_relative")==0) { // relative error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_var3rd[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecNorm(_var3rd[key],NORM_2,&size);
+      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      else { _totErr += err/(size); }
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
 
-    //~ // error based on weighted 2 norm
-    //~ Vec errVec;
-    //~ PetscInt       size;
-    //~ VecDuplicate(_var2nd[ind],&errVec);
-    //~ ierr = VecWAXPY(errVec,-1.0,_var2nd[ind],_var3rd[ind]);CHKERRQ(ierr);
-    //~ VecDot(errVec,errVec,&err);
-    //~ VecGetSize(errVec,&size);
-    //~ _totErr += sqrt(err/size);
-    //~ VecDestroy(&errVec);
-  //~ }
+  if (_normType.compare("L2_absolute")==0) { // weighted absolute error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscInt size;
+      VecDuplicate(_var3rd[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecGetSize(_var3rd[key],&size);
+      _totErr += err/(size);
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
 
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+  if (_normType.compare("max")==0) { // max norm
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_var3rd[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_INFINITY,&err);
+      _totErr = max(_totErr,err);
+      VecDestroy(&errVec);
+    }
+  }
+
+
+  /*for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
 
-    // error based on weighted 2 norm
+    // asbolute error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
-    VecDuplicate(_var2nd[key],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_var2nd[key],_var3rd[key]);CHKERRQ(ierr);
+    VecDuplicate(_var3rd[key],&errVec);
+    ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_var3rd[key],NORM_2,&size);
     _totErr += err/(size+1.0);
     VecDestroy(&errVec);
-  }
-  //~ // include effect of implicit variable
-  //~ Vec errVec;
-  //~ PetscScalar    size;
-  //~ VecDuplicate(_vardTIm["Temp"],&errVec);
-  //~ ierr = VecWAXPY(errVec,-1.0,_varHalfdTIm["Temp"],_vardTIm["Temp"]);CHKERRQ(ierr);
-  //~ VecNorm(errVec,NORM_2,&err);
-  //~ VecNorm(_vardTIm["Temp"],NORM_2,&size);
-  //~ _totErr += err/(size+1.0);
+  }*/
 
 
 
@@ -786,27 +827,64 @@ PetscReal RK43_WBE::computeError()
   PetscErrorCode ierr = 0;
   PetscReal      err,_totErr=0.0;
 
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+  if (_normType.compare("L2_relative")==0) { // relative error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecNorm(_y4[key],NORM_2,&size);
+      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      else { _totErr += err/(size); }
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
+
+  if (_normType.compare("L2_absolute")==0) { // weighted absolute error
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscInt size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecGetSize(_y4[key],&size);
+      _totErr += err/(size);
+      VecDestroy(&errVec);
+    }
+    _totErr = _totErr * sqrt( (double) _errInds.size());
+  }
+
+  if (_normType.compare("max")==0) { // max norm
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec;
+      PetscScalar size;
+      VecDuplicate(_y4[key],&errVec);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
+      VecNorm(errVec,NORM_INFINITY,&err);
+      _totErr = max(_totErr,err);
+      VecDestroy(&errVec);
+    }
+  }
+
+
+  /*for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
 
-    // error based on weighted 2 norm
+    // asbolute error based on weighted 2 norm
     Vec errVec;
     PetscScalar    size;
     VecDuplicate(_y4[key],&errVec);
-    ierr = VecWAXPY(errVec,-1.0,_y3[key],_y4[key]);CHKERRQ(ierr);
+    ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
     VecNorm(errVec,NORM_2,&err);
     VecNorm(_y4[key],NORM_2,&size);
     _totErr += err/(size+1.0);
     VecDestroy(&errVec);
-  }
-  //~ // include effect of implicit variable
-  //~ Vec errVec;
-  //~ PetscScalar    size;
-  //~ VecDuplicate(_vardTIm["Temp"],&errVec);
-  //~ ierr = VecWAXPY(errVec,-1.0,_varHalfdTIm["Temp"],_vardTIm["Temp"]);CHKERRQ(ierr);
-  //~ VecNorm(errVec,NORM_2,&err);
-  //~ VecNorm(_vardTIm["Temp"],NORM_2,&size);
-  //~ _totErr += err/(size+1.0);
+  }*/
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeError in RK32_WBE.cpp.\n");

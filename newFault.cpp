@@ -537,6 +537,9 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
     ierr = io_initiateWriteAppend(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
+    if (_stateLaw.compare("flashHeating") == 0) {
+      ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
+    }
   }
   else {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
@@ -544,6 +547,9 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
     ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
+    if (_stateLaw.compare("flashHeating") == 0) {
+      ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1
@@ -632,6 +638,9 @@ PetscErrorCode NewFault::computeTauRS(Vec& tauRS, const PetscScalar vL)
   VecRestoreArrayRead(_sNEff,&sN);
   VecRestoreArrayRead(_psi,&psi);
   VecRestoreArrayRead(_a,&a);
+
+  VecCopy(tauRS,_tauQSP);
+  VecCopy(tauRS,_tauP);
 
 
 
@@ -1679,8 +1688,15 @@ PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slip
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
 {
   PetscScalar absV = abs(slipVel);
+
   PetscScalar fss = f0 + (a-b)*log(absV/v0);
-  PetscScalar f = psi + a*log(absV/v0);
+
+  // not regularized
+  //~ PetscScalar f = psi + a*log(absV/v0);
+
+  // regularized
+  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) );
+
   PetscScalar dstate = -absV/Dc *(f - fss);
 
   assert(!isnan(dstate));
@@ -1765,8 +1781,8 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
   // compute Vw
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
-  //~ PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
-  PetscScalar Vw = Vwi;
+  PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
+  //~ PetscScalar Vw = Vwi;
 
   if (absV == 0.0) { absV += 1e-14; }
 
