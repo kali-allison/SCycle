@@ -23,9 +23,10 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"\nStarting LinearElastic::LinearElastic in linearElastic.cpp.\n");
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::LinearElastic()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   loadSettings(D._file);
   checkInput();
@@ -42,9 +43,9 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
 
   setSurfDisp();
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::LinearElastic in linearElastic.cpp.\n\n");
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 
@@ -85,10 +86,9 @@ LinearElastic::~LinearElastic()
     PetscViewerDestroy(&_viewers[it->first].first);
   }
 
-
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 }
 
 
@@ -163,7 +163,8 @@ PetscErrorCode LinearElastic::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+    std::string funcName = "LinearElastic::checkInput()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
@@ -183,7 +184,8 @@ PetscErrorCode LinearElastic::checkInput()
   if (_computeSdev == 1) { _computeSxz = 1; }
 
   #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::checkInput in linearelastic.cpp.\n");CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -215,10 +217,10 @@ PetscErrorCode LinearElastic::checkInput()
 PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
-
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::setupKSP";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
 
@@ -267,9 +269,10 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
   // perform computation of preconditioners now, rather than on first use
   ierr = KSPSetUp(ksp);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
   return ierr;
 }
 
@@ -319,9 +322,9 @@ PetscErrorCode LinearElastic::allocateFields()
   else { _sdev = NULL; }
   VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -474,8 +477,10 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    std::string funcName = "LinearElastic::changeBCTypes";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
 
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
   KSPDestroy(&_ksp);
@@ -484,7 +489,7 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
   setupKSP(_sbp,_ksp,_pc,A);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -493,10 +498,10 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
 PetscErrorCode LinearElastic::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
-#endif
-
+  #if VERBOSE > 1
+    std::string funcName = "LinearElastic::setSurfDisp";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
   PetscInt    Ii,Istart,Iend,y;
   PetscScalar u;
@@ -513,9 +518,9 @@ PetscErrorCode LinearElastic::setSurfDisp()
   ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
 
-#if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::setSurfDisp in linearElastic.cpp\n");CHKERRQ(ierr);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -579,11 +584,9 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "LinearElastic::writeStep1D";
-  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
-    CHKERRQ(ierr);
+    std::string funcName = "LinearElastic::writeStep1D";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
@@ -611,8 +614,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
-    CHKERRQ(ierr);
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
@@ -622,11 +624,9 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
-  string funcName = "LinearElastic::writeStep2D";
-  string fileName = "linearElastic.cpp";
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
-    CHKERRQ(ierr);
+    std::string funcName = "LinearElastic::writeStep2D";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
 
@@ -648,8 +648,7 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),fileName.c_str(),time);
-    CHKERRQ(ierr);
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }

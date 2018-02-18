@@ -551,6 +551,8 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
+  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  //~ ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _fault->updateFields(time,varEx);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
@@ -662,19 +664,19 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
 
   // add source term for driving the ice stream
   // multiply this term by H*J (the H matrix and the Jacobian)
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
-    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
-    Mat J,Jinv,qy,rz,yq,zr;
-    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    ierr = MatMult(J,_forcingTerm,temp1);
-    Mat H; _material->_sbp->getH(H);
-    ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
-    VecDestroy(&temp1);
-  }
-  else{
-    Mat H; _material->_sbp->getH(H);
-    ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
-  }
+  //~ if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    //~ Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    //~ Mat J,Jinv,qy,rz,yq,zr;
+    //~ ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    //~ ierr = MatMult(J,_forcingTerm,temp1);
+    //~ Mat H; _material->_sbp->getH(H);
+    //~ ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+    //~ VecDestroy(&temp1);
+  //~ }
+  //~ else{
+    //~ Mat H; _material->_sbp->getH(H);
+    //~ ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+  //~ }
 
   _material->computeU();
   _material->computeStresses();
@@ -837,7 +839,7 @@ PetscErrorCode IceStream_LinearElastic_qd::constructForcingTerm()
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
   MatMult(MapV,temp,_forcingTerm);
 
-  //~ VecSet(_forcingTerm,5e-3);
+  VecSet(_forcingTerm,-5e-3);
 
   MatDestroy(&MapV);
   VecDestroy(&temp);

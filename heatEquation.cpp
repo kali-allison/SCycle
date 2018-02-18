@@ -1744,7 +1744,7 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   PetscViewerDestroy(&viewer);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1767,8 +1767,10 @@ PetscErrorCode HeatEquation::writeContext(const std::string outputDir)
   ierr = writeVec(_h,outputDir + "he_h"); CHKERRQ(ierr);
   ierr = writeVec(_c,outputDir + "he_c"); CHKERRQ(ierr);
   ierr = writeVec(_Tamb,outputDir + "he_T0"); CHKERRQ(ierr);
-  ierr = writeVec(_Gw,outputDir + "he_Gw"); CHKERRQ(ierr);
-  ierr = writeVec(_w,outputDir + "he_w"); CHKERRQ(ierr);
+  if (_wFrictionalHeating.compare("yes")==0) {
+    ierr = writeVec(_Gw,outputDir + "he_Gw"); CHKERRQ(ierr);
+    ierr = writeVec(_w,outputDir + "he_w"); CHKERRQ(ierr);
+  }
 
   // contextual fields of members
   //~ ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);

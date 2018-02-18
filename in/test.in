@@ -54,9 +54,9 @@ bDepths = [0 10 11 19.3333 60]
 
 
 # with varying degrees of overpressure
-#sNVals = [0 505.1] # lambda = 0.37
+sNVals = [0 505.1] # lambda = 0.37
 #sNVals = [0 320.9] # lambda = 0.6
-sNVals = [0 160.4] # lambda = 0.8
+#sNVals = [0 160.4] # lambda = 0.8
 #sNVals = [50 50] # MPa
 sNDepths = [0 40]
 sN_floor = 5.0; # MPa
@@ -109,16 +109,16 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
 
 #TVals = [293 1293] # 20 C/km
-TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
+#TVals = [293 1543] # 25 C/km
+TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 thermalCoupling = no
 heatEquationType = steadyState
 withViscShearHeating = no
 withFrictionalHeating = no
 
-maxEffVisc = 1e19
-maxSSIts_tau = 250
+maxEffVisc = 1e16
+maxSSIts_tau = 150
 
 maxSSIts_effVisc = 100
 #atolSS_effVisc = 1e-3
@@ -141,13 +141,12 @@ maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e9
-atol = 1e-7
+atol = 1e-5
 timeIntInds = [psi slip]
-#timeIntInds = [slip]
 #timeIntInds = [slip gVxy gVxz]
+normType = L2_absolute
 
-
-#outputDir = /scratch/kallison/sheet4/v6a_
+outputDir = /scratch/kallison/sheet4/v1a_
 
 
 

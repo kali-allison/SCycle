@@ -417,7 +417,11 @@ PetscReal RK32::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecNorm(_y3[key],NORM_2,&size);
-      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      if (size <= 1e-14) {
+        PetscInt N;
+        VecGetSize(_y3[key],&N);
+        _totErr += err/(N);
+      }
       else { _totErr += err/(size); }
       VecDestroy(&errVec);
     }
@@ -865,7 +869,11 @@ PetscReal RK43::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecNorm(_y4[key],NORM_2,&size);
-      if (size <= 1e-14) { _totErr += err/(size+1.0); }
+      if (size <= 1e-14) {
+        PetscInt N;
+        VecGetSize(_y4[key],&N);
+        _totErr += err/(N);
+      }
       else { _totErr += err/(size); }
       VecDestroy(&errVec);
     }
