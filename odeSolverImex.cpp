@@ -5,7 +5,7 @@ using namespace std;
 OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
-  _lenVar(0),_runTime(0),_controlType(controlType),
+  _lenVar(0),_runTime(0),_controlType(controlType),_normType("L2_absolute"),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -332,7 +332,7 @@ PetscReal RK32_WBE::computeError()
       if (size <= 1e-14) {
         PetscInt N;
         VecGetSize(_var3rd[key],&N);
-        _totErr += err/(N);
+        _totErr += err/sqrt(N);
       }
       else { _totErr += err/(size); }
       VecDestroy(&errVec);
@@ -349,7 +349,7 @@ PetscReal RK32_WBE::computeError()
       ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecGetSize(_var3rd[key],&size);
-      _totErr += err/(size);
+      _totErr += err/sqrt(size);
       VecDestroy(&errVec);
     }
     _totErr = _totErr * sqrt( (double) _errInds.size());
@@ -843,7 +843,7 @@ PetscReal RK43_WBE::computeError()
       if (size <= 1e-14) {
         PetscInt N;
         VecGetSize(_y3[key],&N);
-        _totErr += err/(N);
+        _totErr += err/sqrt(N);
       }
       else { _totErr += err/(size); }
       VecDestroy(&errVec);
@@ -860,7 +860,7 @@ PetscReal RK43_WBE::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecGetSize(_y4[key],&size);
-      _totErr += err/(size);
+      _totErr += err/sqrt(size);
       VecDestroy(&errVec);
     }
     _totErr = _totErr * sqrt( (double) _errInds.size());

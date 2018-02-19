@@ -112,9 +112,9 @@ cDepths = [0 60]
 #TVals = [293 1543] # 25 C/km
 TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
-thermalCoupling = no
+thermalCoupling = coupled
 heatEquationType = steadyState
-withViscShearHeating = no
+withViscShearHeating = yes
 withFrictionalHeating = no
 
 maxEffVisc = 1e16
@@ -133,20 +133,20 @@ maxSSIts_effVisc = 100
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-stride1D = 50
-stride2D = 50
+stride1D = 20
+stride2D = 20
 maxStepCount = 1e8
 initTime = 0.0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
 maxDeltaT = 1e9
-atol = 1e-5
+atol = 1e-6
 timeIntInds = [psi slip]
 #timeIntInds = [slip gVxy gVxz]
 normType = L2_absolute
 
-outputDir = /scratch/kallison/sheet4/v1a_
+outputDir = /scratch/kallison/sheet4/v7_
 
 
 

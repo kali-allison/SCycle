@@ -69,6 +69,7 @@ private:
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    std::string            _normType;
 
 
     // runtime data

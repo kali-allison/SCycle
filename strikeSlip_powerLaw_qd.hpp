@@ -71,6 +71,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
+    std::string            _normType;
 
 
     // runtime data
