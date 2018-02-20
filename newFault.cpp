@@ -686,15 +686,9 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,0.5);
 
-<<<<<<< HEAD
-  if (D._loadICs==1) {
-    loadFieldsFromFiles(D._inputDir);
-    //~ loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
-=======
   if (D._inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(D._inputDir);
     loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
->>>>>>> e5c095440c0fdf90cd990451bdb069d9c2ec21b0
   }
 
   #if VERBOSE > 1
@@ -1479,10 +1473,10 @@ ierr = VecRestoreArray(_z, &z);
 
   VecScatterBegin(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
   VecScatterEnd(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
-  
+
   VecScatterBegin(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
   VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
-  
+
   _scatterTime += MPI_Wtime() - scatterStart;
 
 
