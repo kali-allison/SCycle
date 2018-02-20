@@ -90,6 +90,7 @@ u = u + uLap.*0.5*dt1^2/2./rho; % n
 uNew = 0.*u; % n+1
 
 psi = zeros(Nz,1) + 0.6;
+psiPrev = psi;
 velPrev = zeros(Nz,1);
 
 ay = cs .* 0.5*dt/h11y;
@@ -139,7 +140,7 @@ for tInd = 2:length(t)
  
   
   pen = h11y;
-  [out1, psi, vel,strength] = fault_2d_wPrestress(dt,pen,uLap(:,1),u(:,1),uPrev(:,1),psi,velPrev,p,t(tInd));
+  [out1, psiNew, vel,strength] = fault_2d_wPrestress(dt,pen,uLap(:,1),u(:,1),uPrev(:,1),psi,psiPrev,velPrev,p,t(tInd));
   uNew(:,1) = out1;
   
   
@@ -147,6 +148,8 @@ for tInd = 2:length(t)
   uPrev = u;
   u = uNew;
   velPrev = vel;
+  psiPrev = psi;
+  psi = psiNew;
   
   % some other fields that are nice to plot
   sxy = G .* Dy(u,dy,order) + sxy0; sxy(:,1) = sxy(:,1) + p.tau0' - sxy0(:,1);

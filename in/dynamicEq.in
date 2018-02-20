@@ -1,11 +1,11 @@
 #======================================================================
 # domain
-order = 2
-Ny = 101
-Nz = 81
+order = 4
+Ny = 301
+Nz = 301
 Ly = 30
 # km
-Lz = 25
+Lz = 30
 # km
 vL = 1e-9    # (m/s)
 
@@ -32,43 +32,22 @@ momBal_bcT_dyn = freeSurface
 momBal_bcB_dyn = outGoingCharacteristics
 
 # tau on fault (u or tau)
-initialConditions = u
-zCenterTau = 20.
+initialConditions = tau
+zCenterTau = 15.
 tCenterTau = 1.0
-zStdTau = 1.0
+zStdTau = 4.0
 tStdTau = 1.0
 ampTau = 5.0
+timeMode = Heaviside
+
+lockedVals = [0 0 1 1]
+lockedDepths = [0 25 25 30]
 
 
-
-#======================================================================
-# linear systems
-
-#inputDir = /data/dunham/kallison/eqcycle/inputData/ss30_
-#inputDir = /data/dunham/kallison/eqcycle/inputData/eq30_
-loadICs = 0
-bcLTauQS = 0
-
-# algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
-linSolver = MUMPSCHOLESKY
-kspTol = 1e-10
-
-
-# algorithm for heat equation
-linSolver_heateq = AMG
-kspTol_heateq = 1e-9
-
-#======================================================================
 # rate-and-state parameters
-rootTol = 1e-14
+rootTol = 1e-9
 
-impedanceVals = [9.4868 9.4868]
-impedanceDepths = [0 60]
-cohesionVals = [0 0] # m
-cohesionDepths = [0 60] # m
-#DcVals = [8e-3 8e-3] # m
-#DcVals = [16e-3 16e-3] # m
-DcVals = [1 1] # m
+DcVals = [0.05 0.05] # m
 DcDepths = [0 60] # m
 
 # uniformly VS
@@ -84,9 +63,9 @@ DcDepths = [0 60] # m
 #bDepths = [0 12 15 60]
 
 # easier to resolve
-aVals = [0.015 0.015]
+aVals = [0.01 0.01]
 aDepths = [0 60]
-bVals = [0.02 0.02 0.02 0.02]
+bVals = [0.016 0.016 0.016 0.016]
 bDepths = [0 12 15 60]
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -112,63 +91,21 @@ f0 = 0.6
 
 shearModDistribution = constant
 problem = symmetric
-mu = 30 # GPa
-rho = 2.6702 # g/cm^3
-
-# power law properties: quartz-diorite
-AVals = [1.3e-3 1.3e-3]
-ADepths = [0 60]
-BVals = [2.6341e+04 2.6341e+04]
-BDepths = [0 60]
-nVals = [2.4 2.4]
-nDepths = [0 60]
-
-# heat equation properties
-heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
-kDepths = [0 60]
-hVals = [0 0]
-hDepths = [0 60]
-cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
-cDepths = [0 60]
-rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 60]
-
-
-# initial geotherm
-#TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-#TVals = [500 1793]
-TDepths = [0 50]
-
-# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
-heatEquationType = steadyState
-thermalCoupling = no
-withShearHeating = no
-withFrictionalHeating = no
-
-
-#viscDistribution = loadFromFile
-viscDistribution = effectiveVisc
-maxEffVisc = 1e16
+muVals = [30 30] # (GPa) shear modulus
+muDepths = [0 60] # (km)
+rhoVals = [3 3] # (g/cm^3)
+rhoDepths = [0 60] # (km)
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
-timeIntegrator = RK32
-timeControlType = P
-stride1D = 1
-stride2D = 1
+stride1D = 10
+stride2D = 10
 maxStepCount = 2000
 initTime = 0
-maxTime = 15
+maxTime = 20
 deltaT = 5e-3
 CFL = 0.5
-atol = 1e-8
-timeIntInds = [psi slip]
-#timeIntInds = [gVxy gVxz]
-
 
 # write to laptop
 #outputDir = data/maxVisc1e16_

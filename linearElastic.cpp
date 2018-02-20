@@ -19,7 +19,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _sbp(NULL),_sbpType(D._sbpType),
   _timeV1D(NULL),_timeV2D(NULL),
   _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_linSolveCount(0),
+  _miscTime(0), _matrixTime(0), _linSolveCount(0),
   _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
 {
@@ -32,7 +32,9 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   allocateFields();
   setMaterialParameters();
 
+  double startMatrix = MPI_Wtime();
   setUpSBPContext(); // set up matrix operators
+  _matrixTime += MPI_Wtime() - startMatrix;
 
   if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
@@ -217,6 +219,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::setupKSP in linearElastic.cpp\n");CHKERRQ(ierr);
 #endif
+
+  KSPCreate(PETSC_COMM_WORLD,&_ksp);
 
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
@@ -416,11 +420,7 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   _sbp->computeMatrices(); // actually create the matrices
 
 
-  Mat A;
-  _sbp->getA(A);
 
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(_sbp,_ksp,_pc,A);
 
   return ierr;
   #if VERBOSE > 1
@@ -529,11 +529,13 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Linear Elastic Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent creating matrices (s): %g\n",_matrixTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.);CHKERRQ(ierr);
 
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);

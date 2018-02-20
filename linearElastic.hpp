@@ -62,7 +62,7 @@ class LinearElastic
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
     // runtime data
-    double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _matrixTime;
     PetscInt     _linSolveCount;
 
     // boundary conditions

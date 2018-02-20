@@ -19,7 +19,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),
+  _miscTime(0), _propagateTime(0),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("outGoingCharacteristics"),_bcBType("outGoingCharacteristics"),
   _quadWaveEx(NULL),
   _fault(NULL),_material(NULL)
@@ -158,8 +158,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::checkInput()
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
-  assert(_stride1D >= 1);
-  assert(_stride2D >= 1);
+  // assert(_stride1D >= 1);
+  // assert(_stride2D >= 1);
   assert(_atol >= 1e-14);
 
     // check boundary condition types for momentum balance equation
@@ -293,12 +293,12 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if ( stepCount % _stride1D == 0) {
+  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
-  if ( stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
@@ -356,11 +356,20 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::view()
 
   _material->view(_integrateTime);
   _fault->view(_integrateTime);
+  int num_proc;
+  MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Domain Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   Nz: %i\n",_Nz);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   Ny: %i\n",_Ny);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",num_proc);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_dyn Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
   return ierr;
 }
@@ -443,6 +452,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   Mat A;
   ierr = _material->_sbp->getA(A);
 
+  double startPropagation = MPI_Wtime();
+
   // Update the laplacian
   Vec Laplacian, temp;
   VecDuplicate(*_y, &Laplacian);
@@ -485,6 +496,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
     _quadWaveEx->getCurrT(currT);
     ierr = _fault->updateTau(currT);
   }
+
+  _propagateTime += MPI_Wtime() - startPropagation;
   if (_isFault.compare("true") == 0){
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 }
