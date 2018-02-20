@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
 Ny = 201
-Nz = 202
+Nz = 151
 Ly = 60 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,7 +9,7 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
 momentumBalanceType = quasidynamic
@@ -23,7 +23,7 @@ sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-#inputDir = /data/dunham/kallison/eqcycle/inputData/he/pl_al_
+inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v30_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -51,8 +51,8 @@ bDepths = [0 10 11 19.3333 60]
 #sNVals = [0 668.5] # lambda = 0.5
 #sNVals = [0 534.8] # lambda = 0.6
 #sNVals = [0 401.1] # lambda = 0.7
-#sNVals = [0 267.4] # lambda = 0.8
-sNVals = [50 50] # MPa
+sNVals = [0 267.4] # lambda = 0.8
+#sNVals = [50 50] # MPa
 sNDepths = [0 60]
 #sN_floor = 5.5; # MPa
 sN_floor = 1.0; # MPa
@@ -144,6 +144,7 @@ outputDir = data/linEl_
 #outputDir = /scratch/kallison/versions/v26_
 #outputDir = /scratch/kallison/versions/v27_
 #outputDir = /scratch/kallison/versions/v28_
+outputDir = /scratch/kallison/versions/test_
 
 
 

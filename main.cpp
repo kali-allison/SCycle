@@ -72,7 +72,7 @@ int runEqCycle(Domain& d)
 
   //~ Domain d(inputFile);
   d.write();
-
+assert(0);
   // solving linear elastic, quasi-dynamic simulation with a vertical strike-slip fault
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
     StrikeSlip_LinearElastic_qd m(d);

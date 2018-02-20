@@ -674,8 +674,8 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
   VecScale(_eta_rad,0.5);
 
   if (D._loadICs==1) {
-    //~ loadFieldsFromFiles(D._inputDir);
-    loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
+    loadFieldsFromFiles(D._inputDir);
+    //~ loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
   }
 
   #if VERBOSE > 1

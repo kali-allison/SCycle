@@ -34,9 +34,6 @@ kspTol = 1e-10
 #======================================================================
 # rate-and-state parameters
 
-impedanceVals = [9.4868 9.4868]
-impedanceDepths = [0 60]
-
 #DcVals = [12e-3 12e-3] # m
 #DcVals = [32e-3 32e-3] # m
 DcVals = [1 1] # m
