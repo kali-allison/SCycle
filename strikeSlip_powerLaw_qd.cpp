@@ -16,7 +16,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
@@ -168,7 +168,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
       _maxSSIts_tau = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("maxSSIts_timesteps")==0) {
-      _maxSSIts_timesteps = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _maxSSIts_timesteps = (int) atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("atolSS_effVisc")==0) {
       _atolSS_effVisc = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
@@ -194,6 +194,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
     }
+    else if (var.compare("normType")==0) { _normType = line.substr(pos+_delim.length(),line.npos).c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
@@ -818,13 +819,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     else if (_timeIntegrator.compare("RK43")==0) {
       _quadEx = new RK43(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
     }
-    _quadEx->setTolerance(_atol); CHKERRQ(ierr);
-    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
+    ierr = _quadEx->setTolerance(_atol); CHKERRQ(ierr);
+    ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
-    _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
+    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
     delete _quadEx; _quadEx = NULL;
 
     // compute steady state viscous strain rates and stresses

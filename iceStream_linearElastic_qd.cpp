@@ -551,7 +551,7 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  //~ ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
   //~ ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _fault->updateFields(time,varEx);
@@ -674,8 +674,9 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
     //~ VecDestroy(&temp1);
   //~ }
   //~ else{
-    //~ Mat H; _material->_sbp->getH(H);
-    //~ ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+    Mat H; _material->_sbp->getH(H);
+    VecSet(_forcingTerm,-5e-3);
+    ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
   //~ }
 
   _material->computeU();

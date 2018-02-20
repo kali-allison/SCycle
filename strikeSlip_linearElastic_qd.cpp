@@ -712,15 +712,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   VecDestroy(&tauSS);
 
   // steady state temperature
-  //~ if (_thermalCoupling.compare("no")!=0) {
-    //~ ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
-    //~ _material->getStresses(sxy,sxz,sdev);
-    //~ Vec T; VecDuplicate(sxy,&T);
-    //~ _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
-    //~ VecCopy(T,_he->_Tamb);
-    //~ ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
-    //~ VecDestroy(&T);
-  //~ }
+  if (_thermalCoupling.compare("no")!=0) {
+    ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
+    _material->getStresses(sxy,sxz,sdev);
+    Vec T; VecDuplicate(sxy,&T);
+    _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
+    VecCopy(T,_he->_Tamb);
+    ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    VecDestroy(&T);
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

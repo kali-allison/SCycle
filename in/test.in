@@ -12,7 +12,7 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
@@ -115,7 +115,7 @@ TDepths = [0 50]
 thermalCoupling = coupled
 heatEquationType = steadyState
 withViscShearHeating = yes
-withFrictionalHeating = no
+withFrictionalHeating = yes
 
 maxEffVisc = 1e16
 maxSSIts_tau = 150

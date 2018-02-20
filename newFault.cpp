@@ -1607,8 +1607,8 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
   if ( !isinf(A) && b>1e-3 ) {
     dstate = (PetscScalar) (b*v0/Dc)*( A - abs(slipVel)/v0 );
   }
-  //~ assert(!isnan(dstate));
-  //~ assert(!isinf(dstate));
+  assert(!isnan(dstate));
+  assert(!isinf(dstate));
   return dstate;
 }
 
@@ -1688,6 +1688,7 @@ PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slip
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
 {
   PetscScalar absV = abs(slipVel);
+  if (absV == 0) { absV += 1e-14; }
 
   PetscScalar fss = f0 + (a-b)*log(absV/v0);
 
@@ -1794,8 +1795,8 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
   PetscScalar f = psi + a*log(absV/v0);
   PetscScalar dpsi = -absV/Dc *(f - fss);
 
-  //~ assert(!isnan(dpsi));
-  //~ assert(!isinf(dpsi));
+  assert(!isnan(dpsi));
+  assert(!isinf(dpsi));
   return dpsi;
 }
 

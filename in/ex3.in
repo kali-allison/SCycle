@@ -2,14 +2,14 @@
 # using the quasi-dynamic approximation.
 
 # set up the computational domain
-Ny = 51 # points in y-direction
-Nz = 52 # points in z-direction
+Ny = 101 # points in y-direction
+Nz = 102 # points in z-direction
 Ly = 0.8 # (km) horizontal domain size
 Lz = 200 # (km) vertical domain size
 
 # specify what problem to simulate
-#problemType = iceStream
-problemType = strikeSlip
+problemType = iceStream
+#problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 0 # estimate steady-state initial conditions
@@ -57,10 +57,11 @@ rhoVals = [0.9 0.9] # (g/cm^3)
 rhoDepths = [0 200] # (km)
 
 # boundary conditions
-#momBal_bcR_qd = freeSurface
-momBal_bcR_qd = remoteLoading
+momBal_bcR_qd = freeSurface
+#momBal_bcR_qd = remoteLoading
 momBal_bcT_qd = freeSurface
-momBal_bcL_qd = rigid_fault
+#momBal_bcL_qd = rigid_fault
+momBal_bcL_qd = symm_fault
 momBal_bcB_qd = freeSurface
 
 momBal_computeSxz = 1 # compute sxz
@@ -73,11 +74,11 @@ stride1D = 10 # how often to write out fields that live on the fault
 stride2D = 10 # how often to write out body fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 0 # (s) final time
+maxTime = 1e8 # (s) final time
 initDeltaT = 1e-5 # (s) size of initial time step
 minDeltaT = 1e-5 # (s) size of minimum time step
 maxDeltaT = 1e8 # (s) size of maximum time step
-atol = 1e-8 # absolute tolerance for time integration
+atol = 1e-6 # absolute tolerance for time integration
 #timeIntInds = [psi] # variables to use to compute time step
 timeIntInds = [psi slip] # variables to use to compute time step
 #timeIntInds = [slip] # variables to use to compute time step
