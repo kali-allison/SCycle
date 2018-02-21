@@ -55,6 +55,7 @@ private:
     PetscScalar          _vL;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
@@ -68,6 +69,7 @@ private:
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    std::string            _normType;
 
 
     // runtime data
@@ -90,7 +92,7 @@ private:
     OdeSolverImex       *_quadImex; // implicit time stepping
 
     //~ Fault                      *_fault;
-    NewFault_qd                      *_fault;
+    NewFault_qd                *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

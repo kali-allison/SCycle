@@ -3,10 +3,15 @@
 order = 4
 Ny = 301
 Nz = 301
+<<<<<<< HEAD
 Ly = 30
 # km
 Lz = 30
 # km
+=======
+Ly = 30 # km
+Lz = 30 # km
+>>>>>>> lockFault
 vL = 1e-9    # (m/s)
 
 isFault = true
@@ -32,7 +37,11 @@ momBal_bcT_dyn = freeSurface
 momBal_bcB_dyn = outGoingCharacteristics
 
 # tau on fault (u or tau)
+<<<<<<< HEAD
 initialConditions = tau
+=======
+initialConditions = u
+>>>>>>> lockFault
 zCenterTau = 15.
 tCenterTau = 1.0
 zStdTau = 4.0
@@ -44,24 +53,36 @@ lockedVals = [0 0 1 1]
 lockedDepths = [0 25 25 30]
 
 
+<<<<<<< HEAD
 # rate-and-state parameters
 rootTol = 1e-9
 
 DcVals = [0.05 0.05] # m
+=======
+#======================================================================
+# linear systems
+
+#inputDir = /data/dunham/kallison/eqcycle/inputData/ss30_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/eq30_
+loadICs = 0
+
+
+# algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
+linSolver = MUMPSCHOLESKY
+kspTol = 1e-10
+
+#======================================================================
+# rate-and-state parameters
+rootTol = 1e-10
+
+#DcVals = [8e-3 8e-3] # m
+#DcVals = [16e-3 16e-3] # m
+DcVals = [0.5 0.5] # m
+>>>>>>> lockFault
 DcDepths = [0 60] # m
 
-# uniformly VS
-#aVals = [0.2652 0.2652]
-#aDepths = [0 60]
-#bVals = [0.0497 0.0497]
-#bDepths = [0 60]
 
-# easier to resolve
-#aVals = [0.015 0.015]
-#aDepths = [0 60]
-#bVals = [0.02 0.02 0.02 0.02]
-#bDepths = [0 12 15 60]
-
+<<<<<<< HEAD
 # easier to resolve
 aVals = [0.01 0.01]
 aDepths = [0 60]
@@ -73,6 +94,13 @@ bDepths = [0 12 15 60]
 #aDepths = [0 11.0000 19.3333 60]
 #bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 #bDepths = [0 10 11 19.3333 60]
+=======
+# comparison with fdmap
+aVals = [0.01 0.01]
+aDepths = [0 60]
+bVals = [0.016 0.016]
+bDepths = [0 60]
+>>>>>>> lockFault
 
 
 sNVals = [50 50] # (MPa) constant
@@ -89,26 +117,69 @@ f0 = 0.6
 #======================================================================
 # off-fault material parameters
 
+<<<<<<< HEAD
 shearModDistribution = constant
 problem = symmetric
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3)
 rhoDepths = [0 60] # (km)
+=======
+muVals = [32 32] # GPa
+muDepths = [0 60] # m
+rhoVals = [2.6702 2.6702] # g/cm^3
+rhoDepths = [0 60] # m
+
+
+# heat equation properties
+heatFieldsDistribution = layered
+kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kDepths = [0 60]
+hVals = [0 0]
+hDepths = [0 60]
+cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cDepths = [0 60]
+rhoVals = [3 3] # g/cm^3
+rhoDepths = [0 60]
+
+# initial geotherm
+TVals = [293 1793] # 30 C/km
+#TVals = [500 1793]
+TDepths = [0 50]
+
+# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
+heatEquationType = steadyState
+thermalCoupling = no
+withShearHeating = no
+withFrictionalHeating = no
+
+>>>>>>> lockFault
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, IMEX
 
+<<<<<<< HEAD
 stride1D = 10
 stride2D = 10
+=======
+timeIntegrator = RK32
+stride1D = 1
+stride2D = 1
+>>>>>>> lockFault
 maxStepCount = 2000
 initTime = 0
 maxTime = 20
 deltaT = 5e-3
 CFL = 0.5
+<<<<<<< HEAD
+=======
+atol = 1e-8
+timeIntInds = [psi slip]
+
+>>>>>>> lockFault
 
 # write to laptop
 #outputDir = data/maxVisc1e16_
 
-outputDir = ./test_Maxime/test_
+outputDir = /scratch/kallison/fd/test_
 

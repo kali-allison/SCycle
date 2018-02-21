@@ -1,8 +1,8 @@
 order = 4 # SBP order of accuracy
-Ny = 201
-Nz = 151
+Ny = 266
+Nz = 201
 Ly = 60 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Lz = 40 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
@@ -12,37 +12,30 @@ problemType = strikeSlip
 bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 8.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-<<<<<<< HEAD
-inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v30_
-=======
-<<<<<<< HEAD
-inputDir = /data/dunham/kallison/eqcycle/inputData/he/qdwo_Nz301_
-=======
-inputDir = /data/dunham/kallison/eqcycle/inputData/cont_v29_
->>>>>>> kali
->>>>>>> e5c095440c0fdf90cd990451bdb069d9c2ec21b0
+inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Nz201_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
 linSolver = MUMPSCHOLESKY
-kspTol = 1e-10
+kspTol = 1e-9
 
 momBal_computeSxz = 1
 
 #======================================================================
 # rate-and-state parameters
 
+#DcVals = [8e-3 8e-3] # m
 #DcVals = [12e-3 12e-3] # m
 DcVals = [1 1] # m
 DcDepths = [0 60] # m
@@ -53,23 +46,20 @@ aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
-# VS
+# VS at surface
 #aVals = [0.0135 0.0300 0.0700 0.2652]
 #aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.01 0.01 0.0350 0.0375 0.0497]
-#bDepths = [0 13 13 19.3333 60]
+#bVals = [0.0079 0.0242 0.0325 0.0301 0.0375 0.0737]
+#bDepths = [0 4.5000 10 11.0000 19.3333 60]
 
 
 # with varying degrees of overpressure
-#sNVals = [0 802.1] # lambda = 0.4
-#sNVals = [0 668.5] # lambda = 0.5
-#sNVals = [0 534.8] # lambda = 0.6
-#sNVals = [0 401.1] # lambda = 0.7
-sNVals = [0 267.4] # lambda = 0.8
+sNVals = [0 505.1] # lambda = 0.37
+#sNVals = [0 320.9] # lambda = 0.6
+#sNVals = [0 160.4] # lambda = 0.8
 #sNVals = [50 50] # MPa
-sNDepths = [0 60]
+sNDepths = [0 40]
 sN_floor = 5.0; # MPa
-#sN_floor = 1.0; # MPa
 #sN_cap = 50; # MPa
 
 
@@ -79,19 +69,19 @@ stateLaw = agingLaw
 #======================================================================
 # off-fault material parameters
 
+muVals = [32.4 32.4] # (GPa) shear modulus
+muDepths = [0 60] # (km)
+rhoVals = [2.7 2.7] # (g/cm^3) density
+rhoDepths = [0 60] # (km)
 
-muVals = [30 30] # GPa
-muDepths = [0 60] # m
-rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 60] # m
 
 # power law properties: quartz-diorite
-AVals = [1.3e-3 1.3e-3]
-ADepths = [0 60]
-BVals = [2.6341e+04 2.6341e+04]
-BDepths = [0 60]
-nVals = [2.4 2.4]
-nDepths = [0 60]
+#AVals = [1.3e-3 1.3e-3]
+#ADepths = [0 60]
+#BVals = [2.6341e+04 2.6341e+04]
+#BDepths = [0 60]
+#nVals = [2.4 2.4]
+#nDepths = [0 60]
 
 # power law properties: wet quartz
 #AVals = [398 398]
@@ -102,12 +92,12 @@ nDepths = [0 60]
 #nDepths = [0 60]
 
 # power law properties: wet feldspar
-#AVals = [398 398]
-#ADepths = [0 60]
-#BVals = [4.28e4 4.28e4]
-#BDepths = [0 60]
-#nVals = [3 3]
-#nDepths = [0 60]
+AVals = [398 398]
+ADepths = [0 60]
+BVals = [4.28e4 4.28e4]
+BDepths = [0 60]
+nVals = [3 3]
+nDepths = [0 60]
 
 # heat equation properties
 heatFieldsDistribution = layered
@@ -124,47 +114,36 @@ TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
 thermalCoupling = coupled
 heatEquationType = steadyState
-withShearHeating = yes
-withFrictionalHeating = no
+withViscShearHeating = yes
+withFrictionalHeating = yes
 
-<<<<<<< HEAD
-maxEffVisc = 1e18
-maxSSIts_tau = 500
-=======
-maxEffVisc = 1e17
-maxSSIts_tau = 180
->>>>>>> kali
+maxEffVisc = 1e16
+maxSSIts_tau = 150
 
-fss_EffVisc = 0.2
+maxSSIts_effVisc = 100
+#atolSS_effVisc = 1e-3
+#gss_t = 1e-10
+#fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 5
-#maxSSIts_timesteps = 5
+#maxSSIts_timesteps = 10
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-<<<<<<< HEAD
 stride1D = 20
 stride2D = 20
-=======
-stride1D = 50
-stride2D = 50
->>>>>>> kali
 maxStepCount = 1e8
-initTime = 0
+initTime = 0.0
 maxTime = 1e15
 initDeltaT = 1e-3
 minDeltaT = 1e-3
-maxDeltaT = 1e10
+maxDeltaT = 1e9
 atol = 1e-6
-<<<<<<< HEAD
-#timeIntInds = [psi slip]
-timeIntInds = [slip gVxy gVxz]
-
-=======
 timeIntInds = [psi slip]
+<<<<<<< HEAD
 #timeIntInds = [psi slip gVxy gVxz]
 
 
@@ -178,8 +157,12 @@ outputDir = /scratch/kallison/versions/test_
 outputDir = /scratch/kallison/versions/v31_
 >>>>>>> kali
 >>>>>>> e5c095440c0fdf90cd990451bdb069d9c2ec21b0
+=======
+#timeIntInds = [slip gVxy gVxz]
+normType = L2_absolute
+>>>>>>> lockFault
 
-outputDir = /scratch/kallison/versions/v29_
+outputDir = /scratch/kallison/sheet4/v7_
 
 
 

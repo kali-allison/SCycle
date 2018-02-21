@@ -21,6 +21,7 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
+#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
@@ -66,6 +67,7 @@ private:
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
+    std::string            _normType;
 
 
     // runtime data
@@ -77,6 +79,16 @@ private:
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
+    // forcing term
+    Vec _forcingTerm;
+
+    // viewers:
+    // 1st string = key naming relevant field, e.g. "slip"
+    // 2nd PetscViewer = PetscViewer object for file IO
+    // 3rd string = full file path name for output
+    //~ std::map <string,PetscViewer>  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
@@ -85,8 +97,9 @@ private:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    Fault                      *_fault;
-    LinearElastic       *_material; // linear elastic off-fault material properties
+    //~ Fault                      *_fault;
+    NewFault_qd                *_fault;
+    LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 
@@ -97,6 +110,8 @@ private:
     // estimating steady state conditions
     PetscErrorCode solveSS();
     PetscErrorCode solveSSb();
+
+    PetscErrorCode constructForcingTerm();
 
 
     // time stepping functions

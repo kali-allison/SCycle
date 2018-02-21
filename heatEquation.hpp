@@ -46,7 +46,6 @@ class HeatEquation
     std::string       _inputDir; // directory to load fields from
 
     // material parameters
-    std::string       _heatFieldsDistribution;
     std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
     std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
 
@@ -66,11 +65,11 @@ class HeatEquation
 
     // linear system data
     std::string          _sbpType;
-    SbpOps*              _sbpT;
+    SbpOps*              _sbp;
     Vec                  _bcT,_bcR,_bcB,_bcL; // boundary conditions
     std::string          _linSolver;
     PetscScalar          _kspTol;
-    KSP                  _ksp;
+    KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems
     PC                   _pc;
     Mat                  _I,_rcInv,_B,_pcMat; // intermediates for Backward Euler
     Mat                  _D2ath;
@@ -78,7 +77,9 @@ class HeatEquation
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
     Vec                  _Gw,_omega; // Green's function for shear heating, d/dt strain in shear zone, total heat
-    PetscScalar          _w; // width of shear zone (m)
+    Vec                  _w; // width of shear zone (km)
+    std::vector<double>  _wVals,_wDepths;
+    PetscScalar          _wMax;
 
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
@@ -100,8 +101,8 @@ class HeatEquation
     PetscErrorCode setBCsforBE();
     PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
-    PetscErrorCode setupKSP(SbpOps* sbp,const PetscScalar dt);
-    PetscErrorCode setupKSP_SS(SbpOps* sbp);
+    PetscErrorCode setupKSP(Mat& A);
+    PetscErrorCode setupKSP_SS(Mat& A);
     PetscErrorCode computeHeatFlux();
 
 
