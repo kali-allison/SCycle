@@ -222,7 +222,7 @@ struct ComputeVel_dyn : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
 // computing the slip velocity for the dynamic problem
@@ -243,7 +243,7 @@ struct ComputeAging_dyn : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
 
