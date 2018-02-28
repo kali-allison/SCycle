@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
-  _muVec(NULL),_rhoVec(NULL),_cs(NULL),
+  _muVec(NULL),_rhoVec(NULL),_cs(NULL),_csValue(-1),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
@@ -139,6 +139,9 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("rhoDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoDepths);
+    }
+    else if (var.compare("cs")==0) {
+      _csValue = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
 
     // switches for computing extra stresses
@@ -339,9 +342,17 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   #endif
 
   //~ ierr = setVec(_muVec,*_z,_muVals,_muDepths);CHKERRQ(ierr);
-  ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
-  ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-  VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  if(_csValue == -1){
+    ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
+    ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+    VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  }
+  else{
+    ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+    ierr = VecSet(_cs, _csValue * _csValue);
+    VecPointwiseMult(_muVec, _cs, _rhoVec);
+  }
+
   VecSqrtAbs(_cs);
 
   if (_isMMS) {

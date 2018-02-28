@@ -15,6 +15,7 @@ PetscErrorCode loadFileIfExists_matlab(const string fileName, Vec& vec)
   PetscErrorCode ierr = 0;
 
   bool fileExists = doesFileExist(fileName);
+  PetscPrintf(PETSC_COMM_WORLD, "Loading file %s", fileName.c_str());
   if (fileExists) {
     PetscViewer inv;
     ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
@@ -24,6 +25,7 @@ PetscErrorCode loadFileIfExists_matlab(const string fileName, Vec& vec)
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: File not found: %s\n",fileName.c_str());
+    ierr = 1;
   }
   return ierr;
 }

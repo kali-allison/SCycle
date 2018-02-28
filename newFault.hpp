@@ -47,7 +47,7 @@ class NewFault
     Vec                   _a,_b,_Dc;
     std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
     Vec                   _cohesion,_mu,_rho;
-    Vec                   _dPsi,_psi;
+    Vec                   _dPsi,_psi, _psiPrev;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
@@ -230,12 +230,12 @@ struct ComputeAging_dyn : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
-  PetscScalar        *_psi;
+  PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set

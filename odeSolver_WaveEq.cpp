@@ -74,7 +74,7 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
     ierr = VecSet(temp,0.0); CHKERRQ(ierr);
     _varPrev[it->first] = temp;
   }
-
+  _varPrev["slip"] = _var["dslip"];
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::setInitialConds in odeSolver_waveEq.cpp.\n");
