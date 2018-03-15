@@ -12,5 +12,5 @@ maxVal = max(max(A(:)),max(B(:)));
 figure(fI),clf
 subplot(1,2,1),imagesc(A),colorbar,title(titleStrA),caxis([minVal maxVal])
 subplot(1,2,2),imagesc(B),colorbar,title(titleStrB),caxis([minVal maxVal])
-
+drawnow
 end

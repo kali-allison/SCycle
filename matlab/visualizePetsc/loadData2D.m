@@ -23,17 +23,9 @@ elseif stride < 1 || rem(stride,1)~=0
   return
 end
 
-
-% add PETSc routines to MATLAB path
-if isdir('/Users/kallison/petsc-3.7.3/share/petsc/matlab/')
-  addpath('/Users/kallison/petsc-3.7.3/share/petsc/matlab/');
-else
-  display('Cannot find directory containing PETSc loading functions!');
-end
-
-output.loadStride2D = stride;
-output.loadStartInd2D = startInd;
-output.loadEndInd2D = endInd;
+output.load.loadStride2D = stride;
+output.load.loadStartInd2D = startInd;
+output.load.loadEndInd2D = endInd;
 
 display(strcat('loading data 2D:',sourceDir))
 
@@ -63,6 +55,7 @@ if exist(strcat(sourceDir,'gxz'),'file') == 2
   output.Gxz = squeeze(reshape(gxz,output.dom.Nz,output.dom.Ny,size(gxz,2)));
   fprintf('...finished.\n')
 end
+
 if exist(strcat(sourceDir,'gTxy'),'file') == 2
   fprintf('    loading gTxy')
   gTxy = loadVec(sourceDir,'gTxy',stride,startInd,endInd);
@@ -88,6 +81,7 @@ if exist(strcat(sourceDir,'sxz'),'file') == 2
   output.Sxz = squeeze(reshape(sxz,output.dom.Nz,output.dom.Ny,size(sxz,2)));
   fprintf('...finished.\n')
 end
+
 if exist(strcat(sourceDir,'effVisc'),'file') == 2
   fprintf('    loading effective viscosity')
   effVisc = loadVec(sourceDir,'effVisc',stride,startInd,endInd);
@@ -104,15 +98,18 @@ end
 if exist(strcat(sourceDir,'dT'),'file') == 2
   fprintf('    loading dT (perturbation)')
   dT = loadVec(sourceDir,'dT',stride,startInd,endInd);
-  output.dT = reshape(dT,output.dom.Nz,output.dom.Ny,size(dT,2));
+  output.dT = squeeze(reshape(dT,output.dom.Nz,output.dom.Ny,size(dT,2)));
   fprintf('...finished.\n')
 end
-if exist(strcat(sourceDir,'heatFlux'),'file') == 2
-  fprintf('    loading heat flux dT/dy')
-  heatFlux = loadVec(sourceDir,'heatFlux',stride,startInd,endInd);
-  output.heatFlux = reshape(heatFlux,output.dom.Nz,output.dom.Ny,size(dT,2));
-  fprintf('...finished.\n')
+if exist(strcat(sourceDir,'he_omega'),'file') == 2
+  output.he.omega = loadVec(sourceDir,'he_omega',stride,startInd,endInd);
 end
+% if exist(strcat(sourceDir,'heatFlux'),'file') == 2
+%   fprintf('    loading heat flux dT/dy')
+%   heatFlux = loadVec(sourceDir,'heatFlux',stride,startInd,endInd);
+%   output.heatFlux = reshape(heatFlux,output.dom.Nz,output.dom.Ny,size(heatFlux,2));
+%   fprintf('...finished.\n')
+% end
 % if exist(strcat(sourceDir,'he_bcR'),'file') == 2
 %   output.he_bcR = loadVec(sourceDir,'he_bcR',stride,startInd,endInd);
 % end
