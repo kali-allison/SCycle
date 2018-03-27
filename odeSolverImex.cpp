@@ -1085,6 +1085,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     // accept updated state for implicit variables
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
+      VecSet(_vardTIm[it->first],0.);
     }
     ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }

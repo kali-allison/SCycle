@@ -35,11 +35,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   }
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
-    Vec T; VecDuplicate(_D->_y,&T);
-    _he->getTemp(T);
-    _fault->setThermalFields(T,_he->_k,_he->_c);
+    _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }
-
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -317,6 +314,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   if (_thermalCoupling.compare("no")!=0 ) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
+     _fault->updateTemperature(_he->_T);
   }
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
@@ -614,7 +612,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     _p->updateFields(time,varEx,varImo);
   }
 
-  // update temperature in momBal
+  // update temperature in fault
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _fault->updateTemperature(varImo.find("Temp")->second);
   }
@@ -717,8 +715,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     _material->getStresses(sxy,sxz,sdev);
     Vec T; VecDuplicate(sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
-    VecCopy(T,_he->_Tamb);
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    ierr = writeVec(_he->_T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
 

@@ -3,7 +3,7 @@
 
 # set up the computational domain
 Ny = 201 # points in y-direction
-Nz = 301 # points in z-direction
+Nz = 1001 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
@@ -62,8 +62,8 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-outputDir = data/ex2_
-
+#outputDir = data/ex2_
+#outputDir = /scratch/kallison/test/ex2_
 
 
 

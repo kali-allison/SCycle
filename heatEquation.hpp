@@ -106,7 +106,7 @@ class HeatEquation
     PetscErrorCode computeHeatFlux();
 
 
-    Vec _dT; // actually change in temperature
+    Vec _dT,_T; // change in temperature from ambiant, temperature
     Vec _Tamb; // initial temperature
     Vec _k,_rho,_c,_h,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
 

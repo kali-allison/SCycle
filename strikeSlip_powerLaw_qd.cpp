@@ -16,7 +16,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
@@ -29,7 +29,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     std::string funcName = "StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-assert(0);
+
   loadSettings(D._file);
   checkInput();
   _he = new HeatEquation(D); // heat equation
@@ -334,6 +334,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 
   if (_thermalCoupling.compare("no")!=0 ) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
+     _fault->updateTemperature(_he->_T);
   }
 
   if (_hydraulicCoupling.compare("no")!=0 ) {
@@ -365,7 +366,7 @@ double startTime = MPI_Wtime();
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 1e11) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 4e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -390,7 +391,10 @@ double startTime = MPI_Wtime();
 
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+    PetscReal maxVel = 0;
+    ierr = VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,maxVel);CHKERRQ(ierr);
+    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -675,10 +679,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->updateFields(time,varEx,varImo);
   }
 
-  // update temperature in momBal
-  //~ if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
-    //~ _fault->updateTemperature(varImo.find("Temp")->second);
-  //~ }
+  // update temperature in momBal and fault
+  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+    _fault->updateTemperature(varImo.find("Temp")->second);
+    _material->updateTemperature(varImo.find("Temp")->second);
+  }
 
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) {
@@ -774,6 +779,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   #endif
   double startTime = MPI_Wtime();
 
+
   Vec sxy=NULL,sxz=NULL,sdev = NULL;
   std::string baseOutDir = _outputDir;
 
@@ -836,7 +842,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     if (_thermalCoupling.compare("coupled")==0) {
       _material->getStresses(sxy,sxz,sdev);
       VecCopy(_varSS["Temp"],T_old);
-      _he->computeSteadyStateTemp(_currTime,_varEx["slip"],_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+      Vec V; VecDuplicate(_varSS["slipVel"],&V); VecSet(V,1e-9); //VecSet(V,_D->_vL);
+      VecPointwiseMin(_varSS["slipVel"],V,_varSS["slipVel"]);
+      _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+      VecDestroy(&V);
       VecScale(_varSS["Temp"],_fss_T);
       VecAXPY(_varSS["Temp"],1.-_fss_T,T_old);
       _material->updateTemperature(_varSS["Temp"]);
@@ -886,14 +895,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   VecDuplicate(tauRS,&tauSS);
   VecPointwiseMin(tauSS,tauRS,tauVisc);
   //~ VecCopy(tauRS,tauSS);
+  VecSet(tauSS,0.1);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_fault->_psi,_inputDir,"psi"); CHKERRQ(ierr);
   }
   ierr = io_initiateWriteAppend(_viewers, "SS_tauSS", tauSS, _outputDir + "SS_tauSS"); CHKERRQ(ierr);
-  VecView(_varSS["tau"],PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
 
   // first, set up _varSS
   _varSS["tau"] = tauSS;

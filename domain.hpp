@@ -34,8 +34,6 @@ class Domain
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz;
     PetscScalar  _alphay,_alphaz;
-    std::string  _yInputDir; // directory to load y from
-    std::string  _zInputDir; // directory to load z from
     PetscScalar  _vL; // loading velocity
 
     // coordinate system

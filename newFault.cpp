@@ -11,7 +11,7 @@ NewFault::NewFault(Domain&D,VecScatter& scatter2fault)
   _N(D._Nz),_L(D._Lz),
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
-  _fw(0.64),_Vw(0.12),_tau_c(3),_Tw(1173),_D_fh(5),
+  _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
   _rootTol(1e-9),_rootIts(0),_maxNumIts(1e4),
   _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
   _body2fault(&scatter2fault)
@@ -138,10 +138,15 @@ PetscErrorCode NewFault::loadSettings(const char *file)
       _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
     else if (var.compare("Vw")==0) {
-      _Vw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _Vw_const = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
-    else if (var.compare("Tw")==0) {
-      _Tw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    else if (var.compare("TwVals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TwVals);
+    }
+    else if (var.compare("TwDepths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_TwDepths);
     }
     else if (var.compare("D")==0) {
       _D_fh = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
@@ -212,6 +217,7 @@ PetscErrorCode NewFault::checkInput()
   assert(_cohesionVals.size() == _cohesionDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
   assert(_muVals.size() == _muDepths.size() );
+  assert(_TwVals.size() == _TwDepths.size() );
 
 
   assert(_DcVals.size() != 0 );
@@ -220,6 +226,7 @@ PetscErrorCode NewFault::checkInput()
   assert(_sigmaNVals.size() != 0 );
   assert(_rhoVals.size() != 0 );
   assert(_muVals.size() != 0 );
+  assert(_TwVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
 
@@ -276,9 +283,12 @@ PetscErrorCode NewFault::setFields(Domain& D)
   if (_stateLaw.compare("flashHeating") == 0) {
     VecDuplicate(_tauP,&_T);    PetscObjectSetName((PetscObject) _T, "T_fault");
     VecDuplicate(_tauP,&_k);    PetscObjectSetName((PetscObject) _k, "k_fault");
-    VecDuplicate(_tauP,&_c);  PetscObjectSetName((PetscObject) _c, "c_fault");
+    VecDuplicate(_tauP,&_c);    PetscObjectSetName((PetscObject) _c, "c_fault");
+    VecDuplicate(_tauP,&_Tw);   PetscObjectSetName((PetscObject) _Tw, "Tw");
+    ierr = setVec(_Tw,_z,_TwVals,_TwDepths); CHKERRQ(ierr);
+    VecDuplicate(_tauP,&_Vw);   PetscObjectSetName((PetscObject) _Vw, "Vw");
   }
-  else { _T = NULL; _k = NULL; _c = NULL;}
+  else { _T = NULL; _k = NULL; _c = NULL; _Tw = NULL; _Vw = NULL;}
 
   // set fields
   ierr = setVec(_a,_z,_aVals,_aDepths); CHKERRQ(ierr);
@@ -339,6 +349,8 @@ PetscErrorCode NewFault::setThermalFields(const Vec& T, const Vec& k, const Vec&
   VecScatterBegin(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
 
+  VecSet(_Vw,_Vw_const);
+
   _scatterTime += MPI_Wtime() - scatterStart;
 
    #if VERBOSE > 1
@@ -361,6 +373,19 @@ PetscErrorCode NewFault::updateTemperature(const Vec& T)
     VecScatterEnd(*_body2fault, T, _T, INSERT_VALUES, SCATTER_FORWARD);
     _scatterTime += MPI_Wtime() - scatterStart;
   }
+
+  //~ PetscInt       Ii,Istart,Iend;
+  //~ PetscScalar    v = 0;
+  //~ ierr = VecGetOwnershipRange(T,&Istart,&Iend);CHKERRQ(ierr);
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ if (Ii<_N) {
+      //~ ierr = VecGetValues(T,1,&Ii,&v);CHKERRQ(ierr);
+      //~ ierr = VecSetValues(_T,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    //~ }
+  //~ }
+  //~ ierr = VecAssemblyBegin(_T);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_T);CHKERRQ(ierr);
+
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -466,7 +491,7 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
   if (!_stateLaw.compare("flashHeating")) {
     ierr = PetscViewerASCIIPrintf(viewer,"fw = %.15e\n",_fw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw_const);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"Tw = %.15e # (K)\n",_Tw);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
@@ -539,6 +564,7 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
+      ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
     }
   }
   else {
@@ -549,6 +575,7 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
+      ierr = VecView(_Vw,_viewers["Vw"].first); CHKERRQ(ierr);
     }
   }
 
@@ -598,6 +625,8 @@ NewFault::~NewFault()
   VecDestroy(&_sNEff);
   VecDestroy(&_sN);
   VecDestroy(&_cohesion);
+  VecDestroy(&_Tw);
+  VecDestroy(&_Vw);
 
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first].first);
@@ -866,7 +895,7 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
     ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("flashHeating") == 0) {
-    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_D_fh,_Tw,_tau_c,_Vw,_fw,_Dc,_a,_b,_f0,_v0);
+    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_Vw,_D_fh,_Tw,_tau_c,_Vw_const,_fw,_Dc,_a,_b,_f0,_v0);
     CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("constantState") == 0) {
@@ -1774,16 +1803,18 @@ PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipV
 }
 
 
-// flash heating state evolution law
-PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
+// flash heating: compute Vw
+PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c)
 {
-  PetscScalar absV = abs(slipVel);
-
-  // compute Vw
   PetscScalar rc = rho * c;
   PetscScalar ath = k/rc;
   PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
-  //~ PetscScalar Vw = Vwi;
+  return Vw;
+}
+// flash heating state evolution law
+PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
+{
+  PetscScalar absV = abs(slipVel);
 
   if (absV == 0.0) { absV += 1e-14; }
 
@@ -1801,19 +1832,21 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
 }
 
 // applies the flash heating state law to a Vec
-PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c, const PetscScalar& Vwi, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0)
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0)
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar *dpsiA;
-  PetscScalar const *psiA,*slipVelA,*DcA,*TA,*rhoA,*cA,*kA,*aA,*bA;
+  PetscScalar *dpsiA,*VwA;
+  PetscScalar const *psiA,*slipVelA,*DcA,*TA,*TwA,*rhoA,*cA,*kA,*aA,*bA;
   VecGetArray(dpsi,&dpsiA);
+  VecGetArray(Vw,&VwA);
   VecGetArrayRead(psi,&psiA);
   VecGetArrayRead(slipVel,&slipVelA);
   VecGetArrayRead(T,&TA);
   VecGetArrayRead(rho,&rhoA);
   VecGetArrayRead(c,&cA);
   VecGetArrayRead(k,&kA);
+  VecGetArrayRead(Tw,&TwA);
   VecGetArrayRead(Dc,&DcA);
   VecGetArrayRead(a,&aA);
   VecGetArrayRead(b,&bA);
@@ -1821,16 +1854,23 @@ PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],TA[Jj],rhoA[Jj],cA[Jj],kA[Jj],D,Tw,tau_c,Vwi,fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
+    VwA[Jj] = flashHeating_Vw(TA[Jj], rhoA[Jj],cA[Jj],kA[Jj],D, TwA[Jj], tau_c);
+    //~ VwA[Jj] = Vw_const;
+    //~ PetscScalar Vwi = Vw_const; // if constant
+    PetscScalar Vwi = VwA[Jj]; // if not constant
+
+    dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],Vwi,fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
     Jj++;
   }
   VecRestoreArray(dpsi,&dpsiA);
+  VecRestoreArray(Vw,&VwA);
   VecRestoreArrayRead(psi,&psiA);
   VecRestoreArrayRead(slipVel,&slipVelA);
   VecRestoreArrayRead(T,&TA);
   VecRestoreArrayRead(rho,&rhoA);
   VecRestoreArrayRead(c,&cA);
   VecRestoreArrayRead(k,&kA);
+  VecRestoreArrayRead(Tw,&TwA);
   VecRestoreArrayRead(Dc,&DcA);
   VecRestoreArrayRead(a,&aA);
   VecRestoreArrayRead(b,&bA);

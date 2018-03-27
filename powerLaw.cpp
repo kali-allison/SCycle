@@ -1318,7 +1318,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   VecGetArray(_effVisc,&effVisc);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] );
+    s = pow( strainRate/ (A[Jj]*exp(-B[Jj]/T[Jj]) ), 1.0/n[Jj] + 1.0/_effViscCap);
     effVisc[Jj] =  s/strainRate * 1e-3; // (GPa s)  in terms of strain rate
     Jj++;
   }
@@ -1328,10 +1328,10 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   VecRestoreArray(_T,&T);
   VecRestoreArray(_effVisc,&effVisc);
 
-  return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 
@@ -1363,10 +1363,10 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
   _sbp_eta->setMultiplyByH(1);
   _sbp_eta->computeMatrices(); // actually create the matrices
 
-  return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 PetscErrorCode PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
@@ -1397,7 +1397,7 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::initiateVarSS";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1414,7 +1414,7 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
   varSS["gxz"] = _gxz; // included so it'll be written out
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
       CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1427,7 +1427,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::updateSSa";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1456,7 +1456,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
       CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1468,7 +1468,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "PowerLaw::updateSSb";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1523,7 +1523,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
       CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1656,7 +1656,7 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
   _stepCount = stepCount;
 
   if (stepCount == 0) {
-    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
+    //~ ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);

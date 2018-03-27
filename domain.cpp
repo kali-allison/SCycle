@@ -8,9 +8,8 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecified"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
-  _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0)
@@ -55,9 +54,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecified"),
+  _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
-  _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(5.0)
@@ -179,12 +177,6 @@ PetscErrorCode Domain::loadData(const char *file)
 
     else if (var.compare("inputDir")==0) {
       _inputDir = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("zInputDir")==0) {
-      _zInputDir = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("yInputDir")==0) {
-      _yInputDir = line.substr(pos+_delim.length(),line.npos);
     }
 
     else if (var.compare("bCoordTrans")==0) {
