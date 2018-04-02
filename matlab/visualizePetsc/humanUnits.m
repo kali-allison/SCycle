@@ -54,10 +54,19 @@ out(tI) = t(tI)./(30*24*3600);
 outUnits(tI) = repmat(cellstr('months'),sum(tI),1);
 
 % return in years
-tI = t > 12*30*24*3600;
+tI = t > 12*30*24*3600 & t < 12*30*24*3600 * 1e3;
 out(tI) = t(tI)./(12*30*24*3600);
 outUnits(tI) = repmat(cellstr('years'),sum(tI),1);
 
+% return in ka (thousands of years)
+tI = t > 12*30*24*3600 * 1e3 & t < 12*30*24*3600 * 1e6;
+out(tI) = t(tI)./(12*30*24*3600 * 1e3);
+outUnits(tI) = repmat(cellstr('ka'),sum(tI),1);
+
+% return in ka (thousands of years)
+tI = t > 12*30*24*3600 * 1e6;
+out(tI) = t(tI)./(12*30*24*3600 * 1e6);
+outUnits(tI) = repmat(cellstr('ma'),sum(tI),1);
 
 % display output
 outDisplay = repmat(cellstr(''),size(in,1),1);

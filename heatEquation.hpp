@@ -31,7 +31,7 @@ class HeatEquation
   public:
 
     // domain dimensions etc
-    Domain *_D;
+    Domain              *_D;
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     Vec                 *_y,*_z; // to handle variable grid spacing
@@ -106,7 +106,7 @@ class HeatEquation
     PetscErrorCode computeHeatFlux();
 
 
-    Vec _dT; // actually change in temperature
+    Vec _dT,_T; // change in temperature from ambiant, temperature
     Vec _Tamb; // initial temperature
     Vec _k,_rho,_c,_h,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
 

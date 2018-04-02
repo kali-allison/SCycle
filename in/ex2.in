@@ -3,7 +3,7 @@
 
 # set up the computational domain
 Ny = 201 # points in y-direction
-Nz = 301 # points in z-direction
+Nz = 1001 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
@@ -42,6 +42,9 @@ muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3)
 rhoDepths = [0 60] # (km)
 
+# compute stress component sxz
+momBal_computeSxz = 1
+
 #=======================================================================
 # settings for time integration
 
@@ -59,10 +62,9 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-outputDir = data/ex2_
+#outputDir = data/ex2_
+#outputDir = /scratch/kallison/test/ex2_
 
-# compute stress component sxz
-momBal_computeSxz = 1
 
 
 

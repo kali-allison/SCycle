@@ -16,7 +16,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
@@ -35,11 +35,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   }
   _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
-    Vec T; VecDuplicate(_D->_y,&T);
-    _he->getTemp(T);
-    _fault->setThermalFields(T,_he->_k,_he->_c);
+    _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }
-
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -94,20 +91,22 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-{
-  map<string,Vec>::iterator it;
-  for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-    VecDestroy(&it->second);
+  {
+    map<string,Vec>::iterator it;
+    for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+      VecDestroy(&it->second);
+    }
+    for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+      VecDestroy(&it->second);
+    }
   }
-  for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
-    VecDestroy(&it->second);
+
+  {  // destroy viewers for steady state iteration
+    map<string,std::pair<PetscViewer,string> >::iterator it;
+    for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
+      PetscViewerDestroy(& (_viewers[it->first].first) );
+    }
   }
-}
-
-  //~ for (std::map <string,std::pair<PetscViewer,string> > it = _viewers.begin(); it!=_viewers.end(); it++ ) {
-    //~ PetscViewerDestroy(&it->second);
-  //~ }
-
 
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;
@@ -176,6 +175,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
+    }
+    else if (var.compare("normType")==0) {
+      _normType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -317,6 +319,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   if (_thermalCoupling.compare("no")!=0 ) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
+     _fault->updateTemperature(_he->_T);
   }
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
@@ -458,6 +461,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
@@ -614,7 +618,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     _p->updateFields(time,varEx,varImo);
   }
 
-  // update temperature in momBal
+  // update temperature in fault
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _fault->updateTemperature(varImo.find("Temp")->second);
   }
@@ -717,8 +721,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     _material->getStresses(sxy,sxz,sdev);
     Vec T; VecDuplicate(sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
-    VecCopy(T,_he->_Tamb);
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    ierr = writeVec(_he->_T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
 
