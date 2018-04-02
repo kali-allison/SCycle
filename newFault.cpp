@@ -854,7 +854,6 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
   // compute slip velocity
   double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
@@ -1689,18 +1688,18 @@ PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slip
 // state evolution law: slip law, state variable: psi
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc)
 {
-  PetscScalar absV = abs(slipVel);
-  if (absV == 0) { absV += 1e-14; }
+  if (slipVel == 0) { return 0.0; }
 
+  PetscScalar absV = abs(slipVel);
   PetscScalar fss = f0 + (a-b)*log(absV/v0); // correct
 
   // not regularized
   //~ PetscScalar f = psi + a*log(absV/v0);
 
   // regularized
-  PetscScalar f = a*asinh( (double) (abs(slipVel)/2./v0)*exp(psi/a) );
+  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) );
 
-  PetscScalar dstate = -abs(slipVel)/Dc *(f - fss);
+  PetscScalar dstate = -absV/Dc * (f - fss);
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));
@@ -1787,9 +1786,9 @@ PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const 
 // flash heating state evolution law
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
 {
-  PetscScalar absV = abs(slipVel);
+  if (slipVel == 0) { return 0.0; }
 
-  if (absV == 0.0) { absV += 1e-14; }
+  PetscScalar absV = abs(slipVel);
 
   // compute f
   PetscScalar fLV = f0 + (a-b)*log(absV/v0);

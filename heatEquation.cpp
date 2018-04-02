@@ -301,9 +301,6 @@ PetscErrorCode ierr = 0;
 
   // set boundary conditions
   VecDuplicate(_D->_z0,&_bcT);
-  //~ VecCreate(PETSC_COMM_WORLD,&_bcT);
-  //~ VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
-  //~ VecSetFromOptions(_bcT);
   PetscObjectSetName((PetscObject) _bcT, "_bcT");
   PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
   VecSet(_bcT,bcTval);
@@ -313,9 +310,6 @@ PetscErrorCode ierr = 0;
   VecSet(_bcB,bcBval);
 
   VecDuplicate(_D->_y0,&_bcR);
-  //~ VecCreate(PETSC_COMM_WORLD,&_bcR);
-  //~ VecSetSizes(_bcR,PETSC_DECIDE,_Nz);
-  //~ VecSetFromOptions(_bcR);
   PetscObjectSetName((PetscObject) _bcR, "_bcR");
   VecSet(_bcR,0.0);
 
@@ -491,30 +485,14 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   _sbp->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("z");
+  _sbp->setDeleteIntermediateFields(1);
   _sbp->computeMatrices(); // actually create the matrices
 
 
   if (_Nz > 1) {
-    // set up linear solver context
-    KSP ksp;
-    PC pc;
-    KSPCreate(PETSC_COMM_WORLD,&ksp);
 
-    Mat A;
-    _sbp->getA(A);
-
-    ierr = KSPSetType(ksp,KSPRICHARDSON);CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg");CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4);CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);CHKERRQ(ierr);
-
-    // perform computation of preconditioners now, rather than on first use
-    ierr = KSPSetUp(ksp);CHKERRQ(ierr);
+    Mat A; _sbp->getA(A);
+    setupKSP_SS(A);
 
     Vec rhs;
     VecDuplicate(_k,&rhs);
@@ -523,13 +501,12 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     // solve for temperature
     VecSet(_Tamb,0.);
     double startTime = MPI_Wtime();
-    ierr = KSPSolve(ksp,rhs,_Tamb);CHKERRQ(ierr);
+    ierr = KSPSolve(_kspSS,rhs,_Tamb);CHKERRQ(ierr);
     _linSolveTime += MPI_Wtime() - startTime;
     _linSolveCount++;
 
-
     VecDestroy(&rhs);
-    KSPDestroy(&ksp);
+    KSPDestroy(&_kspSS); _kspSS = NULL;
   }
   else{
     VecSet(_Tamb,_TVals[0]);
@@ -537,6 +514,18 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   VecSet(_dT,0.0);
   VecCopy(_Tamb,_T);
   computeHeatFlux();
+
+  // set up boundary conditions
+  VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecSet(_bcL,0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -600,9 +589,9 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
-    PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
-    PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    PCFactorSetUpMatSolverPackage(pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverPackage(pc); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspSS,KSPCG); CHKERRQ(ierr);
@@ -613,6 +602,7 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetTolerances(_kspSS,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
@@ -662,7 +652,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(_kspTrans,KSPRICHARDSON); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr); // necessary for solving steady state power law
+    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
     ierr = PCHYPRESetType(_pc,"boomeramg"); CHKERRQ(ierr);
@@ -1128,7 +1118,6 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   _linSolveCount++;
   VecDestroy(&rhs);
 
-
   VecCopy(_T,T);
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = T - Tamb
 
@@ -1520,6 +1509,7 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");
+  _sbp->setDeleteIntermediateFields(1);
   _sbp->computeMatrices(); // actually create the matrices
 
 
@@ -1624,7 +1614,7 @@ PetscErrorCode HeatEquation::setBCsforBE()
     CHKERRQ(ierr);
   #endif
 
-  // only solve for change in T with linear solve
+  // only solve for dT with linear solve
   VecSet(_bcR,0.0);
   VecSet(_bcT,0.0);
   VecSet(_bcB,0.0);
