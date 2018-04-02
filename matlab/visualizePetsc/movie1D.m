@@ -21,7 +21,7 @@ for ind = iI:stride:eI
   
   % plot of shear stress
   subplot(1,4,1)
-  plot(d.tauPlus(:,ind),d.z(:,1),'b.-')
+  plot(d.tauP(:,ind),d.z(:,1),'b.-')
   xlabel('tau (MPa)')
   %xlim([0 400])
   set(gca,'YDir','reverse')

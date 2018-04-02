@@ -37,6 +37,9 @@ p.f0 = 0.6;
 p.Dc = 0.05; % m
 p.rho = rho(:,1);
 
+% lock part of the fault
+p.locked = z.*0; p.locked(z>=25) = p.locked(z>=25).*0 + 1;
+
 % pre-stress
 a = 5;
 zc = 15;
@@ -44,14 +47,15 @@ stau = 4;
 sxy0 = 30;
 p.tau0 = sxy0 + a.*exp(-(z-zc).^2./(2.*stau.^2));
 % p.tau0 = sxy0 + a + z.*0;
-figure(2),clf,plot(z,p.tau0)%,return
+% figure(2),clf,plot(z,p.tau0)%,return
 
 % time
-tmax = 15;
-cfl = 0.25;
+tmax = 10;
+cfl = 0.5;
 dt1 = 0.05*cfl/max(cs(:)) * dy;
 dt = 0.5 * cfl/max(cs(:)) * dy;
-t = [0 dt1:dt:tmax];
+% t = [0 dt1:dt:tmax];
+t = [0:dt:tmax];
 
 
 % create SBP operators
@@ -101,8 +105,26 @@ az = cs .* 0.5*dt/h11z;
 %%
 
 % for output
-% clear out
-% out.u = zeros(
+clear out
+out.u = zeros(Nz,Ny,length(t)) + NaN;
+out.sxy = zeros(Nz,Ny,length(t)) + NaN;
+out.sxz = zeros(Nz,Ny,length(t)) + NaN;
+out.psi = zeros(Nz,length(t)) + NaN;
+out.V = zeros(Nz,length(t)) + NaN;
+out.tau = zeros(Nz,length(t)) + NaN;
+out.t = t;
+out.y = y; out.z = z; out.cs = cs; out.G = G; out.rho = rho; out.Y = Y; out.Z = Z;
+
+% save first time step
+out.u(:,:,1) = u;
+sxy = G .* Dy(u,dy,order) + sxy0; sxy(:,1) = sxy(:,1) + p.tau0' - sxy0(:,1);
+sxz = G .* Dz(u,dy,order);
+out.sxy(:,:,1) = sxy;
+out.sxz(:,:,1) = sxz;
+out.psi(:,1) = psi;
+out.V(:,1) = psi.*0;
+out.tau(:,1) = sxy(:,1);
+
 for tInd = 2:length(t)
   
   % intermediate fields
@@ -123,8 +145,8 @@ for tInd = 2:length(t)
   % update boundary conditions
   
   % y = 0: cs u_t - mu u_y = 0
-%   uNew(:,1) = dt^2*uLap(:,1)./rho(:,1)  + 2*u(:,1) + (ay(:,1)-1).*uPrev(:,1);
-%   uNew(:,1) = uNew(:,1)./(1+ay(:,1));
+  %   uNew(:,1) = dt^2*uLap(:,1)./rho(:,1)  + 2*u(:,1) + (ay(:,1)-1).*uPrev(:,1);
+  %   uNew(:,1) = uNew(:,1)./(1+ay(:,1));
   
   % y = Ly: cs u_t + mu u_y = 0
   uNew(:,end) = dt^2*uLap(:,end)./rho(:,end)  + 2*u(:,end) + (ay(:,end)-1).*uPrev(:,end);
@@ -137,7 +159,7 @@ for tInd = 2:length(t)
   % z = Lz: cs u_t + mu u_z = 0
   uNew(end,:) = dt^2*uLap(end,:)./rho(end,:)  + 2*u(end,:) + (az(end,:)-1).*uPrev(end,:);
   uNew(end,:) = uNew(end,:)./(1+az(end,:));
- 
+  
   
   pen = h11y;
   [out1, psiNew, vel,strength] = fault_2d_wPrestress(dt,pen,uLap(:,1),u(:,1),uPrev(:,1),psi,psiPrev,velPrev,p,t(tInd));
@@ -155,6 +177,14 @@ for tInd = 2:length(t)
   sxy = G .* Dy(u,dy,order) + sxy0; sxy(:,1) = sxy(:,1) + p.tau0' - sxy0(:,1);
   sxz = G .* Dz(u,dy,order);
   
+  % save time step
+  out.u(:,:,tInd) = u;
+  out.sxy(:,:,tInd) = sxy;
+  out.sxz(:,:,tInd) = sxz;
+  out.psi(:,tInd) = psi;
+  out.V(:,tInd) = vel;
+  out.tau(:,tInd) = sxy(:,1);
+  
   % plot displacement as simulation runs
   if mod(tInd-1,5) == 0
     figure(1),clf
@@ -169,12 +199,12 @@ for tInd = 2:length(t)
     %plot(z,psi),title('psi')
     plot(z,strength,'.-','Linewidth',1),title('\tau')
     drawnow
-% pause
+    % pause
   end
   
 end
 
 
 
-
+% save('/Users/kallison/dynrupture/data/oneBlock_aging.mat','-struct','out');
 
