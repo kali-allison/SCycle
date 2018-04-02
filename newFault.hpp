@@ -153,7 +153,7 @@ class NewFault_dyn: public NewFault
     NewFault_dyn& operator=( const NewFault_dyn& rhs);
 
   public:
-    Vec                  _Phi, _an, _constraints_factor;
+    Vec                 _Phi, _an, _constraints_factor;
     Vec                 _slipPrev;
     Vec                 _rhoLocal;
     IS                  _is;

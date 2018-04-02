@@ -91,20 +91,22 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-{
-  map<string,Vec>::iterator it;
-  for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-    VecDestroy(&it->second);
+  {
+    map<string,Vec>::iterator it;
+    for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+      VecDestroy(&it->second);
+    }
+    for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+      VecDestroy(&it->second);
+    }
   }
-  for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
-    VecDestroy(&it->second);
+
+  {  // destroy viewers for steady state iteration
+    map<string,std::pair<PetscViewer,string> >::iterator it;
+    for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
+      PetscViewerDestroy(& (_viewers[it->first].first) );
+    }
   }
-}
-
-  //~ for (std::map <string,std::pair<PetscViewer,string> > it = _viewers.begin(); it!=_viewers.end(); it++ ) {
-    //~ PetscViewerDestroy(&it->second);
-  //~ }
-
 
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;

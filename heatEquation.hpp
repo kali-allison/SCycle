@@ -31,7 +31,7 @@ class HeatEquation
   public:
 
     // domain dimensions etc
-    Domain *_D;
+    Domain              *_D;
     const PetscInt       _order,_Ny,_Nz;
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     Vec                 *_y,*_z; // to handle variable grid spacing

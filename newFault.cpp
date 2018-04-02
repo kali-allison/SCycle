@@ -217,8 +217,6 @@ PetscErrorCode NewFault::checkInput()
   assert(_cohesionVals.size() == _cohesionDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
   assert(_muVals.size() == _muDepths.size() );
-  assert(_TwVals.size() == _TwDepths.size() );
-
 
   assert(_DcVals.size() != 0 );
   assert(_aVals.size() != 0 );
@@ -226,7 +224,6 @@ PetscErrorCode NewFault::checkInput()
   assert(_sigmaNVals.size() != 0 );
   assert(_rhoVals.size() != 0 );
   assert(_muVals.size() != 0 );
-  assert(_TwVals.size() != 0 );
 
   assert(_rootTol >= 1e-14);
 
@@ -237,6 +234,11 @@ PetscErrorCode NewFault::checkInput()
 
   assert(_v0 > 0);
   assert(_f0 > 0);
+
+  if (_stateLaw.compare("flashHeating") == 0) {
+    assert(_TwVals.size() == _TwDepths.size() );
+    assert(_TwVals.size() != 0 );
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -491,55 +493,25 @@ PetscErrorCode NewFault::writeContext(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
   if (!_stateLaw.compare("flashHeating")) {
     ierr = PetscViewerASCIIPrintf(viewer,"fw = %.15e\n",_fw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw_const);CHKERRQ(ierr);
+    //~ ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw_const);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Tw = %.15e # (K)\n",_Tw);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
   }
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 
   // output vector fields
+  ierr = writeVec(_z,outputDir + "fault_z"); CHKERRQ(ierr);
+  ierr = writeVec(_a,outputDir + "fault_a"); CHKERRQ(ierr);
+  ierr = writeVec(_b,outputDir + "fault_b"); CHKERRQ(ierr);
+  ierr = writeVec(_sNEff,outputDir + "fault_sNEff"); CHKERRQ(ierr);
+  ierr = writeVec(_Dc,outputDir + "fault_Dc"); CHKERRQ(ierr);
+  ierr = writeVec(_cohesion,outputDir + "fault_cohesion"); CHKERRQ(ierr);
+  ierr = writeVec(_locked,outputDir + "fault_locked"); CHKERRQ(ierr);
 
-  str = outputDir + "fault_z";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_z,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "fault_a";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_a,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  str = outputDir + "fault_b";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_b,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // output normal stress vector
-  str =  outputDir + "fault_sNEff";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_sNEff,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // output critical distance
-  str =  outputDir + "fault_Dc";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_Dc,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // output cohesion
-  str =  outputDir + "fault_cohesion";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_cohesion,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  // output where fault is locked
-  str =  outputDir + "fault_locked";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_locked,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
+  if (!_stateLaw.compare("flashHeating")) {
+    ierr = writeVec(_Tw,outputDir + "fault_Tw"); CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -610,23 +582,30 @@ NewFault::~NewFault()
   #endif
 
   // fields that exist on the fault
+  VecDestroy(&_z);
   VecDestroy(&_tauQSP);
   VecDestroy(&_tauP);
+  VecDestroy(&_tau0);
+
   VecDestroy(&_psi);
   VecDestroy(&_dPsi);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
-  VecDestroy(&_z);
 
-  // frictional fields
+  VecDestroy(&_locked);
   VecDestroy(&_Dc);
   VecDestroy(&_a);
   VecDestroy(&_b);
   VecDestroy(&_sNEff);
   VecDestroy(&_sN);
   VecDestroy(&_cohesion);
+  VecDestroy(&_mu);
+  VecDestroy(&_rho);
   VecDestroy(&_Tw);
   VecDestroy(&_Vw);
+  VecDestroy(&_k);
+  VecDestroy(&_c);
+  VecDestroy(&_T);
 
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first].first);
@@ -930,14 +909,8 @@ PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
 
   NewFault::writeContext(outputDir);
 
-  PetscViewer    viewer;
-
-  // output vector fields
-
-  std::string str = outputDir + "fault_eta_rad";
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  ierr = VecView(_eta_rad,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  // output Vec fields
+  ierr = writeVec(_eta_rad,outputDir + "fault_eta_rad"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1719,15 +1692,15 @@ PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, cons
   PetscScalar absV = abs(slipVel);
   if (absV == 0) { absV += 1e-14; }
 
-  PetscScalar fss = f0 + (a-b)*log(absV/v0);
+  PetscScalar fss = f0 + (a-b)*log(absV/v0); // correct
 
   // not regularized
   //~ PetscScalar f = psi + a*log(absV/v0);
 
   // regularized
-  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) );
+  PetscScalar f = a*asinh( (double) (abs(slipVel)/2./v0)*exp(psi/a) );
 
-  PetscScalar dstate = -absV/Dc *(f - fss);
+  PetscScalar dstate = -abs(slipVel)/Dc *(f - fss);
 
   assert(!isnan(dstate));
   assert(!isinf(dstate));

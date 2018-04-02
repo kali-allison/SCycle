@@ -169,10 +169,10 @@ PetscErrorCode LinearElastic::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("CG") == 0 ||
          _linSolver.compare("AMG") == 0 );
 
-  if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
+  if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
   }
 
@@ -258,6 +258,16 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
   }
+  else if (_linSolver.compare("CG")==0) { // conjugate gradient
+    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    PCSetType(pc,PCHYPRE);
+    PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);
+  }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
@@ -287,9 +297,10 @@ PetscErrorCode LinearElastic::allocateFields()
   #endif
 
   // boundary conditions
-  VecCreate(PETSC_COMM_WORLD,&_bcL);
-  VecSetSizes(_bcL,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_bcL);
+  VecDuplicate(_D->_y0,&_bcL);
+  //~ VecCreate(PETSC_COMM_WORLD,&_bcL);
+  //~ VecSetSizes(_bcL,PETSC_DECIDE,_Nz);
+  //~ VecSetFromOptions(_bcL);
   PetscObjectSetName((PetscObject) _bcL, "_bcL");
   VecSet(_bcL,0.0);
 
@@ -298,10 +309,10 @@ PetscErrorCode LinearElastic::allocateFields()
   VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
   VecSet(_bcR,0.);
 
-
-  VecCreate(PETSC_COMM_WORLD,&_bcT);
-  VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_bcT);
+  VecDuplicate(_D->_z0,&_bcT);
+  //~ VecCreate(PETSC_COMM_WORLD,&_bcT);
+  //~ VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
+  //~ VecSetFromOptions(_bcT);
   PetscObjectSetName((PetscObject) _bcT, "_bcT");
   VecSet(_bcT,0.0);
 
@@ -481,11 +492,9 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
-  _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
   KSPDestroy(&_ksp);
+  _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
   Mat A; _sbp->getA(A);
-  KSPCreate(PETSC_COMM_WORLD,&_ksp);
   setupKSP(_sbp,_ksp,_pc,A);
 
   #if VERBOSE > 1
@@ -503,20 +512,22 @@ PetscErrorCode LinearElastic::setSurfDisp()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscInt    Ii,Istart,Iend,y;
-  PetscScalar u;
-  ierr = VecGetOwnershipRange(_u,&Istart,&Iend);
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ z = Ii-_Nz*(Ii/_Nz);
-    y = Ii / _Nz;
-    if (Ii % _Nz == 0) {
-      //~ PetscPrintf(PETSC_COMM_WORLD,"Ii = %i, y = %i, z = %i\n",Ii,y,z);
-      ierr = VecGetValues(_u,1,&Ii,&u);CHKERRQ(ierr);
-      ierr = VecSetValue(_surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
+  // extract surface displacement from u
+  VecScatterBegin(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
+
+  //~ PetscInt    Ii,Istart,Iend,y;
+  //~ PetscScalar u;
+  //~ ierr = VecGetOwnershipRange(_u,&Istart,&Iend);
+  //~ for (Ii=Istart;Ii<Iend;Ii++) {
+    //~ y = Ii / _Nz;
+    //~ if (Ii % _Nz == 0) {
+      //~ ierr = VecGetValues(_u,1,&Ii,&u);CHKERRQ(ierr);
+      //~ ierr = VecSetValue(_surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
+    //~ }
+  //~ }
+  //~ ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
+  //~ ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -657,8 +668,10 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 PetscErrorCode LinearElastic::computeStresses()
 {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    #if VERBOSE > 1
+    string funcName = "LinearElastic::computeStresses()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
 
   // solve for shear stress
@@ -668,7 +681,8 @@ PetscErrorCode LinearElastic::computeStresses()
   if (_computeSdev) { ierr = computeSDev(); CHKERRQ(ierr); }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending LinearElastic::d_dt in linearElastic.cpp: time=%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -678,8 +692,8 @@ PetscErrorCode LinearElastic::computeSDev()
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "LinearElastic::computeStresses";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    string funcName = "LinearElastic::computeSDev()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -699,7 +713,7 @@ PetscErrorCode LinearElastic::computeSDev()
   VecSqrtAbs(_sdev);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr = 0;

@@ -81,6 +81,7 @@ private:
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
+    // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
 

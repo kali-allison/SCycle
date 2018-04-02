@@ -98,9 +98,12 @@ StrikeSlip_PowerLaw_qd::~StrikeSlip_PowerLaw_qd()
     VecDestroy(&it->second);
   }
 
-//~ for (std::map <string,std::pair<PetscViewer,string> > it = _viewers.begin(); it!=_viewers.end(); it++ ) {
-    //~ PetscViewerDestroy(&it->second);
-  //~ }
+  { // destroy viewers for steady state iteration
+    map<string,std::pair<PetscViewer,string> >::iterator it;
+    for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
+      PetscViewerDestroy(& (_viewers[it->first].first) );
+    }
+  }
 
 
   delete _quadImex;    _quadImex = NULL;

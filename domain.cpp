@@ -380,9 +380,6 @@ PetscErrorCode Domain::setFields()
   ierr = VecSetFromOptions(_y); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _y, "y"); CHKERRQ(ierr);
 
-  VecCreate(PETSC_COMM_WORLD,&_y0); VecSetSizes(_y0,PETSC_DECIDE,_Nz); VecSetFromOptions(_y0); VecSet(_y0,0.0);
-  VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
-
   VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
   VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
   VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
@@ -498,7 +495,6 @@ PetscErrorCode Domain::setScatters()
     PetscFree(ti);
     ISDestroy(&isf); ISDestroy(&ist);
   }
-
 
   // create example vector for testing purposes
   //~ Vec body; VecDuplicate(_y,&body);
