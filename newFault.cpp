@@ -1691,13 +1691,11 @@ PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, cons
   if (slipVel == 0) { return 0.0; }
 
   PetscScalar absV = abs(slipVel);
-  PetscScalar fss = f0 + (a-b)*log(absV/v0); // correct
+  //~ PetscScalar fss = f0 + (a-b)*log(absV/v0); // not regularized
+  PetscScalar fss =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
 
-  // not regularized
-  //~ PetscScalar f = psi + a*log(absV/v0);
-
-  // regularized
-  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) );
+  //~ PetscScalar f = psi + a*log(absV/v0); // not regularized
+  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) ); // regularized
 
   PetscScalar dstate = -absV/Dc * (f - fss);
 
@@ -1786,16 +1784,20 @@ PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const 
 // flash heating state evolution law
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
 {
-  if (slipVel == 0) { return 0.0; }
+  //~ if (slipVel == 0) { return 0.0; }
 
   PetscScalar absV = abs(slipVel);
 
-  // compute f
-  PetscScalar fLV = f0 + (a-b)*log(absV/v0);
+  // compute fss
+  //~ PetscScalar fLV = f0 + (a-b)*log(absV/v0); // not regularized
+  PetscScalar fLV =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
   PetscScalar fss = fLV;
 
+  // compute f
   if (absV > Vw) { fss = fw + (fLV - fw)*(Vw/absV); }
-  PetscScalar f = psi + a*log(absV/v0);
+  //~ PetscScalar f = psi + a*log(absV/v0); // not regularized
+  PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) ); // regularized
+
   PetscScalar dpsi = -absV/Dc *(f - fss);
 
   assert(!isnan(dpsi));

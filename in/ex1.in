@@ -29,8 +29,8 @@ DcDepths = [0 60] # (km)
 #bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 #bDepths = [0 10 11 19.3333 60]
 
-#aVals = [0.1 0.1]
-aVals = [0.01 0.01]
+aVals = [0.2 0.2]
+#aVals = [0.01 0.01]
 aDepths = [0 60]
 bVals = [0.02 0.02]
 bDepths = [0 60]
@@ -62,7 +62,8 @@ initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
 atol = 1e-4 # absolute tolerance for time integration
-timeIntInds = [psi slip] # variables to use to compute time step
+#timeIntInds = [psi slip] # variables to use to compute time step
+timeIntInds = [slip] # variables to use to compute time step
 
 # directory for output
 outputDir = data/ex1_
