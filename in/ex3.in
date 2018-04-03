@@ -25,8 +25,8 @@ v0 = 1e-5
 #lockedVals = [1 1 0 0 1 1]
 #lockedDepths = [0 10 10 20 20 200]
 
-#DcVals = [3e-2 3e-2] # m
-DcVals = [1 1] # m
+DcVals = [3e-2 3e-2] # m
+#DcVals = [1 1] # m
 DcDepths = [0 200] # m
 
 # ice stream values
