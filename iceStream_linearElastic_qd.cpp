@@ -835,15 +835,20 @@ PetscErrorCode IceStream_LinearElastic_qd::constructForcingTerm()
 
 
   // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
+  VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  _fault->computeTauRS(tauSS,_vL);
+  VecAXPY(tauSS,1.0,radDamp);
+  VecScale(tauSS,-1./_D->_Ly);
 
-  Vec temp = NULL;
-  _fault->computeTauRS(temp,_vL);
-  VecScale(temp,-1./_D->_Ly);
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  MatMult(MapV,temp,_forcingTerm);
+  MatMult(MapV,tauSS,_forcingTerm);
 
   MatDestroy(&MapV);
-  VecDestroy(&temp);
+  VecDestroy(&tauSS);
+  VecDestroy(&radDamp);
 
 
   #if VERBOSE > 1
