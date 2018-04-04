@@ -3,13 +3,13 @@
 
 # set up the computational domain
 Ny = 101 # points in y-direction
-Nz = 102 # points in z-direction
-Ly = 0.8 # (km) horizontal domain size
+Nz = 1 # points in z-direction
+#Ly = 0.8 # (km) horizontal domain size
+Ly = 1 # (km) horizontal domain size
 Lz = 200 # (km) vertical domain size
 
 # specify what problem to simulate
 problemType = iceStream
-#problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 0 # estimate steady-state initial conditions
@@ -26,13 +26,14 @@ v0 = 1e-5
 #lockedDepths = [0 10 10 20 20 200]
 
 DcVals = [3e-2 3e-2] # m
-#DcVals = [1 1] # m
 DcDepths = [0 200] # m
 
 # ice stream values
 aVals = [0.02 0.02]
 aDepths = [0 200]
 bVals = [0.025 0.025]
+#bVals = [0.01 0.01]
+#bVals = [0.0 0.0]
 bDepths = [0 200]
 
 sNVals = [1e-2 1e-2] # (MPa) effective normal stress
@@ -41,13 +42,13 @@ sNDepths = [0 200]
 #======================================================================
 # off-fault material parameters
 
-vL = 1.15e-5
+vL = 1.157e-5
 
 # algorithm for momentum balance equation
 linSolver = MUMPSCHOLESKY
 
 # coordinate transformation
-#bCoordTrans = 3.0
+#bCoordTrans = 10.0
 #sbpType = mfc_coordTrans
 sbpType = mfc
 
@@ -58,10 +59,8 @@ rhoDepths = [0 200] # (km)
 
 # boundary conditions
 momBal_bcR_qd = freeSurface
-#momBal_bcR_qd = remoteLoading
 momBal_bcT_qd = freeSurface
-#momBal_bcL_qd = rigid_fault
-momBal_bcL_qd = symm_fault
+momBal_bcL_qd = rigid_fault
 momBal_bcB_qd = freeSurface
 
 momBal_computeSxz = 1 # compute sxz
@@ -70,18 +69,16 @@ momBal_computeSxz = 1 # compute sxz
 # settings for time integration
 
 timeIntegrator = RK43
-stride1D = 10 # how often to write out fields that live on the fault
-stride2D = 10 # how often to write out body fields
-maxStepCount = 1e8 # maximum number of time steps
+stride1D = 1 # how often to write out fields that live on the fault
+stride2D = 1 # how often to write out body fields
+maxStepCount = 3e3 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 1e8 # (s) final time
-initDeltaT = 1e-5 # (s) size of initial time step
-minDeltaT = 1e-5 # (s) size of minimum time step
-maxDeltaT = 1e8 # (s) size of maximum time step
-atol = 1e-6 # absolute tolerance for time integration
-#timeIntInds = [psi] # variables to use to compute time step
+maxTime = 3e7 # (s) final time
+initDeltaT = 1e-3 # (s) size of initial time step
+minDeltaT = 1e-3 # (s) size of minimum time step
+maxDeltaT = 1e15 # (s) size of maximum time step
+atol = 1e-9 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
-#timeIntInds = [slip] # variables to use to compute time step
 normType = L2_absolute
 
 # directory for output

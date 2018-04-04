@@ -125,6 +125,7 @@ class NewFault_qd: public NewFault
     Vec _eta_rad; // radiation damping term
 
     NewFault_qd(Domain& D,VecScatter& scatter2fault);
+    NewFault_qd(Domain&D,VecScatter& scatter2fault,std::string& faultType);
     ~NewFault_qd();
 
     PetscErrorCode loadSettings(const char *file);

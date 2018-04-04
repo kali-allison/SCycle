@@ -34,7 +34,8 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
-  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  //~ _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  _fault = new NewFault_qd(D,D._scatters["body2L"],_bcLType); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -438,6 +439,13 @@ PetscErrorCode IceStream_LinearElastic_qd::writeContext()
 
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
+  // boundary conditions
+  ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcT_type = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcL_type = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"bcB_type = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+
+
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
@@ -545,15 +553,13 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   PetscErrorCode ierr = 0;
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0) {
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+  }
+  if (_bcLType.compare("symm_fault")==0) {
     ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
   }
-  else if (_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-  }
-  //~ ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  //~ ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  //~ ierr = VecSet(_material->_bcR,_vL*time);CHKERRQ(ierr);
 
   _fault->updateFields(time,varEx);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
@@ -594,13 +600,13 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0) {
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+  }
+  if (_bcLType.compare("symm_fault")==0) {
     ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
   }
-  else if (_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-  }
+
 
   _fault->updateFields(time,varEx);
 
@@ -659,26 +665,23 @@ PetscErrorCode IceStream_LinearElastic_qd::solveMomentumBalance(const PetscScala
   PetscErrorCode ierr = 0;
 
   // update rhs
-  //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
   _material->setRHS();
-  //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   // add source term for driving the ice stream
   // multiply this term by H*J (the H matrix and the Jacobian)
-  //~ if (_material->_sbpType.compare("mfc_coordTrans")==0) {
-    //~ Vec temp1; VecDuplicate(_forcingTerm,&temp1);
-    //~ Mat J,Jinv,qy,rz,yq,zr;
-    //~ ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    //~ ierr = MatMult(J,_forcingTerm,temp1);
-    //~ Mat H; _material->_sbp->getH(H);
-    //~ ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
-    //~ VecDestroy(&temp1);
-  //~ }
-  //~ else{
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1);
     Mat H; _material->_sbp->getH(H);
-    VecSet(_forcingTerm,-5e-3);
+    ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+    VecDestroy(&temp1);
+  }
+  else{
+    Mat H; _material->_sbp->getH(H);
     ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
-  //~ }
+  }
 
   _material->computeU();
   _material->computeStresses();
@@ -836,12 +839,8 @@ PetscErrorCode IceStream_LinearElastic_qd::constructForcingTerm()
   Vec temp = NULL;
   _fault->computeTauRS(temp,_vL);
   VecScale(temp,-1./_D->_Ly);
-
-
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
   MatMult(MapV,temp,_forcingTerm);
-
-  VecSet(_forcingTerm,-5e-3);
 
   MatDestroy(&MapV);
   VecDestroy(&temp);

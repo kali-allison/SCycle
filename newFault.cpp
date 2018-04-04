@@ -714,6 +714,32 @@ NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault)
   #endif
 }
 
+NewFault_qd::NewFault_qd(Domain&D,VecScatter& scatter2fault,std::string& faultType)
+: NewFault(D,scatter2fault)
+{
+  #if VERBOSE > 1
+    std::string funcName = "NewFault_qd::NewFault_qd";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // radiation damping parameter: 0.5 * sqrt(mu*rho)
+  VecDuplicate(_tauP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
+  VecPointwiseMult(_eta_rad,_mu,_rho);
+  VecSqrtAbs(_eta_rad);
+  if (faultType.compare("symm_fault")==0) {
+    VecScale(_eta_rad,0.5);
+  }
+
+  if (D._inputDir.compare("unspecified") != 0) {
+    loadFieldsFromFiles(D._inputDir);
+    loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
 NewFault_qd::~NewFault_qd()
 {
   #if VERBOSE > 1
@@ -910,6 +936,8 @@ PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
 
   // output Vec fields
   ierr = writeVec(_eta_rad,outputDir + "fault_eta_rad"); CHKERRQ(ierr);
+  ierr = writeVec(_mu,outputDir + "fault_mu"); CHKERRQ(ierr);
+  ierr = writeVec(_rho,outputDir + "fault_rho"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1691,8 +1719,8 @@ PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, cons
   if (slipVel == 0) { return 0.0; }
 
   PetscScalar absV = abs(slipVel);
-  //~ PetscScalar fss = f0 + (a-b)*log(absV/v0); // not regularized
-  PetscScalar fss =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
+  PetscScalar fss = f0 + (a-b)*log(absV/v0); // not regularized
+  //~ PetscScalar fss =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
 
   //~ PetscScalar f = psi + a*log(absV/v0); // not regularized
   PetscScalar f = a*asinh( (double) (absV/2./v0)*exp(psi/a) ); // regularized
