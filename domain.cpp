@@ -263,7 +263,8 @@ PetscErrorCode Domain::checkInput()
   assert(_momentumBalanceType.compare("quasidynamic")==0 ||
     _momentumBalanceType.compare("dynamic")==0 ||
     _momentumBalanceType.compare("quasidynamic_and_dynamic")==0 ||
-    _momentumBalanceType.compare("steadyStateIts")==0 );
+    _momentumBalanceType.compare("steadyStateIts")==0 ||
+    _momentumBalanceType.compare("switching")==0 );
 
   assert( _order==2 || _order==4 );
   assert( _Ly > 0 && _Lz > 0);

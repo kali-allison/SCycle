@@ -173,7 +173,8 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
          _linSolver.compare("PCG") == 0 ||
-         _linSolver.compare("AMG") == 0 );
+         _linSolver.compare("AMG") == 0 ||
+         _linSolver.compare("CG") == 0 );
 
   if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
@@ -260,6 +261,18 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     PCSetType(pc,PCCHOLESKY);
     PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
     PCFactorSetUpMatSolverPackage(pc);
+  }
+    else if (_linSolver.compare("CG")==0) { // CG solver
+    // use direct LL^T (Cholesky factorization) from MUMPS
+    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    PCSetType(pc,PCHYPRE);
+    PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);
+    
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");

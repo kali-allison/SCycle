@@ -115,4 +115,37 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
   return ierr;
 }
 
+PetscErrorCode OdeSolver_WaveEq::integrate_switch(IntegratorContextWave *obj)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::integrate in odeSolver_waveEq.cpp.\n");
+#endif
+  PetscErrorCode ierr = 0;
+  double startTime = MPI_Wtime();
+  int   stopIntegration = 0;
+
+  if (_finalT==_initT) { return ierr; }
+  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+
+  // set initial condition
+  ierr = obj->d_dt_dyn(_currT,_var,_varPrev);CHKERRQ(ierr);
+
+  ierr = obj->timeMonitor_dyn(_currT,_stepCount,_var,_varPrev,stopIntegration);CHKERRQ(ierr); // write first step
+
+  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+    ierr = obj->d_dt_dyn(_currT,_var,_varPrev);CHKERRQ(ierr);
+
+    _currT = _currT + _deltaT;
+    if (_currT>_finalT) { _currT = _finalT; }
+    _stepCount++;
+    ierr = obj->timeMonitor_dyn(_currT,_stepCount,_var,_varPrev,stopIntegration);CHKERRQ(ierr);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::integrate in odeSolver_waveEq.cpp.\n");
+#endif
+  return ierr;
+}
+
 
