@@ -1,7 +1,8 @@
 order = 4 # SBP order of accuracy
-Ny = 266
-Nz = 201
-Ly = 60 # (km) horizontal domain size
+Ny = 319
+#Nz = 201 # for SS its
+Nz = 501 # for SS its
+Ly = 100 # (km) horizontal domain size
 Lz = 40 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -18,12 +19,12 @@ momentumBalanceType = steadyStateIts
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 10.0
+bCoordTrans = 13.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Nz201_
+inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Ny319_Nz201_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -85,25 +86,18 @@ rhoDepths = [0 60] # (km)
 #nVals = [2.4 2.4]
 #nDepths = [0 60]
 
-# power law properties: wet quartz
-#AVals = [398 398]
-#ADepths = [0 60]
-#BVals = [1.62e4 1.62e4]
-#BDepths = [0 60]
-#nVals = [4 4]
-#nDepths = [0 60]
-
 # power law properties: wet feldspar
-AVals = [398 398]
+AVals = [1585 1585]
 ADepths = [0 60]
-BVals = [4.28e4 4.28e4]
+BVals = [4.157e4 4.157e4]
 BDepths = [0 60]
 nVals = [3 3]
 nDepths = [0 60]
 
 # heat equation properties
 heatFieldsDistribution = layered
-kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+#kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
+kVals = [2.6e-9 2.6e-9]  # (km^2 kPa/K/s) crustal conductivity
 kDepths = [0 60]
 hVals = [0 0]
 hDepths = [0 60]
@@ -111,23 +105,23 @@ cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
 
 # shear zone width
-wVals = [1e-3 1e-3]
+wVals = [0.1 0.1]
 wDepths = [0 40]
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 TVals = [293 1793] # 30 C/km
 TDepths = [0 50]
-thermalCoupling = coupled
+thermalCoupling = no
 heatEquationType = steadyState
-withViscShearHeating = yes
-withFrictionalHeating = yes
+withViscShearHeating = no
+withFrictionalHeating = no
 
-maxEffVisc = 1e16
+maxEffVisc = 1e18
 maxSSIts_tau = 150
 
 maxSSIts_effVisc = 100
-#atolSS_effVisc = 1e-3
+#atolSS_effVisc = 5e-2
 #gss_t = 1e-10
 #fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
@@ -152,7 +146,7 @@ normType = L2_absolute
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
-outputDir = /scratch/kallison/versions/v18_
+outputDir = /scratch/kallison/versions/v7_
 
 
 

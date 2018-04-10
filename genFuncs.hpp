@@ -92,6 +92,7 @@ PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR);
 PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const double b, const Vec& vec2);
 
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName);
+PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName, bool& fileExists);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec);
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<string>& vec);

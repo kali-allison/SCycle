@@ -439,6 +439,16 @@ PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const d
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName)
 {
   PetscErrorCode ierr = 0;
+  bool fileExists = 0;
+  ierr = loadVecFromInputFile(out,inputDir,fieldName,fileExists); CHKERRQ(ierr);
+  return ierr;
+}
+
+// loads a PETSc Vec from a binary file
+// Note: memory for out MUST be allocated before calling this function
+PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName, bool& fileExists)
+{
+  PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "loadFieldsFromFiles";
   string fileName = "genFuncs.cpp";
@@ -449,7 +459,7 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
 
   string vecSourceFile = inputDir + fieldName;
 
-  bool fileExists = doesFileExist(vecSourceFile);
+  fileExists = doesFileExist(vecSourceFile);
   if (fileExists) {
     PetscPrintf(PETSC_COMM_WORLD,"Note: Loading Vec from file: %s\n",vecSourceFile.c_str());
     PetscViewer inv;

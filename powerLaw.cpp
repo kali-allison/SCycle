@@ -428,7 +428,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
   // load power law parameters
   ierr = loadVecFromInputFile(_A,_inputDir,"A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"B"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"n"); CHKERRQ(ierr);
 
 

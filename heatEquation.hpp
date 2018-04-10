@@ -38,6 +38,7 @@ class HeatEquation
     std::string          _heatEquationType;
     int                  _isMMS;
     PetscScalar          _initTime,_initDeltaT;
+    int                  _loadICs; // load conditions from input files
 
     // IO information
     const char       *_file; // input ASCII file location

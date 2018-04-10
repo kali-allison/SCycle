@@ -425,6 +425,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",(_writeTime/_integrateTime)*100.);CHKERRQ(ierr);
+
+
+  // output matrices
+  //~ ierr = _material->_sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
   return ierr;
 }
 
@@ -642,7 +646,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
-
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
     //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);

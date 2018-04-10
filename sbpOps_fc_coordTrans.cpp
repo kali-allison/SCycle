@@ -1488,7 +1488,6 @@ PetscErrorCode SbpOps_fc_coordTrans::writeOps(const std::string outputDir)
   double startTime = MPI_Wtime();
 
   writeMat(_A,outputDir + "A");
-  writeMat(_D2,outputDir + "D2");
 
   writeMat(_Dy_Iz,outputDir + "Dy_Iz");
   writeMat(_Iy_Dz,outputDir + "Iy_Dz");

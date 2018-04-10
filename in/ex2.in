@@ -2,8 +2,8 @@
 # approximation.
 
 # set up the computational domain
-Ny = 201 # points in y-direction
-Nz = 1001 # points in z-direction
+Ny = 101 # points in y-direction
+Nz = 102 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
@@ -35,7 +35,9 @@ sNDepths = [0 60] # (km)
 # off-fault material parameters
 
 # algorithm for momentum balance equation
-linSolver = MUMPSCHOLESKY
+#linSolver = MUMPSCHOLESKY
+linSolver = CG
+kspTol = 1e-9
 
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
@@ -49,9 +51,9 @@ momBal_computeSxz = 1
 # settings for time integration
 
 timeIntegrator = RK43
-stride1D = 10 # how often to write out fields that live on the fault
-stride2D = 10 # how often to write out body fields
-maxStepCount = 1e8 # maximum number of time steps
+stride1D = 1 # how often to write out fields that live on the fault
+stride2D = 1 # how often to write out body fields
+maxStepCount = 5 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 3e10 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
@@ -63,7 +65,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output
 #outputDir = data/ex2_
-#outputDir = /scratch/kallison/test/ex2_
+outputDir = /scratch/kallison/test/ex2_
 
 
 
