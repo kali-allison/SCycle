@@ -203,30 +203,26 @@ PetscErrorCode SbpOps_fc::deleteIntermediateFields()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  MatDestroy(&_AR); MatDestroy(&_AT); MatDestroy(&_AL); MatDestroy(&_AB);
-  if ( _bcRType.compare("Dirichlet") == 0 ) {
-    MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
-    MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
-  }
-  else if ( _bcRType.compare("Neumann") == 0 ) {
-    MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
-    MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
-  }
-  else {
-    MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
-    MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
-    MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
-    MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
-  }
+  if ( _bcRType.compare("Dirichlet") == 0 ) { MatDestroy(&_AR_N); MatDestroy(&_rhsR_N); }
+  else if ( _bcRType.compare("Neumann") == 0 ) { MatDestroy(&_AR_D); MatDestroy(&_rhsR_D); }
+
+  if ( _bcTType.compare("Dirichlet") == 0 ) { MatDestroy(&_AT_N); MatDestroy(&_rhsT_N); }
+  else if ( _bcTType.compare("Neumann") == 0 ) { MatDestroy(&_AT_D); MatDestroy(&_rhsT_D); }
+
+  if ( _bcLType.compare("Dirichlet") == 0 ) { MatDestroy(&_AL_N); MatDestroy(&_rhsL_N); }
+  else if ( _bcLType.compare("Neumann") == 0 ) { MatDestroy(&_AL_D); MatDestroy(&_rhsL_D); }
+
+  if ( _bcBType.compare("Dirichlet") == 0 ) { MatDestroy(&_AB_N); MatDestroy(&_rhsB_N); }
+  else if ( _bcBType.compare("Neumann") == 0 ) { MatDestroy(&_AB_D); MatDestroy(&_rhsB_D); }
 
   MatDestroy(&_D2);
 
-  MatDestroy(&_Hinv); MatDestroy(&_H);
-  MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
+  //~ MatDestroy(&_Hinv); MatDestroy(&_H);
+  //~ MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
   MatDestroy(&_Hy_Iz); MatDestroy(&_Iy_Hz);
-  MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
-  MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
-  MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+  //~ MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
+  //~ MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
+  //~ MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1341,7 +1337,6 @@ PetscErrorCode SbpOps_fc::writeOps(const std::string outputDir)
   double startTime = MPI_Wtime();
 
   writeMat(_A,outputDir + "A");
-  writeMat(_D2,outputDir + "D2");
 
   writeMat(_Dy_Iz,outputDir + "Dy_Iz");
   writeMat(_Iy_Dz,outputDir + "Iy_Dz");
