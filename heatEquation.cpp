@@ -11,8 +11,8 @@ HeatEquation::HeatEquation(Domain& D)
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _kFile("unspecified"),
   _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
-  _surfaceHeatFlux(NULL),_heatFlux(NULL),
-  _wViscShearHeating("yes"),_wFrictionalHeating("yes"),
+  _kTz_z0(NULL),_kTz(NULL),
+  _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),
   _linSolver("AMG"),_kspTol(1e-9),
@@ -20,7 +20,7 @@ HeatEquation::HeatEquation(Domain& D)
   _MapV(NULL),_Gw(NULL),_omega(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
   _linSolveCount(0),
-  _dT(NULL),_T(NULL),_Tamb(NULL),_k(NULL),_rho(NULL),_c(NULL),_h(NULL),_Q(NULL)
+  _dT(NULL),_T(NULL),_Tamb(NULL),_k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Q(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::HeatEquation";
@@ -62,13 +62,13 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_k);
   VecDestroy(&_rho);
   VecDestroy(&_c);
-  VecDestroy(&_h);
+  VecDestroy(&_Qrad);
 
   VecDestroy(&_dT);
   VecDestroy(&_Tamb);
   VecDestroy(&_T);
-  VecDestroy(&_heatFlux);
-  VecDestroy(&_surfaceHeatFlux);
+  VecDestroy(&_kTz);
+  VecDestroy(&_kTz_z0);
   VecDestroy(&_bcL);
   VecDestroy(&_bcR);
   VecDestroy(&_bcT);
@@ -156,6 +156,9 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     }
     else if (var.compare("withFrictionalHeating")==0) {
       _wFrictionalHeating = line.substr(pos+_delim.length(),line.npos).c_str();
+    }
+    else if (var.compare("withRadioHeatGeneration")==0) {
+      _wRadioHeatGen = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     // linear solver settings
@@ -247,6 +250,19 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_wDepths);
     }
+
+    // radioactive heat generation
+    else if (var.compare("he_A0Vals")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_A0Vals);
+    }
+    else if (var.compare("he_A0Depths")==0) {
+      string str = line.substr(pos+_delim.length(),line.npos);
+      loadVectorFromInputFile(str,_A0Depths);
+    }
+    else if (var.compare("he_Lrad")==0) {
+      _Lrad = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
   }
 
   #if VERBOSE > 1
@@ -269,7 +285,7 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   // material properties
   ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_k,_inputDir,"k"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_h,_inputDir,"h"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_Qrad,_inputDir,"h"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_c,_inputDir,"c"); CHKERRQ(ierr);
 
   bool chkTamb = 0, chkT = 0, chkdT = 0;
@@ -338,7 +354,7 @@ PetscErrorCode ierr = 0;
   VecDuplicate(*_y,&_k);
   VecDuplicate(_k,&_rho);
   VecDuplicate(_k,&_c);
-  VecDuplicate(_k,&_h);
+  VecDuplicate(_k,&_Qrad); VecSet(_Qrad,0.);
   VecDuplicate(_k,&_dT); VecSet(_dT,0.);
   VecDuplicate(_k,&_Q); VecSet(_Q,0.);
   VecDuplicate(_k,&_omega); VecSet(_omega,0.);
@@ -347,34 +363,40 @@ PetscErrorCode ierr = 0;
   VecDuplicate(_dT,&_T); VecCopy(_Tamb,_T);
 
   // heat flux variables
-  VecDuplicate(_bcT,&_surfaceHeatFlux); VecSet(_surfaceHeatFlux,0.0);
-  VecDuplicate(_k,&_heatFlux); VecSet(_heatFlux,0.0);
+  VecDuplicate(_bcT,&_kTz_z0); VecSet(_kTz_z0,0.0);
+  VecDuplicate(_k,&_kTz); VecSet(_kTz,0.0);
 
   // set each field using it's vals and depths std::vectors
-  if (_Nz == 1) {
-    VecSet(_k,_kVals[0]);
-    VecSet(_rho,_rhoVals[0]);
-    VecSet(_h,_hVals[0]);
-    VecSet(_c,_cVals[0]);
-    VecSet(_Tamb,_TVals[0]);
+  if (_isMMS) {
+    mapToVec(_k,zzmms_k,*_y,*_z);
+    mapToVec(_rho,zzmms_rho,*_y,*_z);
+    mapToVec(_c,zzmms_c,*_y,*_z);
+    mapToVec(_Qrad,zzmms_h,*_y,*_z);
+    mapToVec(_Tamb,zzmms_T,*_y,*_z,_initTime);
+    mapToVec(_dT,zzmms_dT,*_y,*_z,_initTime);
+    setMMSBoundaryConditions(_initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
   }
   else {
-    if (_isMMS) {
-      mapToVec(_k,zzmms_k,*_y,*_z);
-      mapToVec(_rho,zzmms_rho,*_y,*_z);
-      mapToVec(_c,zzmms_c,*_y,*_z);
-      mapToVec(_h,zzmms_h,*_y,*_z);
-      mapToVec(_Tamb,zzmms_T,*_y,*_z,_initTime);
-      mapToVec(_dT,zzmms_dT,*_y,*_z,_initTime);
-      setMMSBoundaryConditions(_initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
-    }
-    else {
-      ierr = setVecFromVectors(_k,_kVals,_kDepths); CHKERRQ(ierr);
-      ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths); CHKERRQ(ierr);
-      ierr = setVecFromVectors(_h,_hVals,_hDepths); CHKERRQ(ierr);
-      ierr = setVecFromVectors(_c,_cVals,_cDepths); CHKERRQ(ierr);
-    }
+    ierr = setVecFromVectors(_k,_kVals,_kDepths); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths); CHKERRQ(ierr);
+    //~ ierr = setVecFromVectors(_Qrad,_hVals,_hDepths); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_c,_cVals,_cDepths); CHKERRQ(ierr);
   }
+
+  // set up radioactive heat generation source term
+  // Qrad = A0 * exp(-z/Lrad)
+  if (_wRadioHeatGen.compare("yes") == 0) {
+    Vec A0; VecDuplicate(_Qrad,&A0);
+    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths); CHKERRQ(ierr);
+    VecCopy(*_z,_Qrad);
+    VecScale(_Qrad,-1.0/_Lrad);
+    VecExp(_Qrad);
+    VecPointwiseMult(_Qrad,A0,_Qrad);
+    VecDestroy(&A0);
+  }
+  else { VecSet(_Qrad,0.); }
+
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -506,6 +528,26 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   _sbp->computeMatrices(); // actually create the matrices
 
 
+  // radioactive heat generation source term
+  Vec QradR,Qtemp;
+  if (_wRadioHeatGen.compare("yes") == 0) {
+    Vec temp1; VecDuplicate(_Qrad,&Qtemp);
+    if (_sbpType.compare("mfc_coordTrans")==0) {
+      Vec temp1; VecDuplicate(_Qrad,&temp1);
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      ierr = MatMult(J,_Qrad,temp1);
+      Mat H; _sbp->getH(H);
+      ierr = MatMult(H,temp1,Qtemp);
+      VecDestroy(&temp1);
+    }
+    else{
+      Mat H; _sbp->getH(H);
+      ierr = MatMult(H,_Qrad,Qtemp); CHKERRQ(ierr);
+    }
+  }
+
+
   if (_Nz > 1) {
 
     Mat A; _sbp->getA(A);
@@ -514,6 +556,10 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     Vec rhs;
     VecDuplicate(_k,&rhs);
     _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+    if (_wRadioHeatGen.compare("yes") == 0) {
+      VecAXPY(rhs,-1.0,Qtemp);
+      VecDestroy(&Qtemp);
+    }
 
     // solve for temperature
     VecSet(_Tamb,0.);
@@ -1080,7 +1126,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   VecDuplicate(_dT,&temp);
   VecSet(rhs,0.0);
   VecSet(temp,0.0);
-  VecSet(_Q,0.0);
+  if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); }
+  else { VecSet(_Q,0.); }
 
   // left boundary: heat generated by fault motion
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1167,7 +1214,8 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
   // set up boundary conditions and source terms
   Vec rhs; VecDuplicate(_dT,&rhs); VecSet(rhs,0.0);
-  VecSet(_Q,0.0);
+  if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
+  else { VecSet(_Q,0.); }
 
   // left boundary: heat generated by fault motion
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1352,7 +1400,8 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
   // set up boundary conditions and source terms
   Vec rhs; VecDuplicate(_dT,&rhs); VecSet(rhs,0.0);
-  VecSet(_Q,0.0);
+  if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
+  else { VecSet(_Q,0.); }
 
   // left boundary: heat generated by fault motion
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1395,8 +1444,6 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = - Tamb + T
   VecCopy(_T,T);
 
-  //~ VecWAXPY(_T,1.0,_Tamb,_dT); // T = Tamb + dT
-  //~ VecCopy(_T,T);
 
   computeHeatFlux();
 
@@ -1670,12 +1717,12 @@ PetscErrorCode HeatEquation::computeHeatFlux()
 
 
   // total heat flux
-  ierr = _sbp->muxDz(_T,_heatFlux); CHKERRQ(ierr);
-  VecScale(_heatFlux,1e9);
+  ierr = _sbp->muxDz(_T,_kTz); CHKERRQ(ierr);
+  VecScale(_kTz,1e9);
 
   // extract surface heat flux
-  VecScatterBegin(_D->_scatters["body2T"], _heatFlux, _surfaceHeatFlux, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2T"], _heatFlux, _surfaceHeatFlux, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_D->_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
 
 
   #if VERBOSE > 1
@@ -1698,14 +1745,14 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
   double startTime = MPI_Wtime();
 
   if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _surfaceHeatFlux, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcL", _bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_surfaceHeatFlux,_viewers["kTz_y0"].first); CHKERRQ(ierr);
+    ierr = VecView(_kTz_z0,_viewers["kTz_y0"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
     ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
@@ -1734,14 +1781,14 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "he_T"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "dT", _dT, outputDir + "he_dT"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "kTz", _heatFlux, outputDir + "he_kTz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "kTz", _kTz, outputDir + "he_kTz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "omega", _omega, outputDir + "he_omega"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Q", _Q, outputDir + "he_Q"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
     ierr = VecView(_dT,_viewers["dT"].first); CHKERRQ(ierr);
-    ierr = VecView(_heatFlux,_viewers["kTz"].first); CHKERRQ(ierr);
+    ierr = VecView(_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
     ierr = VecView(_omega,_viewers["omega"].first); CHKERRQ(ierr);
     ierr = VecView(_Q,_viewers["Q"].first); CHKERRQ(ierr);
   }
@@ -1799,6 +1846,7 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"heatEquationType = %s\n",_heatEquationType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"withViscShearHeating = %s\n",_wViscShearHeating.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"withFrictionalHeating = %s\n",_wFrictionalHeating.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"withRadioHeatGeneration = %s\n",_wRadioHeatGen.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver_heateq = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sbpType_heateq = %s\n",_sbpType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol_heateq = %.15e\n",_kspTol);CHKERRQ(ierr);
@@ -1836,7 +1884,7 @@ PetscErrorCode HeatEquation::writeContext(const std::string outputDir)
 
   ierr = writeVec(_k,outputDir + "he_k"); CHKERRQ(ierr);
   ierr = writeVec(_rho,outputDir + "he_rho"); CHKERRQ(ierr);
-  ierr = writeVec(_h,outputDir + "he_h"); CHKERRQ(ierr);
+  ierr = writeVec(_Qrad,outputDir + "he_h"); CHKERRQ(ierr);
   ierr = writeVec(_c,outputDir + "he_c"); CHKERRQ(ierr);
   ierr = writeVec(_Tamb,outputDir + "he_Tamb"); CHKERRQ(ierr);
   if (_wFrictionalHeating.compare("yes")==0) {
@@ -1844,6 +1892,10 @@ PetscErrorCode HeatEquation::writeContext(const std::string outputDir)
     VecScale(_w,1e3); // output w in m
     ierr = writeVec(_w,outputDir + "he_w"); CHKERRQ(ierr);
     VecScale(_w,1e-3); // convert w from m to km
+  }
+
+  if (_wRadioHeatGen.compare("yes")==0) {
+    ierr = writeVec(_Qrad,outputDir + "he_Qrad"); CHKERRQ(ierr);
   }
 
   //~ ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);

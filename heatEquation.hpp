@@ -51,7 +51,7 @@ class HeatEquation
     std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
 
     // heat fluxes
-    Vec  _surfaceHeatFlux,_heatFlux; // surface and total heat flux
+    Vec  _kTz_z0,_kTz; // surface and total heat flux
 
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
@@ -61,8 +61,8 @@ class HeatEquation
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
     PetscViewer          _timeV; // time output viewer
 
-    // which factors to include
-    std::string          _wViscShearHeating,_wFrictionalHeating;
+    // which factors to include: viscous and frictional shear heating, and radioactive heat generation
+    std::string          _wViscShearHeating,_wFrictionalHeating,_wRadioHeatGen;
 
     // linear system data
     std::string          _sbpType;
@@ -81,6 +81,10 @@ class HeatEquation
     Vec                  _w; // width of shear zone (km)
     std::vector<double>  _wVals,_wDepths;
     PetscScalar          _wMax;
+
+    // radiactive heat generation
+    std::vector<double>  _A0Vals,_A0Depths; // (kW/m^3) heat generation at z=0
+    double               _Lrad; // (km) decay length scale
 
     // runtime data
     double               _linSolveTime,_factorTime,_beTime,_writeTime,_miscTime;
@@ -109,7 +113,7 @@ class HeatEquation
 
     Vec _dT,_T; // change in temperature from ambiant, temperature
     Vec _Tamb; // initial temperature
-    Vec _k,_rho,_c,_h,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
+    Vec _k,_rho,_c,_Qrad,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();

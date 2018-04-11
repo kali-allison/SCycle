@@ -55,7 +55,6 @@ class Domain
     PetscErrorCode view(PetscMPIInt rank);
     PetscErrorCode write();
 
-
   private:
 
     // disable default copy constructor and assignment operator

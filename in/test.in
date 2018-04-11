@@ -1,30 +1,29 @@
 order = 4 # SBP order of accuracy
-Ny = 319
-#Nz = 201 # for SS its
-Nz = 501 # for SS its
-Ly = 100 # (km) horizontal domain size
-Lz = 40 # (km) vertical domain size
+Ny = 101
+Nz = 102
+Ly = 50 # (km) horizontal domain size
+Lz = 50 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
 # strikeSlip or iceStream
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 13.0
+bCoordTrans = 1.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Ny319_Nz201_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Ny319_Nz201_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -37,8 +36,8 @@ momBal_computeSxz = 1
 # rate-and-state parameters
 
 #DcVals = [8e-3 8e-3] # m
-#DcVals = [12e-3 12e-3] # m
-DcVals = [1 1] # m
+DcVals = [12e-3 12e-3] # m
+#DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -97,25 +96,33 @@ nDepths = [0 60]
 # heat equation properties
 heatFieldsDistribution = layered
 #kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
-kVals = [2.6e-9 2.6e-9]  # (km^2 kPa/K/s) crustal conductivity
+kVals = [2.5e-9 2.5e-9]  # (km^2 kPa/K/s) crustal conductivity
 kDepths = [0 60]
-hVals = [0 0]
-hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
 
+# radioactive heat generation
+he_A0Vals = [2.5e-9 2.5e-9 0 0] # (kW/m^3)
+he_A0Depths = [0 30 30 60]
+he_Lrad = 10 # km
+
 # shear zone width
-wVals = [0.1 0.1]
+wVals = [1 1]
 wDepths = [0 40]
+
+
 
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
-TVals = [293 1793] # 30 C/km
-TDepths = [0 50]
-thermalCoupling = no
-heatEquationType = steadyState
+#TVals = [293 1793] # 30 C/km
+#TDepths = [0 50]
+TVals = [283 1641]
+TDepths = [0 60]
+thermalCoupling = coupled
+heatEquationType = transient
 withViscShearHeating = no
-withFrictionalHeating = no
+withFrictionalHeating = yes
+withRadioHeatGeneration = no
 
 maxEffVisc = 1e18
 maxSSIts_tau = 150
@@ -132,10 +139,10 @@ maxSSIts_timesteps = 1e5
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43
-stride1D = 20
-stride2D = 20
-maxStepCount = 1e8
+timeIntegrator = RK43_WBE
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -146,7 +153,8 @@ normType = L2_absolute
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
-outputDir = /scratch/kallison/versions/v7_
+#outputDir = /scratch/kallison/versions/v7_
+outputDir = /scratch/kallison/heat/le_w1_
 
 
 

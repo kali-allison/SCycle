@@ -13,10 +13,6 @@ bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
-#bCoordTrans = 1.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
-
 #=======================================================================
 # rate-and-state parameters
 

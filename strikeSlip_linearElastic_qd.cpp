@@ -577,9 +577,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->d_dt(time,varEx,dvarEx);
-  }
+
 
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
@@ -588,6 +586,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
+  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+    _p->d_dt(time,varEx,dvarEx);
+  }
   return ierr;
 }
 

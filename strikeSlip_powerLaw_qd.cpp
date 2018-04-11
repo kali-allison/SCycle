@@ -1013,7 +1013,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "kTz", _he->_heatFlux, outputDir + "SS_kTz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "kTz", _he->_kTz, outputDir + "SS_kTz"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
@@ -1029,7 +1029,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
-    ierr = VecView(_he->_heatFlux,_viewers["kTz"].first); CHKERRQ(ierr);
+    ierr = VecView(_he->_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
