@@ -118,10 +118,10 @@ wDepths = [0 40]
 #TDepths = [0 50]
 TVals = [283 1641]
 TDepths = [0 60]
-thermalCoupling = coupled
+thermalCoupling = no
 heatEquationType = transient
 withViscShearHeating = no
-withFrictionalHeating = yes
+withFrictionalHeating = no
 withRadioHeatGeneration = no
 
 maxEffVisc = 1e18
@@ -139,7 +139,7 @@ maxSSIts_timesteps = 1e5
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43_WBE
+timeIntegrator = RK43
 stride1D = 1
 stride2D = 1
 maxStepCount = 5
