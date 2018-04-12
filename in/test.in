@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 101
-Nz = 102
+Ny = 351
+Nz = 302
 Ly = 50 # (km) horizontal domain size
 Lz = 50 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -18,7 +18,7 @@ momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 1.0
+bCoordTrans = 10.0
 sbpType = mfc_coordTrans
 
 #======================================================================
@@ -111,18 +111,25 @@ wVals = [1 1]
 wDepths = [0 40]
 
 
-
+# linear geotherms
 #TVals = [293 1293] # 20 C/km
 #TVals = [293 1543] # 25 C/km
 #TVals = [293 1793] # 30 C/km
 #TDepths = [0 50]
-TVals = [283 1641]
-TDepths = [0 60]
-thermalCoupling = no
-heatEquationType = transient
+
+# varying LAB depth, potential temp of 1350 C, with mantle adiabat 0.3 C/km
+#TVals = [283 1647] # LAB 60 km
+#TDepths = [0 80]
+#TVals = [283 1641] # LAB 60 km
+#TDepths = [0 60]
+TVals = [283 1638] # LAB 50 km
+TDepths = [0 50]
+
+thermalCoupling = coupled
+heatEquationType = steadyState
 withViscShearHeating = no
-withFrictionalHeating = no
-withRadioHeatGeneration = no
+withFrictionalHeating = yes
+withRadioHeatGeneration = yes
 
 maxEffVisc = 1e18
 maxSSIts_tau = 150
@@ -139,10 +146,10 @@ maxSSIts_timesteps = 1e5
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43
+timeIntegrator = RK43_WBE
 stride1D = 1
 stride2D = 1
-maxStepCount = 5
+maxStepCount = 10
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
