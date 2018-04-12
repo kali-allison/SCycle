@@ -367,7 +367,6 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-  //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     if (maxVel < (1.1 * _vL) && time > 4e10) { stopIntegration = 1; }
   }
@@ -382,7 +381,7 @@ double startTime = MPI_Wtime();
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
-  if (stepCount % 50 == 0) {
+  //~ if (stepCount % 50 == 0) {
     PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
     _material->computeMaxTimeStep(maxDeltaT_momBal);
     maxTimeStep_tot = min(_maxDeltaT,0.8*maxDeltaT_momBal);
@@ -390,13 +389,13 @@ double startTime = MPI_Wtime();
         _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
     }
     else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
-  }
+  //~ }
 
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     PetscReal maxVel = 0;
     ierr = VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,maxVel);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e %.15e\n",stepCount,_currTime,maxVel,maxDeltaT_momBal);CHKERRQ(ierr);
     //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1

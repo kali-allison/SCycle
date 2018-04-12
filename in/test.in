@@ -1,7 +1,7 @@
 order = 4 # SBP order of accuracy
-Ny = 351
-Nz = 302
-Ly = 50 # (km) horizontal domain size
+Ny = 319
+Nz = 334
+Ly = 100 # (km) horizontal domain size
 Lz = 50 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
 
@@ -9,21 +9,23 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = linearElastic
+bulkDeformationType = powerLaw
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = quasidynamic
+momentumBalanceType = steadyStateIts
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 10.0
+bCoordTrans = 13.0
 sbpType = mfc_coordTrans
 
 #======================================================================
 # linear system
-#inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_Ny319_Nz201_
+inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB50_Ny319_Nz334_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB60_Ny319_Nz401_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB70_Ny319_Nz467_
 loadICs = 0
 
 # algorithm for momentum balance equation: AMG or MUMPSCHOLESKY
@@ -36,8 +38,8 @@ momBal_computeSxz = 1
 # rate-and-state parameters
 
 #DcVals = [8e-3 8e-3] # m
-DcVals = [12e-3 12e-3] # m
-#DcVals = [1 1] # m
+#DcVals = [12e-3 12e-3] # m
+DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
@@ -72,43 +74,43 @@ stateLaw = agingLaw
 # off-fault material parameters
 
 muVals = [32.4 32.4] # (GPa) shear modulus
-muDepths = [0 60] # (km)
+muDepths = [0 100] # (km)
 rhoVals = [2.7 2.7] # (g/cm^3) density
-rhoDepths = [0 60] # (km)
+rhoDepths = [0 100] # (km)
 
 
 # power law properties: quartz-diorite
 #AVals = [1.3e-3 1.3e-3]
-#ADepths = [0 60]
+#ADepths = [0 100]
 #BVals = [2.6341e+04 2.6341e+04]
-#BDepths = [0 60]
+#BDepths = [0 100]
 #nVals = [2.4 2.4]
-#nDepths = [0 60]
+#nDepths = [0 100]
 
 # power law properties: wet feldspar
 AVals = [1585 1585]
-ADepths = [0 60]
+ADepths = [0 100]
 BVals = [4.157e4 4.157e4]
-BDepths = [0 60]
+BDepths = [0 100]
 nVals = [3 3]
-nDepths = [0 60]
+nDepths = [0 100]
 
 # heat equation properties
 heatFieldsDistribution = layered
 #kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kVals = [2.5e-9 2.5e-9]  # (km^2 kPa/K/s) crustal conductivity
-kDepths = [0 60]
+kDepths = [0 100]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
-cDepths = [0 60]
+cDepths = [0 100]
 
 # radioactive heat generation
-he_A0Vals = [2.5e-9 2.5e-9 0 0] # (kW/m^3)
-he_A0Depths = [0 30 30 60]
+he_A0Vals = [2e-9 2e-9 0 0] # (kW/m^3)
+he_A0Depths = [0 30 30 1000]
 he_Lrad = 10 # km
 
 # shear zone width
-wVals = [1 1]
-wDepths = [0 40]
+wVals = [10 10]
+wDepths = [0 100]
 
 
 # linear geotherms
@@ -117,26 +119,26 @@ wDepths = [0 40]
 #TVals = [293 1793] # 30 C/km
 #TDepths = [0 50]
 
-# varying LAB depth, potential temp of 1350 C, with mantle adiabat 0.3 C/km
-#TVals = [283 1647] # LAB 60 km
-#TDepths = [0 80]
-#TVals = [283 1641] # LAB 60 km
+# varying LAB depth, potential temp of 1200 C, with mantle adiabat 0.3 C/km
+#TVals = [283 1494] # LAB 70 km
+#TDepths = [0 70]
+#TVals = [283 1491] # LAB 60 km
 #TDepths = [0 60]
-TVals = [283 1638] # LAB 50 km
+TVals = [283 1488] # LAB 50 km
 TDepths = [0 50]
 
 thermalCoupling = coupled
 heatEquationType = steadyState
-withViscShearHeating = no
+withViscShearHeating = yes
 withFrictionalHeating = yes
 withRadioHeatGeneration = yes
 
 maxEffVisc = 1e18
-maxSSIts_tau = 150
+maxSSIts_tau = 50
 
 maxSSIts_effVisc = 100
 #atolSS_effVisc = 5e-2
-#gss_t = 1e-10
+gss_t = 1e-8
 #fss_EffVisc = 0.2
 #maxSSIts_effVisc = 3
 #maxSSIts_tau = 5
@@ -146,10 +148,10 @@ maxSSIts_timesteps = 1e5
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
-timeIntegrator = RK43_WBE
-stride1D = 1
-stride2D = 1
-maxStepCount = 10
+timeIntegrator = RK43
+stride1D = 50
+stride2D = 50
+maxStepCount = 1e8
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -160,8 +162,7 @@ normType = L2_absolute
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
-#outputDir = /scratch/kallison/versions/v7_
-outputDir = /scratch/kallison/heat/le_w1_
+outputDir = /scratch/kallison/ss/v1a_
 
 
 
