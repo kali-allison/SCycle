@@ -195,6 +195,10 @@ PetscErrorCode NewFault::loadFieldsFromFiles(std::string inputDir)
   // load quasi-static shear stress
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
 
+  // rate and state parameters
+  ierr = loadVecFromInputFile(_a,inputDir,"a"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_b,inputDir,"b"); CHKERRQ(ierr);
+
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending NewFault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif

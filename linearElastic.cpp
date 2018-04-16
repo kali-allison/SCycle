@@ -612,16 +612,16 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "bcB"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "bcB"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "bcT"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
 Ny = 319
-Nz = 334
+Nz = 675
 Ly = 100 # (km) horizontal domain size
 Lz = 50 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -43,16 +43,28 @@ DcVals = [1 1] # m
 DcDepths = [0 60] # m
 
 # creme brulee (30 C/km) from Blanpied 1991 for a-b, 1995 for a
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
-
-# VS at surface
 #aVals = [0.0135 0.0300 0.0700 0.2652]
 #aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0079 0.0242 0.0325 0.0301 0.0375 0.0737]
-#bDepths = [0 4.5000 10 11.0000 19.3333 60]
+#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
+#bDepths = [0 10 11 19.3333 60]
+
+# VS at surface, LAB 50 km
+aVals = [0.0105 0.0300 0.0700 0.1726]
+aDepths = [0 12.6012 23.0936 50]
+bVals = [0.0200 0.0276 0.0365 0.0356 0.0375 0.0425]
+bDepths = [0 4.9364 10.6753 12.6012 23.0936 50]
+
+# VS at surface, LAB 60 km
+#aVals = [0.0105 0.0300 0.0700 0.1721]
+#aDepths = [0 14.8858 27.5814 60]
+#bVals = [0.0200 0.0275 0.0365 0.0356 0.0375 0.0424]
+#bDepths = [0 5.7293 12.5671 14.8858 27.5814 60]
+
+# VS at surface, LAB 70 km
+#aVals = [0.0105 0.0300 0.0700 0.1715]
+#aDepths = [0 17.1550 32.0904 70]
+#bVals = [0.0200 0.0274 0.0364 0.0356 0.0375 0.0424]
+#bDepths = [0 6.4854 14.4339 17.1550 32.0904 70]
 
 
 # with varying degrees of overpressure
@@ -96,11 +108,9 @@ nVals = [3 3]
 nDepths = [0 100]
 
 # heat equation properties
-heatFieldsDistribution = layered
-#kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
-kVals = [2.5e-9 2.5e-9]  # (km^2 kPa/K/s) crustal conductivity
+kVals = [2.5e-9 2.5e-9]  # (GW/m/k) crustal conductivity
 kDepths = [0 100]
-cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
+cVals = [925.9 925.9] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 100]
 
 # radioactive heat generation
@@ -127,16 +137,16 @@ wDepths = [0 100]
 TVals = [283 1488] # LAB 50 km
 TDepths = [0 50]
 
-thermalCoupling = coupled
+thermalCoupling = no
 heatEquationType = steadyState
-withViscShearHeating = yes
-withFrictionalHeating = yes
+withViscShearHeating = no
+withFrictionalHeating = no
 withRadioHeatGeneration = yes
 
 maxEffVisc = 1e18
-maxSSIts_tau = 50
+maxSSIts_tau = 35
 
-maxSSIts_effVisc = 100
+#maxSSIts_effVisc = 100
 #atolSS_effVisc = 5e-2
 gss_t = 1e-8
 #fss_EffVisc = 0.2
@@ -162,7 +172,9 @@ normType = L2_absolute
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
-outputDir = /scratch/kallison/ss/v1a_
+outputDir = /scratch/kallison/paramSearch/v0a_
+
+
 
 
 

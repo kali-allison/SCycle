@@ -817,8 +817,8 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
 
   // put variables to be integrated implicity into varIm
   Vec T;
-  VecDuplicate(_Tamb,&T);
-  VecWAXPY(T,1.0,_Tamb,_dT);
+  //~ VecDuplicate(_Tamb,&T); VecWAXPY(T,1.0,_Tamb,_dT);
+  VecCopy(_T,T);
   varIm["Temp"] = T;
 
 
@@ -1187,6 +1187,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   VecCopy(_T,T);
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = T - Tamb
+  computeHeatFlux();
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1595,8 +1596,21 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     CHKERRQ(ierr);
   #endif
 
-  // update boundaries (for solving for perturbation from steady-state)
-  setBCsforBE();
+  // set up boundaries
+  VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecSet(_bcL,0);
+  VecScale(_bcT,-1.0);
+  VecScale(_bcB,-1.0);
+  VecScale(_bcR,-1.0);
+
 
   delete _sbp; _sbp = NULL;
   // construct matrices
