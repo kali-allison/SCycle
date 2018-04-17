@@ -17,7 +17,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
@@ -307,7 +307,20 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
-  VecSet(_material->_bcR,_vL*_initTime/2.0);
+ if (_bcRType.compare("remoteLoading")==0) {
+    VecSet(_material->_bcR,_vL*_initTime/2.0);
+  }
+  else if (_bcRType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
+  }
+
+  if (_bcBType.compare("remoteLoading")==0) {
+    VecSet(_material->_bcB,_vL*_initTime/2.0);
+  }
+  else if (_bcBType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
+  }
+
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -356,10 +369,10 @@ double startTime = MPI_Wtime();
   if (_stride2D>0 &&  stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
-
+_totalRunTime = MPI_Wtime() - startTime;
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,_totalRunTime;CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -564,8 +577,22 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+ 
+  if (_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+  else if (_bcRType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
+  }
+
+  if (_bcBType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcB,_vL*time/2.0);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcB,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+  else if (_bcBType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
+  }
 
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
     _fault->setSNEff(varEx.find("pressure")->second);
@@ -615,9 +642,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+ if (_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+  else if (_bcRType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
+  }
 
+  if (_bcBType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcB,_vL*time/2.0);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcB,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+  else if (_bcBType.compare("freeSurface")==0) {
+    ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
+  }
   _fault->updateFields(time,varEx);
 
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {

@@ -73,7 +73,7 @@ private:
 
 
     // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_totalRunTime;
 
 
     // boundary conditions
