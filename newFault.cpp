@@ -856,7 +856,7 @@ PetscErrorCode NewFault_qd::computeVel()
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
 
-  ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA,Co);
+  ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,_D->_vL,lockedA,Co);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
   VecGetArray(_slipVel,&slipVelA);
@@ -958,8 +958,8 @@ PetscErrorCode NewFault_qd::writeContext(const std::string outputDir)
 // functions for structs
 //======================================================================
 
-ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar* locked,const PetscScalar* Co)
-: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_locked(locked),_Co(Co),_N(N),_v0(v0)
+ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& vL,const PetscScalar* locked,const PetscScalar* Co)
+: _a(a),_b(b),_sN(sN),_tauQS(tauQS),_eta(eta),_psi(psi),_locked(locked),_Co(Co),_N(N),_v0(v0),_vL(vL)
 { }
 
 PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -973,8 +973,12 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   PetscScalar left, right, out;
   for (PetscInt Jj = 0; Jj< _N; Jj++) {
 
-    if (_locked[Jj] > 0.) { // if fault is locked, hold slip velocity at 0
+    if (_locked[Jj] > 0.5) { // if fault is locked, hold slip velocity at 0
       slipVelA[Jj] = 0.;
+      break;
+    }
+    if (_locked[Jj] < -0.5) { // if fault is locked, hold slip velocity at 0
+      slipVelA[Jj] = _vL;
       break;
     }
 

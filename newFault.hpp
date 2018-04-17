@@ -193,10 +193,10 @@ struct ComputeVel_qd : public RootFinderContext
   // shallow copies of contextual fields
   const PetscScalar  *_a, *_b, *_sN, *_tauQS, *_eta, *_psi,*_locked,*_Co;
   const PetscInt      _N; // length of the arrays
-  const PetscScalar   _v0;
+  const PetscScalar   _v0,_vL;
 
   // constructor and destructor
-  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar *locked,const PetscScalar *Co);
+  ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& vL,const PetscScalar *locked,const PetscScalar *Co);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set

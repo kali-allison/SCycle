@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N v2_Dc1
+#PBS -N lab50_l0.37_w0.2
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/eqcycle/outEqs/v2_Dc1.err
-#PBS -o /data/dunham/kallison/eqcycle/outEqs/v2_Dc1.out
+#PBS -e /data/dunham/kallison/eqcycle/outEqs/lab50_l0.37_w0.2.err
+#PBS -o /data/dunham/kallison/eqcycle/outEqs/lab50_l0.37_w0.2.out
 
 EXEC_DIR=/data/dunham/kallison/eqcycle
 INIT_DIR=/data/dunham/kallison/eqcycle/in
