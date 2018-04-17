@@ -3,7 +3,7 @@
 
 # set up the computational domain
 Ny = 101 # points in y-direction
-Nz = 102 # points in z-direction
+Nz = 31 # points in z-direction
 Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
@@ -11,7 +11,7 @@ Lz = 30 # (km) vertical domain size
 problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
-guessSteadyStateICs = 1 # estimate steady-state initial conditions
+guessSteadyStateICs = 0 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters
@@ -21,6 +21,9 @@ stateLaw = agingLaw
 
 DcVals = [12e-3 12e-3] # m
 DcDepths = [0 60] # (km)
+
+lockedVals = [0 0 -1 -1]
+lockedDepths = [0 15 15 30]
 
 # from Blanpied 1991 for a-b, 1995 for a, assuming 30 K/km
 aVals = [0.0135 0.0300 0.0700 0.2652]
@@ -35,8 +38,8 @@ sNDepths = [0 60] # (km)
 # off-fault material parameters
 
 # algorithm for momentum balance equation
-#linSolver = MUMPSCHOLESKY
-linSolver = CG
+linSolver = MUMPSCHOLESKY
+#linSolver = CG
 kspTol = 1e-9
 
 muVals = [30 30] # (GPa) shear modulus

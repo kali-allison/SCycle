@@ -973,47 +973,48 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   PetscScalar left, right, out;
   for (PetscInt Jj = 0; Jj< _N; Jj++) {
 
-    if (_locked[Jj] > 0.5) { // if fault is locked, hold slip velocity at 0
-      slipVelA[Jj] = 0.;
-      break;
-    }
-    if (_locked[Jj] < -0.5) { // if fault is locked, hold slip velocity at 0
-      slipVelA[Jj] = _vL;
-      break;
-    }
+      if (_locked[Jj] > 0.5) { // if fault is locked, hold slip velocity at 0
+        slipVelA[Jj] = 0.;
+      }
+      else if (_locked[Jj] < -0.5) { // if fault is locked, hold slip velocity at 0
+        slipVelA[Jj] = _vL;
+        //~ slipVelA[Jj] = 1e-9;
+        //~ PetscPrintf(PETSC_COMM_WORLD,"here: %i %i %g\n",Jj,_locked[Jj]);
+      }
+      else {
+        left = 0.;
+        right = _tauQS[Jj] / _eta[Jj];
 
-    left = 0.;
-    right = _tauQS[Jj] / _eta[Jj];
+        // check bounds
+        if (isnan(left)) {
+          PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+          PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
+          assert(0);
+        }
+        if (isnan(right)) {
+          PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
+          PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
+          assert(0);
+        }
 
-    // check bounds
-    if (isnan(left)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
-      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, left = %g\n",_tauQS[Jj],_eta[Jj],left);
-      assert(0);
-    }
-    if (isnan(right)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
-      PetscPrintf(PETSC_COMM_WORLD,"tauQS = %g, eta = %g, right = %g\n",_tauQS[Jj],_eta[Jj],right);
-      assert(0);
-    }
+        out = slipVelA[Jj];
+        if (abs(left-right)<1e-14) { out = left; }
+        else {
+          //~ //Bisect rootFinder(maxNumIts,rootTol);
+          //~ //ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+          //~ //ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+          //~ //rootIts += rootFinder.getNumIts();
 
-    out = slipVelA[Jj];
-    if (abs(left-right)<1e-14) { out = left; }
-    else {
-      //~ Bisect rootFinder(maxNumIts,rootTol);
-      //~ ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-      //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
-      //~ rootIts += rootFinder.getNumIts();
+          PetscScalar x0 = slipVelA[Jj];
+          BracketedNewton rootFinder(maxNumIts,rootTol);
+          ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+          ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+          rootIts += rootFinder.getNumIts();
+        }
+        slipVelA[Jj] = out;
+      }
 
-      PetscScalar x0 = slipVelA[Jj];
-      BracketedNewton rootFinder(maxNumIts,rootTol);
-      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
-      rootIts += rootFinder.getNumIts();
-    }
-    slipVelA[Jj] = out;
   }
-
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
