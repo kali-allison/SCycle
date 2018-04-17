@@ -818,7 +818,7 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   // put variables to be integrated implicity into varIm
   Vec T;
   VecDuplicate(_Tamb,&T);
-  VecWAXPY(T,1.0,_Tamb,_dT);
+  VecCopy(_T,T);
   varIm["Temp"] = T;
 
 
@@ -1133,14 +1133,15 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,1.0,_omega);
+    VecAXPY(_Q,-1.0,_omega);
+    VecScale(_bcL,-1.0);
   }
 
   // compute shear heating component
   if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
     Vec Qvisc;
     computeViscousShearHeating(Qvisc,sdev, dgxy, dgxz);
-    VecAXPY(_Q,1.0,Qvisc);
+    VecAXPY(_Q,-1.0,Qvisc);
     VecDestroy(&Qvisc);
   }
 
@@ -1160,9 +1161,9 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
     ierr = MatMult(H,_Q,temp); CHKERRQ(ierr);
   }
   MatMultAdd(_rcInv,temp,rhs,rhs);
-  VecScale(rhs,dt);
+  VecScale(rhs,-dt);
 
-
+/*
   // add H * Tn to rhs
   VecSet(temp,0.0);
   _sbp->H(Tn,temp);
@@ -1187,6 +1188,37 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   VecCopy(_T,T);
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = T - Tamb
+*/
+
+  // solve in terms of dT
+  // add H * Tn to rhs
+  VecSet(_bcR,0.); VecSet(_bcT,0.); VecSet(_bcB,0.);
+  VecSet(temp,0.0);
+  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dT = T - Tamb
+  _sbp->H(_dT,temp);
+  if (_sbpType.compare("mfc_coordTrans")==0) {
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp1; VecDuplicate(temp,&temp1);
+    MatMult(J,temp,temp1);
+    VecCopy(temp1,temp);
+    VecDestroy(&temp1);
+  }
+  VecAXPY(rhs,1.0,temp);
+  VecDestroy(&temp);
+
+  // solve for temperature and record run time required
+  double startTime = MPI_Wtime();
+  KSPSolve(_kspTrans,rhs,_dT);
+  _linSolveTime += MPI_Wtime() - startTime;
+  _linSolveCount++;
+  VecDestroy(&rhs);
+
+  VecWAXPY(_T,1.0,_Tamb,_dT); // T = dT + Tamb
+  VecCopy(_T,T);
+
+
+  computeHeatFlux();
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1595,8 +1627,12 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     CHKERRQ(ierr);
   #endif
 
-  // update boundaries (for solving for perturbation from steady-state)
-  setBCsforBE();
+  // set up boundaries
+  VecSet(_bcR,0.);
+  VecSet(_bcT,0.);
+  VecSet(_bcL,0.);
+  VecSet(_bcB,0.);
+
 
   delete _sbp; _sbp = NULL;
   // construct matrices
