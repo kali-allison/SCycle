@@ -978,8 +978,6 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
       }
       else if (_locked[Jj] < -0.5) { // if fault is locked, hold slip velocity at 0
         slipVelA[Jj] = _vL;
-        //~ slipVelA[Jj] = 1e-9;
-        //~ PetscPrintf(PETSC_COMM_WORLD,"here: %i %i %g\n",Jj,_locked[Jj]);
       }
       else {
         left = 0.;
