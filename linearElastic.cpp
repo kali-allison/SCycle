@@ -612,8 +612,8 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "bcB"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);

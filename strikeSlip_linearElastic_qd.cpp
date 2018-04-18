@@ -577,7 +577,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   else if (_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
- 
+
   if (_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);

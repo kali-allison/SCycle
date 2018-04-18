@@ -1662,9 +1662,9 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
 
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "bcL"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "bcRShift"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);

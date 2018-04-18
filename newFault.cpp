@@ -918,9 +918,10 @@ PetscErrorCode NewFault_qd::d_dt(const PetscScalar time,const map<string,Vec>& v
 
 
   // set tauP = tauQS - eta_rad *slipVel
-  VecCopy(_slipVel,_tauP);
-  VecPointwiseMult(_tauP,_eta_rad,_tauP);
-  VecAYPX(_tauP,-1.0,_tauQSP);
+  VecCopy(_slipVel,_tauP); // V -> tau
+  VecPointwiseMult(_tauP,_eta_rad,_tauP); // tau = V * eta_rad
+  VecAYPX(_tauP,-1.0,_tauQSP); // tau = tauQS - V*eta_rad
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1027,7 +1028,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel + _Co[Jj]; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   assert(!isnan(*out));
@@ -1042,12 +1043,12 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   PetscErrorCode ierr = 0;
 
   PetscScalar strength = strength_psi(_sN[Jj], _psi[Jj], vel, _a[Jj], _v0); // frictional strength
-  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel + _Co[Jj]; // stress on fault
+  PetscScalar stress = _tauQS[Jj] - _eta[Jj]*vel; // stress on fault
 
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
   PetscScalar B = exp(_psi[Jj]/_a[Jj]) / (2.*_v0);
-  *J = A*B/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
+  *J = A*vel/sqrt(B*B*vel*vel + 1.) + _eta[Jj]; // derivative with respect to slipVel
 
   assert(!isnan(*out)); assert(!isinf(*out));
   assert(!isnan(*J)); assert(!isinf(*J));
@@ -1890,7 +1891,7 @@ PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel
 // frictional strength, regularized form, for state variable psi
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0)
 {
-  PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (slipVel/2./v0)*exp(psi/a) );
+  PetscScalar strength = (PetscScalar) a*sN*asinh( (double) (0.5*slipVel/v0)*exp(psi/a) );
   return strength;
 }
 
