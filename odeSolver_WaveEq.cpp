@@ -3,7 +3,7 @@
 using namespace std;
 
 OdeSolver_WaveEq::OdeSolver_WaveEq(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT)
-: _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
+: _initT(initT),_finalT(finalT),_currT(initT),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),_runTime(0)
 {
@@ -33,7 +33,9 @@ PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT)
 }
 
 PetscErrorCode OdeSolver_WaveEq::getCurrT(PetscScalar& currT){
+  PetscErrorCode ierr = 0;
   currT = _currT; 
+  return ierr;
 }
 
 PetscErrorCode OdeSolver_WaveEq::view()

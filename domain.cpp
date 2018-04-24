@@ -8,7 +8,7 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecified"),
+  _isMMS(0),_loadICs(0),_numCycles(1), _inputDir("unspecified"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _yInputDir("unspecified"),_zInputDir("unspecified"),
   _vL(1e-9),
@@ -197,6 +197,7 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("numCycles")==0) { _numCycles = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -52,7 +52,7 @@ class NewFault
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
-    Vec                   _slip,_slipVel;
+    Vec                   _slip,_slipVel, _slip0;
 
     PetscScalar           _fw,_Vw,_tau_c,_Tw,_D_fh; // flash heating parameters
     Vec                   _T,_k,_c; // for flash heating
@@ -106,6 +106,8 @@ class NewFault
     PetscErrorCode virtual writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+
+    PetscErrorCode writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir);
 };
 
 

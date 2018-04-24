@@ -266,6 +266,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauP,&_mu);       PetscObjectSetName((PetscObject) _mu, "mu_fault");
   VecDuplicate(_tauP,&_locked);   PetscObjectSetName((PetscObject) _locked, "locked");
   VecDuplicate(_tauP,&_tau0);     PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
+  VecDuplicate(_tauP,&_slip0);     PetscObjectSetName((PetscObject) _slip0, "slip0");VecSet(_slip0, 0.0);
 
   // create z from D._z
   double scatterStart = MPI_Wtime();
@@ -560,6 +561,16 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
   return ierr;
 }
 
+PetscErrorCode NewFault::writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir){
+  PetscErrorCode ierr;
+  if (isFirstCycle){
+    ierr = io_initiateWriteAppend(_viewers, "uOffset", uOffset, outputDir + "uOffset"); CHKERRQ(ierr);
+  }
+  else{
+    ierr = VecView(uOffset,_viewers["uOffset"].first); CHKERRQ(ierr);
+  }
+}
+
 PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
@@ -824,15 +835,15 @@ PetscErrorCode NewFault_qd::computeVel()
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,lockedA,Co);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
-  VecGetArray(_slipVel,&slipVelA);
-  VecGetArrayRead(_eta_rad,&etaA);
-  VecGetArrayRead(_tauQSP,&tauQSA);
-  VecGetArrayRead(_sNEff,&sNA);
-  VecGetArrayRead(_psi,&psiA);
-  VecGetArrayRead(_a,&aA);
-  VecGetArrayRead(_b,&bA);
-  VecGetArrayRead(_locked,&lockedA);
-  VecGetArrayRead(_cohesion,&Co);
+  VecRestoreArray(_slipVel,&slipVelA);
+  VecRestoreArrayRead(_eta_rad,&etaA);
+  VecRestoreArrayRead(_tauQSP,&tauQSA);
+  VecRestoreArrayRead(_sNEff,&sNA);
+  VecRestoreArrayRead(_psi,&psiA);
+  VecRestoreArrayRead(_a,&aA);
+  VecRestoreArrayRead(_b,&bA);
+  VecRestoreArrayRead(_locked,&lockedA);
+  VecRestoreArrayRead(_cohesion,&Co);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1281,6 +1292,7 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   VecGetArray(_tau0, &tau0);
   VecGetOwnershipRange(_z, &IBegin, &IEnd);
   PetscScalar timeOffset = 1.0;
+  PetscScalar exists = 1.0;
   if(_timeMode.compare("Gaussian") == 0){
     PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
   }
@@ -1290,8 +1302,11 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   else if (_timeMode.compare("Heaviside") == 0){
     timeOffset = 1.0;
   }
+  else if (_timeMode.compare("Switching") == 0){
+    exists = 0.0;
+  }
   for (Ii=IBegin;Ii<IEnd;Ii++){
-    tau0[Jj] = 30.0 + _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / (2.0 * pow(_zStdTau, 2))) * timeOffset;
+    tau0[Jj] = exists * (30.0 + _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / (2.0 * pow(_zStdTau, 2))) * timeOffset);
     Jj++;
   }
   VecRestoreArray(_z, &zz);
@@ -1382,6 +1397,8 @@ double startAgingTime = MPI_Wtime();
 computeAgingLaw();
 _stateLawTime += MPI_Wtime() - startAgingTime;
 VecCopy(_psi, varEx["psi"]);
+VecAXPY(varEx["slip"], 1.0, _slip0);
+VecCopy(varEx["slip"], _slip);
 #if VERBOSE > 1
 PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
@@ -1431,7 +1448,6 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
     slipVelocity[Jj] = slipVel[Jj];
     Jj++;
   }
-  // std::cin.get();
   ierr = VecRestoreArray(varEx["uFault"], &u);
   ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
   ierr = VecRestoreArray(varEx["duFault"], &Laplacian);
@@ -1466,7 +1482,7 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     std::string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
+  
   // BracketedNewton rootFinder(maxNumIts,rootTol);
   Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
@@ -1578,7 +1594,7 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
     // right = 10.;
     left = 0.;
     right = 2*_psi[Jj];
-
+  
     // check bounds
     if (isnan(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");

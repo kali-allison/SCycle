@@ -28,6 +28,7 @@ class Domain
     std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
+    int            _numCycles;
     std::string    _inputDir; // directory to load input files from
 
     // domain properties

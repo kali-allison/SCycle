@@ -66,7 +66,7 @@ private:
     PetscScalar          _deltaT, _CFL;
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec                  _Fhat;
+    Vec                  _Fhat, _savedU;
     PetscScalar          _alphay, _alphaz;
 
     // time stepping data
@@ -77,6 +77,7 @@ private:
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount_dyn, _maxStepCount_qd; // largest number of time steps
     PetscScalar            _initTime,_currTime,_maxTime_dyn, _maxTime_qd, _minDeltaT,_maxDeltaT;
+    bool                   _inDynamic, _firstCycle;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -86,6 +87,9 @@ private:
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
+
+    bool         _allowed;
+    PetscScalar  _triggerqd2d, _triggerd2qd, _limit;
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
@@ -129,12 +133,19 @@ private:
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
+    bool check_switch(const NewFault* _fault);
+    PetscErrorCode reset_for_qd();
+
     // explicit time-stepping methods
     PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
 
     // IO functions
@@ -154,6 +165,10 @@ private:
     PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
 
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
 
