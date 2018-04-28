@@ -29,6 +29,10 @@ aDepths = [0 11.0000 19.3333 60]
 bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 bDepths = [0 10 11 19.3333 60]
 
+sNVals
+sNEffVals
+
+
 sNVals = [50 50] # (MPa)
 sNDepths = [0 60] # (km)
 sNVals = [0 267.4] # (MPa) effective normal stress, some overpressure, lambda = 0.8

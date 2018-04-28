@@ -66,7 +66,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
+    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_dT;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -77,6 +77,9 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
 
+    // viewers
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
+
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
@@ -86,7 +89,6 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    //~ Fault                      *_fault;
     NewFault_qd                *_fault;
     PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
     HeatEquation               *_he;
@@ -142,6 +144,8 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
