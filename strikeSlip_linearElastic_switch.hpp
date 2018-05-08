@@ -67,16 +67,17 @@ private:
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat, _savedU;
-    PetscScalar          _alphay, _alphaz;
-
+    Vec                  _alphay, _alphaz;
+    Vec                  _bcrOffsetVector;
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
-    std::string            _initialConditions, _loadDir;
+    std::string            _initialConditions;
     PetscInt               _stride1D,_stride2D; // stride
-    PetscInt               _maxStepCount_dyn, _maxStepCount_qd; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime_dyn, _maxTime_qd, _minDeltaT,_maxDeltaT;
+    PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_dyn, _stride2D_dyn;
+    PetscInt               _maxStepCount_dyn, _maxStepCount_qd, _maxStepCount; // largest number of time steps
+    PetscScalar            _initTime,_currTime,_maxTime_dyn, _maxTime_qd, _minDeltaT,_maxDeltaT, _maxTime;
     bool                   _inDynamic, _firstCycle;
     int                    _stepCount;
     PetscScalar            _atol;

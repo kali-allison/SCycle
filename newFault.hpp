@@ -159,8 +159,7 @@ class NewFault_dyn: public NewFault
     Vec                 _rhoLocal;
     IS                  _is;
     PetscScalar         _deltaT;
-
-    PetscScalar         _alphay, _alphaz;
+    Vec         _alphay, _alphaz;
 
     PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode, _isLocked;

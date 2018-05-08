@@ -31,7 +31,6 @@ class OdeSolver_WaveEq
 
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextWave *obj);
-    PetscErrorCode integrate_switch(IntegratorContextWave *obj);
     PetscErrorCode getCurrT(PetscScalar& currT);
     std::map<string,Vec>& getVar(){return _var;};
 };

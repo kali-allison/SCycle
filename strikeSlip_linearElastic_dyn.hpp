@@ -52,7 +52,7 @@ private:
     PetscScalar          _deltaT, _CFL;
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    PetscScalar          _alphay, _alphaz;
+    Vec          _alphay, _alphaz;
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
