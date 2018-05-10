@@ -252,15 +252,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("RK32_WBE")==0 ||
-    _timeIntegrator.compare("RK43_WBE")==0 ||
+      _timeIntegrator.compare("RK43_WBE")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
-
-  assert(_timeIntegrator.compare("FEuler")==0
-    || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("RK43")==0
-    || _timeIntegrator.compare("RK32_WBE")==0
-    || _timeIntegrator.compare("RK43_WBE")==0
-    || _timeIntegrator.compare("WaveEq")==0);
 
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
@@ -331,7 +324,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
-  VecSet(slip,0.);
+  VecCopy(_material->_bcL,slip);
+  VecScale(slip,2.0);
+  //~ VecSet(slip,0.);
+  if (_loadICs==1) {
+    VecCopy(_fault->_slip,slip);
+  }
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) { solveSS(); } // doesn't solve for steady state tau
@@ -373,7 +371,7 @@ double startTime = MPI_Wtime();
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
     PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 1e11) { stopIntegration = 1; }
+    if (maxVel < (1.1 * _vL) && time > 5e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -402,7 +400,8 @@ _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     PetscReal maxVel = 0;
     ierr = VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e %.15e\n",stepCount,_currTime,maxVel,maxDeltaT_momBal);CHKERRQ(ierr);
+    double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e %.15e %.15e\n",stepCount,_currTime,maxVel,maxDeltaT_momBal,_currIntegrateTime);CHKERRQ(ierr);
     //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
@@ -460,7 +459,9 @@ double startTime = MPI_Wtime();
   }
 
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+    double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,_currIntegrateTime);CHKERRQ(ierr);
+    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -602,6 +603,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
+  _startIntegrateTime = MPI_Wtime();
 
   initiateIntegrand(); // put initial conditions into var for integration
   _stepCount = 0;
@@ -882,12 +884,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     else if (_timeIntegrator.compare("RK43")==0) {
       _quadEx = new RK43(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
     }
+    else {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: time integrator time not acceptable for fixed point iteration method.\n");
+      assert(0);
+    }
     ierr = _quadEx->setTolerance(_atol); CHKERRQ(ierr);
     ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
+    ierr = _quadEx->setErrInds(_timeIntInds);
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
     delete _quadEx; _quadEx = NULL;
 
@@ -899,7 +905,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     if (_thermalCoupling.compare("coupled")==0) {
       _material->getStresses(sxy,sxz,sdev);
       VecCopy(_varSS["Temp"],T_old);
-      Vec V; VecDuplicate(_varSS["slipVel"],&V); VecSet(V,1e-9); //VecSet(V,_D->_vL);
+      Vec V; VecDuplicate(_varSS["slipVel"],&V); VecSet(V,_D->_vL);
       VecPointwiseMin(_varSS["slipVel"],V,_varSS["slipVel"]);
       _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
       VecDestroy(&V);
@@ -912,13 +918,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);
     setSSBCs();
     ierr = _material->getStresses(sxy,sxz,sdev);
-    //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
-    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
-
+    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
 
     VecCopy(_fault->_tauP,_varSS["tau"]);
     _material->initiateIntegrand(_initTime,_varEx);
-    VecSet(_varEx["psi"],_fault->_f0);
     writeSS(Jj,baseOutDir);
     Jj++;
   }
@@ -1084,8 +1087,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = VecView(_varSS["gxz"],_viewers["gxz"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
-    ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
-    ierr = VecView(_he->_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
+    if (_thermalCoupling.compare("coupled")==0) {
+      ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
+      ierr = VecView(_he->_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1

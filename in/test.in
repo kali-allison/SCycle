@@ -1,6 +1,6 @@
 order = 4 # SBP order of accuracy
-Ny = 319
-Nz = 675
+Ny = 101
+Nz = 102
 Ly = 100 # (km) horizontal domain size
 Lz = 50 # (km) vertical domain size
 vL = 1e-9    # (m/s) loading velocity
@@ -9,21 +9,22 @@ vL = 1e-9    # (m/s) loading velocity
 problemType = strikeSlip
 
 # linearElastic or powerLaw
-bulkDeformationType = powerLaw
+bulkDeformationType = linearElastic
 
 # quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-momentumBalanceType = steadyStateIts
+momentumBalanceType = quasidynamic
 
 # whether or not to estimate steady state initial conditions
 guessSteadyStateICs = 1
 
 # coordinate transformation
-bCoordTrans = 13.0
-sbpType = mfc_coordTrans
+#bCoordTrans = 13.0
+#sbpType = mfc_coordTrans
+sbpType = mfc
 
 #======================================================================
 # linear system
-inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB50_Ny319_Nz334_
+#inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB50_Ny319_Nz334_
 #inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB60_Ny319_Nz401_
 #inputDir = /data/dunham/kallison/eqcycle/inputData/wfwo_zLAB70_Ny319_Nz467_
 loadICs = 0
@@ -48,32 +49,19 @@ DcDepths = [0 60] # m
 #bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
 #bDepths = [0 10 11 19.3333 60]
 
-# VS at surface, LAB 50 km
-aVals = [0.0105 0.0300 0.0700 0.1726]
-aDepths = [0 12.6012 23.0936 50]
-bVals = [0.0200 0.0276 0.0365 0.0356 0.0375 0.0425]
-bDepths = [0 4.9364 10.6753 12.6012 23.0936 50]
-
 # VS at surface, LAB 60 km
-#aVals = [0.0105 0.0300 0.0700 0.1721]
-#aDepths = [0 14.8858 27.5814 60]
-#bVals = [0.0200 0.0275 0.0365 0.0356 0.0375 0.0424]
-#bDepths = [0 5.7293 12.5671 14.8858 27.5814 60]
-
-# VS at surface, LAB 70 km
-#aVals = [0.0105 0.0300 0.0700 0.1715]
-#aDepths = [0 17.1550 32.0904 70]
-#bVals = [0.0200 0.0274 0.0364 0.0356 0.0375 0.0424]
-#bDepths = [0 6.4854 14.4339 17.1550 32.0904 70]
-
+aVals = [0.0105 0.0300 0.0700 0.1721]
+aDepths = [0 14.8858 27.5814 60]
+bVals = [0.0200 0.0275 0.0365 0.0356 0.0375 0.0424]
+bDepths = [0 5.7293 12.5671 14.8858 27.5814 60]
 
 # with varying degrees of overpressure
-sNVals = [0 505.1] # lambda = 0.37
+#sNVals = [0 505.1] # lambda = 0.37
 #sNVals = [0 401.1] # lambda = 0.5
 #sNVals = [0 320.9] # lambda = 0.6
 #sNVals = [0 240.6] # lambda = 0.7
 #sNVals = [0 160.4] # lambda = 0.8
-#sNVals = [50 50] # MPa
+sNVals = [50 50] # MPa
 sNDepths = [0 40]
 sN_floor = 5.0; # MPa
 #sN_cap = 50; # MPa
@@ -137,10 +125,10 @@ wDepths = [0 100]
 TVals = [283 1488] # LAB 50 km
 TDepths = [0 50]
 
-thermalCoupling = no
+thermalCoupling = coupled
 heatEquationType = steadyState
-withViscShearHeating = no
-withFrictionalHeating = no
+withViscShearHeating = yes
+withFrictionalHeating = yes
 withRadioHeatGeneration = yes
 
 maxEffVisc = 1e18
@@ -150,18 +138,18 @@ maxSSIts_tau = 35
 #atolSS_effVisc = 5e-2
 gss_t = 1e-8
 #fss_EffVisc = 0.2
-#maxSSIts_effVisc = 3
-#maxSSIts_tau = 5
-maxSSIts_timesteps = 1e5
+maxSSIts_effVisc = 3
+maxSSIts_tau = 5
+maxSSIts_timesteps = 10
 
 
 #======================================================================
 # settings for time integration # options: FEuler, RK32, RK43, RK32_WBE, RK43_WBE
 
 timeIntegrator = RK43
-stride1D = 50
-stride2D = 50
-maxStepCount = 1e8
+stride1D = 1
+stride2D = 1
+maxStepCount = 5
 initTime = 0
 maxTime = 1e15
 initDeltaT = 1e-3
@@ -172,7 +160,8 @@ normType = L2_absolute
 timeIntInds = [psi slip]
 #timeIntInds = [psi slip gVxy gVxz]
 
-outputDir = /scratch/kallison/paramSearch/v0a_
+#outputDir = /scratch/kallison/paramSearch/v0a_
+outputDir = data/test_
 
 
 

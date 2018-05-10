@@ -96,6 +96,7 @@ class PowerLaw
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
     PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc);
 
 
     // for steady state computations

@@ -426,6 +426,11 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_wVals.size() == _wDepths.size() );
   //~ assert(_TVals.size() == 2 );
 
+  if (_wRadioHeatGen.compare("yes") == 0) {
+    assert(_A0Vals.size() == _A0Depths.size() );
+    if (_A0Vals.size() == 0) { _A0Vals.push_back(0); _A0Depths.push_back(0); }
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -434,6 +439,7 @@ PetscErrorCode HeatEquation::checkInput()
 }
 
 
+// create matrix to map slip velocity, which lives on the fault, to a 2D body field
 PetscErrorCode HeatEquation::constructMapV()
 {
   PetscErrorCode ierr = 0;
@@ -446,7 +452,7 @@ PetscErrorCode HeatEquation::constructMapV()
   MatCreate(PETSC_COMM_WORLD,&_MapV);
   MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Nz);
   MatSetFromOptions(_MapV);
-  MatMPIAIJSetPreallocation(_MapV,_Ny*_Nz,NULL,_Ny*_Nz,NULL);
+  MatMPIAIJSetPreallocation(_MapV,_Nz,NULL,_Nz,NULL);
   MatSeqAIJSetPreallocation(_MapV,_Ny*_Nz,NULL);
   MatSetUp(_MapV);
 
@@ -715,7 +721,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(_kspTrans,KSPRICHARDSON); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
     ierr = PCHYPRESetType(_pc,"boomeramg"); CHKERRQ(ierr);
@@ -748,8 +754,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspTrans,KSPCG); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(_kspTrans, PETSC_TRUE);
-    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspTrans,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
