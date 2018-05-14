@@ -118,20 +118,20 @@ for tInd = 2:length(t)
   % update boundary conditions
   
   % y = 0: cs u_t - mu u_y = 0
-  uNew(:,1) = dt^2*uLap(:,1)./rho(:,1)  + 2*u(:,1) + (ay(:,1)-1).*uPrev(:,1);
-  uNew(:,1) = uNew(:,1)./(1+ay(:,1));
+  uNew(:,1) = dt^2*uLap(:,1)./rho(:,1)  + 2*u(:,1) + (qy(:,1).*ay(:,1)-1).*uPrev(:,1);
+  uNew(:,1) = uNew(:,1)./(1+qy(:,1).*ay(:,1));
   
   % y = Ly: cs u_t + mu u_y = 0
-  uNew(:,end) = dt^2*uLap(:,end)./rho(:,end)  + 2*u(:,end) + (ay(:,end)-1).*uPrev(:,end);
-  uNew(:,end) = uNew(:,end)./(1+ay(:,end));
+  uNew(:,end) = dt^2*uLap(:,end)./rho(:,end)  + 2*u(:,end) + (qy(:,end).*ay(:,end)-1).*uPrev(:,end);
+  uNew(:,end) = uNew(:,end)./(1+qy(:,end).*ay(:,end));
   
   % z = 0: cs u_t - mu u_z = 0
-  uNew(1,:) = dt^2*uLap(1,:)./rho(1,:)  + 2*u(1,:) + (az(1,:)-1).*uPrev(1,:);
-  uNew(1,:) = uNew(1,:)./(1+az(1,:));
+  uNew(1,:) = dt^2*uLap(1,:)./rho(1,:)  + 2*u(1,:) + (rz(1,:).*az(1,:)-1).*uPrev(1,:);
+  uNew(1,:) = uNew(1,:)./(1+rz(1,:).*az(1,:));
   
   % z = Lz: cs u_t + mu u_z = 0
-  uNew(end,:) = dt^2*uLap(end,:)./rho(end,:)  + 2*u(end,:) + (az(end,:)-1).*uPrev(end,:);
-  uNew(end,:) = uNew(end,:)./(1+az(end,:));
+  uNew(end,:) = dt^2*uLap(end,:)./rho(end,:)  + 2*u(end,:) + (rz(end,:).*az(end,:)-1).*uPrev(end,:);
+  uNew(end,:) = uNew(end,:)./(1+rz(end,:).*az(end,:));
   
   
   % update which is the n+1, n, and n-1 steps
