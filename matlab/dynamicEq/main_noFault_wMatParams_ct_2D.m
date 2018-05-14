@@ -16,7 +16,7 @@
 clear all
 
 % domain
-order = 2;
+order = 4;
 Ny = 101;
 Nz = 81;
 Ly = 30;
@@ -60,9 +60,6 @@ rz = 1./zr;
 J = yq .* zr;
 Jinv = qy .* rz;
 
-% apply transformation to rho
-rho = J.*rho;
-
 % SBP
 By = zeros(Ny,Ny); By(1,1)=-1; By(end,end)=1;
 Bz = zeros(Nz,Nz); Bz(1,1)=-1; Bz(end,end)=1;
@@ -85,9 +82,10 @@ uLap = zr.*Dqq_mu(u,qy.*G,dq,order) + yq.*Drr_mu(u,rz.*G,dr,order);
 
 % apply part of boundary conditions to intermediate fields
 uLap(:,1) = uLap(:,1) + (zr(:,1)./h11y).*G(:,1) .* uy(:,1);
-uLap(:,end) = uLap(:,end) - (zr(:,1)./h11y).*G(:,end) .* uy(:,end);
+uLap(:,end) = uLap(:,end) - (zr(:,end)./h11y).*G(:,end) .* uy(:,end);
 uLap(1,:) = uLap(1,:) + (yq(1,:)./h11z).*G(1,:) .* uz(1,:);
-uLap(end,:) = uLap(end,:) - (yq(1,:)./h11z).*G(end,:) .* uz(end,:);
+uLap(end,:) = uLap(end,:) - (yq(end,:)./h11z).*G(end,:) .* uz(end,:);
+uLap = uLap ./ J;
 
 uPrev = u; % n-1
 u = u + uLap.*0.5*dt1^2/2./rho; % n
@@ -107,9 +105,9 @@ for tInd = 2:length(t)
   
   % apply part of boundary conditions to intermediate fields
   uLap(:,1) = uLap(:,1) + (zr(:,1)./h11y).*G(:,1) .* uy(:,1);
-  uLap(:,end) = uLap(:,end) - (zr(:,1)./h11y).*G(:,end) .* uy(:,end);
+  uLap(:,end) = uLap(:,end) - (zr(:,end)./h11y).*G(:,end) .* uy(:,end);
   uLap(1,:) = uLap(1,:) + (yq(1,:)./h11z).*G(1,:) .* uz(1,:);
-  uLap(end,:) = uLap(end,:) - (yq(1,:)./h11z).*G(end,:) .* uz(end,:);
+  uLap(end,:) = uLap(end,:) - (yq(end,:)./h11z).*G(end,:) .* uz(end,:);
   
   uLap = uLap ./ J;
   
