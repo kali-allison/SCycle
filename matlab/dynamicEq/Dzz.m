@@ -176,5 +176,5 @@ elseif(order == 6)
   end
 end
 
-u_zz = (1/h^2)*u_zz;
+u_zz = (1/h.^2).*u_zz;
 end

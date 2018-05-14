@@ -1,4 +1,4 @@
-function u_zz = Dzz_mu(u,c,h,order,options)
+function u_zz = Drr_mu(u,c,h,order,options)
 % fully compatible 2nd derivative stencil for variable coefficients
 
 nx = size(u,2);

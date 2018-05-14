@@ -191,13 +191,17 @@ for tInd = 2:length(t)
     subplot(3,1,1)
     plot(z,sxy(:,1),'.-','Linewidth',1)
     title(sprintf('t = %g s',t(tInd)))
+    ylabel('\tau (MPa')
     
     subplot(3,1,2)
     plot(z,vel,'.-','Linewidth',1),title('V')
+    ylabel('V (m/s)')
     
     subplot(3,1,3)
-    %plot(z,psi),title('psi')
-    plot(z,strength,'.-','Linewidth',1),title('\tau')
+    plot(z,psi,'.-','Linewidth',1)
+    title('psi')
+%     plot(z,strength,'.-','Linewidth',1),title('\tau')
+    ylabel('\psi')
     drawnow
     % pause
   end

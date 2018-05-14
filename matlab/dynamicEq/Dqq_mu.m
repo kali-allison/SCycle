@@ -1,4 +1,4 @@
-function u_yy = Dyy_mu(u,c,h,order,options)
+function u_yy = Dqq_mu(u,c,h,order,options)
 % fully compatible 2nd derivative stencil for variable coefficients
 
 
