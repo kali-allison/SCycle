@@ -13,7 +13,7 @@
 
 class OdeSolver_WaveEq
 {
-  protected:
+  public:
 
     PetscScalar               _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
@@ -32,6 +32,7 @@ class OdeSolver_WaveEq
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextWave *obj);
     PetscErrorCode getCurrT(PetscScalar& currT);
+    std::map<string,Vec>& getVar(){return _var;};
 };
 
 #endif

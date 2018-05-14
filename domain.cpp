@@ -8,7 +8,7 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
+  _isMMS(0),_loadICs(0),_numCycles(1), _inputDir("unspecified"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
@@ -189,6 +189,7 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("numCycles")==0) { _numCycles = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -255,7 +256,8 @@ PetscErrorCode Domain::checkInput()
   assert(_momentumBalanceType.compare("quasidynamic")==0 ||
     _momentumBalanceType.compare("dynamic")==0 ||
     _momentumBalanceType.compare("quasidynamic_and_dynamic")==0 ||
-    _momentumBalanceType.compare("steadyStateIts")==0 );
+    _momentumBalanceType.compare("steadyStateIts")==0 ||
+    _momentumBalanceType.compare("switching")==0 );
 
   assert( _order==2 || _order==4 );
   assert( _Ly > 0 && _Lz > 0);
@@ -371,9 +373,11 @@ PetscErrorCode Domain::setFields()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+  PetscScalar alphay, alphaz;
+  if (_order == 2 ) { alphay = 0.5 * _Ly * _dq; alphaz = 0.5 * _Lz * _dr; }
+  if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * _Ly * _dq; alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
 
-  if (_order == 2 ) { _alphay = 0.5 * _Ly * _dq; _alphaz = 0.5 * _Lz * _dr; }
-  if (_order == 4 ) { _alphay = 0.4567e4/0.14400e5 * _Ly * _dq; _alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
+  if (_sbpType.compare("mfc_coordTrans") == 0){alphay /= _Ly; alphaz /= _Lz;}
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
@@ -383,6 +387,9 @@ PetscErrorCode Domain::setFields()
   VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
   VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
   VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
+
+  VecDuplicate(_y, &_alphay); VecSet(_alphay, alphay);
+  VecDuplicate(_y, &_alphaz); VecSet(_alphaz, alphaz);
 
   // construct coordinate transform
   PetscInt Ii,Istart,Iend;
@@ -402,10 +409,10 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      //~ y[Jj] = q[Jj]*_Ly;
+      y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
 
-      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
+      // y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
     }
 
     Jj++;

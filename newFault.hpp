@@ -47,12 +47,12 @@ class NewFault
     Vec                   _a,_b,_Dc;
     std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
     Vec                   _cohesion,_mu,_rho;
-    Vec                   _dPsi,_psi;
+    Vec                   _dPsi,_psi, _psiPrev;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
-    Vec                   _slip,_slipVel;
+    Vec                   _slip,_slipVel, _slip0;
 
     std::vector<double>   _TwVals,_TwDepths;
     PetscScalar           _fw,_Vw_const,_tau_c,_D_fh; // flash heating parameters
@@ -107,6 +107,8 @@ class NewFault
     PetscErrorCode virtual writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+
+    PetscErrorCode writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir);
 };
 
 
@@ -159,8 +161,7 @@ class NewFault_dyn: public NewFault
     Vec                 _rhoLocal;
     IS                  _is;
     PetscScalar         _deltaT;
-
-    PetscScalar         _alphay, _alphaz;
+    Vec         _alphay, _alphaz;
 
     PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode, _isLocked;
@@ -224,7 +225,7 @@ struct ComputeVel_dyn : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
 // computing the slip velocity for the dynamic problem
@@ -232,12 +233,12 @@ struct ComputeAging_dyn : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
-  PetscScalar        *_psi;
+  PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -245,7 +246,7 @@ struct ComputeAging_dyn : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J){return 1;};
+  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
 

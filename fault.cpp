@@ -1385,15 +1385,15 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   ierr = VecGetArray(_Phi, &Phi);
   ierr = VecGetArray(_constraints_factor, &constraints_factor);
 
-  for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
-    tauQS[Jj] = 0;
-    an[Jj] = Laplacian[Jj] + tauQS[Jj] / _alphay;
-    Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
-    constraints_factor[Jj] = deltaT / _alphay / rho[Jj];
-    slipPrev[Jj] = slipVel[Jj];
-    slipVelocity[Jj] = slipVel[Jj];
-    Jj++;
-  }
+  // for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
+  //   tauQS[Jj] = 0;
+  //   an[Jj] = Laplacian[Jj] + tauQS[Jj] / _alphay;
+  //   Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
+  //   constraints_factor[Jj] = deltaT / _alphay / rho[Jj];
+  //   slipPrev[Jj] = slipVel[Jj];
+  //   slipVelocity[Jj] = slipVel[Jj];
+  //   Jj++;
+  // }
 
   ierr = VecRestoreArray(varEx["uFault"], &u);
   ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
@@ -1746,27 +1746,27 @@ ierr = VecGetArray(_Phi, &Phi);
 ierr = VecGetArray(varEx["slip"], &slip);
 ierr = VecGetArray(dvarEx["slip"], &vel);
 
-for (Ii = Istart; Ii<Iend; Ii++){
-  if (slipVel[Jj] < 1e-14){
-    uTemp = uPrev[Jj];
-    uPrev[Jj] = u[Jj];
-    u[Jj] = 2 * u[Jj] - uTemp + _deltaT * _deltaT / rho[Jj] * an[Jj];
-    vel[Jj] = 0;
-    slipVel[Jj] = 0;
-  }
-  else{
-    fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
-    alpha = 1 / (rho[Jj] * _alphay) * fric / slipVel[Jj];
-    A = 1 + alpha * _deltaT;
-    uTemp = uPrev[Jj];
-    uPrev[Jj] = u[Jj];
-    u[Jj] = (2*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1)*uTemp) /  A;
-    vel[Jj] = Phi[Jj] / (1 + _deltaT*_alphay / rho[Jj] * fric / slipVel[Jj]);
-    slipVel[Jj] = vel[Jj];
-  }
-  slip[Jj] = 2 * u[Jj];
-  Jj++;
-}
+// for (Ii = Istart; Ii<Iend; Ii++){
+//   if (slipVel[Jj] < 1e-14){
+//     uTemp = uPrev[Jj];
+//     uPrev[Jj] = u[Jj];
+//     u[Jj] = 2 * u[Jj] - uTemp + _deltaT * _deltaT / rho[Jj] * an[Jj];
+//     vel[Jj] = 0;
+//     slipVel[Jj] = 0;
+//   }
+//   else{
+//     fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
+//     alpha = 1 / (rho[Jj] * _alphay) * fric / slipVel[Jj];
+//     A = 1 + alpha * _deltaT;
+//     uTemp = uPrev[Jj];
+//     uPrev[Jj] = u[Jj];
+//     u[Jj] = (2*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1)*uTemp) /  A;
+//     vel[Jj] = Phi[Jj] / (1 + _deltaT*_alphay / rho[Jj] * fric / slipVel[Jj]);
+//     slipVel[Jj] = vel[Jj];
+//   }
+//   slip[Jj] = 2 * u[Jj];
+//   Jj++;
+// }
 
 ierr = VecRestoreArray(varEx["uFault"], &u);
 ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
