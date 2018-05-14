@@ -264,6 +264,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(D._y0,&_tauP);     PetscObjectSetName((PetscObject) _tauP, "tau"); VecSet(_tauP,0.0);
   VecDuplicate(_tauP,&_tauQSP);   PetscObjectSetName((PetscObject) _tauQSP, "tauQS");  VecSet(_tauQSP,0.0);
   VecDuplicate(_tauP,&_psi);      PetscObjectSetName((PetscObject) _psi, "psi"); VecSet(_psi,0.0);
+  VecDuplicate(_tauP,&_psiPrev);  PetscObjectSetName((PetscObject) _psiPrev, "psiPrev"); VecSet(_psiPrev,0.0);
   VecDuplicate(_tauP,&_dPsi);     PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
   VecDuplicate(_tauP,&_slip);     PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauP,&_slipVel);  PetscObjectSetName((PetscObject) _slipVel, "slipVel"); VecSet(_slipVel,0.0);
@@ -278,6 +279,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
   VecDuplicate(_tauP,&_mu);       PetscObjectSetName((PetscObject) _mu, "mu_fault");
   VecDuplicate(_tauP,&_locked);   PetscObjectSetName((PetscObject) _locked, "locked");
   VecDuplicate(_tauP,&_tau0);     PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
+  VecDuplicate(_tauP,&_slip0);     PetscObjectSetName((PetscObject) _slip0, "slip0");VecSet(_slip0, 0.0);
 
   // create z from D._z
   double scatterStart = MPI_Wtime();
@@ -320,6 +322,7 @@ PetscErrorCode NewFault::setFields(Domain& D)
     VecDestroy(&temp);
   }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
+  ierr = VecSet(_psiPrev,_f0);CHKERRQ(ierr);
 
   { // impose floor and ceiling on effective normal stress
     Vec temp; VecDuplicate(_sN,&temp);
@@ -561,6 +564,16 @@ PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar t
   return ierr;
 }
 
+PetscErrorCode NewFault::writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir){
+  PetscErrorCode ierr;
+  if (isFirstCycle){
+    ierr = io_initiateWriteAppend(_viewers, "uOffset", uOffset, outputDir + "uOffset"); CHKERRQ(ierr);
+  }
+  else{
+    ierr = VecView(uOffset,_viewers["uOffset"].first); CHKERRQ(ierr);
+  }
+}
+
 PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
@@ -592,6 +605,7 @@ NewFault::~NewFault()
   VecDestroy(&_tau0);
 
   VecDestroy(&_psi);
+  VecDestroy(&_psiPrev);
   VecDestroy(&_dPsi);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
@@ -859,15 +873,15 @@ PetscErrorCode NewFault_qd::computeVel()
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,_D->_vL,lockedA,Co);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
-  VecGetArray(_slipVel,&slipVelA);
-  VecGetArrayRead(_eta_rad,&etaA);
-  VecGetArrayRead(_tauQSP,&tauQSA);
-  VecGetArrayRead(_sNEff,&sNA);
-  VecGetArrayRead(_psi,&psiA);
-  VecGetArrayRead(_a,&aA);
-  VecGetArrayRead(_b,&bA);
-  VecGetArrayRead(_locked,&lockedA);
-  VecGetArrayRead(_cohesion,&Co);
+  VecRestoreArray(_slipVel,&slipVelA);
+  VecRestoreArrayRead(_eta_rad,&etaA);
+  VecRestoreArrayRead(_tauQSP,&tauQSA);
+  VecRestoreArrayRead(_sNEff,&sNA);
+  VecRestoreArrayRead(_psi,&psiA);
+  VecRestoreArrayRead(_a,&aA);
+  VecRestoreArrayRead(_b,&bA);
+  VecRestoreArrayRead(_locked,&lockedA);
+  VecRestoreArrayRead(_cohesion,&Co);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1057,7 +1071,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
 NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
 : NewFault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
-  _alphay(D._alphay), _alphaz(D._alphaz), _timeMode("Gaussian"), _isLocked("False"),
+  _timeMode("Gaussian"), _isLocked("False"),
   _lockLimit(25.0)
 {
   #if VERBOSE > 1
@@ -1235,22 +1249,24 @@ PetscErrorCode NewFault_dyn::computeAgingLaw()
   #endif
 
   // initialize struct to solve for the slip velocity
-  PetscScalar *Dc, *b, *psi, *slipVel, *slipPrev;
+  PetscScalar *Dc, *b, *psi, *psiPrev, *slipVel, *slipPrev;
   VecGetArray(_Dc,&Dc);
   VecGetArray(_b,&b);
   VecGetArray(_psi,&psi);
+  VecGetArray(_psiPrev,&psiPrev);
   VecGetArray(_slipVel,&slipVel);
   VecGetArray(_slipPrev,&slipPrev);
   PetscInt Istart, Iend;
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
-  ComputeAging_dyn temp(N,Dc,b,psi,slipVel,slipPrev, _v0, _deltaT, _f0);
+  ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
   ierr = temp.computeAging(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
   VecRestoreArray(_Dc,&Dc);
   VecRestoreArray(_b,&b);
   VecRestoreArray(_psi,&psi);
+  VecRestoreArray(_psiPrev,&psiPrev);
   VecRestoreArray(_slipVel,&slipVel);
   VecRestoreArray(_slipPrev,&slipPrev);
 
@@ -1273,6 +1289,7 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
   VecDuplicate(_tauP, &u);
   VecDuplicate(_tauP, &du);
   VecDuplicate(_tauP, &uPrev);
+  VecDuplicate(_tauP, &_alphay);
   VecSet(u, 0);
   VecSet(du, 0);
   VecSet(uPrev, 0);
@@ -1292,6 +1309,10 @@ PetscErrorCode NewFault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _
 
   VecScatterBegin(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(*_body2fault, _D->_alphay, _alphay, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(*_body2fault, _D->_alphay, _alphay, INSERT_VALUES, SCATTER_FORWARD);
+
   _scatterTime += MPI_Wtime() - scatterStart;
 
   // slip is added by the momentum balance equation
@@ -1313,6 +1334,7 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   VecGetArray(_tau0, &tau0);
   VecGetOwnershipRange(_z, &IBegin, &IEnd);
   PetscScalar timeOffset = 1.0;
+  PetscScalar exists = 1.0;
   if(_timeMode.compare("Gaussian") == 0){
     PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
   }
@@ -1322,8 +1344,11 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   else if (_timeMode.compare("Heaviside") == 0){
     timeOffset = 1.0;
   }
+  else if (_timeMode.compare("Switching") == 0){
+    exists = 0.0;
+  }
   for (Ii=IBegin;Ii<IEnd;Ii++){
-    tau0[Jj] = 30.0 + _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / (2.0 * pow(_zStdTau, 2))) * timeOffset;
+    tau0[Jj] = exists * (30.0 + _ampTau * exp(-pow((zz[Jj] - _zCenterTau), 2) / (2.0 * pow(_zStdTau, 2))) * timeOffset);
     Jj++;
   }
   VecRestoreArray(_z, &zz);
@@ -1349,40 +1374,38 @@ double intermediateTime = MPI_Wtime();
 _computeVelTime += intermediateTime - startTime;
 PetscInt       Ii,Istart,Iend;
 PetscInt       Jj = 0;
-PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z;
+PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z, *alphay;
 ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
 ierr = VecGetArray(varEx["uFault"], &u);
 ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
 ierr = VecGetArray(_an, &an);
 ierr = VecGetArray(_slipVel, &slipVel);
 ierr = VecGetArray(_rhoLocal, &rho);
-ierr = VecGetArray(varEx["psi"], &psi);
+ierr = VecGetArray(_psi, &psi);
 ierr = VecGetArray(_sNEff, &sigma_N);
 ierr = VecGetArray(_a, &a);
 ierr = VecGetArray(_Phi, &Phi);
-ierr = VecGetArray(varEx["slip"], &slip);
+ierr = VecGetArray(_slip, &slip);
 ierr = VecGetArray(dvarEx["slip"], &vel);
 ierr = VecGetArray(_z, &z);
+ierr = VecGetArray(_alphay, &alphay);
 PetscScalar *b;
 ierr = VecGetArray(_b, &b);
 
 for (Ii = Istart; Ii<Iend; Ii++){
 
   if (slipVel[Jj] < 1e-14){
-    uTemp = uPrev[Jj];
-    uPrev[Jj] = u[Jj];
-    u[Jj] = 2. * u[Jj] - uTemp + _deltaT * _deltaT / rho[Jj] * an[Jj];
     vel[Jj] = 0;
     slipVel[Jj] = 0;
   }
   else{
     fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
-    alpha = 1 / (rho[Jj] * _alphay) * fric / slipVel[Jj];
+    alpha = 1 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
     A = 1 + alpha * _deltaT;
     uTemp = uPrev[Jj];
     uPrev[Jj] = u[Jj];
     u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
-    vel[Jj] = Phi[Jj] / (1. + _deltaT*_alphay / rho[Jj] * fric / slipVel[Jj]);
+    vel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
     slipVel[Jj] = vel[Jj];
   }
   slip[Jj] = 2. * u[Jj];
@@ -1393,13 +1416,14 @@ ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
 ierr = VecRestoreArray(_an, &an);
 ierr = VecRestoreArray(_slipVel, &slipVel);
 ierr = VecRestoreArray(_rhoLocal, &rho);
-ierr = VecRestoreArray(varEx["psi"], &psi);
+ierr = VecRestoreArray(_psi, &psi);
 ierr = VecRestoreArray(_sNEff, &sigma_N);
 ierr = VecRestoreArray(_a, &a);
 ierr = VecRestoreArray(_Phi, &Phi);
-ierr = VecRestoreArray(varEx["slip"], &slip);
+ierr = VecRestoreArray(_slip, &slip);
 ierr = VecRestoreArray(dvarEx["slip"], &vel);
 ierr = VecRestoreArray(_z, &z);
+ierr = VecRestoreArray(_alphay, &alphay);
 
   double scatterStart = MPI_Wtime();
 
@@ -1416,7 +1440,9 @@ ierr = VecRestoreArray(_z, &z);
 double startAgingTime = MPI_Wtime();
 computeAgingLaw();
 _stateLawTime += MPI_Wtime() - startAgingTime;
-varEx["psi"] = _psi;
+// VecCopy(_psi, varEx["psi"]);
+VecAXPY(_slip, 1.0, _slip0);
+// VecCopy(varEx["slip"], _slip);
 #if VERBOSE > 1
 PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
@@ -1441,14 +1467,14 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
 
   ierr = VecGetOwnershipRange(varEx["uFault"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
 
-  PetscScalar *u, *uPrev, *Laplacian, *rho, *psi, *sigma_N, *tau0, *slipVel, *an, *Phi, *constraints_factor, *slipPrev, *slipVelocity;
+  PetscScalar *u, *uPrev, *Laplacian, *rho, *psi, *sigma_N, *tau0, *slipVel, *an, *Phi, *constraints_factor, *slipPrev, *slipVelocity, *alphay;
   PetscInt Jj = 0;
 
   ierr = VecGetArray(varEx["uFault"], &u);
   ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
   ierr = VecGetArray(varEx["duFault"], &Laplacian);
   ierr = VecGetArray(_rhoLocal, &rho);
-  ierr = VecGetArray(varEx["psi"], &psi);
+  ierr = VecGetArray(_psi, &psi);
   ierr = VecGetArray(_sNEff, &sigma_N);
   ierr = VecGetArray(_tau0, &tau0);
   ierr = VecGetArray(dvarEx["slip"], &slipVel);
@@ -1457,21 +1483,21 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
   ierr = VecGetArray(_an, &an);
   ierr = VecGetArray(_Phi, &Phi);
   ierr = VecGetArray(_constraints_factor, &constraints_factor);
+  ierr = VecGetArray(_alphay, &alphay);
 
   for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
-    an[Jj] = Laplacian[Jj] + tau0[Jj] / _alphay;
+    an[Jj] = Laplacian[Jj] + tau0[Jj] / alphay[Jj];
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
-    constraints_factor[Jj] = deltaT / _alphay / rho[Jj];
+    constraints_factor[Jj] = deltaT / alphay[Jj] / rho[Jj];
     slipPrev[Jj] = slipVel[Jj];
     slipVelocity[Jj] = slipVel[Jj];
     Jj++;
   }
-  // std::cin.get();
   ierr = VecRestoreArray(varEx["uFault"], &u);
   ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
   ierr = VecRestoreArray(varEx["duFault"], &Laplacian);
   ierr = VecRestoreArray(_rhoLocal, &rho);
-  ierr = VecRestoreArray(varEx["psi"], &psi);
+  ierr = VecRestoreArray(_psi, &psi);
   ierr = VecRestoreArray(_sNEff, &sigma_N);
   ierr = VecRestoreArray(_tau0, &tau0);
   ierr = VecRestoreArray(dvarEx["slip"], &slipVel);
@@ -1480,6 +1506,7 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
   ierr = VecRestoreArray(_an, &an);
   ierr = VecRestoreArray(_Phi, &Phi);
   ierr = VecRestoreArray(_constraints_factor, &constraints_factor);
+  ierr = VecRestoreArray(_alphay, &alphay);
 
   _deltaT = deltaT;
   #if VERBOSE > 1
@@ -1501,7 +1528,8 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     std::string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
+  
+  // BracketedNewton rootFinder(maxNumIts,rootTol);
   Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
 
@@ -1532,6 +1560,7 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
       ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      // ierr = rootFinder.findRoot(this,Jj,slipVelA[Jj], &out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
@@ -1564,11 +1593,33 @@ PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,
   return ierr;
 }
 
+PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out, PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar constraints = strength_psi(_sNEff[Jj], _psi[Jj], vel, _a[Jj] , _v0); // frictional strength
+
+  constraints = _constraints_factor[Jj] * constraints;
+  PetscScalar Phi_temp = _Phi[Jj];
+  if (Phi_temp < 0){Phi_temp = -Phi_temp;}
+
+  PetscScalar stress = Phi_temp - vel; // stress on fault
+
+  *out = constraints - stress;
+  PetscScalar A = _a[Jj] * _sNEff[Jj];
+  PetscScalar B = exp(_psi[Jj] / _a[Jj]) / (2. * _v0);
+
+  *J = 1 + _constraints_factor[Jj] * A * B / sqrt(1. + B * B * vel * vel);
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
 // ================================================
 
 
-ComputeAging_dyn::ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+ComputeAging_dyn::ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+: _Dc(Dc),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
 PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -1579,13 +1630,17 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  RegulaFalsi rootFinder(maxNumIts,rootTol);
+  // RegulaFalsi rootFinder(maxNumIts,rootTol);
+  // BracketedNewton rootFinder(maxNumIts,rootTol);
+  Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
-
-    left = -10.;
-    right = 10.;
-
+  
+    // left = -10.;
+    // right = 10.;
+    left = 0.;
+    right = 2*_psi[Jj];
+  
     // check bounds
     if (isnan(left)) {
       PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
@@ -1605,9 +1660,11 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
     if (abs(left-right)<1e-14) { out = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      // ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
+    _psiPrev[Jj] = _psi[Jj];
     _psi[Jj] = out;
   }
 
@@ -1623,10 +1680,32 @@ PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar st
 {
   PetscErrorCode ierr = 0;
 
-  PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, (_slipVel[Jj] + _slipPrev[Jj])/2.0, _b[Jj], _f0, _v0, _Dc[Jj]);
-  PetscScalar stress = state - _psi[Jj];
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  PetscScalar age = agingLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
 
-  *out = _deltaT * age - stress;
+PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar age = agingLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+
+  *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psiPrev[Jj] + state)/2.)/_b[Jj]);
+
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  // *out = -2 * _deltaT * age + stress;
+
+  // *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psi[Jj] + state)/2.)/_b[Jj]);
+
   assert(!isnan(*out));
   assert(!isinf(*out));
   return ierr;
@@ -1642,7 +1721,7 @@ PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, con
   PetscScalar A = exp( (double) (f0-psi)/b );
   PetscScalar dstate = 0.;
   if ( !isinf(A) && b>1e-3 ) {
-    dstate = (PetscScalar) (b*v0/Dc)*( A - abs(slipVel)/v0 );
+    dstate = (PetscScalar) (b*v0/Dc)*( A - slipVel/v0 );
   }
   assert(!isnan(dstate));
   assert(!isinf(dstate));

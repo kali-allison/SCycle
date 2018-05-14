@@ -28,12 +28,15 @@ class Domain
     std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
+    int            _numCycles;
     std::string    _inputDir; // directory to load input files from
 
     // domain properties
     PetscInt     _order,_Ny,_Nz;
     PetscScalar  _Ly,_Lz;
-    PetscScalar  _alphay,_alphaz;
+    Vec  _alphay,_alphaz;
+    std::string  _yInputDir; // directory to load y from
+    std::string  _zInputDir; // directory to load z from
     PetscScalar  _vL; // loading velocity
 
     // coordinate system

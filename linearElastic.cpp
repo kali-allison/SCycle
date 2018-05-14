@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
-  _muVec(NULL),_rhoVec(NULL),_cs(NULL),
+  _muVec(NULL),_rhoVec(NULL),_cs(NULL),_csValue(-1),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
@@ -140,6 +140,9 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_rhoDepths);
     }
+    else if (var.compare("cs")==0) {
+      _csValue = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
 
     // switches for computing extra stresses
     else if (var.compare("momBal_computeSxz")==0) {
@@ -169,8 +172,9 @@ PetscErrorCode LinearElastic::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("CG") == 0 ||
-         _linSolver.compare("AMG") == 0 );
+         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("AMG") == 0 ||
+         _linSolver.compare("CG") == 0 );
 
   if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
@@ -268,6 +272,18 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
+    else if (_linSolver.compare("CG")==0) { // CG solver
+    // use direct LL^T (Cholesky factorization) from MUMPS
+    ierr = KSPSetType(ksp,KSPCG);CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
+    PCSetType(pc,PCHYPRE);
+    PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);
+    
+  }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
@@ -344,9 +360,17 @@ PetscErrorCode LinearElastic::setMaterialParameters()
   #endif
 
   //~ ierr = setVec(_muVec,*_z,_muVals,_muDepths);CHKERRQ(ierr);
-  ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
-  ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-  VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  if(_csValue == -1){
+    ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
+    ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+    VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  }
+  else{
+    ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+    ierr = VecSet(_cs, _csValue * _csValue);
+    VecPointwiseMult(_muVec, _cs, _rhoVec);
+  }
+
   VecSqrtAbs(_cs);
 
   if (_isMMS) {

@@ -14,7 +14,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _isFault("true"),_initialConditions("u"),
+  _isFault("true"),_initialConditions("u"), _loadDir("unspecified"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -32,8 +32,6 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  _fault = new NewFault_dyn(D, D._scatters["body2L"]); // fault
-
   assert(_bcBType.compare("freeSurface")==0 || _bcBType.compare("outGoingCharacteristics")==0);
   assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("outGoingCharacteristics")==0);
   assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("outGoingCharacteristics")==0);
@@ -47,6 +45,34 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _cs = *(&(_material->_cs));
   _rhoVec = *(&(_material->_rhoVec));
   _muVec = *(&(_material->_muVec));
+
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+    Vec temp1, temp2;
+    VecDuplicate(_alphay, &temp1);
+    VecDuplicate(_alphay, &temp2);
+    MatMult(yq, _alphay, temp1);
+    MatMult(zr, _alphaz, temp2);
+    VecCopy(temp1, _alphay);
+    VecCopy(temp2, _alphaz);
+    VecCopy(temp1, D._alphay);
+    VecCopy(temp2, D._alphaz);
+    VecDestroy(&temp1);
+    VecDestroy(&temp2);
+  }
+
+  _fault = new NewFault_dyn(D, D._scatters["body2L"]); // fault
+
+  // PetscInt Ii, Istart, Iend;
+  // PetscScalar *alphay, *alphaz;
+  // VecGetOwnershipRange(_alphay, &Istart, &Iend);
+  // VecGetArray(_alphay, &alphay);
+  // VecGetArray(_alphaz, &alphaz);
+  // for(Ii = Istart; Ii < Iend; ++Ii){
+  //   PetscPrintf(PETSC_COMM_WORLD, "%g, %g\n", alphay[Ii], alphaz[Ii]);
+  // }
+  // PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
 
   if (_CFL !=0){
     PetscInt max_index;
@@ -114,6 +140,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("loadDir")==0) { _loadDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
@@ -210,17 +237,99 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   _fault->initiateIntegrand(_initTime,_varEx);
-
+  
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
+  Vec dslip;
+  VecDuplicate(_varEx["psi"], &dslip); VecSet(dslip,0.);
+  _varEx["dslip"] = dslip;
 
   VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
+  if (_loadDir.compare("unspecified") != 0){
+
+    ierr = loadFileIfExists_matlab(_loadDir+"u", _varEx["u"]);
+    if (ierr == 1){
+        PetscInt Ii,Istart,Iend;
+        PetscInt Jj = 0;
+  
+      if (_initialConditions.compare("u") == 0){
+        PetscScalar *u, *uPrev, *y, *z;
+        VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
+        VecGetArray(_varEx["u"],&u);
+        VecGetArray(_varEx["uPrev"],&uPrev);
+        VecGetArray(*_y, &y);
+        VecGetArray(*_z, &z);
+
+        for (Ii=Istart;Ii<Iend;Ii++) {
+          u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
+          uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
+          Jj++;
+        }
+        VecRestoreArray(*_y,&y);
+        VecRestoreArray(*_z,&z);
+        VecRestoreArray(_varEx["u"],&u);
+        VecRestoreArray(_varEx["uPrev"],&uPrev);
+      }
+    }
+
+    ierr = loadFileIfExists_matlab(_loadDir+"uPrev", _varEx["uPrev"]);
+    if (ierr == 1){
+      VecCopy(_varEx["u"], _varEx["uPrev"]);
+    }
+
+    // ##### TODO : Propagate the version of switch for the loading ####
+    // Vec lastDeltaT;
+    // ierr = VecCreate(PETSC_COMM_WORLD,&lastDeltaT); CHKERRQ(ierr);
+    // ierr = VecSetSizes(lastDeltaT,PETSC_DECIDE,1); CHKERRQ(ierr);
+    // ierr = VecSetFromOptions(lastDeltaT); CHKERRQ(ierr);
+
+    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psi);
+    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psiPrev);
+    // // ierr = loadFileIfExists_matlab(_loadDir + "tau0", _fault->_tau0);
+    ierr = loadFileIfExists_matlab(_loadDir + "slipVel", _varEx["dslip"]);
+    // ierr = loadFileIfExists_matlab(_loadDir + "deltaT", lastDeltaT);
+    // PetscScalar* lastT;
+    // PetscScalar tempdeltaT;
+    // VecGetArray(lastDeltaT, &lastT);
+    // tempdeltaT = lastT[0];
+    // VecDestroy(&lastDeltaT);
+
+    // Vec psiComputation;
+    // VecDuplicate(_fault->_psi, &psiComputation);
+    // VecCopy(_fault->_psi, psiComputation);
+    // VecAXPY(psiComputation, -1.0, _fault->_psiPrev);
+    // VecAXPY(_fault->_psiPrev, 1.0 - _deltaT / tempdeltaT, psiComputation);
+    // VecDestroy(&psiComputation);
+
+    VecCopy(_varEx["u"], _material->_u);
+    _material->computeStresses();
+    Vec sxy,sxz,sdev;
+    ierr = _material->getStresses(sxy,sxz,sdev);
+    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+    VecCopy(_fault->_tauQSP, _fault->_tau0);
+    
+    VecSet(_varEx["u"], 0.0);
+    VecSet(_varEx["uPrev"], 0.0);
+
+    // Vec uPrevTemp;
+    // VecDuplicate(_varEx["u"], &uPrevTemp);
+    // VecCopy(_varEx["u"], uPrevTemp);
+    // VecAXPY(uPrevTemp, -1.0, _varEx["uPrev"]);
+    // VecAXPY(_varEx["uPrev"], 1.0 - _deltaT / tempdeltaT, uPrevTemp);
+    // VecDestroy(&uPrevTemp);
+
+    // VecCopy(_fault->_psi, _varEx["psi"]);
+
+    ierr = 0;
+  }
+  else{
+  
   PetscInt Ii,Istart,Iend;
   PetscInt Jj = 0;
-  /*
+  
   if (_initialConditions.compare("u") == 0){
     PetscScalar *u, *uPrev, *y, *z;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
@@ -238,40 +347,53 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     VecRestoreArray(*_z,&z);
     VecRestoreArray(_varEx["u"],&u);
     VecRestoreArray(_varEx["uPrev"],&uPrev);
-  }*/
+  }
+
+  }
+  PetscInt Ii,Istart,Iend;
+  PetscInt Jj = 0;
     // Create matrix _ay
     VecDuplicate(*_z, &_ay);
     VecSet(_ay, 0.0);
+    Vec _ay_temp, _az_temp;
+    VecDuplicate(*_z, &_ay_temp);
+    VecSet(_ay_temp, 0.0);
+    VecDuplicate(*_z, &_az_temp);
+    VecSet(_az_temp, 0.0);
 
-    PetscScalar *yy, *zz, *ay;
+    PetscScalar *ay, *alphay, *alphaz;
     VecGetOwnershipRange(*_y,&Istart,&Iend);
     VecGetArray(_ay,&ay);
-    VecGetArray(*_y, &yy);
-    VecGetArray(*_z, &zz);
+    VecGetArray(_alphay, &alphay);
+    VecGetArray(_alphaz, &alphaz);
     Jj = 0;
-
-    PetscScalar dy,dz;
-    if (_D->_sbpType.compare("mfc_coordTrans")==0) { dy = 1./(_Ny-1); dz = 1./(_Nz-1); }
-    else { dy = _Ly/(_Ny-1); dz = _Lz/(_Nz-1); }
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
       PetscScalar tol;
-      if (dy < dz){tol = dy / 10000;}
-      else{tol = dz / 10000;}
-      if (abs(yy[Jj]) < tol && _bcLType.compare("outGoingCharacteristics") == 0){ay[Jj] += 0.5 / _alphay;}
-      if (abs(yy[Jj] - _Ly) < tol && _bcRType.compare("outGoingCharacteristics") == 0){ay[Jj] += 0.5 / _alphay;}
-      if (abs(zz[Jj]) < tol && _bcTType.compare("outGoingCharacteristics") == 0){ay[Jj] += 0.5 / _alphaz;}
-      if (abs(zz[Jj] - _Lz && _bcBType.compare("outGoingCharacteristics") == 0) < tol){ay[Jj] += 0.5 / _alphaz;}
+      if ((Ii/_Nz == 0) && (_bcLType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
+      if ((Ii/_Nz == _Ny-1) && (_bcRType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
+      if ((Ii%_Nz == 0) && (_bcTType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}
+      if (((Ii+1)%_Nz == 0) && (_bcBType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}
       Jj++;
     }
-    VecRestoreArray(*_y,&yy);
-    VecRestoreArray(*_z,&zz);
+
     VecRestoreArray(_ay,&ay);
+    VecRestoreArray(_alphay, &alphay);
+    VecRestoreArray(_alphaz, &alphaz);
 
     ierr = VecPointwiseMult(_ay, _ay, _cs);
 
   _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
+    if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(_material->_rhoVec, &temp);
+      MatMult(J, _material->_rhoVec, temp);
+      VecCopy(temp, _material->_rhoVec);
+      VecDestroy(&temp);
+    }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -499,6 +621,16 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   }
 
   _propagateTime += MPI_Wtime() - startPropagation;
+    if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(dvarEx["u"], &temp);
+      MatMult(Jinv, dvarEx["u"], temp);
+      VecCopy(temp, dvarEx["u"]);
+      VecDestroy(&temp);
+    }
+
   if (_isFault.compare("true") == 0){
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 }
@@ -509,6 +641,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
   VecCopy(_fault->_tauQSP, _fault->_tauP);
+  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
 
   return ierr;
 }

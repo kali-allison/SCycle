@@ -52,7 +52,7 @@ private:
     PetscScalar          _deltaT, _CFL;
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    PetscScalar          _alphay, _alphaz;
+    Vec          _alphay, _alphaz;
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
@@ -60,7 +60,7 @@ private:
     std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    std::string          _initialConditions;
+    std::string          _initialConditions, _loadDir;
     int          _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data

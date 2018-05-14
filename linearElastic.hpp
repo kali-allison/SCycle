@@ -40,6 +40,7 @@ class LinearElastic
 
     // off-fault material fields
     Vec                  _muVec, _rhoVec, _cs;
+    PetscScalar          _csValue;
     std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
     Vec                  _rhs,_u,_sxy,_sxz,_sdev;
