@@ -150,6 +150,7 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
     PetscInt max_index;
     PetscScalar max_speed;
     VecMax(_cs,&max_index,&max_speed);
+    // Change for variable grid spacing with min y_q 1 / (Ny - 1)
     _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
   }
   else{
@@ -476,7 +477,7 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
   PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
-  std::cout << _stepCount << std::endl;
+
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
     mustswitch = true;
     _maxStepCount_dyn = 0;
