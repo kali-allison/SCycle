@@ -385,15 +385,15 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     ierr = VecPointwiseMult(_ay, _ay, _cs);
 
   _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
-    if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(_material->_rhoVec, &temp);
-      MatMult(J, _material->_rhoVec, temp);
-      VecCopy(temp, _material->_rhoVec);
-      VecDestroy(&temp);
-    }
+    // if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    //   Mat J,Jinv,qy,rz,yq,zr;
+    //   ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    //   Vec temp;
+    //   VecDuplicate(_material->_rhoVec, &temp);
+    //   MatMult(J, _material->_rhoVec, temp);
+    //   VecCopy(temp, _material->_rhoVec);
+    //   VecDestroy(&temp);
+    // }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -585,6 +585,15 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   ierr = _material->_sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
   VecDestroy(&temp);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(dvarEx["u"], &temp);
+      MatMult(Jinv, dvarEx["u"], temp);
+      VecCopy(temp, dvarEx["u"]);
+      VecDestroy(&temp);
+  }
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
@@ -621,15 +630,6 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<st
   }
 
   _propagateTime += MPI_Wtime() - startPropagation;
-    if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(dvarEx["u"], &temp);
-      MatMult(Jinv, dvarEx["u"], temp);
-      VecCopy(temp, dvarEx["u"]);
-      VecDestroy(&temp);
-    }
 
   if (_isFault.compare("true") == 0){
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);

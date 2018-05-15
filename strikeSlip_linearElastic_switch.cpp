@@ -268,7 +268,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
     }
-
+    
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // boundary conditions for momentum balance equation
@@ -1201,6 +1201,16 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
   ierr = VecCopy(Laplacian, dvarEx["u"]);
   VecDestroy(&temp);
   VecDestroy(&Laplacian);
+
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    VecDuplicate(dvarEx["u"], &temp);
+    MatMult(Jinv, dvarEx["u"], temp);
+    VecCopy(temp, dvarEx["u"]);
+    VecDestroy(&temp);
+  }
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
@@ -1236,16 +1246,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
     ierr = _fault_dyn->updateTau(currT);
   }
   _propagateTime += MPI_Wtime() - startPropagation;
-
-    if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(dvarEx["u"], &temp);
-      MatMult(Jinv, dvarEx["u"], temp);
-      VecCopy(temp, dvarEx["u"]);
-      VecDestroy(&temp);
-    }
 
   if (_isFault.compare("true") == 0){
   ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
@@ -1422,15 +1422,15 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
     ierr = VecPointwiseMult(_ay, _ay, _cs);
 
     // Offset rho for the coord transform
-    if(_D->_sbpType.compare("mfc_coordTrans")==0 && !_firstCycle){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(_material->_rhoVec, &temp);
-      MatMult(Jinv, _material->_rhoVec, temp);
-      VecCopy(temp, _material->_rhoVec);
-      VecDestroy(&temp);
-    }
+    // if(_D->_sbpType.compare("mfc_coordTrans")==0 && !_firstCycle){
+    //   Mat J,Jinv,qy,rz,yq,zr;
+    //   ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    //   Vec temp;
+    //   VecDuplicate(_material->_rhoVec, &temp);
+    //   MatMult(Jinv, _material->_rhoVec, temp);
+    //   VecCopy(temp, _material->_rhoVec);
+    //   VecDestroy(&temp);
+    // }
   _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 
 
