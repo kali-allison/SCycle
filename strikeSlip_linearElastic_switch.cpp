@@ -146,6 +146,7 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
 
   _fault_dyn = new NewFault_dyn(D, D._scatters["body2L"]); // fault
 
+  // Change CFL deltaT
   if (_CFL !=0){
     PetscInt max_index;
     PetscScalar max_speed;
@@ -1504,12 +1505,12 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if ( stepCount % _stride1D == 0) {
+  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_dyn->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
-  if ( stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
