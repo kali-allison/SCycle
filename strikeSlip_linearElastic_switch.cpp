@@ -517,6 +517,8 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::reset_for_qd(){
   // Force writing output
   if(_stepCount % _stride1D > 0){
     PetscInt stride1d, stride2d;
+    stride1d = _stride1D;
+    stride2d = _stride2D;
     _stride1D = 1;
     _stride2D = 1;
     timeMonitor(_currTime, _stepCount, _varEx, _varEx, _stride1D);
