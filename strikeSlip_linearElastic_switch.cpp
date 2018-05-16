@@ -479,7 +479,10 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
   PetscScalar max_value;
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
-  PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
+  
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
+  #endif
 
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
     mustswitch = true;
