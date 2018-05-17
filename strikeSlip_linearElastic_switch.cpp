@@ -152,13 +152,49 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
     PetscScalar max_speed;
     VecMax(_cs,&max_index,&max_speed);
     // Change for variable grid spacing with min y_q 1 / (Ny - 1)
-    _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    if (_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+
+      PetscInt index_z, index_y;
+      PetscScalar min_z, min_y;
+      Vec yy, zz;
+      VecDuplicate(*_y, &yy);
+      VecDuplicate(*_z, &zz);
+      MatGetDiagonal(yq, yy);
+      MatGetDiagonal(zr, zz);
+      VecMin(yy,&index_y,&min_y);
+      VecMin(zz,&index_z,&min_z);
+
+      _deltaT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
+    }
+    else{
+      _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    }
   }
   else{
     PetscInt max_index;
     PetscScalar max_speed, theoretical_dT;
     VecMax(_cs,&max_index,&max_speed);
-    theoretical_dT = 0.5 * 0.5 / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    if (_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+
+      PetscInt index_z, index_y;
+      PetscScalar min_z, min_y;
+      Vec yy, zz;
+      VecDuplicate(*_y, &yy);
+      VecDuplicate(*_z, &zz);
+      MatGetDiagonal(yq, yy);
+      MatGetDiagonal(zr, zz);
+      VecMin(yy,&index_y,&min_y);
+      VecMin(zz,&index_z,&min_z);
+
+      theoretical_dT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
+    }
+    else{
+      theoretical_dT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    }
     if (theoretical_dT > _deltaT){
       PetscPrintf(PETSC_COMM_WORLD, "WARNING : The specified deltaT odes not meet the CFL requirements...");
     }
@@ -479,7 +515,7 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
   PetscScalar max_value;
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
-  
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
   #endif
@@ -1431,16 +1467,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
 
     ierr = VecPointwiseMult(_ay, _ay, _cs);
 
-    // Offset rho for the coord transform
-    // if(_D->_sbpType.compare("mfc_coordTrans")==0 && !_firstCycle){
-    //   Mat J,Jinv,qy,rz,yq,zr;
-    //   ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    //   Vec temp;
-    //   VecDuplicate(_material->_rhoVec, &temp);
-    //   MatMult(Jinv, _material->_rhoVec, temp);
-    //   VecCopy(temp, _material->_rhoVec);
-    //   VecDestroy(&temp);
-    // }
   _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 
 

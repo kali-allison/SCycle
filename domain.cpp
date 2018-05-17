@@ -409,10 +409,10 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      y[Jj] = q[Jj]*_Ly;
+      // y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
 
-      // y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
+      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
     }
 
     Jj++;
