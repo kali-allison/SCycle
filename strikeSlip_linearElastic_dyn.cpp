@@ -17,7 +17,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _isFault("true"),_initialConditions("u"), _loadDir("unspecified"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
-  _stepCount(0),_atol(1e-8),
+  _stepCount(0),_atol(1e-8),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _propagateTime(0),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("outGoingCharacteristics"),_bcBType("outGoingCharacteristics"),
@@ -78,7 +78,53 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
     PetscInt max_index;
     PetscScalar max_speed;
     VecMax(_cs,&max_index,&max_speed);
-    _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    // Change for variable grid spacing with min y_q 1 / (Ny - 1)
+    if (_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+
+      PetscInt index_z, index_y;
+      PetscScalar min_z, min_y;
+      Vec yy, zz;
+      VecDuplicate(*_y, &yy);
+      VecDuplicate(*_z, &zz);
+      MatGetDiagonal(yq, yy);
+      MatGetDiagonal(zr, zz);
+      VecMin(yy,&index_y,&min_y);
+      VecMin(zz,&index_z,&min_z);
+
+      _deltaT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
+    }
+    else{
+      _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    }
+  }
+  else{
+    PetscInt max_index;
+    PetscScalar max_speed, theoretical_dT;
+    VecMax(_cs,&max_index,&max_speed);
+    if (_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+
+      PetscInt index_z, index_y;
+      PetscScalar min_z, min_y;
+      Vec yy, zz;
+      VecDuplicate(*_y, &yy);
+      VecDuplicate(*_z, &zz);
+      MatGetDiagonal(yq, yy);
+      MatGetDiagonal(zr, zz);
+      VecMin(yy,&index_y,&min_y);
+      VecMin(zz,&index_z,&min_z);
+
+      theoretical_dT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
+    }
+    else{
+      theoretical_dT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
+    }
+    if (theoretical_dT > _deltaT){
+      PetscPrintf(PETSC_COMM_WORLD, "WARNING : The specified deltaT odes not meet the CFL requirements...");
+    }
   }
 
   #if VERBOSE > 1
@@ -98,6 +144,10 @@ StrikeSlip_LinearElastic_dyn::~StrikeSlip_LinearElastic_dyn()
   for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
     VecDestroy(&it->second);
   }
+
+  PetscViewerDestroy(&_timeV1D);
+  PetscViewerDestroy(&_dtimeV1D);
+  PetscViewerDestroy(&_timeV2D);
 
   delete _quadWaveEx;      _quadWaveEx = NULL;
   delete _material;    _material = NULL;
@@ -417,11 +467,13 @@ double startTime = MPI_Wtime();
   _currTime = time;
 
   if ( _stride1D > 0 && stepCount % _stride1D == 0) {
+    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
   if ( _stride2D > 0 && stepCount % _stride2D == 0) {
+    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
@@ -452,11 +504,13 @@ double startTime = MPI_Wtime();
   _currTime = time;
 
   if ( stepCount % _stride1D == 0) {
+    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
   if ( stepCount % _stride2D == 0) {
+    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
@@ -466,6 +520,53 @@ double startTime = MPI_Wtime();
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_timeV1D==NULL) {
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_timeV2D==NULL) {
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }

@@ -81,10 +81,12 @@ private:
     bool                   _inDynamic, _firstCycle;
     int                    _stepCount;
     PetscScalar            _atol;
-    PetscScalar            _initDeltaT;
+    PetscScalar            _initDeltaT, _dT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
     std::string            _normType;
 
+    // viewers
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
@@ -170,6 +172,9 @@ private:
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
 
