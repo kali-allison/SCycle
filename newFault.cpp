@@ -1240,7 +1240,7 @@ PetscErrorCode NewFault_dyn::computeVel()
   return ierr;
 }
 
-PetscErrorCode NewFault_dyn::computeAgingLaw()
+PetscErrorCode NewFault_dyn::computeStateEvolution()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1260,8 +1260,29 @@ PetscErrorCode NewFault_dyn::computeAgingLaw()
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
-  ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
-  ierr = temp.computeAging(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+  if (_stateLaw.compare("agingLaw") == 0){
+    ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
+    ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+  }
+  else if (_stateLaw.compare("slipLaw") == 0){
+    PetscScalar *a;
+    VecGetArray(_a, &a);
+    ComputeSlipLaw_dyn temp(N,Dc,a, b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
+    ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+    VecRestoreArray(_a, &a);
+  }
+  else if (_stateLaw.compare("flashHeating") == 0){
+    PetscScalar *a, * Vw;
+    VecGetArray(_a, &a);
+    VecGetArray(_Vw, &Vw);
+    ComputeFlashHeating_dyn temp(N,Dc,a,b,psi,psiPrev, slipVel,slipPrev, Vw, _v0, _deltaT, _f0, _fw);
+    ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
+    VecRestoreArray(_a, &a);
+    VecRestoreArray(_Vw, &Vw);
+  }
+  else{
+    ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);  
+  }
 
   VecRestoreArray(_Dc,&Dc);
   VecRestoreArray(_b,&b);
@@ -1438,7 +1459,7 @@ ierr = VecRestoreArray(_alphay, &alphay);
 
 // compute state parameter law
 double startAgingTime = MPI_Wtime();
-computeAgingLaw();
+computeStateEvolution();
 _stateLawTime += MPI_Wtime() - startAgingTime;
 // VecCopy(_psi, varEx["psi"]);
 VecAXPY(_slip, 1.0, _slip0);
@@ -1622,7 +1643,7 @@ ComputeAging_dyn::ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const
 : _Dc(Dc),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
-PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeAging_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1631,8 +1652,8 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
   #endif
 
   // RegulaFalsi rootFinder(maxNumIts,rootTol);
-  // BracketedNewton rootFinder(maxNumIts,rootTol);
-  Bisect rootFinder(maxNumIts,rootTol);
+  BracketedNewton rootFinder(maxNumIts,rootTol);
+  // Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
   
@@ -1660,8 +1681,8 @@ PetscErrorCode ComputeAging_dyn::computeAging(const PetscScalar rootTol, PetscIn
     if (abs(left-right)<1e-14) { out = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      // ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     _psiPrev[Jj] = _psi[Jj];
@@ -1699,6 +1720,203 @@ PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar st
   *out = -2 * _deltaT * age + stress;
 
   *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psiPrev[Jj] + state)/2.)/_b[Jj]);
+
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  // *out = -2 * _deltaT * age + stress;
+
+  // *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psi[Jj] + state)/2.)/_b[Jj]);
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+// ================================================
+
+
+ComputeSlipLaw_dyn::ComputeSlipLaw_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+{ }
+
+PetscErrorCode ComputeSlipLaw_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "ComputeVel_qd::computeVel";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // RegulaFalsi rootFinder(maxNumIts,rootTol);
+  BracketedNewton rootFinder(maxNumIts,rootTol);
+  // Bisect rootFinder(maxNumIts,rootTol);
+  PetscScalar left, right, out, temp;
+  for (PetscInt Jj = 0; Jj<_N; Jj++) {
+  
+    // left = -10.;
+    // right = 10.;
+    left = 0.;
+    right = 2*_psi[Jj];
+  
+    // check bounds
+    if (isnan(left)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+      assert(0);
+    }
+    if (isnan(right)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
+      assert(0);
+    }
+    // correct for left-lateral fault motion
+    if (left > right) {
+      temp = right;
+      right = left;
+      left = temp;
+    }
+
+    if (abs(left-right)<1e-14) { out = left; }
+    else {
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      rootIts += rootFinder.getNumIts();
+    }
+    _psiPrev[Jj] = _psi[Jj];
+    _psi[Jj] = out;
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// Compute residual for equation to find slip velocity.
+// This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
+PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+{
+  PetscErrorCode ierr = 0;
+
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  PetscScalar age = slipLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _a[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar age = slipLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _a[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+
+  PetscScalar A = abs(_slipVel[Jj]) / 2. / _v0 * exp((_psiPrev[Jj] + state) / 2.0 / _a[Jj]);
+
+  *J = 1 + _deltaT * abs(_slipVel[Jj]) / _Dc[Jj] * A / sqrt(1 + A * A);
+
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  // *out = -2 * _deltaT * age + stress;
+
+  // *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psi[Jj] + state)/2.)/_b[Jj]);
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+// ================================================
+
+
+ComputeFlashHeating_dyn::ComputeFlashHeating_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar* Vw,
+                                                 const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0, const PetscScalar fw)
+: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_Vw(Vw),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
+{ }
+
+PetscErrorCode ComputeFlashHeating_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "ComputeVel_qd::computeVel";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // RegulaFalsi rootFinder(maxNumIts,rootTol);
+  BracketedNewton rootFinder(maxNumIts,rootTol);
+  // Bisect rootFinder(maxNumIts,rootTol);
+  PetscScalar left, right, out, temp;
+  for (PetscInt Jj = 0; Jj<_N; Jj++) {
+  
+    // left = -10.;
+    // right = 10.;
+    left = 0.;
+    right = 2*_psi[Jj];
+  
+    // check bounds
+    if (isnan(left)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: left bound evaluated to NaN.\n");
+      assert(0);
+    }
+    if (isnan(right)) {
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_qd::computeVel: right bound evaluated to NaN.\n");
+      assert(0);
+    }
+    // correct for left-lateral fault motion
+    if (left > right) {
+      temp = right;
+      right = left;
+      left = temp;
+    }
+
+    if (abs(left-right)<1e-14) { out = left; }
+    else {
+      ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      rootIts += rootFinder.getNumIts();
+    }
+    _psiPrev[Jj] = _psi[Jj];
+    _psi[Jj] = out;
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// Compute residual for equation to find slip velocity.
+// This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
+PetscErrorCode ComputeFlashHeating_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+{
+  PetscErrorCode ierr = 0;
+
+  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
+  // PetscScalar stress = state - _psi[Jj];
+  PetscScalar age = flashHeating_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _Vw[Jj], _fw, _Dc[Jj], _a[Jj], _b[Jj], _f0, _v0);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+PetscErrorCode ComputeFlashHeating_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar age = flashHeating_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _Vw[Jj], _fw, _Dc[Jj], _a[Jj], _b[Jj], _f0, _v0);
+  PetscScalar stress = state - _psiPrev[Jj];
+  *out = -2 * _deltaT * age + stress;
+
+  PetscScalar A = abs(_slipVel[Jj]) / 2. / _v0 * exp((_psiPrev[Jj] + state) / 2.0 / _a[Jj]);
+
+  *J = 1 + _deltaT * abs(_slipVel[Jj]) / _Dc[Jj] * A / sqrt(1 + A * A);
 
   // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
   // PetscScalar stress = state - _psi[Jj];
