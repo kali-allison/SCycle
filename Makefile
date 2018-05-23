@@ -2,7 +2,7 @@ all: main
 
 DEBUG_MODULES   = -DVERBOSE=1 -DODEPRINT=0
 CFLAGS          = $(DEBUG_MODULES)
-CPPFLAGS        = $(CFLAGS) -std=c++11
+CPPFLAGS        = $(CFLAGS) -std=c++11 -O3
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		      = openmpicc
 
@@ -10,11 +10,11 @@ OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
  spmat.o powerLaw.o heatEquation.o \
  sbpOps_c.o sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
- odeSolverImex.o odeSolver_WaveEq.o pressureEq.o \
+ odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
  strikeSlip_linearElastic_qd.o linearElastic.o \
  strikeSlip_powerLaw_qd.o powerLaw.o \
  iceStream_linearElastic_qd.o strikeSlip_linearElastic_dyn.o strikeSlip_linearElastic_switch.o \
- newFault.o
+ newFault.o strikeSlip_powerLaw_dyn.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -90,6 +90,9 @@ odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp \
 odeSolver_WaveEq.o: odeSolver_WaveEq.cpp odeSolver_WaveEq.hpp \
  integratorContextWave.hpp genFuncs.hpp domain.hpp odeSolver.hpp \
  integratorContextEx.hpp
+odeSolver_WaveImex.o: odeSolver_WaveEq.cpp odeSolver_WaveEq.hpp \
+ integratorContextWave.hpp genFuncs.hpp domain.hpp odeSolver.hpp \
+ integratorContextEx.hpp
 powerLaw.o: powerLaw.cpp powerLaw.hpp genFuncs.hpp domain.hpp \
  heatEquation.hpp sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp \
  sbpOps_fc_coordTrans.hpp integratorContextEx.hpp odeSolver.hpp \
@@ -131,6 +134,12 @@ strikeSlip_linearElastic_switch.o: strikeSlip_linearElastic_dyn.cpp \
 strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
+ sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
+ fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
+ pressureEq.hpp powerLaw.hpp newFault.hpp
+ strikeSlip_powerLaw_dyn.o: strikeSlip_powerLaw_qd.cpp \
+ strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp genFuncs.hpp \
+ odeSolver.hpp integratorContextWave.hpp odeSolver_WaveImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
  pressureEq.hpp powerLaw.hpp newFault.hpp

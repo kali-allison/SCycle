@@ -19,6 +19,8 @@ class IntegratorContextWave
   public:
 
     virtual PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar){return 1;};
+    virtual PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar,
+                                map<string,Vec>& varImex,map<string,Vec>& varImexPrev){return 1;};
     virtual PetscErrorCode d_dt_dyn(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar){return 1;};
     virtual PetscErrorCode integrate() = 0;
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,

@@ -487,6 +487,13 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time,cons
   return ierr;
 }
 
+PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,map<string,Vec>& varImo){
+  PetscErrorCode ierr = 0;
+  ierr = StrikeSlip_LinearElastic_switch::d_dt_dyn(time,varEx,dvarEx,varIm,varImo);
+  return ierr;
+}
+
 PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration){
   PetscErrorCode ierr = 0;
@@ -583,7 +590,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::reset_for_qd(){
   VecCopy(_fault_dyn->_psi, _fault_qd->_psi);
   VecCopy(_fault_dyn->_slipVel, _fault_qd->_slipVel);
 
-  VecAXPY(_material->_u, 1.0, _savedU);
+  // VecAXPY(_material->_u, 1.0, _savedU);
   VecCopy(_fault_dyn->_slip, _varEx["slip"]);
   VecCopy(_varEx["slip"], _fault_qd->_slip);
 
@@ -1264,23 +1271,38 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_dyn()
     _stepCount = 0;
 
     // initialize time integrator
-    _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
     if(_maxStepCount_qd > 0){
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-        _quadWaveEx->_stepCount = _quadImex_qd->_stepCount + 3;
-        _quadWaveEx->_maxNumSteps = _maxStepCount_dyn + _quadImex_qd->_stepCount + 3;
+        _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
+        _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 3;
+        _quadWaveImex->_maxNumSteps = _maxStepCount_dyn + _quadImex_qd->_stepCount + 3;
+        ierr = _quadWaveImex->setInitialConds(_varEx, _varIm);CHKERRQ(ierr);
+        ierr = _quadWaveImex->integrate(this);CHKERRQ(ierr);
       }
       else{
+        _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveEx->_stepCount = _quadEx_qd->_stepCount + 3;
         _quadWaveEx->_maxNumSteps = _maxStepCount_dyn + _quadEx_qd->_stepCount + 3;
+        ierr = _quadWaveEx->setInitialConds(_varEx);CHKERRQ(ierr);
+        ierr = _quadWaveEx->integrate(this);CHKERRQ(ierr);
       }
     }
     else{
-      _quadWaveEx->_stepCount += 2;
-      _quadWaveEx->_maxNumSteps += 2;
+      if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+        _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
+        _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 2;
+        _quadWaveImex->_maxNumSteps = _maxStepCount_dyn + _quadImex_qd->_stepCount + 2;
+        ierr = _quadWaveImex->setInitialConds(_varEx, _varIm);CHKERRQ(ierr);
+        ierr = _quadWaveImex->integrate(this);CHKERRQ(ierr);
+      }
+      else{
+        _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
+        _quadWaveEx->_stepCount = _quadEx_qd->_stepCount + 2;
+        _quadWaveEx->_maxNumSteps = _maxStepCount_dyn + _quadEx_qd->_stepCount + 2;
+        ierr = _quadWaveEx->setInitialConds(_varEx);CHKERRQ(ierr);
+        ierr = _quadWaveEx->integrate(this);CHKERRQ(ierr);
+      }
     }
-    ierr = _quadWaveEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadWaveEx->integrate(this);CHKERRQ(ierr);
 
     _integrateTime += MPI_Wtime() - startTime;
 
@@ -1363,12 +1385,13 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
   ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 }
   VecCopy(varEx["u"], _material->_u);
+  VecAXPY(_material->_u, 1.0, _savedU);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault_dyn->setTauQS(sxy); CHKERRQ(ierr);
   VecCopy(_fault_dyn->_tauQSP, _fault_dyn->_tauP);
-  VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
+  // VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
 
   if (_bcLType.compare("symm_fault")==0) {
     ierr = VecCopy(_fault_dyn->_slip,_material->_bcL);CHKERRQ(ierr);
@@ -1384,6 +1407,107 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
   if(check_switch(_fault_dyn)){
     _quadWaveEx->_maxNumSteps = 0;
   }
+  return ierr;
+}
+
+// purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
+PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+                                                         map<string,Vec>& varIm,map<string,Vec>& varImo)
+{
+  PetscErrorCode ierr = 0;
+  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
+  Mat A;
+  ierr = _material->_sbp->getA(A);
+
+  double startPropagation = MPI_Wtime();
+
+  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+    _fault_dyn->updateTemperature(varImo.find("Temp")->second);
+    // _material->updateTemperature(varImo.find("Temp")->second);
+  }
+
+  // Update the laplacian
+  Vec Laplacian, temp;
+  VecDuplicate(*_y, &Laplacian);
+  VecDuplicate(*_y, &temp);
+  ierr = MatMult(A, varEx["u"], temp);
+  ierr = _material->_sbp->Hinv(temp, Laplacian);
+  ierr = VecCopy(Laplacian, dvarEx["u"]);
+  VecDestroy(&temp);
+
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    Vec temp;
+    // MatView(J, PETSC_VIEWER_STDOUT_WORLD);
+    VecDuplicate(dvarEx["u"], &temp);
+    MatMult(Jinv, dvarEx["u"], temp);
+    VecCopy(temp, dvarEx["u"]);
+    VecDestroy(&temp);
+  }
+
+  Vec uNext, correction, previous, ones;
+
+  VecDuplicate(varEx["u"], &ones);
+  VecDuplicate(varEx["u"], &correction);
+  VecSet(ones, 1.0);
+  VecSet(correction, 0.0);
+  ierr = VecAXPY(correction, _deltaT, _ay);
+  ierr = VecAXPY(correction, -1.0, ones);
+  VecDuplicate(varEx["u"], &previous);
+  VecSet(previous, 0.0);
+  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
+
+  VecDuplicate(varEx["u"], &uNext);
+  VecSet(uNext, 0.0);
+  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
+  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
+
+  ierr = VecAXPY(uNext, 2, varEx["u"]);
+  ierr = VecAXPY(uNext, 1, previous);
+  ierr = VecAXPY(correction, 2, ones);
+  ierr = VecPointwiseDivide(uNext, uNext, correction);
+
+  ierr = VecCopy(varEx["u"], varEx["uPrev"]);
+  ierr = VecCopy(uNext, varEx["u"]);
+  VecDestroy(&uNext);
+  VecDestroy(&ones);
+  VecDestroy(&correction);
+  VecDestroy(&previous);
+  if (_initialConditions.compare("tau")==0){
+    PetscScalar currT;
+    _quadWaveImex->getCurrT(currT);
+    ierr = _fault_dyn->updateTau(currT);
+  }
+
+  _propagateTime += MPI_Wtime() - startPropagation;
+
+  if (_isFault.compare("true") == 0){
+  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+}
+
+  VecCopy(varEx["u"], _material->_u);
+  _material->computeStresses();
+
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  ierr = _fault_dyn->setTauQS(sxy); CHKERRQ(ierr);
+  VecCopy(_fault_dyn->_tauQSP, _fault_dyn->_tauP);
+  VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
+
+  // heat equation
+  if (varIm.find("Temp") != varIm.end()) {
+    Vec sxy,sxz,sdev;
+    _material->getStresses(sxy,sxz,sdev);
+    Vec V = _fault_dyn->_slipVel;
+    Vec tau = _fault_dyn->_tauP;
+    Vec gVxy_t = dvarEx.find("gVxy")->second; // NULL
+    Vec gVxz_t = dvarEx.find("gVxz")->second; // NULL
+    Vec Told = varImo.find("Temp")->second;
+    ierr = _he->be(time,V,tau,NULL,NULL,NULL,varIm["Temp"],Told,_deltaT); CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+  }
+
   return ierr;
 }
 
@@ -1438,7 +1562,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
     _quadImex_switch->setTimeStepBounds(_deltaT,_deltaT);CHKERRQ(ierr);
     ierr = _quadImex_switch->setTimeRange(_currTime,_maxTime_qd);
     ierr = _quadImex_switch->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex_switch->setInitialConds(_varEx,_varEx);CHKERRQ(ierr);
+    ierr = _quadImex_switch->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
     if(_maxStepCount_qd > 0){
     _quadImex_switch->_stepCount = _quadImex_qd->_stepCount + 1;

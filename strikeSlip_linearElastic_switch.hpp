@@ -16,6 +16,7 @@
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
 #include "odeSolver_WaveEq.hpp"
+#include "odeSolver_WaveImex.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -111,6 +112,7 @@ private:
     OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
     OdeSolverImex       *_quadImex_qd, *_quadImex_switch; // implicit time stepping
     OdeSolver_WaveEq          *_quadWaveEx;
+    OdeSolver_WaveImex          *_quadWaveImex;
 
     //~ Fault                      *_fault;
     NewFault_qd                *_fault_qd;
@@ -148,8 +150,12 @@ private:
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+    PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,map<string,Vec>& varImo);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+      map<string,Vec>& varIm,map<string,Vec>& varImo);
 
     // IO functions
     PetscErrorCode view();
