@@ -437,6 +437,14 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::checkInput()
     assert(_thermalCoupling.compare("no")!=0);
   }
 
+  if (_limit_dyn < _triggerqd2d){
+    _limit_dyn = 10 * _triggerqd2d; 
+  }
+
+  if (_limit_qd > _triggerd2qd){
+    _limit_qd = _triggerqd2d / 10.0; 
+  }
+
   if (_limit_stride_dyn == -1){
     _limit_stride_dyn = _limit_dyn / 10.0;
   }
@@ -882,6 +890,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"triggerqd2d = %.15e\n",_triggerqd2d);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"triggerd2qd = %.15e\n",_triggerd2qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_dyn = %.15e\n",_limit_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_dyn = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
