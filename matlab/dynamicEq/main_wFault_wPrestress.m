@@ -11,9 +11,9 @@
 clear all
 
 % domain
-order = 2;
-Ny = 301;
-Nz = 301;
+order = 4;
+Ny = 401;
+Nz = 501;
 Ly = 30;
 Lz = 30;
 dy = Ly / (Ny - 1);
@@ -29,20 +29,22 @@ rho = Y.*0 + 2.7; % (g/cm^3) density
 G = cs.^2 .* rho; % (GPa) shear modulus
 
 % fault material parameters (all stored in p)
-p.a = 0.01;
-p.b = 0.016;
+p.a = 0.01 + z.*0;
+p.b = 0.016 + z.*0;  p.b(z>=15) = p.b(z>=15).*0;
 p.sNEff = 50; % MPa, effective normal stress
 p.v0 = 1e-6;
 p.f0 = 0.6;
 p.Dc = 0.05; % m
 p.rho = rho(:,1);
 
+
+
 % lock part of the fault
-p.locked = z.*0; p.locked(z>=25) = p.locked(z>=25).*0 + 1;
+p.locked = z.*0; %p.locked(z>=25) = p.locked(z>=25).*0 + 1;
 
 % pre-stress
 a = 5;
-zc = 15;
+zc = 10;
 stau = 4;
 sxy0 = 30;
 p.tau0 = sxy0 + a.*exp(-(z-zc).^2./(2.*stau.^2));
@@ -50,9 +52,9 @@ p.tau0 = sxy0 + a.*exp(-(z-zc).^2./(2.*stau.^2));
 % figure(2),clf,plot(z,p.tau0)%,return
 
 % time
-tmax = 10;
+tmax = 12;
 cfl = 0.5;
-dt1 = 0.05*cfl/max(cs(:)) * dy;
+dt1 = 0.01*cfl/max(cs(:)) * dy;
 dt = 0.5 * cfl/max(cs(:)) * dy;
 % t = [0 dt1:dt:tmax];
 t = [0:dt:tmax];
@@ -153,8 +155,10 @@ for tInd = 2:length(t)
   uNew(:,end) = uNew(:,end)./(1+ay(:,end));
   
   % z = 0: cs u_t - mu u_z = 0
-  uNew(1,:) = dt^2*uLap(1,:)./rho(1,:)  + 2*u(1,:) + (az(1,:)-1).*uPrev(1,:);
-  uNew(1,:) = uNew(1,:)./(1+az(1,:));
+  %uNew(1,:) = dt^2*uLap(1,:)./rho(1,:)  + 2*u(1,:) + (az(1,:)-1).*uPrev(1,:);
+  %uNew(1,:) = uNew(1,:)./(1+az(1,:));
+  % z = 0: mu u_z = 0
+  uNew(1,:) = dt^2*uLap(1,:)./rho(1,:)  + 2*u(1,:) - uPrev(1,:);
   
   % z = Lz: cs u_t + mu u_z = 0
   uNew(end,:) = dt^2*uLap(end,:)./rho(end,:)  + 2*u(end,:) + (az(end,:)-1).*uPrev(end,:);
@@ -209,6 +213,6 @@ for tInd = 2:length(t)
 end
 
 
-
-% save('/Users/kallison/dynrupture/data/oneBlock_aging.mat','-struct','out');
+figure(2),clf,pcolored(t,-z,out.V),colorbar
+% save('/Users/kallison/Desktop/oneBlock_aging.mat','-struct','out','-v7.3');
 
