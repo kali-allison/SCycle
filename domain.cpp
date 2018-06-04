@@ -375,7 +375,7 @@ PetscErrorCode Domain::setFields()
   #endif
   PetscScalar alphay, alphaz;
   if (_order == 2 ) { alphay = 0.5 * _Ly * _dq; alphaz = 0.5 * _Lz * _dr; }
-  if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * _Ly * _dq; alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
+  if (_order == 4 ) { alphay = 17./48. * _Ly * _dq; alphaz = 17./48. * _Lz * _dr; }
 
   if (_sbpType.compare("mfc_coordTrans") == 0){alphay /= _Ly; alphaz /= _Lz;}
 
