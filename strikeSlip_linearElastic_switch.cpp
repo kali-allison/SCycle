@@ -26,6 +26,7 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
   _minDeltaT(1e-3),_maxDeltaT(1e10),_inDynamic(false),_firstCycle(true),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
+  _localStep(0), _debug(0),_startOnDynamic(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
@@ -349,6 +350,10 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::loadSettings(const char *file)
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
+
+    else if (var.compare("debug")==0) { _debug = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("startOnDynamic")==0) { _startOnDynamic = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -516,6 +521,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor(const PetscScalar ti
   else{
     ierr = StrikeSlip_LinearElastic_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,stopIntegration);
   }
+  _localStep += 1;
   return ierr;
 }
 
@@ -528,6 +534,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor(const PetscScalar ti
   else{
     ierr = StrikeSlip_LinearElastic_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
   }
+  _localStep += 1;
   return ierr;
   }
 
@@ -541,7 +548,7 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
 
-  #if VERBOSE > 1
+  #if VERBOSE > 0
     PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
   #endif
 
@@ -592,6 +599,8 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::reset_for_qd(){
     _stride1D = stride1d;
     _stride2D = stride2d;
   }
+
+  _localStep = 0;
 
   _allowed = false;
   // _limit = 1e-8;
@@ -716,16 +725,24 @@ double startTime = MPI_Wtime();
   }
   _currTime = time;
   
+  PetscInt localStride1d, localStride2d;
+  if (_localStep < _debug){
+    localStride1d = 1;
+    localStride2d = 1;
+  }
+  else{
+    localStride1d = _stride1D;
+    localStride2d = _stride2D;
+  }
 
-
-  if (_stride1D>0 && stepCount % _stride1D == 0) {
+  if (_stride1D>0 && stepCount % localStride1d == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
+  if (_stride2D>0 &&  stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
@@ -760,7 +777,17 @@ double startTime = MPI_Wtime();
   }
   _currTime = time;
 
-  if (_stride1D>0 && stepCount % _stride1D == 0) {
+  PetscInt localStride1d, localStride2d;
+  if (_localStep < _debug){
+    localStride1d = 1;
+    localStride2d = 1;
+  }
+  else{
+    localStride1d = _stride1D;
+    localStride2d = _stride2D;
+  }
+
+  if (_stride1D>0 && stepCount % localStride1d == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
@@ -768,7 +795,7 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
+  if (_stride2D>0 &&  stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
@@ -989,7 +1016,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_qd()
     ierr = _quadImex_qd->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex_qd->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex_qd->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if (_maxStepCount_qd > 0){
+    if (_maxStepCount_qd > 0 && _startOnDynamic != 1){
       ierr = _quadImex_qd->integrate(this);CHKERRQ(ierr);
     }
   }
@@ -1000,7 +1027,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_qd()
     ierr = _quadEx_qd->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx_qd->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx_qd->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if (_maxStepCount_qd > 0){
+    if (_maxStepCount_qd > 0 && _startOnDynamic != 1){
       ierr = _quadEx_qd->integrate(this);CHKERRQ(ierr);
     }
   }
@@ -1582,7 +1609,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
     ierr = _quadImex_switch->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex_switch->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if(_maxStepCount_qd > 0){
+    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
     _quadImex_switch->_stepCount = _quadImex_qd->_stepCount + 1;
     _quadImex_switch->_maxNumSteps += _quadImex_qd->_stepCount + 1;
     }
@@ -1599,7 +1626,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
     ierr = _quadEx_switch->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx_switch->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if(_maxStepCount_qd > 0){
+    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
     _quadEx_switch->_stepCount = _quadEx_qd->_stepCount + 1;
     _quadEx_switch->_maxNumSteps += _quadEx_qd->_stepCount + 1;
     }
@@ -1617,6 +1644,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
   _allowed = false;
   // _limit = 1.0;
   _inDynamic = true;
+  _localStep = 0;
 
   _fault_qd->_viewers.swap(_fault_dyn->_viewers);
   _fault_dyn->writeUOffset(_savedU, _firstCycle, _outputDir);
@@ -1712,13 +1740,23 @@ double startTime = MPI_Wtime();
   _currTime = time;
   _dT = _deltaT;
 
-  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
+  PetscInt localStride1d, localStride2d;
+  if (_localStep < _debug){
+    localStride1d = 1;
+    localStride2d = 1;
+  }
+  else{
+    localStride1d = _stride1D;
+    localStride2d = _stride2D;
+  }
+
+  if ( _stride1D > 0 && stepCount % localStride1d == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_dyn->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
-  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
@@ -1750,13 +1788,22 @@ double startTime = MPI_Wtime();
   _currTime = time;
   _dT = _deltaT;
 
-  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
+  PetscInt localStride1d, localStride2d;
+  if (_localStep < _debug){
+    localStride1d = 1;
+    localStride2d = 1;
+  }
+  else{
+    localStride1d = _stride1D;
+    localStride2d = _stride2D;
+  }
+  if ( _stride1D > 0 && stepCount % localStride1d == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_dyn->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
   }
 
-  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }

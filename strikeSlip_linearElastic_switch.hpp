@@ -86,6 +86,8 @@ private:
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
     std::string            _normType;
 
+    PetscInt               _debug, _localStep, _startOnDynamic;
+
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
 
