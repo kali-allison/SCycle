@@ -20,13 +20,13 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
   _guessSteadyStateICs(0.),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),
-  _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),
+  _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),_stride1D_dyn_long(1),_stride2D_dyn_long(1),
   _maxStepCount_qd(1e8),_maxStepCount_dyn(2000),_maxStepCount(1e6),
   _initTime(0),_currTime(0),_maxTime_qd(1e15),_maxTime_dyn(15),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),_inDynamic(false),_firstCycle(true),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _localStep(0), _debug(0),_startOnDynamic(0),
+  _localStep(0), _debug(0),_startOnDynamic(0),_withFhat(1),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
@@ -296,6 +296,9 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::loadSettings(const char *file)
     else if (var.compare("stride2D_qd")==0){ _stride2D_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride1D_dyn")==0){ _stride1D_dyn = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride2D_dyn")==0){ _stride2D_dyn = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("stride1D_dyn_long")==0){ _stride1D_dyn_long = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("stride2D_dyn_long")==0){ _stride2D_dyn_long = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("withFhat")==0){ _withFhat = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxStepCount_dyn")==0) { _maxStepCount_dyn = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxStepCount_qd")==0) { _maxStepCount_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -565,8 +568,8 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
       }
     }
     if (_allowed && max_value < _limit_stride_dyn){
-      _stride1D = _stride1D_dyn;
-      _stride2D = _stride2D_dyn;
+      _stride1D = _stride1D_dyn_long;
+      _stride2D = _stride2D_dyn_long;
     }
     if(_allowed && max_value < _triggerd2qd){
       mustswitch = true;
@@ -923,6 +926,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"limit_dyn = %.15e\n",_limit_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_dyn = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
@@ -1375,7 +1379,9 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
   VecDuplicate(*_y, &Laplacian);
   VecDuplicate(*_y, &temp);
   ierr = MatMult(A, varEx["u"], temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat);
+  if (_withFhat == 1){
+    ierr = VecAXPY(temp, 1.0, _Fhat);
+  }
   ierr = _material->_sbp->Hinv(temp, Laplacian);
   ierr = VecCopy(Laplacian, dvarEx["u"]);
   VecDestroy(&temp);
@@ -1645,6 +1651,9 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
   // _limit = 1.0;
   _inDynamic = true;
   _localStep = 0;
+
+  _stride1D = _stride1D_dyn;
+  _stride2D = _stride2D_dyn;
 
   _fault_qd->_viewers.swap(_fault_dyn->_viewers);
   _fault_dyn->writeUOffset(_savedU, _firstCycle, _outputDir);
