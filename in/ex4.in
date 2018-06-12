@@ -72,7 +72,7 @@ TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
 TDepths = [0 50]
 
 thermalCoupling = coupled
-heatEquationType = steadyState
+heatEquationType = transient
 withViscShearHeating = yes
 withFrictionalHeating = yes
 withRadioHeatGeneration = yes
