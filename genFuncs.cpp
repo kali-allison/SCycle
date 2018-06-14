@@ -451,13 +451,13 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
 PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string fieldName, bool& fileExists)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "loadFieldsFromFiles";
-  string fileName = "genFuncs.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  #if VERBOSE > 1
+    string funcName = "loadFieldsFromFiles";
+    string fileName = "genFuncs.cpp";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"  Attempting to load: %s%s\n",inputDir.c_str(),fieldName.c_str());CHKERRQ(ierr);
-#endif
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"  Attempting to load: %s%s\n",inputDir.c_str(),fieldName.c_str());CHKERRQ(ierr);
+  #endif
 
   string vecSourceFile = inputDir + fieldName;
 

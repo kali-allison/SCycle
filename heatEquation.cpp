@@ -291,16 +291,16 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   bool chkTamb = 0, chkT = 0, chkdT = 0;
 
   // load Tamb (background geotherm)
-  ierr = loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb); CHKERRQ(ierr);
+  loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
   if (chkTamb) { _loadICs = 1; }
 
   // load T
-  ierr = loadVecFromInputFile(_T,_inputDir,"T",chkT); CHKERRQ(ierr);
+  loadVecFromInputFile(_T,_inputDir,"T",chkT);
 
   if (chkT!=1 && chkTamb) { VecCopy(_Tamb,_T); }
 
   // load dT (perturbation from ambient geotherm)
-  ierr = loadVecFromInputFile(_dT,_inputDir,"dT",chkdT); CHKERRQ(ierr);
+  loadVecFromInputFile(_dT,_inputDir,"dT",chkdT);
   if (chkdT!=1 && chkTamb) { VecWAXPY(_dT,-1.0,_Tamb,_T); }
 
   if (chkTamb) { // set up boundary conditions
@@ -1929,6 +1929,7 @@ PetscErrorCode HeatEquation::writeContext(const std::string outputDir)
   ierr = writeVec(_Qrad,outputDir + "he_h"); CHKERRQ(ierr);
   ierr = writeVec(_c,outputDir + "he_c"); CHKERRQ(ierr);
   ierr = writeVec(_Tamb,outputDir + "he_Tamb"); CHKERRQ(ierr);
+  ierr = writeVec(_T,outputDir + "he_T0"); CHKERRQ(ierr);
   if (_wFrictionalHeating.compare("yes")==0) {
     ierr = writeVec(_Gw,outputDir + "he_Gw"); CHKERRQ(ierr);
     VecScale(_w,1e3); // output w in m

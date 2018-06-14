@@ -409,10 +409,10 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      y[Jj] = q[Jj]*_Ly;
+      //~ y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
 
-      // y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
+      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
     }
 
     Jj++;
@@ -422,17 +422,17 @@ PetscErrorCode Domain::setFields()
   VecRestoreArray(_q,&q);
   VecRestoreArray(_r,&r);
 
+
   // load y and z instead
-  if (_inputDir.compare("unspecified") != 0) {
-    ierr = loadVecFromInputFile(_y,_inputDir,"y"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_z,_inputDir,"z"); CHKERRQ(ierr);
-  }
+  loadVecFromInputFile(_y,_inputDir,"y");
+  loadVecFromInputFile(_z,_inputDir,"z");
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-return ierr;
+  return ierr;
 }
 
 PetscErrorCode Domain::setScatters()
