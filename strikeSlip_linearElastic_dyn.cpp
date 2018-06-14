@@ -14,7 +14,8 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _isFault("true"),_initialConditions("u"), _loadDir("unspecified"),
+  _isFault("true"),_initialConditions("u"), _inputDir("unspecified"),
+  _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
@@ -187,10 +188,15 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
     else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("center_x")==0) { _center_x = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("center_y")==0) { _yCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("std_x")==0) { _std_x = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("std_y")==0) { _yStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("amp")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
-    else if (var.compare("loadDir")==0) { _loadDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("loadDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
@@ -298,9 +304,9 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
-  if (_loadDir.compare("unspecified") != 0){
+  if (_inputDir.compare("unspecified") != 0){
 
-    ierr = loadFileIfExists_matlab(_loadDir+"u", _varEx["u"]);
+    ierr = loadFileIfExists_matlab(_inputDir+"u", _varEx["u"]);
     if (ierr == 1){
         PetscInt Ii,Istart,Iend;
         PetscInt Jj = 0;
@@ -314,8 +320,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
         VecGetArray(*_z, &z);
 
         for (Ii=Istart;Ii<Iend;Ii++) {
-          u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
-          uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
+          u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
+          uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
           Jj++;
         }
         VecRestoreArray(*_y,&y);
@@ -325,56 +331,33 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
       }
     }
 
-    ierr = loadFileIfExists_matlab(_loadDir+"uPrev", _varEx["uPrev"]);
+    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
     if (ierr == 1){
       VecCopy(_varEx["u"], _varEx["uPrev"]);
     }
-
-    // ##### TODO : Propagate the version of switch for the loading ####
-    // Vec lastDeltaT;
-    // ierr = VecCreate(PETSC_COMM_WORLD,&lastDeltaT); CHKERRQ(ierr);
-    // ierr = VecSetSizes(lastDeltaT,PETSC_DECIDE,1); CHKERRQ(ierr);
-    // ierr = VecSetFromOptions(lastDeltaT); CHKERRQ(ierr);
-
-    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psi);
-    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psiPrev);
-    // // ierr = loadFileIfExists_matlab(_loadDir + "tau0", _fault->_tau0);
-    ierr = loadFileIfExists_matlab(_loadDir + "slipVel", _varEx["dslip"]);
-    // ierr = loadFileIfExists_matlab(_loadDir + "deltaT", lastDeltaT);
-    // PetscScalar* lastT;
-    // PetscScalar tempdeltaT;
-    // VecGetArray(lastDeltaT, &lastT);
-    // tempdeltaT = lastT[0];
-    // VecDestroy(&lastDeltaT);
-
-    // Vec psiComputation;
-    // VecDuplicate(_fault->_psi, &psiComputation);
-    // VecCopy(_fault->_psi, psiComputation);
-    // VecAXPY(psiComputation, -1.0, _fault->_psiPrev);
-    // VecAXPY(_fault->_psiPrev, 1.0 - _deltaT / tempdeltaT, psiComputation);
-    // VecDestroy(&psiComputation);
-
-    VecCopy(_varEx["u"], _material->_u);
-    _material->computeStresses();
-    Vec sxy,sxz,sdev;
-    ierr = _material->getStresses(sxy,sxz,sdev);
-    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
-    VecCopy(_fault->_tauQSP, _fault->_tau0);
-    
-    VecSet(_varEx["u"], 0.0);
-    VecSet(_varEx["uPrev"], 0.0);
-
-    // Vec uPrevTemp;
-    // VecDuplicate(_varEx["u"], &uPrevTemp);
-    // VecCopy(_varEx["u"], uPrevTemp);
-    // VecAXPY(uPrevTemp, -1.0, _varEx["uPrev"]);
-    // VecAXPY(_varEx["uPrev"], 1.0 - _deltaT / tempdeltaT, uPrevTemp);
-    // VecDestroy(&uPrevTemp);
-
-    // VecCopy(_fault->_psi, _varEx["psi"]);
-
+      ierr = loadFileIfExists_matlab(_inputDir + "psi", _varEx["psi"]);
+      ierr = loadFileIfExists_matlab(_inputDir + "psiPrev", _varEx["psiPrev"]);
+      if (ierr > 0){
+        VecCopy(_varEx["psi"], _varEx["psiPrev"]);
+        ierr = 0;
+      }
+      ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _fault->_slipVel);
+      ierr = loadFileIfExists_matlab(_inputDir + "bcR", _material->_bcRShift);
+      ierr = loadFileIfExists_matlab(_inputDir + "bcL", _material->_bcL);
+      if (ierr > 0){
+        VecCopy(_varEx["u"], _varEx["slip"]);
+        ierr = 0;
+      }
+      else{
+        VecCopy(_material->_bcL, _varEx["slip"]);
+      }
+      VecScale(_varEx["slip"], 2.0);
+      VecCopy(_varEx["slip"], _fault->_slip);
+      VecCopy(_varEx["psi"], _fault->_psi);
+      VecCopy(_varEx["psiPrev"], _fault->_psiPrev);
     ierr = 0;
-  }
+    }
+
   else{
   
   PetscInt Ii,Istart,Iend;
@@ -389,8 +372,8 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     VecGetArray(*_z, &z);
 
     for (Ii=Istart;Ii<Iend;Ii++) {
-      u[Jj] = 10 * exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
-      uPrev[Jj] = 10 *exp(-pow( y[Jj]-0.3*(_Ly), 2) /5) * exp(-pow(z[Jj]-0.8*(_Lz), 2) /5);
+      u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
+      uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
       Jj++;
     }
     VecRestoreArray(*_y,&y);

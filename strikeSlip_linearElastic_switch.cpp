@@ -750,6 +750,15 @@ double startTime = MPI_Wtime();
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
   }
 
+  if(check_switch(_fault_qd)){
+    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+      _quadImex_qd->_maxNumSteps = 0;
+    }
+    else{
+      _quadEx_qd->_maxNumSteps = 0;
+    }
+  }
+
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
@@ -802,6 +811,15 @@ double startTime = MPI_Wtime();
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
+  }
+
+  if(check_switch(_fault_qd)){
+    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+      _quadImex_qd->_maxNumSteps = 0;
+    }
+    else{
+      _quadEx_qd->_maxNumSteps = 0;
+    }
   }
 
   #if VERBOSE > 0
@@ -1081,14 +1099,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_qd(const PetscScalar time,c
   // rates for fault
   ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
-  if(check_switch(_fault_qd)){
-    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-      _quadImex_qd->_maxNumSteps = 0;
-    }
-    else{
-      _quadEx_qd->_maxNumSteps = 0;
-    }
-  }
   return ierr;
 }
 
@@ -1455,9 +1465,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
   // ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR, 1.0, _bcrOffsetVector);
 
-  if(check_switch(_fault_dyn)){
-    _quadWaveEx->_maxNumSteps = 0;
-  }
   return ierr;
 }
 
@@ -1716,22 +1723,21 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
 
   _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 
-
-    if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(_material->_rhoVec, &temp);
-      MatMult(J, _material->_rhoVec, temp);
-      VecCopy(temp, _material->_rhoVec);
-      VecDestroy(&temp);
-    }
+    // if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    //   Mat J,Jinv,qy,rz,yq,zr;
+    //   ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    //   Vec temp;
+    //   VecDuplicate(_material->_rhoVec, &temp);
+    //   MatMult(J, _material->_rhoVec, temp);
+    //   VecCopy(temp, _material->_rhoVec);
+    //   VecDestroy(&temp);
+    // }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
-}
+} 
 
 
 // monitoring function for explicit integration
@@ -1768,6 +1774,10 @@ double startTime = MPI_Wtime();
   if ( _stride2D > 0 && stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+  }
+
+  if(check_switch(_fault_dyn)){
+    _quadWaveEx->_maxNumSteps = 0;
   }
 
 _writeTime += MPI_Wtime() - startTime;
@@ -1815,6 +1825,10 @@ double startTime = MPI_Wtime();
   if ( _stride2D > 0 && stepCount % localStride2d == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+  }
+
+  if(check_switch(_fault_dyn)){
+    _quadWaveEx->_maxNumSteps = 0;
   }
 
   #if VERBOSE > 0

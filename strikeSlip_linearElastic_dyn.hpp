@@ -60,7 +60,7 @@ private:
     std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    std::string          _initialConditions, _loadDir;
+    std::string          _initialConditions, _inputDir;
     int          _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
@@ -71,6 +71,7 @@ private:
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
     PetscScalar            _atol;
+    PetscScalar            _yCenterU, _zCenterU, _yStdU, _zStdU, _ampU;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
 

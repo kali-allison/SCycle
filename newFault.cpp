@@ -1071,7 +1071,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
 NewFault_dyn::NewFault_dyn(Domain&D, VecScatter& scatter2fault)
 : NewFault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
-  _timeMode("Gaussian"), _isLocked("False"),
+  _timeMode("None"), _isLocked("False"),
   _lockLimit(25.0)
 {
   #if VERBOSE > 1
@@ -1365,7 +1365,7 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   else if (_timeMode.compare("Heaviside") == 0){
     timeOffset = 1.0;
   }
-  else if (_timeMode.compare("Switching") == 0){
+  else if (_timeMode.compare("None") == 0){
     exists = 0.0;
   }
   for (Ii=IBegin;Ii<IEnd;Ii++){
@@ -1607,7 +1607,7 @@ PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,
   if (Phi_temp < 0){Phi_temp = -Phi_temp;}
 
   PetscScalar stress = Phi_temp - vel; // stress on fault
-
+  
   *out = constraints - stress;
   assert(!isnan(*out));
   assert(!isinf(*out));
