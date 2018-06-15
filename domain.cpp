@@ -372,7 +372,7 @@ PetscErrorCode Domain::setFields()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  PetscScalar alphay, alphaz;
+  PetscScalar alphay(0), alphaz(0);
   if (_order == 2 ) { alphay = 0.5 * _Ly * _dq; alphaz = 0.5 * _Lz * _dr; }
   if (_order == 4 ) { alphay = 17./48. * _Ly * _dq; alphaz = 17./48. * _Lz * _dr; }
 

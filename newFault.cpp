@@ -572,6 +572,7 @@ PetscErrorCode NewFault::writeUOffset(Vec uOffset, bool isFirstCycle, const std:
   else{
     ierr = VecView(uOffset,_viewers["uOffset"].first); CHKERRQ(ierr);
   }
+  return ierr;
 }
 
 PetscErrorCode NewFault::writeStep(const PetscInt stepCount, const PetscScalar time)
@@ -1357,7 +1358,7 @@ PetscErrorCode NewFault_dyn::updateTau(const PetscScalar currT){
   PetscScalar timeOffset = 1.0;
   PetscScalar exists = 1.0;
   if(_timeMode.compare("Gaussian") == 0){
-    PetscScalar timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
+    timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
   }
   else if (_timeMode.compare("Dirac") == 0 && currT > 0){
     timeOffset = 0.0;

@@ -218,7 +218,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   // proceed with iteration
   PetscInt numIts = 0;
   PetscScalar _x = x0;
-  PetscScalar xMid = 0.5 * (_left + _right);
+  // PetscScalar xMid = 0.5 * (_left + _right);
   PetscScalar dxOld = fabs(_right - _left);
   PetscScalar dx = dxOld;
   ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);

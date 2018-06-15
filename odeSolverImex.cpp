@@ -359,7 +359,7 @@ PetscReal RK32_WBE::computeError()
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
       Vec errVec;
-      PetscScalar size;
+      // PetscScalar size;
       VecDuplicate(_var3rd[key],&errVec);
       ierr = VecWAXPY(errVec,-1.0,_var3rd[key],_var2nd[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_INFINITY,&err);
@@ -985,7 +985,7 @@ PetscReal RK43_WBE::computeError()
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
       Vec errVec;
-      PetscScalar size;
+      // PetscScalar size;
       VecDuplicate(_y4[key],&errVec);
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]);CHKERRQ(ierr);
       VecNorm(errVec,NORM_INFINITY,&err);

@@ -65,21 +65,19 @@ private:
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::string            _timeIntegrator,_timeControlType;
-    PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
+    PetscInt               _stride1D,_stride2D; // stride
+    PetscScalar            _initTime,_currTime,_maxTime;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _yCenterU, _zCenterU, _yStdU, _zStdU, _ampU;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
-
-    // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
-
     //viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
 
+    // runtime data
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault

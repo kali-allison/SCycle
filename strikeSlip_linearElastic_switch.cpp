@@ -7,27 +7,28 @@ using namespace std;
 
 StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
+  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
+  _vL(1e-9),_isFault("true"),
+  _thermalCoupling("no"),_heatEquationType("transient"),
+  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+  _guessSteadyStateICs(0.),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(1e-3), _CFL(0),
   _y(&D._y),_z(&D._z),
   _Fhat(NULL),_savedU(NULL),
   _alphay(D._alphay), _alphaz(D._alphaz),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
-  _thermalCoupling("no"),_heatEquationType("transient"),
-  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),
   _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),_stride1D_dyn_long(1),_stride2D_dyn_long(1),
-  _maxStepCount_qd(1e8),_maxStepCount_dyn(2000),_maxStepCount(1e6),
-  _initTime(0),_currTime(0),_maxTime_qd(1e15),_maxTime_dyn(15),_maxTime(1e15),
-  _minDeltaT(1e-3),_maxDeltaT(1e10),_inDynamic(false),_firstCycle(true),
+  _withFhat(1),
+  _maxStepCount_dyn(2000),_maxStepCount_qd(1e8),_maxStepCount(1e6),
+  _initTime(0),_currTime(0),_maxTime_dyn(1e15),_maxTime_qd(15),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
+  _inDynamic(false),_firstCycle(true),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_dynTime(0), _qdTime(0),
-  _localStep(0), _debug(0),_startOnDynamic(0),_withFhat(1),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
+  _debug(0), _localStep(0),_startOnDynamic(0),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
   _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
@@ -646,9 +647,9 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // Mat A;
-  // _material->_sbp->getA(A);
-  // _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
@@ -896,6 +897,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in quasidynamic (s): %g\n",_qdTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in dynamic (s): %g\n",_dynTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time (s): %g\n",totRunTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",(_writeTime/_integrateTime)*100.);CHKERRQ(ierr);
   return ierr;
 }
@@ -1584,8 +1586,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
     _material->getStresses(sxy,sxz,sdev);
     Vec V = _fault_dyn->_slipVel;
     Vec tau = _fault_dyn->_tauP;
-    Vec gVxy_t = dvarEx.find("gVxy")->second; // NULL
-    Vec gVxz_t = dvarEx.find("gVxz")->second; // NULL
     Vec Told = varImo.find("Temp")->second;
     ierr = _he->be(time,V,tau,NULL,NULL,NULL,varIm["Temp"],Told,_deltaT); CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
@@ -1732,7 +1732,6 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
-      PetscScalar tol;
       if ((Ii/_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii/_Nz == _Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii%_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}

@@ -15,10 +15,11 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _isFault("true"),_initialConditions("u"), _inputDir("unspecified"),
-  _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+  _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
-  _stepCount(0),_atol(1e-8),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
+  _stepCount(0),_atol(1e-8),
+  _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _propagateTime(0),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("outGoingCharacteristics"),_bcBType("outGoingCharacteristics"),
@@ -408,7 +409,6 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
-      PetscScalar tol;
       if ((Ii/_Nz == 0) && (_bcLType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii/_Nz == _Ny-1) && (_bcRType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii%_Nz == 0) && (_bcTType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}

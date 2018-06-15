@@ -1107,7 +1107,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
   // compute effective viscosity
   PetscScalar const *sigmadev,*A,*B,*n,*T=0;
   PetscScalar *effVisc=0;
-  PetscScalar *effViscTemp=0;
+  // PetscScalar *effViscTemp=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
   VecGetArrayRead(_sdev,&sigmadev);

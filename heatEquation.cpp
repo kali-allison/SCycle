@@ -535,9 +535,11 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 
 
   // radioactive heat generation source term
-  Vec QradR,Qtemp;
+  // Vec QradR,Qtemp;
+  Vec Qtemp;
   if (_wRadioHeatGen.compare("yes") == 0) {
-    Vec temp1; VecDuplicate(_Qrad,&Qtemp);
+    // Vec temp1;
+    VecDuplicate(_Qrad,&Qtemp);
     if (_sbpType.compare("mfc_coordTrans")==0) {
       Vec temp1; VecDuplicate(_Qrad,&temp1);
       Mat J,Jinv,qy,rz,yq,zr;

@@ -73,7 +73,7 @@ private:
 
 
     // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_totalRunTime;
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;

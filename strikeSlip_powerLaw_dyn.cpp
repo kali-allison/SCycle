@@ -14,8 +14,8 @@ StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _hydraulicCoupling("no"), _thermalCoupling("no"),_heatEquationType("transient"),
-  _isFault("true"),_initialConditions("u"), _loadDir("unspecified"),
+  _isFault("true"),_initialConditions("u"),
+   _thermalCoupling("no"),_heatEquationType("transient"),_hydraulicCoupling("no"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -196,7 +196,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::loadSettings(const char *file)
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
-    else if (var.compare("loadDir")==0) { _loadDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("loadDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
@@ -313,9 +313,9 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
   VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
-  if (_loadDir.compare("unspecified") != 0){
+  if (_inputDir.compare("unspecified") != 0){
 
-    ierr = loadFileIfExists_matlab(_loadDir+"u", _varEx["u"]);
+    ierr = loadFileIfExists_matlab(_inputDir+"u", _varEx["u"]);
     if (ierr == 1){
         PetscInt Ii,Istart,Iend;
         PetscInt Jj = 0;
@@ -340,7 +340,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
       }
     }
 
-    ierr = loadFileIfExists_matlab(_loadDir+"uPrev", _varEx["uPrev"]);
+    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
     if (ierr == 1){
       VecCopy(_varEx["u"], _varEx["uPrev"]);
     }
@@ -351,11 +351,11 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
     // ierr = VecSetSizes(lastDeltaT,PETSC_DECIDE,1); CHKERRQ(ierr);
     // ierr = VecSetFromOptions(lastDeltaT); CHKERRQ(ierr);
 
-    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psi);
-    ierr = loadFileIfExists_matlab(_loadDir + "psi", _fault->_psiPrev);
-    // // ierr = loadFileIfExists_matlab(_loadDir + "tau0", _fault->_tau0);
-    ierr = loadFileIfExists_matlab(_loadDir + "slipVel", _varEx["dslip"]);
-    // ierr = loadFileIfExists_matlab(_loadDir + "deltaT", lastDeltaT);
+    ierr = loadFileIfExists_matlab(_inputDir + "psi", _fault->_psi);
+    ierr = loadFileIfExists_matlab(_inputDir + "psi", _fault->_psiPrev);
+    // // ierr = loadFileIfExists_matlab(_inputDir + "tau0", _fault->_tau0);
+    ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _varEx["dslip"]);
+    // ierr = loadFileIfExists_matlab(_inputDir + "deltaT", lastDeltaT);
     // PetscScalar* lastT;
     // PetscScalar tempdeltaT;
     // VecGetArray(lastDeltaT, &lastT);
@@ -435,8 +435,6 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
 
     for (Ii=Istart;Ii<Iend;Ii++) {
       ay[Jj] = 0;
-      PetscScalar tol;
-      // std::cout << Jj << alphay[Jj] << " " << alphaz[Jj] << std::endl;
       if ((Ii/_Nz == 0) && (_bcLType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii/_Nz == _Ny-1) && (_bcRType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
       if ((Ii%_Nz == 0) && (_bcTType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}
@@ -743,8 +741,6 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::d_dt(const PetscScalar time, map<string,
     _material->getStresses(sxy,sxz,sdev);
     Vec V = _fault->_slipVel;
     Vec tau = _fault->_tauP;
-    Vec gVxy_t = dvarEx.find("gVxy")->second; // NULL
-    Vec gVxz_t = dvarEx.find("gVxz")->second; // NULL
     Vec Told = varImo.find("Temp")->second;
     ierr = _he->be(time,V,tau,NULL,NULL,NULL,varIm["Temp"],Told,_deltaT); CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
