@@ -14,7 +14,7 @@ OBJECTS := domain.o fault.o genFuncs.o\
  strikeSlip_linearElastic_qd.o linearElastic.o \
  strikeSlip_powerLaw_qd.o powerLaw.o \
  iceStream_linearElastic_qd.o strikeSlip_linearElastic_dyn.o strikeSlip_linearElastic_switch.o \
- newFault.o strikeSlip_powerLaw_dyn.o
+ newFault.o strikeSlip_powerLaw_dyn.o strikeSlip_powerLaw_switch.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -127,6 +127,12 @@ strikeSlip_linearElastic_dyn.o: strikeSlip_linearElastic_dyn.cpp \
  pressureEq.hpp linearElastic.hpp
 strikeSlip_linearElastic_switch.o: strikeSlip_linearElastic_dyn.cpp \
  strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp genFuncs.hpp \
+ odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
+ sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
+ fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
+ pressureEq.hpp linearElastic.hpp
+ strikeSlip_powerlaw_switch.o: strikeSlip_powerLaw_switch.cpp \
+ integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
