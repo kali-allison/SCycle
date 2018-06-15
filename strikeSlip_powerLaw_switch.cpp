@@ -1,11 +1,11 @@
-#include "strikeSlip_linearElastic_switch.hpp"
+#include "strikeSlip_powerLaw_switch.hpp"
 
-#define FILENAME "strikeSlip_linearElastic_switch.cpp"
+#define FILENAME "strikeSlip_powerLaw_switch.cpp"
 
 using namespace std;
 
 
-StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
+StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
@@ -32,18 +32,20 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
   _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL), 
-  _fault_qd(NULL),_fault_dyn(NULL), _material(NULL),_he(NULL),_p(NULL)
+  _fault_qd(NULL),_fault_dyn(NULL), _material(NULL),_he(NULL),_p(NULL),
+  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch()";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   loadSettings(D._file);
   checkInput();
-  if (_thermalCoupling.compare("no")!=0) { // heat equation
+  // if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
-  }
+  // }
   _fault_qd = new NewFault_qd(D,D._scatters["body2L"]); // fault
 
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
@@ -123,8 +125,8 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
   _mat_dyn_bcRType = "Neumann";
   _mat_dyn_bcLType = "Neumann";
 
-  if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
-  else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
+  if (_guessSteadyStateICs) { _material = new PowerLaw(D,*_he,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
+  else {_material = new PowerLaw(D,*_he,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
 
   _cs = *(&(_material->_cs));
   _rhoVec = *(&(_material->_rhoVec));
@@ -210,10 +212,10 @@ StrikeSlip_LinearElastic_switch::StrikeSlip_LinearElastic_switch(Domain&D)
 }
 
 
-StrikeSlip_LinearElastic_switch::~StrikeSlip_LinearElastic_switch()
+StrikeSlip_PowerLaw_switch::~StrikeSlip_PowerLaw_switch()
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::~StrikeSlip_LinearElastic_switch()";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::~StrikeSlip_PowerLaw_switch()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -250,7 +252,7 @@ StrikeSlip_LinearElastic_switch::~StrikeSlip_LinearElastic_switch()
 }
 
 // loads settings from the input text file
-PetscErrorCode StrikeSlip_LinearElastic_switch::loadSettings(const char *file)
+PetscErrorCode StrikeSlip_PowerLaw_switch::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -367,7 +369,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::loadSettings(const char *file)
   return ierr;
 }
 // Check that required fields have been set by the input file
-PetscErrorCode StrikeSlip_LinearElastic_switch::checkInput()
+PetscErrorCode StrikeSlip_PowerLaw_switch::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -466,10 +468,10 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::checkInput()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::integrate(){
+PetscErrorCode StrikeSlip_PowerLaw_switch::integrate(){
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::integrate";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime0 = MPI_Wtime();
@@ -486,66 +488,66 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate(){
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx){
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx){
   PetscErrorCode ierr = 0;
   if(_inDynamic){
-    ierr = StrikeSlip_LinearElastic_switch::d_dt_dyn(time,varEx,dvarEx);
+    ierr = StrikeSlip_PowerLaw_switch::d_dt_dyn(time,varEx,dvarEx);
   }
   else{
-    ierr = StrikeSlip_LinearElastic_switch::d_dt_qd(time,varEx,dvarEx);
+    ierr = StrikeSlip_PowerLaw_switch::d_dt_qd(time,varEx,dvarEx);
   }
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time, const map<string,Vec>& varEx,map<string,Vec>& dvarEx){
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt(const PetscScalar time, const map<string,Vec>& varEx,map<string,Vec>& dvarEx){
   PetscErrorCode ierr = 0;
   if(!_inDynamic){
-    ierr = StrikeSlip_LinearElastic_switch::d_dt_qd(time,varEx,dvarEx);
+    ierr = StrikeSlip_PowerLaw_switch::d_dt_qd(time,varEx,dvarEx);
   }
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt){
   PetscErrorCode ierr = 0;
-  ierr = StrikeSlip_LinearElastic_switch::d_dt_qd(time,varEx,dvarEx,varIm,varImo,dt);
+  ierr = StrikeSlip_PowerLaw_switch::d_dt_qd(time,varEx,dvarEx,varIm,varImo,dt);
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,map<string,Vec>& varImo){
   PetscErrorCode ierr = 0;
-  ierr = StrikeSlip_LinearElastic_switch::d_dt_dyn(time,varEx,dvarEx,varIm,varImo);
+  ierr = StrikeSlip_PowerLaw_switch::d_dt_dyn(time,varEx,dvarEx,varIm,varImo);
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration){
   PetscErrorCode ierr = 0;
   if(_inDynamic){
-    ierr = StrikeSlip_LinearElastic_switch::timeMonitor_dyn(time,stepCount,varEx,dvarEx,stopIntegration);
+    ierr = StrikeSlip_PowerLaw_switch::timeMonitor_dyn(time,stepCount,varEx,dvarEx,stopIntegration);
   }
   else{
-    ierr = StrikeSlip_LinearElastic_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,stopIntegration);
+    ierr = StrikeSlip_PowerLaw_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,stopIntegration);
   }
   _localStep += 1;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration){
   PetscErrorCode ierr = 0;
   if(_inDynamic){
-    ierr = StrikeSlip_LinearElastic_switch::timeMonitor_dyn(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
+    ierr = StrikeSlip_PowerLaw_switch::timeMonitor_dyn(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
   }
   else{
-    ierr = StrikeSlip_LinearElastic_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
+    ierr = StrikeSlip_PowerLaw_switch::timeMonitor_qd(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
   }
   _localStep += 1;
   return ierr;
   }
 
-bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
+bool StrikeSlip_PowerLaw_switch::check_switch(const NewFault* _fault){
   bool mustswitch = false;
   Vec absSlipVel;
   VecDuplicate(_fault->_slipVel, &absSlipVel);
@@ -593,7 +595,7 @@ bool StrikeSlip_LinearElastic_switch::check_switch(const NewFault* _fault){
   return mustswitch;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::reset_for_qd(){
+PetscErrorCode StrikeSlip_PowerLaw_switch::reset_for_qd(){
   PetscErrorCode ierr = 0;
   // Force writing output
   if(_stepCount % _stride1D > 0){
@@ -638,11 +640,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::reset_for_qd(){
 
 
 // initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_qd()
+PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_qd()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::initiateIntegrand_qd()";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::initiateIntegrand_qd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -666,14 +668,17 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_qd()
     _varEx["psi"] = psi;
 
     if (_guessSteadyStateICs) { solveSS(); }
+     _material->initiateIntegrand(_initTime,_varEx);
     _fault_qd->initiateIntegrand(_initTime,_varEx);
 
-    if (_thermalCoupling.compare("no")!=0 ) {
-      _he->initiateIntegrand(_initTime,_varEx,_varIm);
-    }
-    if (_hydraulicCoupling.compare("no")!=0 ) {
-      _p->initiateIntegrand(_initTime,_varEx,_varIm);
-    }
+      if (_thermalCoupling.compare("no")!=0 ) {
+     _he->initiateIntegrand(_initTime,_varEx,_varIm);
+     _fault_qd->updateTemperature(_he->_T);
+  }
+
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+     _p->initiateIntegrand(_initTime,_varEx,_varIm);
+  }
 
     if (_inputDir.compare("unspecified") != 0){
 
@@ -703,12 +708,12 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_qd()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::timeMonitor for explicit";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -762,14 +767,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -824,11 +829,11 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_switch::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::writeStep1D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -852,11 +857,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::writeStep1D(const PetscInt stepC
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_switch::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::writeStep1D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -875,7 +880,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::writeStep2D(const PetscInt stepC
 }
 
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::view()
+PetscErrorCode StrikeSlip_PowerLaw_switch::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -890,7 +895,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::view()
   if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_switch Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_PowerLaw_switch Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
@@ -900,11 +905,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::view()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::writeContext()
+PetscErrorCode StrikeSlip_PowerLaw_switch::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::writeContext";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -962,11 +967,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::writeContext()
 // Adaptive time stepping functions
 //======================================================================
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_qd()
+PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_qd()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::integrate";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -1076,7 +1081,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_qd()
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -1119,12 +1124,12 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_qd(const PetscScalar time,c
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::d_dt";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1193,66 +1198,303 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_qd(const PetscScalar time,c
 }
 
 // momentum balance equation and constitutive laws portion of d_dt
-PetscErrorCode StrikeSlip_LinearElastic_switch::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_PowerLaw_switch::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
-  // update rhs
+  // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
+  Vec viscSource;
+  ierr = VecDuplicate(_material->_gxy,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gxy,_material->_gxz); CHKERRQ(ierr);
+
+  // set up rhs vector
   //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
   _material->setRHS();
+  ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
+  VecDestroy(&viscSource);
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
-  _material->computeU();
-  _material->computeStresses();
+  // solve for displacement
+  ierr = _material->computeU(); CHKERRQ(ierr);
+
+  // update stresses, viscosity, and set shear traction on fault
+  ierr = _material->computeTotalStrains(); CHKERRQ(ierr);
+  ierr = _material->computeStresses(); CHKERRQ(ierr);
+  ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
+
+  // compute viscous strain rates
+  Vec gVxy = varEx.find("gVxy")->second;
+  Vec gVxz = varEx.find("gVxz")->second;
+  ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  //~ if (_isMMS) { _material->addViscStrainRates_MMSSource(time,dvarEx["gVxy"],dvarEx["gVxz"]); }
 
   return ierr;
 }
 
-// guess at the steady-state solution
-PetscErrorCode StrikeSlip_LinearElastic_switch::solveSS()
+// for solving fixed point iteration problem, with or without the heat equation
+PetscErrorCode StrikeSlip_PowerLaw_switch::integrateSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::solveSS";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::integrateSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  double startTime = MPI_Wtime();
+
+
+  Vec sxy=NULL,sxz=NULL,sdev = NULL;
+  std::string baseOutDir = _outputDir;
+
+   // initial guess for (thermo)mechanical problem
+  solveSS();
+  Vec T; VecDuplicate(_varSS["effVisc"],&T); _varSS["Temp"] = T; _he->getTemp(_varSS["Temp"]);
+  if (_thermalCoupling.compare("coupled")==0) {
+    _material->getStresses(sxy,sxz,sdev);
+    _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+    _material->updateTemperature(_varSS["Temp"]);
+  }
+  VecCopy(_fault_qd->_tauQSP,_varSS["tau"]);
+  ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], _outputDir + "SS_effVisc"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], _outputDir + "SS_Temp"); CHKERRQ(ierr);
+
+
+  PetscInt Jj = 0;
+  _currTime = _initTime;
+  Vec T_old; VecDuplicate(_varSS["Temp"],&T_old); VecSet(T_old,0.);
+  _material->initiateIntegrand(_initTime,_varEx);
+  _fault_qd->initiateIntegrand(_initTime,_varEx);
+
+  {
+    char buff[5]; sprintf(buff,"%04d",Jj); _outputDir = baseOutDir + string(buff) + "_";
+    PetscPrintf(PETSC_COMM_WORLD,"baseDir = %s\n\n",_outputDir.c_str());
+    writeSS(Jj,baseOutDir);
+    Jj++;
+  }
+  while (Jj < _maxSSIts_tau) {
+    PetscPrintf(PETSC_COMM_WORLD,"Jj = %i, _stepCount = %i\n",Jj,_stepCount);
+
+    // create output path with Jj appended on end
+    char buff[5]; sprintf(buff,"%04d",Jj); _outputDir = baseOutDir + string(buff) + "_";
+    PetscPrintf(PETSC_COMM_WORLD,"baseDir = %s\n\n",_outputDir.c_str());
+
+    _stepCount = 0;
+    _currTime = _initTime;
+
+    // integrate to find the approximate steady state shear stress on the fault
+    if (_timeIntegrator.compare("RK32")==0) {
+      _quadEx_qd = new RK32(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
+    }
+    else if (_timeIntegrator.compare("RK43")==0) {
+      _quadEx_qd = new RK43(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
+    }
+    else {
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: time integrator time not acceptable for fixed point iteration method.\n");
+      assert(0);
+    }
+    ierr = _quadEx_qd->setTolerance(_atol); CHKERRQ(ierr);
+    ierr = _quadEx_qd->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx_qd->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
+    ierr = _quadEx_qd->setToleranceType(_normType); CHKERRQ(ierr);
+    ierr = _quadEx_qd->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx_qd->setErrInds(_timeIntInds);
+    ierr = _quadEx_qd->integrate(this);CHKERRQ(ierr);
+    delete _quadEx_qd; _quadEx_qd = NULL;
+
+    // compute steady state viscous strain rates and stresses
+    VecCopy(_fault_qd->_tauP,_varSS["tau"]);
+    solveSSViscoelasticProblem(); // iterate to find effective viscosity etc
+
+    // update temperature, with damping: Tnew = (1-f)*Told + f*Tnew
+    if (_thermalCoupling.compare("coupled")==0) {
+      _material->getStresses(sxy,sxz,sdev);
+      VecCopy(_varSS["Temp"],T_old);
+      Vec V; VecDuplicate(_varSS["slipVel"],&V); VecSet(V,_D->_vL);
+      VecPointwiseMin(_varSS["slipVel"],V,_varSS["slipVel"]);
+      _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault_qd->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+      VecDestroy(&V);
+      VecScale(_varSS["Temp"],_fss_T);
+      VecAXPY(_varSS["Temp"],1.-_fss_T,T_old);
+      _material->updateTemperature(_varSS["Temp"]);
+      _fault_qd->updateTemperature(_varSS["Temp"]);
+    }
+
+    ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);
+    setSSBCs();
+    ierr = _material->getStresses(sxy,sxz,sdev);
+    ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+
+    VecCopy(_fault_qd->_tauP,_varSS["tau"]);
+    _material->initiateIntegrand(_initTime,_varEx);
+    writeSS(Jj,baseOutDir);
+    Jj++;
+  }
+  VecDestroy(&T_old);
+
+
+  _integrateTime += MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// estimate steady state shear stress on fault, store in varSS
+PetscErrorCode StrikeSlip_PowerLaw_switch::guessTauSS(map<string,Vec>& varSS)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::guessTauSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   // compute steady state stress on fault
-  Vec tauSS = NULL;
-  _fault_qd->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+  Vec tauRS = NULL,tauVisc = NULL,tauSS=NULL;
+  _fault_qd->computeTauRS(tauRS,_vL); // rate and state tauSS assuming velocity is vL
+  //~ _fault_qd->getTauRS(tauRS,_vL); // old
+  _material->getTauVisc(tauVisc,_gss_t); // tau visc from steady state strain rate
+
+  // tauSS = min(tauRS,tauVisc)
+  VecDuplicate(tauRS,&tauSS);
+  VecPointwiseMin(tauSS,tauRS,tauVisc);
+  //~ VecCopy(tauRS,tauSS);
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_fault_qd->_psi,_inputDir,"psi"); CHKERRQ(ierr);
   }
-  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "SS_tauSS", tauSS, _outputDir + "SS_tauSS"); CHKERRQ(ierr);
 
-  // compute compute u that satisfies tau at left boundary
-  VecCopy(tauSS,_material->_bcL);
-  _material->setRHS();
-  _material->computeU();
-  _material->computeStresses();
+  // first, set up _varSS
+  _varSS["tau"] = tauSS;
+  _material->initiateVarSS(_varSS);
+  //~ _fault_qd->initiateVarSS(_varSS);
+  _varSS["slipVel"] = _fault_qd->_slipVel;
+  VecCopy(_varSS["tau"],_fault_qd->_tauQSP);
+  VecCopy(_varSS["tau"],_fault_qd->_tauP);
+
+  VecDestroy(&tauRS);
+  VecDestroy(&tauVisc);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 
-  // update fault to contain correct stresses
+PetscErrorCode StrikeSlip_PowerLaw_switch::solveSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::solveSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  guessTauSS(_varSS);
+  _material->initiateVarSS(_varSS);
+
+  solveSSViscoelasticProblem(); // converge to steady state eta etc
+  ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr); // solve for gVxy, gVxz
+  setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
+
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
 
-  // update boundary conditions, stresses
-  solveSSb();
-  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
-  VecDestroy(&tauSS);
+// converge to steady state: effective viscosity, sxy, sxz, gVxy, gVxz, gVxy_t, gVxz_t, u
+PetscErrorCode StrikeSlip_PowerLaw_switch::solveSSViscoelasticProblem()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::solveSSViscoelasticProblem";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
-  // steady state temperature
-  if (_thermalCoupling.compare("no")!=0) {
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
-    _material->getStresses(sxy,sxz,sdev);
-    Vec T; VecDuplicate(sxy,&T);
-    _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,NULL,T);
-    VecCopy(T,_he->_Tamb);
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
-    VecDestroy(&T);
+  // set up rhs vector
+  VecCopy(_varSS["tau"],_material->_bcL);
+  VecSet(_material->_bcR,_vL/2.);
+
+  // loop over effective viscosity
+  Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
+  Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
+  double err = 1e10;
+  int Ii = 0;
+  while (Ii < _maxSSIts_effVisc && err >= _atolSS_effVisc) {
+    VecCopy(_varSS["effVisc"],effVisc_old);
+    _material->setSSRHS(_varSS,"Dirichlet","Neumann","Neumann","Neumann");
+    _material->updateSSa(_varSS); // compute v, viscous strain rates
+    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
+    //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
+    //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
+
+    // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
+    MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
+    VecCopy(temp,_varSS["effVisc"]);
+
+    PetscScalar len;
+    VecNorm(effVisc_old,NORM_2,&len);
+    err = computeNormDiff_L2_scaleL2(effVisc_old,_varSS["effVisc"]);
+    PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
+    Ii++;
+  }
+  VecDestroy(&effVisc_old);
+  VecDestroy(&temp);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_PowerLaw_switch::writeSS(const int Ii, const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::writeSS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (Ii == 0) {
+    ierr = io_initiateWriteAppend(_viewers, "slipVel", _varSS["slipVel"], outputDir + "SS_slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tau", _varSS["tau"], outputDir + "SS_tau"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "psi", _fault_qd->_psi, outputDir + "SS_psi"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "effVisc", _varSS["effVisc"], outputDir + "SS_effVisc"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxy_t", _varSS["gVxy_t"], outputDir + "SS_gVxy_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gVxz_t", _varSS["gVxz_t"], outputDir + "SS_gVxz_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxy", _varSS["sxy"], outputDir + "SS_sxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sxz", _varSS["sxz"], outputDir + "SS_sxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxy", _varSS["gxy"], outputDir + "SS_gxy"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "gxz", _varSS["gxz"], outputDir + "SS_gxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "kTz", _he->_kTz, outputDir + "SS_kTz"); CHKERRQ(ierr);
+  }
+  else {
+    ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["tau"],_viewers["tau"].first); CHKERRQ(ierr);
+    ierr = VecView(_fault_qd->_psi,_viewers["psi"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxy_t"],_viewers["gVxy_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gVxz_t"],_viewers["gVxz_t"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxy"],_viewers["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["sxz"],_viewers["sxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxy"],_viewers["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["gxz"],_viewers["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["u"],_viewers["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_varSS["v"],_viewers["v"].first); CHKERRQ(ierr);
+    if (_thermalCoupling.compare("coupled")==0) {
+      ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
+      ierr = VecView(_he->_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1
@@ -1261,12 +1503,13 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::solveSS()
   return ierr;
 }
 
+
 // update the boundary conditions based on new steady state u
-PetscErrorCode StrikeSlip_LinearElastic_switch::solveSSb()
+PetscErrorCode StrikeSlip_PowerLaw_switch::setSSBCs()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::solveSSb";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::setSSBCs";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1299,12 +1542,8 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::solveSSb()
     VecCopy(uL,slip);
     _varEx["slip"] = slip;
   }
-
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
-    VecCopy(uL,_material->_bcL);
-  }
   if (_qd_bcLType.compare("symm_fault")==0) {
-    VecScale(_varEx["slip"],2.0);
+    VecScale(_varEx["slip"],2.);
   }
 
   VecDestroy(&uL);
@@ -1315,7 +1554,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::solveSSb()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::measureMMSError()
+PetscErrorCode StrikeSlip_PowerLaw_switch::measureMMSError()
 {
   PetscErrorCode ierr = 0;
 
@@ -1331,11 +1570,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::measureMMSError()
 // Dynamic part
 // ================================================================================================
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_dyn()
+PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_dyn()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::integrate";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -1401,7 +1640,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::integrate_dyn()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
@@ -1494,7 +1733,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_PowerLaw_switch::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
                                                          map<string,Vec>& varIm,map<string,Vec>& varImo)
 {
   PetscErrorCode ierr = 0;
@@ -1595,11 +1834,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::d_dt_dyn(const PetscScalar time,
 }
 
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
+PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_dyn()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::initiateIntegrand()";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   
@@ -1756,12 +1995,12 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::initiateIntegrand_dyn()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::timeMonitor for explicit";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -1806,14 +2045,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_LinearElastic_switch::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -1857,7 +2096,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::view_dyn()
+PetscErrorCode StrikeSlip_PowerLaw_switch::view_dyn()
 {
   PetscErrorCode ierr = 0;
 
@@ -1875,7 +2114,7 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::view_dyn()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",num_proc);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_switch Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_PowerLaw_switch Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
@@ -1883,11 +2122,11 @@ PetscErrorCode StrikeSlip_LinearElastic_switch::view_dyn()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_switch::writeContext_dyn()
+PetscErrorCode StrikeSlip_PowerLaw_switch::writeContext_dyn()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_switch::writeContext";
+    std::string funcName = "StrikeSlip_PowerLaw_switch::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 

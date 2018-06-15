@@ -12,7 +12,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _deltaT(1e-3), _CFL(0),
   _y(&D._y),_z(&D._z),
   _alphay(D._alphay), _alphaz(D._alphaz),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
+  _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _isFault("true"),_initialConditions("u"), _inputDir("unspecified"),
   _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
@@ -188,15 +188,15 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
     else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("center_x")==0) { _center_x = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("center_y")==0) { _yCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("std_x")==0) { _std_x = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("center_z")==0) { _zCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("std_y")==0) { _yStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("amp")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("std_z")==0) { _zStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("amp_U")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
-    else if (var.compare("loadDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
@@ -355,6 +355,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
       VecCopy(_varEx["slip"], _fault->_slip);
       VecCopy(_varEx["psi"], _fault->_psi);
       VecCopy(_varEx["psiPrev"], _fault->_psiPrev);
+
+      ierr = loadFileIfExists_matlab(_inputDir + "tau", _fault->_tau0);
+      if (ierr == 0){
+        _initialConditions = "None";
+      }
     ierr = 0;
     }
 

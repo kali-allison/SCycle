@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_LINEARELASTIC_SWITCH_H_INCLUDED
-#define STRIKESLIP_LINEARELASTIC_SWITCH_H_INCLUDED
+#ifndef STRIKESLIP_POWERLAW_SWITCH_H_INCLUDED
+#define STRIKESLIP_POWERLAW_SWITCH_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -27,7 +27,7 @@
 #include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
-#include "linearElastic.hpp"
+#include "powerLaw.hpp"
 
 
 
@@ -38,12 +38,12 @@
  */
 
 
-class StrikeSlip_LinearElastic_switch: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
+class StrikeSlip_PowerLaw_switch: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
 {
 private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_LinearElastic_switch(const StrikeSlip_LinearElastic_switch &that);
-    StrikeSlip_LinearElastic_switch& operator=(const StrikeSlip_LinearElastic_switch &rhs);
+    StrikeSlip_PowerLaw_switch(const StrikeSlip_PowerLaw_switch &that);
+    StrikeSlip_PowerLaw_switch& operator=(const StrikeSlip_PowerLaw_switch &rhs);
 
     Domain *_D;
 
@@ -120,18 +120,27 @@ private:
     //~ Fault                      *_fault;
     NewFault_qd                *_fault_qd;
     NewFault_dyn               *_fault_dyn;
-    LinearElastic              *_material; // linear elastic off-fault material properties
+    PowerLaw              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 
 
-    StrikeSlip_LinearElastic_switch(Domain&D);
-    ~StrikeSlip_LinearElastic_switch();
+    std::map <string,Vec>                             _varSS; // holds variables for steady state iteration
+    PetscScalar                                       _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    PetscScalar                                       _gss_t; // guess steady state strain rate
+    PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
+    PetscScalar              _atolSS_effVisc;
+
+    StrikeSlip_PowerLaw_switch(Domain&D);
+    ~StrikeSlip_PowerLaw_switch();
 
     // estimating steady state conditions
+    PetscErrorCode writeSS(const int Ii, const std::string outputDir);
     PetscErrorCode solveSS();
     PetscErrorCode solveSSb();
-
+    PetscErrorCode guessTauSS(map<string,Vec>& varSS);
+    PetscErrorCode setSSBCs();
+    PetscErrorCode solveSSViscoelasticProblem();
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
@@ -140,6 +149,7 @@ private:
     PetscErrorCode initiateIntegrand_qd();
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode integrateSS();
 
     bool check_switch(const NewFault* _fault);
     PetscErrorCode reset_for_qd();

@@ -117,6 +117,12 @@ PetscErrorCode OdeSolver_WaveImex::integrate(IntegratorContextWave *obj)
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
     ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_varPrev,stopIntegration);CHKERRQ(ierr);
+
+    // accept updated state for implicit variables
+    for (map<string,Vec>::iterator it = _varImexPrev.begin(); it!=_varImexPrev.end(); it++ ) {
+      VecCopy(_varImex[it->first],_varImexPrev[it->first]);
+      // VecSet(_varImexPrev[it->first],0.);
+    }
   }
 
   _runTime += MPI_Wtime() - startTime;

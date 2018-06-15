@@ -88,7 +88,6 @@ class OdeSolverImex
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
-    virtual PetscErrorCode integrate_switch(IntegratorContextImex *obj) = 0;
     
     virtual std::map<string,Vec>& getVar(){return _varEx;};
     virtual std::map<string,Vec>& getVarIm(){return _varIm;};

@@ -1223,7 +1223,7 @@ PetscErrorCode NewFault_dyn::computeVel()
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
-  ComputeVel_dyn temp(locked, N,Phi,an,psi,constraints_factor,a,sneff, _v0);
+  ComputeVel_dyn temp(locked, N,Phi,an,psi,constraints_factor,a,sneff, _v0, _D->_vL);
   ierr = temp.computeVel(slipVel, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
   VecRestoreArray(_Phi,&Phi);
@@ -1461,9 +1461,9 @@ ierr = VecRestoreArray(_alphay, &alphay);
 double startAgingTime = MPI_Wtime();
 computeStateEvolution();
 _stateLawTime += MPI_Wtime() - startAgingTime;
-// VecCopy(_psi, varEx["psi"]);
+
 VecAXPY(_slip, 1.0, _slip0);
-// VecCopy(varEx["slip"], _slip);
+
 #if VERBOSE > 1
 PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 #endif
@@ -1538,8 +1538,8 @@ PetscErrorCode NewFault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dva
 
 // New class to handle the computation of the implicit solvers
 
-ComputeVel_dyn::ComputeVel_dyn(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0)
-: _locked(locked), _Phi(Phi),_an(an),_psi(psi),_constraints_factor(constraints_factor),_a(a),_sNEff(sneff),_N(N), _v0(v0)
+ComputeVel_dyn::ComputeVel_dyn(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL)
+: _locked(locked), _Phi(Phi),_an(an),_psi(psi),_constraints_factor(constraints_factor),_a(a),_sNEff(sneff),_N(N), _v0(v0), _vL(vL)
 { }
 
 PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -1555,10 +1555,13 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
   PetscScalar left, right, out, temp;
 
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
-    if (_locked[Jj] > 0.){
-      slipVelA[Jj] = 0.0;
-      break;
-    }
+      if (_locked[Jj] > 0.5) { // if fault is locked, hold slip velocity at 0
+        slipVelA[Jj] = 0.;
+      }
+      else if (_locked[Jj] < -0.5) { // if fault is locked, hold slip velocity at 0
+        slipVelA[Jj] = _vL;
+      }
+      else {
     left = 0.;
     right = abs(_Phi[Jj]);
     // check bounds
@@ -1587,7 +1590,7 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     slipVelA[Jj] = out;
     // PetscPrintf(PETSC_COMM_WORLD,"%i: left = %g, right = %g, slipVel = %g\n",Jj,left,right,out);
   }
-
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
