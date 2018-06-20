@@ -19,7 +19,6 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "powerLaw.hpp"
@@ -91,13 +90,13 @@ private:
   public:
     OdeSolver_WaveImex          *_quadWaveImex;
 
-    NewFault_dyn               *_fault;
+    Fault_dyn               *_fault;
     PowerLaw              *_material; // linear elastic off-fault material properties
     HeatEquation          *_he;
     PressureEq                 *_p;
 
     StrikeSlip_PowerLaw_dyn(Domain&D);
-    ~StrikeSlip_PowerLaw_dyn();  
+    ~StrikeSlip_PowerLaw_dyn();
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name

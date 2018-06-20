@@ -33,7 +33,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
-  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }

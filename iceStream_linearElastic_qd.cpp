@@ -34,8 +34,8 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
-  //~ _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
-  _fault = new NewFault_qd(D,D._scatters["body2L"],_bcLType); // fault
+  //~ _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
+  _fault = new Fault_qd(D,D._scatters["body2L"],_bcLType); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {

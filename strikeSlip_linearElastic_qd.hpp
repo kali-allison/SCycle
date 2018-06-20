@@ -21,7 +21,6 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
@@ -95,8 +94,7 @@ private:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    //~ Fault                      *_fault;
-    NewFault_qd                *_fault;
+    Fault_qd                *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

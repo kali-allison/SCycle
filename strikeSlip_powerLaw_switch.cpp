@@ -32,7 +32,7 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
   _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
-  _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL), 
+  _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
   _fault_qd(NULL),_fault_dyn(NULL), _material(NULL),_he(NULL),_p(NULL),
   _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
@@ -47,7 +47,7 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
   // if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   // }
-  _fault_qd = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  _fault_qd = new Fault_qd(D,D._scatters["body2L"]); // fault
 
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
@@ -149,7 +149,7 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault_dyn = new NewFault_dyn(D, D._scatters["body2L"]); // fault
+  _fault_dyn = new Fault_dyn(D, D._scatters["body2L"]); // fault
 
   // Change CFL deltaT
   if (_CFL !=0){
@@ -319,7 +319,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
     }
-    
+
     else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     // boundary conditions for momentum balance equation
@@ -349,7 +349,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::loadSettings(const char *file)
     }
     else if (var.compare("triggerqd2d")==0) { _triggerqd2d = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("triggerd2qd")==0) { _triggerd2qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    
+
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -451,11 +451,11 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::checkInput()
   }
 
   if (_limit_dyn < _triggerqd2d){
-    _limit_dyn = 10 * _triggerqd2d; 
+    _limit_dyn = 10 * _triggerqd2d;
   }
 
   if (_limit_qd > _triggerd2qd){
-    _limit_qd = _triggerqd2d / 10.0; 
+    _limit_qd = _triggerqd2d / 10.0;
   }
 
   if (_limit_stride_dyn == -1){
@@ -548,7 +548,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::timeMonitor(const PetscScalar time,co
   return ierr;
   }
 
-bool StrikeSlip_PowerLaw_switch::check_switch(const NewFault* _fault){
+bool StrikeSlip_PowerLaw_switch::check_switch(const Fault* _fault){
   bool mustswitch = false;
   Vec absSlipVel;
   VecDuplicate(_fault->_slipVel, &absSlipVel);
@@ -629,7 +629,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::reset_for_qd(){
   _fault_qd->_viewers.swap(_fault_dyn->_viewers);
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
   // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  
+
   _varEx.erase("u");
   _varEx.erase("uPrev");
   return ierr;
@@ -725,7 +725,7 @@ double startTime = MPI_Wtime();
     _dT = time - _currTime;
   }
   _currTime = time;
-  
+
   PetscInt localStride1d, localStride2d;
   if (_localStep < _debug){
     localStride1d = 1;
@@ -1588,7 +1588,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_dyn()
     if(_maxStepCount_qd > 0 || _startOnDynamic){
     if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
       if (!_firstCycle){
-        delete _quadWaveImex; 
+        delete _quadWaveImex;
       }
         _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 3;
@@ -1598,7 +1598,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_dyn()
       }
       else{
         if (!_firstCycle){
-          delete _quadWaveEx; 
+          delete _quadWaveEx;
         }
         _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveEx->_stepCount = _quadEx_qd->_stepCount + 3;
@@ -1610,7 +1610,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_dyn()
     else{
       if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
         if (!_firstCycle){
-          delete _quadWaveImex; 
+          delete _quadWaveImex;
         }
         _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 2;
@@ -1620,7 +1620,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::integrate_dyn()
       }
       else{
         if (!_firstCycle){
-          delete _quadWaveEx; 
+          delete _quadWaveEx;
         }
         _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveEx->_stepCount = _quadEx_qd->_stepCount + 2;
@@ -1841,7 +1841,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_dyn()
     std::string funcName = "StrikeSlip_PowerLaw_switch::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  
+
   if (_isMMS) { _material->setMMSInitialConditions(_currTime); }
 
   // For checking over the switching
@@ -1909,7 +1909,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_dyn()
     }
     ierr = _quadEx_switch->integrate(this);CHKERRQ(ierr);
   }
-  
+
   VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
   VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
   VecCopy(uPrev, _varEx["uPrev"]);
@@ -1936,7 +1936,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_dyn()
   VecCopy(_fault_dyn->_tauQSP, _fault_dyn->_tau0);
 
   _material->changeBCTypes(_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
-  
+
   _fault_dyn->initiateIntegrand(_initTime,_varEx);
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
@@ -1990,7 +1990,7 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::initiateIntegrand_dyn()
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
-} 
+}
 
 
 // monitoring function for explicit integration

@@ -64,7 +64,7 @@ StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault = new NewFault_dyn(D, D._scatters["body2L"]); // fault
+  _fault = new Fault_dyn(D, D._scatters["body2L"]); // fault
 
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
@@ -302,7 +302,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   _fault->initiateIntegrand(_initTime,_varEx);
-  
+
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
@@ -319,7 +319,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
     if (ierr == 1){
         PetscInt Ii,Istart,Iend;
         PetscInt Jj = 0;
-  
+
       if (_initialConditions.compare("u") == 0){
         PetscScalar *u, *uPrev, *y, *z;
         VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
@@ -375,7 +375,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
     ierr = _material->getStresses(sxy,sxz,sdev);
     ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
     VecCopy(_fault->_tauQSP, _fault->_tau0);
-    
+
     VecSet(_varEx["u"], 0.0);
     VecSet(_varEx["uPrev"], 0.0);
 
@@ -391,10 +391,10 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
     ierr = 0;
   }
   else{
-  
+
   PetscInt Ii,Istart,Iend;
   PetscInt Jj = 0;
-  
+
   if (_initialConditions.compare("u") == 0){
     PetscScalar *u, *uPrev, *y, *z;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);

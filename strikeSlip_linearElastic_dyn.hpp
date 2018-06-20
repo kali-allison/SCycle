@@ -19,7 +19,6 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
@@ -91,12 +90,12 @@ private:
   public:
     OdeSolver_WaveEq          *_quadWaveEx;
 
-    NewFault_dyn               *_fault;
+    Fault_dyn               *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
 
 
     StrikeSlip_LinearElastic_dyn(Domain&D);
-    ~StrikeSlip_LinearElastic_dyn();  
+    ~StrikeSlip_LinearElastic_dyn();
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name

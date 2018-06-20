@@ -64,7 +64,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault = new NewFault_dyn(D, D._scatters["body2L"]); // fault
+  _fault = new Fault_dyn(D, D._scatters["body2L"]); // fault
 
   // PetscInt Ii, Istart, Iend;
   // PetscScalar *alphay, *alphaz;
@@ -294,7 +294,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   _fault->initiateIntegrand(_initTime,_varEx);
-  
+
   Vec slip;
   VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
   _varEx["slip"] = slip;
@@ -311,7 +311,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     if (ierr == 1){
         PetscInt Ii,Istart,Iend;
         PetscInt Jj = 0;
-  
+
       if (_initialConditions.compare("u") == 0){
         PetscScalar *u, *uPrev, *y, *z;
         VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
@@ -365,10 +365,10 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
     }
 
   else{
-  
+
   PetscInt Ii,Istart,Iend;
   PetscInt Jj = 0;
-  
+
   if (_initialConditions.compare("u") == 0){
     PetscScalar *u, *uPrev, *y, *z;
     VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);

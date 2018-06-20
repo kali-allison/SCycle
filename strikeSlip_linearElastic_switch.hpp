@@ -24,7 +24,6 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
@@ -118,8 +117,8 @@ private:
     OdeSolver_WaveImex          *_quadWaveImex;
 
     //~ Fault                      *_fault;
-    NewFault_qd                *_fault_qd;
-    NewFault_dyn               *_fault_dyn;
+    Fault_qd                *_fault_qd;
+    Fault_dyn               *_fault_dyn;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
@@ -141,7 +140,7 @@ private:
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    bool check_switch(const NewFault* _fault);
+    bool check_switch(const Fault* _fault);
     PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods

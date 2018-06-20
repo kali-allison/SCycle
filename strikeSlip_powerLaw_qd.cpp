@@ -33,7 +33,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
   _he = new HeatEquation(D); // heat equation
-  _fault = new NewFault_qd(D,D._scatters["body2L"]); // fault
+  _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);

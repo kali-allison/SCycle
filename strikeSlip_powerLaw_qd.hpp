@@ -21,7 +21,6 @@
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "fault.hpp"
-#include "newFault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "powerLaw.hpp"
@@ -89,7 +88,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping
 
-    NewFault_qd                *_fault;
+    Fault_qd                *_fault;
     PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
