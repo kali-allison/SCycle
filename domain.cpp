@@ -256,8 +256,7 @@ PetscErrorCode Domain::checkInput()
   assert(_momentumBalanceType.compare("quasidynamic")==0 ||
     _momentumBalanceType.compare("dynamic")==0 ||
     _momentumBalanceType.compare("quasidynamic_and_dynamic")==0 ||
-    _momentumBalanceType.compare("steadyStateIts")==0 ||
-    _momentumBalanceType.compare("switching")==0 );
+    _momentumBalanceType.compare("steadyStateIts")==0);
 
   assert( _order==2 || _order==4 );
   assert( _Ly > 0 && _Lz > 0);
@@ -373,9 +372,9 @@ PetscErrorCode Domain::setFields()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  PetscScalar alphay, alphaz;
+  PetscScalar alphay(0), alphaz(0);
   if (_order == 2 ) { alphay = 0.5 * _Ly * _dq; alphaz = 0.5 * _Lz * _dr; }
-  if (_order == 4 ) { alphay = 0.4567e4/0.14400e5 * _Ly * _dq; alphaz = 0.4567e4/0.14400e5 * _Lz * _dr; }
+  if (_order == 4 ) { alphay = 17./48. * _Ly * _dq; alphaz = 17./48. * _Lz * _dr; }
 
   if (_sbpType.compare("mfc_coordTrans") == 0){alphay /= _Ly; alphaz /= _Lz;}
 
@@ -409,7 +408,7 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      //~ y[Jj] = q[Jj]*_Ly;
+      // y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
 
       y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);

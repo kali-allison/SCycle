@@ -282,7 +282,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
     PCSetType(pc,PCHYPRE);
     PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);
-    
+
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
@@ -399,10 +399,10 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
 #endif
 
   // load bcL
-  ierr = loadVecFromInputFile(_bcL,_inputDir,"bcL"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
 
   // load bcR
-  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"bcR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
   VecSet(_bcR,0.);
 
   // load u

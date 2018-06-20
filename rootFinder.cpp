@@ -121,7 +121,7 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
   *out = _mid;
   if (sqrt(_fMid*_fMid) > _atol) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder did not converge in %i iterations\n",numIts);
-    //~ assert(sqrt(_fMid*_fMid) < _atol);
+    assert(sqrt(_fMid*_fMid) < _atol);
     return 1;
   }
 
@@ -218,7 +218,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   // proceed with iteration
   PetscInt numIts = 0;
   PetscScalar _x = x0;
-  PetscScalar xMid = 0.5 * (_left + _right);
+  // PetscScalar xMid = 0.5 * (_left + _right);
   PetscScalar dxOld = fabs(_right - _left);
   PetscScalar dx = dxOld;
   ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
@@ -252,7 +252,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   if (abs(_f) > _atol) {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"rootFinder BracketedNewton did not converge in %i iterations\n",numIts);
     PetscPrintf(PETSC_COMM_WORLD,"ind = %i, residual = %g\n",ind,_f);
-    //~ assert(abs(_f) < _atol);
+    assert(abs(_f) < _atol);
     return 1;
   }
 

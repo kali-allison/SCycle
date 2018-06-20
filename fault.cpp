@@ -389,7 +389,7 @@ PetscErrorCode Fault::getTauRS(Vec& tauRS, const PetscScalar vL)
   VecGetArray(_b,&b);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar psiSS = _f0;
+    // PetscScalar psiSS = _f0;
     //~ tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psiSS/a[Jj])/_v0 );
     PetscScalar f = _f0 + (a[Jj] - b[Jj]) * log10(vL/_v0);
     tauRSV[Jj] = sN[Jj] * f;
@@ -691,8 +691,8 @@ PetscErrorCode Fault::flashHeating_psi(const PetscInt ind,const PetscScalar stat
   ierr = VecGetValues(_rho,1,&ind,&rho);CHKERRQ(ierr);
   ierr = VecGetValues(_c,1,&ind,&c);CHKERRQ(ierr);
   ierr = VecGetValues(_k,1,&ind,&k);CHKERRQ(ierr);
-  PetscScalar rc = rho * c;
-  PetscScalar ath = k/rc;
+  // PetscScalar rc = rho * c;
+  // PetscScalar ath = k/rc;
 
   //~ PetscScalar Vw = (M_PI*ath/_D) * pow(rc*(_Tw-T)/_tau_c,2);
   PetscScalar Vw = _Vw;
@@ -1358,7 +1358,7 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
     std::string funcName = "SymmFault::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  PetscInt       Ii,IFaultStart, IFaultEnd;
+  PetscInt       IFaultStart, IFaultEnd;
 
   VecScatter scattdu;
   ierr = VecScatterCreate(dvarEx["u"], _is, varEx["duFault"], _is, &scattdu);
@@ -1369,7 +1369,7 @@ PetscErrorCode SymmFault::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
   ierr = VecGetOwnershipRange(varEx["uFault"],&IFaultStart,&IFaultEnd);CHKERRQ(ierr);
 
   PetscScalar *u, *uPrev, *Laplacian, *rho, *psi, *sigma_N, *tauQS, *slipVel, *an, *Phi, *constraints_factor, *slipPrev, *slipVelocity;
-  PetscInt Jj = 0;
+  // PetscInt Jj = 0;
 
   ierr = VecGetArray(varEx["uFault"], &u);
   ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
@@ -1730,9 +1730,10 @@ ierr = computeVel_dyn();CHKERRQ(ierr);
 double intermediateTime = MPI_Wtime();
 
 _computeVelTime += intermediateTime - startTime;
-PetscInt       Ii,Istart,Iend;
-PetscInt       Jj = 0;
-PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi;
+PetscInt       Istart,Iend;
+// PetscInt       Jj = 0;
+// PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi;
+PetscScalar    *u, *uPrev, *rho, *sigma_N, *a, *an, *slip, *slipVel, *vel, *Phi, *psi;
 ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
 ierr = VecGetArray(varEx["uFault"], &u);
 ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
