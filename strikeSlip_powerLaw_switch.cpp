@@ -149,7 +149,7 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault_dyn = new Fault_dyn(D, D._scatters["body2L"]); // fault
+  _fault_dyn = new Fault_fd(D, D._scatters["body2L"]); // fault
 
   // Change CFL deltaT
   if (_CFL !=0){

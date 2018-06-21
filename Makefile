@@ -13,8 +13,8 @@ OBJECTS := domain.o fault.o genFuncs.o\
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
  strikeSlip_linearElastic_qd.o linearElastic.o \
  strikeSlip_powerLaw_qd.o powerLaw.o \
- iceStream_linearElastic_qd.o strikeSlip_linearElastic_dyn.o strikeSlip_linearElastic_switch.o \
- fault.o strikeSlip_powerLaw_dyn.o strikeSlip_powerLaw_switch.o
+ iceStream_linearElastic_qd.o strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_switch.o \
+ fault.o strikeSlip_powerLaw_fd.o strikeSlip_powerLaw_switch.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -111,13 +111,13 @@ strikeSlip_linearElastic_qd.o: strikeSlip_linearElastic_qd.cpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
  pressureEq.hpp linearElastic.hpp fault.hpp
-strikeSlip_linearElastic_dyn.o: strikeSlip_linearElastic_dyn.cpp \
+strikeSlip_linearElastic_fd.o: strikeSlip_linearElastic_fd.cpp \
  strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
  pressureEq.hpp linearElastic.hpp
-strikeSlip_linearElastic_switch.o: strikeSlip_linearElastic_dyn.cpp \
+strikeSlip_linearElastic_switch.o: strikeSlip_linearElastic_fd.cpp \
  strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
@@ -135,7 +135,7 @@ strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp heatEquation.hpp rootFinderContext.hpp rootFinder.hpp \
  pressureEq.hpp powerLaw.hpp fault.hpp
- strikeSlip_powerLaw_dyn.o: strikeSlip_powerLaw_qd.cpp \
+ strikeSlip_powerLaw_fd.o: strikeSlip_powerLaw_qd.cpp \
  strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextWave.hpp odeSolver_WaveImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \

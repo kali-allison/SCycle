@@ -1070,13 +1070,13 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   return ierr;
 }
 
-Fault_dyn::Fault_dyn(Domain&D, VecScatter& scatter2fault)
+Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
 : Fault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
   _timeMode("None"), _isLocked("False"),
   _lockLimit(25.0)
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::Fault_dyn";
+    std::string funcName = "Fault_fd::Fault_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1094,10 +1094,10 @@ Fault_dyn::Fault_dyn(Domain&D, VecScatter& scatter2fault)
   #endif
 }
 
-Fault_dyn::~Fault_dyn()
+Fault_fd::~Fault_fd()
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::~Fault_dyn";
+    std::string funcName = "Fault_fd::~Fault_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1108,11 +1108,11 @@ Fault_dyn::~Fault_dyn()
   #endif
 }
 
-PetscErrorCode Fault_dyn::loadSettings(const char *file)
+PetscErrorCode Fault_fd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::~loadSettings";
+    std::string funcName = "Fault_fd::~loadSettings";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   PetscMPIInt rank,size;
@@ -1162,11 +1162,11 @@ PetscErrorCode Fault_dyn::loadSettings(const char *file)
   return ierr;
 }
 
-PetscErrorCode Fault_dyn::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
+PetscErrorCode Fault_fd::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::initiateIntegrand";
+    std::string funcName = "Fault_fd::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1183,11 +1183,11 @@ PetscErrorCode Fault_dyn::initiateIntegrand(const PetscScalar time,map<string,Ve
   return ierr;
 }
 
-PetscErrorCode Fault_dyn::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
+PetscErrorCode Fault_fd::updateFields(const PetscScalar time,const map<string,Vec>& varEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::updateFields()";
+    std::string funcName = "Fault_fd::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1203,11 +1203,11 @@ PetscErrorCode Fault_dyn::updateFields(const PetscScalar time,const map<string,V
 
 
 // assumes right-lateral fault
-PetscErrorCode Fault_dyn::computeVel()
+PetscErrorCode Fault_fd::computeVel()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::computeVel";
+    std::string funcName = "Fault_fd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1224,7 +1224,7 @@ PetscErrorCode Fault_dyn::computeVel()
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
-  ComputeVel_dyn temp(locked, N,Phi,an,psi,constraints_factor,a,sneff, _v0, _D->_vL);
+  ComputeVel_fd temp(locked, N,Phi,an,psi,constraints_factor,a,sneff, _v0, _D->_vL);
   ierr = temp.computeVel(slipVel, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
   VecRestoreArray(_Phi,&Phi);
@@ -1241,11 +1241,11 @@ PetscErrorCode Fault_dyn::computeVel()
   return ierr;
 }
 
-PetscErrorCode Fault_dyn::computeStateEvolution()
+PetscErrorCode Fault_fd::computeStateEvolution()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::computeVel";
+    std::string funcName = "Fault_fd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1262,13 +1262,13 @@ PetscErrorCode Fault_dyn::computeStateEvolution()
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
   if (_stateLaw.compare("agingLaw") == 0){
-    ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
+    ComputeAging_fd temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("slipLaw") == 0){
     PetscScalar *a;
     VecGetArray(_a, &a);
-    ComputeSlipLaw_dyn temp(N,Dc,a, b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
+    ComputeSlipLaw_fd temp(N,Dc,a, b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
     VecRestoreArray(_a, &a);
   }
@@ -1276,13 +1276,13 @@ PetscErrorCode Fault_dyn::computeStateEvolution()
     PetscScalar *a, * Vw;
     VecGetArray(_a, &a);
     VecGetArray(_Vw, &Vw);
-    ComputeFlashHeating_dyn temp(N,Dc,a,b,psi,psiPrev, slipVel,slipPrev, Vw, _v0, _deltaT, _f0, _fw);
+    ComputeFlashHeating_fd temp(N,Dc,a,b,psi,psiPrev, slipVel,slipPrev, Vw, _v0, _deltaT, _f0, _fw);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
     VecRestoreArray(_a, &a);
     VecRestoreArray(_Vw, &Vw);
   }
   else{
-    ComputeAging_dyn temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
+    ComputeAging_fd temp(N,Dc,b,psi,psiPrev, slipVel,slipPrev, _v0, _deltaT, _f0);
   }
 
   VecRestoreArray(_Dc,&Dc);
@@ -1298,7 +1298,7 @@ PetscErrorCode Fault_dyn::computeStateEvolution()
   return ierr;
 }
 
-PetscErrorCode Fault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec)
+PetscErrorCode Fault_fd::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1347,7 +1347,7 @@ PetscErrorCode Fault_dyn::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rho
   return ierr;
 }
 
-PetscErrorCode Fault_dyn::updateTau(const PetscScalar currT){
+PetscErrorCode Fault_fd::updateTau(const PetscScalar currT){
   PetscScalar *zz, *tau0;
 
   PetscInt Ii, IBegin, IEnd;
@@ -1379,11 +1379,11 @@ PetscErrorCode Fault_dyn::updateTau(const PetscScalar currT){
 }
 
 
-PetscErrorCode Fault_dyn::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar deltaT)
+PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::d_dt";
+    std::string funcName = "Fault_fd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1472,11 +1472,11 @@ PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
 return ierr;
 }
 
-PetscErrorCode Fault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar deltaT)
+PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_dyn::setPhi";
+    std::string funcName = "Fault_fd::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   PetscInt       Ii,IFaultStart, IFaultEnd;
@@ -1539,11 +1539,11 @@ PetscErrorCode Fault_dyn::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx
 
 // New class to handle the computation of the implicit solvers
 
-ComputeVel_dyn::ComputeVel_dyn(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL)
+ComputeVel_fd::ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL)
 : _locked(locked), _Phi(Phi),_an(an),_psi(psi),_constraints_factor(constraints_factor),_a(a),_sNEff(sneff),_N(N), _v0(v0), _vL(vL)
 { }
 
-PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1567,11 +1567,11 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
     right = abs(_Phi[Jj]);
     // check bounds
     if (isnan(left)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_dyn::computeVel: left bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_fd::computeVel: left bound evaluated to NaN.\n");
       assert(0);
     }
     if (isnan(right)) {
-      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_dyn::computeVel: right bound evaluated to NaN.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"\n\nError in ComputeVel_fd::computeVel: right bound evaluated to NaN.\n");
       assert(0);
     }
     // correct for left-lateral fault motion
@@ -1601,7 +1601,7 @@ PetscErrorCode ComputeVel_dyn::computeVel(PetscScalar* slipVelA, const PetscScal
 
 // Compute residual for equation to find slip velocity.
 // This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out)
+PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out)
 {
   PetscErrorCode ierr = 0;
   PetscScalar constraints = strength_psi(_sNEff[Jj], _psi[Jj], vel, _a[Jj] , _v0); // frictional strength
@@ -1618,7 +1618,7 @@ PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,
   return ierr;
 }
 
-PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out, PetscScalar *J)
+PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out, PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
   PetscScalar constraints = strength_psi(_sNEff[Jj], _psi[Jj], vel, _a[Jj] , _v0); // frictional strength
@@ -1643,11 +1643,11 @@ PetscErrorCode ComputeVel_dyn::getResid(const PetscInt Jj,const PetscScalar vel,
 // ================================================
 
 
-ComputeAging_dyn::ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
 : _Dc(Dc),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
-PetscErrorCode ComputeAging_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1701,7 +1701,7 @@ PetscErrorCode ComputeAging_dyn::computeLaw(const PetscScalar rootTol, PetscInt&
 
 // Compute residual for equation to find slip velocity.
 // This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
 {
   PetscErrorCode ierr = 0;
 
@@ -1715,7 +1715,7 @@ PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar st
   return ierr;
 }
 
-PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
 
@@ -1739,11 +1739,11 @@ PetscErrorCode ComputeAging_dyn::getResid(const PetscInt Jj,const PetscScalar st
 // ================================================
 
 
-ComputeSlipLaw_dyn::ComputeSlipLaw_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+ComputeSlipLaw_fd::ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
-PetscErrorCode ComputeSlipLaw_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1797,7 +1797,7 @@ PetscErrorCode ComputeSlipLaw_dyn::computeLaw(const PetscScalar rootTol, PetscIn
 
 // Compute residual for equation to find slip velocity.
 // This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
 {
   PetscErrorCode ierr = 0;
 
@@ -1811,7 +1811,7 @@ PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar 
   return ierr;
 }
 
-PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
 
@@ -1837,12 +1837,12 @@ PetscErrorCode ComputeSlipLaw_dyn::getResid(const PetscInt Jj,const PetscScalar 
 // ================================================
 
 
-ComputeFlashHeating_dyn::ComputeFlashHeating_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar* Vw,
+ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar* Vw,
                                                  const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0, const PetscScalar fw)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipPrev(slipPrev),_Vw(Vw),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
 { }
 
-PetscErrorCode ComputeFlashHeating_dyn::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1896,7 +1896,7 @@ PetscErrorCode ComputeFlashHeating_dyn::computeLaw(const PetscScalar rootTol, Pe
 
 // Compute residual for equation to find slip velocity.
 // This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeFlashHeating_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
 {
   PetscErrorCode ierr = 0;
 
@@ -1910,7 +1910,7 @@ PetscErrorCode ComputeFlashHeating_dyn::getResid(const PetscInt Jj,const PetscSc
   return ierr;
 }
 
-PetscErrorCode ComputeFlashHeating_dyn::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
 

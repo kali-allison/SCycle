@@ -1,11 +1,11 @@
-#include "strikeSlip_linearElastic_dyn.hpp"
+#include "strikeSlip_linearElastic_fd.hpp"
 
-#define FILENAME "strikeSlip_linearElastic_dyn.cpp"
+#define FILENAME "strikeSlip_linearElastic_fd.cpp"
 
 using namespace std;
 
 
-StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
+strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
@@ -27,7 +27,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
   _fault(NULL),_material(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn()";
+    std::string funcName = "strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -64,7 +64,7 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault = new Fault_dyn(D, D._scatters["body2L"]); // fault
+  _fault = new Fault_fd(D, D._scatters["body2L"]); // fault
 
   // PetscInt Ii, Istart, Iend;
   // PetscScalar *alphay, *alphaz;
@@ -135,10 +135,10 @@ StrikeSlip_LinearElastic_dyn::StrikeSlip_LinearElastic_dyn(Domain&D)
 }
 
 
-StrikeSlip_LinearElastic_dyn::~StrikeSlip_LinearElastic_dyn()
+strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::~StrikeSlip_LinearElastic_dyn()";
+    std::string funcName = "strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -161,7 +161,7 @@ StrikeSlip_LinearElastic_dyn::~StrikeSlip_LinearElastic_dyn()
 }
 
 // loads settings from the input text file
-PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
+PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -228,7 +228,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::loadSettings(const char *file)
 }
 
 // Check that required fields have been set by the input file
-PetscErrorCode StrikeSlip_LinearElastic_dyn::checkInput()
+PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -283,11 +283,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::checkInput()
 }
 
 // initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
+PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::initiateIntegrand()";
+    std::string funcName = "strikeSlip_linearElastic_fd::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -441,12 +441,12 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_LinearElastic_dyn::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::timeMonitor for explicit";
+    std::string funcName = "strikeSlip_linearElastic_fd::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -476,14 +476,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_LinearElastic_dyn::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::timeMonitor for IMEX";
+    std::string funcName = "strikeSlip_linearElastic_fd::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -512,7 +512,7 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -537,7 +537,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep1D(const PetscInt stepCoun
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -560,7 +560,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::writeStep2D(const PetscInt stepCoun
 }
 
 
-PetscErrorCode StrikeSlip_LinearElastic_dyn::view()
+PetscErrorCode strikeSlip_linearElastic_fd::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -578,7 +578,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",num_proc);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_dyn Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"strikeSlip_linearElastic_fd Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
@@ -586,11 +586,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::view()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_dyn::writeContext()
+PetscErrorCode strikeSlip_linearElastic_fd::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::writeContext";
+    std::string funcName = "strikeSlip_linearElastic_fd::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -631,11 +631,11 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::writeContext()
 //======================================================================
 // Adaptive time stepping functions
 //======================================================================
-PetscErrorCode StrikeSlip_LinearElastic_dyn::integrate()
+PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_dyn::integrate";
+    std::string funcName = "strikeSlip_linearElastic_fd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -657,7 +657,7 @@ PetscErrorCode StrikeSlip_LinearElastic_dyn::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_dyn::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);

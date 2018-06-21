@@ -430,9 +430,9 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
 
   // load power law parameters
-  ierr = loadVecFromInputFile(_A,_inputDir,"A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1

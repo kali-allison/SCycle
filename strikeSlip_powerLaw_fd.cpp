@@ -1,11 +1,11 @@
-#include "strikeSlip_powerLaw_dyn.hpp"
+#include "strikeSlip_powerLaw_fd.hpp"
 
-#define FILENAME "strikeSlip_powerLaw_dyn.cpp"
+#define FILENAME "strikeSlip_powerLaw_fd.cpp"
 
 using namespace std;
 
 
-StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
+StrikeSlip_PowerLaw_fd::StrikeSlip_PowerLaw_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
@@ -26,7 +26,7 @@ StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
   _fault(NULL),_material(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn()";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::StrikeSlip_PowerLaw_fd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -64,7 +64,7 @@ StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
     VecDestroy(&temp2);
   }
 
-  _fault = new Fault_dyn(D, D._scatters["body2L"]); // fault
+  _fault = new Fault_fd(D, D._scatters["body2L"]); // fault
 
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
@@ -139,10 +139,10 @@ StrikeSlip_PowerLaw_dyn::StrikeSlip_PowerLaw_dyn(Domain&D)
 }
 
 
-StrikeSlip_PowerLaw_dyn::~StrikeSlip_PowerLaw_dyn()
+StrikeSlip_PowerLaw_fd::~StrikeSlip_PowerLaw_fd()
 {
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::~StrikeSlip_PowerLaw_dyn()";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::~StrikeSlip_PowerLaw_fd()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -165,7 +165,7 @@ StrikeSlip_PowerLaw_dyn::~StrikeSlip_PowerLaw_dyn()
 }
 
 // loads settings from the input text file
-PetscErrorCode StrikeSlip_PowerLaw_dyn::loadSettings(const char *file)
+PetscErrorCode StrikeSlip_PowerLaw_fd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
@@ -236,7 +236,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::loadSettings(const char *file)
 }
 
 // Check that required fields have been set by the input file
-PetscErrorCode StrikeSlip_PowerLaw_dyn::checkInput()
+PetscErrorCode StrikeSlip_PowerLaw_fd::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -291,11 +291,11 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::checkInput()
 }
 
 // initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
+PetscErrorCode StrikeSlip_PowerLaw_fd::initiateIntegrand()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::initiateIntegrand()";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -476,12 +476,12 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode StrikeSlip_PowerLaw_dyn::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::timeMonitor for explicit";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::timeMonitor for explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -509,14 +509,14 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 // monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_PowerLaw_dyn::timeMonitor(const PetscScalar time,const PetscInt stepCount,
+PetscErrorCode StrikeSlip_PowerLaw_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::timeMonitor for IMEX";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -544,7 +544,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode StrikeSlip_PowerLaw_dyn::view()
+PetscErrorCode StrikeSlip_PowerLaw_fd::view()
 {
   PetscErrorCode ierr = 0;
 
@@ -562,7 +562,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",num_proc);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_PowerLaw_dyn Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_PowerLaw_fd Runtime Summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
@@ -570,11 +570,11 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::view()
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_dyn::writeContext()
+PetscErrorCode StrikeSlip_PowerLaw_fd::writeContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::writeContext";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -615,11 +615,11 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::writeContext()
 //======================================================================
 // Adaptive time stepping functions
 //======================================================================
-PetscErrorCode StrikeSlip_PowerLaw_dyn::integrate()
+PetscErrorCode StrikeSlip_PowerLaw_fd::integrate()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_dyn::integrate";
+    std::string funcName = "StrikeSlip_PowerLaw_fd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
@@ -641,7 +641,7 @@ PetscErrorCode StrikeSlip_PowerLaw_dyn::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_PowerLaw_dyn::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
+PetscErrorCode StrikeSlip_PowerLaw_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
                                              map<string,Vec>& varIm,map<string,Vec>& varImo)
 {
   PetscErrorCode ierr = 0;

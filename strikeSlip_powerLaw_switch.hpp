@@ -118,7 +118,7 @@ private:
 
     //~ Fault                      *_fault;
     Fault_qd                *_fault_qd;
-    Fault_dyn               *_fault_dyn;
+    Fault_fd               *_fault_dyn;
     PowerLaw              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

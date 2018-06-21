@@ -147,13 +147,13 @@ class Fault_qd: public Fault
 
 
 // fully dynamic implementation of one-sided fault
-class Fault_dyn: public Fault
+class Fault_fd: public Fault
 {
   private:
 
     // disable default copy constructor and assignment operator
-    Fault_dyn(const Fault_dyn & that);
-    Fault_dyn& operator=( const Fault_dyn& rhs);
+    Fault_fd(const Fault_fd & that);
+    Fault_fd& operator=( const Fault_fd& rhs);
 
   public:
     Vec                 _Phi, _an, _constraints_factor;
@@ -167,8 +167,8 @@ class Fault_dyn: public Fault
     std::string         _timeMode, _isLocked;
     PetscScalar         _lockLimit;
 
-    Fault_dyn(Domain&, VecScatter& scatter2fault);
-    ~Fault_dyn();
+    Fault_fd(Domain&, VecScatter& scatter2fault);
+    ~Fault_fd();
 
     PetscErrorCode loadSettings(const char *file);
 
@@ -209,7 +209,7 @@ struct ComputeVel_qd : public RootFinderContext
 };
 
 // computing the slip velocity for the dynamic problem
-struct ComputeVel_dyn : public RootFinderContext
+struct ComputeVel_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
@@ -217,7 +217,7 @@ struct ComputeVel_dyn : public RootFinderContext
   const PetscScalar   _v0, _vL;
 
   // constructor and destructor
-  ComputeVel_dyn(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
+  ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -229,7 +229,7 @@ struct ComputeVel_dyn : public RootFinderContext
 };
 
 // computing the aging law for the dynamic problem
-struct ComputeAging_dyn : public RootFinderContext
+struct ComputeAging_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
@@ -238,7 +238,7 @@ struct ComputeAging_dyn : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -250,7 +250,7 @@ struct ComputeAging_dyn : public RootFinderContext
 };
 
 // computing the slipLaw for the dynamic problem
-struct ComputeSlipLaw_dyn : public RootFinderContext
+struct ComputeSlipLaw_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev;
@@ -259,7 +259,7 @@ struct ComputeSlipLaw_dyn : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeSlipLaw_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,
+  ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,
                      const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev,
                      const PetscScalar* slipVel,const PetscScalar* slipPrev,
                      const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
@@ -274,7 +274,7 @@ struct ComputeSlipLaw_dyn : public RootFinderContext
 };
 
 // computing the flashHeating for the dynamic problem
-struct ComputeFlashHeating_dyn : public RootFinderContext
+struct ComputeFlashHeating_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
   const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev, *_Vw;
@@ -283,7 +283,7 @@ struct ComputeFlashHeating_dyn : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0, _fw;
 
   // constructor and destructor
-  ComputeFlashHeating_dyn(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
+  ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
                           PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
                           const PetscScalar* slipPrev, const PetscScalar* Vw,
                           const PetscScalar v0, const PetscScalar deltaT,

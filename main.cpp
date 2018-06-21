@@ -16,7 +16,7 @@
 #include "powerLaw.hpp"
 #include "iceStream_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
-#include "strikeSlip_linearElastic_dyn.hpp"
+#include "strikeSlip_linearElastic_fd.hpp"
 #include "strikeSlip_linearElastic_switch.hpp"
 #include "strikeSlip_powerLaw_switch.hpp"
 #include "strikeSlip_powerLaw_qd.hpp"
@@ -85,7 +85,7 @@ int runEqCycle(Domain& d)
 
   // solving linear elastic, dynamic simulation with a vertical strike-slip fault
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("dynamic")==0) {
-    StrikeSlip_LinearElastic_dyn m(d);
+    strikeSlip_linearElastic_fd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
