@@ -372,11 +372,6 @@ PetscErrorCode Domain::setFields()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  PetscScalar alphay(0), alphaz(0);
-  if (_order == 2 ) { alphay = 0.5 * _Ly * _dq; alphaz = 0.5 * _Lz * _dr; }
-  if (_order == 4 ) { alphay = 17./48. * _Ly * _dq; alphaz = 17./48. * _Lz * _dr; }
-
-  if (_sbpType.compare("mfc_coordTrans") == 0){alphay /= _Ly; alphaz /= _Lz;}
 
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
@@ -386,9 +381,6 @@ PetscErrorCode Domain::setFields()
   VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
   VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
   VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
-
-  VecDuplicate(_y, &_alphay); VecSet(_alphay, alphay);
-  VecDuplicate(_y, &_alphaz); VecSet(_alphaz, alphaz);
 
   // construct coordinate transform
   PetscInt Ii,Istart,Iend;

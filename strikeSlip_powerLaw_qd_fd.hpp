@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_POWERLAW_SWITCH_H_INCLUDED
-#define STRIKESLIP_POWERLAW_SWITCH_H_INCLUDED
+#ifndef STRIKESLIP_POWERLAW_QD_FD_H_INCLUDED
+#define STRIKESLIP_POWERLAW_QD_FD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -36,12 +36,12 @@
  */
 
 
-class StrikeSlip_PowerLaw_switch: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
+class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
 {
 private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_PowerLaw_switch(const StrikeSlip_PowerLaw_switch &that);
-    StrikeSlip_PowerLaw_switch& operator=(const StrikeSlip_PowerLaw_switch &rhs);
+    StrikeSlip_PowerLaw_qd_fd(const StrikeSlip_PowerLaw_qd_fd &that);
+    StrikeSlip_PowerLaw_qd_fd& operator=(const StrikeSlip_PowerLaw_qd_fd &rhs);
 
     Domain *_D;
 
@@ -131,8 +131,8 @@ private:
     PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
     PetscScalar              _atolSS_effVisc;
 
-    StrikeSlip_PowerLaw_switch(Domain&D);
-    ~StrikeSlip_PowerLaw_switch();
+    StrikeSlip_PowerLaw_qd_fd(Domain&D);
+    ~StrikeSlip_PowerLaw_qd_fd();
 
     // estimating steady state conditions
     PetscErrorCode writeSS(const int Ii, const std::string outputDir);
