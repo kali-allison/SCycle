@@ -54,12 +54,13 @@ private:
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar    _vL;
+
+    PetscScalar          _vL;
     std::string          _isFault; // "dynamic", "static"
     std::string          _initialConditions;
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx, _varIm; // holds variables for explicit integration in time

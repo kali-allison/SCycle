@@ -64,34 +64,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-  if (_qd_bcRType.compare("symm_fault")==0 || _qd_bcRType.compare("rigid_fault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
-    _mat_qd_bcRType = "Dirichlet";
-  }
-  else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("tau")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
-    _mat_qd_bcRType = "Neumann";
-  }
-
-  if (_qd_bcTType.compare("symm_fault")==0 || _qd_bcTType.compare("rigid_fault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
-    _mat_qd_bcTType = "Dirichlet";
-  }
-  else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("tau")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
-    _mat_qd_bcTType = "Neumann";
-  }
-
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
-    _mat_qd_bcLType = "Dirichlet";
-  }
-  else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("tau")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
-    _mat_qd_bcLType = "Neumann";
-  }
-
-  if (_qd_bcBType.compare("symm_fault")==0 || _qd_bcBType.compare("rigid_fault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
-    _mat_qd_bcBType = "Dirichlet";
-  }
-  else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("tau")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
-    _mat_qd_bcBType = "Neumann";
-  }
-
+  parseBCs();
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
   _cs = _material->_cs;
@@ -364,6 +337,50 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
 }
 
 
+// parse boundary conditions
+PetscErrorCode strikeSlip_linearElastic_qd_fd::parseBCs()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::parseBCs()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_qd_bcRType.compare("symm_fault")==0 || _qd_bcRType.compare("rigid_fault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
+    _mat_qd_bcRType = "Dirichlet";
+  }
+  else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("tau")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
+    _mat_qd_bcRType = "Neumann";
+  }
+
+  if (_qd_bcTType.compare("symm_fault")==0 || _qd_bcTType.compare("rigid_fault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
+    _mat_qd_bcTType = "Dirichlet";
+  }
+  else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("tau")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
+    _mat_qd_bcTType = "Neumann";
+  }
+
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
+    _mat_qd_bcLType = "Dirichlet";
+  }
+  else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("tau")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
+    _mat_qd_bcLType = "Neumann";
+  }
+
+  if (_qd_bcBType.compare("symm_fault")==0 || _qd_bcBType.compare("rigid_fault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
+    _mat_qd_bcBType = "Dirichlet";
+  }
+  else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("tau")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
+    _mat_qd_bcBType = "Neumann";
+  }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
 // compute allowed time step based on CFL condition and user input
 PetscErrorCode strikeSlip_linearElastic_qd_fd::computeTimeStep()
 {
@@ -599,8 +616,8 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
 
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD, "maxslipVel = %g\n", max_value);
+  #if VERBOSE > 0
+    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", max_value);
   #endif
 
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
@@ -618,6 +635,7 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
     if (_allowed && max_value < _limit_stride_dyn){
       _stride1D = _stride1D_dyn_long;
       _stride2D = _stride2D_dyn_long;
+      //~ PetscPrintf(PETSC_COMM_WORLD,"stride1D is now: %i\n",_stride1D);
     }
     if(_allowed && max_value < _triggerd2qd){
       mustswitch = true;
@@ -633,9 +651,10 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
       mustswitch = true;
     }
   }
-
+  VecDestroy(&absSlipVel);
   return mustswitch;
 }
+
 
 PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd(){
   PetscErrorCode ierr = 0;
@@ -968,8 +987,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_qd = %i\n",_stride1D_qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_qd = %i\n",_stride2D_qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_dyn = %i\n",_stride1D_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_dyn = %i\n",_stride2D_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_dyn = %i\n",_stride1D_dyn_long);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_long = %i\n",_stride2D_dyn_long);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime_qd);CHKERRQ(ierr);
@@ -1808,7 +1833,7 @@ double startTime = MPI_Wtime();
 
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e fully dynamic\n",stepCount,_currTime);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e fully dynamic %i %i\n",stepCount,_currTime,_stride1D,_stride1D_dyn_long);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

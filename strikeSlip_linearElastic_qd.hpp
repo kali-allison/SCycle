@@ -89,6 +89,7 @@ private:
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode parseBCs(); // parse boundary conditions
 
   public:
     OdeSolver           *_quadEx; // explicit time stepping

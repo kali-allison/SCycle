@@ -37,9 +37,9 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   setUpSBPContext(); // set up matrix operators
   _matrixTime += MPI_Wtime() - startMatrix;
 
-  if (_inputDir.compare("unspecified") != 0) {
+  //~ if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
-  }
+  //~ }
 
   setSurfDisp();
 

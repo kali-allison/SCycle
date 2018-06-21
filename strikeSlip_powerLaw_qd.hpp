@@ -99,6 +99,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode parseBCs(); // parse boundary conditions
 
     // estimating steady state conditions
     // viewers:

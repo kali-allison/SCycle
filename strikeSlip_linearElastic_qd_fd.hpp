@@ -109,6 +109,7 @@ private:
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode parseBCs(); // parse boundary conditions
     PetscErrorCode computeTimeStep();
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
