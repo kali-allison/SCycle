@@ -1,5 +1,5 @@
-#ifndef STRIKESLIP_LINEARELASTIC_SWITCH_H_INCLUDED
-#define STRIKESLIP_LINEARELASTIC_SWITCH_H_INCLUDED
+#ifndef STRIKESLIP_LINEARELASTIC_QD_FD_H_INCLUDED
+#define STRIKESLIP_LINEARELASTIC_QD_FD_H_INCLUDED
 
 #include <petscksp.h>
 #include <string>
@@ -37,12 +37,12 @@
  */
 
 
-class StrikeSlip_LinearElastic_switch: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
+class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
 {
 private:
     // disable default copy constructor and assignment operator
-    StrikeSlip_LinearElastic_switch(const StrikeSlip_LinearElastic_switch &that);
-    StrikeSlip_LinearElastic_switch& operator=(const StrikeSlip_LinearElastic_switch &rhs);
+    strikeSlip_linearElastic_qd_fd(const strikeSlip_linearElastic_qd_fd &that);
+    strikeSlip_linearElastic_qd_fd& operator=(const strikeSlip_linearElastic_qd_fd &rhs);
 
     Domain *_D;
 
@@ -109,6 +109,8 @@ private:
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode computeTimeStep();
+    PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
     OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
@@ -116,16 +118,15 @@ private:
     OdeSolver_WaveEq          *_quadWaveEx;
     OdeSolver_WaveImex          *_quadWaveImex;
 
-    //~ Fault                      *_fault;
-    Fault_qd                *_fault_qd;
-    Fault_fd               *_fault_dyn;
+    Fault_qd                   *_fault_qd;
+    Fault_fd                   *_fault_dyn;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
 
 
-    StrikeSlip_LinearElastic_switch(Domain&D);
-    ~StrikeSlip_LinearElastic_switch();
+    strikeSlip_linearElastic_qd_fd(Domain&D);
+    ~strikeSlip_linearElastic_qd_fd();
 
     // estimating steady state conditions
     PetscErrorCode solveSS();

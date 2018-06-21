@@ -32,6 +32,9 @@ SbpOps_c::SbpOps_c(const int order,const PetscInt Ny,const PetscInt Nz,const Pet
   if (_order == 2) { _alphaDy = -4.0/_dy; _alphaDz = -4.0/_dz; }
   else if (_order == 4) { _alphaDy = 2.0*-48.0/17.0 /_dy; _alphaDz = 2.0*-48.0/17.0 /_dz;  }
 
+  if (_order == 2) { _h11y = 0.5 * _dy;  _h11z = 0.5 * _dz; }
+  else if (_order == 4) { _h11y = 17.0/48.0 * _dy;  _h11z = 17.0/48.0 * _dz; }
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in SbpOps_c.cpp.\n");
 #endif
@@ -784,40 +787,10 @@ PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
   return ierr;
 }
 
-PetscErrorCode SbpOps_c::getA(Mat &mat)
-{
-  #if VERBOSE > 1
-    string funcName = "SbpOps_c::getA";
-    string fileName = "SbpOps_c.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
+PetscErrorCode SbpOps_c::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; }
 
-  // return shallow copy of A:
-  mat = _A;
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
-
-
-PetscErrorCode SbpOps_c::getH(Mat &mat)
-{
-  #if VERBOSE > 1
-    string funcName = "SbpOps_c::getH";
-    string fileName = "SbpOps_c.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-
-  // return shallow copy of H:
-  mat = _H;
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
+PetscErrorCode SbpOps_c::getA(Mat &mat) { mat = _A; return 0; }
+PetscErrorCode SbpOps_c::getH(Mat &mat) { mat = _H; return 0; }
 
 
 // for energy balance

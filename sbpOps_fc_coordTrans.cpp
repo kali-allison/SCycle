@@ -28,6 +28,9 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
   if (_order == 2) { _alphaDy = -4.0/_dy; _alphaDz = -4.0/_dz; }
   else if (_order == 4) { _alphaDy = 2.0*-48.0/17.0 /_dy; _alphaDz = 2.0*-48.0/17.0 /_dz;  }
 
+  if (_order == 2) { _h11y = 0.5 * _dy;  _h11z = 0.5 * _dz; }
+  else if (_order == 4) { _h11y = 17.0/48.0 * _dy;  _h11z = 17.0/48.0 * _dz; }
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in SbpOps_fc_coordTrans.cpp.\n");
 #endif
@@ -914,41 +917,10 @@ PetscErrorCode SbpOps_fc_coordTrans::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,V
   return ierr;
 }
 
+PetscErrorCode SbpOps_fc_coordTrans::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; }
 
-PetscErrorCode SbpOps_fc_coordTrans::getA(Mat &mat)
-{
-  #if VERBOSE > 1
-    string funcName = "SbpOps_fc_coordTrans::getA";
-    string fileName = "SbpOps_fc_coordTrans.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-
-  // return shallow copy of A:
-  mat = _A;
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
-
-PetscErrorCode SbpOps_fc_coordTrans::getH(Mat &mat)
-{
-  #if VERBOSE > 1
-    string funcName = "SbpOps_fc_coordTrans::getH";
-    string fileName = "SbpOps_fc_coordTrans.cpp";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-
-  // return shallow copy of H:
-  mat = _H;
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
-  #endif
-  return 0;
-}
-
+PetscErrorCode SbpOps_fc_coordTrans::getA(Mat &mat) { mat = _A; return 0; }
+PetscErrorCode SbpOps_fc_coordTrans::getH(Mat &mat) { mat = _H; return 0; }
 PetscErrorCode SbpOps_fc_coordTrans::getDs(Mat &Dy,Mat &Dz) { Dy = _Dy_Iz; Dz = _Iy_Dz; return 0; }
 PetscErrorCode SbpOps_fc_coordTrans::getMus(Mat &mu,Mat &muqy,Mat &murz) { mu = _mu; muqy = _mu; murz = _mu; return 0; }
 PetscErrorCode SbpOps_fc_coordTrans::getEs(Mat& E0y_Iz,Mat& ENy_Iz,Mat& Iy_E0z,Mat& Iy_ENz)

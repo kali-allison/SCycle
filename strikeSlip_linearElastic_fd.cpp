@@ -9,7 +9,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
-  _deltaT(1e-3), _CFL(0),
+  _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
   _alphay(D._alphay), _alphaz(D._alphaz),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
@@ -23,6 +23,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _propagateTime(0),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("outGoingCharacteristics"),_bcBType("outGoingCharacteristics"),
+  _mat_bcRType("Neumann"),_mat_bcTType("Neumann"),_mat_bcLType("Neumann"),_mat_bcBType("Neumann"),
   _quadWaveEx(NULL),
   _fault(NULL),_material(NULL)
 {
@@ -34,100 +35,14 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  assert(_bcBType.compare("freeSurface")==0 || _bcBType.compare("outGoingCharacteristics")==0);
-  assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("outGoingCharacteristics")==0);
-  assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("outGoingCharacteristics")==0);
-  assert(_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0);
-  _mat_bcBType = "Neumann";
-  _mat_bcTType = "Neumann";
-  _mat_bcRType = "Neumann";
-  _mat_bcLType = "Neumann";
-
-  _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
-  _cs = *(&(_material->_cs));
-  _rhoVec = *(&(_material->_rhoVec));
-  _muVec = *(&(_material->_muVec));
-
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-    Mat J,Jinv,qy,rz,yq,zr;
-    _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-    Vec temp1, temp2;
-    VecDuplicate(_alphay, &temp1);
-    VecDuplicate(_alphay, &temp2);
-    MatMult(yq, _alphay, temp1);
-    MatMult(zr, _alphaz, temp2);
-    VecCopy(temp1, _alphay);
-    VecCopy(temp2, _alphaz);
-    VecCopy(temp1, D._alphay);
-    VecCopy(temp2, D._alphaz);
-    VecDestroy(&temp1);
-    VecDestroy(&temp2);
-  }
-
   _fault = new Fault_fd(D, D._scatters["body2L"]); // fault
+  _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
+  _cs = _material->_cs;
+  _rhoVec = _material->_rhoVec;
+  _muVec = _material->_muVec;
+  computePenaltyVectors();
 
-  // PetscInt Ii, Istart, Iend;
-  // PetscScalar *alphay, *alphaz;
-  // VecGetOwnershipRange(_alphay, &Istart, &Iend);
-  // VecGetArray(_alphay, &alphay);
-  // VecGetArray(_alphaz, &alphaz);
-  // for(Ii = Istart; Ii < Iend; ++Ii){
-  //   PetscPrintf(PETSC_COMM_WORLD, "%g, %g\n", alphay[Ii], alphaz[Ii]);
-  // }
-  // PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT);
-
-  if (_CFL !=0){
-    PetscInt max_index;
-    PetscScalar max_speed;
-    VecMax(_cs,&max_index,&max_speed);
-    // Change for variable grid spacing with min y_q 1 / (Ny - 1)
-    if (_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-
-      PetscInt index_z, index_y;
-      PetscScalar min_z, min_y;
-      Vec yy, zz;
-      VecDuplicate(*_y, &yy);
-      VecDuplicate(*_z, &zz);
-      MatGetDiagonal(yq, yy);
-      MatGetDiagonal(zr, zz);
-      VecMin(yy,&index_y,&min_y);
-      VecMin(zz,&index_z,&min_z);
-
-      _deltaT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
-    }
-    else{
-      _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
-    }
-  }
-  else{
-    PetscInt max_index;
-    PetscScalar max_speed, theoretical_dT;
-    VecMax(_cs,&max_index,&max_speed);
-    if (_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-
-      PetscInt index_z, index_y;
-      PetscScalar min_z, min_y;
-      Vec yy, zz;
-      VecDuplicate(*_y, &yy);
-      VecDuplicate(*_z, &zz);
-      MatGetDiagonal(yq, yy);
-      MatGetDiagonal(zr, zz);
-      VecMin(yy,&index_y,&min_y);
-      VecMin(zz,&index_z,&min_z);
-
-      theoretical_dT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
-    }
-    else{
-      theoretical_dT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
-    }
-    if (theoretical_dT > _deltaT){
-      PetscPrintf(PETSC_COMM_WORLD, "WARNING : The specified deltaT odes not meet the CFL requirements...");
-    }
-  }
+  computeTimeStep(); // compute time step
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -189,11 +104,13 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
     else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
     else if (var.compare("center_y")==0) { _yCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("center_z")==0) { _zCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("std_y")==0) { _yStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("std_z")==0) { _zStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("amp_U")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
@@ -246,34 +163,11 @@ PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
   // assert(_stride2D >= 1);
   assert(_atol >= 1e-14);
 
-    // check boundary condition types for momentum balance equation
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcRType.compare("freeSurface")==0 ||
-    _bcRType.compare("tau")==0 ||
-    _bcRType.compare("remoteLoading")==0 ||
-    _bcRType.compare("symm_fault")==0 ||
-    _bcRType.compare("rigid_fault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcTType.compare("freeSurface")==0 ||
-    _bcTType.compare("tau")==0 ||
-    _bcTType.compare("remoteLoading")==0 ||
-    _bcTType.compare("symm_fault")==0 ||
-    _bcTType.compare("rigid_fault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcLType.compare("freeSurface")==0 ||
-    _bcLType.compare("tau")==0 ||
-    _bcLType.compare("remoteLoading")==0 ||
-    _bcLType.compare("symm_fault")==0 ||
-    _bcLType.compare("rigid_fault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcBType.compare("freeSurface")==0 ||
-    _bcBType.compare("tau")==0 ||
-    _bcBType.compare("remoteLoading")==0 ||
-    _bcBType.compare("symm_fault")==0 ||
-    _bcBType.compare("rigid_fault")==0 );
+  // check boundary condition types for momentum balance equation
+  assert(_bcBType.compare("freeSurface")==0 || _bcBType.compare("outGoingCharacteristics")==0);
+  assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("outGoingCharacteristics")==0);
+  assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("outGoingCharacteristics")==0);
+  //~ assert(_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -721,8 +615,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   _propagateTime += MPI_Wtime() - startPropagation;
 
   if (_isFault.compare("true") == 0){
-  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
-}
+    ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  }
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
 
@@ -732,5 +626,128 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   VecCopy(_fault->_tauQSP, _fault->_tauP);
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
 
+  return ierr;
+}
+
+
+
+// compute allowed time step based on CFL condition and user input
+PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_fd::computeTimeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  // compute grid spacing in y and z
+  Vec dy, dz;
+  VecDuplicate(*_y,&dy);
+  VecDuplicate(*_y,&dz);
+  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    MatGetDiagonal(yq, dy);
+    MatGetDiagonal(zr, dz);
+  }
+  else {
+    VecSet(dy,_Ly/(_Ny-1.0));
+    VecSet(dz,_Lz/(_Nz-1.0));
+  }
+
+  // compute time for shear wave to travel 1 dy or dz
+  Vec ts_dy,ts_dz;
+  VecDuplicate(*_y,&ts_dy);
+  VecDuplicate(*_z,&ts_dz);
+  VecPointwiseDivide(ts_dy,dy,_cs);
+  VecPointwiseDivide(ts_dz,dz,_cs);
+  PetscScalar min_ts_dy, min_ts_dz;
+  VecMin(ts_dy,NULL,&min_ts_dy);
+  VecMin(ts_dz,NULL,&min_ts_dz);
+
+  // clean up memory usage
+  VecDestroy(&dy);
+  VecDestroy(&dz);
+  VecDestroy(&ts_dy);
+  VecDestroy(&ts_dz);
+
+  // largest possible time step permitted by CFL condition
+  PetscScalar max_deltaT = min(min_ts_dy,min_ts_dz);
+
+
+  // compute time step requested by user
+  PetscScalar cfl_deltaT = _CFL * max_deltaT;
+  PetscScalar request_deltaT = _deltaT;
+
+  _deltaT = max_deltaT; // ensure deltaT is assigned something sensible even if the conditionals have an error
+  if (request_deltaT <= 0. && cfl_deltaT <= 0.) {
+    // if user did not specify deltaT or CFL
+    _deltaT = max_deltaT;
+  }
+  else if (request_deltaT > 0. && cfl_deltaT <= 0.) {
+    // if user specified deltaT but not CFL
+    _deltaT = request_deltaT;
+    assert(request_deltaT > 0.);
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+    }
+  }
+  else if (request_deltaT <= 0. && cfl_deltaT > 0.) {
+    // if user specified CLF but not deltaT
+    _deltaT = cfl_deltaT;
+    assert(_CFL <= 1. && _CFL >= 0.);
+  }
+  else if (request_deltaT > 0. && cfl_deltaT > 0.) {
+    // if user specified both CLF and deltaT
+    _deltaT = request_deltaT;
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+    }
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// compute alphay and alphaz for use in time stepping routines
+PetscErrorCode strikeSlip_linearElastic_fd::computePenaltyVectors()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_fd::computePenaltyVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar h11y, h11z;
+  _material->_sbp->geth11(h11y, h11z);
+
+  // compute vectors
+  VecDuplicate(*_z, &_ay);
+  VecSet(_ay, 0.0);
+
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_ay,&Istart,&Iend);
+  PetscScalar *ay;
+  VecGetArray(_ay,&ay);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    ay[Jj] = 0;
+    if ( (Ii/_Nz == 0) && (_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii/_Nz == _Ny-1) && (_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii%_Nz == 0) && (_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
+    if ( ((Ii+1)%_Nz == 0) && (_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+    Jj++;
+  }
+  VecRestoreArray(_ay,&ay);
+
+  ierr = VecPointwiseMult(_ay, _ay, _cs);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }

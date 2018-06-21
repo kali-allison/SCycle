@@ -17,7 +17,7 @@
 #include "iceStream_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_fd.hpp"
-#include "strikeSlip_linearElastic_switch.hpp"
+#include "strikeSlip_linearElastic_qd_fd.hpp"
 #include "strikeSlip_powerLaw_switch.hpp"
 #include "strikeSlip_powerLaw_qd.hpp"
 
@@ -93,7 +93,7 @@ int runEqCycle(Domain& d)
   }
 
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
-    StrikeSlip_LinearElastic_switch m(d);
+    strikeSlip_linearElastic_qd_fd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     for (int i=0; i<d._numCycles; i++){

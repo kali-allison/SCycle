@@ -56,7 +56,9 @@ public:
     Mat    _AR,_AT,_AL,_AB,_rhsL,_rhsR,_rhsT,_rhsB; // pointer to currently used matrices
     Mat    _AR_N,_AT_N,_AL_N,_AB_N,_rhsL_N,_rhsR_N,_rhsT_N,_rhsB_N; // for Neumann conditions
     Mat    _AR_D,_AT_D,_AL_D,_AB_D,_rhsL_D,_rhsR_D,_rhsT_D,_rhsB_D; // for Dirichlet conditions
+
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta; // boundary condition penalty weights
+    PetscScalar _h11y,_h11z;
 
     // coordinate transformation
     Mat _muqy,_murz,_yq,_zr,_qy,_rz,_J,_Jinv;
@@ -114,6 +116,9 @@ public:
     PetscErrorCode HyinvxENy(const Vec &in, Vec &out); // out = Hy^-1 * ENy * in
     PetscErrorCode HzinvxE0z(const Vec &in, Vec &out); // out = Hz^-1 * e0z * in
     PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
+
+    // return penalty weight h11 (the first element of the H matrix)
+    PetscErrorCode geth11(PetscScalar &h11y, PetscScalar &h11z);
 
     // allow access to matrices
     PetscErrorCode getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr);

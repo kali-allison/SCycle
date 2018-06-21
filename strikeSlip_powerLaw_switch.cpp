@@ -32,6 +32,7 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
   _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
+  _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
   _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
   _fault_qd(NULL),_fault_dyn(NULL), _material(NULL),_he(NULL),_p(NULL),
   _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
@@ -44,17 +45,16 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
 
   loadSettings(D._file);
   checkInput();
-  // if (_thermalCoupling.compare("no")!=0) { // heat equation
-    _he = new HeatEquation(D);
-  // }
-  _fault_qd = new Fault_qd(D,D._scatters["body2L"]); // fault
 
+  _fault_qd = new Fault_qd(D,D._scatters["body2L"]); // fault
+  _fault_dyn = new Fault_fd(D, D._scatters["body2L"]); // fault
+
+  _he = new HeatEquation(D);
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
     _fault_qd->setThermalFields(T,_he->_k,_he->_c);
   }
-
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -93,119 +93,15 @@ StrikeSlip_PowerLaw_switch::StrikeSlip_PowerLaw_switch(Domain&D)
     _mat_qd_bcBType = "Neumann";
   }
 
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcRType.compare("freeSurface")==0 ||
-    _qd_bcRType.compare("tau")==0 ||
-    _qd_bcRType.compare("remoteLoading")==0 ||
-    _qd_bcRType.compare("symm_fault")==0 ||
-    _qd_bcRType.compare("rigid_fault")==0 );
-
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcTType.compare("freeSurface")==0 ||
-    _qd_bcTType.compare("tau")==0 ||
-    _qd_bcTType.compare("remoteLoading")==0 ||
-    _qd_bcTType.compare("symm_fault")==0 ||
-    _qd_bcTType.compare("rigid_fault")==0 );
-
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcLType.compare("freeSurface")==0 ||
-    _qd_bcLType.compare("tau")==0 ||
-    _qd_bcLType.compare("remoteLoading")==0 ||
-    _qd_bcLType.compare("symm_fault")==0 ||
-    _qd_bcLType.compare("rigid_fault")==0 );
-
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcBType.compare("freeSurface")==0 ||
-    _qd_bcBType.compare("tau")==0 ||
-    _qd_bcBType.compare("remoteLoading")==0 ||
-    _qd_bcBType.compare("symm_fault")==0 ||
-    _qd_bcBType.compare("rigid_fault")==0 );
-
-  _mat_dyn_bcBType = "Neumann";
-  _mat_dyn_bcTType = "Neumann";
-  _mat_dyn_bcRType = "Neumann";
-  _mat_dyn_bcLType = "Neumann";
-
   if (_guessSteadyStateICs) { _material = new PowerLaw(D,*_he,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new PowerLaw(D,*_he,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
 
-  _cs = *(&(_material->_cs));
-  _rhoVec = *(&(_material->_rhoVec));
-  _muVec = *(&(_material->_muVec));
+  _cs = _material->_cs;
+  _rhoVec = _material->_rhoVec;
+  _muVec = _material->_muVec;
+  computePenaltyVectors();
 
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-    Mat J,Jinv,qy,rz,yq,zr;
-    _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-    Vec temp1, temp2;
-    VecDuplicate(_alphay, &temp1);
-    VecDuplicate(_alphay, &temp2);
-    MatMult(yq, _alphay, temp1);
-    MatMult(zr, _alphaz, temp2);
-    VecCopy(temp1, _alphay);
-    VecCopy(temp2, _alphaz);
-    VecCopy(temp1, D._alphay);
-    VecCopy(temp2, D._alphaz);
-    VecDestroy(&temp1);
-    VecDestroy(&temp2);
-  }
-
-  _fault_dyn = new Fault_fd(D, D._scatters["body2L"]); // fault
-
-  // Change CFL deltaT
-  if (_CFL !=0){
-    PetscInt max_index;
-    PetscScalar max_speed;
-    VecMax(_cs,&max_index,&max_speed);
-    // Change for variable grid spacing with min y_q 1 / (Ny - 1)
-    if (_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-
-      PetscInt index_z, index_y;
-      PetscScalar min_z, min_y;
-      Vec yy, zz;
-      VecDuplicate(*_y, &yy);
-      VecDuplicate(*_z, &zz);
-      MatGetDiagonal(yq, yy);
-      MatGetDiagonal(zr, zz);
-      VecMin(yy,&index_y,&min_y);
-      VecMin(zz,&index_z,&min_z);
-
-      _deltaT = 0.5 * _CFL / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
-    }
-    else{
-      _deltaT = 0.5 * _CFL / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
-    }
-  }
-  else{
-    PetscInt max_index;
-    PetscScalar max_speed, theoretical_dT;
-    VecMax(_cs,&max_index,&max_speed);
-    if (_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
-
-      PetscInt index_z, index_y;
-      PetscScalar min_z, min_y;
-      Vec yy, zz;
-      VecDuplicate(*_y, &yy);
-      VecDuplicate(*_z, &zz);
-      MatGetDiagonal(yq, yy);
-      MatGetDiagonal(zr, zz);
-      VecMin(yy,&index_y,&min_y);
-      VecMin(zz,&index_z,&min_z);
-
-      PetscScalar cfl = 0.5;
-      theoretical_dT = 0.5 * cfl / max_speed * min(min_y / (_Ny - 1), min_z / (_Nz - 1));
-    }
-    else{
-      PetscScalar cfl = 0.5;
-      theoretical_dT = 0.5 * cfl / max_speed * min(_Ly / (_Ny - 1), _Lz / (_Nz - 1));
-    }
-    if (theoretical_dT > _deltaT){
-      PetscPrintf(PETSC_COMM_WORLD, "WARNING : The specified deltaT odes not meet the CFL requirements...");
-    }
-  }
+  computeTimeStep(); // compute time step
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -468,6 +364,135 @@ PetscErrorCode StrikeSlip_PowerLaw_switch::checkInput()
   #endif
   return ierr;
 }
+
+
+
+
+// compute allowed time step based on CFL condition and user input
+PetscErrorCode StrikeSlip_PowerLaw_switch::computeTimeStep()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::computeTimeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  // compute grid spacing in y and z
+  Vec dy, dz;
+  VecDuplicate(*_y,&dy);
+  VecDuplicate(*_y,&dz);
+  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    MatGetDiagonal(yq, dy);
+    MatGetDiagonal(zr, dz);
+  }
+  else {
+    VecSet(dy,_Ly/(_Ny-1.0));
+    VecSet(dz,_Lz/(_Nz-1.0));
+  }
+
+  // compute time for shear wave to travel 1 dy or dz
+  Vec ts_dy,ts_dz;
+  VecDuplicate(*_y,&ts_dy);
+  VecDuplicate(*_z,&ts_dz);
+  VecPointwiseDivide(ts_dy,dy,_cs);
+  VecPointwiseDivide(ts_dz,dz,_cs);
+  PetscScalar min_ts_dy, min_ts_dz;
+  VecMin(ts_dy,NULL,&min_ts_dy);
+  VecMin(ts_dz,NULL,&min_ts_dz);
+
+  // clean up memory usage
+  VecDestroy(&dy);
+  VecDestroy(&dz);
+  VecDestroy(&ts_dy);
+  VecDestroy(&ts_dz);
+
+  // largest possible time step permitted by CFL condition
+  PetscScalar max_deltaT = min(min_ts_dy,min_ts_dz);
+
+
+  // compute time step requested by user
+  PetscScalar cfl_deltaT = _CFL * max_deltaT;
+  PetscScalar request_deltaT = _deltaT;
+
+  _deltaT = max_deltaT; // ensure deltaT is assigned something sensible even if the conditionals have an error
+  if (request_deltaT <= 0. && cfl_deltaT <= 0.) {
+    // if user did not specify deltaT or CFL
+    _deltaT = max_deltaT;
+  }
+  else if (request_deltaT > 0. && cfl_deltaT <= 0.) {
+    // if user specified deltaT but not CFL
+    _deltaT = request_deltaT;
+    assert(request_deltaT > 0.);
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+    }
+  }
+  else if (request_deltaT <= 0. && cfl_deltaT > 0.) {
+    // if user specified CLF but not deltaT
+    _deltaT = cfl_deltaT;
+    assert(_CFL <= 1. && _CFL >= 0.);
+  }
+  else if (request_deltaT > 0. && cfl_deltaT > 0.) {
+    // if user specified both CLF and deltaT
+    _deltaT = request_deltaT;
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
+    }
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// compute alphay and alphaz for use in time stepping routines
+PetscErrorCode StrikeSlip_PowerLaw_switch::computePenaltyVectors()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_switch::computePenaltyVectors";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscScalar h11y, h11z;
+  _material->_sbp->geth11(h11y, h11z);
+
+  // compute vectors
+  VecDuplicate(*_z, &_ay);
+  VecSet(_ay, 0.0);
+
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_ay,&Istart,&Iend);
+  PetscScalar *ay;
+  VecGetArray(_ay,&ay);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    ay[Jj] = 0;
+    if ( (Ii/_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii/_Nz == _Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii%_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
+    if ( ((Ii+1)%_Nz == 0) && (_dyn_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+    Jj++;
+  }
+  VecRestoreArray(_ay,&ay);
+
+  ierr = VecPointwiseMult(_ay, _ay, _cs);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+
+
 
 PetscErrorCode StrikeSlip_PowerLaw_switch::integrate(){
   PetscErrorCode ierr = 0;

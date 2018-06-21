@@ -78,6 +78,7 @@ class SbpOps_c : public SbpOps
 
     // boundary condition penalty weights
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta;
+    PetscScalar _h11y,_h11z;
 
     // various SBP factors
     Mat _A;
@@ -112,6 +113,9 @@ class SbpOps_c : public SbpOps
 
     // allow variable coefficient to change
     PetscErrorCode updateVarCoeff(const Vec& coeff);
+
+    // return penalty weight h11 (the first element of the H matrix)
+    PetscErrorCode geth11(PetscScalar &h11y, PetscScalar &h11z);
 
 
     // functions to compute various derivatives of input vectors (this

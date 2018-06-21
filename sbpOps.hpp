@@ -61,6 +61,9 @@ class SbpOps
     // allow variable coefficient to change
     virtual PetscErrorCode updateVarCoeff(const Vec& coeff) = 0;
 
+    // return penalty weight h11 (the first element of the H matrix)
+    virtual PetscErrorCode geth11(PetscScalar &h11y, PetscScalar &h11z) = 0;
+
     // allow access to matrices
     virtual PetscErrorCode getA(Mat &mat) = 0;
     virtual PetscErrorCode getH(Mat &mat) = 0;

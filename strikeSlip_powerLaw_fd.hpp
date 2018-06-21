@@ -26,9 +26,9 @@
 
 
 /*
- * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
- *  with linear elastic material properties.
- * Uses the quasi-dynamic approximation.
+ * Mediator-level class for the simulation of a single fully dynamic
+ * earthquake on a vertical strike-slip fault with power-law viscoelastic
+ * off-fault material properties.
  */
 
 
@@ -86,6 +86,8 @@ private:
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode computeTimeStep();
+    PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
     OdeSolver_WaveImex          *_quadWaveImex;

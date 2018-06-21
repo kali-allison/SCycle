@@ -25,17 +25,15 @@
 
 
 /*
- * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
- * with linear elastic material properties.
- *
- * Fully dynamic
- *
+ * Mediator-level class for the simulation of earthquake a single fully
+ * dynamic earthquake with linear elastic off-fault material properties.
  */
 
 
 class strikeSlip_linearElastic_fd: public IntegratorContextWave
 {
-private:
+  private:
+
     // disable default copy constructor and assignment operator
     strikeSlip_linearElastic_fd(const strikeSlip_linearElastic_fd &that);
     strikeSlip_linearElastic_fd& operator=(const strikeSlip_linearElastic_fd &rhs);
@@ -52,15 +50,15 @@ private:
     PetscScalar          _deltaT, _CFL;
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec          _alphay, _alphaz;
+    Vec                  _alphay, _alphaz;
     std::string          _outputDir; // output data
     const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar    _vL;
+    PetscScalar          _vL;
     std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _initialConditions, _inputDir;
-    int          _guessSteadyStateICs; // 0 = no, 1 = yes
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -84,14 +82,15 @@ private:
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
-
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode computeTimeStep();
+    PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
-    OdeSolver_WaveEq          *_quadWaveEx;
 
-    Fault_fd               *_fault;
+    OdeSolver_WaveEq          *_quadWaveEx;
+    Fault_fd                   *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
 
 

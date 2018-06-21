@@ -60,6 +60,7 @@ class SbpOps_fc : public SbpOps
 
     // boundary condition penalty weights
     PetscScalar _alphaT,_alphaDy,_alphaDz,_beta;
+    PetscScalar _h11y,_h11z;
 
     // various SBP factors
     Mat _A;
@@ -114,6 +115,9 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode HyinvxENy(const Vec &in, Vec &out); // out = Hy^-1 * ENy * in
     PetscErrorCode HzinvxE0z(const Vec &in, Vec &out); // out = Hz^-1 * e0z * in
     PetscErrorCode HzinvxENz(const Vec &in, Vec &out); // out = Hz^-1 * eNz * in
+
+    // return penalty weight h11 (the first element of the H matrix)
+    PetscErrorCode geth11(PetscScalar &h11y, PetscScalar &h11z);
 
     // allow access to matrices
     PetscErrorCode getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz, Mat& yq, Mat& zr);
