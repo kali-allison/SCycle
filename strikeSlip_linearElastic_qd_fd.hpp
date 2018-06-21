@@ -68,7 +68,7 @@ private:
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat, _savedU;
     Vec                  _alphay, _alphaz;
-    Vec                  _bcrOffsetVector;
+
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time

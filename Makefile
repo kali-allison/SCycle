@@ -23,7 +23,7 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm main.o
+	-rm *.o
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}

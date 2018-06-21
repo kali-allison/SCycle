@@ -1071,7 +1071,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 }
 
 Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
-: Fault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_rhoLocal(NULL),
+: Fault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_alphay(NULL),
   _timeMode("None"), _isLocked("False"),
   _lockLimit(25.0)
 {
@@ -1086,6 +1086,7 @@ Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
   VecDuplicate(_tauQSP,&_Phi); PetscObjectSetName((PetscObject) _Phi, "Phi");VecSet(_Phi, 0.0);
   VecDuplicate(_tauQSP,&_constraints_factor); PetscObjectSetName((PetscObject) _constraints_factor, "constraintsFactor");VecSet(_constraints_factor, 0.0);
   VecDuplicate(_tauQSP,&_an); PetscObjectSetName((PetscObject) _an, "an");VecSet(_an, 0.0);
+  VecDuplicate(_tauQSP,&_alphay); PetscObjectSetName((PetscObject) _alphay, "alphay");VecSet(_alphay, 17.0/48.0 / (_N-1));
 
   loadSettings(_inputFile);
 
@@ -1311,7 +1312,6 @@ PetscErrorCode Fault_fd::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoV
   VecDuplicate(_tauP, &u);
   VecDuplicate(_tauP, &du);
   VecDuplicate(_tauP, &uPrev);
-  VecDuplicate(_tauP, &_alphay);
   VecSet(u, 0);
   VecSet(du, 0);
   VecSet(uPrev, 0);
@@ -1328,12 +1328,6 @@ PetscErrorCode Fault_fd::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoV
 
   VecScatterBegin(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, _rhoVec, _rhoLocal, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(*_body2fault, _D->_alphay, _alphay, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, _D->_alphay, _alphay, INSERT_VALUES, SCATTER_FORWARD);
 
   _scatterTime += MPI_Wtime() - scatterStart;
 
@@ -1387,65 +1381,65 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-// compute slip velocity
-ierr = setPhi(varEx, dvarEx, deltaT);
-double startTime = MPI_Wtime();
-ierr = computeVel();CHKERRQ(ierr);
-double intermediateTime = MPI_Wtime();
+  // compute slip velocity
+  ierr = setPhi(varEx, dvarEx, deltaT);
+  double startTime = MPI_Wtime();
+  ierr = computeVel();CHKERRQ(ierr);
+  double intermediateTime = MPI_Wtime();
 
-_computeVelTime += intermediateTime - startTime;
-PetscInt       Ii,Istart,Iend;
-PetscInt       Jj = 0;
-PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z, *alphay;
-ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
-ierr = VecGetArray(varEx["uFault"], &u);
-ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
-ierr = VecGetArray(_an, &an);
-ierr = VecGetArray(_slipVel, &slipVel);
-ierr = VecGetArray(_rhoLocal, &rho);
-ierr = VecGetArray(_psi, &psi);
-ierr = VecGetArray(_sNEff, &sigma_N);
-ierr = VecGetArray(_a, &a);
-ierr = VecGetArray(_Phi, &Phi);
-ierr = VecGetArray(_slip, &slip);
-ierr = VecGetArray(dvarEx["slip"], &vel);
-ierr = VecGetArray(_z, &z);
-ierr = VecGetArray(_alphay, &alphay);
-PetscScalar *b;
-ierr = VecGetArray(_b, &b);
+  _computeVelTime += intermediateTime - startTime;
+  PetscInt       Ii,Istart,Iend;
+  PetscInt       Jj = 0;
+  PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z, *alphay;
+  ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetArray(varEx["uFault"], &u);
+  ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
+  ierr = VecGetArray(_an, &an);
+  ierr = VecGetArray(_slipVel, &slipVel);
+  ierr = VecGetArray(_rho, &rho);
+  ierr = VecGetArray(_psi, &psi);
+  ierr = VecGetArray(_sNEff, &sigma_N);
+  ierr = VecGetArray(_a, &a);
+  ierr = VecGetArray(_Phi, &Phi);
+  ierr = VecGetArray(_slip, &slip);
+  ierr = VecGetArray(dvarEx["slip"], &vel);
+  ierr = VecGetArray(_z, &z);
+  ierr = VecGetArray(_alphay, &alphay);
+  PetscScalar *b;
+  ierr = VecGetArray(_b, &b);
 
-for (Ii = Istart; Ii<Iend; Ii++){
+  for (Ii = Istart; Ii<Iend; Ii++){
 
-  if (slipVel[Jj] < 1e-14){
-    vel[Jj] = 0;
-    slipVel[Jj] = 0;
+    if (slipVel[Jj] < 1e-14){
+      vel[Jj] = 0;
+      slipVel[Jj] = 0;
+    }
+    else{
+      fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
+      alpha = 1 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
+      A = 1 + alpha * _deltaT;
+      uTemp = uPrev[Jj];
+      uPrev[Jj] = u[Jj];
+      u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
+      vel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
+      slipVel[Jj] = vel[Jj];
+    }
+    slip[Jj] = 2. * u[Jj];
+    Jj++;
   }
-  else{
-    fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
-    alpha = 1 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
-    A = 1 + alpha * _deltaT;
-    uTemp = uPrev[Jj];
-    uPrev[Jj] = u[Jj];
-    u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
-    vel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
-    slipVel[Jj] = vel[Jj];
-  }
-  slip[Jj] = 2. * u[Jj];
-  Jj++;
-}
-ierr = VecRestoreArray(varEx["uFault"], &u);
-ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
-ierr = VecRestoreArray(_an, &an);
-ierr = VecRestoreArray(_slipVel, &slipVel);
-ierr = VecRestoreArray(_rhoLocal, &rho);
-ierr = VecRestoreArray(_psi, &psi);
-ierr = VecRestoreArray(_sNEff, &sigma_N);
-ierr = VecRestoreArray(_a, &a);
-ierr = VecRestoreArray(_Phi, &Phi);
-ierr = VecRestoreArray(_slip, &slip);
-ierr = VecRestoreArray(dvarEx["slip"], &vel);
-ierr = VecRestoreArray(_z, &z);
-ierr = VecRestoreArray(_alphay, &alphay);
+  ierr = VecRestoreArray(varEx["uFault"], &u);
+  ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
+  ierr = VecRestoreArray(_an, &an);
+  ierr = VecRestoreArray(_slipVel, &slipVel);
+  ierr = VecRestoreArray(_rho, &rho);
+  ierr = VecRestoreArray(_psi, &psi);
+  ierr = VecRestoreArray(_sNEff, &sigma_N);
+  ierr = VecRestoreArray(_a, &a);
+  ierr = VecRestoreArray(_Phi, &Phi);
+  ierr = VecRestoreArray(_slip, &slip);
+  ierr = VecRestoreArray(dvarEx["slip"], &vel);
+  ierr = VecRestoreArray(_z, &z);
+  ierr = VecRestoreArray(_alphay, &alphay);
 
   double scatterStart = MPI_Wtime();
 
@@ -1458,12 +1452,12 @@ ierr = VecRestoreArray(_alphay, &alphay);
   _scatterTime += MPI_Wtime() - scatterStart;
 
 
-// compute state parameter law
-double startAgingTime = MPI_Wtime();
-computeStateEvolution();
-_stateLawTime += MPI_Wtime() - startAgingTime;
+  // compute state parameter law
+  double startAgingTime = MPI_Wtime();
+  computeStateEvolution();
+  _stateLawTime += MPI_Wtime() - startAgingTime;
 
-VecAXPY(_slip, 1.0, _slip0);
+  VecAXPY(_slip, 1.0, _slip0);
 
 #if VERBOSE > 1
 PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1495,7 +1489,7 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   ierr = VecGetArray(varEx["uFault"], &u);
   ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
   ierr = VecGetArray(varEx["duFault"], &Laplacian);
-  ierr = VecGetArray(_rhoLocal, &rho);
+  ierr = VecGetArray(_rho, &rho);
   ierr = VecGetArray(_psi, &psi);
   ierr = VecGetArray(_sNEff, &sigma_N);
   ierr = VecGetArray(_tau0, &tau0);
@@ -1507,7 +1501,7 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   ierr = VecGetArray(_constraints_factor, &constraints_factor);
   ierr = VecGetArray(_alphay, &alphay);
 
-  for (Ii=IFaultStart;Ii<IFaultEnd;Ii++){
+  for (Ii = IFaultStart; Ii < IFaultEnd; Ii++){
     an[Jj] = Laplacian[Jj] + tau0[Jj] / alphay[Jj];
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     constraints_factor[Jj] = deltaT / alphay[Jj] / rho[Jj];
@@ -1518,7 +1512,7 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   ierr = VecRestoreArray(varEx["uFault"], &u);
   ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
   ierr = VecRestoreArray(varEx["duFault"], &Laplacian);
-  ierr = VecRestoreArray(_rhoLocal, &rho);
+  ierr = VecRestoreArray(_rho, &rho);
   ierr = VecRestoreArray(_psi, &psi);
   ierr = VecRestoreArray(_sNEff, &sigma_N);
   ierr = VecRestoreArray(_tau0, &tau0);

@@ -8,7 +8,7 @@ Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_problemType("strikeSlip"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),
-  _isMMS(0),_loadICs(0),_numCycles(1), _inputDir("unspecified"),
+  _isMMS(0),_loadICs(0),_numCycles(1), _inputDir("unspecified_"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),

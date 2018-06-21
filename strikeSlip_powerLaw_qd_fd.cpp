@@ -14,10 +14,9 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _guessSteadyStateICs(0.),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),
-  _deltaT(1e-3), _CFL(0),
+  _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
   _Fhat(NULL),_savedU(NULL),
-  _alphay(D._alphay), _alphaz(D._alphaz),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),
   _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),_stride1D_dyn_long(1),_stride2D_dyn_long(1),
@@ -462,8 +461,29 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computePenaltyVectors()
   PetscScalar h11y, h11z;
   _material->_sbp->geth11(h11y, h11z);
 
+  Vec alphay,alphaz;
+  VecDuplicate(*_y, &alphay); VecSet(alphay,h11y);
+  VecDuplicate(*_y, &alphaz); VecSet(alphaz,h11z);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
+    Vec temp1, temp2;
+    VecDuplicate(alphay, &temp1);
+    VecDuplicate(alphay, &temp2);
+    MatMult(yq, alphay, temp1);
+    MatMult(zr, alphaz, temp2);
+    VecCopy(temp1, alphay);
+    VecCopy(temp2, alphaz);
+    VecDestroy(&temp1);
+    VecDestroy(&temp2);
+  }
+  VecScatterBegin(_D->_scatters["body2L"], alphay, _fault_dyn->_alphay, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2L"], alphay, _fault_dyn->_alphay, INSERT_VALUES, SCATTER_FORWARD);
+  VecDestroy(&alphay);
+  VecDestroy(&alphaz);
+
   // compute vectors
-  VecDuplicate(*_z, &_ay);
+  VecDuplicate(*_y, &_ay);
   VecSet(_ay, 0.0);
 
   PetscInt Ii,Istart,Iend;
@@ -1752,9 +1772,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt_dyn(const PetscScalar time, map<s
   else if (_qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_dyn->_slip,_material->_bcL);CHKERRQ(ierr);
   }
-  // ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  // ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR, 1.0, _bcrOffsetVector);
+  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   return ierr;
 }
@@ -1883,9 +1902,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_dyn()
     _stride2D = stride2d;
   }
 
-  VecDuplicate(_material->_bcR, &_bcrOffsetVector);
-  VecSet(_bcrOffsetVector, _vL / 2.0 * _deltaT);
-
   Vec uPrev;
   VecDuplicate(_material->_u, &uPrev);
   VecCopy(_material->_u, uPrev);
@@ -1976,38 +1992,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_dyn()
   VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
   VecSet(_varEx["uPrev"], 0.0);
 
-  PetscInt Ii,Istart,Iend;
-  PetscInt Jj = 0;
-    // Create matrix _ay
-    VecDuplicate(*_z, &_ay);
-    VecSet(_ay, 0.0);
-    Vec _ay_temp, _az_temp;
-    VecDuplicate(*_z, &_ay_temp);
-    VecSet(_ay_temp, 0.0);
-    VecDuplicate(*_z, &_az_temp);
-    VecSet(_az_temp, 0.0);
-
-    PetscScalar *ay, *alphay, *alphaz;
-    VecGetOwnershipRange(*_y,&Istart,&Iend);
-    VecGetArray(_ay,&ay);
-    VecGetArray(_alphay, &alphay);
-    VecGetArray(_alphaz, &alphaz);
-    Jj = 0;
-
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      ay[Jj] = 0;
-      if ((Ii/_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
-      if ((Ii/_Nz == _Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphay[Jj];}
-      if ((Ii%_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}
-      if (((Ii+1)%_Nz == 0) && (_dyn_bcBType.compare("outGoingCharacteristics") == 0)){ay[Jj] += 0.5 / alphaz[Jj];}
-      Jj++;
-    }
-
-    VecRestoreArray(_ay,&ay);
-    VecRestoreArray(_alphay, &alphay);
-    VecRestoreArray(_alphaz, &alphaz);
-
-    ierr = VecPointwiseMult(_ay, _ay, _cs);
 
   _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 

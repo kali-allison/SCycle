@@ -161,7 +161,7 @@ class Fault_fd: public Fault
     Vec                 _rhoLocal;
     IS                  _is;
     PetscScalar         _deltaT;
-    Vec         _alphay, _alphaz;
+    Vec                 _alphay, _alphaz;
 
     PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode, _isLocked;

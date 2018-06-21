@@ -66,8 +66,8 @@ private:
     Vec                  *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat, _savedU;
-    Vec                  _alphay, _alphaz;
-    Vec                  _bcrOffsetVector;
+
+
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
@@ -112,22 +112,22 @@ private:
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
-    OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
-    OdeSolverImex       *_quadImex_qd, *_quadImex_switch; // implicit time stepping
-    OdeSolver_WaveEq          *_quadWaveEx;
-    OdeSolver_WaveImex          *_quadWaveImex;
 
-    //~ Fault                      *_fault;
-    Fault_qd                *_fault_qd;
-    Fault_fd               *_fault_dyn;
+    OdeSolver             *_quadEx_qd, *_quadEx_switch; // explicit time stepping
+    OdeSolverImex         *_quadImex_qd, *_quadImex_switch; // implicit time stepping
+    OdeSolver_WaveEq      *_quadWaveEx;
+    OdeSolver_WaveImex    *_quadWaveImex;
+
+    Fault_qd              *_fault_qd;
+    Fault_fd              *_fault_dyn;
     PowerLaw              *_material; // linear elastic off-fault material properties
-    HeatEquation               *_he;
-    PressureEq                 *_p;
+    HeatEquation          *_he;
+    PressureEq            *_p;
 
 
-    std::map <string,Vec>                             _varSS; // holds variables for steady state iteration
-    PetscScalar                                       _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
-    PetscScalar                                       _gss_t; // guess steady state strain rate
+    std::map <string,Vec>    _varSS; // holds variables for steady state iteration
+    PetscScalar              _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    PetscScalar              _gss_t; // guess steady state strain rate
     PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
     PetscScalar              _atolSS_effVisc;
 
