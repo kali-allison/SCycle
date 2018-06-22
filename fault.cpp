@@ -1072,7 +1072,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
 Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
 : Fault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_alphay(NULL),
-  _timeMode("None"), _isLocked("False"),
+  _timeMode("None"),
   _lockLimit(25.0)
 {
   #if VERBOSE > 1
@@ -1149,9 +1149,7 @@ PetscErrorCode Fault_fd::loadSettings(const char *file)
     else if (var.compare("timeMode")==0) {
       _timeMode = line.substr(pos+_delim.length(),line.npos);
     }
-    else if (var.compare("isLocked")==0) {
-      _isLocked = line.substr(pos+_delim.length(),line.npos);
-    }
+
     else if (var.compare("lockLimit")==0) {
       _lockLimit = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }

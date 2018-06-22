@@ -163,8 +163,8 @@ class Fault_fd: public Fault
     PetscScalar         _deltaT;
     Vec                 _alphay, _alphaz;
 
-    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
-    std::string         _timeMode, _isLocked;
+    PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+    std::string         _timeMode;
     PetscScalar         _lockLimit;
 
     Fault_fd(Domain&, VecScatter& scatter2fault);

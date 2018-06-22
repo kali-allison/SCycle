@@ -201,31 +201,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   if (_inputDir.compare("unspecified") != 0){
 
-    ierr = loadFileIfExists_matlab(_inputDir+"u", _varEx["u"]);
-    if (ierr == 1){
-        PetscInt Ii,Istart,Iend;
-        PetscInt Jj = 0;
-
-      if (_initialConditions.compare("u") == 0){
-        PetscScalar *u, *uPrev, *y, *z;
-        VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
-        VecGetArray(_varEx["u"],&u);
-        VecGetArray(_varEx["uPrev"],&uPrev);
-        VecGetArray(*_y, &y);
-        VecGetArray(*_z, &z);
-
-        for (Ii=Istart;Ii<Iend;Ii++) {
-          u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-          uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-          Jj++;
-        }
-        VecRestoreArray(*_y,&y);
-        VecRestoreArray(*_z,&z);
-        VecRestoreArray(_varEx["u"],&u);
-        VecRestoreArray(_varEx["uPrev"],&uPrev);
-      }
-    }
-
     ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
     if (ierr == 1){
       VecCopy(_varEx["u"], _varEx["uPrev"]);
@@ -257,32 +232,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
       }
     ierr = 0;
     }
-
-  else{
-
-  PetscInt Ii,Istart,Iend;
-  PetscInt Jj = 0;
-
-  if (_initialConditions.compare("u") == 0){
-    PetscScalar *u, *uPrev, *y, *z;
-    VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
-    VecGetArray(_varEx["u"],&u);
-    VecGetArray(_varEx["uPrev"],&uPrev);
-    VecGetArray(*_y, &y);
-    VecGetArray(*_z, &z);
-
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-      uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-      Jj++;
-    }
-    VecRestoreArray(*_y,&y);
-    VecRestoreArray(*_z,&z);
-    VecRestoreArray(_varEx["u"],&u);
-    VecRestoreArray(_varEx["uPrev"],&uPrev);
-  }
-
-  }
 
   _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
 
