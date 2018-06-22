@@ -591,6 +591,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
 
 
 // compute allowed time step based on CFL condition and user input
+// deltaT <= * gcfl * min(dy/cs, dz/cs)
 PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
 {
   PetscErrorCode ierr = 0;
@@ -598,6 +599,11 @@ PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
     std::string funcName = "strikeSlip_linearElastic_fd::computeTimeStep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  // coefficient for CFL condition
+  PetscScalar gcfl = 0.7071; // if order = 2
+  if (_order == 4) { gcfl = 0.7071/sqrt(1.4498); }
+  if (_order == 6) { gcfl = 0.7071/sqrt(2.1579); }
 
 
   // compute grid spacing in y and z
@@ -607,8 +613,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
   if (_D->_sbpType.compare("mfc_coordTrans")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    MatGetDiagonal(yq, dy);
-    MatGetDiagonal(zr, dz);
+    MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_Ny-1));
+    MatGetDiagonal(zr, dz); VecScale(dz,1.0/(_Nz-1));
   }
   else {
     VecSet(dy,_Ly/(_Ny-1.0));
@@ -632,11 +638,11 @@ PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
   VecDestroy(&ts_dz);
 
   // largest possible time step permitted by CFL condition
-  PetscScalar max_deltaT = min(min_ts_dy,min_ts_dz);
+  PetscScalar max_deltaT = gcfl * min(min_ts_dy,min_ts_dz);
 
 
   // compute time step requested by user
-  PetscScalar cfl_deltaT = _CFL * max_deltaT;
+  PetscScalar cfl_deltaT = _CFL * gcfl *  max_deltaT;
   PetscScalar request_deltaT = _deltaT;
 
   _deltaT = max_deltaT; // ensure deltaT is assigned something sensible even if the conditionals have an error
