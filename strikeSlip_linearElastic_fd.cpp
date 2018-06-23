@@ -551,7 +551,7 @@ double startPropagation = MPI_Wtime();
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
-  VecCopy(varEx["u"], _material->_u);
+
   VecDestroy(&uNext);
   VecDestroy(&ones);
   VecDestroy(&correction);
@@ -562,7 +562,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
-
+  VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
