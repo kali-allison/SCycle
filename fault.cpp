@@ -1521,20 +1521,18 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
     std::string funcName = "Fault_fd::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  PetscInt       Ii,IStart, IEnd;
+
 
   // TODO: want to eventually get rid of this
-  VecScatterBegin(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
-  VecCopy(varEx["duFault"],_d2u);
+  //~ VecScatterBegin(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecCopy(varEx["duFault"],_d2u);
 
+  PetscInt       Ii,Istart, Iend;
+  ierr = VecGetOwnershipRange(_d2u,&Istart,&Iend);CHKERRQ(ierr);
 
-  ierr = VecGetOwnershipRange(_d2u,&IStart,&IEnd);CHKERRQ(ierr);
-
-  //~ PetscScalar *u, *uPrev, *d2u, *rho, *tau0, *slipVel, *an, *Phi, *fricPen, *slipVelPrev, *slipVelocity, *alphay;
   PetscScalar  *an, *Phi, *fricPen, *slipVelPrev, *slipVelocity, *slipVel;
   const PetscScalar *u, *uPrev, *d2u, *rho, *tau0, *alphay;
-
 
   ierr = VecGetArray(_an, &an);
   ierr = VecGetArray(_Phi, &Phi);
@@ -1550,7 +1548,7 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   ierr = VecGetArrayRead(_alphay, &alphay);
 
   PetscInt Jj = 0;
-  for (Ii = IStart; Ii < IEnd; Ii++){
+  for (Ii = Istart; Ii < Iend; Ii++){
     an[Jj] = d2u[Jj] + tau0[Jj] / alphay[Jj];
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     fricPen[Jj] = deltaT / alphay[Jj] / rho[Jj];

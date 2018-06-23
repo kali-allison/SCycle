@@ -1502,7 +1502,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
     VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
-  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
   VecDestroy(&D2u);
 
@@ -1602,7 +1602,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
     VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
-  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
   VecDestroy(&D2u);
 
