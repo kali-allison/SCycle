@@ -1571,7 +1571,6 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   ierr = VecGetArrayRead(_tau0, &tau0);
   ierr = VecGetArrayRead(_alphay, &alphay);
 
-  _deltaT = deltaT;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1584,6 +1583,7 @@ ComputeVel_fd::ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const P
 : _locked(locked), _Phi(Phi),_an(an),_psi(psi),_fricPen(fricPen),_a(a),_sNEff(sneff),_N(N), _v0(v0), _vL(vL)
 { }
 
+// compute absolute value of slip velocity for fully dynamic case
 PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
@@ -1592,8 +1592,8 @@ PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScala
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // BracketedNewton rootFinder(maxNumIts,rootTol);
-  Bisect rootFinder(maxNumIts,rootTol);
+  BracketedNewton rootFinder(maxNumIts,rootTol);
+  //~ Bisect rootFinder(maxNumIts,rootTol);
   PetscScalar left, right, out, temp;
 
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
@@ -1625,8 +1625,8 @@ PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScala
     if (abs(left-right)<1e-14) { out = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
-      // ierr = rootFinder.findRoot(this,Jj,slipVelA[Jj], &out);CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,abs(slipVelA[Jj]), &out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
     slipVelA[Jj] = out;
