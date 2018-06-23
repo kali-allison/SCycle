@@ -158,7 +158,7 @@ class Fault_fd: public Fault
 
   public:
     Vec                 _Phi, _an, _fricPen;
-    Vec                 _slipPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
+    Vec                 _slipVelPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     IS                  _is;
     PetscScalar         _deltaT;
     Vec                 _alphay;
@@ -232,7 +232,7 @@ struct ComputeVel_fd : public RootFinderContext
 struct ComputeAging_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
+  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipVelPrev;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
@@ -253,7 +253,7 @@ struct ComputeAging_fd : public RootFinderContext
 struct ComputeSlipLaw_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
@@ -277,7 +277,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
 struct ComputeFlashHeating_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev, *_Vw;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev, *_Vw;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0, _fw;
