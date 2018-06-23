@@ -1474,7 +1474,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
       uTemp = uPrev[Jj];
       uPrev[Jj] = u[Jj];
       u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
-      vel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
+      slipVel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
     }
     slip[Jj] = 2. * u[Jj];
     Jj++;
