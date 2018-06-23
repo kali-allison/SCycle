@@ -14,7 +14,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _alphay(NULL), _alphaz(NULL),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _isFault("true"),_initialConditions("u"), _inputDir("unspecified"),
+  _initialConditions("u"), _inputDir("unspecified"),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -112,7 +112,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
     else if (var.compare("amp_U")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
@@ -462,19 +461,20 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  Mat A;
-  ierr = _material->_sbp->getA(A);
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_fd::d_dt";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
-  double startPropagation = MPI_Wtime();
+double startPropagation = MPI_Wtime();
 
   // compute D2u = (Dyy+Dzz)*u
   Vec D2u, temp;
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, varEx["u"], temp);
   ierr = _material->_sbp->Hinv(temp, D2u);
-
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
       Mat J,Jinv,qy,rz,yq,zr;
@@ -487,23 +487,23 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   }
   ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
-
+  VecDestroy(&D2u);
 
 
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
-  VecDuplicate(varEx["u"], &ones);
-  VecDuplicate(varEx["u"], &correction);
+  VecDuplicate(*_y, &ones);
+  VecDuplicate(*_y, &correction);
   VecSet(ones, 1.0);
   VecSet(correction, 0.0);
   ierr = VecAXPY(correction, _deltaT, _ay);
   ierr = VecAXPY(correction, -1.0, ones);
-  VecDuplicate(varEx["u"], &previous);
+  VecDuplicate(*_y, &previous);
   VecSet(previous, 0.0);
   ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
 
-  VecDuplicate(varEx["u"], &uNext);
+  VecDuplicate(*_y, &uNext);
   VecSet(uNext, 0.0);
   ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
   ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
@@ -519,17 +519,12 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   VecDestroy(&ones);
   VecDestroy(&correction);
   VecDestroy(&previous);
-  if (_initialConditions.compare("tau")==0){
-    PetscScalar currT;
-    _quadWaveEx->getCurrT(currT);
-    ierr = _fault->updateTau(currT);
-  }
 
-  _propagateTime += MPI_Wtime() - startPropagation;
+_propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_isFault.compare("true") == 0){
-    ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
-  }
+  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
+  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
 
@@ -539,6 +534,9 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   VecCopy(_fault->_tauQSP, _fault->_tauP);
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
 
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 

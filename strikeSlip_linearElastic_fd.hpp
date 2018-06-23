@@ -54,7 +54,6 @@ class strikeSlip_linearElastic_fd: public IntegratorContextWave
     std::string          _outputDir; // output data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
-    std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _initialConditions, _inputDir;

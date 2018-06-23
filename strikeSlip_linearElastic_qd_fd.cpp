@@ -1541,7 +1541,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
   if (_initialConditions.compare("tau")==0){
     PetscScalar currT;
     _quadWaveEx->getCurrT(currT);
-    ierr = _fault_dyn->updateTau(currT);
+    ierr = _fault_dyn->updateTau0(currT);
   }
   _propagateTime += MPI_Wtime() - startPropagation;
 
@@ -1640,7 +1640,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
   if (_initialConditions.compare("tau")==0){
     PetscScalar currT;
     _quadWaveImex->getCurrT(currT);
-    ierr = _fault_dyn->updateTau(currT);
+    ierr = _fault_dyn->updateTau0(currT);
   }
 
   _propagateTime += MPI_Wtime() - startPropagation;

@@ -1386,11 +1386,11 @@ _scatterTime += MPI_Wtime() - scatterStart;
   return ierr;
 }
 
-PetscErrorCode Fault_fd::updateTau(const PetscScalar currT)
+PetscErrorCode Fault_fd::updateTau0(const PetscScalar currT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::updateTau";
+    std::string funcName = "Fault_fd::updateTau0";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   PetscScalar *zz, *tau0;

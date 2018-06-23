@@ -181,7 +181,7 @@ class Fault_fd: public Fault
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution();
     PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
-    PetscErrorCode updateTau(const PetscScalar currT);
+    PetscErrorCode updateTau0(const PetscScalar currT);
 
 };
 
