@@ -538,9 +538,10 @@ _propagateTime += MPI_Wtime() - startPropagation;
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
-  VecCopy(_fault->_tauQSP, _fault->_tauP);
+  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
+  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
