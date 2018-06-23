@@ -486,7 +486,6 @@ double startPropagation = MPI_Wtime();
       VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
 
 
