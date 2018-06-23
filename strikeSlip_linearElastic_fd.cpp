@@ -493,69 +493,42 @@ double startPropagation = MPI_Wtime();
 
   // Propagate waves and compute displacement at the next time step
   // includes boundary conditions except for fault
-  //~ Vec uNext;
-  //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
-
-  //~ PetscInt       Ii,Istart,Iend;
-  //~ PetscScalar   *uNextA; // changed in this loop
-  //~ const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  //~ ierr = VecGetArray(uNext, &uNextA);
-  //~ ierr = VecGetArrayRead(varEx["u"], &u);
-  //~ ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
-  //~ ierr = VecGetArrayRead(_ay, &ay);
-  //~ ierr = VecGetArrayRead(D2u, &d2u);
-  //~ ierr = VecGetArrayRead(_rhoVec, &rho);
-
-  //~ ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
-  //~ PetscInt       Jj = 0;
-  //~ for (Ii = Istart; Ii < Iend; Ii++){
-    //~ PetscScalar c1 = deltaT*deltaT/rho[Jj];
-    //~ PetscScalar c2 = (deltaT*ay[Jj]-1.0);
-
-    //~ uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
-    //~ uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
-    //~ Jj++;
-  //~ }
-  //~ ierr = VecRestoreArray(uNext, &uNextA);
-  //~ ierr = VecRestoreArrayRead(varEx["u"], &u);
-  //~ ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
-  //~ ierr = VecRestoreArrayRead(_ay, &ay);
-  //~ ierr = VecRestoreArrayRead(D2u, &d2u);
-  //~ ierr = VecRestoreArrayRead(_rhoVec, &rho);
-
-  //~ VecDestroy(&D2u);
-
-
   Vec uNext;
-  Vec correction, previous, ones;
+  VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
 
-  VecDuplicate(*_y, &ones);
-  VecDuplicate(*_y, &correction);
-  VecSet(ones, 1.0);
-  VecSet(correction, 0.0);
-  ierr = VecAXPY(correction, _deltaT, _ay);
-  ierr = VecAXPY(correction, -1.0, ones); // correction = deltaT * ay - 1
-  VecDuplicate(*_y, &previous);
-  VecSet(previous, 0.0);
-  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]); // previous = uPrev * (deltaT*ay - 1)
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(uNext, &uNextA);
+  ierr = VecGetArrayRead(varEx["u"], &u);
+  ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_rhoVec, &rho);
 
-  VecDuplicate(*_y, &uNext);
-  VecSet(uNext, 0.0);
-  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]); // uNext = deltaT^2*D2u
-  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec); // uNext = deltaT^2*D2u / rho
+  ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT/rho[Jj];
+    PetscScalar c2 = (deltaT*ay[Jj]-1.0);
 
-  ierr = VecAXPY(uNext, 2, varEx["u"]);  // uNext = deltaT^2*D2u / rho + 2*u
-  ierr = VecAXPY(uNext, 1, previous);  // uNext = deltaT^2*D2u / rho + 2*u + uPrev * (deltaT*ay - 1)
-  ierr = VecAXPY(correction, 2, ones); // correction = deltaT * ay + 1
-  ierr = VecPointwiseDivide(uNext, uNext, correction); // uNext = uNext / (deltaT * ay + 1)
+    uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
+    uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
+    Jj++;
+  }
+  ierr = VecRestoreArray(uNext, &uNextA);
+  ierr = VecRestoreArrayRead(varEx["u"], &u);
+  ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+
+  VecDestroy(&D2u);
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
 
   VecDestroy(&uNext);
-  VecDestroy(&ones);
-  VecDestroy(&correction);
-  VecDestroy(&previous);
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
