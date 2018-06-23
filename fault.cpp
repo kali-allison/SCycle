@@ -1356,25 +1356,25 @@ PetscErrorCode Fault_fd::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoV
   #endif
 
  // put variables to be integrated explicitly into varEx
-  Vec u, uPrev, du;
-  VecDuplicate(_tauP, &u);
-  VecDuplicate(_tauP, &du);
-  VecDuplicate(_tauP, &uPrev);
-  VecSet(u, 0);
-  VecSet(du, 0);
-  VecSet(uPrev, 0);
-  varEx["uFault"] = u;
-  varEx["uPrevFault"] = uPrev;
-  varEx["duFault"] = du;
+  //~ Vec u, uPrev, du;
+  //~ VecDuplicate(_tauP, &u);
+  //~ VecDuplicate(_tauP, &du);
+  //~ VecDuplicate(_tauP, &uPrev);
+  //~ VecSet(u, 0);
+  //~ VecSet(du, 0);
+  //~ VecSet(uPrev, 0);
+  //~ varEx["uFault"] = u;
+  //~ varEx["uPrevFault"] = uPrev;
+  //~ varEx["duFault"] = du;
 
-double scatterStart = MPI_Wtime();
-  VecScatterBegin(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
+//~ double scatterStart = MPI_Wtime();
+  //~ VecScatterBegin(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
 
-  VecScatterBegin(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterBegin(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
 
-_scatterTime += MPI_Wtime() - scatterStart;
+//~ _scatterTime += MPI_Wtime() - scatterStart;
 
   // slip is added by the momentum balance equation
   //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
@@ -1442,8 +1442,8 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   _deltaT = deltaT; // this is probably unnecessary
 
   // TODO: want to eventually get rid of this
-  VecCopy(varEx["uFault"],_u);
-  VecCopy(varEx["uPrevFault"],_uPrev);
+  //~ VecCopy(varEx["uFault"],_u);
+  //~ VecCopy(varEx["uPrevFault"],_uPrev);
 
   // compute slip velocity
   ierr = setPhi(varEx, dvarEx, deltaT);
@@ -1496,9 +1496,9 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   ierr = VecRestoreArrayRead(_Phi, &Phi);
   ierr = VecRestoreArrayRead(_alphay, &alphay);
 
-  // TODO: want to eventually get rid of this
-  VecCopy(_u,varEx["uFault"]);
-  VecCopy(_uPrev,varEx["uPrevFault"]);
+  //~ // TODO: want to eventually get rid of this
+  //~ VecCopy(_u,varEx["uFault"]);
+  //~ VecCopy(_uPrev,varEx["uPrevFault"]);
 
   // update body u, uPrev from fault u, uPrev
   setGetBody2Fault(varEx["u"], _u, SCATTER_REVERSE); // update body u with newly computed fault u
@@ -1521,12 +1521,6 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
     std::string funcName = "Fault_fd::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-
-  // TODO: want to eventually get rid of this
-  //~ VecScatterBegin(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecCopy(varEx["duFault"],_d2u);
 
   PetscInt       Ii,Istart, Iend;
   ierr = VecGetOwnershipRange(_d2u,&Istart,&Iend);CHKERRQ(ierr);
