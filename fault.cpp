@@ -1217,6 +1217,9 @@ PetscErrorCode Fault_fd::computeVel()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  double startTime = MPI_Wtime();
+
+
   // initialize struct to solve for the slip velocity
   PetscScalar *Phi, *an, *psi, *constraints_factor, *a,*sneff, *slipVel, *locked;
   VecGetArray(_Phi,&Phi);
@@ -1243,6 +1246,7 @@ PetscErrorCode Fault_fd::computeVel()
   VecRestoreArray(_slipVel,&slipVel);
   VecRestoreArray(_locked, &locked);
 
+  _computeVelTime = MPI_Wtime();
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1394,7 +1398,7 @@ PetscErrorCode Fault_fd::updateTau(const PetscScalar currT)
 // scatter u and uPrev to/from body to fault
 // mode = SCATTER_FORWARD will scatter from body to fault
 // mode = SCATTER_REVERSE will scatter from fault to body
-PetscErrorCode Fault_fd::setGetU(Vec bodyField, Vec faultField, ScatterMode mode)
+PetscErrorCode Fault_fd::setGetU(Vec& bodyField, Vec& faultField, ScatterMode mode)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1412,8 +1416,14 @@ PetscErrorCode Fault_fd::setGetU(Vec bodyField, Vec faultField, ScatterMode mode
   //~ VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, mode);
 
   // new
-  ierr = VecScatterBegin(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
+  if (mode == SCATTER_FORWARD) {
+    ierr = VecScatterBegin(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
+    ierr = VecScatterEnd(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
+  }
+  else { // mode == SCATTER_REVERSE
+    ierr = VecScatterBegin(*_body2fault, faultField, bodyField, INSERT_VALUES, mode); CHKERRQ(ierr);
+    ierr = VecScatterEnd(*_body2fault, faultField, bodyField, INSERT_VALUES, mode); CHKERRQ(ierr);
+  }
 
   _scatterTime += MPI_Wtime() - scatterStart;
 
@@ -1432,22 +1442,22 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  _deltaT = deltaT; // this is probably unnecessary
+
   // want to eventually get rid of this
-  //~ VecCopy(varEx["uFault"],_u);
+  VecCopy(varEx["uFault"],_u);
+  VecCopy(varEx["uPrevFault"],_uPrev);
 
   // compute slip velocity
   ierr = setPhi(varEx, dvarEx, deltaT);
-  double startTime = MPI_Wtime();
   ierr = computeVel();CHKERRQ(ierr);
-  double intermediateTime = MPI_Wtime();
 
-  _computeVelTime += intermediateTime - startTime;
   PetscInt       Ii,Istart,Iend;
-  PetscInt       Jj = 0;
-  PetscScalar    *u, *uPrev, uTemp, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z, *alphay;
-  ierr = VecGetOwnershipRange(varEx["uFault"],&Istart,&Iend);CHKERRQ(ierr);
-  ierr = VecGetArray(varEx["uFault"], &u);
-  ierr = VecGetArray(varEx["uPrevFault"], &uPrev);
+
+  PetscScalar    *u, *uPrev, *rho, *sigma_N, *a, *an, *slip, *slipVel, fric, alpha, A, *vel, *Phi, *psi, *z, *alphay;
+  ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetArray(_u, &u);
+  ierr = VecGetArray(_uPrev, &uPrev);
   ierr = VecGetArray(_an, &an);
   ierr = VecGetArray(_slipVel, &slipVel);
   ierr = VecGetArray(_rho, &rho);
@@ -1458,9 +1468,8 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   ierr = VecGetArray(_slip, &slip);
   ierr = VecGetArray(_z, &z);
   ierr = VecGetArray(_alphay, &alphay);
-  PetscScalar *b;
-  ierr = VecGetArray(_b, &b);
 
+  PetscInt       Jj = 0;
   for (Ii = Istart; Ii<Iend; Ii++){
 
     if (slipVel[Jj] < 1e-14){
@@ -1468,19 +1477,19 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
       slipVel[Jj] = 0;
     }
     else{
-      fric = (PetscScalar) a[Jj]*sigma_N[Jj]*asinh( (double) (slipVel[Jj]/2./_v0)*exp(psi[Jj]/a[Jj]) );
-      alpha = 1 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
-      A = 1 + alpha * deltaT;
-      uTemp = uPrev[Jj];
+      fric =  strength_psi(sigma_N[Jj], psi[Jj], slipVel[Jj], a[Jj], _v0);
+      alpha = 1.0 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
+      A = 1.0 + alpha * deltaT;
+      PetscScalar uTemp = uPrev[Jj];
       uPrev[Jj] = u[Jj];
-      u[Jj] = (2.*u[Jj] + _deltaT * _deltaT / rho[Jj] * an[Jj] + (_deltaT*alpha-1.)*uTemp) /  A;
+      u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
       slipVel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
     }
     slip[Jj] = 2. * u[Jj];
     Jj++;
   }
-  ierr = VecRestoreArray(varEx["uFault"], &u);
-  ierr = VecRestoreArray(varEx["uPrevFault"], &uPrev);
+  ierr = VecRestoreArray(_u, &u);
+  ierr = VecRestoreArray(_uPrev, &uPrev);
   ierr = VecRestoreArray(_an, &an);
   ierr = VecRestoreArray(_slipVel, &slipVel);
   ierr = VecRestoreArray(_rho, &rho);
@@ -1492,23 +1501,17 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   ierr = VecRestoreArray(_z, &z);
   ierr = VecRestoreArray(_alphay, &alphay);
 
-  double scatterStart = MPI_Wtime();
-  VecScatterBegin(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(*_body2fault, varEx["uFault"], varEx["u"], INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterBegin(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(*_body2fault, varEx["uPrevFault"], varEx["uPrev"], INSERT_VALUES, SCATTER_REVERSE);
-  _scatterTime += MPI_Wtime() - scatterStart;
-  // update u, uPrev
-  //~ setGetU(varEx["u"], _u, SCATTER_REVERSE); // update body u with newly computed fault u
-  //~ setGetU(varEx["uPrev"], _uPrev, SCATTER_REVERSE);
+  // want to eventually get rid of this
+  VecCopy(_u,varEx["uFault"]);
+  VecCopy(_uPrev,varEx["uPrevFault"]);
 
+  // update body u, uPrev from fault u, uPrev
+  setGetU(varEx["u"], _u, SCATTER_REVERSE); // update body u with newly computed fault u
+  setGetU(varEx["uPrev"], _uPrev, SCATTER_REVERSE);
 
-  // compute state parameter law
-  //~ double startStateLawTime = MPI_Wtime();
-  computeStateEvolution();
-  //~ _stateLawTime += MPI_Wtime() - startStateLawTime;
+  computeStateEvolution(); // update state variable
 
-  VecAXPY(_slip, 1.0, _slip0);
+  VecAXPY(_slip, 1.0, _slip0); // add background level to slip
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
