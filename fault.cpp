@@ -1402,10 +1402,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
 
   _deltaT = deltaT; // this is probably unnecessary
 
-  // TODO: want to eventually get rid of this
-  //~ VecCopy(varEx["uFault"],_u);
-  //~ VecCopy(varEx["uPrevFault"],_uPrev);
-
   // compute slip velocity
   ierr = setPhi(varEx, dvarEx, deltaT);
   ierr = computeVel();CHKERRQ(ierr); // computes abs(slipVel)
@@ -1456,10 +1452,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   ierr = VecRestoreArrayRead(_a, &a);
   ierr = VecRestoreArrayRead(_Phi, &Phi);
   ierr = VecRestoreArrayRead(_alphay, &alphay);
-
-  //~ // TODO: want to eventually get rid of this
-  //~ VecCopy(_u,varEx["uFault"]);
-  //~ VecCopy(_uPrev,varEx["uPrevFault"]);
 
   // update body u, uPrev from fault u, uPrev
   setGetBody2Fault(varEx["u"], _u, SCATTER_REVERSE); // update body u with newly computed fault u
