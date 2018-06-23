@@ -1480,6 +1480,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_dyn()
 PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
+  PetscScalar deltaT = _deltaT;
 
   double startPropagation = MPI_Wtime();
 
@@ -1548,16 +1549,18 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  if (_initialConditions.compare("tau")==0) { _fault_dyn->updateTau0(time); }
+  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
+
+  // update stresses
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
-  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
-  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+  _fault_dyn->setGetBody2Fault(sxy,_fault_dyn->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
+  VecCopy(_fault_dyn->_tauP,_fault_dyn->_tauQSP); // keep quasi-static shear stress updated as well
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1574,10 +1577,10 @@ _propagateTime += MPI_Wtime() - startPropagation;
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-                                                         map<string,Vec>& varIm,map<string,Vec>& varImo)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,map<string,Vec>& varImo)
 {
   PetscErrorCode ierr = 0;
+  PetscScalar deltaT = _deltaT;
 
   double startPropagation = MPI_Wtime();
 
@@ -1651,16 +1654,16 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  if (_initialConditions.compare("tau")==0) { _fault_dyn->updateTau0(time); }
+  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
-  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
-  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+  _fault_dyn->setGetBody2Fault(sxy,_fault_dyn->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
+  VecCopy(_fault_dyn->_tauP,_fault_dyn->_tauQSP); // keep quasi-static shear stress updated as well
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {

@@ -48,9 +48,10 @@ class strikeSlip_linearElastic_fd: public IntegratorContextWave
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _CFL;
-    Vec                  *_y,*_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
+
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec                  _alphay, _alphaz;
+    Vec                  _alphay;
     std::string          _outputDir; // output data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;

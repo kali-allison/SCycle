@@ -11,7 +11,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
-  _alphay(NULL), _alphaz(NULL),
+  _alphay(NULL),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _initialConditions("u"), _inputDir("unspecified"),
@@ -508,11 +508,11 @@ double startPropagation = MPI_Wtime();
   ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
   for (Ii = Istart; Ii < Iend; Ii++){
-    PetscScalar c1 = deltaT*deltaT/rho[Jj];
-    PetscScalar c2 = (deltaT*ay[Jj]-1.0);
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
 
-    uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
-    uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
     Jj++;
   }
   ierr = VecRestoreArray(uNext, &uNextA);
