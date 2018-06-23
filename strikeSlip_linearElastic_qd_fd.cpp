@@ -1502,59 +1502,62 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
     VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
-  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
   VecDestroy(&D2u);
 
 
 
-  // Apply the time step
-  Vec uNext, correction, previous, ones;
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+  Vec uNext;
+  VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
 
-  VecDuplicate(*_y, &ones);
-  VecDuplicate(*_y, &correction);
-  VecSet(ones, 1.0);
-  VecSet(correction, 0.0);
-  ierr = VecAXPY(correction, _deltaT, _ay);
-  ierr = VecAXPY(correction, -1.0, ones);
-  VecDuplicate(*_y, &previous);
-  VecSet(previous, 0.0);
-  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(uNext, &uNextA);
+  ierr = VecGetArrayRead(varEx["u"], &u);
+  ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_rhoVec, &rho);
 
-  VecDuplicate(*_y, &uNext);
-  VecSet(uNext, 0.0);
-  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
-  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
+  ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT/rho[Jj];
+    PetscScalar c2 = (deltaT*ay[Jj]-1.0);
 
-  ierr = VecAXPY(uNext, 2, varEx["u"]);
-  ierr = VecAXPY(uNext, 1, previous);
-  ierr = VecAXPY(correction, 2, ones);
-  ierr = VecPointwiseDivide(uNext, uNext, correction);
+    uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
+    uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
+    Jj++;
+  }
+  ierr = VecRestoreArray(uNext, &uNextA);
+  ierr = VecRestoreArrayRead(varEx["u"], &u);
+  ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+
+  VecDestroy(&D2u);
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
-  VecDestroy(&uNext);
-  VecDestroy(&ones);
-  VecDestroy(&correction);
-  VecDestroy(&previous);
-  if (_initialConditions.compare("tau")==0){
-    PetscScalar currT;
-    _quadWaveEx->getCurrT(currT);
-    ierr = _fault_dyn->updateTau0(currT);
-  }
-  _propagateTime += MPI_Wtime() - startPropagation;
 
-  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  VecDestroy(&uNext);
+
+_propagateTime += MPI_Wtime() - startPropagation;
+
+  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
+  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
   VecCopy(varEx["u"], _material->_u);
-  VecAXPY(_material->_u, 1.0, _savedU);
-
-  // compute stresses and update shear stress
-  _material->computeStresses(); ierr = 0;
+  _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_dyn->setTauQS(sxy); CHKERRQ(ierr);
-  VecCopy(_fault_dyn->_tauQSP, _fault_dyn->_tauP);
+  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
+  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1602,58 +1605,73 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
     VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
-  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
   VecDestroy(&D2u);
 
-  Vec uNext, correction, previous, ones;
 
-  VecDuplicate(varEx["u"], &ones);
-  VecDuplicate(varEx["u"], &correction);
-  VecSet(ones, 1.0);
-  VecSet(correction, 0.0);
-  ierr = VecAXPY(correction, _deltaT, _ay);
-  ierr = VecAXPY(correction, -1.0, ones);
-  VecDuplicate(varEx["u"], &previous);
-  VecSet(previous, 0.0);
-  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
 
-  VecDuplicate(varEx["u"], &uNext);
-  VecSet(uNext, 0.0);
-  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
-  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+  Vec uNext;
+  VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
 
-  ierr = VecAXPY(uNext, 2, varEx["u"]);
-  ierr = VecAXPY(uNext, 1, previous);
-  ierr = VecAXPY(correction, 2, ones);
-  ierr = VecPointwiseDivide(uNext, uNext, correction);
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(uNext, &uNextA);
+  ierr = VecGetArrayRead(varEx["u"], &u);
+  ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_rhoVec, &rho);
+
+  ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT/rho[Jj];
+    PetscScalar c2 = (deltaT*ay[Jj]-1.0);
+
+    uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
+    uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
+    Jj++;
+  }
+  ierr = VecRestoreArray(uNext, &uNextA);
+  ierr = VecRestoreArrayRead(varEx["u"], &u);
+  ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+
+  VecDestroy(&D2u);
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
+
   VecDestroy(&uNext);
-  VecDestroy(&ones);
-  VecDestroy(&correction);
-  VecDestroy(&previous);
-  if (_initialConditions.compare("tau")==0){
-    PetscScalar currT;
-    _quadWaveImex->getCurrT(currT);
-    ierr = _fault_dyn->updateTau0(currT);
-  }
 
-  _propagateTime += MPI_Wtime() - startPropagation;
+_propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_isFault.compare("true") == 0){
-  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
-}
+  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
+  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
   VecCopy(varEx["u"], _material->_u);
   _material->computeStresses();
-
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_dyn->setTauQS(sxy); CHKERRQ(ierr);
-  VecCopy(_fault_dyn->_tauQSP, _fault_dyn->_tauP);
-  VecAXPY(_fault_dyn->_tauP, 1.0, _fault_dyn->_tau0);
+  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
+  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+
+
+  if (_qd_bcLType.compare("symm_fault")==0) {
+    ierr = VecCopy(_fault_dyn->_slip,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+  }
+  else if (_qd_bcLType.compare("rigid_fault")==0) {
+    ierr = VecCopy(_fault_dyn->_slip,_material->_bcL);CHKERRQ(ierr);
+  }
+  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
