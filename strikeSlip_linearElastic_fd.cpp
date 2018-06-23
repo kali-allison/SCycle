@@ -232,8 +232,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
     ierr = 0;
     }
 
-  _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

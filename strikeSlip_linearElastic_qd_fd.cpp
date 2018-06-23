@@ -1784,7 +1784,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
   VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
   VecSet(_varEx["uPrev"], 0.0);
 
-  _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
+  //~ _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 
 
   #if VERBOSE > 1
