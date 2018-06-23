@@ -1523,7 +1523,7 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   #endif
   PetscInt       Ii,IStart, IEnd;
 
-   // TODO: want to eventually get rid of this
+  // TODO: want to eventually get rid of this
   VecScatterBegin(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, dvarEx["u"], varEx["duFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecCopy(varEx["duFault"],_d2u);

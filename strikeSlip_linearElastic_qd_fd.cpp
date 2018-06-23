@@ -1481,16 +1481,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
 {
   PetscErrorCode ierr = 0;
 
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  Mat A;
-  ierr = _material->_sbp->getA(A);
-
   double startPropagation = MPI_Wtime();
 
   // Update the laplacian
   Vec Laplacian, temp;
   VecDuplicate(*_y, &Laplacian);
   VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, varEx["u"], temp);
   if (_withFhat == 1){
     ierr = VecAXPY(temp, 1.0, _Fhat);
