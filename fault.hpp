@@ -157,7 +157,7 @@ class Fault_fd: public Fault
     Fault_fd& operator=( const Fault_fd& rhs);
 
   public:
-    Vec                 _Phi, _an, _constraints_factor;
+    Vec                 _Phi, _an, _fricPen;
     Vec                 _slipPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     IS                  _is;
     PetscScalar         _deltaT;
@@ -212,12 +212,12 @@ struct ComputeVel_qd : public RootFinderContext
 struct ComputeVel_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
+  const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_fricPen, *_a, *_sNEff;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _vL;
 
   // constructor and destructor
-  ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
+  ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* fricPen,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
