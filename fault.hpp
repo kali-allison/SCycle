@@ -95,6 +95,7 @@ class Fault
       const PetscScalar maxVal);
 
     PetscErrorCode setTauQS(const Vec& sxy);
+    PetscErrorCode setGetBody2Fault(Vec& bodyField, Vec& faultField, ScatterMode mode); // scatter to/from body to fault
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 
@@ -181,7 +182,7 @@ class Fault_fd: public Fault
     PetscErrorCode computeStateEvolution();
     PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
     PetscErrorCode updateTau(const PetscScalar currT);
-    PetscErrorCode setGetU(Vec& bodyField, Vec& faultField, ScatterMode mode); // scatter to/from body to fault
+
 };
 
 

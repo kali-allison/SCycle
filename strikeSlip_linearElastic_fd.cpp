@@ -468,23 +468,28 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
 
   double startPropagation = MPI_Wtime();
 
-  // Update the laplacian
-  Vec Laplacian, temp;
-  VecDuplicate(*_y, &Laplacian);
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   ierr = MatMult(A, varEx["u"], temp);
-  ierr = _material->_sbp->Hinv(temp, Laplacian);
-  ierr = VecCopy(Laplacian, dvarEx["u"]);
+  ierr = _material->_sbp->Hinv(temp, D2u);
+
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
       Mat J,Jinv,qy,rz,yq,zr;
       ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
       Vec temp;
-      VecDuplicate(dvarEx["u"], &temp);
-      MatMult(Jinv, dvarEx["u"], temp);
-      VecCopy(temp, dvarEx["u"]);
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
+  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
+
+
+
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
