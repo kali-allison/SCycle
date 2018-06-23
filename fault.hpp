@@ -157,15 +157,13 @@ class Fault_fd: public Fault
 
   public:
     Vec                 _Phi, _an, _constraints_factor;
-    Vec                 _slipPrev;
-    Vec                 _rhoLocal;
+    Vec                 _slipPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     IS                  _is;
     PetscScalar         _deltaT;
-    Vec                 _alphay, _alphaz;
+    Vec                 _alphay;
 
     PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode;
-    PetscScalar         _lockLimit;
 
     Fault_fd(Domain&, VecScatter& scatter2fault);
     ~Fault_fd();

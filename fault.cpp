@@ -1071,9 +1071,10 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 }
 
 Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
-: Fault(D, scatter2fault), _Phi(NULL), _slipPrev(NULL),_alphay(NULL),
-  _timeMode("None"),
-  _lockLimit(25.0)
+: Fault(D, scatter2fault),
+ _Phi(NULL), _an(NULL), _constraints_factor(NULL),
+ _slipPrev(NULL), _u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
+ _timeMode("None")
 {
   #if VERBOSE > 1
     std::string funcName = "Fault_fd::Fault_fd";
@@ -1102,7 +1103,14 @@ Fault_fd::~Fault_fd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // this is covered by the Fault destructor.
+  VecDestroy(&_Phi);
+  VecDestroy(&_an);
+  VecDestroy(&_constraints_factor);
+  VecDestroy(&_slipPrev);
+  VecDestroy(&_u);
+  VecDestroy(&_uPrev);
+  VecDestroy(&_d2u);
+  VecDestroy(&_alphay);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1148,10 +1156,6 @@ PetscErrorCode Fault_fd::loadSettings(const char *file)
     }
     else if (var.compare("timeMode")==0) {
       _timeMode = line.substr(pos+_delim.length(),line.npos);
-    }
-
-    else if (var.compare("lockLimit")==0) {
-      _lockLimit = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
     }
   }
 
@@ -1317,17 +1321,14 @@ PetscErrorCode Fault_fd::initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoV
   varEx["uPrevFault"] = uPrev;
   varEx["duFault"] = du;
 
-  VecDuplicate(_tauQSP, &_rhoLocal);
-  VecSet(_rhoLocal, 0);
-
-  double scatterStart = MPI_Wtime();
+double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, varEx["u"], varEx["uFault"], INSERT_VALUES, SCATTER_FORWARD);
 
   VecScatterBegin(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, varEx["uPrev"], varEx["uPrevFault"], INSERT_VALUES, SCATTER_FORWARD);
 
-  _scatterTime += MPI_Wtime() - scatterStart;
+_scatterTime += MPI_Wtime() - scatterStart;
 
   // slip is added by the momentum balance equation
   //~ Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);

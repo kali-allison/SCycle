@@ -161,7 +161,7 @@ int main(int argc,char **args)
     else { runEqCycle(d); }
   }
 
-  // runTests(inputFile);
+  //~ runTests(inputFile);
 
   PetscFinalize();
   return ierr;
