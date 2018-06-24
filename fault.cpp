@@ -1118,7 +1118,6 @@ _u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
   VecDuplicate(_tauP,&_Phi); PetscObjectSetName((PetscObject) _Phi, "Phi");VecSet(_Phi, 0.0);
   VecDuplicate(_tauP,&_an); PetscObjectSetName((PetscObject) _an, "an");VecSet(_an, 0.0);
   VecDuplicate(_tauP,&_fricPen); PetscObjectSetName((PetscObject) _fricPen, "constraintsFactor");VecSet(_fricPen, 0.0);
-  //~ VecDuplicate(_tauP,&_slipVelPrev); PetscObjectSetName((PetscObject) _slipVelPrev, "slipVelPrev");VecSet(_slipVelPrev,0.0);
   VecDuplicate(_tauP,&_u); PetscObjectSetName((PetscObject) _u, "uFault");VecSet(_u,0.0);
   VecDuplicate(_tauP,&_uPrev); PetscObjectSetName((PetscObject) _uPrev, "uPrevFault");VecSet(_uPrev,0.0);
   VecDuplicate(_tauP,&_d2u); PetscObjectSetName((PetscObject) _d2u, "uPrevFault");VecSet(_d2u,0.0);
@@ -1142,7 +1141,6 @@ Fault_fd::~Fault_fd()
   VecDestroy(&_Phi);
   VecDestroy(&_an);
   VecDestroy(&_fricPen);
-  //~ VecDestroy(&_slipVelPrev);
   VecDestroy(&_u);
   VecDestroy(&_uPrev);
   VecDestroy(&_d2u);
@@ -1297,13 +1295,12 @@ PetscErrorCode Fault_fd::computeStateEvolution()
   double startStateLawTime = MPI_Wtime();
 
   // initialize struct to solve for the slip velocity
-  PetscScalar *Dc, *b, *psi, *psiPrev, *slipVel, *slipVelPrev;
+  PetscScalar *Dc, *b, *psi, *psiPrev, *slipVel;
   VecGetArray(_Dc,&Dc);
   VecGetArray(_b,&b);
   VecGetArray(_psi,&psi);
   VecGetArray(_psiPrev,&psiPrev);
   VecGetArray(_slipVel,&slipVel);
-  //~ VecGetArray(_slipVelPrev,&slipVelPrev);
   PetscInt Istart, Iend;
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
@@ -1337,7 +1334,6 @@ PetscErrorCode Fault_fd::computeStateEvolution()
   VecRestoreArray(_psi,&psi);
   VecRestoreArray(_psiPrev,&psiPrev);
   VecRestoreArray(_slipVel,&slipVel);
-  //~ VecRestoreArray(_slipVelPrev,&slipVelPrev);
 
   _stateLawTime += MPI_Wtime() - startStateLawTime;
 
@@ -1478,16 +1474,12 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   PetscInt       Ii,Istart, Iend;
   ierr = VecGetOwnershipRange(_d2u,&Istart,&Iend);CHKERRQ(ierr);
 
-  //~ PetscScalar  *an, *Phi, *fricPen, *slipVelPrev, *slipVelocity, *slipVel;
   PetscScalar  *an, *Phi, *fricPen;
   const PetscScalar *u, *uPrev, *d2u, *rho, *tau0, *alphay;
 
   ierr = VecGetArray(_an, &an);
   ierr = VecGetArray(_Phi, &Phi);
   ierr = VecGetArray(_fricPen, &fricPen);
-  //~ ierr = VecGetArray(dvarEx["slip"], &slipVel);
-  //~ ierr = VecGetArray(_slipVel, &slipVelocity);
-  //~ ierr = VecGetArray(_slipVelPrev, &slipVelPrev);
   ierr = VecGetArrayRead(_u, &u);
   ierr = VecGetArrayRead(_uPrev, &uPrev);
   ierr = VecGetArrayRead(_d2u, &d2u);
@@ -1500,16 +1492,11 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
     an[Jj] = d2u[Jj] + tau0[Jj] / alphay[Jj];
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     fricPen[Jj] = deltaT / alphay[Jj] / rho[Jj];
-    //~ slipVelPrev[Jj] = slipVel[Jj];
-    //~ slipVelocity[Jj] = slipVel[Jj];
     Jj++;
   }
   ierr = VecRestoreArray(_an, &an);
   ierr = VecRestoreArray(_Phi, &Phi);
   ierr = VecRestoreArray(_fricPen, &fricPen);
-  //~ ierr = VecRestoreArray(dvarEx["slip"], &slipVel);
-  //~ ierr = VecRestoreArray(_slipVel, &slipVelocity);
-  //~ ierr = VecRestoreArray(_slipVelPrev, &slipVelPrev);
   ierr = VecGetArrayRead(_u, &u);
   ierr = VecGetArrayRead(_uPrev, &uPrev);
   ierr = VecGetArrayRead(_d2u, &d2u);
