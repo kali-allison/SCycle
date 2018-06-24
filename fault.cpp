@@ -1439,10 +1439,10 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
       PetscScalar fric =  strength_psi(sNEff[Jj], psi[Jj], slipVel[Jj], a[Jj], _v0);
       PetscScalar alpha = 1.0 / (rho[Jj] * alphay[Jj]) * fric / slipVel[Jj];
       PetscScalar A = 1.0 + alpha * deltaT;
-      PetscScalar uTemp = uPrev[Jj];
 
       slipVel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
 
+      //~ PetscScalar uTemp = uPrev[Jj];
       //~ uPrev[Jj] = u[Jj];
       //~ u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
 
