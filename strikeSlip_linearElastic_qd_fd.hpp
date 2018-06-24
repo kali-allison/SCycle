@@ -38,7 +38,7 @@
  */
 
 
-class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave, public IntegratorContext_WaveEq_Imex
+class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
 {
 private:
     // disable default copy constructor and assignment operator

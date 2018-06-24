@@ -78,7 +78,7 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
   return ierr;
 }
 
-PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContextWave *obj)
+PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::integrate in odeSolver_waveEq.cpp.\n");

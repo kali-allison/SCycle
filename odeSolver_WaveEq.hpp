@@ -30,7 +30,7 @@ class OdeSolver_WaveEq
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
 
     PetscErrorCode view();
-    PetscErrorCode integrate(IntegratorContextWave *obj);
+    PetscErrorCode integrate(IntegratorContext_WaveEq *obj);
 
     std::map<string,Vec>& getVar(){return _var;};
 };
