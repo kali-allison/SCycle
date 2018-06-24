@@ -158,7 +158,7 @@ class Fault_fd: public Fault
 
   public:
     Vec                 _Phi, _an, _fricPen;
-    Vec                 _slipVelPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
+    Vec                 _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     IS                  _is;
     PetscScalar         _deltaT;
     Vec                 _alphay;
@@ -237,7 +237,7 @@ struct ComputeAging_fd : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipVelPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -260,7 +260,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
   // constructor and destructor
   ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,
                      const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev,
-                     const PetscScalar* slipVel,const PetscScalar* slipVelPrev,
+                     const PetscScalar* slipVel,
                      const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
@@ -284,7 +284,7 @@ struct ComputeFlashHeating_fd : public RootFinderContext
   // constructor and destructor
   ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
                           PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
-                          const PetscScalar* slipVelPrev, const PetscScalar* Vw,
+                          const PetscScalar* Vw,
                           const PetscScalar v0, const PetscScalar deltaT,
                           const PetscScalar f0, const PetscScalar fw);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies

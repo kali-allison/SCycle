@@ -1104,7 +1104,7 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
 Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
 : Fault(D, scatter2fault),
  _Phi(NULL), _an(NULL), _fricPen(NULL),
- _slipVelPrev(NULL), _u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
+_u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
  _timeMode("None")
 {
   #if VERBOSE > 1
@@ -1118,7 +1118,7 @@ Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
   VecDuplicate(_tauP,&_Phi); PetscObjectSetName((PetscObject) _Phi, "Phi");VecSet(_Phi, 0.0);
   VecDuplicate(_tauP,&_an); PetscObjectSetName((PetscObject) _an, "an");VecSet(_an, 0.0);
   VecDuplicate(_tauP,&_fricPen); PetscObjectSetName((PetscObject) _fricPen, "constraintsFactor");VecSet(_fricPen, 0.0);
-  VecDuplicate(_tauP,&_slipVelPrev); PetscObjectSetName((PetscObject) _slipVelPrev, "slipVelPrev");VecSet(_slipVelPrev,0.0);
+  //~ VecDuplicate(_tauP,&_slipVelPrev); PetscObjectSetName((PetscObject) _slipVelPrev, "slipVelPrev");VecSet(_slipVelPrev,0.0);
   VecDuplicate(_tauP,&_u); PetscObjectSetName((PetscObject) _u, "uFault");VecSet(_u,0.0);
   VecDuplicate(_tauP,&_uPrev); PetscObjectSetName((PetscObject) _uPrev, "uPrevFault");VecSet(_uPrev,0.0);
   VecDuplicate(_tauP,&_d2u); PetscObjectSetName((PetscObject) _d2u, "uPrevFault");VecSet(_d2u,0.0);
@@ -1142,7 +1142,7 @@ Fault_fd::~Fault_fd()
   VecDestroy(&_Phi);
   VecDestroy(&_an);
   VecDestroy(&_fricPen);
-  VecDestroy(&_slipVelPrev);
+  //~ VecDestroy(&_slipVelPrev);
   VecDestroy(&_u);
   VecDestroy(&_uPrev);
   VecDestroy(&_d2u);
@@ -1303,19 +1303,19 @@ PetscErrorCode Fault_fd::computeStateEvolution()
   VecGetArray(_psi,&psi);
   VecGetArray(_psiPrev,&psiPrev);
   VecGetArray(_slipVel,&slipVel);
-  VecGetArray(_slipVelPrev,&slipVelPrev);
+  //~ VecGetArray(_slipVelPrev,&slipVelPrev);
   PetscInt Istart, Iend;
 
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
   if (_stateLaw.compare("agingLaw") == 0){
-    ComputeAging_fd temp(N,Dc,b,psi,psiPrev, slipVel,slipVelPrev, _v0, _deltaT, _f0);
+    ComputeAging_fd temp(N,Dc,b,psi,psiPrev, slipVel, _v0, _deltaT, _f0);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("slipLaw") == 0){
     PetscScalar *a;
     VecGetArray(_a, &a);
-    ComputeSlipLaw_fd temp(N,Dc,a, b,psi,psiPrev, slipVel,slipVelPrev, _v0, _deltaT, _f0);
+    ComputeSlipLaw_fd temp(N,Dc,a, b,psi,psiPrev, slipVel, _v0, _deltaT, _f0);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
     VecRestoreArray(_a, &a);
   }
@@ -1323,13 +1323,13 @@ PetscErrorCode Fault_fd::computeStateEvolution()
     PetscScalar *a, * Vw;
     VecGetArray(_a, &a);
     VecGetArray(_Vw, &Vw);
-    ComputeFlashHeating_fd temp(N,Dc,a,b,psi,psiPrev, slipVel,slipVelPrev, Vw, _v0, _deltaT, _f0, _fw);
+    ComputeFlashHeating_fd temp(N,Dc,a,b,psi,psiPrev, slipVel, Vw, _v0, _deltaT, _f0, _fw);
     ierr = temp.computeLaw(_rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
     VecRestoreArray(_a, &a);
     VecRestoreArray(_Vw, &Vw);
   }
   else{
-    ComputeAging_fd temp(N,Dc,b,psi,psiPrev, slipVel,slipVelPrev, _v0, _deltaT, _f0);
+    assert(0);
   }
 
   VecRestoreArray(_Dc,&Dc);
@@ -1337,7 +1337,7 @@ PetscErrorCode Fault_fd::computeStateEvolution()
   VecRestoreArray(_psi,&psi);
   VecRestoreArray(_psiPrev,&psiPrev);
   VecRestoreArray(_slipVel,&slipVel);
-  VecRestoreArray(_slipVelPrev,&slipVelPrev);
+  //~ VecRestoreArray(_slipVelPrev,&slipVelPrev);
 
   _stateLawTime += MPI_Wtime() - startStateLawTime;
 
@@ -1478,15 +1478,16 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
   PetscInt       Ii,Istart, Iend;
   ierr = VecGetOwnershipRange(_d2u,&Istart,&Iend);CHKERRQ(ierr);
 
-  PetscScalar  *an, *Phi, *fricPen, *slipVelPrev, *slipVelocity, *slipVel;
+  //~ PetscScalar  *an, *Phi, *fricPen, *slipVelPrev, *slipVelocity, *slipVel;
+  PetscScalar  *an, *Phi, *fricPen;
   const PetscScalar *u, *uPrev, *d2u, *rho, *tau0, *alphay;
 
   ierr = VecGetArray(_an, &an);
   ierr = VecGetArray(_Phi, &Phi);
   ierr = VecGetArray(_fricPen, &fricPen);
-  ierr = VecGetArray(dvarEx["slip"], &slipVel);
-  ierr = VecGetArray(_slipVel, &slipVelocity);
-  ierr = VecGetArray(_slipVelPrev, &slipVelPrev);
+  //~ ierr = VecGetArray(dvarEx["slip"], &slipVel);
+  //~ ierr = VecGetArray(_slipVel, &slipVelocity);
+  //~ ierr = VecGetArray(_slipVelPrev, &slipVelPrev);
   ierr = VecGetArrayRead(_u, &u);
   ierr = VecGetArrayRead(_uPrev, &uPrev);
   ierr = VecGetArrayRead(_d2u, &d2u);
@@ -1499,16 +1500,16 @@ PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx,
     an[Jj] = d2u[Jj] + tau0[Jj] / alphay[Jj];
     Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     fricPen[Jj] = deltaT / alphay[Jj] / rho[Jj];
-    slipVelPrev[Jj] = slipVel[Jj];
-    slipVelocity[Jj] = slipVel[Jj];
+    //~ slipVelPrev[Jj] = slipVel[Jj];
+    //~ slipVelocity[Jj] = slipVel[Jj];
     Jj++;
   }
   ierr = VecRestoreArray(_an, &an);
   ierr = VecRestoreArray(_Phi, &Phi);
   ierr = VecRestoreArray(_fricPen, &fricPen);
-  ierr = VecRestoreArray(dvarEx["slip"], &slipVel);
-  ierr = VecRestoreArray(_slipVel, &slipVelocity);
-  ierr = VecRestoreArray(_slipVelPrev, &slipVelPrev);
+  //~ ierr = VecRestoreArray(dvarEx["slip"], &slipVel);
+  //~ ierr = VecRestoreArray(_slipVel, &slipVelocity);
+  //~ ierr = VecRestoreArray(_slipVelPrev, &slipVelPrev);
   ierr = VecGetArrayRead(_u, &u);
   ierr = VecGetArrayRead(_uPrev, &uPrev);
   ierr = VecGetArrayRead(_d2u, &d2u);
@@ -1624,8 +1625,9 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
 // ================================================
 
 
-ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipVelPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_b(b),_slipVel(slipVel),_slipVelPrev(slipVelPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+: _Dc(Dc),_b(b),_slipVel(slipVel),_psi(psi),
+_psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
 PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -1720,8 +1722,8 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
 // ================================================
 
 
-ComputeSlipLaw_fd::ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipVelPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipVelPrev(slipVelPrev),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+ComputeSlipLaw_fd::ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
+: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
 PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -1818,9 +1820,9 @@ PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar s
 // ================================================
 
 
-ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipVelPrev, const PetscScalar* Vw,
-                                                 const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0, const PetscScalar fw)
-: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_slipVelPrev(slipVelPrev),_Vw(Vw),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
+ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar* Vw, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0, const PetscScalar fw)
+: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),
+  _Vw(Vw),_psi(psi), _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
 { }
 
 PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
