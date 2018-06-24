@@ -479,8 +479,8 @@ double startPropagation = MPI_Wtime();
   // includes boundary conditions except for fault
   //~ Vec uNext;
   //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
-  VecCopy(varEx["u"],_var["u"]); // TODO remove this
-  VecCopy(varEx["uPrev"],_varPrev["u"]);
+  //~ VecCopy(varEx["u"],_var["u"]); // TODO remove this
+  //~ VecCopy(varEx["uPrev"],_varPrev["u"]);
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *uNextA; // changed in this loop
@@ -532,8 +532,8 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   // TODO: remove this
-  ierr = VecCopy(varEx["u"], varEx["uPrev"]);
-  ierr = VecCopy(_varNext["u"], varEx["u"]);
+  //~ ierr = VecCopy(varEx["u"], varEx["uPrev"]);
+  //~ ierr = VecCopy(_varNext["u"], varEx["u"]);
 
 
   // TODO move this into ode solver:
