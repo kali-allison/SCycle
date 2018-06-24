@@ -1400,14 +1400,14 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
   #endif
 
   // update fields with new time step
+  _deltaT = deltaT;
   VecCopy(var.find("psi")->second,_psi);
   VecCopy(var.find("slip")->second,_slip);
   VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second); // uPrev = (slip - slip0)/2
   VecScale(_uPrev,0.5);
-  VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second); // uPrev = (slip - slip0)/2
+  VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second); // u = (slip - slip0)/2
   VecScale(_u,0.5);
 
-  _deltaT = deltaT; // this is probably unnecessary
 
   // compute slip velocity
   ierr = setPhi(deltaT);
@@ -1447,7 +1447,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
       //~ u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
 
       u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uPrev[Jj]) /  A;
-
     }
     Jj++;
   }
@@ -1464,9 +1463,11 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
   ierr = VecRestoreArrayRead(_alphay, &alphay);
 
 
+  // update state variable
   computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
   VecCopy(varNext["psi"],_psi);
 
+  // assemble slip from u
   VecWAXPY(_slip,2.0,_u,_slip0); // slip = 2*u + slip0
   VecCopy(_slip,varNext["slip"]);
 
