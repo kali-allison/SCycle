@@ -97,7 +97,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
     for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
       VecCopy(_var[it->first],_varPrev[it->first]);
       VecCopy(_varNext[it->first],_var[it->first]);
-      VecSet(_varNext[it->first],0.0);
+      //~ VecSet(_varNext[it->first],0.0);
     }
   }
 

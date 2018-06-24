@@ -412,9 +412,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // TODO get rid of this
-  //~ PetscScalar deltaT = _deltaT;
-
 double startPropagation = MPI_Wtime();
 
   // compute D2u = (Dyy+Dzz)*u
@@ -440,10 +437,6 @@ double startPropagation = MPI_Wtime();
 
   // Propagate waves and compute displacement at the next time step
   // includes boundary conditions except for fault
-  //~ Vec uNext;
-  //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
-  //~ VecCopy(varEx["u"],_var["u"]); // TODO remove this
-  //~ VecCopy(varEx["uPrev"],_varPrev["u"]);
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *uNextA; // changed in this loop
@@ -493,10 +486,6 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
-
-  // TODO: remove this
-  //~ ierr = VecCopy(varEx["u"], varEx["uPrev"]);
-  //~ ierr = VecCopy(_varNext["u"], varEx["u"]);
 
   // TODO move this into ode solver:
   ierr = VecCopy(_var["u"], _varPrev["u"]);
