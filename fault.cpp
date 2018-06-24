@@ -1400,8 +1400,12 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
   #endif
 
   // update fields with new time step
-  VecCopy(var["psi"],_psi);
-  //~ VecCopy(var["uFault"],_uPrev); // TODO needed in future
+  VecCopy(var.find("psi")->second,_psi);
+  VecCopy(var.find("slip")->second,_slip);
+  VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second); // uPrev = (slip - slip0)/2
+  VecScale(_uPrev,0.5);
+  VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second); // uPrev = (slip - slip0)/2
+  VecScale(_u,0.5);
 
   _deltaT = deltaT; // this is probably unnecessary
 
@@ -1411,7 +1415,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *u, *uPrev, *slip, *slipVel; // changed in this loop
-  const PetscScalar    *rho, *sNEff, *a, *an, *Phi, *psi, *alphay; // constant in this loop
+  const PetscScalar    *slipPrev, *rho, *sNEff, *a, *an, *Phi, *psi, *alphay; // constant in this loop
   ierr = VecGetOwnershipRange(_u,&Istart,&Iend); CHKERRQ(ierr);
   ierr = VecGetArray(_u, &u);
   ierr = VecGetArray(_uPrev, &uPrev);
@@ -1437,11 +1441,14 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
       PetscScalar A = 1.0 + alpha * deltaT;
       PetscScalar uTemp = uPrev[Jj];
 
-      uPrev[Jj] = u[Jj];
-      u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
       slipVel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
+
+      //~ uPrev[Jj] = u[Jj];
+      //~ u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
+
+      u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uPrev[Jj]) /  A;
+
     }
-    slip[Jj] = 2. * u[Jj];
     Jj++;
   }
   ierr = VecRestoreArray(_u, &u);
@@ -1458,8 +1465,10 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
 
 
   computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
+  VecCopy(varNext["psi"],_psi);
 
-  VecAXPY(_slip, 1.0, _slip0); // add background level to slip
+  VecWAXPY(_slip,2.0,_u,_slip0); // slip = 2*u + slip0
+  VecCopy(_slip,varNext["slip"]);
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
