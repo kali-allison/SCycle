@@ -1424,7 +1424,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_dyn()
       if (!_firstCycle){
         delete _quadWaveImex;
       }
-        _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
+        _quadWaveImex = new OdeSolver_WaveEq_Imex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 3;
         _quadWaveImex->_maxNumSteps = _maxStepCount_dyn + _quadImex_qd->_stepCount + 3;
         ierr = _quadWaveImex->setInitialConds(_varEx, _varIm);CHKERRQ(ierr);
@@ -1446,7 +1446,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_dyn()
         if (!_firstCycle){
           delete _quadWaveImex;
         }
-        _quadWaveImex = new OdeSolver_WaveImex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
+        _quadWaveImex = new OdeSolver_WaveEq_Imex(_maxStepCount_dyn,_currTime+_deltaT,_maxTime_dyn,_deltaT);
         _quadWaveImex->_stepCount = _quadImex_qd->_stepCount + 2;
         _quadWaveImex->_maxNumSteps = _maxStepCount_dyn + _quadImex_qd->_stepCount + 2;
         ierr = _quadWaveImex->setInitialConds(_varEx, _varIm);CHKERRQ(ierr);

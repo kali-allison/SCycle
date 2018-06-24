@@ -12,6 +12,7 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -37,7 +38,7 @@
  */
 
 
-class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
+class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave, public IntegratorContext_WaveEq_Imex
 {
 private:
     // disable default copy constructor and assignment operator
@@ -117,7 +118,7 @@ private:
     OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
     OdeSolverImex       *_quadImex_qd, *_quadImex_switch; // implicit time stepping
     OdeSolver_WaveEq          *_quadWaveEx;
-    OdeSolver_WaveImex          *_quadWaveImex;
+    OdeSolver_WaveEq_Imex          *_quadWaveImex;
 
     Fault_qd                   *_fault_qd;
     Fault_fd                   *_fault_dyn;

@@ -1,5 +1,5 @@
-#ifndef IntegratorContextWave_HPP_INCLUDED
-#define IntegratorContextWave_HPP_INCLUDED
+#ifndef INTEGRATORCONTEXT_WAVEQ_IMEX_HPP_INCLUDED
+#define INTEGRATORCONTEXT_WAVEQ_IMEX_HPP_INCLUDED
 
 #include <petscksp.h>
 #include <vector>
@@ -13,7 +13,7 @@
 
 class OdeSolver;
 
-class IntegratorContextWave
+class IntegratorContext_WaveEq_Imex
 {
   public:
 
@@ -25,7 +25,7 @@ class IntegratorContextWave
 
     // for time step including implicitly integrated variables
     virtual PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& var,map<string,Vec>& dvar,
-      map<string,Vec>& varImex,map<string,Vec>& varImexPrev){return 1;};
+                                map<string,Vec>& varImex,map<string,Vec>& varImexPrev){return 1;};
 
     // for output and monitoring as time integration progresses
     // this function is not required

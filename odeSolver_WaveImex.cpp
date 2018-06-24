@@ -2,46 +2,41 @@
 
 using namespace std;
 
-OdeSolver_WaveImex::OdeSolver_WaveImex(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT)
+OdeSolver_WaveEq_Imex::OdeSolver_WaveEq_Imex(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT)
 : _initT(initT),_finalT(finalT),_currT(initT),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),_runTime(0)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex constructor in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex constructor in odeSolver_waveImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveImex constructor in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq_Imex constructor in odeSolver_waveImex.cpp.\n");
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveImex::setStepSize(const PetscReal deltaT)
+PetscErrorCode OdeSolver_WaveEq_Imex::setStepSize(const PetscReal deltaT)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::setStepSize in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::setStepSize in odeSolver_waveImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   _deltaT = deltaT;
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveImex::setStepSize in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq_Imex::setStepSize in odeSolver_waveImex.cpp.\n");
 #endif
   return 0;
 }
 
-PetscErrorCode OdeSolver_WaveImex::getCurrT(PetscScalar& currT){
-  PetscErrorCode ierr = 0;
-  currT = _currT; 
-  return ierr;
-}
 
-PetscErrorCode OdeSolver_WaveImex::view()
+PetscErrorCode OdeSolver_WaveEq_Imex::view()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::view in odeSolver_WaveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::view in odeSolver_WaveImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
 
@@ -61,7 +56,7 @@ PetscErrorCode OdeSolver_WaveImex::view()
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveImex::setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm)
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
@@ -93,10 +88,10 @@ PetscErrorCode OdeSolver_WaveImex::setInitialConds(std::map<string,Vec>& varEx, 
   return ierr;
 }
 
-PetscErrorCode OdeSolver_WaveImex::integrate(IntegratorContextWave *obj)
+PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *obj)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::integrate in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::integrate in odeSolver_waveImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
