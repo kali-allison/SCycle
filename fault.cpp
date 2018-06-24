@@ -1401,7 +1401,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   _deltaT = deltaT; // this is probably unnecessary
 
   // compute slip velocity
-  ierr = setPhi(varEx, dvarEx, deltaT);
+  ierr = setPhi(deltaT);
   ierr = computeVel();CHKERRQ(ierr); // computes abs(slipVel)
 
   PetscInt       Ii,Istart,Iend;
@@ -1470,7 +1470,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   return ierr;
 }
 
-PetscErrorCode Fault_fd::setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar deltaT)
+PetscErrorCode Fault_fd::setPhi(const PetscScalar deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
