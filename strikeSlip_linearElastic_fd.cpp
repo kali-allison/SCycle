@@ -58,7 +58,13 @@ strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
   #endif
 
   map<string,Vec>::iterator it;
-  for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+  for (it = _var.begin(); it!=_var.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
     VecDestroy(&it->second);
   }
 
@@ -186,44 +192,45 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
-  _fault->initiateIntegrand(_initTime,_varEx);
+  _fault->initiateIntegrand(_initTime,_var);
 
   Vec slip;
-  VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
-  _varEx["slip"] = slip;
-  Vec dslip;
-  VecDuplicate(_varEx["psi"], &dslip); VecSet(dslip,0.);
-  _varEx["dslip"] = dslip;
+  VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
+  _var["slip"] = slip;
 
-  VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
-  VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
+  //~ Vec dslip;
+  //~ VecDuplicate(_var["psi"], &dslip); VecSet(dslip,0.);
+  //~ _var["dslip"] = dslip;
+
+  VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.);
+  VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
 
   if (_inputDir.compare("unspecified") != 0){
 
-    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
+    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _var["uPrev"]);
     if (ierr == 1){
-      VecCopy(_varEx["u"], _varEx["uPrev"]);
+      VecCopy(_var["u"], _var["uPrev"]);
     }
-      ierr = loadFileIfExists_matlab(_inputDir + "psi", _varEx["psi"]);
-      ierr = loadFileIfExists_matlab(_inputDir + "psiPrev", _varEx["psiPrev"]);
+      ierr = loadFileIfExists_matlab(_inputDir + "psi", _var["psi"]);
+      ierr = loadFileIfExists_matlab(_inputDir + "psiPrev", _var["psiPrev"]);
       if (ierr > 0){
-        VecCopy(_varEx["psi"], _varEx["psiPrev"]);
+        VecCopy(_var["psi"], _var["psiPrev"]);
         ierr = 0;
       }
       ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _fault->_slipVel);
       ierr = loadFileIfExists_matlab(_inputDir + "bcR", _material->_bcRShift);
       ierr = loadFileIfExists_matlab(_inputDir + "bcL", _material->_bcL);
       if (ierr > 0){
-        VecCopy(_varEx["u"], _varEx["slip"]);
+        VecCopy(_var["u"], _var["slip"]);
         ierr = 0;
       }
       else{
-        VecCopy(_material->_bcL, _varEx["slip"]);
+        VecCopy(_material->_bcL, _var["slip"]);
       }
-      VecScale(_varEx["slip"], 2.0);
-      VecCopy(_varEx["slip"], _fault->_slip);
-      VecCopy(_varEx["psi"], _fault->_psi);
-      VecCopy(_varEx["psiPrev"], _fault->_psiPrev);
+      VecScale(_var["slip"], 2.0);
+      VecCopy(_var["slip"], _fault->_slip);
+      VecCopy(_var["psi"], _fault->_psi);
+      VecCopy(_var["psiPrev"], _fault->_psiPrev);
 
       ierr = loadFileIfExists_matlab(_inputDir + "tau", _fault->_tau0);
       if (ierr == 0){
@@ -444,7 +451,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 
   // initialize time integrator
   _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount,_initTime,_maxTime,_deltaT);
-  ierr = _quadWaveEx->setInitialConds(_varEx);CHKERRQ(ierr);
+  ierr = _quadWaveEx->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadWaveEx->integrate(this);CHKERRQ(ierr);
 
@@ -526,8 +533,6 @@ double startPropagation = MPI_Wtime();
 
 
 _propagateTime += MPI_Wtime() - startPropagation;
-
-
 
 
 
