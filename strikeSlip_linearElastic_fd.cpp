@@ -200,15 +200,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
   VecDuplicate(_var["slip"],&_varPrev["slip"]); VecCopy(_var["slip"],_varPrev["slip"]);
   VecDuplicate(_var["slip"],&_varNext["slip"]); VecCopy(_var["slip"],_varNext["slip"]);
 
-  //~ Vec slip;
-  //~ VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
-  //~ _var["slip"] = slip;
 
-  //~ Vec dslip;
-  //~ VecDuplicate(_var["psi"], &dslip); VecSet(dslip,0.);
-  //~ _var["dslip"] = dslip;
-
-  VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.); // TODO remove this
+  //~ VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.); // TODO remove this
   VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
 
   VecDuplicate(*_z, &_varPrev["u"]); VecSet(_varPrev["u"], 0.0);
@@ -414,12 +407,21 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
 
 double startPropagation = MPI_Wtime();
 
+  //~ // switch to using varNext, var, and varPrev
+  //~ for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+    //std::string key = it->first;
+    //PetscPrintf(PETSC_COMM_WORLD,"key = %s\n",key.c_str());
+    //~ VecCopy(_varPrev[it->first],varPrev[it->first]);
+    //~ VecCopy(_var[it->first],var[it->first]);
+    //~ VecCopy(_varNext[it->first],varNext[it->first]);
+  //~ }
+
   // compute D2u = (Dyy+Dzz)*u
   Vec D2u, temp;
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, _var.find("u")->second, temp);
+  ierr = MatMult(A, var.find("u")->second, temp);
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
@@ -441,14 +443,14 @@ double startPropagation = MPI_Wtime();
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *uNextA; // changed in this loop
   const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(_varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(_var.find("u")->second, &u);
-  ierr = VecGetArrayRead(_varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
   ierr = VecGetArrayRead(_rhoVec, &rho);
 
-  ierr = VecGetOwnershipRange(_varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
   for (Ii = Istart; Ii < Iend; Ii++){
     PetscScalar c1 = deltaT*deltaT / rho[Jj];
@@ -458,9 +460,9 @@ double startPropagation = MPI_Wtime();
     uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
     Jj++;
   }
-  ierr = VecRestoreArray(_varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(_var.find("u")->second, &u);
-  ierr = VecRestoreArrayRead(_varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
   ierr = VecRestoreArrayRead(_rhoVec, &rho);
@@ -473,12 +475,12 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,_deltaT,_varNext,_var,_varPrev);CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
   // update body u from fault u
-  _fault->setGetBody2Fault(_varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+  _fault->setGetBody2Fault(varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
-  VecCopy(_varNext.find("u")->second, _material->_u);
+  VecCopy(varNext.find("u")->second, _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
@@ -486,16 +488,24 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
+  // switch to using varNext, var, and varPrev
+  //~ for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+    //~ //std::string key = it->first;
+    //~ //PetscPrintf(PETSC_COMM_WORLD,"key = %s\n",key.c_str());
+    //~ VecCopy(varPrev[it->first],_varPrev[it->first]);
+    //~ VecCopy(var[it->first],_var[it->first]);
+    //~ VecCopy(varNext[it->first],_varNext[it->first]);
+  //~ }
 
   // TODO move this into ode solver:
-  ierr = VecCopy(_var["u"], _varPrev["u"]);
-  ierr = VecCopy(_varNext["u"], _var["u"]);
+  //~ ierr = VecCopy(_var["u"], _varPrev["u"]);
+  //~ ierr = VecCopy(_varNext["u"], _var["u"]);
+  //~ ierr = VecCopy(_var["psi"], _varPrev["psi"]);
+  //~ ierr = VecCopy(_varNext["psi"], _var["psi"]);
+  //~ ierr = VecCopy(_var["slip"], _varPrev["slip"]);
+  //~ ierr = VecCopy(_varNext["slip"], _var["slip"]);
 
-  // fault stuff
-  ierr = VecCopy(_var["psi"], _varPrev["psi"]);
-  ierr = VecCopy(_varNext["psi"], _var["psi"]);
-  ierr = VecCopy(_var["slip"], _varPrev["slip"]);
-  ierr = VecCopy(_varNext["slip"], _var["slip"]);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
