@@ -1211,7 +1211,8 @@ PetscErrorCode Fault_fd::initiateIntegrand(const PetscScalar time,map<string,Vec
   Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi);
   varEx["psi"] = varPsi;
 
-  // slip is added by the momentum balance equation
+  Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip);
+  varEx["slip"] = varSlip;
 
 
   #if VERBOSE > 1

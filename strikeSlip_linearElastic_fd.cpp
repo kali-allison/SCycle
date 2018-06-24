@@ -197,6 +197,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
   // TODO move this into odesolver wave eq
   VecDuplicate(_var["psi"],&_varPrev["psi"]); VecCopy(_var["psi"],_varPrev["psi"]);
   VecDuplicate(_var["psi"],&_varNext["psi"]); VecCopy(_var["psi"],_varNext["psi"]);
+  VecDuplicate(_var["slip"],&_varPrev["slip"]); VecCopy(_var["slip"],_varPrev["slip"]);
+  VecDuplicate(_var["slip"],&_varNext["slip"]); VecCopy(_var["slip"],_varNext["slip"]);
 
   //~ Vec slip;
   //~ VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
@@ -533,12 +535,16 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(_varNext["u"], varEx["u"]);
 
-  // TODO move this into ode solver
+
+  // TODO move this into ode solver:
   ierr = VecCopy(_var["u"], _varPrev["u"]);
   ierr = VecCopy(_varNext["u"], _var["u"]);
 
+  // fault stuff
   ierr = VecCopy(_var["psi"], _varPrev["psi"]);
   ierr = VecCopy(_varNext["psi"], _var["psi"]);
+  ierr = VecCopy(_var["slip"], _varPrev["slip"]);
+  ierr = VecCopy(_varNext["slip"], _var["slip"]);
 
   //~ VecDestroy(&uNext);
 
