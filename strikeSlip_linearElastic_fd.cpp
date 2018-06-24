@@ -225,8 +225,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -259,42 +258,6 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-// monitoring function for IMEX integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-
-  _currTime = time;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_fd::timeMonitor for IMEX";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
-
-  _stepCount = stepCount;
-  _currTime = time;
-
-  if ( stepCount % _stride1D == 0) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-  }
-
-  if ( stepCount % _stride2D == 0) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
-  #endif
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
@@ -486,8 +449,8 @@ double startPropagation = MPI_Wtime();
   PetscScalar   *uNextA; // changed in this loop
   const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
   ierr = VecGetArray(_varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(_var["u"], &u);
-  ierr = VecGetArrayRead(_varPrev["u"], &uPrev);
+  ierr = VecGetArrayRead(_var.find("u")->second, &u);
+  ierr = VecGetArrayRead(_varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
   ierr = VecGetArrayRead(_rhoVec, &rho);
@@ -503,8 +466,8 @@ double startPropagation = MPI_Wtime();
     Jj++;
   }
   ierr = VecRestoreArray(_varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(_var["u"], &u);
-  ierr = VecRestoreArrayRead(_varPrev["u"], &uPrev);
+  ierr = VecRestoreArrayRead(_var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(_varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
   ierr = VecRestoreArrayRead(_rhoVec, &rho);
@@ -519,10 +482,10 @@ _propagateTime += MPI_Wtime() - startPropagation;
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
   ierr = _fault->d_dt(time,_varNext,varEx,_varPrev, _deltaT);CHKERRQ(ierr);
 
-  // update body u, uPrev from fault u, uPrev
+  // update body u from fault u
   _fault->setGetBody2Fault(_varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
-  VecCopy(_varNext["u"], _material->_u);
+  VecCopy(_varNext.find("u")->second, _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
@@ -545,8 +508,6 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecCopy(_varNext["psi"], _var["psi"]);
   ierr = VecCopy(_var["slip"], _varPrev["slip"]);
   ierr = VecCopy(_varNext["slip"], _var["slip"]);
-
-  //~ VecDestroy(&uNext);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
