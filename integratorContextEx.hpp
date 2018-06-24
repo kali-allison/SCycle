@@ -19,15 +19,11 @@ class IntegratorContextEx
 
     virtual PetscErrorCode integrate() = 0;
 
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar){return 1;};
-    virtual PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar){return 1;};
-    virtual PetscErrorCode d_dt_dyn(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar){return 1;};
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
 
+    // for output and monitoring as time integration progresses
+    // this function is not required
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar,int& stopIntegration){return 1;};
-    virtual PetscErrorCode timeMonitor_qd(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& var,const map<string,Vec>& dvar,int& stopIntegration){return 1;};
-    virtual PetscErrorCode timeMonitor_dyn(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& var,const map<string,Vec>& dvar,int& stopIntegration){return 1;};
 };
 

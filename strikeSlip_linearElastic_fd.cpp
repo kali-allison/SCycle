@@ -537,7 +537,6 @@ _propagateTime += MPI_Wtime() - startPropagation;
   // update body u, uPrev from fault u, uPrev
   _fault->setGetBody2Fault(uNext, _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
-  //~ VecCopy(varEx["u"], _material->_u);
   VecCopy(uNext, _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
@@ -547,11 +546,11 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
 
+  // TODO: move this into the odeSolver
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
 
   VecDestroy(&uNext);
-
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

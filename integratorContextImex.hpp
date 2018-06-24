@@ -18,23 +18,16 @@ class IntegratorContextImex
 
     virtual PetscErrorCode integrate() = 0;
 
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx){return 1;};
-    virtual PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) {return 1;};
-    virtual PetscErrorCode d_dt_dyn(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) {return 1;};
+    // for intermediate time steps for explicitly integrated variables
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
 
-    // backward Euler
+    // for time step including implicitly integrated variables
     virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt){return 1;};
-    virtual PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt){return 1;};
-    virtual PetscErrorCode d_dt_dyn(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt){return 1;};
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0;
 
+    // for output and monitoring as time integration progresses
+    // this function is not required
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImex,int& stopIntegration){return 1;};
-    virtual PetscErrorCode timeMonitor_qd(const PetscReal time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImex,int& stopIntegration){return 1;};
-    virtual PetscErrorCode timeMonitor_dyn(const PetscReal time,const PetscInt stepCount,
       const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varImex,int& stopIntegration){return 1;};
 };
 

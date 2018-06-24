@@ -694,7 +694,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd(){
 
   _fault_qd->_viewers.swap(_fault_dyn->_viewers);
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
 
   _varEx.erase("u");
   _varEx.erase("uPrev");
@@ -1576,10 +1575,11 @@ _propagateTime += MPI_Wtime() - startPropagation;
   return ierr;
 }
 
-// purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
+
 PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,map<string,Vec>& varImo)
 {
   PetscErrorCode ierr = 0;
+  /*
   PetscScalar deltaT = _deltaT;
 
   double startPropagation = MPI_Wtime();
@@ -1686,6 +1686,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
     ierr = _he->be(time,V,tau,NULL,NULL,NULL,varIm["Temp"],Told,_deltaT); CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
+  */
 
   return ierr;
 }
