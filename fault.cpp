@@ -1285,7 +1285,7 @@ PetscErrorCode Fault_fd::computeVel()
   return ierr;
 }
 
-PetscErrorCode Fault_fd::computeStateEvolution(Vec& psiNext, Vec& psi, Vec& psiPrev)
+PetscErrorCode Fault_fd::computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1391,7 +1391,8 @@ PetscErrorCode Fault_fd::updateTau0(const PetscScalar currT)
 
 
 
-PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,map<string,Vec>& var,map<string,Vec>& varPrev,PetscScalar deltaT)
+PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
+  map<string,Vec>& varNext,const map<string,Vec>& var,const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1464,7 +1465,8 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
 
 
   // update state variable
-  computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
+  //~ computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
+  computeStateEvolution(varNext["psi"], var.find("psi")->second, varPrev.find("psi")->second); // update state variable
   VecCopy(varNext["psi"],_psi);
 
   // assemble slip from u

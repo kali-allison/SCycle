@@ -473,7 +473,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,_varNext,_var,_varPrev, _deltaT);CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_deltaT,_varNext,_var,_varPrev);CHKERRQ(ierr);
 
   // update body u from fault u
   _fault->setGetBody2Fault(_varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u

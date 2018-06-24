@@ -174,11 +174,12 @@ class Fault_fd: public Fault
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& varNext,map<string,Vec>& var,map<string,Vec>& varPrev,PetscScalar deltaT);
+    PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
-    PetscErrorCode computeStateEvolution(Vec& psiNext, Vec& psi, Vec& psiPrev);
+    PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
     PetscErrorCode setPhi(const PetscScalar _deltaT);
     PetscErrorCode updateTau0(const PetscScalar currT);
 
