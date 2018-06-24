@@ -88,7 +88,7 @@ class OdeSolverImex
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
-    
+
     virtual std::map<string,Vec>& getVar(){return _varEx;};
     virtual std::map<string,Vec>& getVarIm(){return _varIm;};
 
@@ -123,8 +123,7 @@ class RK32_WBE : public OdeSolverImex
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
-    PetscErrorCode integrate_switch(IntegratorContextImex *obj);
-    
+
     std::map<string,Vec>& getVar(){return _varEx;};
     std::map<string,Vec>& getVarIm(){return _varIm;};
 
@@ -170,10 +169,10 @@ class RK43_WBE : public OdeSolverImex
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
-    PetscErrorCode integrate_switch(IntegratorContextImex *obj);
+
     std::map<string,Vec>& getVar(){return _varEx;};
     std::map<string,Vec>& getVarIm(){return _varIm;};
-    
+
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 };
