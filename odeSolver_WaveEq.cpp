@@ -57,7 +57,7 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
     VecDuplicate(var[it->first],&_var[it->first]); VecCopy(var[it->first],_var[it->first]);
 
     // allocate n-1: varPrev
-    VecDuplicate(var[it->first],&_varPrev[it->first]); VecSet(_varPrev[it->first],0.);
+    VecDuplicate(var[it->first],&_varPrev[it->first]); VecCopy(var[it->first],_varPrev[it->first]);
 
     // allocate n+1: varNext
     VecDuplicate(var[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
@@ -83,7 +83,6 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   // write initial condition
-  ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_stepCount,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
@@ -97,7 +96,7 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
     for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
       VecCopy(_var[it->first],_varPrev[it->first]);
       VecCopy(_varNext[it->first],_var[it->first]);
-      //~ VecSet(_varNext[it->first],0.0);
+      VecSet(_varNext[it->first],0.0);
     }
   }
 
