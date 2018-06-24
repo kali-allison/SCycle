@@ -1390,7 +1390,7 @@ PetscErrorCode Fault_fd::updateTau0(const PetscScalar currT)
 
 
 
-PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscScalar deltaT)
+PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,map<string,Vec>& var,map<string,Vec>& varPrev,PetscScalar deltaT)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1407,7 +1407,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *u, *uPrev, *slip, *slipVel; // changed in this loop
   const PetscScalar    *rho, *sNEff, *a, *an, *Phi, *psi, *alphay; // constant in this loop
-  ierr = VecGetOwnershipRange(_u,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_u,&Istart,&Iend); CHKERRQ(ierr);
   ierr = VecGetArray(_u, &u);
   ierr = VecGetArray(_uPrev, &uPrev);
   ierr = VecGetArray(_slip, &slip);

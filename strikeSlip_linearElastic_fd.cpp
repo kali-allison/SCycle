@@ -202,8 +202,10 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
   //~ VecDuplicate(_var["psi"], &dslip); VecSet(dslip,0.);
   //~ _var["dslip"] = dslip;
 
-  VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.);
+  VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.); // TODO remove this
   VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
+
+  VecDuplicate(*_z, &_varPrev["u"]); VecSet(_varPrev["u"], 0.0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -503,7 +505,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_varNext,varEx,_varPrev, _deltaT);CHKERRQ(ierr);
 
   // update body u, uPrev from fault u, uPrev
   _fault->setGetBody2Fault(uNext, _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u

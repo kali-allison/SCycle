@@ -1549,7 +1549,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
 _propagateTime += MPI_Wtime() - startPropagation;
 
   if (_initialConditions.compare("tau")==0) { _fault_dyn->updateTau0(time); }
-  ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  ierr = _fault_dyn->d_dt(time,_varNext,varEx,_varPrev, _deltaT);CHKERRQ(ierr);
 
 
   // update stresses

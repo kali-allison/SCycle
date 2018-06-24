@@ -71,6 +71,7 @@ private:
     Vec                  _alphay, _alphaz;
 
     // time stepping data
+    std::map <string,Vec>  _varNext,_var,_varPrev; // holds variables for time step: n+1, n (current), n-1
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
