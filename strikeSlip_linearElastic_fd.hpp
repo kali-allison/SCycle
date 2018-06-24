@@ -9,7 +9,7 @@
 #include <vector>
 #include <map>
 
-#include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq.hpp"
 #include "odeSolver_WaveEq.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"

@@ -7,7 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <assert.h>
-#include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq.hpp"
 #include "genFuncs.hpp"
 
 

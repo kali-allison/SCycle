@@ -68,7 +68,7 @@ main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp pressureEq.hpp iceStream_linearElastic_qd.hpp \
  strikeSlip_linearElastic_qd.hpp strikeSlip_linearElastic_fd.hpp \
- integratorContextWave.hpp odeSolver_WaveEq.hpp \
+ integratorContext_WaveEq.hpp odeSolver_WaveEq.hpp \
  strikeSlip_linearElastic_qd_fd.hpp integratorContext_WaveEq_Imex.hpp \
  odeSolver_WaveImex.hpp strikeSlip_powerLaw_qd.hpp
 mainLinearElastic.o: mainLinearElastic.cpp genFuncs.hpp spmat.hpp \
@@ -81,7 +81,7 @@ odeSolverImex.o: odeSolverImex.cpp odeSolverImex.hpp \
  integratorContextImex.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextEx.hpp
 odeSolver_WaveEq.o: odeSolver_WaveEq.cpp odeSolver_WaveEq.hpp \
- integratorContextWave.hpp genFuncs.hpp odeSolver.hpp \
+ integratorContext_WaveEq.hpp genFuncs.hpp odeSolver.hpp \
  integratorContextEx.hpp
 odeSolver_WaveImex.o: odeSolver_WaveImex.cpp odeSolver_WaveImex.hpp \
  integratorContext_WaveEq_Imex.hpp genFuncs.hpp odeSolver.hpp \
@@ -106,7 +106,7 @@ sbpOps_sc.o: sbpOps_sc.cpp sbpOps_sc.hpp domain.hpp genFuncs.hpp \
  spmat.hpp sbpOps.hpp
 spmat.o: spmat.cpp spmat.hpp
 strikeSlip_linearElastic_fd.o: strikeSlip_linearElastic_fd.cpp \
- strikeSlip_linearElastic_fd.hpp integratorContextWave.hpp genFuncs.hpp \
+ strikeSlip_linearElastic_fd.hpp integratorContext_WaveEq.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextEx.hpp odeSolver_WaveEq.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
@@ -120,7 +120,7 @@ strikeSlip_linearElastic_qd.o: strikeSlip_linearElastic_qd.cpp \
  heatEquation.hpp linearElastic.hpp
 strikeSlip_linearElastic_qd_fd.o: strikeSlip_linearElastic_qd_fd.cpp \
  strikeSlip_linearElastic_qd_fd.hpp integratorContextEx.hpp genFuncs.hpp \
- odeSolver.hpp integratorContextImex.hpp integratorContextWave.hpp \
+ odeSolver.hpp integratorContextImex.hpp integratorContext_WaveEq.hpp \
  integratorContext_WaveEq_Imex.hpp odeSolverImex.hpp odeSolver_WaveEq.hpp \
  odeSolver_WaveImex.hpp domain.hpp sbpOps.hpp sbpOps_c.hpp spmat.hpp \
  sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp fault.hpp rootFinderContext.hpp \

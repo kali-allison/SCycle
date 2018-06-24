@@ -11,7 +11,7 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
-#include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq.hpp"
 #include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
