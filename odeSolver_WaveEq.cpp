@@ -32,12 +32,6 @@ PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT)
   return 0;
 }
 
-PetscErrorCode OdeSolver_WaveEq::getCurrT(PetscScalar& currT){
-  PetscErrorCode ierr = 0;
-  currT = _currT; 
-  return ierr;
-}
-
 PetscErrorCode OdeSolver_WaveEq::view()
 {
 #if VERBOSE > 1
