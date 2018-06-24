@@ -194,6 +194,10 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   _fault->initiateIntegrand(_initTime,_var);
 
+  // TODO move this into odesolver wave eq
+  VecDuplicate(_var["psi"],&_varPrev["psi"]); VecCopy(_var["psi"],_varPrev["psi"]);
+  VecDuplicate(_var["psi"],&_varNext["psi"]); VecCopy(_var["psi"],_varNext["psi"]);
+
   //~ Vec slip;
   //~ VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
   //~ _var["slip"] = slip;
@@ -206,6 +210,10 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
   VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
 
   VecDuplicate(*_z, &_varPrev["u"]); VecSet(_varPrev["u"], 0.0);
+
+  VecDuplicate(*_z, &_varNext["u"]); VecSet(_varNext["u"], 0.0); // TODO remove this
+
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -467,20 +475,22 @@ double startPropagation = MPI_Wtime();
 
   // Propagate waves and compute displacement at the next time step
   // includes boundary conditions except for fault
-  Vec uNext;
-  VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
+  //~ Vec uNext;
+  //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
+  VecCopy(varEx["u"],_var["u"]); // TODO remove this
+  VecCopy(varEx["uPrev"],_varPrev["u"]);
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *uNextA; // changed in this loop
   const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(uNext, &uNextA);
-  ierr = VecGetArrayRead(varEx["u"], &u);
-  ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecGetArray(_varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(_var["u"], &u);
+  ierr = VecGetArrayRead(_varPrev["u"], &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
   ierr = VecGetArrayRead(_rhoVec, &rho);
 
-  ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
   for (Ii = Istart; Ii < Iend; Ii++){
     PetscScalar c1 = deltaT*deltaT / rho[Jj];
@@ -490,9 +500,9 @@ double startPropagation = MPI_Wtime();
     uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
     Jj++;
   }
-  ierr = VecRestoreArray(uNext, &uNextA);
-  ierr = VecRestoreArrayRead(varEx["u"], &u);
-  ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
+  ierr = VecRestoreArray(_varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(_var["u"], &u);
+  ierr = VecRestoreArrayRead(_varPrev["u"], &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
   ierr = VecRestoreArrayRead(_rhoVec, &rho);
@@ -508,9 +518,9 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = _fault->d_dt(time,_varNext,varEx,_varPrev, _deltaT);CHKERRQ(ierr);
 
   // update body u, uPrev from fault u, uPrev
-  _fault->setGetBody2Fault(uNext, _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+  _fault->setGetBody2Fault(_varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
-  VecCopy(uNext, _material->_u);
+  VecCopy(_varNext["u"], _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
@@ -519,11 +529,18 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
 
-  // TODO: move this into the odeSolver
+  // TODO: remove this
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
-  ierr = VecCopy(uNext, varEx["u"]);
+  ierr = VecCopy(_varNext["u"], varEx["u"]);
 
-  VecDestroy(&uNext);
+  // TODO move this into ode solver
+  ierr = VecCopy(_var["u"], _varPrev["u"]);
+  ierr = VecCopy(_varNext["u"], _var["u"]);
+
+  ierr = VecCopy(_var["psi"], _varPrev["psi"]);
+  ierr = VecCopy(_varNext["psi"], _var["psi"]);
+
+  //~ VecDestroy(&uNext);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

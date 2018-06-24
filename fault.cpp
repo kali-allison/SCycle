@@ -1398,6 +1398,10 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // update fields with new time step
+  VecCopy(var["psi"],_psi);
+  //~ VecCopy(var["uFault"],_uPrev); // TODO needed in future
+
   _deltaT = deltaT; // this is probably unnecessary
 
   // compute slip velocity
@@ -1452,12 +1456,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varNext,m
   ierr = VecRestoreArrayRead(_alphay, &alphay);
 
 
-  Vec psiNext;
-  VecDuplicate(_psi,&psiNext);
-  VecCopy(_psi,psiNext);
-  computeStateEvolution(psiNext, _psi, _psiPrev); // update state variable
-  VecCopy(_psi,_psiPrev);
-  VecCopy(psiNext,_psi);
+  computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
 
   VecAXPY(_slip, 1.0, _slip0); // add background level to slip
 
