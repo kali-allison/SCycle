@@ -102,7 +102,7 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     PetscErrorCode initiateIntegrand();
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev);
 
     // IO functions
     PetscErrorCode view();

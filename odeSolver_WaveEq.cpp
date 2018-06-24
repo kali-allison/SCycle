@@ -18,19 +18,7 @@ OdeSolver_WaveEq::OdeSolver_WaveEq(PetscInt maxNumSteps,PetscScalar initT,PetscS
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::setStepSize in odeSolver_waveEq.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-  _deltaT = deltaT;
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq::setStepSize in odeSolver_waveEq.cpp.\n");
-#endif
-  return 0;
-}
+PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT) { _deltaT = deltaT;  return 0; }
 
 PetscErrorCode OdeSolver_WaveEq::view()
 {
@@ -63,12 +51,16 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  _var = *(&var);
-  for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-    Vec temp;
-    ierr = VecDuplicate(_var[it->first],&temp); CHKERRQ(ierr);
-    ierr = VecSet(temp,0.0); CHKERRQ(ierr);
-    _varPrev[it->first] = temp;
+  for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+
+    // allocate n: var
+    VecDuplicate(var[it->first],&_var[it->first]); VecCopy(var[it->first],_var[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(var[it->first],&_varPrev[it->first]); VecSet(_varPrev[it->first],0.);
+
+    // allocate n+1: varNext
+    VecDuplicate(var[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -90,18 +82,23 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
-  // set initial condition
-  ierr = obj->d_dt(_currT,_var,_varPrev);CHKERRQ(ierr);
-
+  // write initial condition
+  ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_stepCount,stopIntegration);CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
-    ierr = obj->d_dt(_currT,_var,_varPrev);CHKERRQ(ierr);
-
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
+    ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev);CHKERRQ(ierr);
     ierr = obj->timeMonitor(_currT,_stepCount,stopIntegration);CHKERRQ(ierr);
+
+    // accept time step and update
+    for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
+      VecCopy(_var[it->first],_varPrev[it->first]);
+      VecCopy(_varNext[it->first],_var[it->first]);
+      VecSet(_varNext[it->first],0.0);
+    }
   }
 
   _runTime += MPI_Wtime() - startTime;

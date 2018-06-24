@@ -404,7 +404,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -413,7 +413,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<str
   #endif
 
   // TODO get rid of this
-  PetscScalar deltaT = _deltaT;
+  //~ PetscScalar deltaT = _deltaT;
 
 double startPropagation = MPI_Wtime();
 
@@ -422,7 +422,7 @@ double startPropagation = MPI_Wtime();
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, varEx["u"], temp);
+  ierr = MatMult(A, _var.find("u")->second, temp);
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
@@ -480,7 +480,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,_varNext,varEx,_varPrev, _deltaT);CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_varNext,_var,_varPrev, _deltaT);CHKERRQ(ierr);
 
   // update body u from fault u
   _fault->setGetBody2Fault(_varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
@@ -497,7 +497,6 @@ _propagateTime += MPI_Wtime() - startPropagation;
   // TODO: remove this
   //~ ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   //~ ierr = VecCopy(_varNext["u"], varEx["u"]);
-
 
   // TODO move this into ode solver:
   ierr = VecCopy(_var["u"], _varPrev["u"]);
