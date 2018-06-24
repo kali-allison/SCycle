@@ -1451,7 +1451,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
 
   // update body u, uPrev from fault u, uPrev
   setGetBody2Fault(varEx["u"], _u, SCATTER_REVERSE); // update body u with newly computed fault u
-  setGetBody2Fault(varEx["uPrev"], _uPrev, SCATTER_REVERSE);
+  //~ setGetBody2Fault(varEx["uPrev"], _uPrev, SCATTER_REVERSE);
 
   computeStateEvolution(); // update state variable
 
