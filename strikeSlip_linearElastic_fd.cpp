@@ -524,23 +524,33 @@ double startPropagation = MPI_Wtime();
 
   VecDestroy(&D2u);
 
-  ierr = VecCopy(varEx["u"], varEx["uPrev"]);
-  ierr = VecCopy(uNext, varEx["u"]);
-
-  VecDestroy(&uNext);
 
 _propagateTime += MPI_Wtime() - startPropagation;
+
+
+
+
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
   ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
 
-  VecCopy(varEx["u"], _material->_u);
+  // update body u, uPrev from fault u, uPrev
+  _fault->setGetBody2Fault(uNext, _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+
+  //~ VecCopy(varEx["u"], _material->_u);
+  VecCopy(uNext, _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
   _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+
+
+  ierr = VecCopy(varEx["u"], varEx["uPrev"]);
+  ierr = VecCopy(uNext, varEx["u"]);
+
+  VecDestroy(&uNext);
 
 
   #if VERBOSE > 1
