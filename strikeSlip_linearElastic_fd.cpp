@@ -194,9 +194,9 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   _fault->initiateIntegrand(_initTime,_var);
 
-  Vec slip;
-  VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
-  _var["slip"] = slip;
+  //~ Vec slip;
+  //~ VecDuplicate(_var["psi"], &slip); VecSet(slip,0.);
+  //~ _var["slip"] = slip;
 
   //~ Vec dslip;
   //~ VecDuplicate(_var["psi"], &dslip); VecSet(dslip,0.);
@@ -204,40 +204,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.);
   VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
-
-  if (_inputDir.compare("unspecified") != 0){
-
-    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _var["uPrev"]);
-    if (ierr == 1){
-      VecCopy(_var["u"], _var["uPrev"]);
-    }
-      ierr = loadFileIfExists_matlab(_inputDir + "psi", _var["psi"]);
-      ierr = loadFileIfExists_matlab(_inputDir + "psiPrev", _var["psiPrev"]);
-      if (ierr > 0){
-        VecCopy(_var["psi"], _var["psiPrev"]);
-        ierr = 0;
-      }
-      ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _fault->_slipVel);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcR", _material->_bcRShift);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcL", _material->_bcL);
-      if (ierr > 0){
-        VecCopy(_var["u"], _var["slip"]);
-        ierr = 0;
-      }
-      else{
-        VecCopy(_material->_bcL, _var["slip"]);
-      }
-      VecScale(_var["slip"], 2.0);
-      VecCopy(_var["slip"], _fault->_slip);
-      VecCopy(_var["psi"], _fault->_psi);
-      VecCopy(_var["psiPrev"], _fault->_psiPrev);
-
-      ierr = loadFileIfExists_matlab(_inputDir + "tau", _fault->_tau0);
-      if (ierr == 0){
-        _initialConditions = "None";
-      }
-    ierr = 0;
-    }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
