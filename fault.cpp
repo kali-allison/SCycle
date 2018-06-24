@@ -1294,8 +1294,6 @@ PetscErrorCode Fault_fd::computeStateEvolution(Vec& psiNext, Vec& psi, Vec& psiP
 
   double startStateLawTime = MPI_Wtime();
 
-  VecCopy(psi, _psi);
-
   // initialize struct to solve for the slip velocity
   PetscScalar *Dc, *b, *psiNextA, *psiA, *psiPrevA, *slipVel;
   VecGetArray(_Dc,&Dc);
@@ -1461,6 +1459,8 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map
   VecDuplicate(_psi,&psiNext);
   VecCopy(_psi,psiNext);
   computeStateEvolution(psiNext, _psi, _psiPrev); // update state variable
+  VecCopy(_psi,_psiPrev);
+  VecCopy(psiNext,_psi);
 
   VecAXPY(_slip, 1.0, _slip0); // add background level to slip
 
@@ -1620,7 +1620,7 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
 
 
 ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
 : _Dc(Dc),_b(b),_slipVel(slipVel),_psiNext(psiNext),_psi(psi),
 _psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
@@ -1637,6 +1637,7 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
   // RegulaFalsi rootFinder(maxNumIts,rootTol);
   BracketedNewton rootFinder(maxNumIts,rootTol);
   // Bisect rootFinder(maxNumIts,rootTol);
+
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
@@ -1661,15 +1662,13 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
       left = temp;
     }
 
-    if (abs(left-right)<1e-14) { out = left; }
+    if (abs(left-right)<1e-14) { _psiNext[Jj] = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&_psiNext[Jj]);CHKERRQ(ierr);
       // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
-    _psiPrev[Jj] = _psi[Jj];
-    _psi[Jj] = out;
   }
 
   #if VERBOSE > 1
@@ -1719,7 +1718,7 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
 
 
 ComputeSlipLaw_fd::ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev,const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev,const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_psiNext(psiNext),_psi(psi), _psiPrev(psiPrev),
   _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
@@ -1760,15 +1759,13 @@ PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt
       left = temp;
     }
 
-    if (abs(left-right)<1e-14) { out = left; }
+    if (abs(left-right)<1e-14) { _psiNext[Jj] = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&_psiNext[Jj]);CHKERRQ(ierr);
       // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
-    _psiPrev[Jj] = _psi[Jj];
-    _psi[Jj] = out;
   }
 
   #if VERBOSE > 1
@@ -1820,7 +1817,7 @@ PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar s
 
 
 ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),
   _Vw(Vw),_psiNext(psiNext),_psi(psi),_psiPrev(psiPrev),
@@ -1862,15 +1859,13 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
       left = temp;
     }
 
-    if (abs(left-right)<1e-14) { out = left; }
+    if (abs(left-right)<1e-14) { _psiNext[Jj] = left; }
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&out);CHKERRQ(ierr);
+      ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&_psiNext[Jj]);CHKERRQ(ierr);
       // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
-    _psiPrev[Jj] = _psi[Jj];
-    _psi[Jj] = out;
   }
 
   #if VERBOSE > 1

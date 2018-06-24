@@ -231,14 +231,14 @@ struct ComputeVel_fd : public RootFinderContext
 struct ComputeAging_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipVelPrev;
-  PetscScalar        *_psiNext,*_psi, *_psiPrev;
+  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipVelPrev,*_psi, *_psiPrev;
+  PetscScalar        *_psiNext;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
   ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
@@ -254,14 +254,14 @@ struct ComputeAging_fd : public RootFinderContext
 struct ComputeSlipLaw_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev;
-  PetscScalar        *_psiNext,*_psi, *_psiPrev;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev,*_psi, *_psiPrev;
+  PetscScalar        *_psiNext;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
   ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev,const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev,const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
@@ -277,14 +277,14 @@ struct ComputeSlipLaw_fd : public RootFinderContext
 struct ComputeFlashHeating_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev, *_Vw;
-  PetscScalar        *_psiNext,*_psi, *_psiPrev;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev, *_Vw,*_psi, *_psiPrev;
+  PetscScalar        *_psiNext;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0, _fw;
 
   // constructor and destructor
   ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
-    PetscScalar* psiNext, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
+    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
