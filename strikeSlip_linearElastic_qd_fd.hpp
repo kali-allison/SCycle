@@ -62,6 +62,7 @@ private:
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     const PetscInt       _order,_Ny,_Nz;
+    PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _CFL;
     Vec                 *_y,*_z; // to handle variable grid spacing
@@ -70,8 +71,8 @@ private:
     Vec                  _alphay, _alphaz;
 
     // time stepping data
-    std::map <string,Vec>  _varNext,_var,_varPrev; // holds variables for time step: n+1, n (current), n-1
-    std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
+    std::map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     std::string            _initialConditions;
@@ -87,7 +88,7 @@ private:
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
     std::string            _normType;
 
-    PetscInt               _debug, _localStep, _startOnDynamic;
+    PetscInt               _startOnDynamic;
 
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
@@ -115,10 +116,10 @@ private:
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
-    OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
-    OdeSolverImex       *_quadImex_qd, *_quadImex_switch; // implicit time stepping
+    OdeSolver                 *_quadEx_qd, *_quadEx_switch; // explicit time stepping
+    OdeSolverImex             *_quadImex_qd, *_quadImex_switch; // implicit time stepping
     OdeSolver_WaveEq          *_quadWaveEx;
-    OdeSolver_WaveEq_Imex          *_quadWaveImex;
+    OdeSolver_WaveEq_Imex     *_quadWaveImex;
 
     Fault_qd                   *_fault_qd;
     Fault_fd                   *_fault_fd;
@@ -139,11 +140,15 @@ private:
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode integrate_qd();
     PetscErrorCode integrate_dyn();
+    PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode initiateIntegrand_qd();
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
+    // help with switching between fully dynamic and quasidynamic
     bool check_switch(const Fault* _fault);
+    PetscErrorCode prepare_qd2fd(); // switch from quasidynamic to fully dynamic
+    PetscErrorCode prepare_fd2qd(); // switch from fully dynamic to quasidynamic
     PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods
