@@ -18,8 +18,8 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _y(&D._y),_z(&D._z),
   _Fhat(NULL),
   _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),
-  _stride1D_qd(1),_stride2D_qd(1),_stride1D_fd(1),_stride2D_fd(1),_stride1D_fd_end(1),_stride2D_fd_end(1),
+  _stride1D(10),_stride2D(10),
+  _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),_stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
   _maxStepCount(1e8),
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
   _inDynamic(false),
@@ -27,7 +27,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _startOnDynamic(0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(2),_limit_stride_dyn(-1),
+  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-2),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
   _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
@@ -66,12 +66,13 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   parseBCs();
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
+  //~ _material = new LinearElastic(D,_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
   _cs = _material->_cs;
   _rhoVec = _material->_rhoVec;
   _muVec = _material->_muVec;
   computePenaltyVectors();
 
-  computeTimeStep(); // compute time step
+  computeTimeStep(); // compute fully dynamic time step
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -542,14 +543,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate(){
 double startTime_qd = MPI_Wtime();
     _allowed = false;
     _inDynamic = false;
-    integrate_qd(); PetscPrintf(PETSC_COMM_WORLD,"line 545\n");
+    integrate_qd();
 _qdTime += MPI_Wtime() - startTime_qd;
 
 double startTime_fd = MPI_Wtime();
-    prepare_qd2fd(); PetscPrintf(PETSC_COMM_WORLD,"line 549\n");
+    prepare_qd2fd();
     _allowed = false;
     _inDynamic = true;
-    integrate_fd();  PetscPrintf(PETSC_COMM_WORLD,"line 552\n");
+    integrate_fd();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
 
@@ -558,29 +559,29 @@ _dynTime += MPI_Wtime() - startTime_fd;
 //~ double startTime_fd = MPI_Wtime();
     //~ _allowed = false;
     //~ _inDynamic = true;
-    //~ integrate_dyn();
+    //~ integrate_fd();
 //~ _dynTime += MPI_Wtime() - startTime_fd;
   //~ }
 
   // for all cycles after 1st cycle
-  _cycleCount++;
-  while (_cycleCount <= _maxNumCycles && _stepCount <= _maxStepCount && _maxTime <= _currTime) {
-    double startTime_qd = MPI_Wtime();
-    prepare_fd2qd();  PetscPrintf(PETSC_COMM_WORLD,"line 569\n");
-    _allowed = false;
-    _inDynamic = false;
-    integrate_qd(); PetscPrintf(PETSC_COMM_WORLD,"line 572\n");
-    _qdTime += MPI_Wtime() - startTime_qd;
+  //~ _cycleCount++;
+  //~ while (_cycleCount <= _maxNumCycles && _stepCount <= _maxStepCount && _maxTime <= _currTime) {
+    //~ double startTime_qd = MPI_Wtime();
+    //~ prepare_fd2qd();
+    //~ _allowed = false;
+    //~ _inDynamic = false;
+    //~ integrate_qd();
+    //~ _qdTime += MPI_Wtime() - startTime_qd;
 
-    double startTime_fd = MPI_Wtime();
-    prepare_qd2fd(); PetscPrintf(PETSC_COMM_WORLD,"line 576\n");
-    _allowed = false;
-    _inDynamic = true;
-    integrate_fd(); PetscPrintf(PETSC_COMM_WORLD,"line 580\n");
-    _dynTime += MPI_Wtime() - startTime_fd;
+    //~ double startTime_fd = MPI_Wtime();
+    //~ prepare_qd2fd();
+    //~ _allowed = false;
+    //~ _inDynamic = true;
+    //~ integrate_fd();
+    //~ _dynTime += MPI_Wtime() - startTime_fd;
 
-    _cycleCount++;
-  }
+    //~ _cycleCount++;
+  //~ }
 
 
   _integrateTime += MPI_Wtime() - startTime_integrateTime;
@@ -693,6 +694,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
 
   _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
+  VecSet(_material->_u,0.);
   VecDuplicate(_material->_u, &_varFD["u"]); VecCopy(_material->_u,_varFD["u"]);
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
@@ -1418,6 +1420,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
   ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
@@ -1519,6 +1522,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
   ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
@@ -1700,7 +1704,8 @@ double startTime = MPI_Wtime();
 
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e fully dynamic\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
+    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e fully dynamic\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e fully dynamic %i %i\n",stepCount,_currTime,_deltaT,_stride1D,_stride1D_fd_end);CHKERRQ(ierr);
   #endif
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

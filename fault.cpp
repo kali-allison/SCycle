@@ -197,6 +197,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   ierr = loadVecFromInputFile(_tau0,inputDir,"tau0",chkTau0); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
   if (chkTau0 && ~chkTauQS) { VecCopy(_tau0,_tauQSP); }
+  VecCopy(_tauQSP,_tauP);
 
   // rate and state parameters
   ierr = loadVecFromInputFile(_a,inputDir,"a"); CHKERRQ(ierr);
