@@ -1535,6 +1535,21 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
+
+    // heat equation
+  if (varIm.find("Temp") != varIm.end()) {
+    //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
+    Vec sxy,sxz,sdev;
+    _material->getStresses(sxy,sxz,sdev);
+    Vec V = _fault_fd->_slipVel;
+    Vec tau = _fault_fd->_tauP;
+    Vec gVxy_t = NULL;
+    Vec gVxz_t = NULL;
+    Vec Told = varImo.find("Temp")->second;
+    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+  }
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
