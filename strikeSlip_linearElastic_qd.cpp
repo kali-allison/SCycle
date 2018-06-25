@@ -373,53 +373,16 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 }
 
 
-// monitoring function for explicit integration
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for explicit";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
 
-  _stepCount = stepCount;
-  _dT = time - _currTime;
-  _currTime = time;
-
-
-  if (_stride1D>0 && stepCount % _stride1D == 0) {
-    ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-  }
-
-  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
-    ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-_totalRunTime = MPI_Wtime() - _startTime;
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,_totalRunTime);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
+// monitoring function for ode solvers
+PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();

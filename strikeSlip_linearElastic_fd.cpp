@@ -218,7 +218,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -227,6 +228,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,c
   #endif
 double startTime = MPI_Wtime();
 
+  _deltaT = deltaT;
   _stepCount = stepCount;
   _currTime = time;
 

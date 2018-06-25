@@ -422,14 +422,13 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     assert(_varEx.find(key) != _varEx.end());
   }
 
-
-  // set initial condition
-  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration);CHKERRQ(ierr);// write first step
-
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
   if (_maxNumSteps == 0) { return ierr; }
+
+  // set initial condition
+  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);// write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -499,7 +498,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -976,15 +975,15 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     assert(_varEx.find(key) != _varEx.end());
   }
 
+  if (_finalT==_initT) { return ierr; }
+  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
+
 
   // set initial condition
   ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
-  ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr); // write first step
-
-  if (_finalT==_initT) { return ierr; }
-  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
-  if (_maxNumSteps == 0) { return ierr; }
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
@@ -1088,7 +1087,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
       VecSet(_vardTIm[it->first],0.);
     }
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }

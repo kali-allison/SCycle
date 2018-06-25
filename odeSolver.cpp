@@ -149,7 +149,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -161,7 +161,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -506,13 +506,15 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   }
 
 
-  // set initial condition
-  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
-
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
   if (_maxNumSteps == 0) { return ierr; }
+
+  // set initial condition
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
+
+
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -575,7 +577,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
   }
@@ -1001,15 +1003,16 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     assert(_var.find(key) != _var.end());
   }
 
+  if (_finalT==_initT) { return ierr; }
+  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
-  ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
-  if (_finalT==_initT) { return ierr; }
-  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
-  if (_maxNumSteps == 0) { return ierr; }
+
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
@@ -1106,7 +1109,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    ierr = obj->timeMonitor(_currT,_stepCount,_var,_dvar,stopIntegration);CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n"); break; }
 
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }

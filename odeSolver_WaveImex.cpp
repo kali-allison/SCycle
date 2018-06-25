@@ -107,14 +107,14 @@ PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *o
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
   // write initial condition
-  ierr = obj->timeMonitor(_currT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
     ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev,_varIm, _varImPrev); CHKERRQ(ierr);
-    ierr = obj->timeMonitor(_currT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
     // accept time step and update explicitly integrated variables
     for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
