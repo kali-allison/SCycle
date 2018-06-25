@@ -8,7 +8,7 @@ using namespace std;
 strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),_isFault("true"),
+  _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
@@ -222,7 +222,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_dyn")==0) { _limit_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_stride_dyn")==0) { _limit_stride_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
 
@@ -1796,34 +1795,4 @@ _writeTime += MPI_Wtime() - startTime;
   #endif
   return ierr;
 }
-
-
-
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::view_dyn()
-{
-  PetscErrorCode ierr = 0;
-
-  double totRunTime = MPI_Wtime() - _startTime;
-
-  _material->view(_integrateTime);
-  _fault_fd->view(_integrateTime);
-  int num_proc;
-  MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Domain Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   Nz: %i\n",_Nz);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   Ny: %i\n",_Ny);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",num_proc);CHKERRQ(ierr);
-
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"strikeSlip_linearElastic_qd_fd Runtime Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent propagating the wave (s): %g\n",_propagateTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",_writeTime/totRunTime*100.);CHKERRQ(ierr);
-  return ierr;
-}
-
 

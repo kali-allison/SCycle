@@ -56,7 +56,6 @@ private:
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
-    std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
@@ -166,8 +165,6 @@ private:
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-
-    PetscErrorCode view_dyn();
 
     // handles switching between quasidynamic and fully dynamic
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration);
