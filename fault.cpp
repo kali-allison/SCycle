@@ -183,7 +183,6 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
 #endif
 
   // load normal stress: _sNEff
-  //~string vecSourceFile = _inputDir + "sigma_N";
   ierr = loadVecFromInputFile(_sNEff,inputDir,"sNEff"); CHKERRQ(ierr);
 
   // load state: psi
@@ -192,8 +191,12 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   // load slip
   ierr = loadVecFromInputFile(_slip,inputDir,"slip"); CHKERRQ(ierr);
 
-  // load quasi-static shear stress
+
+  // load shear stress: pre-stress, quasistatic, and full
+  bool chkTau0 = 0, chkTauQS = 0;
+  ierr = loadVecFromInputFile(_tau0,inputDir,"tau0",chkTau0); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
+  if (chkTau0 && ~chkTauQS) { VecCopy(_tau0,_tauQSP); }
 
   // rate and state parameters
   ierr = loadVecFromInputFile(_a,inputDir,"a"); CHKERRQ(ierr);
@@ -278,7 +281,7 @@ PetscErrorCode Fault::setFields(Domain& D)
   VecDuplicate(_tauP,&_rho);      PetscObjectSetName((PetscObject) _rho, "rho_fault");
   VecDuplicate(_tauP,&_mu);       PetscObjectSetName((PetscObject) _mu, "mu_fault");
   VecDuplicate(_tauP,&_locked);   PetscObjectSetName((PetscObject) _locked, "locked");
-  VecDuplicate(_tauP,&_tau0);     PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 30.0);
+  VecDuplicate(_tauP,&_tau0);     PetscObjectSetName((PetscObject) _tau0, "tau0");VecSet(_tau0, 0.0);
   VecDuplicate(_tauP,&_slip0);     PetscObjectSetName((PetscObject) _slip0, "slip0");VecSet(_slip0, 0.0);
 
   // create z from D._z
@@ -548,6 +551,8 @@ PetscErrorCode Fault::writeContext(const std::string outputDir)
   ierr = writeVec(_Dc,outputDir + "fault_Dc"); CHKERRQ(ierr);
   ierr = writeVec(_cohesion,outputDir + "fault_cohesion"); CHKERRQ(ierr);
   ierr = writeVec(_locked,outputDir + "fault_locked"); CHKERRQ(ierr);
+  ierr = writeVec(_tau0,outputDir + "fault_tau0"); CHKERRQ(ierr);
+  ierr = writeVec(_slip0,outputDir + "fault_slip0"); CHKERRQ(ierr);
 
   if (!_stateLaw.compare("flashHeating")) {
     ierr = writeVec(_Tw,outputDir + "fault_Tw"); CHKERRQ(ierr);
@@ -1465,7 +1470,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
 
 
   // update state variable
-  //~ computeStateEvolution(varNext["psi"], var["psi"], varPrev["psi"]); // update state variable
   computeStateEvolution(varNext["psi"], var.find("psi")->second, varPrev.find("psi")->second); // update state variable
   VecCopy(varNext["psi"],_psi);
 

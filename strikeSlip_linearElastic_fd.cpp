@@ -463,8 +463,6 @@ double startPropagation = MPI_Wtime();
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-
-
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
   ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
