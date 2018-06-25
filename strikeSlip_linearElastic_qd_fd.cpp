@@ -541,9 +541,12 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate(){
   double startTime0 = MPI_Wtime();
 
   integrate_qd();
+
   _qdTime += MPI_Wtime() - startTime0;
+
   double startTime1 = MPI_Wtime();
   integrate_dyn();
+
   _dynTime += MPI_Wtime() - startTime1;
   _integrateTime += MPI_Wtime() - startTime0;
   #if VERBOSE > 1
@@ -1185,39 +1188,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_dyn()
 
 
 
-/*
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx){
-  PetscErrorCode ierr = 0;
-  if(_inDynamic){
-    ierr = strikeSlip_linearElastic_qd_fd::d_dt_dyn(time,varEx,dvarEx);
-  }
-  else{
-    ierr = strikeSlip_linearElastic_qd_fd::d_dt_qd(time,varEx,dvarEx);
-  }
-  return ierr;
-}
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const map<string,Vec>& varEx,map<string,Vec>& dvarEx){
-  PetscErrorCode ierr = 0;
-  if(!_inDynamic){
-    ierr = strikeSlip_linearElastic_qd_fd::d_dt_qd(time,varEx,dvarEx);
-  }
-  return ierr;
-}
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt){
-  PetscErrorCode ierr = 0;
-  ierr = strikeSlip_linearElastic_qd_fd::d_dt_qd(time,varEx,dvarEx,varIm,varImo,dt);
-  return ierr;
-}
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,map<string,Vec>& varImo){
-  PetscErrorCode ierr = 0;
-  ierr = strikeSlip_linearElastic_qd_fd::d_dt_dyn(time,varEx,dvarEx,varIm,varImo);
-  return ierr;
-}*/
 
 // quasidynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly

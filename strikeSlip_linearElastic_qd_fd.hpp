@@ -137,8 +137,8 @@ private:
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode integrate_qd(); // will call OdeSolver method by same name
-    PetscErrorCode integrate_dyn(); // will call OdeSolver method by same name
+    PetscErrorCode integrate_qd();
+    PetscErrorCode integrate_dyn();
     PetscErrorCode initiateIntegrand_qd();
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

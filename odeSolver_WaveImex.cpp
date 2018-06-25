@@ -114,7 +114,6 @@ PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *o
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
     ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev,_varIm, _varImPrev); CHKERRQ(ierr);
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
     // accept time step and update explicitly integrated variables
     for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
@@ -126,6 +125,13 @@ PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *o
     // accept updated state for implicit variables
     for (map<string,Vec>::iterator it = _varImPrev.begin(); it!=_varImPrev.end(); it++ ) {
       VecCopy(_varIm[it->first],_varImPrev[it->first]);
+    }
+
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+
+    if (stopIntegration > 0) {
+      PetscPrintf(PETSC_COMM_WORLD,"OdeSolver WaveEq IMEX: Detected stop time integration request.\n");
+      break;
     }
   }
 
