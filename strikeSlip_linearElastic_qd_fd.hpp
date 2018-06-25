@@ -12,7 +12,7 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "integratorContext_WaveEq.hpp"
-//~ #include "integratorContext_WaveEq_Imex.hpp"
+#include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -139,7 +139,7 @@ private:
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode integrate_qd();
-    PetscErrorCode integrate_dyn();
+    PetscErrorCode integrate_fd();
     PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
     PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode initiateIntegrand_qd();
@@ -164,8 +164,8 @@ private:
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // quasidynamic
 
     PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev,
-      map<string,Vec>& varIm,map<string,Vec>& varImo); // fully dynamic
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev,
+      map<string,Vec>& varIm, const map<string,Vec>& varImPrev); // fully dynamic
 
 
     // IO functions
