@@ -616,7 +616,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd(){
     stride2d = _stride2D;
     _stride1D = 1;
     _stride2D = 1;
-    //~ timeMonitor(_currTime, _stepCount, _varEx, _varEx, _stride1D); // TODO FIX
+    timeMonitor(_currTime, _deltaT,_stepCount, _stride1D);
     _stride1D = stride1d;
     _stride2D = stride2d;
   }
@@ -1561,7 +1561,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
     stride2d = _stride2D;
     _stride1D = 1;
     _stride2D = 1;
-    //~ timeMonitor(_currTime, _stepCount, _varEx, _varEx, _stride1D); // TODO fix this
+    timeMonitor(_currTime, _deltaT,_stepCount, _stride1D);
     _stride1D = stride1d;
     _stride2D = stride2d;
   }
@@ -1663,115 +1663,33 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
 }
 
 
-
-
-// timeMonitor functions
-/*
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration){
+// TODO get rid of this
+PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration){
   PetscErrorCode ierr = 0;
   if(_inDynamic){
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_dyn(time,stepCount,varEx,dvarEx,stopIntegration);
+    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_fd(time,deltaT,stepCount,stopIntegration);
   }
   else{
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_qd(time,stepCount,varEx,dvarEx,stopIntegration);
-  }
-  _localStep += 1;
-  return ierr;
-}
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration){
-  PetscErrorCode ierr = 0;
-  if(_inDynamic){
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_dyn(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
-  }
-  else{
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_qd(time,stepCount,varEx,dvarEx,varIm,stopIntegration);
+    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_qd(time,deltaT,stepCount,stopIntegration);
   }
   _localStep += 1;
   return ierr;
 }
 
 
-// monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
+
+PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_qd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor for explicit";
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor_qd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
 
+  _currTime = time;
+  _deltaT = deltaT;
   _stepCount = stepCount;
-    // Case we enter twice in the same time step
-  if(time > _currTime){
-    _dT = time - _currTime;
-  }
-  _currTime = time;
-
-  PetscInt localStride1d, localStride2d;
-  if (_localStep < _debug){
-    localStride1d = 1;
-    localStride2d = 1;
-  }
-  else{
-    localStride1d = _stride1D;
-    localStride2d = _stride2D;
-  }
-
-  if (_stride1D>0 && stepCount % localStride1d == 0) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-  }
-
-  if (_stride2D>0 &&  stepCount % localStride2d == 0) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  if(check_switch(_fault_qd)){
-    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-      _quadImex_qd->_maxNumSteps = 0;
-    }
-    else{
-      _quadEx_qd->_maxNumSteps = 0;
-    }
-  }
-
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e quasidynamic\n",stepCount,_currTime);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// monitoring function for IMEX integration
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-
-  _currTime = time;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor for IMEX";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
-
-  _stepCount = stepCount;
-  // Case we enter twice in the same time step
-  if(time > _currTime){
-    _dT = time - _currTime;
-  }
-  _currTime = time;
 
   PetscInt localStride1d, localStride2d;
   if (_localStep < _debug){
@@ -1816,14 +1734,11 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-
-// monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_fd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor for explicit";
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -1867,57 +1782,8 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-// monitoring function for IMEX integration
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
 
-  _currTime = time;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor for IMEX";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
 
-  _stepCount = stepCount;
-  _currTime = time;
-  _dT = _deltaT;
-
-  PetscInt localStride1d, localStride2d;
-  if (_localStep < _debug){
-    localStride1d = 1;
-    localStride2d = 1;
-  }
-  else{
-    localStride1d = _stride1D;
-    localStride2d = _stride2D;
-  }
-  if ( _stride1D > 0 && stepCount % localStride1d == 0) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-  }
-
-  if ( _stride2D > 0 && stepCount % localStride2d == 0) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  if(check_switch(_fault_fd)){
-    _quadWaveEx->_maxNumSteps = 0;
-  }
-
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e fully dynamic\n",stepCount,_currTime);CHKERRQ(ierr);
-  #endif
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-*/
 
 PetscErrorCode strikeSlip_linearElastic_qd_fd::view_dyn()
 {
