@@ -665,20 +665,20 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
   _material->_sbp->getA(A);
   _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
 
-  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
+
 
   if(_firstCycle){
+
     VecSet(_material->_bcR,_vL*_initTime/2.0);
 
     Vec slip;
     VecDuplicate(_material->_bcL,&slip);
-    VecSet(slip,0.);
+    VecCopy(_material->_bcL,slip);
+    VecScale(slip,2.0);
+    if (_loadICs==1) {
+      VecCopy(_fault_qd->_slip,slip);
+    }
     _varEx["slip"] = slip;
-
-    Vec psi;
-    VecDuplicate(_material->_bcL,&psi);
-    VecSet(psi,0.);
-    _varEx["psi"] = psi;
 
     if (_guessSteadyStateICs) { solveSS(); }
     _fault_qd->initiateIntegrand(_initTime,_varEx);
@@ -689,25 +689,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
     if (_hydraulicCoupling.compare("no")!=0 ) {
       _p->initiateIntegrand(_initTime,_varEx,_varIm);
     }
-
-    if (_inputDir.compare("unspecified") != 0){
-
-      ierr = loadFileIfExists_matlab(_inputDir+"u", _material->_u);
-      if (ierr > 0){
-          VecSet(_material->_u, 0.0);
-      }
-
-      ierr = loadFileIfExists_matlab(_inputDir + "psi", _varEx["psi"]);
-      ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _fault_qd->_slipVel);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcR", _material->_bcRShift);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcL", _material->_bcL);
-
-      VecCopy(_material->_bcL, _varEx["slip"]);
-      VecScale(_varEx["slip"], 2.0);
-      VecCopy(_varEx["slip"], _fault_qd->_slip);
-    }
   }
-  ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
+
   _stride1D = _stride1D_qd;
   _stride2D = _stride2D_qd;
   #if VERBOSE > 1
@@ -716,6 +699,123 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
   return ierr;
 }
 
+PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::initiateIntegrand()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // For checking over the switching
+
+  // Force writing output
+  if(_stepCount % _stride1D > 0){
+    PetscInt stride1d, stride2d;
+    stride1d = _stride1D;
+    stride2d = _stride2D;
+    _stride1D = 1;
+    _stride2D = 1;
+    timeMonitor(_currTime, _deltaT,_stepCount, _stride1D);
+    _stride1D = stride1d;
+    _stride2D = stride2d;
+  }
+
+  Vec uPrev;
+  VecDuplicate(_material->_u, &uPrev);
+  VecCopy(_material->_u, uPrev);
+
+  VecDuplicate(_material->_u, &_savedU);
+  VecCopy(_material->_u, _savedU);
+
+  Mat A;
+  ierr = _material->_sbp->getA(A);
+  VecDuplicate(_material->_u, &_Fhat);
+  MatMult(A, _material->_u, _Fhat);
+  VecAXPY(_Fhat, -1, _material->_rhs);
+
+  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+    VecCopy(_quadImex_qd->getVar()["psi"], _fault_fd->_psiPrev);
+
+    _varEx = _quadImex_qd->getVar();
+    _varIm = _quadImex_qd->getVarIm();
+
+    _quadImex_switch->setTolerance(_atol);CHKERRQ(ierr);
+    _quadImex_switch->setTimeStepBounds(_deltaT,_deltaT);CHKERRQ(ierr);
+    ierr = _quadImex_switch->setTimeRange(_currTime,_maxTime_qd);
+    ierr = _quadImex_switch->setToleranceType(_normType); CHKERRQ(ierr);
+    ierr = _quadImex_switch->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
+    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
+    _quadImex_switch->_stepCount = _quadImex_qd->_stepCount + 1;
+    _quadImex_switch->_maxNumSteps += _quadImex_qd->_stepCount + 1;
+    }
+    ierr = _quadImex_switch->integrate(this);CHKERRQ(ierr);
+  }
+  else {
+    VecCopy(_quadEx_qd->getVar()["psi"], _fault_fd->_psiPrev);
+
+    _varEx = _quadEx_qd->getVar();
+
+    _quadEx_switch->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx_switch->setTimeStepBounds(_deltaT,_deltaT);CHKERRQ(ierr);
+    ierr = _quadEx_switch->setTimeRange(_currTime,_maxTime_qd);
+    ierr = _quadEx_switch->setToleranceType(_normType); CHKERRQ(ierr);
+    ierr = _quadEx_switch->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
+    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
+    _quadEx_switch->_stepCount = _quadEx_qd->_stepCount + 1;
+    _quadEx_switch->_maxNumSteps += _quadEx_qd->_stepCount + 1;
+    }
+    ierr = _quadEx_switch->integrate(this);CHKERRQ(ierr);
+  }
+
+  VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
+  VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
+  VecCopy(uPrev, _varEx["uPrev"]);
+  VecCopy(_material->_u, _varEx["u"]);
+  VecDestroy(&uPrev);
+
+  VecCopy(_fault_qd->_slip, _fault_fd->_slip0);
+
+  _allowed = false;
+  // _limit = 1.0;
+  _inDynamic = true;
+  _localStep = 0;
+
+  _stride1D = _stride1D_dyn;
+  _stride2D = _stride2D_dyn;
+
+  _fault_qd->_viewers.swap(_fault_fd->_viewers);
+  // _fault_fd->writeUOffset(_savedU, _firstCycle, _outputDir);
+
+  _material->computeStresses();
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  ierr = _fault_fd->setTauQS(sxy); CHKERRQ(ierr);
+  VecCopy(_fault_fd->_tauQSP, _fault_fd->_tau0);
+
+  _material->changeBCTypes(_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
+
+  _fault_fd->initiateIntegrand(_initTime,_varEx);
+  Vec slip;
+  VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
+  _varEx["slip"] = slip;
+  Vec dslip;
+  VecDuplicate(_varEx["psi"], &dslip); VecSet(dslip,0.);
+  _varEx["dslip"] = dslip;
+
+  VecCopy(_fault_qd->_slipVel, _varEx["dslip"]);
+  VecCopy(_quadEx_switch->getVar()["psi"], _fault_fd->_psi);
+
+  VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
+  VecSet(_varEx["uPrev"], 0.0);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 
 
@@ -1526,125 +1626,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 }
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::initiateIntegrand()";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
 
-  if (_isMMS) { _material->setMMSInitialConditions(_currTime); }
-
-  // For checking over the switching
-
-  // Force writing output
-  if(_stepCount % _stride1D > 0){
-    PetscInt stride1d, stride2d;
-    stride1d = _stride1D;
-    stride2d = _stride2D;
-    _stride1D = 1;
-    _stride2D = 1;
-    timeMonitor(_currTime, _deltaT,_stepCount, _stride1D);
-    _stride1D = stride1d;
-    _stride2D = stride2d;
-  }
-
-  Vec uPrev;
-  VecDuplicate(_material->_u, &uPrev);
-  VecCopy(_material->_u, uPrev);
-
-  VecDuplicate(_material->_u, &_savedU);
-  VecCopy(_material->_u, _savedU);
-
-  Mat A;
-  ierr = _material->_sbp->getA(A);
-  VecDuplicate(_material->_u, &_Fhat);
-  MatMult(A, _material->_u, _Fhat);
-  VecAXPY(_Fhat, -1, _material->_rhs);
-
-  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    VecCopy(_quadImex_qd->getVar()["psi"], _fault_fd->_psiPrev);
-
-    _varEx = _quadImex_qd->getVar();
-    _varIm = _quadImex_qd->getVarIm();
-
-    _quadImex_switch->setTolerance(_atol);CHKERRQ(ierr);
-    _quadImex_switch->setTimeStepBounds(_deltaT,_deltaT);CHKERRQ(ierr);
-    ierr = _quadImex_switch->setTimeRange(_currTime,_maxTime_qd);
-    ierr = _quadImex_switch->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex_switch->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
-    ierr = _quadImex_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
-    _quadImex_switch->_stepCount = _quadImex_qd->_stepCount + 1;
-    _quadImex_switch->_maxNumSteps += _quadImex_qd->_stepCount + 1;
-    }
-    ierr = _quadImex_switch->integrate(this);CHKERRQ(ierr);
-  }
-  else {
-    VecCopy(_quadEx_qd->getVar()["psi"], _fault_fd->_psiPrev);
-
-    _varEx = _quadEx_qd->getVar();
-
-    _quadEx_switch->setTolerance(_atol);CHKERRQ(ierr);
-    _quadEx_switch->setTimeStepBounds(_deltaT,_deltaT);CHKERRQ(ierr);
-    ierr = _quadEx_switch->setTimeRange(_currTime,_maxTime_qd);
-    ierr = _quadEx_switch->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx_switch->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadEx_switch->setErrInds(_timeIntInds); // control which fields are used to select step size
-    if(_maxStepCount_qd > 0 && _startOnDynamic != 1){
-    _quadEx_switch->_stepCount = _quadEx_qd->_stepCount + 1;
-    _quadEx_switch->_maxNumSteps += _quadEx_qd->_stepCount + 1;
-    }
-    ierr = _quadEx_switch->integrate(this);CHKERRQ(ierr);
-  }
-
-  VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
-  VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
-  VecCopy(uPrev, _varEx["uPrev"]);
-  VecCopy(_material->_u, _varEx["u"]);
-  VecDestroy(&uPrev);
-
-  VecCopy(_fault_qd->_slip, _fault_fd->_slip0);
-
-  _allowed = false;
-  // _limit = 1.0;
-  _inDynamic = true;
-  _localStep = 0;
-
-  _stride1D = _stride1D_dyn;
-  _stride2D = _stride2D_dyn;
-
-  _fault_qd->_viewers.swap(_fault_fd->_viewers);
-  // _fault_fd->writeUOffset(_savedU, _firstCycle, _outputDir);
-
-  _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_fd->setTauQS(sxy); CHKERRQ(ierr);
-  VecCopy(_fault_fd->_tauQSP, _fault_fd->_tau0);
-
-  _material->changeBCTypes(_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
-
-  _fault_fd->initiateIntegrand(_initTime,_varEx);
-  Vec slip;
-  VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
-  _varEx["slip"] = slip;
-  Vec dslip;
-  VecDuplicate(_varEx["psi"], &dslip); VecSet(dslip,0.);
-  _varEx["dslip"] = dslip;
-
-  VecCopy(_fault_qd->_slipVel, _varEx["dslip"]);
-  VecCopy(_quadEx_switch->getVar()["psi"], _fault_fd->_psi);
-
-  VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
-  VecSet(_varEx["uPrev"], 0.0);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 
 // TODO get rid of this

@@ -29,6 +29,7 @@ class OdeSolver_WaveEq_Imex
 
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varExPrev, std::map<string,Vec>& varIm);
 
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContext_WaveEq_Imex *obj);

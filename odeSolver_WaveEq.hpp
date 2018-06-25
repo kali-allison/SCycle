@@ -29,6 +29,7 @@ class OdeSolver_WaveEq
 
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& var, std::map<string,Vec>& varPrev);
 
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContext_WaveEq *obj);

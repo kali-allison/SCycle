@@ -56,7 +56,9 @@ PetscErrorCode OdeSolver_WaveEq_Imex::view()
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& var, std::map<string,Vec>& varIm)
+
+
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
@@ -65,26 +67,26 @@ PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& var,
   PetscErrorCode ierr = 0;
 
   // explicitly integrated variables
-  for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
 
-    // allocate n: var
-    VecDuplicate(var[it->first],&_var[it->first]); VecCopy(var[it->first],_var[it->first]);
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_var[it->first]); VecCopy(varEx[it->first],_var[it->first]);
 
     // allocate n-1: varPrev
-    VecDuplicate(var[it->first],&_varPrev[it->first]); VecCopy(var[it->first],_varPrev[it->first]);
+    VecDuplicate(varEx[it->first],&_varPrev[it->first]); VecCopy(varEx[it->first],_varPrev[it->first]);
 
     // allocate n+1: varNext
-    VecDuplicate(var[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
+    VecDuplicate(varEx[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
   }
 
   // implicitly integrated variables
-  for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
 
-    // allocate n: var
-    VecDuplicate(var[it->first],&_varIm[it->first]); VecCopy(var[it->first],_varIm[it->first]);
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_varIm[it->first]); VecCopy(varEx[it->first],_varIm[it->first]);
 
     // allocate n-1: varPrev
-    VecDuplicate(var[it->first],&_varImPrev[it->first]); VecCopy(var[it->first],_varImPrev[it->first]);
+    VecDuplicate(varEx[it->first],&_varImPrev[it->first]); VecCopy(varEx[it->first],_varImPrev[it->first]);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -93,6 +95,45 @@ PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& var,
 #endif
   return ierr;
 }
+
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varExPrev, std::map<string,Vec>& varIm)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  PetscErrorCode ierr = 0;
+
+  // explicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
+
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_var[it->first]); VecCopy(varEx[it->first],_var[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varExPrev[it->first],&_varPrev[it->first]); VecCopy(varExPrev[it->first],_varPrev[it->first]);
+
+    // allocate n+1: varNext
+    VecDuplicate(varEx[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
+  }
+
+  // implicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
+
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_varIm[it->first]); VecCopy(varEx[it->first],_varIm[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varEx[it->first],&_varImPrev[it->first]); VecCopy(varEx[it->first],_varImPrev[it->first]);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
+#endif
+  return ierr;
+}
+
 
 PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *obj)
 {

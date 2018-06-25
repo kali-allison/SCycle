@@ -59,6 +59,8 @@ PetscErrorCode OdeSolver_WaveEq::view()
 #endif
 }
 
+
+
 PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
 {
 #if VERBOSE > 1
@@ -85,6 +87,35 @@ PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var)
 #endif
   return ierr;
 }
+
+PetscErrorCode OdeSolver_WaveEq::setInitialConds(std::map<string,Vec>& var,std::map<string,Vec>& varPrev)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveEq.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  PetscErrorCode ierr = 0;
+
+  for (map<string,Vec>::iterator it = var.begin(); it != var.end(); it++ ) {
+
+    // allocate n: var
+    VecDuplicate(var[it->first],&_var[it->first]); VecCopy(var[it->first],_var[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varPrev[it->first],&_varPrev[it->first]); VecCopy(varPrev[it->first],_varPrev[it->first]);
+
+    // allocate n+1: varNext
+    VecDuplicate(var[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::setInitialConds in odeSolver_waveEq.cpp.\n");
+#endif
+  return ierr;
+}
+
+
 
 PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
 {
