@@ -12,7 +12,7 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "integratorContext_WaveEq.hpp"
-#include "integratorContext_WaveEq_Imex.hpp"
+//~ #include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -33,12 +33,12 @@
 
 /*
  * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
- *  with linear elastic material properties.
+ * with linear elastic material properties.
  * Uses the quasi-dynamic approximation.
  */
 
 
-class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq
+class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
 {
 private:
     // disable default copy constructor and assignment operator
@@ -65,7 +65,7 @@ private:
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _CFL;
-    Vec                  *_y,*_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat, _savedU;
     Vec                  _alphay, _alphaz;
@@ -122,7 +122,7 @@ private:
     OdeSolver_WaveEq_Imex          *_quadWaveImex;
 
     Fault_qd                   *_fault_qd;
-    Fault_fd                   *_fault_dyn;
+    Fault_fd                   *_fault_fd;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
@@ -148,20 +148,16 @@ private:
     PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx); // quasidynamic
+
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,map<string,Vec>& varImo);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,map<string,Vec>& varImo);
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // quasidynamic
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev,
+      map<string,Vec>& varIm,map<string,Vec>& varImo); // fully dynamic
 
     // IO functions
     PetscErrorCode view();
@@ -170,20 +166,20 @@ private:
 
     PetscErrorCode view_dyn();
 
-    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
 
-    PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
 
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
+    //~ PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
+      //~ const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);

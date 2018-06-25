@@ -13,7 +13,7 @@ OBJECTS := domain.o fault.o genFuncs.o\
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
  strikeSlip_linearElastic_qd.o linearElastic.o \
  strikeSlip_powerLaw_qd.o powerLaw.o \
- iceStream_linearElastic_qd.o strikeSlip_linearElastic_fd.o \
+ iceStream_linearElastic_qd.o strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o \
  fault.o
 
 
