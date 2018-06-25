@@ -76,7 +76,7 @@ private:
     std::string            _timeIntegrator,_timeControlType;
     std::string            _initialConditions;
     PetscInt               _stride1D,_stride2D; // stride
-    PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_dyn, _stride2D_dyn, _stride1D_dyn_long, _stride2D_dyn_long;
+    PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
     PetscInt               _maxStepCount; // largest number of time steps
     PetscScalar            _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
     bool                   _inDynamic;

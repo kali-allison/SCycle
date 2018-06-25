@@ -22,7 +22,10 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,stri
 
 
 // if starting with a nonzero initial step count
-PetscErrorCode OdeSolver::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
+PetscErrorCode OdeSolver::setInitialStepCount(const PetscReal stepCount) {
+  _stepCount = stepCount;
+  _maxNumSteps = stepCount + _maxNumSteps;
+}
 
 PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {

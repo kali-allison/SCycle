@@ -21,7 +21,11 @@ OdeSolver_WaveEq_Imex::OdeSolver_WaveEq_Imex(PetscInt maxNumSteps,PetscScalar in
 PetscErrorCode OdeSolver_WaveEq_Imex::setStepSize(const PetscReal deltaT) { _deltaT = deltaT; return 0; }
 
 // if starting with a nonzero initial step count
-PetscErrorCode OdeSolver_WaveEq_Imex::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialStepCount(const PetscReal stepCount)
+{
+  _stepCount = stepCount;
+  _maxNumSteps = stepCount + _maxNumSteps;
+}
 
 
 PetscErrorCode OdeSolver_WaveEq_Imex::setTimeRange(const PetscReal initT,const PetscReal finalT)

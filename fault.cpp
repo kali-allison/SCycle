@@ -576,6 +576,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "tau0", _tau0, outputDir + "tau0"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
@@ -587,6 +588,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
   else {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
+    ierr = VecView(_tau0,_viewers["tau0"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
     ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
