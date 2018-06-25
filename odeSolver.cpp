@@ -35,7 +35,6 @@ PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT,const PetscReal fin
   _currT = initT;
   _finalT = finalT;
 
-
   _runTime += MPI_Wtime() - startTime;
   return 0;
 #if VERBOSE > 1

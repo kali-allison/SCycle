@@ -39,6 +39,25 @@ PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT) { _deltaT =
 // if starting with a nonzero initial step count
 PetscErrorCode OdeSolver_WaveEq::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
 
+PetscErrorCode OdeSolver_WaveEq::setTimeRange(const PetscReal initT,const PetscReal finalT)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::setTimeRange in odeSolver.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+
+  _initT = initT;
+  _currT = initT;
+  _finalT = finalT;
+
+  _runTime += MPI_Wtime() - startTime;
+  return 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq::setTimeRange in odeSolver.cpp.\n");
+#endif
+}
+
+
 PetscErrorCode OdeSolver_WaveEq::view()
 {
 #if VERBOSE > 1

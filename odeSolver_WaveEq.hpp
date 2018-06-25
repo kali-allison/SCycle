@@ -28,6 +28,7 @@ class OdeSolver_WaveEq
 
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setInitialStepCount(const PetscReal stepCount);
+    PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var, std::map<string,Vec>& varPrev);
 
