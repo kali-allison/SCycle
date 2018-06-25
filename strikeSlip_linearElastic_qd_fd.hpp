@@ -64,7 +64,7 @@ private:
     const PetscInt       _order,_Ny,_Nz;
     PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _Ly,_Lz;
-    PetscScalar          _deltaT, _CFL;
+    PetscScalar          _deltaT,_deltaT_fd, _CFL;
     Vec                 *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat;
@@ -140,6 +140,7 @@ private:
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode integrate_qd();
     PetscErrorCode integrate_dyn();
+    PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
     PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode initiateIntegrand_qd();
     PetscErrorCode initiateIntegrand_dyn();
