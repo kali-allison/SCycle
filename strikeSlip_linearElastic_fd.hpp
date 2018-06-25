@@ -61,7 +61,7 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
-    std::map <string,Vec>  _varNext,_var,_varPrev; // holds variables for time step: n+1, n (current), n-1
+    std::map <string,Vec>  _var,_varPrev; // holds variables for time step: n (current), n-1
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _maxStepCount; // largest number of time steps
     PetscInt               _stride1D,_stride2D; // stride

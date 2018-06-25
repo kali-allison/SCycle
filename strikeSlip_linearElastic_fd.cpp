@@ -61,9 +61,9 @@ strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
   for (it = _var.begin(); it!=_var.end(); it++ ) {
     VecDestroy(&it->second);
   }
-  for (it = _varNext.begin(); it!=_varNext.end(); it++ ) {
-    VecDestroy(&it->second);
-  }
+  //~ for (it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    //~ VecDestroy(&it->second);
+  //~ }
   for (it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
     VecDestroy(&it->second);
   }
