@@ -17,7 +17,7 @@ class OdeSolver_WaveEq
 
     PetscScalar             _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
-    std::map<string,Vec>    _varNext,_var,_varPrev; // integration variable and rate
+    std::map<string,Vec>    _varNext,_var,_varPrev; // variable at time step: n+1, n, n-1
     int                     _lenVar;
     double                  _runTime;
 

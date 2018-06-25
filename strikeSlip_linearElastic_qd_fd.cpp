@@ -1656,9 +1656,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
   VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
   VecSet(_varEx["uPrev"], 0.0);
 
-  //~ _fault_fd->initiateIntegrand_dyn(_varEx, _rhoVec);
-
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1948,44 +1945,4 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::view_dyn()
   return ierr;
 }
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext_dyn()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::writeContext";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
 
-  // output scalar fields
-  std::string str = _outputDir + "mediator_context.txt";
-  PetscViewer    viewer;
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
-  ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
-
-  // time integration settings
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount_dyn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime_dyn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"deltaT = %.15e # (s)\n",_deltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
-  PetscViewerDestroy(&viewer);
-
-  _material->writeContext(_outputDir);
-  _fault_fd->writeContext(_outputDir);
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}

@@ -17,7 +17,8 @@ class OdeSolver_WaveEq_Imex
 
     PetscScalar             _initT,_finalT,_currT,_deltaT;
     PetscInt                _maxNumSteps,_stepCount;
-    std::map<string,Vec>    _varEx,_varPrev, _varImex, _varImexPrev; // integration variable and rate
+    std::map<string,Vec>    _varNext,_var,_varPrev; // variable at time step: n+1, n, n-1
+    std::map<string,Vec>    _varIm, _varImPrev; // integration variable and rate
     int                     _lenVar;
     double                  _runTime;
 
@@ -27,12 +28,12 @@ class OdeSolver_WaveEq_Imex
     virtual ~OdeSolver_WaveEq_Imex() {};
 
     PetscErrorCode setStepSize(const PetscReal deltaT);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varImex);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
 
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContext_WaveEq_Imex *obj);
 
-    std::map<string,Vec>& getVar(){return _varEx;};
+    std::map<string,Vec>& getVar(){return _var;};
 };
 
 #endif

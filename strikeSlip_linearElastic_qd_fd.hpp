@@ -148,21 +148,24 @@ private:
     PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx); // quasidynamic
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,
+      map<string,Vec>& dvarEx); // quasidynamic
 
-    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
       map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // quasidynamic
+
     PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
       map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev,
       map<string,Vec>& varIm,map<string,Vec>& varImo); // fully dynamic
 
+
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode writeContext_dyn();
 
     PetscErrorCode view_dyn();
 
@@ -183,6 +186,8 @@ private:
 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+
+
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
 
