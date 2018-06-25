@@ -16,7 +16,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
-  _Fhat(NULL),_savedU(NULL),
+  _Fhat(NULL),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),
   _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),_stride1D_dyn_long(1),_stride2D_dyn_long(1),
@@ -559,7 +559,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate(){
 
 
 
-bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
+bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
+{
+
   bool mustswitch = false;
   Vec absSlipVel;
   VecDuplicate(_fault->_slipVel, &absSlipVel);
@@ -568,10 +570,10 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
   PetscScalar max_value;
   VecAbs(absSlipVel);
   VecMax(absSlipVel, &index, &max_value);
-
   #if VERBOSE > 0
     PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", max_value);
   #endif
+
 
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
     mustswitch = true;
@@ -609,8 +611,11 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault){
 }
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd(){
+// reset from quasidynamic to dynamic
+PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd()
+{
   PetscErrorCode ierr = 0;
+
   // Force writing output
   if(_stepCount % _stride1D > 0){
     PetscInt stride1d, stride2d;
@@ -626,24 +631,22 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd(){
   _localStep = 0;
 
   _allowed = false;
-  // _limit = 1e-8;
   _varEx = _quadWaveEx->getVar();
   _firstCycle = false;
   _inDynamic = false;
 
+
+  // update explicitly integrated variables
   VecCopy(_fault_fd->_psi, _varEx["psi"]);
+  VecCopy(_fault_fd->_slip, _varEx["slip"]);
+
+  // update fault internal variables
   VecCopy(_fault_fd->_psi, _fault_qd->_psi);
   VecCopy(_fault_fd->_slipVel, _fault_qd->_slipVel);
-
-  // VecAXPY(_material->_u, 1.0, _savedU);
-  VecCopy(_fault_fd->_slip, _varEx["slip"]);
-  VecCopy(_varEx["slip"], _fault_qd->_slip);
+  VecCopy(_fault_fd->_slip, _fault_qd->_slip);
 
   _fault_qd->_viewers.swap(_fault_fd->_viewers);
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
-
-  _varEx.erase("u");
-  _varEx.erase("uPrev");
   return ierr;
 }
 
@@ -726,9 +729,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
   VecDuplicate(_material->_u, &uPrev);
   VecCopy(_material->_u, uPrev);
 
-  VecDuplicate(_material->_u, &_savedU);
-  VecCopy(_material->_u, _savedU);
-
   Mat A;
   ierr = _material->_sbp->getA(A);
   VecDuplicate(_material->_u, &_Fhat);
@@ -788,7 +788,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
   _stride2D = _stride2D_dyn;
 
   _fault_qd->_viewers.swap(_fault_fd->_viewers);
-  // _fault_fd->writeUOffset(_savedU, _firstCycle, _outputDir);
 
   _material->computeStresses();
   Vec sxy,sxz,sdev;
@@ -1187,7 +1186,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSSb()
     _varEx["slip"] = slip;
   }
 
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     VecCopy(uL,_material->_bcL);
   }
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1199,17 +1198,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSSb()
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  return ierr;
-}
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::measureMMSError()
-{
-  PetscErrorCode ierr = 0;
-
-  _material->measureMMSError(_currTime);
-  //~ _he->measureMMSError(_currTime);
-  //~ _p->measureMMSError(_currTime);
-
   return ierr;
 }
 

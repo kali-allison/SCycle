@@ -66,7 +66,7 @@ private:
     PetscScalar          _deltaT, _CFL;
     Vec                 *_y,*_z; // to handle variable grid spacing
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec                  _Fhat, _savedU;
+    Vec                  _Fhat;
     Vec                  _alphay, _alphaz;
 
     // time stepping data
@@ -173,10 +173,6 @@ private:
 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-
-
-    // debugging and MMS tests
-    PetscErrorCode measureMMSError();
 
 };
 

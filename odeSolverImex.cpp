@@ -21,6 +21,9 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 #endif
 }
 
+// if starting with a nonzero initial step count
+PetscErrorCode OdeSolverImex::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
+
 PetscErrorCode OdeSolverImex::setToleranceType(const std::string normType)
 {
 #if VERBOSE > 1

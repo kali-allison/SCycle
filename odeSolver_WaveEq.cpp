@@ -36,6 +36,9 @@ OdeSolver_WaveEq::~OdeSolver_WaveEq()
 
 PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT) { _deltaT = deltaT;  return 0; }
 
+// if starting with a nonzero initial step count
+PetscErrorCode OdeSolver_WaveEq::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
+
 PetscErrorCode OdeSolver_WaveEq::view()
 {
 #if VERBOSE > 1

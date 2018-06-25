@@ -79,6 +79,7 @@ class OdeSolverImex
     virtual ~OdeSolverImex() {};
 
     virtual PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT) = 0;
+    PetscErrorCode setInitialStepCount(const PetscReal stepCount);
     virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
     PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 

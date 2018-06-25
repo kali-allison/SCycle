@@ -24,10 +24,10 @@ class OdeSolver_WaveEq
   public:
 
     OdeSolver_WaveEq(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT);
-    //~ virtual ~OdeSolver_WaveEq() {};
     ~OdeSolver_WaveEq();
 
     PetscErrorCode setStepSize(const PetscReal deltaT);
+    PetscErrorCode setInitialStepCount(const PetscReal stepCount);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var, std::map<string,Vec>& varPrev);
 

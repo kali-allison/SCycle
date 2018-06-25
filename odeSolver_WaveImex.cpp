@@ -18,20 +18,10 @@ OdeSolver_WaveEq_Imex::OdeSolver_WaveEq_Imex(PetscInt maxNumSteps,PetscScalar in
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveEq_Imex::setStepSize(const PetscReal deltaT)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::setStepSize in odeSolver_waveImex.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-  _deltaT = deltaT;
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq_Imex::setStepSize in odeSolver_waveImex.cpp.\n");
-#endif
-  return 0;
-}
+PetscErrorCode OdeSolver_WaveEq_Imex::setStepSize(const PetscReal deltaT) { _deltaT = deltaT; return 0; }
 
+// if starting with a nonzero initial step count
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialStepCount(const PetscReal stepCount) { _stepCount = stepCount; }
 
 PetscErrorCode OdeSolver_WaveEq_Imex::view()
 {
