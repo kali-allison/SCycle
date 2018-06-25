@@ -665,7 +665,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
   _material->_sbp->getA(A);
   _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
 
-
+  _stride1D = _stride1D_qd;
+  _stride2D = _stride2D_qd;
 
   if(_firstCycle){
 
@@ -674,13 +675,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
     Vec slip;
     VecDuplicate(_material->_bcL,&slip);
     VecCopy(_material->_bcL,slip);
-    VecScale(slip,2.0);
-    if (_loadICs==1) {
-      VecCopy(_fault_qd->_slip,slip);
+    if (_qd_bcLType.compare("symm_fault")==0) {
+      VecScale(slip,2.0);
     }
+    ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
     _varEx["slip"] = slip;
 
     if (_guessSteadyStateICs) { solveSS(); }
+
     _fault_qd->initiateIntegrand(_initTime,_varEx);
 
     if (_thermalCoupling.compare("no")!=0 ) {
@@ -691,8 +693,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_qd()
     }
   }
 
-  _stride1D = _stride1D_qd;
-  _stride2D = _stride2D_qd;
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
