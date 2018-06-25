@@ -51,7 +51,6 @@ private:
     std::string       _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    const bool           _isMMS; // true if running mms test
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
@@ -64,11 +63,11 @@ private:
     const PetscInt       _order,_Ny,_Nz;
     PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _Ly,_Lz;
-    PetscScalar          _deltaT,_deltaT_fd, _CFL;
-    Vec                 *_y,*_z; // to handle variable grid spacing
+    PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
+    Vec                 *_y,*_z;
     Vec                  _muVec, _rhoVec, _cs, _ay;
     Vec                  _Fhat;
-    Vec                  _alphay, _alphaz;
+    Vec                  _alphay;
 
     // time stepping data
     std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
@@ -78,10 +77,9 @@ private:
     std::string            _initialConditions;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_dyn, _stride2D_dyn, _stride1D_dyn_long, _stride2D_dyn_long;
-    PetscInt               _withFhat;
-    PetscInt               _maxStepCount_dyn, _maxStepCount_qd, _maxStepCount; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime_dyn, _maxTime_qd, _minDeltaT,_maxDeltaT, _maxTime;
-    bool                   _inDynamic, _firstCycle;
+    PetscInt               _maxStepCount; // largest number of time steps
+    PetscScalar            _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
+    bool                   _inDynamic;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT, _dT;

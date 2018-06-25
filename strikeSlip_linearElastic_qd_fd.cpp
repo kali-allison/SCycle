@@ -6,7 +6,7 @@ using namespace std;
 
 
 strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
-: _D(&D),_delim(D._delim),_isMMS(D._isMMS),
+: _D(&D),_delim(D._delim),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
@@ -20,15 +20,14 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),
   _stride1D_qd(1),_stride2D_qd(1),_stride1D_dyn(1),_stride2D_dyn(1),_stride1D_dyn_long(1),_stride2D_dyn_long(1),
-  _withFhat(1),
-  _maxStepCount_dyn(2000),_maxStepCount_qd(1e8),_maxStepCount(1e6),
-  _initTime(0),_currTime(0),_maxTime_dyn(1e15),_maxTime_qd(15),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
-  _inDynamic(false),_firstCycle(true),
+  _maxStepCount(1e8),
+  _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
+  _inDynamic(false),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _startOnDynamic(0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(1e-8), _limit_dyn(1),_limit_stride_dyn(-1),
+  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
   _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
@@ -170,16 +169,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("stride2D_dyn")==0){ _stride2D_dyn = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride1D_dyn_long")==0){ _stride1D_dyn_long = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride2D_dyn_long")==0){ _stride2D_dyn_long = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("withFhat")==0){ _withFhat = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxStepCount_dyn")==0) { _maxStepCount_dyn = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxStepCount_qd")==0) { _maxStepCount_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+
+
     else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("initTime")==0) {
       _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
       _currTime = _initTime;
     }
-    else if (var.compare("maxTime_qd")==0) { _maxTime_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxTime_dyn")==0) { _maxTime_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -266,21 +262,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
     _timeIntegrator.compare("RK43_WBE")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
 
-  assert(_timeIntegrator.compare("FEuler")==0
-    || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("RK43")==0
-    || _timeIntegrator.compare("RK32_WBE")==0
-    || _timeIntegrator.compare("RK43_WBE")==0
-    || _timeIntegrator.compare("WaveEq")==0);
-
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
          _timeControlType.compare("PID")==0 );
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
-  assert(_maxStepCount_dyn >= 0);
+
   assert(_initTime >= 0);
-  assert(_maxTime_dyn >= 0 && _maxTime_dyn>=_initTime);
+
   assert(_atol >= 1e-14);
   assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
@@ -623,9 +612,9 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
 
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
     mustswitch = true;
-    _maxStepCount_dyn = 0;
-    _maxStepCount_qd = 0;
-    _D->_numCycles = 0;
+    //~ _maxStepCount_dyn = 0;
+    //~ _maxStepCount_qd = 0;
+    //~ _D->_numCycles = 0;
   }
   if(_inDynamic){
     if(!_allowed){
@@ -636,7 +625,6 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
     if (_allowed && max_value < _limit_stride_dyn){
       _stride1D = _stride1D_dyn_long;
       _stride2D = _stride2D_dyn_long;
-      //~ PetscPrintf(PETSC_COMM_WORLD,"stride1D is now: %i\n",_stride1D);
     }
     if(_allowed && max_value < _triggerd2qd){
       mustswitch = true;
@@ -655,45 +643,6 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
   VecDestroy(&absSlipVel);
   return mustswitch;
 }
-
-
-// reset from quasidynamic to dynamic
-PetscErrorCode strikeSlip_linearElastic_qd_fd::reset_for_qd()
-{
-  PetscErrorCode ierr = 0;
-
-  // Force writing output
-  if(_stepCount % _stride1D > 0){
-    PetscInt stopIntegration = 0;
-    PetscInt stride1d = _stride1D;
-    PetscInt stride2d = _stride2D;
-    _stride1D = 1;
-    _stride2D = 1;
-    timeMonitor(_currTime, _deltaT,_stepCount, stopIntegration);
-    _stride1D = stride1d;
-    _stride2D = stride2d;
-  }
-
-  _allowed = false;
-  _varQSEx = _quadWaveEx->getVar();
-  _firstCycle = false;
-  _inDynamic = false;
-
-
-  // update explicitly integrated variables
-  VecCopy(_fault_fd->_psi, _varQSEx["psi"]);
-  VecCopy(_fault_fd->_slip, _varQSEx["slip"]);
-
-  // update fault internal variables
-  VecCopy(_fault_fd->_psi, _fault_qd->_psi);
-  VecCopy(_fault_fd->_slipVel, _fault_qd->_slipVel);
-  VecCopy(_fault_fd->_slip, _fault_qd->_slip);
-
-  _fault_qd->_viewers.swap(_fault_fd->_viewers);
-  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
-  return ierr;
-}
-
 
 
 // initiate varQSEx, varIm, and varFD
@@ -952,13 +901,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(const PetscInt stepCo
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_dT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"regime.txt").c_str(),&_whichRegime);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_whichRegime, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_dT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_whichRegime, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
 
@@ -1048,13 +997,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D_dyn = %i\n",_stride1D_dyn_long);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_long = %i\n",_stride2D_dyn_long);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount_qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime_qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"triggerqd2d = %.15e\n",_triggerqd2d);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"triggerd2qd = %.15e\n",_triggerd2qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
@@ -1094,10 +1044,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveMomentumBalance(const PetscS
 {
   PetscErrorCode ierr = 0;
 
-  // update rhs
-  //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
   _material->setRHS();
-  //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
   _material->computeU();
   _material->computeStresses();
@@ -1718,7 +1665,7 @@ double startTime = MPI_Wtime();
 
   _stepCount = stepCount;
   _currTime = time;
-  _dT = _deltaT;
+  _deltaT = deltaT;
 
   if ( _stride1D > 0 && stepCount % _stride1D == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
