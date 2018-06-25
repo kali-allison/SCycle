@@ -18,6 +18,22 @@ OdeSolver_WaveEq::OdeSolver_WaveEq(PetscInt maxNumSteps,PetscScalar initT,PetscS
 #endif
 }
 
+OdeSolver_WaveEq::~OdeSolver_WaveEq()
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::destructor in odeSolver.cpp.\n");
+#endif
+
+  // destruct temporary containers
+  destroyVector(_varNext);
+  destroyVector(_var);
+  destroyVector(_varPrev);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK43::destructor in odeSolver.cpp.\n");
+  #endif
+}
+
 PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT) { _deltaT = deltaT;  return 0; }
 
 PetscErrorCode OdeSolver_WaveEq::view()
