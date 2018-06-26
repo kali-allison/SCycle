@@ -70,6 +70,7 @@ class OdeSolver
     virtual ~OdeSolver() {};
 
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
+    PetscErrorCode setInitialStepCount(const PetscReal stepCount);
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 
@@ -80,7 +81,7 @@ class OdeSolver
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextEx *obj){return 1;};
-    virtual PetscErrorCode integrate_switch(IntegratorContextEx *obj){return 1;};
+
     virtual std::map<string,Vec>& getVar(){return _var;};
 };
 
@@ -102,7 +103,6 @@ class FEuler : public OdeSolver
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
     PetscErrorCode integrate(IntegratorContextEx *obj);
-    PetscErrorCode integrate_switch(IntegratorContextEx *obj);
 
     std::map<string,Vec>& getVar(){return _var;};
 };
@@ -140,7 +140,6 @@ class RK32 : public OdeSolver
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContextEx *obj);
-    PetscErrorCode integrate_switch(IntegratorContextEx *obj);
 
     std::map<string,Vec>& getVar(){return _var;};
 };
@@ -166,7 +165,7 @@ class RK43 : public OdeSolver
     std::map<string,Vec> _var, _dvar; // accepted stages
 
     std::map<string,Vec>& getVar(){return _var;};
-    
+
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 
@@ -183,7 +182,6 @@ class RK43 : public OdeSolver
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContextEx *obj);
-    PetscErrorCode integrate_switch(IntegratorContextEx *obj);
 };
 
 #endif

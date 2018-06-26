@@ -2,46 +2,55 @@
 
 using namespace std;
 
-OdeSolver_WaveImex::OdeSolver_WaveImex(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT)
+OdeSolver_WaveEq_Imex::OdeSolver_WaveEq_Imex(PetscInt maxNumSteps,PetscScalar initT,PetscScalar finalT,PetscScalar deltaT)
 : _initT(initT),_finalT(finalT),_currT(initT),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _lenVar(0),_runTime(0)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex constructor in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex constructor in odeSolver_waveImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveImex constructor in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq_Imex constructor in odeSolver_waveImex.cpp.\n");
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveImex::setStepSize(const PetscReal deltaT)
+PetscErrorCode OdeSolver_WaveEq_Imex::setStepSize(const PetscReal deltaT) { _deltaT = deltaT; return 0; }
+
+// if starting with a nonzero initial step count
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialStepCount(const PetscReal stepCount)
+{
+  _stepCount = stepCount;
+  _maxNumSteps = stepCount + _maxNumSteps;
+}
+
+
+PetscErrorCode OdeSolver_WaveEq_Imex::setTimeRange(const PetscReal initT,const PetscReal finalT)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::setStepSize in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::setTimeRange in odeSolver.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
-  _deltaT = deltaT;
+
+  _initT = initT;
+  _currT = initT;
+  _finalT = finalT;
+
   _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveImex::setStepSize in odeSolver_waveImex.cpp.\n");
-#endif
   return 0;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq_Imex::setTimeRange in odeSolver.cpp.\n");
+#endif
 }
 
-PetscErrorCode OdeSolver_WaveImex::getCurrT(PetscScalar& currT){
-  PetscErrorCode ierr = 0;
-  currT = _currT; 
-  return ierr;
-}
 
-PetscErrorCode OdeSolver_WaveImex::view()
+PetscErrorCode OdeSolver_WaveEq_Imex::view()
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::view in odeSolver_WaveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::view in odeSolver_WaveImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
 
@@ -61,7 +70,9 @@ PetscErrorCode OdeSolver_WaveImex::view()
 #endif
 }
 
-PetscErrorCode OdeSolver_WaveImex::setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm)
+
+
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
@@ -69,21 +80,27 @@ PetscErrorCode OdeSolver_WaveImex::setInitialConds(std::map<string,Vec>& varEx, 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
 
-  _varEx = *(&varEx);
-  for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-    Vec temp;
-    ierr = VecDuplicate(_varEx[it->first],&temp); CHKERRQ(ierr);
-    ierr = VecSet(temp,0.0); CHKERRQ(ierr);
-    _varPrev[it->first] = temp;
-  }
-  _varPrev["slip"] = _varEx["dslip"];
+  // explicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
 
-  _varImex = varIm;
-  for (map<string,Vec>::iterator it=_varImex.begin(); it!=_varImex.end(); it++ ) {
-    Vec vardTIm;
-    ierr = VecDuplicate(_varImex[it->first],&vardTIm); CHKERRQ(ierr);
-    ierr = VecSet(vardTIm,0.0); CHKERRQ(ierr);
-    _varImexPrev[it->first] = vardTIm;
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_var[it->first]); VecCopy(varEx[it->first],_var[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varEx[it->first],&_varPrev[it->first]); VecCopy(varEx[it->first],_varPrev[it->first]);
+
+    // allocate n+1: varNext
+    VecDuplicate(varEx[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
+  }
+
+  // implicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
+
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_varIm[it->first]); VecCopy(varEx[it->first],_varIm[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varEx[it->first],&_varImPrev[it->first]); VecCopy(varEx[it->first],_varImPrev[it->first]);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -93,10 +110,49 @@ PetscErrorCode OdeSolver_WaveImex::setInitialConds(std::map<string,Vec>& varEx, 
   return ierr;
 }
 
-PetscErrorCode OdeSolver_WaveImex::integrate(IntegratorContextWave *obj)
+PetscErrorCode OdeSolver_WaveEq_Imex::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varExPrev, std::map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveImex::integrate in odeSolver_waveImex.cpp.\n");
+  PetscPrintf(PETSC_COMM_WORLD,"Starting WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
+#endif
+  double startTime = MPI_Wtime();
+  PetscErrorCode ierr = 0;
+
+  // explicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
+
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_var[it->first]); VecCopy(varEx[it->first],_var[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varExPrev[it->first],&_varPrev[it->first]); VecCopy(varExPrev[it->first],_varPrev[it->first]);
+
+    // allocate n+1: varNext
+    VecDuplicate(varEx[it->first],&_varNext[it->first]); VecSet(_varNext[it->first],0.);
+  }
+
+  // implicitly integrated variables
+  for (map<string,Vec>::iterator it = varEx.begin(); it != varEx.end(); it++ ) {
+
+    // allocate n: varEx
+    VecDuplicate(varEx[it->first],&_varIm[it->first]); VecCopy(varEx[it->first],_varIm[it->first]);
+
+    // allocate n-1: varPrev
+    VecDuplicate(varEx[it->first],&_varImPrev[it->first]); VecCopy(varEx[it->first],_varImPrev[it->first]);
+  }
+
+  _runTime += MPI_Wtime() - startTime;
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Ending WaveEq::setInitialConds in odeSolver_waveImex.cpp.\n");
+#endif
+  return ierr;
+}
+
+
+PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *obj)
+{
+#if VERBOSE > 1
+  PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq_Imex::integrate in odeSolver_waveImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
@@ -105,23 +161,32 @@ PetscErrorCode OdeSolver_WaveImex::integrate(IntegratorContextWave *obj)
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
 
-  // set initial condition
-  ierr = obj->d_dt(_currT,_varEx,_varPrev, _varImex, _varImexPrev);CHKERRQ(ierr);
-
-  ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_varPrev,stopIntegration);CHKERRQ(ierr); // write first step
+  // write initial condition
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
-    ierr = obj->d_dt(_currT,_varEx,_varPrev, _varImex, _varImexPrev);CHKERRQ(ierr);
-
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_varPrev,stopIntegration);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev,_varIm, _varImPrev); CHKERRQ(ierr);
+
+    // accept time step and update explicitly integrated variables
+    for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {
+      VecCopy(_var[it->first],_varPrev[it->first]);
+      VecCopy(_varNext[it->first],_var[it->first]);
+      VecSet(_varNext[it->first],0.0);
+    }
 
     // accept updated state for implicit variables
-    for (map<string,Vec>::iterator it = _varImexPrev.begin(); it!=_varImexPrev.end(); it++ ) {
-      VecCopy(_varImex[it->first],_varImexPrev[it->first]);
-      // VecSet(_varImexPrev[it->first],0.);
+    for (map<string,Vec>::iterator it = _varImPrev.begin(); it!=_varImPrev.end(); it++ ) {
+      VecCopy(_varIm[it->first],_varImPrev[it->first]);
+    }
+
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+
+    if (stopIntegration > 0) {
+      PetscPrintf(PETSC_COMM_WORLD,"OdeSolver WaveEq IMEX: Detected stop time integration request.\n");
+      break;
     }
   }
 

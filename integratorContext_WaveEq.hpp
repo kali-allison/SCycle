@@ -1,5 +1,5 @@
-#ifndef IntegratorContextEx_HPP_INCLUDED
-#define IntegratorContextEx_HPP_INCLUDED
+#ifndef INTEGRATORCONTEXT_WAVEQ_HPP_INCLUDED
+#define INTEGRATORCONTEXT_WAVEQ_HPP_INCLUDED
 
 #include <petscksp.h>
 #include <vector>
@@ -13,18 +13,21 @@
 
 class OdeSolver;
 
-class IntegratorContextEx
+class IntegratorContext_WaveEq
 {
   public:
 
     virtual PetscErrorCode integrate() = 0;
 
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
+    // for intermediate time steps for explicitly integrated variables
+    virtual PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev) = 0;
 
     // for output and monitoring as time integration progresses
     // this function is not required
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT,
       const PetscInt stepCount,int& stopIntegration){return 1;};
+
+
 };
 
 #include "odeSolver.hpp"

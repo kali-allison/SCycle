@@ -129,10 +129,8 @@ private:
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount,int& stopIntegration);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();

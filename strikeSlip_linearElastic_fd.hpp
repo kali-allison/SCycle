@@ -9,7 +9,7 @@
 #include <vector>
 #include <map>
 
-#include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq.hpp"
 #include "odeSolver_WaveEq.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
@@ -30,7 +30,7 @@
  */
 
 
-class strikeSlip_linearElastic_fd: public IntegratorContextWave
+class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
 {
   private:
 
@@ -48,9 +48,10 @@ class strikeSlip_linearElastic_fd: public IntegratorContextWave
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _CFL;
-    Vec                  *_y,*_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
+
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec                  _alphay, _alphaz;
+    Vec                  _alphay;
     std::string          _outputDir; // output data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
@@ -60,7 +61,7 @@ class strikeSlip_linearElastic_fd: public IntegratorContextWave
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     // time stepping data
-    std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    std::map <string,Vec>  _var,_varPrev; // holds variables for time step: n (current), n-1
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _maxStepCount; // largest number of time steps
     PetscInt               _stride1D,_stride2D; // stride
@@ -101,15 +102,14 @@ class strikeSlip_linearElastic_fd: public IntegratorContextWave
     PetscErrorCode initiateIntegrand();
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev);
 
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount, int& stopIntegration);
+
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 

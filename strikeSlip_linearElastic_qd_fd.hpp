@@ -11,7 +11,8 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
-#include "integratorContextWave.hpp"
+#include "integratorContext_WaveEq.hpp"
+#include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -32,12 +33,12 @@
 
 /*
  * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
- *  with linear elastic material properties.
+ * with linear elastic material properties.
  * Uses the quasi-dynamic approximation.
  */
 
 
-class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContextWave
+class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
 {
 private:
     // disable default copy constructor and assignment operator
@@ -50,43 +51,42 @@ private:
     std::string       _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    const bool           _isMMS; // true if running mms test
     std::string          _outputDir; // output data
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
-    std::string          _isFault; // "dynamic", "static"
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
     const PetscInt       _order,_Ny,_Nz;
+    PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _Ly,_Lz;
-    PetscScalar          _deltaT, _CFL;
-    Vec                  *_y,*_z; // to handle variable grid spacing
+    PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
+    Vec                 *_y,*_z;
     Vec                  _muVec, _rhoVec, _cs, _ay;
-    Vec                  _Fhat, _savedU;
-    Vec                  _alphay, _alphaz;
+    Vec                  _Fhat;
+    Vec                  _alphay;
 
     // time stepping data
-    std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
+    std::map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
     std::string            _initialConditions;
     PetscInt               _stride1D,_stride2D; // stride
-    PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_dyn, _stride2D_dyn, _stride1D_dyn_long, _stride2D_dyn_long;
-    PetscInt               _withFhat;
-    PetscInt               _maxStepCount_dyn, _maxStepCount_qd, _maxStepCount; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime_dyn, _maxTime_qd, _minDeltaT,_maxDeltaT, _maxTime;
-    bool                   _inDynamic, _firstCycle;
+    PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
+    PetscInt               _maxStepCount; // largest number of time steps
+    PetscScalar            _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
+    bool                   _inDynamic;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT, _dT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
     std::string            _normType;
 
-    PetscInt               _debug, _localStep, _startOnDynamic;
+    PetscInt               _startOnDynamic;
 
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
@@ -114,13 +114,13 @@ private:
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
-    OdeSolver           *_quadEx_qd, *_quadEx_switch; // explicit time stepping
-    OdeSolverImex       *_quadImex_qd, *_quadImex_switch; // implicit time stepping
+    OdeSolver                 *_quadEx_qd, *_quadEx_switch; // explicit time stepping
+    OdeSolverImex             *_quadImex_qd, *_quadImex_switch; // implicit time stepping
     OdeSolver_WaveEq          *_quadWaveEx;
-    OdeSolver_WaveImex          *_quadWaveImex;
+    OdeSolver_WaveEq_Imex     *_quadWaveImex;
 
     Fault_qd                   *_fault_qd;
-    Fault_fd                   *_fault_dyn;
+    Fault_fd                   *_fault_fd;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;
@@ -136,57 +136,47 @@ private:
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode integrate_qd(); // will call OdeSolver method by same name
-    PetscErrorCode integrate_dyn(); // will call OdeSolver method by same name
+    PetscErrorCode integrate_qd();
+    PetscErrorCode integrate_fd();
+    PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
+    PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode initiateIntegrand_qd();
     PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
+    // help with switching between fully dynamic and quasidynamic
     bool check_switch(const Fault* _fault);
+    PetscErrorCode prepare_qd2fd(); // switch from quasidynamic to fully dynamic
+    PetscErrorCode prepare_fd2qd(); // switch from fully dynamic to quasidynamic
     PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,
+      map<string,Vec>& dvarEx); // quasidynamic
+
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt_qd(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode d_dt_dyn(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,map<string,Vec>& varImo);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-    PetscErrorCode d_dt(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,map<string,Vec>& varImo);
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // quasidynamic
+
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev,
+      map<string,Vec>& varIm, const map<string,Vec>& varImPrev); // fully dynamic
+
 
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode writeContext_dyn();
 
-    PetscErrorCode view_dyn();
-
-    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
-
-    PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor_dyn(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
-
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration);
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration);
+    // handles switching between quasidynamic and fully dynamic
+    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration);
+    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration); // quasidynamic
+    PetscErrorCode timeMonitor_fd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration); // fully dynamic
 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    // debugging and MMS tests
-    PetscErrorCode measureMMSError();
 
 };
 

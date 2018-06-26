@@ -11,7 +11,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
-  _alphay(NULL), _alphaz(NULL),
+  _alphay(NULL),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _initialConditions("u"), _inputDir("unspecified"),
@@ -58,7 +58,13 @@ strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
   #endif
 
   map<string,Vec>::iterator it;
-  for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
+  for (it = _var.begin(); it!=_var.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  //~ for (it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    //~ VecDestroy(&it->second);
+  //~ }
+  for (it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
     VecDestroy(&it->second);
   }
 
@@ -186,51 +192,23 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
-  _fault->initiateIntegrand(_initTime,_varEx);
+  _fault->initiateIntegrand(_initTime,_var);
 
-  Vec slip;
-  VecDuplicate(_varEx["psi"], &slip); VecSet(slip,0.);
-  _varEx["slip"] = slip;
-  Vec dslip;
-  VecDuplicate(_varEx["psi"], &dslip); VecSet(dslip,0.);
-  _varEx["dslip"] = dslip;
+  // TODO move this into odesolver wave eq
+  //~ VecDuplicate(_var["psi"],&_varPrev["psi"]); VecCopy(_var["psi"],_varPrev["psi"]);
+  //~ VecDuplicate(_var["psi"],&_varNext["psi"]); VecCopy(_var["psi"],_varNext["psi"]);
+  //~ VecDuplicate(_var["slip"],&_varPrev["slip"]); VecCopy(_var["slip"],_varPrev["slip"]);
+  //~ VecDuplicate(_var["slip"],&_varNext["slip"]); VecCopy(_var["slip"],_varNext["slip"]);
 
-  VecDuplicate(*_z, &_varEx["uPrev"]); VecSet(_varEx["uPrev"],0.);
-  VecDuplicate(*_z, &_varEx["u"]); VecSet(_varEx["u"], 0.0);
 
-  if (_inputDir.compare("unspecified") != 0){
+  //~ VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.); // TODO remove this
+  VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
 
-    ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
-    if (ierr == 1){
-      VecCopy(_varEx["u"], _varEx["uPrev"]);
-    }
-      ierr = loadFileIfExists_matlab(_inputDir + "psi", _varEx["psi"]);
-      ierr = loadFileIfExists_matlab(_inputDir + "psiPrev", _varEx["psiPrev"]);
-      if (ierr > 0){
-        VecCopy(_varEx["psi"], _varEx["psiPrev"]);
-        ierr = 0;
-      }
-      ierr = loadFileIfExists_matlab(_inputDir + "slipVel", _fault->_slipVel);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcR", _material->_bcRShift);
-      ierr = loadFileIfExists_matlab(_inputDir + "bcL", _material->_bcL);
-      if (ierr > 0){
-        VecCopy(_varEx["u"], _varEx["slip"]);
-        ierr = 0;
-      }
-      else{
-        VecCopy(_material->_bcL, _varEx["slip"]);
-      }
-      VecScale(_varEx["slip"], 2.0);
-      VecCopy(_varEx["slip"], _fault->_slip);
-      VecCopy(_varEx["psi"], _fault->_psi);
-      VecCopy(_varEx["psiPrev"], _fault->_psiPrev);
+  //~ VecDuplicate(*_z, &_varPrev["u"]); VecSet(_varPrev["u"], 0.0);
 
-      ierr = loadFileIfExists_matlab(_inputDir + "tau", _fault->_tau0);
-      if (ierr == 0){
-        _initialConditions = "None";
-      }
-    ierr = 0;
-    }
+  //~ VecDuplicate(*_z, &_varNext["u"]); VecSet(_varNext["u"], 0.0); // TODO remove this
+
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -240,8 +218,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -250,6 +228,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,c
   #endif
 double startTime = MPI_Wtime();
 
+  _deltaT = deltaT;
   _stepCount = stepCount;
   _currTime = time;
 
@@ -274,42 +253,6 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-// monitoring function for IMEX integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-
-  _currTime = time;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_fd::timeMonitor for IMEX";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
-
-  _stepCount = stepCount;
-  _currTime = time;
-
-  if ( stepCount % _stride1D == 0) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-  }
-
-  if ( stepCount % _stride2D == 0) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
-  #endif
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
@@ -444,7 +387,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 
   // initialize time integrator
   _quadWaveEx = new OdeSolver_WaveEq(_maxStepCount,_initTime,_maxTime,_deltaT);
-  ierr = _quadWaveEx->setInitialConds(_varEx);CHKERRQ(ierr);
+  ierr = _quadWaveEx->setInitialConds(_var);CHKERRQ(ierr);
 
   ierr = _quadWaveEx->integrate(this);CHKERRQ(ierr);
 
@@ -456,16 +399,13 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "strikeSlip_linearElastic_fd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  // TODO get rid of this
-  PetscScalar deltaT = _deltaT;
 
 double startPropagation = MPI_Wtime();
 
@@ -474,7 +414,7 @@ double startPropagation = MPI_Wtime();
   VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, varEx["u"], temp);
+  ierr = MatMult(A, var.find("u")->second, temp);
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
@@ -486,89 +426,59 @@ double startPropagation = MPI_Wtime();
       VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
   _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
 
 
 
   // Propagate waves and compute displacement at the next time step
   // includes boundary conditions except for fault
-  //~ Vec uNext;
-  //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
 
-  //~ PetscInt       Ii,Istart,Iend;
-  //~ PetscScalar   *uNextA; // changed in this loop
-  //~ const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  //~ ierr = VecGetArray(uNext, &uNextA);
-  //~ ierr = VecGetArrayRead(varEx["u"], &u);
-  //~ ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
-  //~ ierr = VecGetArrayRead(_ay, &ay);
-  //~ ierr = VecGetArrayRead(D2u, &d2u);
-  //~ ierr = VecGetArrayRead(_rhoVec, &rho);
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_rhoVec, &rho);
 
-  //~ ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
-  //~ PetscInt       Jj = 0;
-  //~ for (Ii = Istart; Ii < Iend; Ii++){
-    //~ PetscScalar c1 = deltaT*deltaT/rho[Jj];
-    //~ PetscScalar c2 = (deltaT*ay[Jj]-1.0);
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
 
-    //~ uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
-    //~ uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
-    //~ Jj++;
-  //~ }
-  //~ ierr = VecRestoreArray(uNext, &uNextA);
-  //~ ierr = VecRestoreArrayRead(varEx["u"], &u);
-  //~ ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
-  //~ ierr = VecRestoreArrayRead(_ay, &ay);
-  //~ ierr = VecRestoreArrayRead(D2u, &d2u);
-  //~ ierr = VecRestoreArrayRead(_rhoVec, &rho);
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
+    Jj++;
+  }
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_rhoVec, &rho);
 
-  //~ VecDestroy(&D2u);
+  VecDestroy(&D2u);
 
-
-  Vec uNext;
-  Vec correction, previous, ones;
-
-  VecDuplicate(*_y, &ones);
-  VecDuplicate(*_y, &correction);
-  VecSet(ones, 1.0);
-  VecSet(correction, 0.0);
-  ierr = VecAXPY(correction, _deltaT, _ay);
-  ierr = VecAXPY(correction, -1.0, ones); // correction = deltaT * ay - 1
-  VecDuplicate(*_y, &previous);
-  VecSet(previous, 0.0);
-  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]); // previous = uPrev * (deltaT*ay - 1)
-
-  VecDuplicate(*_y, &uNext);
-  VecSet(uNext, 0.0);
-  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]); // uNext = deltaT^2*D2u
-  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec); // uNext = deltaT^2*D2u / rho
-
-  ierr = VecAXPY(uNext, 2, varEx["u"]);  // uNext = deltaT^2*D2u / rho + 2*u
-  ierr = VecAXPY(uNext, 1, previous);  // uNext = deltaT^2*D2u / rho + 2*u + uPrev * (deltaT*ay - 1)
-  ierr = VecAXPY(correction, 2, ones); // correction = deltaT * ay + 1
-  ierr = VecPointwiseDivide(uNext, uNext, correction); // uNext = uNext / (deltaT * ay + 1)
-
-  ierr = VecCopy(varEx["u"], varEx["uPrev"]);
-  ierr = VecCopy(uNext, varEx["u"]);
-  VecCopy(varEx["u"], _material->_u);
-  VecDestroy(&uNext);
-  VecDestroy(&ones);
-  VecDestroy(&correction);
-  VecDestroy(&previous);
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
   if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
+  // update body u from fault u
+  _fault->setGetBody2Fault(varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
+  VecCopy(varNext.find("u")->second, _material->_u);
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
-  VecCopy(_fault->_tauQSP, _fault->_tauP);
+  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
+  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

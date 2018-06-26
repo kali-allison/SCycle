@@ -21,6 +21,13 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 #endif
 }
 
+// if starting with a nonzero initial step count
+PetscErrorCode OdeSolverImex::setInitialStepCount(const PetscReal stepCount)
+{
+  _stepCount = stepCount;
+  _maxNumSteps = stepCount + _maxNumSteps;
+}
+
 PetscErrorCode OdeSolverImex::setToleranceType(const std::string normType)
 {
 #if VERBOSE > 1
@@ -422,14 +429,13 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     assert(_varEx.find(key) != _varEx.end());
   }
 
-
-  // set initial condition
-  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration);CHKERRQ(ierr);// write first step
-
   if (_finalT==_initT) { return ierr; }
   else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
   if (_maxNumSteps == 0) { return ierr; }
+
+  // set initial condition
+  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);// write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
 
@@ -499,7 +505,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
 
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -509,120 +515,6 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
   return ierr;
 }
 
-PetscErrorCode RK32_WBE::integrate_switch(IntegratorContextImex *obj)
-{
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-
-  PetscErrorCode ierr=0;
-  PetscReal      _totErr=0.0;
-  PetscInt       attemptCount = 0;
-  int            stopIntegration = 0;
-
-  // build default errInds if it hasn't been defined already
-  if (_errInds.size()==0) {
-    for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-      _errInds.push_back(it->first);
-    }
-  }
-
-  // check that errInds is valid
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    std::string key = _errInds[i];
-    if (_varEx.find(key) == _varEx.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
-    }
-    assert(_varEx.find(key) != _varEx.end());
-  }
-
-
-  // set initial condition
-  ierr = obj->d_dt_qd(_currT,_varEx,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor_qd(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration);CHKERRQ(ierr);// write first step
-
-  if (_finalT==_initT) { return ierr; }
-  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
-  if (_maxNumSteps == 0) { return ierr; }
-
-  while (_stepCount<_maxNumSteps && _currT<_finalT) {
-
-    _stepCount++;
-    attemptCount = 0;
-    while (attemptCount<100) { // repeat until time step is acceptable
-      attemptCount++;
-      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
-      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
-      if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
-
-      for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        VecSet(_varHalfdT[it->first],0.0); VecSet(_dvarHalfdT[it->first],0.0);
-        VecSet(_vardT[it->first],0.0);     VecSet(_dvardT[it->first],0.0);
-        VecSet(_var2nd[it->first],0.0);    VecSet(_dvar2nd[it->first],0.0);
-        VecSet(_var3rd[it->first],0.0);
-      }
-
-      // stage 1: integrate fields to _currT + 0.5*deltaT
-      for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        ierr = VecWAXPY(_varHalfdT[it->first],0.5*_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
-      }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_varHalfdT,_dvarHalfdT);CHKERRQ(ierr);
-
-      // stage 2: integrate fields to _currT + _deltaT
-      for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        ierr = VecWAXPY(_vardT[it->first],-_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_vardT[it->first],2*_deltaT,_dvarHalfdT[it->first]);CHKERRQ(ierr);
-      }
-      ierr = obj->d_dt(_currT+_deltaT,_vardT,_dvardT);CHKERRQ(ierr);
-
-      // 2nd and 3rd order update
-      for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        ierr = VecWAXPY(_var2nd[it->first],0.5*_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var2nd[it->first],0.5*_deltaT,_dvardT[it->first]);CHKERRQ(ierr);
-
-        ierr = VecWAXPY(_var3rd[it->first],_deltaT/6.0,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[it->first],2*_deltaT/3.0,_dvarHalfdT[it->first]);CHKERRQ(ierr);
-        ierr = VecAXPY(_var3rd[it->first],_deltaT/6.0,_dvardT[it->first]);CHKERRQ(ierr);
-      }
-
-      // calculate error
-      _totErr = computeError();
-      if (_totErr<_atol) { break; } // !!!orig
-      _deltaT = computeStepSize(_totErr);
-      if (_minDeltaT == _deltaT) { break; }
-
-      _numRejectedSteps++;
-    }
-    _currT = _currT+_deltaT;
-
-    // accept 3rd order solution as update
-    for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-      VecSet(_varEx[it->first],0.0);
-      ierr = VecCopy(_var3rd[it->first],_varEx[it->first]);CHKERRQ(ierr);
-      VecSet(_dvar[it->first],0.0);
-    }
-
-    // update rates for explicit variables, and compute updated state for implicit variables
-    ierr = obj->d_dt_qd(_currT,_varEx,_dvar,_vardTIm,_varIm,_deltaT);CHKERRQ(ierr);
-
-    // accept updated state for implicit variables
-    for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
-      VecCopy(_vardTIm[it->first],_varIm[it->first]);
-    }
-
-    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
-
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
-  }
-
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::integrate in odeSolver.cpp.\n");
-#endif
-  return ierr;
-}
 
 
 //======================================================================
@@ -1090,15 +982,15 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     assert(_varEx.find(key) != _varEx.end());
   }
 
+  if (_finalT==_initT) { return ierr; }
+  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
+
 
   // set initial condition
   ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
-  ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr); // write first step
-
-  if (_finalT==_initT) { return ierr; }
-  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
-  if (_maxNumSteps == 0) { return ierr; }
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
@@ -1202,7 +1094,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
       VecSet(_vardTIm[it->first],0.);
     }
-    ierr = obj->timeMonitor(_currT,_stepCount,_varEx,_dvar,_varIm,stopIntegration); CHKERRQ(ierr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
     if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }

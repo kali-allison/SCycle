@@ -93,10 +93,7 @@ int runEqCycle(Domain& d)
     strikeSlip_linearElastic_qd_fd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    for (int i=0; i<d._numCycles; i++){
-      PetscPrintf(PETSC_COMM_WORLD, "Starting loop %i\n", i);
-      ierr = m.integrate(); CHKERRQ(ierr);
-    }
+    ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view();CHKERRQ(ierr);
   }
 

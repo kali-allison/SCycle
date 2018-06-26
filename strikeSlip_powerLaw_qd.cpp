@@ -370,72 +370,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 }
 
 
-// monitoring function for explicit integration
-PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::timeMonitor for explicit";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
 
-  _stepCount = stepCount;
-  _dT = time - _currTime;
-  _currTime = time;
-
-  // stopping criteria for time integration
-  if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    if (maxVel < (1.1 * _vL) && time > 5e10) { stopIntegration = 1; }
-  }
-
-  if (_stride1D>0 && stepCount % _stride1D == 0) {
-    ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-  }
-
-  if (_stride2D>0 &&  stepCount % _stride2D == 0) {
-    ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  //~ if (stepCount % 50 == 0) {
-    PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-    _material->computeMaxTimeStep(maxDeltaT_momBal);
-    maxTimeStep_tot = min(_maxDeltaT,0.8*maxDeltaT_momBal);
-    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
-    }
-    else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
-  //~ }
-
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
-    PetscReal maxVel = 0;
-    ierr = VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e %.15e %.15e\n",stepCount,_currTime,maxVel,maxDeltaT_momBal,_currIntegrateTime);CHKERRQ(ierr);
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// monitoring function for IMEX integration
-PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const PetscInt stepCount,
-      const map<string,Vec>& varEx,const map<string,Vec>& dvarEx,const map<string,Vec>& varIm,int& stopIntegration)
+// monitoring function for ode solvers
+PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
+      const PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
   _currTime = time;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::timeMonitor for IMEX";
+    std::string funcName = "StrikeSlip_PowerLaw_qd::timeMonitor";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
@@ -447,7 +391,8 @@ double startTime = MPI_Wtime();
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-    PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
+    PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
     if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
   }
 
