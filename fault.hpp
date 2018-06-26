@@ -33,9 +33,9 @@ class Fault
     const PetscScalar  _L; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
-    Vec                _tauQSP;
-    Vec                _tauP; // not quasi-static
-    Vec                _tau0; // prestress
+    Vec          _tauQSP,_tauP,_tau0,_strength; // shear stress: quasistatic, not quasistatic, fault strength, pre-stress
+    Vec          _slip,_slipVel, _slip0; // slip, slip velocity, initial slip
+    Vec          _psi; // state variable
 
     // for locking the fault
     std::vector<double>   _lockedVals,_lockedDepths;
@@ -47,17 +47,16 @@ class Fault
     Vec                   _a,_b,_Dc;
     std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
     Vec                   _cohesion,_mu,_rho;
-    Vec                   _dPsi,_psi, _psiPrev;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
-    Vec                   _slip,_slipVel, _slip0;
 
+
+    // flash heating parameters
     std::vector<double>   _TwVals,_TwDepths;
-    PetscScalar           _fw,_Vw_const,_tau_c,_D_fh; // flash heating parameters
-    Vec                   _T,_k,_c,_Vw,_Tw; // for flash heating
-
+    PetscScalar           _fw,_Vw_const,_tau_c,_D_fh;
+    Vec                   _T,_k,_c,_Vw,_Tw;
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar           _rootTol;
     PetscInt              _rootIts,_maxNumIts; // total number of iterations
@@ -108,8 +107,6 @@ class Fault
     PetscErrorCode virtual writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
     PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
-
-    PetscErrorCode writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir);
 };
 
 
@@ -159,7 +156,6 @@ class Fault_fd: public Fault
   public:
     Vec                 _Phi, _an, _fricPen;
     Vec                 _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
-    IS                  _is;
     PetscScalar         _deltaT;
     Vec                 _alphay;
 
@@ -325,7 +321,11 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
 
 PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0);
 
+
+
 // frictional strength, regularized form, for state variable psi
+PetscErrorCode strength_psi_Vec(Vec& strength, const Vec& psi, const Vec& slipVel, const Vec& a,  const Vec& sN, const PetscScalar& v0);
+
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0);
 
 #include "rootFinder.hpp"

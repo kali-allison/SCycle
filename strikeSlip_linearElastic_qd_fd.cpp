@@ -694,7 +694,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
 
   _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
-  VecSet(_material->_u,0.);
   VecDuplicate(_material->_u, &_varFD["u"]); VecCopy(_material->_u,_varFD["u"]);
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);

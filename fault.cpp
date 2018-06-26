@@ -267,9 +267,8 @@ PetscErrorCode Fault::setFields(Domain& D)
   // Allocate fields. All fields in this class match the parallel structure of Domain's y0 Vec
   VecDuplicate(D._y0,&_tauP);     PetscObjectSetName((PetscObject) _tauP, "tau"); VecSet(_tauP,0.0);
   VecDuplicate(_tauP,&_tauQSP);   PetscObjectSetName((PetscObject) _tauQSP, "tauQS");  VecSet(_tauQSP,0.0);
+  VecDuplicate(_tauP,&_strength);   PetscObjectSetName((PetscObject) _strength, "tauQS");  VecSet(_strength,0.0);
   VecDuplicate(_tauP,&_psi);      PetscObjectSetName((PetscObject) _psi, "psi"); VecSet(_psi,0.0);
-  VecDuplicate(_tauP,&_psiPrev);  PetscObjectSetName((PetscObject) _psiPrev, "psiPrev"); VecSet(_psiPrev,0.0);
-  VecDuplicate(_tauP,&_dPsi);     PetscObjectSetName((PetscObject) _dPsi, "dPsi"); VecSet(_dPsi,0.0);
   VecDuplicate(_tauP,&_slip);     PetscObjectSetName((PetscObject) _slip, "slip"); VecSet(_slip,0.0);
   VecDuplicate(_tauP,&_slipVel);  PetscObjectSetName((PetscObject) _slipVel, "slipVel"); VecSet(_slipVel,0.0);
   VecDuplicate(_tauP,&_Dc);       PetscObjectSetName((PetscObject) _Dc, "Dc");
@@ -326,7 +325,6 @@ PetscErrorCode Fault::setFields(Domain& D)
     VecDestroy(&temp);
   }
   ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
-  ierr = VecSet(_psiPrev,_f0);CHKERRQ(ierr);
 
   { // impose floor and ceiling on effective normal stress
     Vec temp; VecDuplicate(_sN,&temp);
@@ -580,6 +578,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = io_initiateWriteAppend(_viewers, "tau0", _tau0, outputDir + "tau0"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "strength", _strength, outputDir + "strength"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
@@ -592,6 +591,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = VecView(_tau0,_viewers["tau0"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
     ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
+    ierr = VecView(_strength,_viewers["strength"].first); CHKERRQ(ierr);
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
@@ -602,17 +602,6 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  return ierr;
-}
-
-PetscErrorCode Fault::writeUOffset(Vec uOffset, bool isFirstCycle, const std::string outputDir){
-  PetscErrorCode ierr;
-  if (isFirstCycle){
-    ierr = io_initiateWriteAppend(_viewers, "uOffset", uOffset, outputDir + "uOffset"); CHKERRQ(ierr);
-  }
-  else{
-    ierr = VecView(uOffset,_viewers["uOffset"].first); CHKERRQ(ierr);
-  }
   return ierr;
 }
 
@@ -645,10 +634,9 @@ Fault::~Fault()
   VecDestroy(&_tauQSP);
   VecDestroy(&_tauP);
   VecDestroy(&_tau0);
+  VecDestroy(&_strength);
 
   VecDestroy(&_psi);
-  VecDestroy(&_psiPrev);
-  VecDestroy(&_dPsi);
   VecDestroy(&_slip);
   VecDestroy(&_slipVel);
 
@@ -975,6 +963,9 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time,const map<string,Vec>& varE
   VecCopy(_slipVel,_tauP); // V -> tau
   VecPointwiseMult(_tauP,_eta_rad,_tauP); // tau = V * eta_rad
   VecAYPX(_tauP,-1.0,_tauQSP); // tau = tauQS - V*eta_rad
+
+  // compute frictional strength of fault based on
+  strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
 
 
   #if VERBOSE > 1
@@ -1479,6 +1470,9 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
   // assemble slip from u
   VecWAXPY(_slip,2.0,_u,_slip0); // slip = 2*u + slip0
   VecCopy(_slip,varNext["slip"]);
+
+  // compute frictional strength of fault based on
+  strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
 
   #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2181,6 +2175,34 @@ PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel
   VecRestoreArrayRead(Dc,&DcA);
   VecRestoreArrayRead(a,&aA);
   VecRestoreArrayRead(b,&bA);
+
+  return ierr;
+}
+
+// computes frictional strength by appying strength_psi to a vector
+PetscErrorCode strength_psi_Vec(Vec& strength, const Vec& psi, const Vec& slipVel, const Vec& a,  const Vec& sN, const PetscScalar& v0)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar *strengthA;
+  PetscScalar const *psiA,*slipVelA,*aA,*sNA;
+  VecGetArray(strength,&strengthA);
+  VecGetArrayRead(psi,&psiA);
+  VecGetArrayRead(slipVel,&slipVelA);
+  VecGetArrayRead(a,&aA);
+  VecGetArrayRead(sN,&sNA);
+  PetscInt Jj = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(strength,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    strengthA[Jj] = strength_psi( sNA[Jj], psiA[Jj], slipVelA[Jj], aA[Jj], v0);
+    Jj++;
+  }
+  VecRestoreArray(strength,&strengthA);
+  VecRestoreArrayRead(psi,&psiA);
+  VecRestoreArrayRead(slipVel,&slipVelA);
+  VecRestoreArrayRead(a,&aA);
+  VecRestoreArrayRead(sN,&sNA);
 
   return ierr;
 }
