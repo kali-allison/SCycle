@@ -1687,16 +1687,16 @@ double startTime = MPI_Wtime();
   _currTime = time;
   _deltaT = deltaT;
 
-  //~ if ( _stride1D > 0 && stepCount % _stride1D == 0) {
+  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-  //~ }
+  }
 
-  //~ if ( _stride2D > 0 && stepCount % _stride2D == 0) {
+  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  //~ }
+  }
 
   if(check_switch(_fault_fd)){
     stopIntegration = 1;
