@@ -3,6 +3,10 @@
 data/**
 
 matlabAnswers/**
+matlab/visualizePetsc/@PetscOpenSocket/.*
+matlab/visualizePetsc/@PetscOpenFile/.*
+matlab/visualizePetsc/.*
+matlab/visualizePetsc/._*
 
 .goutputstream*
 

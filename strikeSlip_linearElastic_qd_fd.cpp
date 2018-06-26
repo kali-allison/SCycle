@@ -1481,48 +1481,47 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
 {
   PetscErrorCode ierr = 0;
 
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  Mat A;
-  ierr = _material->_sbp->getA(A);
-
   double startPropagation = MPI_Wtime();
 
-  // Update the laplacian
-  Vec Laplacian, temp;
-  VecDuplicate(*_y, &Laplacian);
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, varEx["u"], temp);
-  if (_withFhat == 1){
-    ierr = VecAXPY(temp, 1.0, _Fhat);
-  }
-  ierr = _material->_sbp->Hinv(temp, Laplacian);
-  ierr = VecCopy(Laplacian, dvarEx["u"]);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
-  VecDestroy(&Laplacian);
 
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     Vec temp;
-    VecDuplicate(dvarEx["u"], &temp);
-    MatMult(Jinv, dvarEx["u"], temp);
-    VecCopy(temp, dvarEx["u"]);
+    VecDuplicate(D2u, &temp);
+    MatMult(Jinv, D2u, temp);
+    VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
+  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
+  VecDestroy(&D2u);
+
+
+
   // Apply the time step
   Vec uNext, correction, previous, ones;
 
-  VecDuplicate(varEx["u"], &ones);
-  VecDuplicate(varEx["u"], &correction);
+  VecDuplicate(*_y, &ones);
+  VecDuplicate(*_y, &correction);
   VecSet(ones, 1.0);
   VecSet(correction, 0.0);
   ierr = VecAXPY(correction, _deltaT, _ay);
   ierr = VecAXPY(correction, -1.0, ones);
-  VecDuplicate(varEx["u"], &previous);
+  VecDuplicate(*_y, &previous);
   VecSet(previous, 0.0);
   ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
 
-  VecDuplicate(varEx["u"], &uNext);
+  VecDuplicate(*_y, &uNext);
   VecSet(uNext, 0.0);
   ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
   ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
@@ -1541,13 +1540,11 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
   if (_initialConditions.compare("tau")==0){
     PetscScalar currT;
     _quadWaveEx->getCurrT(currT);
-    ierr = _fault_dyn->updateTau(currT);
+    ierr = _fault_dyn->updateTau0(currT);
   }
   _propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_isFault.compare("true") == 0){
   ierr = _fault_dyn->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
-}
 
   VecCopy(varEx["u"], _material->_u);
   VecAXPY(_material->_u, 1.0, _savedU);
@@ -1578,9 +1575,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
                                                          map<string,Vec>& varIm,map<string,Vec>& varImo)
 {
   PetscErrorCode ierr = 0;
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  Mat A;
-  ierr = _material->_sbp->getA(A);
 
   double startPropagation = MPI_Wtime();
 
@@ -1589,25 +1583,28 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
     // _material->updateTemperature(varImo.find("Temp")->second);
   }
 
-  // Update the laplacian
-  Vec Laplacian, temp;
-  VecDuplicate(*_y, &Laplacian);
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, varEx["u"], temp);
-  ierr = _material->_sbp->Hinv(temp, Laplacian);
-  ierr = VecCopy(Laplacian, dvarEx["u"]);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
 
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     Vec temp;
-    // MatView(J, PETSC_VIEWER_STDOUT_WORLD);
-    VecDuplicate(dvarEx["u"], &temp);
-    MatMult(Jinv, dvarEx["u"], temp);
-    VecCopy(temp, dvarEx["u"]);
+    VecDuplicate(D2u, &temp);
+    MatMult(Jinv, D2u, temp);
+    VecCopy(temp, D2u);
     VecDestroy(&temp);
   }
+  //~ ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  _fault_dyn->setGetBody2Fault(D2u,_fault_dyn->_d2u,SCATTER_FORWARD); // set D2u to fault
+  VecDestroy(&D2u);
 
   Vec uNext, correction, previous, ones;
 
@@ -1640,7 +1637,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt_dyn(const PetscScalar time, 
   if (_initialConditions.compare("tau")==0){
     PetscScalar currT;
     _quadWaveImex->getCurrT(currT);
-    ierr = _fault_dyn->updateTau(currT);
+    ierr = _fault_dyn->updateTau0(currT);
   }
 
   _propagateTime += MPI_Wtime() - startPropagation;
@@ -1787,7 +1784,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrand_dyn()
   VecAXPY(_varEx["u"], -1.0, _varEx["uPrev"]);
   VecSet(_varEx["uPrev"], 0.0);
 
-  _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
+  //~ _fault_dyn->initiateIntegrand_dyn(_varEx, _rhoVec);
 
 
   #if VERBOSE > 1

@@ -14,7 +14,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _alphay(NULL), _alphaz(NULL),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _isFault("true"),_initialConditions("u"), _inputDir("unspecified"),
+  _initialConditions("u"), _inputDir("unspecified"),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -112,7 +112,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
     else if (var.compare("amp_U")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("isFault")==0) { _isFault = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
     else if (var.compare("timeIntInds")==0) {
@@ -201,31 +200,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   if (_inputDir.compare("unspecified") != 0){
 
-    ierr = loadFileIfExists_matlab(_inputDir+"u", _varEx["u"]);
-    if (ierr == 1){
-        PetscInt Ii,Istart,Iend;
-        PetscInt Jj = 0;
-
-      if (_initialConditions.compare("u") == 0){
-        PetscScalar *u, *uPrev, *y, *z;
-        VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
-        VecGetArray(_varEx["u"],&u);
-        VecGetArray(_varEx["uPrev"],&uPrev);
-        VecGetArray(*_y, &y);
-        VecGetArray(*_z, &z);
-
-        for (Ii=Istart;Ii<Iend;Ii++) {
-          u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-          uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-          Jj++;
-        }
-        VecRestoreArray(*_y,&y);
-        VecRestoreArray(*_z,&z);
-        VecRestoreArray(_varEx["u"],&u);
-        VecRestoreArray(_varEx["uPrev"],&uPrev);
-      }
-    }
-
     ierr = loadFileIfExists_matlab(_inputDir+"uPrev", _varEx["uPrev"]);
     if (ierr == 1){
       VecCopy(_varEx["u"], _varEx["uPrev"]);
@@ -257,34 +231,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
       }
     ierr = 0;
     }
-
-  else{
-
-  PetscInt Ii,Istart,Iend;
-  PetscInt Jj = 0;
-
-  if (_initialConditions.compare("u") == 0){
-    PetscScalar *u, *uPrev, *y, *z;
-    VecGetOwnershipRange(_varEx["u"],&Istart,&Iend);
-    VecGetArray(_varEx["u"],&u);
-    VecGetArray(_varEx["uPrev"],&uPrev);
-    VecGetArray(*_y, &y);
-    VecGetArray(*_z, &z);
-
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      u[Jj] = _ampU * exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-      uPrev[Jj] = _ampU *exp(-pow( y[Jj]-_yCenterU*(_Ly), 2) /_yStdU) * exp(-pow(z[Jj]-_zCenterU*(_Lz), 2) /_zStdU);
-      Jj++;
-    }
-    VecRestoreArray(*_y,&y);
-    VecRestoreArray(*_z,&z);
-    VecRestoreArray(_varEx["u"],&u);
-    VecRestoreArray(_varEx["uPrev"],&uPrev);
-  }
-
-  }
-
-  _fault->initiateIntegrand_dyn(_varEx, _rhoVec);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -513,78 +459,120 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
-  // ierr = _material->_sbp->setRhs(_material->_rhs,_material->_bcL,_material->_bcR,_material->_bcT,_material->_bcB);CHKERRQ(ierr);
-  Mat A;
-  ierr = _material->_sbp->getA(A);
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_fd::d_dt";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
 
-  double startPropagation = MPI_Wtime();
+  // TODO get rid of this
+  PetscScalar deltaT = _deltaT;
 
-  // Update the laplacian
-  Vec Laplacian, temp;
-  VecDuplicate(*_y, &Laplacian);
+double startPropagation = MPI_Wtime();
+
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
   VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, varEx["u"], temp);
-  ierr = _material->_sbp->Hinv(temp, Laplacian);
-  ierr = VecCopy(Laplacian, dvarEx["u"]);
+  ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
       Mat J,Jinv,qy,rz,yq,zr;
       ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
       Vec temp;
-      VecDuplicate(dvarEx["u"], &temp);
-      MatMult(Jinv, dvarEx["u"], temp);
-      VecCopy(temp, dvarEx["u"]);
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  // Apply the time step
-  Vec uNext, correction, previous, ones;
+  ierr = VecCopy(D2u, dvarEx["u"]); // TODO: want to eventually get rid of this
+  _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
 
-  VecDuplicate(varEx["u"], &ones);
-  VecDuplicate(varEx["u"], &correction);
+
+
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+  //~ Vec uNext;
+  //~ VecDuplicate(*_y, &uNext); VecSet(uNext, 0.0);
+
+  //~ PetscInt       Ii,Istart,Iend;
+  //~ PetscScalar   *uNextA; // changed in this loop
+  //~ const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  //~ ierr = VecGetArray(uNext, &uNextA);
+  //~ ierr = VecGetArrayRead(varEx["u"], &u);
+  //~ ierr = VecGetArrayRead(varEx["uPrev"], &uPrev);
+  //~ ierr = VecGetArrayRead(_ay, &ay);
+  //~ ierr = VecGetArrayRead(D2u, &d2u);
+  //~ ierr = VecGetArrayRead(_rhoVec, &rho);
+
+  //~ ierr = VecGetOwnershipRange(uNext,&Istart,&Iend);CHKERRQ(ierr);
+  //~ PetscInt       Jj = 0;
+  //~ for (Ii = Istart; Ii < Iend; Ii++){
+    //~ PetscScalar c1 = deltaT*deltaT/rho[Jj];
+    //~ PetscScalar c2 = (deltaT*ay[Jj]-1.0);
+
+    //~ uNextA[Jj] = c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj];
+    //~ uNextA[Jj] = uNextA[Jj] / (deltaT * ay[Jj] + 1.0);
+    //~ Jj++;
+  //~ }
+  //~ ierr = VecRestoreArray(uNext, &uNextA);
+  //~ ierr = VecRestoreArrayRead(varEx["u"], &u);
+  //~ ierr = VecRestoreArrayRead(varEx["uPrev"], &uPrev);
+  //~ ierr = VecRestoreArrayRead(_ay, &ay);
+  //~ ierr = VecRestoreArrayRead(D2u, &d2u);
+  //~ ierr = VecRestoreArrayRead(_rhoVec, &rho);
+
+  //~ VecDestroy(&D2u);
+
+
+  Vec uNext;
+  Vec correction, previous, ones;
+
+  VecDuplicate(*_y, &ones);
+  VecDuplicate(*_y, &correction);
   VecSet(ones, 1.0);
   VecSet(correction, 0.0);
   ierr = VecAXPY(correction, _deltaT, _ay);
-  ierr = VecAXPY(correction, -1.0, ones);
-  VecDuplicate(varEx["u"], &previous);
+  ierr = VecAXPY(correction, -1.0, ones); // correction = deltaT * ay - 1
+  VecDuplicate(*_y, &previous);
   VecSet(previous, 0.0);
-  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]);
+  ierr = VecPointwiseMult(previous, correction, varEx["uPrev"]); // previous = uPrev * (deltaT*ay - 1)
 
-  VecDuplicate(varEx["u"], &uNext);
+  VecDuplicate(*_y, &uNext);
   VecSet(uNext, 0.0);
-  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]);
-  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec);
+  ierr = VecAXPY(uNext, pow(_deltaT, 2), dvarEx["u"]); // uNext = deltaT^2*D2u
+  ierr = VecPointwiseDivide(uNext, uNext, _rhoVec); // uNext = deltaT^2*D2u / rho
 
-  ierr = VecAXPY(uNext, 2, varEx["u"]);
-  ierr = VecAXPY(uNext, 1, previous);
-  ierr = VecAXPY(correction, 2, ones);
-  ierr = VecPointwiseDivide(uNext, uNext, correction);
+  ierr = VecAXPY(uNext, 2, varEx["u"]);  // uNext = deltaT^2*D2u / rho + 2*u
+  ierr = VecAXPY(uNext, 1, previous);  // uNext = deltaT^2*D2u / rho + 2*u + uPrev * (deltaT*ay - 1)
+  ierr = VecAXPY(correction, 2, ones); // correction = deltaT * ay + 1
+  ierr = VecPointwiseDivide(uNext, uNext, correction); // uNext = uNext / (deltaT * ay + 1)
 
   ierr = VecCopy(varEx["u"], varEx["uPrev"]);
   ierr = VecCopy(uNext, varEx["u"]);
+  VecCopy(varEx["u"], _material->_u);
   VecDestroy(&uNext);
   VecDestroy(&ones);
   VecDestroy(&correction);
   VecDestroy(&previous);
-  if (_initialConditions.compare("tau")==0){
-    PetscScalar currT;
-    _quadWaveEx->getCurrT(currT);
-    ierr = _fault->updateTau(currT);
-  }
 
-  _propagateTime += MPI_Wtime() - startPropagation;
+_propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_isFault.compare("true") == 0){
-    ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
-  }
-  VecCopy(varEx["u"], _material->_u);
+  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
+  ierr = _fault->d_dt(time,varEx,dvarEx, _deltaT);CHKERRQ(ierr);
+
+
   _material->computeStresses();
-
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
   ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
   VecCopy(_fault->_tauQSP, _fault->_tauP);
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
 
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 

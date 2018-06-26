@@ -95,6 +95,7 @@ class Fault
       const PetscScalar maxVal);
 
     PetscErrorCode setTauQS(const Vec& sxy);
+    PetscErrorCode setGetBody2Fault(Vec& bodyField, Vec& faultField, ScatterMode mode); // scatter to/from body to fault
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 
@@ -156,16 +157,14 @@ class Fault_fd: public Fault
     Fault_fd& operator=( const Fault_fd& rhs);
 
   public:
-    Vec                 _Phi, _an, _constraints_factor;
-    Vec                 _slipPrev;
-    Vec                 _rhoLocal;
+    Vec                 _Phi, _an, _fricPen;
+    Vec                 _slipVelPrev,_u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     IS                  _is;
     PetscScalar         _deltaT;
-    Vec                 _alphay, _alphaz;
+    Vec                 _alphay;
 
-    PetscScalar           _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
-    std::string         _timeMode, _isLocked;
-    PetscScalar         _lockLimit;
+    PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+    std::string         _timeMode;
 
     Fault_fd(Domain&, VecScatter& scatter2fault);
     ~Fault_fd();
@@ -174,7 +173,6 @@ class Fault_fd: public Fault
 
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode initiateIntegrand_dyn(map<string,Vec>& varEx, Vec _rhoVec);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time, map<string,Vec>& varEx,map<string,Vec>& dvarEx,PetscScalar _deltaT);
 
@@ -182,7 +180,8 @@ class Fault_fd: public Fault
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution();
     PetscErrorCode setPhi(map<string,Vec>& varEx, map<string,Vec>& dvarEx, const PetscScalar _deltaT);
-    PetscErrorCode updateTau(const PetscScalar currT);
+    PetscErrorCode updateTau0(const PetscScalar currT);
+
 };
 
 
@@ -212,12 +211,12 @@ struct ComputeVel_qd : public RootFinderContext
 struct ComputeVel_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_constraints_factor, *_a, *_sNEff;
+  const PetscScalar  *_locked, *_Phi, *_an, *_psi, *_fricPen, *_a, *_sNEff;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _vL;
 
   // constructor and destructor
-  ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* constraints_factor,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
+  ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* fricPen,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -232,13 +231,13 @@ struct ComputeVel_fd : public RootFinderContext
 struct ComputeAging_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipPrev;
+  const PetscScalar  *_Dc, *_b, *_slipVel, *_slipVelPrev;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
+  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,const PetscScalar* slipVelPrev, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
@@ -253,7 +252,7 @@ struct ComputeAging_fd : public RootFinderContext
 struct ComputeSlipLaw_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
@@ -261,7 +260,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
   // constructor and destructor
   ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,
                      const PetscScalar* b, PetscScalar* psi, PetscScalar* psiPrev,
-                     const PetscScalar* slipVel,const PetscScalar* slipPrev,
+                     const PetscScalar* slipVel,const PetscScalar* slipVelPrev,
                      const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
@@ -277,7 +276,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
 struct ComputeFlashHeating_fd : public RootFinderContext
 {
   // shallow copies of contextual fields
-  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipPrev, *_Vw;
+  const PetscScalar  *_Dc, *_a, *_b, *_slipVel, *_slipVelPrev, *_Vw;
   PetscScalar        *_psi, *_psiPrev;
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0, _fw;
@@ -285,7 +284,7 @@ struct ComputeFlashHeating_fd : public RootFinderContext
   // constructor and destructor
   ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
                           PetscScalar* psi, PetscScalar* psiPrev, const PetscScalar* slipVel,
-                          const PetscScalar* slipPrev, const PetscScalar* Vw,
+                          const PetscScalar* slipVelPrev, const PetscScalar* Vw,
                           const PetscScalar v0, const PetscScalar deltaT,
                           const PetscScalar f0, const PetscScalar fw);
   //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
