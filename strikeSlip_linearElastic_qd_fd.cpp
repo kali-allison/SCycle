@@ -1003,10 +1003,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
 
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D_qd = %i\n",_stride1D_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_qd = %i\n",_stride2D_qd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_dyn = %i\n",_stride1D_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_dyn = %i\n",_stride2D_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_dyn = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_long = %i\n",_stride2D_fd_end);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd = %i\n",_stride2D_fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd_end = %i\n",_stride2D_fd_end);CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
@@ -1019,8 +1019,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_qd2fd = %.15e\n",_trigger_qd2fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_fd2qd = %.15e\n",_trigger_fd2qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_dyn = %.15e\n",_limit_dyn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_dyn = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
@@ -1041,11 +1041,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   #endif
   return ierr;
 }
-
-//======================================================================
-// Adaptive time stepping functions
-//======================================================================
-
 
 
 
