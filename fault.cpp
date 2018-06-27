@@ -1693,8 +1693,6 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
 {
   PetscErrorCode ierr = 0;
 
-  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
-  // PetscScalar stress = state - _psi[Jj];
   PetscScalar age = agingLaw_psi((_psiPrev[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
   PetscScalar stress = state - _psiPrev[Jj];
   *out = -2 * _deltaT * age + stress;
@@ -1712,12 +1710,6 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
   *out = -2 * _deltaT * age + stress;
 
   *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psiPrev[Jj] + state)/2.)/_b[Jj]);
-
-  // PetscScalar age = agingLaw_psi((_psi[Jj] + state)/2.0, _slipVel[Jj], _b[Jj], _f0, _v0, _Dc[Jj]);
-  // PetscScalar stress = state - _psi[Jj];
-  // *out = -2 * _deltaT * age + stress;
-
-  // *J = 1 + _deltaT * _v0 / _Dc[Jj] * exp((_f0 - (_psi[Jj] + state)/2.)/_b[Jj]);
 
   assert(!isnan(*out));
   assert(!isinf(*out));

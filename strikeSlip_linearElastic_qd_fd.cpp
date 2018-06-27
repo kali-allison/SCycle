@@ -12,7 +12,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_cycleCount(0),_maxNumCycles(1),
+  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_cycleCount(0),_maxNumCycles(1e3),
   _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
@@ -27,7 +27,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _startOnDynamic(0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-2),_limit_stride_dyn(-1),
+  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
   _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
@@ -66,7 +66,6 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   parseBCs();
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
-  //~ _material = new LinearElastic(D,_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
   _cs = _material->_cs;
   _rhoVec = _material->_rhoVec;
   _muVec = _material->_muVec;
@@ -162,10 +161,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("timeControlType")==0) {
       _timeControlType = line.substr(pos+_delim.length(),line.npos);
     }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride1D_qd")==0){ _stride1D_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride2D_qd")==0){ _stride2D_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("stride1D_qd")==0){
+      _stride1D_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _stride1D = _stride1D_qd;
+    }
+    else if (var.compare("stride2D_qd")==0){
+      _stride2D_qd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+      _stride2D = _stride2D_qd;
+    }
     else if (var.compare("stride1D_fd")==0){ _stride1D_fd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride2D_fd")==0){ _stride2D_fd = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("stride1D_fd_end")==0){ _stride1D_fd_end = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -214,8 +217,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("momBal_bcB_qd")==0) {
       _qd_bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("triggerqd2d")==0) { _triggerqd2d = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("triggerd2qd")==0) { _triggerd2qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("trigger_qd2fd")==0) { _triggerqd2d = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("trigger_fd2qd")==0) { _triggerd2qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
     else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -547,9 +550,9 @@ double startTime_qd = MPI_Wtime();
 _qdTime += MPI_Wtime() - startTime_qd;
 
 double startTime_fd = MPI_Wtime();
-    prepare_qd2fd();
     _allowed = false;
     _inDynamic = true;
+    prepare_qd2fd();
     integrate_fd();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
@@ -564,24 +567,24 @@ _dynTime += MPI_Wtime() - startTime_fd;
   //~ }
 
   // for all cycles after 1st cycle
-  //~ _cycleCount++;
-  //~ while (_cycleCount <= _maxNumCycles && _stepCount <= _maxStepCount && _maxTime <= _currTime) {
-    //~ double startTime_qd = MPI_Wtime();
-    //~ prepare_fd2qd();
-    //~ _allowed = false;
-    //~ _inDynamic = false;
-    //~ integrate_qd();
-    //~ _qdTime += MPI_Wtime() - startTime_qd;
+  _cycleCount++;
+  while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
+    _allowed = false;
+    _inDynamic = false;
+    double startTime_qd = MPI_Wtime();
+    prepare_fd2qd();
+    integrate_qd();
+    _qdTime += MPI_Wtime() - startTime_qd;
 
-    //~ double startTime_fd = MPI_Wtime();
-    //~ prepare_qd2fd();
-    //~ _allowed = false;
-    //~ _inDynamic = true;
-    //~ integrate_fd();
-    //~ _dynTime += MPI_Wtime() - startTime_fd;
+    double startTime_fd = MPI_Wtime();
+    _allowed = false;
+    _inDynamic = true;
+    prepare_qd2fd();
+    integrate_fd();
+    _dynTime += MPI_Wtime() - startTime_fd;
 
-    //~ _cycleCount++;
-  //~ }
+    _cycleCount++;
+  }
 
 
   _integrateTime += MPI_Wtime() - startTime_integrateTime;
