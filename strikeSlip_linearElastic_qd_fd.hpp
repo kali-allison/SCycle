@@ -95,7 +95,7 @@ private:
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
     bool         _allowed;
-    PetscScalar  _triggerqd2d, _triggerd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
+    PetscScalar  _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault

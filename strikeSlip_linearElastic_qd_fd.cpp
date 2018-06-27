@@ -27,7 +27,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _startOnDynamic(0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _triggerqd2d(1e-3), _triggerd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
+  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
   _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
@@ -217,10 +217,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("momBal_bcB_qd")==0) {
       _qd_bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("trigger_qd2fd")==0) { _triggerqd2d = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("trigger_fd2qd")==0) { _triggerd2qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("trigger_qd2fd")==0) { _trigger_qd2fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("trigger_fd2qd")==0) { _trigger_fd2qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
 
-    else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("deltaT_fd")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_dyn")==0) { _limit_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -312,12 +312,12 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
     assert(_thermalCoupling.compare("no")!=0);
   }
 
-  if (_limit_dyn < _triggerqd2d){
-    _limit_dyn = 10 * _triggerqd2d;
+  if (_limit_dyn < _trigger_qd2fd){
+    _limit_dyn = 10 * _trigger_qd2fd;
   }
 
-  if (_limit_qd > _triggerd2qd){
-    _limit_qd = _triggerqd2d / 10.0;
+  if (_limit_qd > _trigger_fd2qd){
+    _limit_qd = _trigger_qd2fd / 10.0;
   }
 
   if (_limit_stride_dyn == -1){
@@ -627,7 +627,7 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
       _stride1D = _stride1D_fd_end;
       _stride2D = _stride2D_fd_end;
     }
-    if(_allowed && max_value < _triggerd2qd){
+    if(_allowed && max_value < _trigger_fd2qd){
       mustswitch = true;
     }
   }
@@ -637,7 +637,7 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
         _allowed = true;
       }
     }
-    if(_allowed && max_value > _triggerqd2d){
+    if(_allowed && max_value > _trigger_qd2fd){
       mustswitch = true;
     }
   }
@@ -1016,8 +1016,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"triggerqd2d = %.15e\n",_triggerqd2d);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"triggerd2qd = %.15e\n",_triggerd2qd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"trigger_qd2fd = %.15e\n",_trigger_qd2fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"trigger_fd2qd = %.15e\n",_trigger_fd2qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_dyn = %.15e\n",_limit_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_dyn = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
