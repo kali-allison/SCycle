@@ -740,17 +740,21 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   VecCopy(_fault_fd->_slip, _varQSEx["slip"]);
 
   // update fault internal variables
-  VecCopy(_fault_fd->_psi,      _fault_qd->_psi);
-  VecCopy(_fault_fd->_slipVel,  _fault_qd->_slipVel);
-  VecCopy(_fault_fd->_slip,     _fault_qd->_slip);
-  VecCopy(_fault_fd->_tauQSP,   _fault_qd->_tauQSP);
-  VecCopy(_fault_fd->_tauP,     _fault_qd->_tauP);
+  VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
+  VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel);
+  VecCopy(_fault_fd->_slip,      _fault_qd->_slip);
+  VecCopy(_fault_fd->_strength,  _fault_qd->_tauP);
+  VecCopy(_fault_fd->_strength,  _fault_qd->_strength);
+
+  // set up quasi-static shear stress: tauQS = tau + eta_rad * slipVel
+  VecPointwiseMult(_fault_qd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAXPY(_fault_qd->_tauQSP,1.0,_fault_fd->_tauP);
+
+  // update viewers to keep IO consistent
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
-
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -807,13 +811,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
 
 
   // update fault internal variables
-  VecCopy(_fault_qd->_psi,      _fault_fd->_psi);
-  VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel);
-  VecCopy(_fault_qd->_slip,     _fault_fd->_slip);
-  VecCopy(_fault_qd->_slip,     _fault_fd->_slip0);
-  VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tau0);
-  VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
-  VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
+  VecCopy(_fault_qd->_psi,       _fault_fd->_psi);
+  VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel);
+  VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
+  VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
+  VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
+  VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   _fault_qd->_viewers.swap(_fault_fd->_viewers);
 
   // update momentum balance equation boundary conditions
