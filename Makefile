@@ -8,13 +8,11 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
- spmat.o powerLaw.o heatEquation.o \
- sbpOps_c.o sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
+ linearElastic.o powerLaw.o heatEquation.o \
+ spmat.o sbpOps_c.o sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
- strikeSlip_linearElastic_qd.o linearElastic.o \
- strikeSlip_powerLaw_qd.o powerLaw.o \
- iceStream_linearElastic_qd.o strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o \
- fault.o
+ strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o powerLaw.o iceStream_linearElastic_qd.o \
+ strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
 
 
 include ${PETSC_DIR}/lib/petsc/conf/variables
@@ -106,12 +104,12 @@ sbpOps_sc.o: sbpOps_sc.cpp sbpOps_sc.hpp domain.hpp genFuncs.hpp \
  spmat.hpp sbpOps.hpp
 spmat.o: spmat.cpp spmat.hpp
 strikeSlip_linearElastic_fd.o: strikeSlip_linearElastic_fd.cpp \
- strikeSlip_linearElastic_fd.hpp integratorContext_WaveEq.hpp genFuncs.hpp \
- odeSolver.hpp integratorContextEx.hpp odeSolver_WaveEq.hpp domain.hpp \
- sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
- fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
- integratorContextImex.hpp heatEquation.hpp odeSolverImex.hpp \
- linearElastic.hpp
+ strikeSlip_linearElastic_fd.hpp integratorContext_WaveEq.hpp \
+ genFuncs.hpp odeSolver.hpp integratorContextEx.hpp odeSolver_WaveEq.hpp \
+ domain.hpp sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp \
+ sbpOps_fc_coordTrans.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
+ pressureEq.hpp integratorContextImex.hpp heatEquation.hpp \
+ odeSolverImex.hpp linearElastic.hpp
 strikeSlip_linearElastic_qd.o: strikeSlip_linearElastic_qd.cpp \
  strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
@@ -127,6 +125,12 @@ strikeSlip_linearElastic_qd_fd.o: strikeSlip_linearElastic_qd_fd.cpp \
  rootFinder.hpp pressureEq.hpp heatEquation.hpp linearElastic.hpp
 strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp genFuncs.hpp \
+ odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
+ sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
+ fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
+ heatEquation.hpp powerLaw.hpp
+strikeSlip_powerLaw_qd_fd.o: strikeSlip_powerLaw_qd_fd.cpp \
+ strikeSlip_powerLaw_qd_fd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp sbpOps_c.hpp spmat.hpp sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \

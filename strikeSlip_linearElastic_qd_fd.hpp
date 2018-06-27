@@ -60,9 +60,7 @@ private:
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
 
-    const PetscInt       _order,_Ny,_Nz;
     PetscInt             _cycleCount,_maxNumCycles;
-    PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
     Vec                 *_y,*_z;
     Vec                  _ay;

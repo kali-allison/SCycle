@@ -12,8 +12,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_cycleCount(0),_maxNumCycles(1e3),
-  _Ly(D._Ly),_Lz(D._Lz),
+  _cycleCount(0),_maxNumCycles(1e3),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
   _Fhat(NULL),
@@ -385,8 +384,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computeTimeStep()
 
   // coefficient for CFL condition
   PetscScalar gcfl = 0.7071; // if order = 2
-  if (_order == 4) { gcfl = 0.7071/sqrt(1.4498); }
-  if (_order == 6) { gcfl = 0.7071/sqrt(2.1579); }
+  if (_D->_order == 4) { gcfl = 0.7071/sqrt(1.4498); }
+  if (_D->_order == 6) { gcfl = 0.7071/sqrt(2.1579); }
 
 
   // compute grid spacing in y and z
@@ -396,12 +395,12 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computeTimeStep()
   if (_D->_sbpType.compare("mfc_coordTrans")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-    MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_Ny-1));
-    MatGetDiagonal(zr, dz); VecScale(dz,1.0/(_Nz-1));
+    MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_D->_Ny-1));
+    MatGetDiagonal(zr, dz); VecScale(dz,1.0/(_D->_Nz-1));
   }
   else {
-    VecSet(dy,_Ly/(_Ny-1.0));
-    VecSet(dz,_Lz/(_Nz-1.0));
+    VecSet(dy,_D->_Ly/(_D->_Ny-1.0));
+    VecSet(dz,_D->_Lz/(_D->_Nz-1.0));
   }
 
   // compute time for shear wave to travel 1 dy or dz
@@ -507,10 +506,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computePenaltyVectors()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     ay[Jj] = 0;
-    if ( (Ii/_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
-    if ( (Ii/_Nz == _Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
-    if ( (Ii%_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
-    if ( ((Ii+1)%_Nz == 0) && (_dyn_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+    if ( (Ii/_D->_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii/_D->_Nz == _D->_Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii%_D->_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
+    if ( ((Ii+1)%_D->_Nz == 0) && (_dyn_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
     Jj++;
   }
   VecRestoreArray(_ay,&ay);
