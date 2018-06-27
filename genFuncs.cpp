@@ -9,27 +9,6 @@ bool doesFileExist(const string fileName)
     return infile.good();
 };
 
-// load matlab-style file
-PetscErrorCode loadFileIfExists_matlab(const string fileName, Vec& vec)
-{
-  PetscErrorCode ierr = 0;
-
-  bool fileExists = doesFileExist(fileName);
-  PetscPrintf(PETSC_COMM_WORLD, "Loading file %s", fileName.c_str());
-  if (fileExists) {
-    PetscViewer inv;
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,fileName.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
-    ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-    ierr = VecLoad(vec,inv);CHKERRQ(ierr);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"Warning: File not found: %s\n",fileName.c_str());
-    ierr = 1;
-  }
-  return ierr;
-}
-
 
 // clean up a C++ std library vector of PETSc Vecs
 void destroyVector(std::vector<Vec>& vec)

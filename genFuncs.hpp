@@ -11,6 +11,14 @@
 #include <map>
 #include <iostream>
 
+/*
+ * This file, and its accompanying cpp file, contains an assortment of
+ * small functions which may be useful in a variety of contexts. The goal
+ * is to avoid implementing these functions multiple times, to limit the
+ * introduction of errors.
+ *
+ */
+
 using namespace std;
 
 typedef std::vector<Vec>::iterator it_vec;
@@ -19,9 +27,6 @@ typedef std::vector<Vec>::const_iterator const_it_vec;
 
 // detect if file exists
 bool doesFileExist(const string fileName);
-
-// load matlab style file
-PetscErrorCode loadFileIfExists_matlab(const string fileName, Vec& vec);
 
 // clean up a C++ std library vector of PETSc Vecs
 void destroyVector(std::vector<Vec>& vec);

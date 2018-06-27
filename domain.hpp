@@ -12,6 +12,18 @@
 #include <petscdm.h>
 #include "genFuncs.hpp"
 
+/*
+ * Class containing basic details of the domain and problem type which
+ * must be either kept constant throughout all other classes in the program
+ * (such as the size of the domain), or which are used to determine which
+ * functions are called within main.cpp.
+ *
+ * All Vecs should be constructed with the same parallel structure as
+ * this class's Vecs y0 (Vec of length Ny), z0 (Vec of length Nz), and y or z
+ * (both Ny*Nz long), to ensure that Vec entries match up across classes.
+ *
+ */
+
 
 using namespace std;
 

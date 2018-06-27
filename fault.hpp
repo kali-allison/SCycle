@@ -12,6 +12,25 @@
 
 class RootFinder;
 
+/*
+ * Class containing the implementation of rate-and-state friction. The fault
+ * is a line of length N.
+ *
+ * Allowed geometries:
+ *   - properties are symmetric about the fault and only one side is solved for
+ *   - one side of the fault is perfectly rigid, and only the other side is solved for
+ *
+ * State variable: psi
+ * Possible state variable evolution laws:
+ *   - regularized slip law
+ *   - regularized aging law
+ *   - regularized flash heating (based on the slip law)
+ *
+ * This class implements a version of the fault for quasidynamic simulations,
+ * called Fault_qd, and a version for inertial simulations, called Fault_fd.
+ *
+ */
+
 
 // base class for one-sided fault
 class Fault

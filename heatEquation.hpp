@@ -19,8 +19,28 @@
 
 
 
-/* Base class for the heat equation
+/*
+ * Class implementing the heat equation.
+ *
+ * Possible forms:
+ *   - steady state (dT/dt = 0)
+ *   - transient (includes dT/dt term)
+ *
+ * Possible algorithms for integration in time:
+ *   - Backward Euler (see functions whose name begins with "be")
+ *   - Fully explicit time stepping (see functions whose name begins with "d_dt")
+ *
+ * Possible source terms:
+ *   - viscous shear heating
+ *   - frictional shear heating (either from a plane or a finite width shear zone)
+ *   - radioactive decay
  */
+
+
+
+
+
+
 class HeatEquation
 {
   private:
