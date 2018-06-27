@@ -66,6 +66,8 @@ private:
     Vec                  _ay;
     Vec                  _Fhat;
     Vec                  _alphay;
+    bool                 _inDynamic,_allowed;
+    PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
 
     // time stepping data
     std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
@@ -77,14 +79,13 @@ private:
     PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
     PetscInt               _maxStepCount; // largest number of time steps
     PetscScalar            _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
-    bool                   _inDynamic;
+
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT, _dT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
     std::string            _normType;
 
-    PetscInt               _startOnDynamic;
 
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
@@ -92,8 +93,7 @@ private:
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
-    bool         _allowed;
-    PetscScalar  _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
+
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
@@ -146,7 +146,6 @@ private:
     bool check_switch(const Fault* _fault);
     PetscErrorCode prepare_qd2fd(); // switch from quasidynamic to fully dynamic
     PetscErrorCode prepare_fd2qd(); // switch from fully dynamic to quasidynamic
-    PetscErrorCode reset_for_qd();
 
     // explicit time-stepping methods
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,
