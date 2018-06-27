@@ -66,9 +66,6 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   parseBCs();
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
-  _cs = _material->_cs;
-  _rhoVec = _material->_rhoVec;
-  _muVec = _material->_muVec;
   computePenaltyVectors();
 
   computeTimeStep(); // compute fully dynamic time step
@@ -411,8 +408,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computeTimeStep()
   Vec ts_dy,ts_dz;
   VecDuplicate(*_y,&ts_dy);
   VecDuplicate(*_z,&ts_dz);
-  VecPointwiseDivide(ts_dy,dy,_cs);
-  VecPointwiseDivide(ts_dz,dz,_cs);
+  VecPointwiseDivide(ts_dy,dy,_material->_cs);
+  VecPointwiseDivide(ts_dz,dz,_material->_cs);
   PetscScalar min_ts_dy, min_ts_dz;
   VecMin(ts_dy,NULL,&min_ts_dy);
   VecMin(ts_dz,NULL,&min_ts_dz);
@@ -518,7 +515,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computePenaltyVectors()
   }
   VecRestoreArray(_ay,&ay);
 
-  ierr = VecPointwiseMult(_ay, _ay, _cs);
+  ierr = VecPointwiseMult(_ay, _ay, _material->_cs);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1448,7 +1445,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_rhoVec, &rho);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
 
   ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
@@ -1465,7 +1462,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
 
   VecDestroy(&D2u);
 
@@ -1550,7 +1547,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_rhoVec, &rho);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
 
   ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
@@ -1567,7 +1564,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
 
   VecDestroy(&D2u);
 

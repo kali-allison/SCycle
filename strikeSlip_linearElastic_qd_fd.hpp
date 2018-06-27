@@ -65,7 +65,7 @@ private:
     PetscScalar          _Ly,_Lz;
     PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
     Vec                 *_y,*_z;
-    Vec                  _muVec, _rhoVec, _cs, _ay;
+    Vec                  _ay;
     Vec                  _Fhat;
     Vec                  _alphay;
 
