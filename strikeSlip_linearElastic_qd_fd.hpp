@@ -88,7 +88,7 @@ private:
 
 
     // viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _whichRegime;
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D, _regimeV;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
@@ -98,7 +98,7 @@ private:
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
     string              _qd_bcRType,_qd_bcTType,_qd_bcLType,_qd_bcBType;
-    string              _dyn_bcRType,_dyn_bcTType,_dyn_bcLType,_dyn_bcBType;
+    string              _fd_bcRType,_fd_bcTType,_fd_bcLType,_fd_bcBType;
     string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;
     string              _mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType;
 

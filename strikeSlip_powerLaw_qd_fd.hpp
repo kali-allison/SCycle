@@ -84,7 +84,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
 
     // viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regimeV; // regime = 1 if fd, 0 if qd
 
 
     // boundary conditions

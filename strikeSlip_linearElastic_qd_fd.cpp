@@ -23,11 +23,11 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
   _inDynamic(false),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_whichRegime(NULL),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regimeV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
   _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
-  _dyn_bcRType("outGoingCharacteristics"),_dyn_bcTType("freeSurface"),_dyn_bcLType("outGoingCharacteristics"),_dyn_bcBType("outGoingCharacteristics"),
+  _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
   _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
   _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
   _fault_qd(NULL),_fault_fd(NULL), _material(NULL),_he(NULL),_p(NULL)
@@ -98,7 +98,7 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
-  PetscViewerDestroy(&_whichRegime);
+  PetscViewerDestroy(&_regimeV);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -189,16 +189,16 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_fd")==0) {
-      _dyn_bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _fd_bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcR_fd")==0) {
-      _dyn_bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _fd_bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcR_fd")==0) {
-      _dyn_bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _fd_bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcR_fd")==0) {
-      _dyn_bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _fd_bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcR_qd")==0) {
       _qd_bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
@@ -504,10 +504,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computePenaltyVectors()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     ay[Jj] = 0;
-    if ( (Ii/_D->_Nz == 0) && (_dyn_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
-    if ( (Ii/_D->_Nz == _D->_Ny-1) && (_dyn_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
-    if ( (Ii%_D->_Nz == 0) && (_dyn_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
-    if ( ((Ii+1)%_D->_Nz == 0) && (_dyn_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+    if ( (Ii/_D->_Nz == 0) && (_fd_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii/_D->_Nz == _D->_Ny-1) && (_fd_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+    if ( (Ii%_D->_Nz == 0) && (_fd_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
+    if ( ((Ii+1)%_D->_Nz == 0) && (_fd_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
     Jj++;
   }
   VecRestoreArray(_ay,&ay);
@@ -591,52 +591,78 @@ _dynTime += MPI_Wtime() - startTime_fd;
 
 
 
-
+// returns true if it's time to switch from qd to fd, or fd to qd, or if
+// the maximum time or step count has been reached
 bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
 {
 
-  bool mustswitch = false;
+  bool mustSwitch = false;
   Vec absSlipVel;
   VecDuplicate(_fault->_slipVel, &absSlipVel);
   VecCopy(_fault->_slipVel, absSlipVel);
-  PetscInt index;
-  PetscScalar max_value;
+  PetscScalar maxV;
   VecAbs(absSlipVel);
-  VecMax(absSlipVel, &index, &max_value);
+  VecMax(absSlipVel, NULL, &maxV);
+  VecDestroy(&absSlipVel);
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", max_value);
+    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", maxV);
   #endif
 
 
+  // if integrating past allowed time or step count, force switching now
   if(_currTime > _maxTime || _stepCount > _maxStepCount){
-    mustswitch = true;
+    mustSwitch = true;
+    return mustSwitch;
   }
-  if(_inDynamic){
-    if(!_allowed){
-      if(max_value > _limit_dyn){
-        _allowed = true;
-      }
-    }
-    if (_allowed && max_value < _limit_stride_dyn){
-      _stride1D = _stride1D_fd_end;
-      _stride2D = _stride2D_fd_end;
-    }
-    if(_allowed && max_value < _trigger_fd2qd){
-      mustswitch = true;
-    }
+
+  // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
+  // switching from fd to qd is allowed if maxV has ever been > limit_dyn
+  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+
+  // switching from qd to fd is allowed if maxV has ever been < limit_qd
+  if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
+
+
+  // If switching is allowed, assess if the switching criteria has been reached:
+  // switching from fd to qd happens if maxV < _trigger_fd2qd
+  if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
+
+  // switching from qd to fd happens if maxV > _trigger_qd2fd
+  if (_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+
+
+  // also change stride for IO to avoid writing out too many time steps
+  // at the end of an earthquake
+  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+    _stride1D = _stride1D_fd_end;
+    _stride2D = _stride2D_fd_end;
   }
-  else{
-    if(!_allowed){
-      if(max_value < _limit_qd){
-        _allowed = true;
-      }
-    }
-    if(_allowed && max_value > _trigger_qd2fd){
-      mustswitch = true;
-    }
-  }
-  VecDestroy(&absSlipVel);
-  return mustswitch;
+
+  //~ if(_inDynamic){
+    //~ if(!_allowed){
+      //~ if(maxV > _limit_dyn){
+        //~ _allowed = true;
+      //~ }
+    //~ }
+    //~ if (_allowed && maxV < _limit_stride_dyn){
+      //~ _stride1D = _stride1D_fd_end;
+      //~ _stride2D = _stride2D_fd_end;
+    //~ }
+    //~ if(_allowed && maxV < _trigger_fd2qd){
+      //~ mustSwitch = true;
+    //~ }
+  //~ }
+  //~ else{
+    //~ if(!_allowed){
+      //~ if(maxV < _limit_qd){
+        //~ _allowed = true;
+      //~ }
+    //~ }
+    //~ if(_allowed && maxV > _trigger_qd2fd){
+      //~ mustSwitch = true;
+    //~ }
+  //~ }
+  //~ return mustSwitch;
 }
 
 
@@ -907,13 +933,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(const PetscInt stepCo
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"regime.txt").c_str(),&_whichRegime);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_whichRegime, "%i\n",_inDynamic);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"regime.txt").c_str(),&_regimeV);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_regimeV, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_whichRegime, "%i\n",_inDynamic);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_regimeV, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
