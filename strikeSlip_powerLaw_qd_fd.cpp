@@ -6,12 +6,12 @@ using namespace std;
 
 
 StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
-: _D(&D),_delim(D._delim),
+: _D(&D),_y(&D._y),_z(&D._z),_delim(D._delim),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
+  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
   _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(1e-3),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
   _timeIntegrator("RK32"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
@@ -20,7 +20,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
-  _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
+  _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault_qd(NULL),_material(NULL),_he(NULL),_p(NULL),
   _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
@@ -33,13 +33,19 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
+  parseBCs();
+
   _he = new HeatEquation(D); // heat equation
-  _fault_qd = new Fault_qd(D,D._scatters["body2L"]); // fault
+
+  _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // quasidynamic fault
+  _fault_fd = new Fault_fd(D,D._scatters["body2L"],_faultTypeScale); // fully dynamic fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
     _fault_qd->setThermalFields(T,_he->_k,_he->_c);
+    _fault_fd->setThermalFields(T,_he->_k,_he->_c);
   }
+
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
     _p = new PressureEq(D);
@@ -49,7 +55,6 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-  parseBCs();
   _material = new PowerLaw(D,*_he,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
   #if VERBOSE > 1
@@ -182,16 +187,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) {
-      _bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _qd_bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcT_qd")==0) {
-      _bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _qd_bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcL_qd")==0) {
-      _bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _qd_bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
     else if (var.compare("momBal_bcB_qd")==0) {
-      _bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
+      _qd_bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
   }
 
@@ -244,33 +249,33 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   // check boundary condition types for momentum balance equation
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcRType.compare("freeSurface")==0 ||
-    _bcRType.compare("tau")==0 ||
-    _bcRType.compare("remoteLoading")==0 ||
-    _bcRType.compare("symm_fault")==0 ||
-    _bcRType.compare("rigid_fault")==0 );
+  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
+    _qd_bcRType.compare("freeSurface")==0 ||
+    _qd_bcRType.compare("tau")==0 ||
+    _qd_bcRType.compare("remoteLoading")==0 ||
+    _qd_bcRType.compare("symm_fault")==0 ||
+    _qd_bcRType.compare("rigid_fault")==0 );
 
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcTType.compare("freeSurface")==0 ||
-    _bcTType.compare("tau")==0 ||
-    _bcTType.compare("remoteLoading")==0 ||
-    _bcTType.compare("symm_fault")==0 ||
-    _bcTType.compare("rigid_fault")==0 );
+  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
+    _qd_bcTType.compare("freeSurface")==0 ||
+    _qd_bcTType.compare("tau")==0 ||
+    _qd_bcTType.compare("remoteLoading")==0 ||
+    _qd_bcTType.compare("symm_fault")==0 ||
+    _qd_bcTType.compare("rigid_fault")==0 );
 
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcLType.compare("freeSurface")==0 ||
-    _bcLType.compare("tau")==0 ||
-    _bcLType.compare("remoteLoading")==0 ||
-    _bcLType.compare("symm_fault")==0 ||
-    _bcLType.compare("rigid_fault")==0 );
+  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
+    _qd_bcLType.compare("freeSurface")==0 ||
+    _qd_bcLType.compare("tau")==0 ||
+    _qd_bcLType.compare("remoteLoading")==0 ||
+    _qd_bcLType.compare("symm_fault")==0 ||
+    _qd_bcLType.compare("rigid_fault")==0 );
 
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcBType.compare("freeSurface")==0 ||
-    _bcBType.compare("tau")==0 ||
-    _bcBType.compare("remoteLoading")==0 ||
-    _bcBType.compare("symm_fault")==0 ||
-    _bcBType.compare("rigid_fault")==0 );
+  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
+    _qd_bcBType.compare("freeSurface")==0 ||
+    _qd_bcBType.compare("tau")==0 ||
+    _qd_bcBType.compare("remoteLoading")==0 ||
+    _qd_bcBType.compare("symm_fault")==0 ||
+    _qd_bcBType.compare("rigid_fault")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);
@@ -292,33 +297,37 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
+  if (_qd_bcRType.compare("symm_fault")==0 || _qd_bcRType.compare("rigid_fault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
     _mat_qd_bcRType = "Dirichlet";
   }
-  else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("tau")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcRType = "Neumann";
   }
 
-  if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
+  if (_qd_bcTType.compare("symm_fault")==0 || _qd_bcTType.compare("rigid_fault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
     _mat_qd_bcTType = "Dirichlet";
   }
-  else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("tau")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcTType = "Neumann";
   }
 
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
     _mat_qd_bcLType = "Dirichlet";
   }
-  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("tau")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcLType = "Neumann";
   }
 
-  if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
+  if (_qd_bcBType.compare("symm_fault")==0 || _qd_bcBType.compare("rigid_fault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
     _mat_qd_bcBType = "Dirichlet";
   }
-  else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("tau")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcBType = "Neumann";
   }
+
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_qd_bcRType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -326,24 +335,74 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
   return ierr;
 }
 
-// initiate variables to be integrated in time
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand()
+// returns true if it's time to switch from qd to fd, or fd to qd, or if
+// the maximum time or step count has been reached
+bool StrikeSlip_PowerLaw_qd_fd::checkSwitchRegime(const Fault* _fault)
+{
+
+  bool mustSwitch = false;
+  Vec absSlipVel;
+  VecDuplicate(_fault->_slipVel, &absSlipVel);
+  VecCopy(_fault->_slipVel, absSlipVel);
+  PetscScalar maxV;
+  VecAbs(absSlipVel);
+  VecMax(absSlipVel, NULL, &maxV);
+  VecDestroy(&absSlipVel);
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", maxV);
+  #endif
+
+
+  // if integrating past allowed time or step count, force switching now
+  if(_currTime > _maxTime || _stepCount > _maxStepCount){
+    mustSwitch = true;
+    return mustSwitch;
+  }
+
+  // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
+  // switching from fd to qd is allowed if maxV has ever been > limit_dyn
+  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+
+  // switching from qd to fd is allowed if maxV has ever been < limit_qd
+  if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
+
+
+  // If switching is allowed, assess if the switching criteria has been reached:
+  // switching from fd to qd happens if maxV < _trigger_fd2qd
+  if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
+
+  // switching from qd to fd happens if maxV > _trigger_qd2fd
+  if (!_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+
+
+  // also change stride for IO to avoid writing out too many time steps
+  // at the end of an earthquake
+  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+    _stride1D = _stride1D_fd_end;
+    _stride2D = _stride2D_fd_end;
+  }
+
+  return mustSwitch;
+}
+
+// initiate varQSEx, varIm, and varFD
+// includes computation of steady-state initial conditions if necessary
+// should only be called once before the 1st earthquake cycle
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::initiateIntegrand()";
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ Mat A;
-  //~ _material->_sbp->getA(A);
-  //~ _material->setupKSP(A,_material->_ksp,_material->_pc);
+  // initiate integrand for QD
+  VecSet(_material->_bcR,_vL*_initTime/2.0);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
   VecScale(slip,2.0);
-  //~ VecSet(slip,0.);
   if (_loadICs==1) {
     VecCopy(_fault_qd->_slip,slip);
   }
@@ -557,67 +616,361 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
 // Adaptive time stepping functions
 //======================================================================
 
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate()
+
+// integrate over multiple earthquake cycles, beginning with a quasidynamic period
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate(){
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::integrate";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  double startTime_integrateTime = MPI_Wtime();
+
+  // first cycle
+  initiateIntegrands();
+
+  // if start with quasidynamic phase
+  {
+double startTime_qd = MPI_Wtime();
+    _allowed = false;
+    _inDynamic = false;
+    integrate_qd();
+_qdTime += MPI_Wtime() - startTime_qd;
+
+double startTime_fd = MPI_Wtime();
+    _allowed = false;
+    _inDynamic = true;
+    prepare_qd2fd();
+    integrate_fd();
+_dynTime += MPI_Wtime() - startTime_fd;
+  }
+
+  // if start with fully dynamic phase
+  //~ {
+//~ double startTime_fd = MPI_Wtime();
+    //~ _allowed = false;
+    //~ _inDynamic = true;
+    //~ integrate_fd();
+//~ _dynTime += MPI_Wtime() - startTime_fd;
+  //~ }
+
+  // for all cycles after 1st cycle
+  _cycleCount++;
+  while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
+    _allowed = false;
+    _inDynamic = false;
+    double startTime_qd = MPI_Wtime();
+    prepare_fd2qd();
+    integrate_qd();
+    _qdTime += MPI_Wtime() - startTime_qd;
+
+    double startTime_fd = MPI_Wtime();
+    _allowed = false;
+    _inDynamic = true;
+    prepare_qd2fd();
+    integrate_fd();
+    _dynTime += MPI_Wtime() - startTime_fd;
+
+    _cycleCount++;
+  }
+
+
+  _integrateTime += MPI_Wtime() - startTime_integrateTime;
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// integrate through quasidynamic period
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd_fd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  double startTime = MPI_Wtime();
-  _startIntegrateTime = MPI_Wtime();
-
-  initiateIntegrand(); // put initial conditions into var for integration
-  _stepCount = 0;
+  OdeSolver      *quadEx = NULL; // explicit time stepping
+  OdeSolverImex  *quadImex = NULL; // implicit time stepping
 
   // initialize time integrator
   if (_timeIntegrator.compare("FEuler")==0) {
-    _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32")==0) {
-    _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43")==0) {
-    _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32_WBE")==0) {
-    _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
     assert(0); // automatically fail
   }
 
+  // integrate
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
-    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_varQSEx,_varIm);CHKERRQ(ierr);
-    ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex->setErrInds(_timeIntInds); // control which fields are used to select step size
+    quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
+    quadImex->setTimeRange(_currTime,_maxTime);
+    quadImex->setInitialStepCount(_stepCount);
+    quadImex->setInitialConds(_varQSEx,_varIm);
+    quadImex->setToleranceType(_normType);
+    quadImex->setErrInds(_timeIntInds);
 
-    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = quadImex->integrate(this); CHKERRQ(ierr);
+
+    std::map<string,Vec> varOut = quadImex->_varEx;
+    for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
+      VecCopy(varOut[it->first],_varQSEx[it->first]);
+    }
   }
   else {
-    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
-    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
-    ierr = _quadEx->setTimeRange(_initTime,_maxTime);
-    ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varQSEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
+    quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);
+    quadEx->setTimeRange(_currTime,_maxTime);
+    quadEx->setInitialStepCount(_stepCount);
+    quadEx->setToleranceType(_normType);
+    quadEx->setInitialConds(_varQSEx);
+    quadEx->setErrInds(_timeIntInds);
 
-    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = quadEx->integrate(this); CHKERRQ(ierr);
+    std::map<string,Vec> varOut = quadEx->_var;
+    for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
+      VecCopy(varOut[it->first],_varQSEx[it->first]);
+    }
   }
 
-  _integrateTime += MPI_Wtime() - startTime;
+  delete quadEx;
+  delete quadImex;
+
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
+
+// integrate through fully dynamic period
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_fd()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::integrate_fd";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  OdeSolver_WaveEq          *quadWaveEx;
+  //~ OdeSolver_WaveEq_Imex     *quadWaveImex;
+
+  // initialize time integrator
+  quadWaveEx = new OdeSolver_WaveEq(_maxStepCount,_currTime,_maxTime,_deltaT_fd);
+  quadWaveEx->setInitialConds(_varFD);
+  quadWaveEx->setInitialStepCount(_stepCount);
+
+  ierr = quadWaveEx->integrate(this);CHKERRQ(ierr);
+
+  std::map<string,Vec> varOut = quadWaveEx->_var;
+  for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
+    VecCopy(varOut[it->first],_varFD[it->first]);
+  }
+
+  delete quadWaveEx;
+  //~ delete quadWaveImex;
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// move from a fully dynamic phase to a quasidynamic phase
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_fd2qd()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::prepare_fd2qd()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // switch strides to qd values
+  _stride1D = _stride1D_qd;
+  _stride2D = _stride2D_qd;
+
+
+  // update explicitly integrated variables
+  VecCopy(_fault_fd->_psi, _varQSEx["psi"]);
+  VecCopy(_fault_fd->_slip, _varQSEx["slip"]);
+
+  // update implicitly integrated T
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varFD["Temp"],_varIm["Temp"]); } // if solving the heat equation
+
+  // update fault internal variables
+  VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
+  VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel);
+  VecCopy(_fault_fd->_slip,      _fault_qd->_slip);
+  VecCopy(_fault_fd->_strength,  _fault_qd->_tauP);
+  VecCopy(_fault_fd->_strength,  _fault_qd->_strength);
+
+  // set up quasi-static shear stress: tauQS = tau + eta_rad * slipVel
+  VecPointwiseMult(_fault_qd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAXPY(_fault_qd->_tauQSP,1.0,_fault_fd->_tauP);
+
+  // update viewers to keep IO consistent
+  _fault_fd->_viewers.swap(_fault_qd->_viewers);
+
+  // update momentum balance equation boundary conditions
+  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+
+// move from a fully dynamic phase to a quasidynamic phase
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // switch strides to qd values
+  _stride1D = _stride1D_fd;
+  _stride2D = _stride1D_fd;
+
+  // save current variables as n-1 time step
+  VecCopy(_fault_qd->_slip,_varFDPrev["slip"]);
+  VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
+  VecCopy(_material->_u,_varFDPrev["u"]);
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
+
+  // compute Fhat = A*uPrev - rhs - viscSource
+  Mat A; _material->_sbp->getA(A);
+  MatMult(A, _material->_u, _Fhat);
+  // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
+  Vec viscSource;
+  ierr = VecDuplicate(_material->_gxy,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gxy,_material->_gxz); CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
+  VecDestroy(&viscSource);
+  VecAXPY(_Fhat, -1, _material->_rhs);
+
+  // take 1 quasidynamic time step to compute variables at time n
+  integrate_singleQDTimeStep();
+
+  // update varFD to reflect latest values
+  VecCopy(_fault_qd->_slip,_varFD["slip"]);
+  VecCopy(_fault_qd->_psi,_varFD["psi"]);
+  VecCopy(_material->_u,_varFD["u"]);
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFD["Temp"]); } // if solving the heat equation
+
+  // now change u to du
+  VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]);
+  VecSet(_varFDPrev["u"],0.0);
+
+
+  // update fault internal variables
+  VecCopy(_fault_qd->_psi,       _fault_fd->_psi);
+  VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel);
+  VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
+  VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
+  VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
+  VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
+  _fault_qd->_viewers.swap(_fault_fd->_viewers);
+
+  // update momentum balance equation boundary conditions
+  _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// take 1 quasidynamic time step to set up varFDPrev and varFD
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  OdeSolver      *quadEx = NULL; // explicit time stepping
+  OdeSolverImex  *quadImex = NULL; // implicit time stepping
+
+  // initialize time integrator
+  if (_timeIntegrator.compare("FEuler")==0) {
+    quadEx = new FEuler(1,_maxTime,_deltaT_fd,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK32")==0) {
+    quadEx = new RK32(1,_maxTime,_deltaT_fd,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK43")==0) {
+    quadEx = new RK43(1,_maxTime,_deltaT_fd,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK32_WBE")==0) {
+    quadImex = new RK32_WBE(1,_maxTime,_deltaT_fd,_timeControlType);
+  }
+  else if (_timeIntegrator.compare("RK43_WBE")==0) {
+    quadImex = new RK43_WBE(1,_maxTime,_deltaT_fd,_timeControlType);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
+    assert(0); // automatically fail
+  }
+
+  // integrate
+  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+    quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
+    quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
+    quadImex->setInitialStepCount(_stepCount);
+    quadImex->setInitialConds(_varQSEx,_varIm);
+    quadImex->setToleranceType(_normType);
+    quadImex->setErrInds(_timeIntInds);
+
+    ierr = quadImex->integrate(this); CHKERRQ(ierr);
+  }
+  else {
+    quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    quadEx->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
+    quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
+    quadEx->setInitialStepCount(_stepCount);
+    quadEx->setToleranceType(_normType);
+    quadEx->setInitialConds(_varQSEx);
+    quadEx->setErrInds(_timeIntInds);
+
+    ierr = quadEx->integrate(this); CHKERRQ(ierr);
+  }
+
+  delete quadEx;
+  delete quadImex;
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
@@ -628,11 +981,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update fields based on varEx
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
   }
-  else if (_bcLType.compare("rigid_fault")==0) {
+  else if (_qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
   ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
@@ -659,7 +1012,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if (_hydraulicCoupling.compare("coupled")==0) { _fault_qd->setSNEff(_p->_p); }
 
   // rates for fault
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
@@ -685,11 +1038,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
   }
-  else if (_bcLType.compare("rigid_fault")==0) {
+  else if (_qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
   }
   ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
@@ -726,7 +1079,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
 
   // rates for fault
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
@@ -753,6 +1106,124 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   #endif
   return ierr;
 }
+
+
+
+// fully dynamic: purely explicit time stepping
+// note that the heat equation never appears here because it is only ever solved implicitly
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::d_dt fd explicit";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  double startPropagation = MPI_Wtime();
+
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
+  VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
+  VecDestroy(&temp);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
+      VecDestroy(&temp);
+  }
+  _fault_fd->setGetBody2Fault(D2u,_fault_fd->_d2u,SCATTER_FORWARD); // set D2u to fault
+
+
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
+
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
+
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
+    Jj++;
+  }
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
+
+  VecDestroy(&D2u);
+
+_propagateTime += MPI_Wtime() - startPropagation;
+
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
+
+
+  // update body u from fault u
+  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+
+  VecCopy(varNext.find("u")->second, _material->_u);
+  _material->computeStresses();
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  _fault_fd->setGetBody2Fault(sxy,_fault_fd->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
+  VecCopy(_fault_fd->_tauP,_fault_fd->_tauQSP); // keep quasi-static shear stress updated as well
+
+
+  if (_qd_bcLType.compare("symm_fault")==0) {
+    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+  }
+  else if (_qd_bcLType.compare("rigid_fault")==0) {
+    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+  }
+  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+
+  // explicitly integrate heat equation using forward Euler
+  if (_thermalCoupling.compare("no")!=0) {
+    Vec V = _fault_fd->_slipVel;
+    Vec tau = _fault_fd->_tauP;
+    Vec gVxy_t = NULL;
+    Vec gVxz_t = NULL;
+    Vec Tn = var.find("Temp")->second;
+    Vec dTdt; VecDuplicate(Tn,&dTdt);
+    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
+    VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
+    _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+
 
 // momentum balance equation and constitutive laws portion of d_dt
 PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
@@ -782,6 +1253,118 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   Vec gVxz = varEx.find("gVxz")->second;
   ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
 
+  return ierr;
+}
+
+// fully dynamic: IMEX time stepping
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev,
+      map<string,Vec>& varIm, const map<string,Vec>& varImPrev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::d_dt fd imex";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+
+  double startPropagation = MPI_Wtime();
+
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
+  VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
+  VecDestroy(&temp);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
+      VecDestroy(&temp);
+  }
+  _fault_fd->setGetBody2Fault(D2u,_fault_fd->_d2u,SCATTER_FORWARD); // set D2u to fault
+
+
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
+
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
+
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
+    Jj++;
+  }
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
+
+  VecDestroy(&D2u);
+
+_propagateTime += MPI_Wtime() - startPropagation;
+
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
+
+  // update body u from fault u
+  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+
+  VecCopy(varNext.find("u")->second, _material->_u);
+  _material->computeStresses();
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  _fault_fd->setGetBody2Fault(sxy,_fault_fd->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
+  VecCopy(_fault_fd->_tauP,_fault_fd->_tauQSP); // keep quasi-static shear stress updated as well
+
+  if (_qd_bcLType.compare("symm_fault")==0) {
+    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+  }
+  else if (_qd_bcLType.compare("rigid_fault")==0) {
+    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+  }
+  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+
+
+    // put implicitly integrated variables here
+  //~ if (varIm.find("Temp") != varIm.end()) {
+    //~ Vec sxy,sxz,sdev;
+    //~ _material->getStresses(sxy,sxz,sdev);
+    //~ Vec V = _fault_fd->_slipVel;
+    //~ Vec tau = _fault_fd->_tauP;
+    //~ Vec gVxy_t = NULL;
+    //~ Vec gVxz_t = NULL;
+    //~ Vec Told = varImPrev.find("Temp")->second;
+    //~ ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
+    //~ // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+  //~ }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 
@@ -1096,7 +1679,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::setSSBCs()
     VecCopy(uL,slip);
     _varQSEx["slip"] = slip;
   }
-  if (_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0) {
     VecScale(_varQSEx["slip"],2.);
   }
 

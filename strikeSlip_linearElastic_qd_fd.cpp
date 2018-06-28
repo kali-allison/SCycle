@@ -11,7 +11,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
+  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
   _cycleCount(0),_maxNumCycles(1e3),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
@@ -28,7 +28,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
-  _mat_dyn_bcRType("Neumann"),_mat_dyn_bcTType("Neumann"),_mat_dyn_bcLType("Neumann"),_mat_dyn_bcBType("Neumann"),
+  _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
   _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
   _fault_qd(NULL),_fault_fd(NULL), _material(NULL),_he(NULL),_p(NULL)
 {
@@ -40,8 +40,8 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  _fault_qd = new Fault_qd(D,D._scatters["body2L"]); // fault for quasidynamic problem
-  _fault_fd = new Fault_fd(D, D._scatters["body2L"]); // fault for fully dynamic problem
+  _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
+  _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
@@ -363,6 +363,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::parseBCs()
     _mat_qd_bcBType = "Neumann";
   }
 
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_qd_bcRType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -593,7 +597,7 @@ _dynTime += MPI_Wtime() - startTime_fd;
 
 // returns true if it's time to switch from qd to fd, or fd to qd, or if
 // the maximum time or step count has been reached
-bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
+bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
 {
 
   bool mustSwitch = false;
@@ -615,53 +619,53 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
     return mustSwitch;
   }
 
-  //~ // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
-  //~ // switching from fd to qd is allowed if maxV has ever been > limit_dyn
-  //~ if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+  // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
+  // switching from fd to qd is allowed if maxV has ever been > limit_dyn
+  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
 
-  //~ // switching from qd to fd is allowed if maxV has ever been < limit_qd
-  //~ if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
-
-
-  //~ // If switching is allowed, assess if the switching criteria has been reached:
-  //~ // switching from fd to qd happens if maxV < _trigger_fd2qd
-  //~ if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
-
-  //~ // switching from qd to fd happens if maxV > _trigger_qd2fd
-  //~ if (_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+  // switching from qd to fd is allowed if maxV has ever been < limit_qd
+  if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
 
 
-  //~ // also change stride for IO to avoid writing out too many time steps
-  //~ // at the end of an earthquake
-  //~ if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
-    //~ _stride1D = _stride1D_fd_end;
-    //~ _stride2D = _stride2D_fd_end;
+  // If switching is allowed, assess if the switching criteria has been reached:
+  // switching from fd to qd happens if maxV < _trigger_fd2qd
+  if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
+
+  // switching from qd to fd happens if maxV > _trigger_qd2fd
+  if (!_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+
+
+  // also change stride for IO to avoid writing out too many time steps
+  // at the end of an earthquake
+  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+    _stride1D = _stride1D_fd_end;
+    _stride2D = _stride2D_fd_end;
+  }
+
+  //~ if(_inDynamic){
+    //~ if(!_allowed){
+      //~ if(maxV > _limit_dyn){
+        //~ _allowed = true;
+      //~ }
+    //~ }
+    //~ if (_allowed && maxV < _limit_stride_dyn){
+      //~ _stride1D = _stride1D_fd_end;
+      //~ _stride2D = _stride2D_fd_end;
+    //~ }
+    //~ if(_allowed && maxV < _trigger_fd2qd){
+      //~ mustSwitch = true;
+    //~ }
   //~ }
-
-  if(_inDynamic){
-    if(!_allowed){
-      if(maxV > _limit_dyn){
-        _allowed = true;
-      }
-    }
-    if (_allowed && maxV < _limit_stride_dyn){
-      _stride1D = _stride1D_fd_end;
-      _stride2D = _stride2D_fd_end;
-    }
-    if(_allowed && maxV < _trigger_fd2qd){
-      mustSwitch = true;
-    }
-  }
-  else{
-    if(!_allowed){
-      if(maxV < _limit_qd){
-        _allowed = true;
-      }
-    }
-    if(_allowed && maxV > _trigger_qd2fd){
-      mustSwitch = true;
-    }
-  }
+  //~ else{
+    //~ if(!_allowed){
+      //~ if(maxV < _limit_qd){
+        //~ _allowed = true;
+      //~ }
+    //~ }
+    //~ if(_allowed && maxV > _trigger_qd2fd){
+      //~ mustSwitch = true;
+    //~ }
+  //~ }
   return mustSwitch;
 }
 
@@ -852,7 +856,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   _fault_qd->_viewers.swap(_fault_fd->_viewers);
 
   // update momentum balance equation boundary conditions
-  _material->changeBCTypes(_mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType);
+  _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
 
 
   #if VERBOSE > 1
@@ -1202,10 +1206,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::integrate";
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::integrate_qd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-  double startTime = MPI_Wtime();
 
   OdeSolver      *quadEx = NULL; // explicit time stepping
   OdeSolverImex  *quadImex = NULL; // implicit time stepping
@@ -1263,8 +1266,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
       VecCopy(varOut[it->first],_varQSEx[it->first]);
     }
   }
-
-
 
   delete quadEx;
   delete quadImex;
@@ -1692,8 +1693,8 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
-  if(_inDynamic){ if(check_switch(_fault_fd)){ stopIntegration = 1; } }
-  else { if(check_switch(_fault_qd)){ stopIntegration = 1; } }
+  if(_inDynamic){ if(checkSwitchRegime(_fault_fd)){ stopIntegration = 1; } }
+  else { if(checkSwitchRegime(_fault_qd)){ stopIntegration = 1; } }
 
   #if VERBOSE > 0
     std::string regime = "quasidynamic";

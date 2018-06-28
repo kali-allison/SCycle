@@ -54,6 +54,7 @@ private:
     std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
@@ -91,6 +92,7 @@ private:
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
+    PetscErrorCode parseBCs(); // parse boundary conditions
 
   public:
     OdeSolver           *_quadEx; // explicit time stepping

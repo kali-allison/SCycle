@@ -11,7 +11,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
+  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
@@ -30,10 +30,15 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
-  if (_thermalCoupling.compare("no")!=0) { // heat equation
+  parseBCs();
+
+  // heat equation
+  if (_thermalCoupling.compare("no")!=0) {
     _he = new HeatEquation(D);
   }
-  _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
+
+  // fault
+  _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale);
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }
@@ -46,8 +51,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
     _fault->setSNEff(_p->_p);
   }
 
-  // initiate momentum balance equation
-  parseBCs();
+  // initiate momentum balance equationparseBCs();
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
@@ -307,6 +311,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::parseBCs()
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
     _mat_bcBType = "Neumann";
   }
+
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

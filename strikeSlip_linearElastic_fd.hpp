@@ -59,6 +59,7 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _initialConditions, _inputDir;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // time stepping data
     std::map <string,Vec>  _var,_varPrev; // holds variables for time step: n (current), n-1

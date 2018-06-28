@@ -11,9 +11,13 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
+#include "integratorContext_WaveEq.hpp"
+#include "integratorContext_WaveEq_Imex.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
+#include "odeSolver_WaveEq.hpp"
+#include "odeSolver_WaveImex.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
@@ -33,7 +37,7 @@
  */
 
 
-class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq
 {
 
   private:
@@ -43,7 +47,8 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
 
   public:
 
-    Domain *_D;
+    Domain   *_D;
+    Vec      *_y,*_z;
 
     // IO information
     std::string          _delim; // format is: var delim value (without the white space)
@@ -57,15 +62,18 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
     Vec                  _ay;
     Vec                  _Fhat;
     Vec                  _alphay;
-    bool                 _inDynamic;
+    bool                 _inDynamic,_allowed;
+    PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
 
     // time stepping data
+    std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
     std::map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
@@ -81,7 +89,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
 
 
     // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regimeV; // regime = 1 if fd, 0 if qd
@@ -89,11 +97,16 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
-    std::string              _bcRType,_bcTType,_bcLType,_bcBType;
-    std::string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;
+    string              _qd_bcRType,_qd_bcTType,_qd_bcLType,_qd_bcBType;
+    string              _fd_bcRType,_fd_bcTType,_fd_bcLType,_fd_bcBType;
+    string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;
+    string              _mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType;
 
-    OdeSolver               *_quadEx; // explicit time stepping
-    OdeSolverImex           *_quadImex; // implicit time stepping
+
+    OdeSolver               *_quadEx; // explicit adaptive time stepping
+    OdeSolverImex           *_quadImex; // IMEX adaptive time stepping
+    OdeSolver_WaveEq          *_quadWaveEx; // explicit, constant time step, time stepping
+    OdeSolver_WaveEq_Imex     *_quadWaveImex; // IMEX, constant time step, time stepping
 
     Fault_qd                   *_fault_qd;
     Fault_fd                   *_fault_fd;
@@ -122,27 +135,44 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
     PetscScalar              _atolSS_effVisc;
 
+    // functions for the fixed point iteration method for the steady-state problem
     PetscErrorCode writeSS(const int Ii, const std::string outputDir);
-    PetscErrorCode computeSSEffVisc();
     PetscErrorCode guessTauSS(map<string,Vec>& varSS);
-    PetscErrorCode solveSSb();
+    PetscErrorCode computeSSEffVisc();
     PetscErrorCode integrateSS();
     PetscErrorCode solveSS();
+    PetscErrorCode solveSSb();
     PetscErrorCode setSSBCs();
     PetscErrorCode solveSSViscoelasticProblem();
 
 
-    // time stepping functions
+    // time integration functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode initiateIntegrand();
+    PetscErrorCode integrate_qd();
+    PetscErrorCode integrate_fd();
+    PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
+    PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
+    // help with switching between fully dynamic and quasidynamic
+    bool checkSwitchRegime(const Fault* _fault);
+    PetscErrorCode prepare_qd2fd(); // switch from quasidynamic to fully dynamic
+    PetscErrorCode prepare_fd2qd(); // switch from fully dynamic to quasidynamic
+
+
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx); // quasidynamic
+
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt); // quasidynamic
+
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev,
+      map<string,Vec>& varIm, const map<string,Vec>& varImPrev); // fully dynamic
 
 
     // IO functions

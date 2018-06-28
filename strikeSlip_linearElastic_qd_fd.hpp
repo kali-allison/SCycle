@@ -59,6 +59,7 @@ private:
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
@@ -100,7 +101,7 @@ private:
     string              _qd_bcRType,_qd_bcTType,_qd_bcLType,_qd_bcBType;
     string              _fd_bcRType,_fd_bcTType,_fd_bcLType,_fd_bcBType;
     string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;
-    string              _mat_dyn_bcRType,_mat_dyn_bcTType,_mat_dyn_bcLType,_mat_dyn_bcBType;
+    string              _mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType;
 
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
@@ -112,8 +113,8 @@ private:
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
   public:
-    OdeSolver                 *_quadEx_qd, *_quadEx_switch; // explicit time stepping
-    OdeSolverImex             *_quadImex_qd, *_quadImex_switch; // implicit time stepping
+    OdeSolver                 *_quadEx_qd; // explicit time stepping
+    OdeSolverImex             *_quadImex_qd; // implicit time stepping
     OdeSolver_WaveEq          *_quadWaveEx;
     OdeSolver_WaveEq_Imex     *_quadWaveImex;
 
@@ -138,18 +139,15 @@ private:
     PetscErrorCode integrate_fd();
     PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
     PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
-    PetscErrorCode initiateIntegrand_qd();
-    PetscErrorCode initiateIntegrand_dyn();
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // help with switching between fully dynamic and quasidynamic
-    bool check_switch(const Fault* _fault);
+    bool checkSwitchRegime(const Fault* _fault);
     PetscErrorCode prepare_qd2fd(); // switch from quasidynamic to fully dynamic
     PetscErrorCode prepare_fd2qd(); // switch from fully dynamic to quasidynamic
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,
-      map<string,Vec>& dvarEx); // quasidynamic
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx); // quasidynamic
 
     PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
       map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic

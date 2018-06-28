@@ -5,9 +5,9 @@
 using namespace std;
 
 
-Fault::Fault(Domain&D,VecScatter& scatter2fault)
+Fault::Fault(Domain&D,VecScatter& scatter2fault, const int& faultTypeScale)
 : _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
-  _stateLaw("agingLaw"),
+  _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
   _N(D._Nz),_L(D._Lz),
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
@@ -738,8 +738,8 @@ PetscErrorCode Fault::computePsiSS(const PetscScalar vL)
 
 
 //================= Functions assuming only + side exists ========================
-Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault)
-: Fault(D,scatter2fault)
+Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault, const int& faultTypeScale)
+: Fault(D,scatter2fault,faultTypeScale)
 {
   #if VERBOSE > 1
     std::string funcName = "Fault_qd::Fault_qd";
@@ -750,36 +750,10 @@ Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault)
   VecDuplicate(_tauP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
   VecPointwiseMult(_eta_rad,_mu,_rho);
   VecSqrtAbs(_eta_rad);
-  VecScale(_eta_rad,0.5);
+  VecScale(_eta_rad,1/_faultTypeScale);
 
   loadFieldsFromFiles(D._inputDir);
   loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-}
-
-Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault,std::string& faultType)
-: Fault(D,scatter2fault)
-{
-  #if VERBOSE > 1
-    std::string funcName = "Fault_qd::Fault_qd";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  // radiation damping parameter: 0.5 * sqrt(mu*rho)
-  VecDuplicate(_tauP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
-  VecPointwiseMult(_eta_rad,_mu,_rho);
-  VecSqrtAbs(_eta_rad);
-  if (faultType.compare("symm_fault")==0) {
-    VecScale(_eta_rad,0.5);
-  }
-
-  if (D._inputDir.compare("unspecified") != 0) {
-    loadFieldsFromFiles(D._inputDir);
-    loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
-  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1100,8 +1074,8 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   return ierr;
 }
 
-Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault)
-: Fault(D, scatter2fault),
+Fault_fd::Fault_fd(Domain&D, VecScatter& scatter2fault, const int& faultTypeScale)
+: Fault(D, scatter2fault,faultTypeScale),
  _Phi(NULL), _an(NULL), _fricPen(NULL),
 _u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
  _timeMode("None")
@@ -1403,10 +1377,10 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
   _deltaT = deltaT;
   VecCopy(var.find("psi")->second,_psi);
   VecCopy(var.find("slip")->second,_slip);
-  VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second); // uPrev = (slip - slip0)/2
-  VecScale(_uPrev,0.5);
+  VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second); // uPrev = (slip - slip0)/faultTypeScale
+  VecScale(_uPrev,1.0/_faultTypeScale);
   VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second); // u = (slip - slip0)/2
-  VecScale(_u,0.5);
+  VecScale(_u,1.0/_faultTypeScale);
 
 
   // compute slip velocity
@@ -1441,11 +1415,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
       PetscScalar A = 1.0 + alpha * deltaT;
 
       slipVel[Jj] = Phi[Jj] / (1. + _deltaT * alpha);
-
-      //~ PetscScalar uTemp = uPrev[Jj];
-      //~ uPrev[Jj] = u[Jj];
-      //~ u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uTemp) /  A;
-
       u[Jj] = (2.*u[Jj]  +  (an[Jj] * deltaT*deltaT / rho[Jj])  +  (_deltaT*alpha-1.)*uPrev[Jj]) /  A;
     }
     Jj++;
@@ -1468,7 +1437,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
   VecCopy(varNext["psi"],_psi);
 
   // assemble slip from u
-  VecWAXPY(_slip,2.0,_u,_slip0); // slip = 2*u + slip0
+  VecWAXPY(_slip,_faultTypeScale,_u,_slip0); // slip = 2*u + slip0
   VecCopy(_slip,varNext["slip"]);
 
   // compute frictional strength of fault based on

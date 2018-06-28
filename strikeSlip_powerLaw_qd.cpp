@@ -11,7 +11,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
+  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
   _timeIntegrator("RK32"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
@@ -32,13 +32,17 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
+  parseBCs();
+
   _he = new HeatEquation(D); // heat equation
-  _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
+
+  _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
     _fault->setThermalFields(T,_he->_k,_he->_c);
   }
+
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
     _p = new PressureEq(D);
@@ -48,7 +52,6 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   }
 
   // initiate momentum balance equation
-  parseBCs();
   _material = new PowerLaw(D,*_he,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   #if VERBOSE > 1
@@ -318,6 +321,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::parseBCs()
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
     _mat_bcBType = "Neumann";
   }
+
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

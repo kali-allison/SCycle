@@ -11,7 +11,7 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),
+  _guessSteadyStateICs(0.),_faultTypeScale(1.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
@@ -30,12 +30,12 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
+  parseBCs();
 
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
-  //~ _fault = new Fault_qd(D,D._scatters["body2L"]); // fault
-  _fault = new Fault_qd(D,D._scatters["body2L"],_bcLType); // fault
+  _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
 
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -45,34 +45,6 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
     _fault->setSNEff(_p->_p);
   }
 
-  // initiate momentum balance equation
-  if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
-    _mat_bcRType = "Dirichlet";
-  }
-  else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
-    _mat_bcRType = "Neumann";
-  }
-
-  if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
-    _mat_bcTType = "Dirichlet";
-  }
-  else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
-    _mat_bcTType = "Neumann";
-  }
-
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    _mat_bcLType = "Dirichlet";
-  }
-  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
-    _mat_bcLType = "Neumann";
-  }
-
-  if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
-    _mat_bcBType = "Dirichlet";
-  }
-  else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
-    _mat_bcBType = "Neumann";
-  }
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
@@ -277,6 +249,53 @@ PetscErrorCode IceStream_LinearElastic_qd::checkInput()
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// parse boundary conditions
+PetscErrorCode IceStream_LinearElastic_qd::parseBCs()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "IceStream_LinearElastic_qd::parseBCs()";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
+    _mat_bcRType = "Dirichlet";
+  }
+  else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
+    _mat_bcRType = "Neumann";
+  }
+
+  if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
+    _mat_bcTType = "Dirichlet";
+  }
+  else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
+    _mat_bcTType = "Neumann";
+  }
+
+  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
+    _mat_bcLType = "Dirichlet";
+  }
+  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
+    _mat_bcLType = "Neumann";
+  }
+
+  if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
+    _mat_bcBType = "Dirichlet";
+  }
+  else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
+    _mat_bcBType = "Neumann";
+  }
+
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }

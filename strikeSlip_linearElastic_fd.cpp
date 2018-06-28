@@ -14,7 +14,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _alphay(NULL),
   _outputDir(D._outputDir),_loadICs(D._loadICs),
   _vL(1e-9),
-  _initialConditions("u"), _inputDir("unspecified"),
+  _initialConditions("u"), _inputDir("unspecified"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
@@ -35,7 +35,11 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
-  _fault = new Fault_fd(D, D._scatters["body2L"]); // fault
+  // determine if material is symmetric about the fault, or if one side is rigid
+  _faultTypeScale = 2.0;
+  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+
+  _fault = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault
   _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
   _cs = _material->_cs;
   _rhoVec = _material->_rhoVec;

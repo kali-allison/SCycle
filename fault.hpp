@@ -46,6 +46,7 @@ class Fault
     std::string       _delim; // format is: var delim value (without the white space)
     std::string       _outputDir; // directory for output
     std::string       _stateLaw; // state evolution law
+    PetscScalar       _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
@@ -98,7 +99,7 @@ class Fault
     typedef std::vector<Vec>::const_iterator const_it_vec;
 
 
-    Fault(Domain& D,VecScatter& scatter2fault);
+    Fault(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
     virtual ~Fault();
 
     // load settings from input file
@@ -143,8 +144,7 @@ class Fault_qd: public Fault
 
     Vec _eta_rad; // radiation damping term
 
-    Fault_qd(Domain& D,VecScatter& scatter2fault);
-    Fault_qd(Domain&D,VecScatter& scatter2fault,std::string& faultType);
+    Fault_qd(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
     ~Fault_qd();
 
     PetscErrorCode loadSettings(const char *file);
@@ -181,7 +181,7 @@ class Fault_fd: public Fault
     PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode;
 
-    Fault_fd(Domain&, VecScatter& scatter2fault);
+    Fault_fd(Domain&, VecScatter& scatter2fault, const int& faultTypeScale);
     ~Fault_fd();
 
     PetscErrorCode loadSettings(const char *file);
