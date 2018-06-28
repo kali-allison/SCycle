@@ -88,6 +88,7 @@ class HeatEquation
     std::string          _sbpType;
     SbpOps*              _sbp;
     Vec                  _bcT,_bcR,_bcB,_bcL; // boundary conditions
+    Vec                  _bcT_ex,_bcR_ex,_bcB_ex; // boundary conditions for explicit solve
     std::string          _linSolver;
     PetscScalar          _kspTol;
     KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems
@@ -149,8 +150,6 @@ class HeatEquation
     // compute rate
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& _varIm);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx,const map<string,Vec>& varIm);
-    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmaxy,
-      const Vec& sigmaxz, const Vec& dgxy, const Vec& dgxz,const Vec& T, Vec& dTdt);
 
     // implicitly solve for temperature using backward Euler
     PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau,
@@ -159,11 +158,13 @@ class HeatEquation
       const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
     PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-
-    PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
     PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+
+    PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
+    PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,
+      const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt);
+
 
     // IO commands
     PetscErrorCode view();

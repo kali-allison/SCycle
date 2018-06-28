@@ -418,7 +418,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computeTimeStep()
   VecDestroy(&ts_dz);
 
   // largest possible time step permitted by CFL condition
-  PetscScalar max_deltaT = gcfl * min(min_ts_dy,min_ts_dz);
+  PetscScalar max_deltaT = gcfl * min(abs(min_ts_dy),abs(min_ts_dz));
 
 
   // compute time step requested by user
@@ -615,54 +615,54 @@ bool strikeSlip_linearElastic_qd_fd::check_switch(const Fault* _fault)
     return mustSwitch;
   }
 
-  // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
-  // switching from fd to qd is allowed if maxV has ever been > limit_dyn
-  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+  //~ // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
+  //~ // switching from fd to qd is allowed if maxV has ever been > limit_dyn
+  //~ if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
 
-  // switching from qd to fd is allowed if maxV has ever been < limit_qd
-  if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
-
-
-  // If switching is allowed, assess if the switching criteria has been reached:
-  // switching from fd to qd happens if maxV < _trigger_fd2qd
-  if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
-
-  // switching from qd to fd happens if maxV > _trigger_qd2fd
-  if (_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+  //~ // switching from qd to fd is allowed if maxV has ever been < limit_qd
+  //~ if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
 
 
-  // also change stride for IO to avoid writing out too many time steps
-  // at the end of an earthquake
-  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
-    _stride1D = _stride1D_fd_end;
-    _stride2D = _stride2D_fd_end;
+  //~ // If switching is allowed, assess if the switching criteria has been reached:
+  //~ // switching from fd to qd happens if maxV < _trigger_fd2qd
+  //~ if (_inDynamic && _allowed && maxV < _trigger_fd2qd) { mustSwitch = true; }
+
+  //~ // switching from qd to fd happens if maxV > _trigger_qd2fd
+  //~ if (_inDynamic && _allowed && maxV > _trigger_qd2fd) { mustSwitch = true; }
+
+
+  //~ // also change stride for IO to avoid writing out too many time steps
+  //~ // at the end of an earthquake
+  //~ if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+    //~ _stride1D = _stride1D_fd_end;
+    //~ _stride2D = _stride2D_fd_end;
+  //~ }
+
+  if(_inDynamic){
+    if(!_allowed){
+      if(maxV > _limit_dyn){
+        _allowed = true;
+      }
+    }
+    if (_allowed && maxV < _limit_stride_dyn){
+      _stride1D = _stride1D_fd_end;
+      _stride2D = _stride2D_fd_end;
+    }
+    if(_allowed && maxV < _trigger_fd2qd){
+      mustSwitch = true;
+    }
   }
-
-  //~ if(_inDynamic){
-    //~ if(!_allowed){
-      //~ if(maxV > _limit_dyn){
-        //~ _allowed = true;
-      //~ }
-    //~ }
-    //~ if (_allowed && maxV < _limit_stride_dyn){
-      //~ _stride1D = _stride1D_fd_end;
-      //~ _stride2D = _stride2D_fd_end;
-    //~ }
-    //~ if(_allowed && maxV < _trigger_fd2qd){
-      //~ mustSwitch = true;
-    //~ }
-  //~ }
-  //~ else{
-    //~ if(!_allowed){
-      //~ if(maxV < _limit_qd){
-        //~ _allowed = true;
-      //~ }
-    //~ }
-    //~ if(_allowed && maxV > _trigger_qd2fd){
-      //~ mustSwitch = true;
-    //~ }
-  //~ }
-  //~ return mustSwitch;
+  else{
+    if(!_allowed){
+      if(maxV < _limit_qd){
+        _allowed = true;
+      }
+    }
+    if(_allowed && maxV > _trigger_qd2fd){
+      mustSwitch = true;
+    }
+  }
+  return mustSwitch;
 }
 
 
@@ -1043,6 +1043,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
