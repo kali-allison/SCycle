@@ -108,7 +108,7 @@ PetscErrorCode HeatEquation::getTemp(Vec& T)
 }
 
 // set temperature
-PetscErrorCode HeatEquation::setTemp(Vec& T)
+PetscErrorCode HeatEquation::setTemp(const Vec& T)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

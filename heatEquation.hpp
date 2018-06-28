@@ -140,7 +140,7 @@ class HeatEquation
     ~HeatEquation();
 
     PetscErrorCode getTemp(Vec& T); // return total temperature
-    PetscErrorCode setTemp(Vec& T); // set temperature
+    PetscErrorCode setTemp(const Vec& T); // set temperature
 
     PetscErrorCode computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
       const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T);

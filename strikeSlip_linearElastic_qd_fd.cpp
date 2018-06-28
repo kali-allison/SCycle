@@ -707,7 +707,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   }
 
 
-  // initiate integrand for FD, ensure fault_fd == fault_qd
+  // initiate integrand for FD:
+  // ensure fault_fd == fault_qd
   VecCopy(_fault_qd->_psi,      _fault_fd->_psi);
   VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel);
   VecCopy(_fault_qd->_slip,     _fault_fd->_slip);
@@ -716,11 +717,19 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
 
+  // add psi and slip to varFD
   _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
+
+  // add u
   VecDuplicate(_material->_u, &_varFD["u"]); VecCopy(_material->_u,_varFD["u"]);
+
+  // if solving the heat equation, add temperature to varFD
+  if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
+
+   // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
-  } // copy varFD into varFDPrev
+  }
 
   // compute Fhat
   VecDuplicate(_material->_u, &_Fhat);
@@ -758,6 +767,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   // update explicitly integrated variables
   VecCopy(_fault_fd->_psi, _varQSEx["psi"]);
   VecCopy(_fault_fd->_slip, _varQSEx["slip"]);
+
+  // update implicitly integrated T
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varFD["Temp"],_varIm["Temp"]); } // if solving the heat equation
 
   // update fault internal variables
   VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
@@ -805,25 +817,24 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   _stride2D = _stride1D_fd;
 
   // save current variables as n-1 time step
-  VecCopy(_material->_u,_varFDPrev["u"]);
   VecCopy(_fault_qd->_slip,_varFDPrev["slip"]);
   VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
+  VecCopy(_material->_u,_varFDPrev["u"]);
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
 
   // compute Fhat
   Mat A; _material->_sbp->getA(A);
   MatMult(A, _material->_u, _Fhat);
   VecAXPY(_Fhat, -1, _material->_rhs);
 
-
   // take 1 quasidynamic time step to compute variables at time n
-  //~ VecCopy(_fault_qd->_slip,_varQSEx["slip"]);
-  //~ VecCopy(_fault_qd->_psi,_varQSEx["psi"]);
   integrate_singleQDTimeStep();
 
   // update varFD to reflect latest values
-  VecCopy(_material->_u,_varFD["u"]);
   VecCopy(_fault_qd->_slip,_varFD["slip"]);
   VecCopy(_fault_qd->_psi,_varFD["psi"]);
+  VecCopy(_material->_u,_varFD["u"]);
+  if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFD["Temp"]); } // if solving the heat equation
 
   // now change u to du
   VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]);
@@ -1518,6 +1529,19 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
+  // explicitly integrate heat equation using forward Euler
+  if (_thermalCoupling.compare("no")!=0) {
+    Vec V = _fault_fd->_slipVel;
+    Vec tau = _fault_fd->_tauP;
+    Vec gVxy_t = NULL;
+    Vec gVxz_t = NULL;
+    Vec Tn = var.find("Temp")->second;
+    Vec dTdt; VecDuplicate(Tn,&dTdt);
+    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
+    VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
+    _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
+  }
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1619,19 +1643,18 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
 
-    // heat equation
-  if (varIm.find("Temp") != varIm.end()) {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
-    Vec sxy,sxz,sdev;
-    _material->getStresses(sxy,sxz,sdev);
-    Vec V = _fault_fd->_slipVel;
-    Vec tau = _fault_fd->_tauP;
-    Vec gVxy_t = NULL;
-    Vec gVxz_t = NULL;
-    Vec Told = varImPrev.find("Temp")->second;
-    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
-    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
-  }
+    // put implicitly integrated variables here
+  //~ if (varIm.find("Temp") != varIm.end()) {
+    //~ Vec sxy,sxz,sdev;
+    //~ _material->getStresses(sxy,sxz,sdev);
+    //~ Vec V = _fault_fd->_slipVel;
+    //~ Vec tau = _fault_fd->_tauP;
+    //~ Vec gVxy_t = NULL;
+    //~ Vec gVxz_t = NULL;
+    //~ Vec Told = varImPrev.find("Temp")->second;
+    //~ ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
+    //~ // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+  //~ }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1645,7 +1668,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar tim
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor_qd";
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 double startTime = MPI_Wtime();
