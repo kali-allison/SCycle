@@ -1640,21 +1640,8 @@ _propagateTime += MPI_Wtime() - startPropagation;
 }
 
 
-// TODO get rid of this
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration){
-  PetscErrorCode ierr = 0;
-  if(_inDynamic){
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_fd(time,deltaT,stepCount,stopIntegration);
-  }
-  else{
-    ierr = strikeSlip_linearElastic_qd_fd::timeMonitor_qd(time,deltaT,stepCount,stopIntegration);
-  }
-  return ierr;
-}
 
-
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_qd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1670,7 +1657,8 @@ double startTime = MPI_Wtime();
   if (_stride1D>0 && stepCount % _stride1D == 0) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
+    else { ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
@@ -1681,13 +1669,13 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
-  if(check_switch(_fault_qd)){
-    stopIntegration = 1;
-  }
+  if(_inDynamic){ if(check_switch(_fault_fd)){ stopIntegration = 1; } }
+  else { if(check_switch(_fault_qd)){ stopIntegration = 1; } }
 
   #if VERBOSE > 0
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e quasidynamic\n",stepCount,_currTime);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e quasidynamic\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
+    std::string regime = "quasidynamic";
+    if(_inDynamic){ regime = "fully dynamic"; }
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s\n",stepCount,_currTime,_deltaT,regime.c_str());CHKERRQ(ierr);
   #endif
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -1695,43 +1683,3 @@ _writeTime += MPI_Wtime() - startTime;
   #endif
   return ierr;
 }
-
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor_fd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::timeMonitor_fd";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-double startTime = MPI_Wtime();
-
-  _stepCount = stepCount;
-  _currTime = time;
-  _deltaT = deltaT;
-
-  if ( _stride1D > 0 && stepCount % _stride1D == 0) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-  }
-
-  if ( _stride2D > 0 && stepCount % _stride2D == 0) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-  }
-
-  if(check_switch(_fault_fd)){
-    stopIntegration = 1;
-  }
-
-_writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e fully dynamic\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e fully dynamic %i %i\n",stepCount,_currTime,_deltaT,_stride1D,_stride1D_fd_end);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-

@@ -169,8 +169,6 @@ private:
 
     // handles switching between quasidynamic and fully dynamic
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration);
-    PetscErrorCode timeMonitor_qd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration); // quasidynamic
-    PetscErrorCode timeMonitor_fd(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration); // fully dynamic
 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
