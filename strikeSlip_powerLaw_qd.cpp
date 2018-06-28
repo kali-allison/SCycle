@@ -350,7 +350,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
   VecScale(slip,2.0);
-  //~ VecSet(slip,0.);
   if (_loadICs==1) {
     VecCopy(_fault->_slip,slip);
   }

@@ -682,6 +682,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   #endif
 
   // initiate integrand for QD
+
+  // LinearElastic does not set up its KSP, so must set it up here
   Mat A; _material->_sbp->getA(A);
   _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
 
@@ -735,9 +737,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
 
-  // compute Fhat
+  // compute Fhat = A*u - rhs
   VecDuplicate(_material->_u, &_Fhat);
   MatMult(A, _material->_u, _Fhat);
+  _material->setRHS();
   VecAXPY(_Fhat, -1, _material->_rhs);
 
 

@@ -396,13 +396,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // initiate integrand for QD
-  VecSet(_material->_bcR,_vL*_initTime/2.0);
+  // initiate integrand for quasidynamic period
+  VecSet(_material->_bcR,_vL*_initTime/_faultTypeScale);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
-  VecScale(slip,2.0);
+  VecScale(slip,_faultTypeScale);
   if (_loadICs==1) {
     VecCopy(_fault_qd->_slip,slip);
   }
@@ -421,6 +421,45 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
   }
+
+
+
+  // initiate integrand for fully dynamic:
+  // ensure fault_fd == fault_qd
+  VecCopy(_fault_qd->_psi,      _fault_fd->_psi);
+  VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel);
+  VecCopy(_fault_qd->_slip,     _fault_fd->_slip);
+  VecCopy(_fault_qd->_slip,     _fault_fd->_slip0);
+  VecCopy(_fault_qd->_tauP,     _fault_fd->_tau0);
+  VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
+  VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
+
+  // add psi and slip to varFD
+  _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
+
+  // add u
+  VecDuplicate(_material->_u, &_varFD["u"]); VecCopy(_material->_u,_varFD["u"]);
+
+  // if solving the heat equation, add temperature to varFD
+  if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
+
+   // copy varFD into varFDPrev
+  for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
+    VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
+  }
+
+  // compute Fhat = A*uPrev - rhs - viscSource
+  _material->setRHS();
+  Mat A; _material->_sbp->getA(A);
+  MatMult(A, _material->_u, _Fhat);
+  // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
+  Vec viscSource;
+  ierr = VecDuplicate(_material->_gxy,&viscSource);CHKERRQ(ierr);
+  ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gxy,_material->_gxz); CHKERRQ(ierr);
+  ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
+  VecDestroy(&viscSource);
+  VecAXPY(_Fhat, -1, _material->_rhs);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
