@@ -98,16 +98,13 @@ int runEqCycle(Domain& d)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  //~ if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
-    //~ StrikeSlip_PowerLaw_qd_fd m(d);
-    //~ ierr = m.writeContext(); CHKERRQ(ierr);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    //~ for (int i=0; i<d._numCycles; i++){
-      //~ PetscPrintf(PETSC_COMM_WORLD, "Starting loop %i\n", i);
-      //~ ierr = m.integrate(); CHKERRQ(ierr);
-    //~ }
-    //~ ierr = m.view();CHKERRQ(ierr);
-  //~ }
+  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
+    StrikeSlip_PowerLaw_qd_fd m(d);
+    ierr = m.writeContext(); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    ierr = m.integrate(); CHKERRQ(ierr);
+    ierr = m.view();CHKERRQ(ierr);
+  }
 
   // solving viscoelastic, quasi-dynamic simulation with a vertical strike-slip fault
   if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {

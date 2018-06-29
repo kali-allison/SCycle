@@ -391,7 +391,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const 
 double startTime = MPI_Wtime();
 
   _stepCount = stepCount;
-  _dT = time - _currTime;
+  _deltaT = deltaT;
   _currTime = time;
 
   // stopping criteria for time integration
@@ -427,9 +427,7 @@ double startTime = MPI_Wtime();
   }
 
   #if VERBOSE > 0
-    double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e %.15e\n",stepCount,_currTime,_currIntegrateTime);CHKERRQ(ierr);
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e \n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
   #endif
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -450,11 +448,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, con
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_dT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
   }
   else {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_dT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1

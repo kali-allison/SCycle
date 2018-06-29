@@ -335,6 +335,7 @@ PetscErrorCode ierr = 0;
     CHKERRQ(ierr);
   #endif
 
+
   // set boundary conditions
   VecDuplicate(_D->_z0,&_bcT);
   PetscObjectSetName((PetscObject) _bcT, "_bcT");
@@ -351,6 +352,10 @@ PetscErrorCode ierr = 0;
 
   VecDuplicate(_bcR,&_bcL); PetscObjectSetName((PetscObject) _bcL, "_bcL");
   VecSet(_bcL,0.0);
+
+  VecDuplicate(_bcR,&_bcR_ex); VecCopy(_bcR,_bcR_ex);
+  VecDuplicate(_bcT,&_bcT_ex); VecCopy(_bcT,_bcT_ex);
+  VecDuplicate(_bcB,&_bcB_ex); VecCopy(_bcB,_bcB_ex);
 
 
   // set material properties
@@ -427,7 +432,7 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_cVals.size() == _cDepths.size() );
   assert(_TVals.size() == _TDepths.size() );
   assert(_wVals.size() == _wDepths.size() );
-  //~ assert(_TVals.size() == 2 );
+  assert(_TVals.size() == 2 );
 
   if (_wRadioHeatGen.compare("yes") == 0) {
     assert(_A0Vals.size() == _A0Depths.size() );

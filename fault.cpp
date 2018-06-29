@@ -1407,7 +1407,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
   for (Ii = Istart; Ii<Iend; Ii++){
 
     if (slipVel[Jj] < 1e-14){
-      slipVel[Jj] = 0;
+      //~ slipVel[Jj] = 0;
     }
     else{
       PetscScalar fric =  strength_psi(sNEff[Jj], psi[Jj], slipVel[Jj], a[Jj], _v0);

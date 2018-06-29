@@ -80,7 +80,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscInt               _stride1D,_stride2D; // current stride
     PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_dT;
+    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
     PetscScalar            _atol;
     PetscScalar            _initDeltaT;
@@ -92,7 +92,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
     // viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regimeV; // regime = 1 if fd, 0 if qd
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
 
 
     // boundary conditions
@@ -102,11 +102,13 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;
     string              _mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType;
 
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
 
-    OdeSolver               *_quadEx; // explicit adaptive time stepping
-    OdeSolverImex           *_quadImex; // IMEX adaptive time stepping
-    OdeSolver_WaveEq          *_quadWaveEx; // explicit, constant time step, time stepping
-    OdeSolver_WaveEq_Imex     *_quadWaveImex; // IMEX, constant time step, time stepping
+    OdeSolver                  *_quadEx; // explicit adaptive time stepping
+    OdeSolverImex              *_quadImex; // IMEX adaptive time stepping
+    OdeSolver_WaveEq           *_quadWaveEx; // explicit, constant time step, time stepping
+    OdeSolver_WaveEq_Imex      *_quadWaveImex; // IMEX, constant time step, time stepping
 
     Fault_qd                   *_fault_qd;
     Fault_fd                   *_fault_fd;
@@ -121,6 +123,8 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
+    PetscErrorCode computeTimeStep();
+    PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
     // estimating steady state conditions
     // viewers:
