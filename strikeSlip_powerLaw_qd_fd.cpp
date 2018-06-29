@@ -41,7 +41,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
 
   _he = new HeatEquation(D); // heat equation
 
-   _body2fault = &(D._scatters["body2L"]);
+  _body2fault = &(D._scatters["body2L"]);
   _fault_qd = new Fault_qd(D,*_body2fault,_faultTypeScale); // quasidynamic fault
   _fault_fd = new Fault_fd(D,*_body2fault,_faultTypeScale); // fully dynamic fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
@@ -1371,20 +1371,18 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
 
   // update body u from fault u
-  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
 
   // compute stresses
   VecCopy(varNext.find("u")->second, _material->_u);
   _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
 
   // update fault shear stress and quasi-static shear stress
+  Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
+  //~ VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
   // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);
@@ -1507,7 +1505,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
   // update fault shear stress and quasi-static shear stress
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
+  //~ VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
   // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);

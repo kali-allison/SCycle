@@ -40,6 +40,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   loadSettings(D._file);
   checkInput();
 
+  _body2fault = &(D._scatters["body2L"]);
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
   _fault_fd = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault for fully dynamic problem
   if (_thermalCoupling.compare("no")!=0) { // heat equation
@@ -1475,7 +1476,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
       VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  _fault_fd->setGetBody2Fault(D2u,_fault_fd->_d2u,SCATTER_FORWARD); // set D2u to fault
+  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
 
   // Propagate waves and compute displacement at the next time step
@@ -1512,20 +1514,24 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-  //~ if (_initialConditions.compare("tau")==0) { _fault_fd->updateTau0(time); }
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
 
   // update body u from fault u
-  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
+  ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
 
+  // compute stresses
   VecCopy(varNext.find("u")->second, _material->_u);
   _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  _fault_fd->setGetBody2Fault(sxy,_fault_fd->_tauP,SCATTER_FORWARD); // update shear stress on fault
-  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
-  VecCopy(_fault_fd->_tauP,_fault_fd->_tauQSP); // keep quasi-static shear stress updated as well
+
+  // update fault shear stress and quasi-static shear stress
+  Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
+  VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1590,7 +1596,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
       VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  _fault_fd->setGetBody2Fault(D2u,_fault_fd->_d2u,SCATTER_FORWARD); // set D2u to fault
+  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
 
   // Propagate waves and compute displacement at the next time step
@@ -1627,19 +1634,25 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_initialConditions.compare("tau")==0) { _fault_fd->updateTau0(time); }
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
-  // update body u from fault u
-  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
 
+  // update body u from fault u
+  ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+
+  // compute stresses
   VecCopy(varNext.find("u")->second, _material->_u);
   _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  _fault_fd->setGetBody2Fault(sxy,_fault_fd->_tauP,SCATTER_FORWARD); // update shear stress on fault
-  VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
-  VecCopy(_fault_fd->_tauP,_fault_fd->_tauQSP); // keep quasi-static shear stress updated as well
+
+  // update fault shear stress and quasi-static shear stress
+  Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
+  VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);
+
 
   if (_qd_bcLType.compare("symm_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);

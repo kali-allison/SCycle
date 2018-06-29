@@ -75,7 +75,6 @@ private:
     std::map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
     std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
     std::string            _timeIntegrator,_timeControlType;
-    std::string            _initialConditions;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
     PetscInt               _maxStepCount; // largest number of time steps
@@ -94,7 +93,8 @@ private:
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
-
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
