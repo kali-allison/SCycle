@@ -12,7 +12,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),_faultTypeScale(2.0),
-  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(1e-3),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
+  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
   _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(1e-2),
   _timeIntegrator("RK32"),_timeControlType("PID"),
@@ -466,38 +466,38 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computeTimeStep()
   // largest possible time step permitted by CFL condition
   PetscScalar max_deltaT = gcfl * min(abs(min_ts_dy),abs(min_ts_dz));
 
+
   // compute time step requested by user
   PetscScalar cfl_deltaT = _CFL * gcfl *  max_deltaT;
-
+  PetscScalar request_deltaT = _deltaT_fd;
 
   _deltaT = max_deltaT; // ensure deltaT is assigned something sensible even if the conditionals have an error
-  if (_deltaT_fd <= 0. && cfl_deltaT <= 0.) {
+  if (request_deltaT <= 0. && cfl_deltaT <= 0.) {
     // if user did not specify deltaT or CFL
     _deltaT = max_deltaT;
   }
-  else if (_deltaT_fd > 0. && cfl_deltaT <= 0.) {
+  else if (request_deltaT > 0. && cfl_deltaT <= 0.) {
     // if user specified deltaT but not CFL
-    _deltaT = _deltaT_fd;
-    assert(_deltaT_fd > 0.);
-    if (_deltaT_fd > max_deltaT) {
-      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",_deltaT_fd,max_deltaT);
+    _deltaT = request_deltaT;
+    assert(request_deltaT > 0.);
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
     }
   }
-  else if (_deltaT_fd <= 0. && cfl_deltaT > 0.) {
+  else if (request_deltaT <= 0. && cfl_deltaT > 0.) {
     // if user specified CLF but not deltaT
     _deltaT = cfl_deltaT;
     assert(_CFL <= 1. && _CFL >= 0.);
   }
-  else if (_deltaT_fd > 0. && cfl_deltaT > 0.) {
+  else if (request_deltaT > 0. && cfl_deltaT > 0.) {
     // if user specified both CLF and deltaT
-    _deltaT = _deltaT_fd;
-    if (_deltaT_fd > max_deltaT) {
-      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",_deltaT_fd,max_deltaT);
+    _deltaT = request_deltaT;
+    if (request_deltaT > max_deltaT) {
+      PetscPrintf(PETSC_COMM_WORLD,"Warning: requested deltaT of %g is larger than maximum recommended deltaT of %g\n",request_deltaT,max_deltaT);
     }
   }
 
   _deltaT_fd = _deltaT;
-
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

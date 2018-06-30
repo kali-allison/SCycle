@@ -73,6 +73,10 @@ class HeatEquation
     // heat fluxes
     Vec  _kTz_z0,_kTz; // surface and total heat flux
 
+    // max temperature for writing out
+    PetscScalar      _maxTemp;
+    PetscViewer      _maxTempV;
+
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
