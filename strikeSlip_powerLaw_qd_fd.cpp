@@ -1504,12 +1504,12 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
 
-  // compute stresses
+  // compute stresses and effective viscosity
   VecCopy(varNext.find("u")->second, _material->_u);
   VecAXPY(_material->_u,1.0,_u0);
-  _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
+  ierr = _material->computeTotalStrains(); CHKERRQ(ierr);
+  ierr = _material->computeStresses(); CHKERRQ(ierr);
+  ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
 
   // update fault shear stress and quasi-static shear stress
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
