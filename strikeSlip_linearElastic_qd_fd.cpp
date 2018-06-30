@@ -25,7 +25,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),
+  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),_u0(NULL),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
@@ -101,6 +101,7 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   PetscViewerDestroy(&_timeV2D);
   PetscViewerDestroy(&_regime1DV);
   PetscViewerDestroy(&_regime2DV);
+  VecDestroy(&_u0);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -729,6 +730,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
 
   // add u
   VecDuplicate(_material->_u, &_varFD["u"]); VecCopy(_material->_u,_varFD["u"]);
+  VecDuplicate(_material->_u, &_u0); VecSet(_u0,0.0);
 
   // if solving the heat equation, add temperature to varFD
   if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
@@ -846,6 +848,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
 
   // now change u to du
   VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]);
+  VecCopy(_varFDPrev["u"],_u0);
   VecSet(_varFDPrev["u"],0.0);
 
 
@@ -1523,6 +1526,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
   // compute stresses
   VecCopy(varNext.find("u")->second, _material->_u);
+  VecAXPY(_material->_u,1.0,_u0);
   _material->computeStresses();
 
   // update fault shear stress and quasi-static shear stress
@@ -1643,6 +1647,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
   // compute stresses
   VecCopy(varNext.find("u")->second, _material->_u);
+  VecAXPY(_material->_u,1.0,_u0);
   _material->computeStresses();
 
   // update fault shear stress and quasi-static shear stress

@@ -1,12 +1,12 @@
 #!/bin/bash
-#PBS -N qdfd_pl_al
+#PBS -N qdfd_pl
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/scycle/outFiles/qdfd_pl_al.err
-#PBS -o /data/dunham/kallison/scycle/outFiles/qdfd_pl_al.out
+#PBS -e /data/dunham/kallison/scycle/outFiles/qdfd_pl.err
+#PBS -o /data/dunham/kallison/scycle/outFiles/qdfd_pl.out
 
 EXEC_DIR=/data/dunham/kallison/scycle
 INIT_DIR=/data/dunham/kallison/scycle/in
