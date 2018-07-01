@@ -601,18 +601,24 @@ _dynTime += MPI_Wtime() - startTime_fd;
 // the maximum time or step count has been reached
 bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
 {
-
   bool mustSwitch = false;
-  Vec absSlipVel;
-  VecDuplicate(_fault->_slipVel, &absSlipVel);
-  VecCopy(_fault->_slipVel, absSlipVel);
+
+  // if using max slip velocity as switching criteria
+  //~ Vec absSlipVel;
+  //~ VecDuplicate(_fault->_slipVel, &absSlipVel);
+  //~ VecCopy(_fault->_slipVel, absSlipVel);
+  //~ PetscScalar maxV;
+  //~ VecAbs(absSlipVel);
+  //~ VecMax(absSlipVel, NULL, &maxV);
+  //~ VecDestroy(&absSlipVel);
+
+  // if using R = eta*V / tauQS
+  Vec R; VecDuplicate(_fault->_slipVel,&R);
+  VecPointwiseMult(R,_fault_qd->_eta_rad,_fault->_slipVel);
+  VecPointwiseDivide(R,R,_fault->_tauQSP);
   PetscScalar maxV;
-  VecAbs(absSlipVel);
-  VecMax(absSlipVel, NULL, &maxV);
-  VecDestroy(&absSlipVel);
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", maxV);
-  #endif
+  VecMax(R,NULL,&maxV);
+  VecDestroy(&R);
 
 
   // if integrating past allowed time or step count, force switching now
@@ -858,6 +864,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
   VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   _fault_qd->_viewers.swap(_fault_fd->_viewers);

@@ -1615,15 +1615,15 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
 
   // RegulaFalsi rootFinder(maxNumIts,rootTol);
   BracketedNewton rootFinder(maxNumIts,rootTol);
-  // Bisect rootFinder(maxNumIts,rootTol);
+  //~ Bisect rootFinder(maxNumIts,rootTol);
 
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
-    // left = -10.;
-    // right = 10.;
-    left = 0.;
-    right = 2*_psi[Jj];
+    left = -2.;
+    right = 2.;
+    //~ left = 0.;
+    //~ right = 2*_psi[Jj];
 
     // check bounds
     if (isnan(left)) {
@@ -1645,7 +1645,7 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
     else {
       ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
       ierr = rootFinder.findRoot(this,Jj,_psi[Jj],&_psiNext[Jj]);CHKERRQ(ierr);
-      // ierr = rootFinder.findRoot(this,Jj,&out);CHKERRQ(ierr);
+      //~ ierr = rootFinder.findRoot(this,Jj,&_psiNext[Jj]);CHKERRQ(ierr);
       rootIts += rootFinder.getNumIts();
     }
   }
@@ -1709,10 +1709,10 @@ PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
-    // left = -10.;
-    // right = 10.;
-    left = 0.;
-    right = 2*_psi[Jj];
+    left = -2.;
+    right = 2.;
+    //~ left = 0.;
+    //~ right = 2*_psi[Jj];
 
     // check bounds
     if (isnan(left)) {
@@ -1809,10 +1809,10 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
   PetscScalar left, right, out, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
-    // left = -10.;
-    // right = 10.;
-    left = 0.;
-    right = 2*_psi[Jj];
+    left = -2.;
+    right = 2.;
+    //~ left = 0.;
+    //~ right = 2*_psi[Jj];
 
     // check bounds
     if (isnan(left)) {

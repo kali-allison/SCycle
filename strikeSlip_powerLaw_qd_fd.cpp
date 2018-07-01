@@ -1081,7 +1081,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
-  VecCopy(_fault_qd->_tauP,      _fault_fd->_tau0);
+  //~ VecCopy(_fault_qd->_tauP,      _fault_fd->_tau0);
+  VecCopy(_fault_qd->_strength,      _fault_fd->_strength);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
@@ -1512,6 +1513,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
 
   // update fault shear stress and quasi-static shear stress
+  Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   //~ VecAXPY(_fault_fd->_tauP, 1.0, _fault_fd->_tau0);
