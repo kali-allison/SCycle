@@ -479,7 +479,7 @@ PetscErrorCode Domain::setScatters()
     ISDestroy(&isf); ISDestroy(&ist);
   }
 
-  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Ny
+  { // set up scatter context to take values for z=Lz from body field and put them on a Vec of size Ny
     // indices to scatter from
     IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &isf);
 

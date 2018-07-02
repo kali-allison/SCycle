@@ -14,7 +14,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _guessSteadyStateICs(0.),_faultTypeScale(2.0),
   _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
-  _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(1e-2),_u0(NULL),
+  _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),_u0(NULL),
   _timeIntegrator("RK32"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
@@ -224,8 +224,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("deltaT_fd")==0) { _deltaT_fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("limit_fd")==0) { _limit_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("limit_stride_fd")==0) { _limit_stride_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("limit_fd")==0) { _limit_fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("limit_stride_fd")==0) { _limit_stride_fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
 
     else if (var.compare("maxNumCycles")==0) { _maxNumCycles = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -370,18 +370,24 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
 // the maximum time or step count has been reached
 bool StrikeSlip_PowerLaw_qd_fd::checkSwitchRegime(const Fault* _fault)
 {
-
   bool mustSwitch = false;
-  Vec absSlipVel;
-  VecDuplicate(_fault->_slipVel, &absSlipVel);
-  VecCopy(_fault->_slipVel, absSlipVel);
+
+  // if using max slip velocity as switching criteria
+  //~ Vec absSlipVel;
+  //~ VecDuplicate(_fault->_slipVel, &absSlipVel);
+  //~ VecCopy(_fault->_slipVel, absSlipVel);
+  //~ PetscScalar maxV;
+  //~ VecAbs(absSlipVel);
+  //~ VecMax(absSlipVel, NULL, &maxV);
+  //~ VecDestroy(&absSlipVel);
+
+  // if using R = eta*V / tauQS
+  Vec R; VecDuplicate(_fault->_slipVel,&R);
+  VecPointwiseMult(R,_fault_qd->_eta_rad,_fault->_slipVel);
+  VecPointwiseDivide(R,R,_fault->_tauQSP);
   PetscScalar maxV;
-  VecAbs(absSlipVel);
-  VecMax(absSlipVel, NULL, &maxV);
-  VecDestroy(&absSlipVel);
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD, "max slipVel = %g\n", maxV);
-  #endif
+  VecMax(R,NULL,&maxV);
+  VecDestroy(&R);
 
 
   // if integrating past allowed time or step count, force switching now
@@ -392,7 +398,7 @@ bool StrikeSlip_PowerLaw_qd_fd::checkSwitchRegime(const Fault* _fault)
 
   // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
   // switching from fd to qd is allowed if maxV has ever been > limit_dyn
-  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+  if( _inDynamic && !_allowed && maxV > _limit_fd) { _allowed = true; }
 
   // switching from qd to fd is allowed if maxV has ever been < limit_qd
   if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
@@ -408,7 +414,7 @@ bool StrikeSlip_PowerLaw_qd_fd::checkSwitchRegime(const Fault* _fault)
 
   // also change stride for IO to avoid writing out too many time steps
   // at the end of an earthquake
-  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+  if (_inDynamic && _allowed && maxV < _limit_stride_fd) {
     _stride1D = _stride1D_fd_end;
     _stride2D = _stride2D_fd_end;
   }
@@ -786,8 +792,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_qd2fd = %.15e\n",_trigger_qd2fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_fd2qd = %.15e\n",_trigger_fd2qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_dyn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);

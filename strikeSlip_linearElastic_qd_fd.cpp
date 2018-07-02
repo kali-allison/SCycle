@@ -25,7 +25,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_dyn(1e-1),_limit_stride_dyn(-1),_u0(NULL),
+  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
@@ -221,8 +221,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("deltaT_fd")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("limit_fd")==0) { _limit_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("limit_stride_fd")==0) { _limit_stride_dyn = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("limit_fd")==0) { _limit_fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("limit_stride_fd")==0) { _limit_stride_fd = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
 
     else if (var.compare("maxNumCycles")==0) { _maxNumCycles = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
@@ -308,16 +308,16 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
     assert(_thermalCoupling.compare("no")!=0);
   }
 
-  if (_limit_dyn < _trigger_qd2fd){
-    _limit_dyn = 10 * _trigger_qd2fd;
+  if (_limit_fd < _trigger_qd2fd){
+    _limit_fd = 10 * _trigger_qd2fd;
   }
 
   if (_limit_qd > _trigger_fd2qd){
     _limit_qd = _trigger_qd2fd / 10.0;
   }
 
-  if (_limit_stride_dyn == -1){
-    _limit_stride_dyn = _limit_dyn / 10.0;
+  if (_limit_stride_fd == -1){
+    _limit_stride_fd = _limit_fd / 10.0;
   }
 
   #if VERBOSE > 1
@@ -629,7 +629,7 @@ bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
 
   // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
   // switching from fd to qd is allowed if maxV has ever been > limit_dyn
-  if( _inDynamic && !_allowed && maxV > _limit_dyn) { _allowed = true; }
+  if( _inDynamic && !_allowed && maxV > _limit_fd) { _allowed = true; }
 
   // switching from qd to fd is allowed if maxV has ever been < limit_qd
   if( !_inDynamic && !_allowed && maxV < _limit_qd) { _allowed = true; }
@@ -645,18 +645,18 @@ bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
 
   // also change stride for IO to avoid writing out too many time steps
   // at the end of an earthquake
-  if (_inDynamic && _allowed && maxV < _limit_stride_dyn) {
+  if (_inDynamic && _allowed && maxV < _limit_stride_fd) {
     _stride1D = _stride1D_fd_end;
     _stride2D = _stride2D_fd_end;
   }
 
   //~ if(_inDynamic){
     //~ if(!_allowed){
-      //~ if(maxV > _limit_dyn){
+      //~ if(maxV > _limit_fd){
         //~ _allowed = true;
       //~ }
     //~ }
-    //~ if (_allowed && maxV < _limit_stride_dyn){
+    //~ if (_allowed && maxV < _limit_stride_fd){
       //~ _stride1D = _stride1D_fd_end;
       //~ _stride2D = _stride2D_fd_end;
     //~ }
@@ -791,12 +791,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
   VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel);
   VecCopy(_fault_fd->_slip,      _fault_qd->_slip);
-  VecCopy(_fault_fd->_strength,  _fault_qd->_tauP);
+  VecCopy(_fault_fd->_tauP,      _fault_qd->_tauP);
+  VecCopy(_fault_fd->_tauQSP,    _fault_qd->_tauQSP);
   VecCopy(_fault_fd->_strength,  _fault_qd->_strength);
-
-  // set up quasi-static shear stress: tauQS = tau + eta_rad * slipVel
-  VecPointwiseMult(_fault_qd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAXPY(_fault_qd->_tauQSP,1.0,_fault_fd->_tauP);
 
   // update viewers to keep IO consistent
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
@@ -1073,8 +1070,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_qd2fd = %.15e\n",_trigger_qd2fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_fd2qd = %.15e\n",_trigger_fd2qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_dyn);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_dyn);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_fd);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);

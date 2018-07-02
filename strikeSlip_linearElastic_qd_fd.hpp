@@ -68,7 +68,7 @@ private:
     Vec                  _Fhat;
     Vec                  _alphay;
     bool                 _inDynamic,_allowed;
-    PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_dyn, _limit_stride_dyn;
+    PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_fd, _limit_stride_fd;
 
     // time stepping data
     std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
