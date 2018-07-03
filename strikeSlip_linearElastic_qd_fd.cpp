@@ -1535,11 +1535,11 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
   // update fault shear stress and quasi-static shear stress
   Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
-  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
-  VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  // update shear stress: tau = tauQS - eta_rad * slipVel
+  VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1656,11 +1656,11 @@ _propagateTime += MPI_Wtime() - startPropagation;
 
   // update fault shear stress and quasi-static shear stress
   Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
-  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  // update quasi-static shear stress: tauQS = tau + eta_rad * slipVel
-  VecPointwiseMult(_fault_fd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAXPY(_fault_fd->_tauQSP,1.0,_fault_fd->_tauP);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  // update shear stress: tau = tauQS - eta_rad * slipVel
+  VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
+  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
