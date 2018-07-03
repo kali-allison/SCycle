@@ -636,7 +636,7 @@ PetscErrorCode HeatEquation::constructMapV()
   PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
   MatGetOwnershipRange(_MapV,&Istart,&Iend);
   for (Ii = Istart; Ii < Iend; Ii++) {
-    Jj = Ii % _Nz;
+    Jj = Ii % _Nz_lab;
     MatSetValues(_MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
   }
   MatAssemblyBegin(_MapV,MAT_FINAL_ASSEMBLY);
@@ -1386,7 +1386,6 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecSet(_Qfric,0.);
     VecAXPY(_Q,-1.0,_Qfric);
   }
 
