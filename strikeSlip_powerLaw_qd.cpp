@@ -399,7 +399,7 @@ double startTime = MPI_Wtime();
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && time > 5e10) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {
@@ -808,7 +808,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   Vec sxy=NULL,sxz=NULL,sdev = NULL;
   std::string baseOutDir = _outputDir;
 
-   // initial guess for (thermo)mechanical problem
+  // initial guess for (thermo)mechanical problem
   solveSS();
   Vec T; VecDuplicate(_varSS["effVisc"],&T); _varSS["Temp"] = T; _he->getTemp(_varSS["Temp"]);
   if (_thermalCoupling.compare("coupled")==0) {
@@ -851,7 +851,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _quadEx = new RK43(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
     }
     else {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: time integrator time not acceptable for fixed point iteration method.\n");
+      PetscPrintf(PETSC_COMM_WORLD,"ERROR: time integrator type not acceptable for fixed point iteration method.\n");
       assert(0);
     }
     ierr = _quadEx->setTolerance(_atol); CHKERRQ(ierr);
@@ -963,7 +963,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
 
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  ierr = VecScatterBegin(_D->_scatters["body2L"], sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_D->_scatters["body2L"], sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -5,22 +5,23 @@
 
 
 HeatEquation::HeatEquation(Domain& D)
-: _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
+: _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Nz_lab(D._Nz),
+  _Ly(D._Ly),_Lz(D._Lz),_Lz_lab(D._Lz),_dy(D._dq),_dz(D._dr),_y(NULL),_z(NULL),
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(D._loadICs),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _kFile("unspecified"),
-  _rhoFile("unspecified"),_hFile("unspecified"),_cFile("unspecified"),
+  _rhoFile("unspecified"),_cFile("unspecified"),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcT_ex(NULL),_bcR_ex(NULL),_bcB_ex(NULL),
+  _bcT_0(NULL),_bcR_0(NULL),_bcB_0(NULL),_bcL(NULL),_bcT_abs(NULL),_bcR_abs(NULL),_bcB_abs(NULL),
   _linSolver("CG"),_kspTol(1e-9),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
-  _MapV(NULL),_Gw(NULL),_omega(NULL),_w(NULL),
+  _MapV(NULL),_Gw(NULL),_Qfric(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
   _linSolveCount(0),
-  _dT(NULL),_T(NULL),_Tamb(NULL),_k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Q(NULL)
+  _Tamb(NULL),_dT(NULL),_T(NULL),_Tamb_l(NULL),_dT_l(NULL),_T_l(NULL),
+  _k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Q(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "HeatEquation::HeatEquation";
@@ -29,10 +30,23 @@ HeatEquation::HeatEquation(Domain& D)
 
   loadSettings(_file);
   checkInput();
-  setFields();
+  allocateFields();
+  constructScatters();
+  setFields(); // note this doesn't set _bcR_abs correctly
   if (_wFrictionalHeating.compare("yes")==0) { constructMapV(); }
   loadFieldsFromFiles();
   if (!_isMMS && _loadICs!=1) { computeInitialSteadyStateTemp(); }
+
+  // set up boundary conditions that are equal to absolute temperature
+  VecSet(_bcL,0.);
+  VecScatterBegin(_scatters["bodyFull2RLith"], _Tamb, _bcR_abs, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2RLith"], _Tamb, _bcR_abs, INSERT_VALUES, SCATTER_FORWARD);
+
+  //~ VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
+
+  //~ VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
 
 
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(); }
@@ -56,7 +70,7 @@ HeatEquation::~HeatEquation()
 
   MatDestroy(&_MapV);
   VecDestroy(&_Gw);
-  VecDestroy(&_omega);
+  VecDestroy(&_Qfric);
   VecDestroy(&_Q);
 
   VecDestroy(&_k);
@@ -64,24 +78,32 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_c);
   VecDestroy(&_Qrad);
 
-  VecDestroy(&_dT);
   VecDestroy(&_Tamb);
+  VecDestroy(&_dT);
   VecDestroy(&_T);
+  VecDestroy(&_Tamb_l);
+  VecDestroy(&_dT_l);
+  VecDestroy(&_T_l);
   VecDestroy(&_kTz);
   VecDestroy(&_kTz_z0);
   VecDestroy(&_bcL);
-  VecDestroy(&_bcR);
-  VecDestroy(&_bcT);
-  VecDestroy(&_bcB);
-  VecDestroy(&_bcR_ex);
-  VecDestroy(&_bcT_ex);
-  VecDestroy(&_bcB_ex);
+  VecDestroy(&_bcR_0);
+  VecDestroy(&_bcT_0);
+  VecDestroy(&_bcB_0);
+  VecDestroy(&_bcR_abs);
+  VecDestroy(&_bcT_abs);
+  VecDestroy(&_bcB_abs);
   VecDestroy(&_w);
 
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first].first);
   }
   PetscViewerDestroy(&_maxTempV);
+
+  map<string,VecScatter>::iterator it;
+  for (it = _scatters.begin(); it!=_scatters.end(); it++ ) {
+    VecScatterDestroy(&it->second);
+  }
 
   delete _sbp;
 }
@@ -180,9 +202,6 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("kFile")==0) {
       _kFile = line.substr(pos+_delim.length(),line.npos).c_str();
     }
-    else if (var.compare("hFile")==0) {
-      _hFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
     else if (var.compare("cFile")==0) {
       _cFile = line.substr(pos+_delim.length(),line.npos).c_str();
     }
@@ -205,16 +224,6 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_kDepths);
     }
-
-    else if (var.compare("hVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_hVals);
-    }
-    else if (var.compare("hDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_hDepths);
-    }
-
     else if (var.compare("cVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_cVals);
@@ -224,13 +233,17 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
       loadVectorFromInputFile(str,_cDepths);
     }
 
-    else if (var.compare("TVals")==0) {
+
+    else if (var.compare("Nz_lab")==0) { _Nz_lab = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("TVals")==0) { // TVals = [T0 T_lab TN] || [T0 TN]
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_TVals);
     }
     else if (var.compare("TDepths")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_TDepths);
+      assert(_TDepths.size() >= 2);
+      _Lz_lab = _TDepths[1];
     }
 
 
@@ -243,9 +256,6 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     }
 
     // finite width shear zone
-    //~ else if (var.compare("shearZoneWidth")==0) {
-      //~ _w = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    //~ }
     else if (var.compare("wVals")==0) {
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_wVals);
@@ -296,27 +306,37 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
   // load Tamb (background geotherm)
   loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
-  if (chkTamb) { _loadICs = 1; }
+  if (chkTamb) { // if loaded Tamb, scatter to Tamb_l
+    _loadICs = 1;
+    ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _Tamb, _Tamb_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _Tamb, _Tamb_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+
+    VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
+
+    VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
+  }
 
   // load T
   loadVecFromInputFile(_T,_inputDir,"T",chkT);
-
-  if (chkT!=1 && chkTamb) { VecCopy(_Tamb,_T); }
+  if (chkT) { // if loaded T, scatter to T_l
+    ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _T, _T_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _T, _T_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  }
+  if (chkT!=1 && chkTamb) { // if Tamb was loaded and T wasn't, copy Tamb into T
+    VecCopy(_Tamb,_T);
+    VecCopy(_Tamb_l,_T_l);
+  }
 
   // load dT (perturbation from ambient geotherm)
   loadVecFromInputFile(_dT,_inputDir,"dT",chkdT);
-  if (chkdT!=1 && chkTamb) { VecWAXPY(_dT,-1.0,_Tamb,_T); }
-
-  if (chkTamb) { // set up boundary conditions
-    VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-
-    VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-
-    VecScatterBegin(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
+  if (chkdT!=1 && chkTamb) { // dT wasn't loaded, compute it from T and Tamb
+    VecWAXPY(_dT,-1.0,_Tamb,_T);
   }
+  // since dT is computed above regardless of if it was loaded, update dT_l to match
+  ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT, _dT_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT, _dT_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -326,7 +346,75 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 }
 
 
-// initialize all fields
+// allocate memory and parallel data layout for fields
+PetscErrorCode HeatEquation::allocateFields()
+{
+PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::allocateFields";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // allocate boundary conditions (these are lithosphere-only sized)
+  VecDuplicate(_D->_z0,&_bcT_0);
+  PetscObjectSetName((PetscObject) _bcT_0, "bcT_0");
+  VecSet(_bcT_0,0.);
+
+  VecDuplicate(_bcT_0,&_bcB_0); PetscObjectSetName((PetscObject) _bcB_0, "bcB_0");
+  VecSet(_bcB_0,0.);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&_bcR_0); CHKERRQ(ierr);
+  ierr = VecSetSizes(_bcR_0,PETSC_DECIDE,_Nz_lab); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_bcR_0); CHKERRQ(ierr);
+  PetscObjectSetName((PetscObject) _bcR_0, "bcR_0");
+  VecSet(_bcR_0,0.0);
+
+  VecDuplicate(_bcR_0,&_bcL); PetscObjectSetName((PetscObject) _bcL, "bcL");
+  VecSet(_bcL,0.0);
+
+  VecDuplicate(_bcR_0,&_bcR_abs); VecCopy(_bcR_0,_bcR_abs);
+  VecDuplicate(_bcT_0,&_bcT_abs); VecCopy(_bcT_0,_bcT_abs);
+  VecDuplicate(_bcB_0,&_bcB_abs); VecCopy(_bcB_0,_bcB_abs);
+
+  VecDuplicate(_bcT_0,&_kTz_z0); VecSet(_kTz_z0,0.0); // heat flux
+
+
+
+  // set lithosphere-only sized 2D fields
+  ierr = VecCreate(PETSC_COMM_WORLD,&_k); CHKERRQ(ierr);
+  ierr = VecSetSizes(_k,PETSC_DECIDE,_Ny*_Nz_lab); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_k); CHKERRQ(ierr);
+  VecSet(_k,0.);
+
+  VecDuplicate(_k,&_y);      VecSet(_y,0.);
+  VecDuplicate(_k,&_z);      VecSet(_z,0.);
+  VecDuplicate(_k,&_rho);    VecSet(_rho,0.);
+  VecDuplicate(_k,&_c);      VecSet(_c,0.);
+  VecDuplicate(_k,&_Qrad);   VecSet(_Qrad,0.);
+  VecDuplicate(_k,&_Q);      VecSet(_Q,0.);
+  VecDuplicate(_k,&_Qfric);  VecSet(_Qfric,0.);
+  VecDuplicate(_k,&_dT_l);   VecSet(_dT_l,0.);
+  VecDuplicate(_k,&_Tamb_l); VecSet(_Tamb_l,0.0);
+  VecDuplicate(_k,&_T_l);    VecSet(_T_l,0.0);
+  VecDuplicate(_k,&_kTz);    VecSet(_kTz,0.0);
+
+
+  // set up full domain sized fields
+  VecDuplicate(_D->_y,&_T);     VecSet(_T,0.);
+  VecDuplicate(_D->_y,&_Tamb);  VecSet(_Tamb,0.);
+  VecDuplicate(_D->_y,&_dT);    VecSet(_dT,0.);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+// initialize values for all fields
 PetscErrorCode HeatEquation::setFields()
 {
 PetscErrorCode ierr = 0;
@@ -337,67 +425,44 @@ PetscErrorCode ierr = 0;
   #endif
 
 
-  // set boundary conditions
-  VecDuplicate(_D->_z0,&_bcT);
-  PetscObjectSetName((PetscObject) _bcT, "_bcT");
+  // y and z for lithosphere
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
+
+
+  // boundary conditions
   PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
-  VecSet(_bcT,bcTval);
+  VecSet(_bcT_abs,bcTval);
 
-  VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
-  PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz-_TDepths[0]) + _TVals[0];
-  VecSet(_bcB,bcBval);
-
-  VecDuplicate(_D->_y0,&_bcR);
-  PetscObjectSetName((PetscObject) _bcR, "_bcR");
-  VecSet(_bcR,0.0);
-
-  VecDuplicate(_bcR,&_bcL); PetscObjectSetName((PetscObject) _bcL, "_bcL");
-  VecSet(_bcL,0.0);
-
-  VecDuplicate(_bcR,&_bcR_ex); VecCopy(_bcR,_bcR_ex);
-  VecDuplicate(_bcT,&_bcT_ex); VecCopy(_bcT,_bcT_ex);
-  VecDuplicate(_bcB,&_bcB_ex); VecCopy(_bcB,_bcB_ex);
-
-
-  // set material properties
-  VecDuplicate(*_y,&_k);
-  VecDuplicate(_k,&_rho);
-  VecDuplicate(_k,&_c);
-  VecDuplicate(_k,&_Qrad); VecSet(_Qrad,0.);
-  VecDuplicate(_k,&_dT); VecSet(_dT,0.);
-  VecDuplicate(_k,&_Q); VecSet(_Q,0.);
-  VecDuplicate(_k,&_omega); VecSet(_omega,0.);
-
-  VecDuplicate(_dT,&_Tamb); VecSet(_Tamb,0.0);
-  VecDuplicate(_dT,&_T); VecCopy(_Tamb,_T);
-
-  // heat flux variables
-  VecDuplicate(_bcT,&_kTz_z0); VecSet(_kTz_z0,0.0);
-  VecDuplicate(_k,&_kTz); VecSet(_kTz,0.0);
+  PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
+  VecSet(_bcB_abs,bcBval);
 
   // set each field using it's vals and depths std::vectors
   if (_isMMS) {
-    mapToVec(_k,zzmms_k,*_y,*_z);
-    mapToVec(_rho,zzmms_rho,*_y,*_z);
-    mapToVec(_c,zzmms_c,*_y,*_z);
-    mapToVec(_Qrad,zzmms_h,*_y,*_z);
-    mapToVec(_Tamb,zzmms_T,*_y,*_z,_initTime);
-    mapToVec(_dT,zzmms_dT,*_y,*_z,_initTime);
+    mapToVec(_k,zzmms_k,_y,_z);
+    mapToVec(_rho,zzmms_rho,_y,_z);
+    mapToVec(_c,zzmms_c,_y,_z);
+    mapToVec(_Qrad,zzmms_h,_y,_z);
+    mapToVec(_Tamb,zzmms_T,_y,_z,_initTime);
+    mapToVec(_dT,zzmms_dT,_y,_z,_initTime);
     setMMSBoundaryConditions(_initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
   }
   else {
-    ierr = setVecFromVectors(_k,_kVals,_kDepths); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths); CHKERRQ(ierr);
-    //~ ierr = setVecFromVectors(_Qrad,_hVals,_hDepths); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_c,_cVals,_cDepths); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_k,_kVals,_kDepths,_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths,_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_c,_cVals,_cDepths,_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_T,_TVals,_TDepths,_D->_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_Tamb,_TVals,_TDepths,_D->_z); CHKERRQ(ierr);
   }
 
   // set up radioactive heat generation source term
   // Qrad = A0 * exp(-z/Lrad)
   if (_wRadioHeatGen.compare("yes") == 0) {
     Vec A0; VecDuplicate(_Qrad,&A0);
-    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths); CHKERRQ(ierr);
-    VecCopy(*_z,_Qrad);
+    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,_z); CHKERRQ(ierr);
+    VecCopy(_z,_Qrad);
     VecScale(_Qrad,-1.0/_Lrad);
     VecExp(_Qrad);
     VecPointwiseMult(_Qrad,A0,_Qrad);
@@ -429,11 +494,15 @@ PetscErrorCode HeatEquation::checkInput()
 
   assert(_kVals.size() == _kDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
-  assert(_hVals.size() == _hDepths.size() );
   assert(_cVals.size() == _cDepths.size() );
   assert(_TVals.size() == _TDepths.size() );
   assert(_wVals.size() == _wDepths.size() );
-  assert(_TVals.size() == 2 );
+
+  assert(_TVals.size() == _TDepths.size() );
+  assert(_TVals.size() >= 2 );
+  //~ assert(_TVals.size() == 2 || _TVals.size() == 4);
+  assert(_Nz_lab <= _Nz);
+  assert(_Lz_lab <= _Lz);
 
   if (_wRadioHeatGen.compare("yes") == 0) {
     assert(_A0Vals.size() == _A0Depths.size() );
@@ -448,6 +517,104 @@ PetscErrorCode HeatEquation::checkInput()
 }
 
 
+// create scatters for communication from full domain Vecs to lithosphere only Vecs
+// SCATTER_FORWARD is from full domain -> lithosphere
+PetscErrorCode HeatEquation::constructScatters()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::constructScatters()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+
+  { // create scatter from 2D full domain to 2D lithosphere only
+    // indices to scatter from
+    PetscInt *fi; PetscMalloc1(_Ny*_Nz_lab,&fi);
+    PetscInt count = 0;
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) {
+      for (PetscInt Jj=0; Jj<_Nz_lab; Jj++) {
+        fi[count] = Ii*_Nz + Jj;
+        count++;
+      }
+    }
+    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, fi, PETSC_COPY_VALUES, &isf);
+    PetscFree(fi);
+
+    // indices to scatter to
+     PetscInt *ti; PetscMalloc1(_Ny*_Nz_lab,&ti);
+    for (PetscInt Ii=0; Ii<(_Ny*_Nz_lab); Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist);
+    PetscFree(ti);
+
+    // create scatter
+    ierr = VecScatterCreate(_T, isf, _T_l, ist, &_scatters["bodyFull2bodyLith"]); CHKERRQ(ierr);
+    ISDestroy(&isf); ISDestroy(&ist);
+  }
+
+
+  { // create scatter from full domain L/R boundary to lithosphere-only L/R boundary
+    // indices to scatter from
+    PetscInt *fi; PetscMalloc1(_Nz_lab,&fi);
+    for (PetscInt Ii=0; Ii<_Nz_lab; Ii++) { fi[Ii] = Ii; }
+    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, fi, PETSC_COPY_VALUES, &isf);
+    PetscFree(fi);
+
+    // indices to scatter to
+     PetscInt *ti; PetscMalloc1(_Nz_lab,&ti);
+    for (PetscInt Ii=0; Ii<(_Nz_lab); Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, ti, PETSC_COPY_VALUES, &ist);
+    PetscFree(ti);
+
+    // create scatter
+    ierr = VecScatterCreate(_D->_y0, isf, _bcL, ist, &_scatters["y0Full2y0Lith"]); CHKERRQ(ierr);
+    ISDestroy(&isf); ISDestroy(&ist);
+  }
+
+  { // create scatter from full domain body field to lithsphere-size R boundary
+    // indices to scatter from
+    PetscInt *fi; PetscMalloc1(_Nz,&fi);
+    for (PetscInt Ii=0; Ii<_Nz_lab; Ii++) { fi[Ii] = Ii + (_Ny*_Nz-_Nz); }
+    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, fi, PETSC_COPY_VALUES, &isf);
+    PetscFree(fi);
+
+    // indices to scatter to
+     PetscInt *ti; PetscMalloc1(_Nz_lab,&ti);
+    for (PetscInt Ii=0; Ii<(_Nz_lab); Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, ti, PETSC_COPY_VALUES, &ist);
+    PetscFree(ti);
+
+    // create scatter
+    ierr = VecScatterCreate(_D->_y, isf, _bcR_abs, ist, &_scatters["bodyFull2RLith"]); CHKERRQ(ierr);
+    ISDestroy(&isf); ISDestroy(&ist);
+  }
+
+  { // create scatter from lithosphere-size body field to lithsphere-size T boundary
+    // indices to scatter from
+    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz_lab, &isf);
+
+    // indices to scatter to
+     PetscInt *ti; PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<(_Ny); Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+    PetscFree(ti);
+
+    // create scatter
+    ierr = VecScatterCreate(_y, isf, _bcT_abs, ist, &_scatters["bodyLith2TLith"]); CHKERRQ(ierr);
+    ISDestroy(&isf); ISDestroy(&ist);
+  }
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+
 // create matrix to map slip velocity, which lives on the fault, to a 2D body field
 PetscErrorCode HeatEquation::constructMapV()
 {
@@ -459,10 +626,10 @@ PetscErrorCode HeatEquation::constructMapV()
   #endif
 
   MatCreate(PETSC_COMM_WORLD,&_MapV);
-  MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Nz);
+  MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz_lab,_Nz_lab);
   MatSetFromOptions(_MapV);
-  MatMPIAIJSetPreallocation(_MapV,_Nz,NULL,_Nz,NULL);
-  MatSeqAIJSetPreallocation(_MapV,_Ny*_Nz,NULL);
+  MatMPIAIJSetPreallocation(_MapV,_Nz_lab,NULL,_Nz_lab,NULL);
+  MatSeqAIJSetPreallocation(_MapV,_Ny*_Nz_lab,NULL);
   MatSetUp(_MapV);
 
   PetscScalar v=1.0;
@@ -476,10 +643,10 @@ PetscErrorCode HeatEquation::constructMapV()
   MatAssemblyEnd(_MapV,MAT_FINAL_ASSEMBLY);
 
   // construct Gw = exp(-y^2/(2*w)) / sqrt(2*pi)/w
-  VecDuplicate(_Tamb,&_Gw); VecSet(_Gw,0.);
-  VecDuplicate(_Tamb,&_w);
+  VecDuplicate(_k,&_Gw); VecSet(_Gw,0.);
+  VecDuplicate(_k,&_w);
   if (_wVals.size() > 0 ) {
-    ierr = setVecFromVectors(_w,_wVals,_wDepths); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_w,_wVals,_wDepths,_z); CHKERRQ(ierr);
     VecScale(_w,1e-3); // convert from m to km
   }
   else { VecSet(_w,0.); }
@@ -488,7 +655,7 @@ PetscErrorCode HeatEquation::constructMapV()
   PetscScalar const *y,*w;
   PetscScalar *g;
   VecGetOwnershipRange(_Gw,&Istart,&Iend);
-  VecGetArrayRead(*_y,&y);
+  VecGetArrayRead(_y,&y);
   VecGetArrayRead(_w,&w);
   VecGetArray(_Gw,&g);
   Jj = 0;
@@ -496,7 +663,7 @@ PetscErrorCode HeatEquation::constructMapV()
     g[Jj] = exp(-y[Jj]*y[Jj] / (2.*w[Jj]*w[Jj])) / sqrt(2. * M_PI) / w[Jj];
     Jj++;
   }
-  VecRestoreArrayRead(*_y,&y);
+  VecRestoreArrayRead(_y,&y);
   VecRestoreArrayRead(_w,&w);
   VecRestoreArray(_Gw,&g);
 
@@ -508,7 +675,7 @@ PetscErrorCode HeatEquation::constructMapV()
 }
 
 
-// compute T assuming that dT/dt and viscous strain rates = 0
+// compute T assuming that dT/dt = 0, and Qfric, Qvisc = 0
 PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 {
   PetscErrorCode ierr = 0;
@@ -521,16 +688,16 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   delete _sbp;
 
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,&_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(&_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -547,7 +714,6 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   // Vec QradR,Qtemp;
   Vec Qtemp;
   if (_wRadioHeatGen.compare("yes") == 0) {
-    // Vec temp1;
     VecDuplicate(_Qrad,&Qtemp);
     if (_sbpType.compare("mfc_coordTrans")==0) {
       Vec temp1; VecDuplicate(_Qrad,&temp1);
@@ -564,7 +730,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     }
   }
 
-
+  // compute Tamb_l
   if (_Nz > 1) {
 
     Mat A; _sbp->getA(A);
@@ -572,44 +738,36 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 
     Vec rhs;
     VecDuplicate(_k,&rhs);
-    _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+    _sbp->setRhs(rhs,_bcL,_bcR_abs,_bcT_abs,_bcB_abs);
     if (_wRadioHeatGen.compare("yes") == 0) {
       VecAXPY(rhs,-1.0,Qtemp);
       VecDestroy(&Qtemp);
     }
 
     // solve for temperature
-    VecSet(_Tamb,0.);
+    VecSet(_Tamb_l,0.);
     double startTime = MPI_Wtime();
-    ierr = KSPSolve(_kspSS,rhs,_Tamb);CHKERRQ(ierr);
+    ierr = KSPSolve(_kspSS,rhs,_Tamb_l);CHKERRQ(ierr);
     _linSolveTime += MPI_Wtime() - startTime;
     _linSolveCount++;
 
     VecDestroy(&rhs);
     KSPDestroy(&_kspSS); _kspSS = NULL;
+
+    // scatter Tamb_l to Tamb
+    VecScatterBegin(_scatters["bodyFull2bodyLith"], _Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
+    VecScatterEnd(_scatters["bodyFull2bodyLith"], _Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
   }
   else{
-    VecSet(_Tamb,_TVals[0]);
+    VecSet(_Tamb_l,_TVals[0]);
   }
+
+  // compute dT, dT_l, T, T_l
+  VecSet(_dT_l,0.0);
   VecSet(_dT,0.0);
+  VecCopy(_Tamb_l,_T_l);
   VecCopy(_Tamb,_T);
   computeHeatFlux();
-
-  // set up boundary conditions
-  VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecSet(_bcL,0);
-
-  VecCopy(_bcR,_bcR_ex);
-  VecCopy(_bcT,_bcT_ex);
-  VecCopy(_bcB,_bcB_ex);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -629,18 +787,6 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
   #endif
 
   if (_kspSS != NULL) { return ierr; }
-
-
-  // use MUMPSCHOLESKY
-  //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_kspSS); CHKERRQ(ierr);
-  //~ ierr = KSPSetType(_kspSS,KSPPREONLY);CHKERRQ(ierr);
-  //~ ierr = KSPSetOperators(_kspSS,A,A);CHKERRQ(ierr);
-  //~ ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE);CHKERRQ(ierr);
-  //~ PC pc;
-  //~ ierr = KSPGetPC(_kspSS,&pc);CHKERRQ(ierr);
-  //~ PCSetType(pc,PCCHOLESKY);
-  //~ PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);
-  //~ PCFactorSetUpMatSolverPackage(pc);
 
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&_kspSS); CHKERRQ(ierr);
@@ -718,18 +864,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
-    // don't reuse preconditioner
-    //~ ierr = KSPCreate(PETSC_COMM_WORLD,&_kspTrans); CHKERRQ(ierr);
-    //~ ierr = KSPSetType(_kspTrans,KSPRICHARDSON);CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(_kspTrans,A,A);CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE);CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(_kspTrans,&_pc);CHKERRQ(ierr);
-    //~ ierr = PCSetType(_pc,PCHYPRE);CHKERRQ(ierr);
-    //~ ierr = PCHYPRESetType(_pc,"boomeramg");CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(_kspTrans,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT);CHKERRQ(ierr);
-    //~ ierr = PCFactorSetLevels(_pc,4);CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE);CHKERRQ(ierr);
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&_kspTrans); CHKERRQ(ierr);
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
@@ -851,7 +985,7 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcL,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
     y = 0;
     if (!bcLType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
     else if (!bcLType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_y(y,z,time); }
@@ -860,35 +994,35 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
     y = _Ly;
     if (!bcRType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
     else if (!bcRType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_y(y,z,time); }
-    ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
+    ierr = VecSetValues(_bcR_0,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
   }
   ierr = VecAssemblyBegin(_bcL);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_bcR);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcR_0);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcL);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcR_0);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(*_y,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(_y,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     if (Ii % _Nz == 0) {
-      ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
+      ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
       PetscInt Jj = Ii / _Nz;
 
       z = 0;
       if (!bcTType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
       else if (!bcTType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_z(y,z,time); }
-      ierr = VecSetValues(_bcT,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_bcT_0,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       z = _Lz;
       if (!bcBType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
       else if (!bcBType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_z(y,z,time); }
-      ierr = VecSetValues(_bcB,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
+      ierr = VecSetValues(_bcB_0,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
-  ierr = VecAssemblyBegin(_bcT);CHKERRQ(ierr);
-  ierr = VecAssemblyBegin(_bcB);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcT);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(_bcB);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcT_0);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(_bcB_0);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcT_0);CHKERRQ(ierr);
+  ierr = VecAssemblyEnd(_bcB_0);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -909,18 +1043,15 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
   Vec dTA;
   VecDuplicate(_dT,&dTA);
 
-  //~ if (_Nz == 1) { mapToVec(dTA,zzmms_uA1D,*_y,time); }
-  //~ else { mapToVec(dTA,zzmms_dT,*_y,*_z,time); }
-  //~ mapToVec(dTA,zzmms_dT,*_y,*_z,time);
-  mapToVec(dTA,zzmms_T,*_y,*_z,time);
+  mapToVec(dTA,zzmms_T,_y,_z,time);
 
   writeVec(dTA,_outputDir+"mms_dTA");
   writeVec(_dT,_outputDir+"mms_dT");
 
   writeVec(_bcL,_outputDir+"mms_he_bcL");
-  writeVec(_bcR,_outputDir+"mms_he_bcR");
-  writeVec(_bcT,_outputDir+"mms_he_bcT");
-  writeVec(_bcB,_outputDir+"mms_he_bcB");
+  writeVec(_bcR_0,_outputDir+"mms_he_bcR");
+  writeVec(_bcT_0,_outputDir+"mms_he_bcT");
+  writeVec(_bcB_0,_outputDir+"mms_he_bcB");
 
   double err2u = computeNormDiff_2(_dT,dTA);
 
@@ -945,12 +1076,18 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     CHKERRQ(ierr);
   #endif
 
+  // update fields
   VecCopy(T,_T);
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _T,_T_l, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _T,_T_l, INSERT_VALUES, SCATTER_FORWARD);
+
+  Vec dTdt_l;
+  VecDuplicate(_k,&dTdt_l); VecSet(dTdt_l,0.);
 
   // set up boundary conditions and source terms
   Vec rhs,temp;
-  VecDuplicate(T,&rhs);
-  VecDuplicate(T,&temp);
+  VecDuplicate(_k,&rhs);
+  VecDuplicate(_k,&temp);
   VecSet(rhs,0.0);
   VecSet(temp,0.0);
 
@@ -964,7 +1101,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,1.0,_omega);
+    VecAXPY(_Q,1.0,_Qfric);
   }
 
   // viscous shear heating: Qvisc
@@ -976,7 +1113,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   }
 
   // rhs = -H*J*(SAT bc terms) + H*J*Q
-  ierr = _sbp->setRhs(temp,_bcL,_bcR_ex,_bcT_ex,_bcB_ex);CHKERRQ(ierr); // put SAT terms in temp
+  ierr = _sbp->setRhs(temp,_bcL,_bcR_abs,_bcT_abs,_bcB_abs);CHKERRQ(ierr); // put SAT terms in temp
   VecScale(temp,-1.); // sign convention in setRhs is opposite of what's needed for explicit time stepping
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
@@ -1005,13 +1142,16 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMult(Jinv,rhs,temp1);
-    _sbp->Hinv(temp1,dTdt);
+    _sbp->Hinv(temp1,dTdt_l);
     VecDestroy(&temp1);
   }
   else {
-    _sbp->Hinv(rhs,dTdt);
+    _sbp->Hinv(rhs,dTdt_l);
   }
 
+  // scatter dTdt_l into dTdt for output
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], dTdt_l,dTdt, INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], dTdt_l,dTdt, INSERT_VALUES, SCATTER_REVERSE);
   computeHeatFlux();
 
   VecDestroy(&temp);
@@ -1047,7 +1187,7 @@ PetscErrorCode HeatEquation::d_dt_mms(const PetscScalar time,const Vec& T, Vec& 
   ierr = MatMult(A,T,dTdt); CHKERRQ(ierr);
   Vec rhs;
   VecDuplicate(T,&rhs);
-  ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(rhs,_bcL,_bcR_0,_bcT_0,_bcB_0);CHKERRQ(ierr);
   ierr = VecAXPY(dTdt,-1.0,rhs);CHKERRQ(ierr);
   VecDestroy(&rhs);
 
@@ -1075,7 +1215,7 @@ PetscErrorCode HeatEquation::d_dt_mms(const PetscScalar time,const Vec& T, Vec& 
 
 // for thermomechanical coupling using backward Euler (implicit time stepping)
 PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1088,16 +1228,16 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
   if (_isMMS && _heatEquationType.compare("transient")==0) {
     assert(0);
-    //~ be_transient(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);
+    //~ be_transient(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
   }
   else if (_isMMS && _heatEquationType.compare("steadyState")==0) {
-    be_steadyStateMMS(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);
+    be_steadyStateMMS(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
   }
   else if (!_isMMS && _heatEquationType.compare("transient")==0) {
-    be_transient(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);
+    be_transient(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
   }
   else if (!_isMMS && _heatEquationType.compare("steadyState")==0) {
-    be_steadyState(time,slipVel,tau,sigmadev,dgxy,dgxz,T,To,dt);
+    be_steadyState(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
   }
 
   computeHeatFlux();
@@ -1136,8 +1276,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   // set up boundary conditions and source terms: Q = Qfric + Qvisc
   // Note: there is no Qrad because radioactive heat generation is already included in Tamb
   Vec rhs,temp;
-  VecDuplicate(_dT,&rhs);
-  VecDuplicate(_dT,&temp);
+  VecDuplicate(_k,&rhs);
+  VecDuplicate(_k,&temp);
   VecSet(rhs,0.0);
   VecSet(temp,0.0);
   VecSet(_Q,0.); // radioactive heat generation is already included in Tamb
@@ -1146,7 +1286,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,-1.0,_omega);
+    VecAXPY(_Q,-1.0,_Qfric);
   }
 
   // viscous shear heating: Qvisc
@@ -1158,7 +1298,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   }
 
 
-  ierr = _sbp->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(temp,_bcL,_bcR_0,_bcT_0,_bcB_0);CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
@@ -1172,15 +1312,17 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
     Mat H; _sbp->getH(H);
     ierr = MatMultAdd(H,_Q,temp,temp); CHKERRQ(ierr);
   }
-  MatMultAdd(_rcInv,temp,rhs,rhs);
+  MatMult(_rcInv,temp,rhs);
   VecScale(rhs,-dt);
 
 
   // solve in terms of dT
   // add H * Tn to rhs
   VecSet(temp,0.0);
-  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dT = T - Tamb
-  _sbp->H(_dT,temp);
+  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dT = Tn - Tamb
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT,_dT_l, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT,_dT_l, INSERT_VALUES, SCATTER_FORWARD);
+  _sbp->H(_dT_l,temp);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1194,15 +1336,19 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  KSPSolve(_kspTrans,rhs,_dT);
+  KSPSolve(_kspTrans,rhs,_dT_l);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   VecDestroy(&rhs);
 
+
+  VecWAXPY(_T_l,1.0,_Tamb_l,_dT_l); // T = dT + Tamb
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT_l,_dT, INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT_l,_dT, INSERT_VALUES, SCATTER_REVERSE);
   VecWAXPY(_T,1.0,_Tamb,_dT); // T = dT + Tamb
+
   VecCopy(_T,T);
-
-
   computeHeatFlux();
 
   #if VERBOSE > 1
@@ -1230,7 +1376,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   }
 
   // set up boundary conditions and source terms: Q = Qrad + Qfric + Qvisc
-  Vec rhs; VecDuplicate(_dT,&rhs); VecSet(rhs,0.0);
+  Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
 
   // radioactive heat generation: Qrad
   if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
@@ -1240,7 +1386,8 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,-1.0,_omega);
+    VecSet(_Qfric,0.);
+    VecAXPY(_Q,-1.0,_Qfric);
   }
 
 
@@ -1254,7 +1401,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
 
   // rhs = J*H*Q + (SAT BC terms)
-  ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(rhs,_bcL,_bcR_abs,_bcT_abs,_bcB_abs);CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
@@ -1270,14 +1417,21 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   }
 
   // solve for temperature and record run time required
-  VecCopy(Tn,_T);
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], Tn,_T_l, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], Tn,_T_l, INSERT_VALUES, SCATTER_FORWARD);
   double startTime = MPI_Wtime();
-  KSPSolve(_kspSS,rhs,_T);
+  KSPSolve(_kspSS,rhs,_T_l);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
 
-  VecCopy(_T,T);
+  VecWAXPY(_dT_l,-1.0,_Tamb_l,_T_l); // dT = - Tamb + T
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = - Tamb + T
+
+
+  VecCopy(_T,T);
   computeHeatFlux();
 
   VecDestroy(&rhs);
@@ -1290,7 +1444,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
 // for thermomechanical coupling solving only the steady-state heat equation with MMS test
 PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1308,7 +1462,7 @@ PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec 
 
 
   setMMSBoundaryConditions(time,"Dirichlet","Dirichlet","Neumann","Dirichlet");
-  ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(rhs,_bcL,_bcR_0,_bcT_0,_bcB_0);CHKERRQ(ierr);
   Vec source,Hxsource;
   VecDuplicate(_dT,&source);
   VecDuplicate(_dT,&Hxsource);
@@ -1329,7 +1483,7 @@ PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec 
   //~ // compute shear heating component
   //~ if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL) {
     //~ Vec shearHeat;
-    //~ computeViscousShearHeating(shearHeat,sigmadev, dgxy, dgxz);
+    //~ computeViscousShearHeating(shearHeat,sdev, dgxy, dgxz);
     //~ VecSet(shearHeat,0.);
     //~ VecAXPY(temp,1.0,shearHeat);
     //~ VecDestroy(&shearHeat);
@@ -1402,7 +1556,7 @@ PetscErrorCode HeatEquation::updateSS(map<string,Vec>& varSS)
 
 // compute steady-state temperature given boundary conditions and shear heating source terms (assuming these remain constant)
 PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T)
+  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1419,7 +1573,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   }
 
   // set up boundary conditions and source terms
-  Vec rhs; VecDuplicate(_dT,&rhs); VecSet(rhs,0.0);
+  Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
   if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
   else { VecSet(_Q,0.); }
 
@@ -1427,20 +1581,20 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,-1.0,_omega);
+    VecAXPY(_Q,-1.0,_Qfric);
     VecScale(_bcL,-1.);
   }
 
   // compute shear heating component
-  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sigmadev!=NULL) {
+  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
     Vec Qvisc;
-    computeViscousShearHeating(Qvisc,sigmadev, dgxy, dgxz);
+    computeViscousShearHeating(Qvisc,sdev, dgxy, dgxz);
     VecAXPY(_Q,-1.0,Qvisc);
     VecDestroy(&Qvisc);
   }
 
   // rhs = J*H*Q + (SAT BC terms)
-  ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  ierr = _sbp->setRhs(rhs,_bcL,_bcR_abs,_bcT_abs,_bcB_abs);CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
@@ -1457,17 +1611,22 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  KSPSolve(_kspSS,rhs,_T);
+  KSPSolve(_kspSS,rhs,_T_l);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
+  VecDestroy(&rhs);
 
+  VecWAXPY(_dT_l,-1.0,_Tamb_l,_T_l); // dT = - Tamb + T
+
+  // now update full domain
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
   VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = - Tamb + T
+
+
   VecCopy(_T,T);
-
-
   computeHeatFlux();
 
-  VecDestroy(&rhs);
   _beTime += MPI_Wtime() - beStartTime;
 
   #if VERBOSE > 1
@@ -1479,7 +1638,8 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
 
 // compute viscous shear heating term (uses temperature from previous time step)
-PetscErrorCode HeatEquation::computeViscousShearHeating(Vec& Qvisc,const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz)
+// output is sized lithosphere-only
+PetscErrorCode HeatEquation::computeViscousShearHeating(Vec& Qvisc_l,const Vec& sdev, const Vec& dgxy, const Vec& dgxz)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1488,24 +1648,32 @@ PetscErrorCode HeatEquation::computeViscousShearHeating(Vec& Qvisc,const Vec& si
     CHKERRQ(ierr);
   #endif
 
-  // shear heating terms: sigmadev * dgv  (stresses times viscous strain rates)
-  // sigmadev = sqrt(sxy^2 + sxz^2)
+  // shear heating terms: sdev * dgv  (stresses times viscous strain rates)
+  // sdev = sqrt(sxy^2 + sxz^2)
   // dgv = sqrt(dgVxy^2 + dgVxz^2)
-  VecDuplicate(sigmadev,&Qvisc);
+  Vec Qvisc;
+  VecDuplicate(sdev,&Qvisc);
   VecSet(Qvisc,0.0);
 
 
   // compute dgv (use shearHeat to store values)
   VecPointwiseMult(Qvisc,dgxy,dgxy);
   Vec temp;
-  VecDuplicate(sigmadev,&temp);
+  VecDuplicate(sdev,&temp);
   VecPointwiseMult(temp,dgxz,dgxz);
   VecAXPY(Qvisc,1.0,temp);
   VecDestroy(&temp);
   VecSqrtAbs(Qvisc);
 
   // multiply by deviatoric stress
-  VecPointwiseMult(Qvisc,sigmadev,Qvisc);
+  VecPointwiseMult(Qvisc,sdev,Qvisc);
+
+  // scatter full domain sized Qvisc to lithosphere-only-sized Qvisc_l for output
+  VecDuplicate(_k,&Qvisc_l); // Qvisc_l is not allocated
+  ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], Qvisc, Qvisc_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], Qvisc, Qvisc_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+
+  VecDestroy(&Qvisc);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1524,26 +1692,24 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
     CHKERRQ(ierr);
   #endif
 
-  // if left boundary condition is heat flux
+    // compute q = tau * slipVel
+    Vec bcL_full; VecDuplicate(tau,&bcL_full);
+    VecPointwiseMult(bcL_full,tau,slipVel);
+    VecScatterBegin(_scatters["y0Full2y0Lith"], bcL_full, _bcL, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(_scatters["y0Full2y0Lith"], bcL_full, _bcL, INSERT_VALUES, SCATTER_FORWARD);
+    VecDestroy(&bcL_full);
+
+  // if left boundary condition is heat flux: q = bcL = tau*slipVel/2
   if (_wMax == 0) {
-    VecSet(_bcL,0.);
-    VecPointwiseMult(_bcL,tau,slipVel);
     VecScale(_bcL,-0.5);
-    VecSet(_omega,0.);
+    VecSet(_Qfric,0.);
   }
 
-  // if using finite width shear zone
+  // if using finite width shear zone: Qfric = slipVel*tau * Gw
   else {
+    ierr = MatMult(_MapV,_bcL,_Qfric); CHKERRQ(ierr); // Qfric = tau * slipVel (now a body field)
+    VecPointwiseMult(_Qfric,_Qfric,_Gw); // Qfric = tau * slipVel * Gw
     VecSet(_bcL,0.); // q = 0, no flux
-    Vec V,Tau;
-    VecDuplicate(_Gw,&V);
-    VecDuplicate(_Gw,&Tau);
-    ierr = MatMult(_MapV,slipVel,V); CHKERRQ(ierr);
-    ierr = MatMult(_MapV,tau,Tau); CHKERRQ(ierr);
-    VecPointwiseMult(_omega,V,_Gw);
-    VecPointwiseMult(_omega,Tau,_omega);
-    VecDestroy(&V);
-    VecDestroy(&Tau);
   }
 
 
@@ -1565,7 +1731,6 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   #endif
 
   delete _sbp; _sbp = NULL;
-  setBCsforBE();
 
   std::string bcRType = "Dirichlet";
   std::string bcTType = "Dirichlet";
@@ -1576,16 +1741,16 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
 
   // construct matrices
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
+    else if (_Ny == 1 && _Nz_lab > 1) { _sbp->setGrid(NULL,&_z); }
+    else if (_Ny > 1 && _Nz_lab == 1) { _sbp->setGrid(&_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1615,27 +1780,27 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     CHKERRQ(ierr);
   #endif
 
-  // set up boundaries
-  VecSet(_bcR,0.);
-  VecSet(_bcT,0.);
+  // set up boundary conditions
+  VecSet(_bcR_0,0.);
+  VecSet(_bcT_0,0.);
   VecSet(_bcL,0.);
-  VecSet(_bcB,0.);
+  VecSet(_bcB_0,0.);
 
 
   delete _sbp; _sbp = NULL;
   // construct matrices
   // BC order: right,top, left, bottom
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,&_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(&_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1693,41 +1858,6 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   return ierr;
 }
 
-// set right boundary condition from computed geotherm
-PetscErrorCode HeatEquation::setBCsforBE()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "HeatEquation::setBCs";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-
-  //~ // only solve for dT with linear solve
-  //~ VecSet(_bcR,0.0);
-  //~ VecSet(_bcT,0.0);
-  //~ VecSet(_bcB,0.0);
-  //~ VecSet(_bcL,0.0);
-
-  // set up boundary conditions
-  VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecScatterBegin(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2R"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecSet(_bcL,0);
-
-#if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
 
 // compute heat flux (full body field and surface heat flux) for output
 PetscErrorCode HeatEquation::computeHeatFlux()
@@ -1739,14 +1869,13 @@ PetscErrorCode HeatEquation::computeHeatFlux()
     CHKERRQ(ierr);
   #endif
 
-
-  // total heat flux
-  ierr = _sbp->muxDz(_T,_kTz); CHKERRQ(ierr);
+  // total heat flux in lithosphere
+  ierr = _sbp->muxDz(_T_l,_kTz); CHKERRQ(ierr);
   VecScale(_kTz,1e9);
 
   // extract surface heat flux
-  VecScatterBegin(_D->_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_D->_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_scatters["bodyLith2TLith"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyLith2TLith"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
 
 
   #if VERBOSE > 1
@@ -1772,20 +1901,24 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
 
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR_abs, outputDir + "he_bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT_abs, outputDir + "he_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB_abs, outputDir + "he_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcL", _bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
+
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR0", _bcR_0, outputDir + "he_bcR0"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT0", _bcT_0, outputDir + "he_bcT0"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB0", _bcB_0, outputDir + "he_bcB0"); CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"he_maxT.txt").c_str(),&_maxTempV);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_kTz_z0,_viewers["kTz_y0"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR_abs,_viewers["he_bcR"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcT_abs,_viewers["he_bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcB_abs,_viewers["he_bcB"].first); CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
 
@@ -1814,14 +1947,14 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
     ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "he_T"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "dT", _dT, outputDir + "he_dT"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "kTz", _kTz, outputDir + "he_kTz"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "omega", _omega, outputDir + "he_omega"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "Qfric", _Qfric, outputDir + "he_Qfric"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Q", _Q, outputDir + "he_Q"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
     ierr = VecView(_dT,_viewers["dT"].first); CHKERRQ(ierr);
     ierr = VecView(_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
-    ierr = VecView(_omega,_viewers["omega"].first); CHKERRQ(ierr);
+    ierr = VecView(_Qfric,_viewers["Qfric"].first); CHKERRQ(ierr);
     ierr = VecView(_Q,_viewers["Q"].first); CHKERRQ(ierr);
   }
 
@@ -1884,6 +2017,9 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol_heateq = %.15e\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
+  ierr = PetscViewerASCIIPrintf(viewer,"Nz_lab = %i\n",_Nz_lab);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Lz_lab = %i\n",_Lz_lab);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"TVals = %s\n",vector2str(_TVals).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"TDepths = %s\n",vector2str(_TDepths).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"w = %.5e\n",_w);CHKERRQ(ierr);
@@ -1944,7 +2080,7 @@ PetscErrorCode HeatEquation::writeContext(const std::string outputDir)
 
 
 // Fills vec with the linear interpolation between the pairs of points (vals,depths)
-PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
+PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const Vec& zz)
 {
   PetscErrorCode ierr = 0;
   PetscInt       Istart,Iend;
@@ -1961,7 +2097,7 @@ PetscErrorCode HeatEquation::setVecFromVectors(Vec& vec, vector<double>& vals,ve
   for (PetscInt Ii=Istart;Ii<Iend;Ii++)
   {
     //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
-    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
+    VecGetValues(zz,1,&Ii,&z);CHKERRQ(ierr);
     //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
     for (size_t ind = 0; ind < vecLen-1; ind++) {
         z0 = depths[0+ind];

@@ -54,8 +54,8 @@ class Domain
     PetscScalar _dq,_dr;
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
-  // scatters to take values from body field(s) to 1D fields
-  // naming convention for key (string): body2<boundary>, example: "body2L>"
+    // scatters to take values from body field(s) to 1D fields
+    // naming convention for key (string): body2<boundary>, example: "body2L>"
     std::map <string, VecScatter>  _scatters;
     Vec _y0; // y = 0 vector, size Nz
     Vec _z0; // z = 0 vector, size Ny

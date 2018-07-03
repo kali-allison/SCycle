@@ -53,8 +53,10 @@ class HeatEquation
     // domain dimensions etc
     Domain              *_D;
     const PetscInt       _order,_Ny,_Nz;
+    PetscInt             _Nz_lab; // # of points to LAB depth (must be <= Nz)
     const PetscScalar    _Ly,_Lz,_dy,_dz;
-    Vec                 *_y,*_z; // to handle variable grid spacing
+    PetscScalar          _Lz_lab; // depth of LAB (must be <= Lz)
+    Vec                  _y,_z; // to handle variable grid spacing
     std::string          _heatEquationType;
     int                  _isMMS;
     PetscScalar          _initTime,_initDeltaT;
@@ -67,8 +69,8 @@ class HeatEquation
     std::string       _inputDir; // directory to load fields from
 
     // material parameters
-    std::string       _kFile,_rhoFile,_hFile,_cFile; // names of each file within loadFromFile
-    std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_hVals,_hDepths,_cVals,_cDepths,_TVals,_TDepths;
+    std::string       _kFile,_rhoFile,_cFile; // names of each file within loadFromFile
+    std::vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_cVals,_cDepths,_TVals,_TDepths;
 
     // heat fluxes
     Vec  _kTz_z0,_kTz; // surface and total heat flux
@@ -91,8 +93,8 @@ class HeatEquation
     // linear system data
     std::string          _sbpType;
     SbpOps*              _sbp;
-    Vec                  _bcT,_bcR,_bcB,_bcL; // boundary conditions
-    Vec                  _bcT_ex,_bcR_ex,_bcB_ex; // boundary conditions for explicit solve
+    Vec                  _bcT_0,_bcR_0,_bcB_0,_bcL; // boundary conditions when solving for dT
+    Vec                  _bcT_abs,_bcR_abs,_bcB_abs; // boundary conditions equal to absolute temperature
     std::string          _linSolver;
     PetscScalar          _kspTol;
     KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems
@@ -100,14 +102,18 @@ class HeatEquation
     Mat                  _I,_rcInv,_B,_pcMat; // intermediates for Backward Euler
     Mat                  _D2ath;
 
+    // scatters to take values from body field(s) to 1D fields
+    // naming convention for key (string): body2<boundary>, example: "body2L>"
+    std::map <string, VecScatter>  _scatters;
+
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
-    Vec                  _Gw,_omega; // Green's function for shear heating, d/dt strain in shear zone, total heat
+    Vec                  _Gw,_Qfric; // Green's function for shear heating, frictional heat
     Vec                  _w; // width of shear zone (km)
     std::vector<double>  _wVals,_wDepths;
     PetscScalar          _wMax;
 
-    // radiactive heat generation
+    // radiactive heat generation parameters
     std::vector<double>  _A0Vals,_A0Depths; // (kW/m^3) heat generation at z=0
     double               _Lrad; // (km) decay length scale
 
@@ -118,17 +124,18 @@ class HeatEquation
 
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
+    PetscErrorCode allocateFields();
     PetscErrorCode setFields();
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const Vec& z);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode checkInput();     // check input from file
 
 
+    PetscErrorCode constructScatters();
     PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp();
     PetscErrorCode setUpSteadyStateProblem();
     PetscErrorCode setUpTransientProblem();
-    PetscErrorCode setBCsforBE();
     PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(Mat& A);
@@ -136,9 +143,10 @@ class HeatEquation
     PetscErrorCode computeHeatFlux();
 
 
-    Vec _dT,_T; // change in temperature from ambiant, temperature
-    Vec _Tamb; // initial temperature
-    Vec _k,_rho,_c,_Qrad,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation
+
+    Vec _Tamb,_dT,_T; // full domain: ambient temperature, change in temperature from ambiant, and total temperature
+    Vec _Tamb_l,_dT_l,_T_l; // lithosphere only: ambient temperature, change in temperature from ambiant and total temperature
+    Vec _k,_rho,_c,_Qrad,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation, total heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();
