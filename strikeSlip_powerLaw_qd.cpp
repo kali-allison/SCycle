@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(1e6),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -399,7 +399,7 @@ double startTime = MPI_Wtime();
   //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
     //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
-    if (maxVel < 1.2e-9 && time > 5e10) { stopIntegration = 1; }
+    if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
   }
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {

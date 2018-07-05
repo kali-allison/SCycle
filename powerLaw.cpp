@@ -42,16 +42,16 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
-  computeTotalStrains();
-  computeStresses();
-  computeViscosity(_effViscCap);
+  //~ computeTotalStrains();
+  //~ computeStresses();
+  //~ computeViscosity(_effViscCap);
 
-  if (_inputDir.compare("unspecified") != 0) {
+  //~ if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
     computeTotalStrains();
     computeStresses();
     computeViscosity(_effViscCap);
-  }
+  //~ }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -410,6 +410,11 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   // load shear modulus
   ierr = loadVecFromInputFile(_muVec,_inputDir,"mu"); CHKERRQ(ierr);
 
+  // load power law parameters
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
+
   // load bcL and bcR
   ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
@@ -426,13 +431,10 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   // load effective viscosity
   ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
 
+
+
   // load temperature
   ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
-
-  // load power law parameters
-  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1725,7 +1727,7 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
   _stepCount = stepCount;
 
   if (stepCount == 0) {
-    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
+    //~ ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);

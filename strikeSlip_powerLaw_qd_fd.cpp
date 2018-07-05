@@ -785,7 +785,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_qd = %i\n",_stride2D_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd = %i\n",_stride2D_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd_end = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd_end = %i\n",_stride2D_fd_end);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -897,19 +897,19 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
 
   // initialize time integrator
   if (_timeIntegrator.compare("FEuler")==0) {
-    _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new FEuler(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32")==0) {
-    _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK32(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43")==0) {
-    _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadEx = new RK43(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32_WBE")==0) {
-    _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
@@ -1398,7 +1398,7 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   // update shear stress: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
+  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = -eta_rad*slipVel + tauQSP
 
 
   if (_qd_bcLType.compare("symm_fault")==0) {
@@ -1415,11 +1415,12 @@ _propagateTime += MPI_Wtime() - startPropagation;
   if (_thermalCoupling.compare("no")!=0) {
     Vec V = _fault_fd->_slipVel;
     Vec tau = _fault_fd->_tauP;
+    Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
     Vec gVxy_t = NULL;
     Vec gVxz_t = NULL;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
-    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
+    ierr = _he->d_dt(time,V,tau,sdev,gVxy_t,gVxz_t,Tn,dTdt); CHKERRQ(ierr);
     VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
     _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
     VecDestroy(&dTdt);

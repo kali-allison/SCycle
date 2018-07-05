@@ -108,7 +108,7 @@ class HeatEquation
 
     // finite width shear zone
     Mat                  _MapV; // maps slip velocity to full size vector for scaling Gw
-    Vec                  _Gw,_Qfric; // Green's function for shear heating, frictional heat
+    Vec                  _Gw; // Green's function for shear heating, frictional heat
     Vec                  _w; // width of shear zone (km)
     std::vector<double>  _wVals,_wDepths;
     PetscScalar          _wMax;
@@ -136,7 +136,7 @@ class HeatEquation
     PetscErrorCode computeInitialSteadyStateTemp();
     PetscErrorCode setUpSteadyStateProblem();
     PetscErrorCode setUpTransientProblem();
-    PetscErrorCode computeViscousShearHeating(Vec& Qvisc,const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
+    PetscErrorCode computeViscousShearHeating(const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
     PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
     PetscErrorCode setupKSP(Mat& A);
     PetscErrorCode setupKSP_SS(Mat& A);
@@ -146,7 +146,8 @@ class HeatEquation
 
     Vec _Tamb,_dT,_T; // full domain: ambient temperature, change in temperature from ambiant, and total temperature
     Vec _Tamb_l,_dT_l,_T_l; // lithosphere only: ambient temperature, change in temperature from ambiant and total temperature
-    Vec _k,_rho,_c,_Qrad,_Q;  // thermal conductivity, density, heat capacity, radioactive heat generation, total heat generation
+    Vec _k,_rho,_c; // thermal conductivity, density, heat capacity,
+    Vec _Qrad,_Qfric,_Qvisc,_Q; // source terms: radioactive decay, frictional, viscous, total heat generation
 
     HeatEquation(Domain& D);
     ~HeatEquation();

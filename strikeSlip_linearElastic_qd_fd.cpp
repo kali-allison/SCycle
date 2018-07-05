@@ -1054,7 +1054,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_qd = %i\n",_stride2D_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd = %i\n",_stride2D_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"stride1D_fd_end = %i\n",_stride1D_fd_end);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D_fd_end = %i\n",_stride2D_fd_end);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -1339,15 +1339,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   #endif
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+ if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
     _fault_qd->setSNEff(varEx.find("pressure")->second);
@@ -1390,15 +1389,14 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+ if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _fault_qd->updateFields(time,varEx);
 
@@ -1542,15 +1540,14 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
 
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+   if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   // explicitly integrate heat equation using forward Euler
   if (_thermalCoupling.compare("no")!=0) {
@@ -1663,15 +1660,14 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
 
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+   if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
 
     // put implicitly integrated variables here
