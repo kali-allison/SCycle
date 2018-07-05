@@ -358,7 +358,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
 
   // determine if material is symmetric about the fault, or if one side is rigid
   _faultTypeScale = 2.0;
-  if (_qd_bcRType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+  if (_qd_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1014,12 +1014,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_fd2qd()
   VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
   VecCopy(_fault_fd->_slipVel,   _fault_qd->_slipVel);
   VecCopy(_fault_fd->_slip,      _fault_qd->_slip);
-  VecCopy(_fault_fd->_strength,  _fault_qd->_tauP);
+  VecCopy(_fault_fd->_tauP,      _fault_qd->_tauP);
+  VecCopy(_fault_fd->_tauQSP,    _fault_qd->_tauQSP);
   VecCopy(_fault_fd->_strength,  _fault_qd->_strength);
-
-  // set up quasi-static shear stress: tauQS = tau + eta_rad * slipVel
-  VecPointwiseMult(_fault_qd->_tauQSP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAXPY(_fault_qd->_tauQSP,1.0,_fault_fd->_tauP);
 
   // update viewers to keep IO consistent
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
@@ -1087,8 +1084,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
-  //~ VecCopy(_fault_qd->_tauP,      _fault_fd->_tau0);
-  VecCopy(_fault_qd->_strength,      _fault_fd->_strength);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
@@ -1207,8 +1203,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault_qd->setSNEff(_p->_p); }
 
@@ -1276,8 +1273,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
@@ -1311,7 +1309,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
 // fully dynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1320,70 +1318,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   #endif
 
 
-  double startPropagation = MPI_Wtime();
+  // momentum balance equation except for fault boundary
+  propagateWaves(time, deltaT, varNext, var, varPrev);
 
-  // compute D2u = (Dyy+Dzz)*u
-  Vec D2u, temp;
-  VecDuplicate(*_y, &D2u);
-  VecDuplicate(*_y, &temp);
-  Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, var.find("u")->second, temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
-  ierr = _material->_sbp->Hinv(temp, D2u);
-  VecDestroy(&temp);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(D2u, &temp);
-      MatMult(Jinv, D2u, temp);
-      VecCopy(temp, D2u);
-      VecDestroy(&temp);
-  }
-  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-
-  // Propagate waves and compute displacement at the next time step
-  // includes boundary conditions except for fault
-
-  PetscInt       Ii,Istart,Iend;
-  PetscScalar   *uNextA; // changed in this loop
-  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(var.find("u")->second, &u);
-  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecGetArrayRead(_ay, &ay);
-  ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
-
-  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
-  PetscInt       Jj = 0;
-  for (Ii = Istart; Ii < Iend; Ii++){
-    PetscScalar c1 = deltaT*deltaT / rho[Jj];
-    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
-    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
-
-    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
-    Jj++;
-  }
-  ierr = VecRestoreArray(varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
-  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecRestoreArrayRead(_ay, &ay);
-  ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
-
-  VecDestroy(&D2u);
-
-_propagateTime += MPI_Wtime() - startPropagation;
-
+  // effect of fault: update body u from fault u
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
-
-
-  // update body u from fault u
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  //~ ierr = VecScatterBegin(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  //~ ierr = VecScatterEnd(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // compute stresses and effective viscosity
   VecCopy(varNext.find("u")->second, _material->_u);
@@ -1401,12 +1344,9 @@ _propagateTime += MPI_Wtime() - startPropagation;
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = -eta_rad*slipVel + tauQSP
 
 
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
-  }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
   ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
@@ -1445,71 +1385,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   #endif
 
 
-  double startPropagation = MPI_Wtime();
+  // momentum balance equation except for fault boundary
+  propagateWaves(time, deltaT, varNext, var, varPrev);
 
-  // compute D2u = (Dyy+Dzz)*u
-  Vec D2u, temp;
-  VecDuplicate(*_y, &D2u);
-  VecDuplicate(*_y, &temp);
-  Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, var.find("u")->second, temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
-  ierr = _material->_sbp->Hinv(temp, D2u);
-  VecDestroy(&temp);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(D2u, &temp);
-      MatMult(Jinv, D2u, temp);
-      VecCopy(temp, D2u);
-      VecDestroy(&temp);
-  }
-  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-
-  // Propagate waves and compute displacement at the next time step
-  // includes boundary conditions except for fault
-
-  PetscInt       Ii,Istart,Iend;
-  PetscScalar   *uNextA; // changed in this loop
-  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(var.find("u")->second, &u);
-  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecGetArrayRead(_ay, &ay);
-  ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
-
-  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
-  PetscInt       Jj = 0;
-  for (Ii = Istart; Ii < Iend; Ii++){
-    PetscScalar c1 = deltaT*deltaT / rho[Jj];
-    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
-    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
-
-    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
-    Jj++;
-  }
-  ierr = VecRestoreArray(varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
-  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecRestoreArrayRead(_ay, &ay);
-  ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
-
-  VecDestroy(&D2u);
-
-_propagateTime += MPI_Wtime() - startPropagation;
-
+  // effect of fault: update body u from fault u
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
-
-
-  // update body u from fault u
-  _fault_fd->setGetBody2Fault(varNext["u"], _fault_fd->_u, SCATTER_REVERSE); // update body u with newly computed fault u
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  ierr = VecScatterBegin(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // compute stresses and effective viscosity
   VecCopy(varNext.find("u")->second, _material->_u);
@@ -1524,17 +1408,14 @@ _propagateTime += MPI_Wtime() - startPropagation;
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   // update shear stress: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
-  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
+  VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = -eta_rad*slipVel + tauQSP
 
 
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-  }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
+  ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
   ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
 
@@ -1595,6 +1476,79 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   return ierr;
 }
 
+
+// fully dynamic: off-fault portion of the momentum balance equation
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::propagateWaves(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd_fd::propagateWaves";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+double startPropagation = MPI_Wtime();
+
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
+  VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
+  VecDestroy(&temp);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
+      VecDestroy(&temp);
+  }
+  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+
+
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
+
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
+
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
+    Jj++;
+  }
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
+
+  VecDestroy(&D2u);
+
+_propagateTime += MPI_Wtime() - startPropagation;
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
 
 
 // for solving fixed point iteration problem, with or without the heat equation
@@ -1687,7 +1641,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrateSS()
     ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);
     setSSBCs();
     ierr = _material->getStresses(sxy,sxz,sdev);
-    ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+    //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+    ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
     VecCopy(_fault_qd->_tauP,_varSS["tau"]);
     _material->initiateIntegrand(_initTime,_varQSEx);
@@ -1766,7 +1722,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSS()
 
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

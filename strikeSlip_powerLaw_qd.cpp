@@ -36,6 +36,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   _he = new HeatEquation(D); // heat equation
 
+  _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
   if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) {
     Vec T; VecDuplicate(_D->_y,&T);
@@ -657,8 +658,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -726,8 +728,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault->setTauQS(sxy,sxz); CHKERRQ(ierr); // old
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
+  //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
@@ -884,7 +887,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr);
     setSSBCs();
     ierr = _material->getStresses(sxy,sxz,sdev);
-    ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+    //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+    ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
     VecCopy(_fault->_tauP,_varSS["tau"]);
     _material->initiateIntegrand(_initTime,_varEx);

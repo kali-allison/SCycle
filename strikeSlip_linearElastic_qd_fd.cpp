@@ -1110,6 +1110,81 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveMomentumBalance(const PetscS
   return ierr;
 }
 
+
+// fully dynamic: off-fault portion of the momentum balance equation
+PetscErrorCode strikeSlip_linearElastic_qd_fd::propagateWaves(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_qd_fd::propagateWaves";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+double startPropagation = MPI_Wtime();
+
+  // compute D2u = (Dyy+Dzz)*u
+  Vec D2u, temp;
+  VecDuplicate(*_y, &D2u);
+  VecDuplicate(*_y, &temp);
+  Mat A; _material->_sbp->getA(A);
+  ierr = MatMult(A, var.find("u")->second, temp);
+  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  ierr = _material->_sbp->Hinv(temp, D2u);
+  VecDestroy(&temp);
+  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      Vec temp;
+      VecDuplicate(D2u, &temp);
+      MatMult(Jinv, D2u, temp);
+      VecCopy(temp, D2u);
+      VecDestroy(&temp);
+  }
+  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+
+
+  // Propagate waves and compute displacement at the next time step
+  // includes boundary conditions except for fault
+
+  PetscInt       Ii,Istart,Iend;
+  PetscScalar   *uNextA; // changed in this loop
+  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
+  ierr = VecGetArray(varNext["u"], &uNextA);
+  ierr = VecGetArrayRead(var.find("u")->second, &u);
+  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecGetArrayRead(_ay, &ay);
+  ierr = VecGetArrayRead(D2u, &d2u);
+  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
+
+  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt       Jj = 0;
+  for (Ii = Istart; Ii < Iend; Ii++){
+    PetscScalar c1 = deltaT*deltaT / rho[Jj];
+    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
+    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
+
+    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
+    Jj++;
+  }
+  ierr = VecRestoreArray(varNext["u"], &uNextA);
+  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
+  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
+  ierr = VecRestoreArrayRead(_ay, &ay);
+  ierr = VecRestoreArrayRead(D2u, &d2u);
+  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
+
+  VecDestroy(&D2u);
+
+_propagateTime += MPI_Wtime() - startPropagation;
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
 // guess at the steady-state solution
 PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
 {
@@ -1138,7 +1213,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // update boundary conditions, stresses
   solveSSb();
@@ -1231,19 +1308,19 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
 
   // initialize time integrator
   if (_timeIntegrator.compare("FEuler")==0) {
-    quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new FEuler(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32")==0) {
-    quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new RK32(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43")==0) {
-    quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadEx = new RK43(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK32_WBE")==0) {
-    quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadImex = new RK32_WBE(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else if (_timeIntegrator.compare("RK43_WBE")==0) {
-    quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
+    quadImex = new RK43_WBE(_maxStepCount,_maxTime,_deltaT_fd,_timeControlType);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeIntegrator type not understood\n");
@@ -1365,7 +1442,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -1424,7 +1503,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -1452,7 +1533,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
 // fully dynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1461,63 +1542,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   #endif
 
 
-  double startPropagation = MPI_Wtime();
-
-  // compute D2u = (Dyy+Dzz)*u
-  Vec D2u, temp;
-  VecDuplicate(*_y, &D2u);
-  VecDuplicate(*_y, &temp);
-  Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, var.find("u")->second, temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
-  ierr = _material->_sbp->Hinv(temp, D2u);
-  VecDestroy(&temp);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(D2u, &temp);
-      MatMult(Jinv, D2u, temp);
-      VecCopy(temp, D2u);
-      VecDestroy(&temp);
-  }
-  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-
-  // Propagate waves and compute displacement at the next time step
-  // includes boundary conditions except for fault
-
-  PetscInt       Ii,Istart,Iend;
-  PetscScalar   *uNextA; // changed in this loop
-  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(var.find("u")->second, &u);
-  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecGetArrayRead(_ay, &ay);
-  ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
-
-  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
-  PetscInt       Jj = 0;
-  for (Ii = Istart; Ii < Iend; Ii++){
-    PetscScalar c1 = deltaT*deltaT / rho[Jj];
-    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
-    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
-
-    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
-    Jj++;
-  }
-  ierr = VecRestoreArray(varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
-  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecRestoreArrayRead(_ay, &ay);
-  ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
-
-  VecDestroy(&D2u);
-
-_propagateTime += MPI_Wtime() - startPropagation;
+  // momentum balance equation except for fault boundary
+  propagateWaves(time, deltaT, varNext, var, varPrev);
 
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
@@ -1581,63 +1607,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   #endif
 
 
-  double startPropagation = MPI_Wtime();
-
-  // compute D2u = (Dyy+Dzz)*u
-  Vec D2u, temp;
-  VecDuplicate(*_y, &D2u);
-  VecDuplicate(*_y, &temp);
-  Mat A; _material->_sbp->getA(A);
-  ierr = MatMult(A, var.find("u")->second, temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
-  ierr = _material->_sbp->Hinv(temp, D2u);
-  VecDestroy(&temp);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      Vec temp;
-      VecDuplicate(D2u, &temp);
-      MatMult(Jinv, D2u, temp);
-      VecCopy(temp, D2u);
-      VecDestroy(&temp);
-  }
-  ierr = VecScatterBegin(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, D2u, _fault_fd->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-
-  // Propagate waves and compute displacement at the next time step
-  // includes boundary conditions except for fault
-
-  PetscInt       Ii,Istart,Iend;
-  PetscScalar   *uNextA; // changed in this loop
-  const PetscScalar   *u, *uPrev, *d2u, *ay, *rho; // unchchanged in this loop
-  ierr = VecGetArray(varNext["u"], &uNextA);
-  ierr = VecGetArrayRead(var.find("u")->second, &u);
-  ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecGetArrayRead(_ay, &ay);
-  ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
-
-  ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
-  PetscInt       Jj = 0;
-  for (Ii = Istart; Ii < Iend; Ii++){
-    PetscScalar c1 = deltaT*deltaT / rho[Jj];
-    PetscScalar c2 = deltaT*ay[Jj] - 1.0;
-    PetscScalar c3 = deltaT*ay[Jj] + 1.0;
-
-    uNextA[Jj] = (c1*d2u[Jj] + 2.*u[Jj] + c2*uPrev[Jj]) / c3;
-    Jj++;
-  }
-  ierr = VecRestoreArray(varNext["u"], &uNextA);
-  ierr = VecRestoreArrayRead(var.find("u")->second, &u);
-  ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
-  ierr = VecRestoreArrayRead(_ay, &ay);
-  ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
-
-  VecDestroy(&D2u);
-
-_propagateTime += MPI_Wtime() - startPropagation;
+  // momentum balance equation except for fault boundary
+  propagateWaves(time, deltaT, varNext, var, varPrev);
 
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 

@@ -88,6 +88,9 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     PetscErrorCode computeTimeStep();
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
 
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
+
   public:
 
     OdeSolver_WaveEq          *_quadWaveEx;
@@ -101,9 +104,12 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode initiateIntegrand();
+    PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev);
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // IO functions
     PetscErrorCode view();

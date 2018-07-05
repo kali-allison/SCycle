@@ -92,11 +92,15 @@ private:
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
 
-  public:
-    OdeSolver           *_quadEx; // explicit time stepping
-    OdeSolverImex       *_quadImex; // implicit time stepping
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
 
-    Fault_qd                *_fault;
+  public:
+
+    OdeSolver                  *_quadEx; // explicit time stepping
+    OdeSolverImex              *_quadImex; // implicit time stepping
+
+    Fault_qd                   *_fault;
     LinearElastic              *_material; // linear elastic off-fault material properties
     HeatEquation               *_he;
     PressureEq                 *_p;

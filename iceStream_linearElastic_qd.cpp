@@ -35,6 +35,7 @@ IceStream_LinearElastic_qd::IceStream_LinearElastic_qd(Domain&D)
   if (_thermalCoupling.compare("no")!=0) { // heat equation
     _he = new HeatEquation(D);
   }
+  _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
 
   // pressure diffusion equation
@@ -560,7 +561,9 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -619,7 +622,9 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
@@ -719,7 +724,9 @@ PetscErrorCode IceStream_LinearElastic_qd::solveSS()
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // update boundary conditions, stresses
   solveSSb();

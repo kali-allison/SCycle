@@ -94,6 +94,9 @@ private:
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
 
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
+
   public:
     OdeSolver           *_quadEx; // explicit time stepping
     OdeSolverImex       *_quadImex; // implicit time stepping

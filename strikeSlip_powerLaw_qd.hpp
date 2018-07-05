@@ -86,13 +86,16 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     std::string              _bcRType,_bcTType,_bcLType,_bcBType;
     std::string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
-    OdeSolver           *_quadEx; // explicit time stepping
-    OdeSolverImex       *_quadImex; // implicit time stepping
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
 
-    Fault_qd                *_fault;
-    PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
-    HeatEquation               *_he;
-    PressureEq                 *_p;
+    OdeSolver              *_quadEx; // explicit time stepping
+    OdeSolverImex          *_quadImex; // implicit time stepping
+
+    Fault_qd               *_fault;
+    PowerLaw               *_material; // power-law viscoelastic off-fault material properties
+    HeatEquation           *_he;
+    PressureEq             *_p;
 
 
     StrikeSlip_PowerLaw_qd(Domain&D);

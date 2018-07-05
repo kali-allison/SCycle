@@ -39,6 +39,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _faultTypeScale = 2.0;
   if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
 
+  _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault
   _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
   _cs = _material->_cs;
@@ -403,11 +404,48 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT,
+  map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "strikeSlip_linearElastic_fd::d_dt";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // momentum balance equation except for fault boundary
+  propagateWaves(time, deltaT, varNext, var, varPrev);
+
+  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
+  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
+
+  // update body u from fault u
+  ierr = VecScatterBegin(*_body2fault, _fault->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, _fault->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+
+  VecCopy(varNext.find("u")->second, _material->_u);
+  _material->computeStresses();
+  Vec sxy,sxz,sdev;
+  ierr = _material->getStresses(sxy,sxz,sdev);
+  //~ _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
+  ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
+  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// fully dynamic: off-fault portion of the momentum balance equation
+PetscErrorCode strikeSlip_linearElastic_fd::propagateWaves(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "strikeSlip_linearElastic_fd::propagateWaves";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -430,7 +468,8 @@ double startPropagation = MPI_Wtime();
       VecCopy(temp, D2u);
       VecDestroy(&temp);
   }
-  _fault->setGetBody2Fault(D2u,_fault->_d2u,SCATTER_FORWARD); // set D2u to fault
+  ierr = VecScatterBegin(*_body2fault, D2u, _fault->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, D2u, _fault->_d2u, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
 
 
@@ -469,27 +508,11 @@ double startPropagation = MPI_Wtime();
 
 _propagateTime += MPI_Wtime() - startPropagation;
 
-  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
-
-  // update body u from fault u
-  _fault->setGetBody2Fault(varNext["u"], _fault->_u, SCATTER_REVERSE); // update body u with newly computed fault u
-
-  VecCopy(varNext.find("u")->second, _material->_u);
-  _material->computeStresses();
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
-  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
-  VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
-
-
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
-
 
 
 // compute allowed time step based on CFL condition and user input

@@ -158,6 +158,8 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
     PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+    PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // help with switching between fully dynamic and quasidynamic
     bool checkSwitchRegime(const Fault* _fault);
@@ -169,7 +171,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx); // quasidynamic
 
     PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, map<string,Vec>& var, map<string,Vec>& varPrev); // fully dynamic
+      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev); // fully dynamic
 
     // methods for implicit/explicit time stepping
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
