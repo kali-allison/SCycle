@@ -63,31 +63,36 @@ HeatEquation::~HeatEquation()
 
   MatDestroy(&_MapV);
   VecDestroy(&_Gw);
-  VecDestroy(&_Qrad);
-  VecDestroy(&_Qfric);
-  VecDestroy(&_Qvisc);
-  VecDestroy(&_Q);
+  VecDestroy(&_w);
+  VecDestroy(&_Qrad); //
+  VecDestroy(&_Qfric); //
+  VecDestroy(&_Qvisc); //
+  VecDestroy(&_Q); //
 
-  VecDestroy(&_k);
+  VecDestroy(&_y); //
+  VecDestroy(&_z); //
+  VecDestroy(&_k); //
   VecDestroy(&_rho);
   VecDestroy(&_c);
 
-  VecDestroy(&_Tamb);
-  VecDestroy(&_dT);
-  VecDestroy(&_T);
-  VecDestroy(&_Tamb_l);
-  VecDestroy(&_dT_l);
-  VecDestroy(&_T_l);
-  VecDestroy(&_kTz);
-  VecDestroy(&_kTz_z0);
-  VecDestroy(&_bcL);
-  VecDestroy(&_bcR_0);
-  VecDestroy(&_bcT_0);
-  VecDestroy(&_bcB_0);
-  VecDestroy(&_bcR_abs);
-  VecDestroy(&_bcT_abs);
-  VecDestroy(&_bcB_abs);
-  VecDestroy(&_w);
+  VecDestroy(&_Tamb); //
+  VecDestroy(&_dT); //
+  VecDestroy(&_T); //
+  VecDestroy(&_Tamb_l); //
+  VecDestroy(&_dT_l); //
+  VecDestroy(&_T_l); //
+  VecDestroy(&_kTz); //
+  VecDestroy(&_kTz_z0); //
+
+  // boundary conditions
+  VecDestroy(&_bcL); //
+  VecDestroy(&_bcR_0); //
+  VecDestroy(&_bcT_0); //
+  VecDestroy(&_bcB_0); //
+  VecDestroy(&_bcR_abs); //
+  VecDestroy(&_bcT_abs); //
+  VecDestroy(&_bcB_abs); //
+
 
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first].first);

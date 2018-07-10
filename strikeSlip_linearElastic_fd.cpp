@@ -77,9 +77,11 @@ strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
 
+  VecDestroy(&_ay);
+
   delete _quadWaveEx;      _quadWaveEx = NULL;
-  delete _material;    _material = NULL;
-  delete _fault;       _fault = NULL;
+  delete _material;        _material = NULL;
+  delete _fault;           _fault = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

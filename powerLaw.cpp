@@ -945,7 +945,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   PetscScalar min_Tmax;
   VecMin(Tmax,NULL,&min_Tmax);
 
-  maxTimeStep = 0.9 * min_Tmax;
+  maxTimeStep = min_Tmax;
 
   VecDestroy(&Tmax);
 

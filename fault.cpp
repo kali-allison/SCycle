@@ -385,76 +385,12 @@ PetscErrorCode Fault::updateTemperature(const Vec& T)
     _scatterTime += MPI_Wtime() - scatterStart;
   }
 
-  //~ PetscInt       Ii,Istart,Iend;
-  //~ PetscScalar    v = 0;
-  //~ ierr = VecGetOwnershipRange(T,&Istart,&Iend);CHKERRQ(ierr);
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ if (Ii<_N) {
-      //~ ierr = VecGetValues(T,1,&Ii,&v);CHKERRQ(ierr);
-      //~ ierr = VecSetValues(_T,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    //~ }
-  //~ }
-  //~ ierr = VecAssemblyBegin(_T);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(_T);CHKERRQ(ierr);
-
    #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
 
-
-// scatter u and uPrev to/from body to fault
-// mode = SCATTER_FORWARD will scatter from body to fault
-//~ // mode = SCATTER_REVERSE will scatter from fault to body
-//~ PetscErrorCode Fault::setGetBody2Fault(Vec& bodyField, Vec& faultField, ScatterMode mode)
-//~ {
-  //~ PetscErrorCode ierr = 0;
-  //~ #if VERBOSE > 1
-    //~ std::string funcName = "Fault::setGetBody2Fault";
-    //~ PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  //~ #endif
-
-  //~ double scatterStart = MPI_Wtime();
-
-  //~ // new
-  //~ if (mode == SCATTER_FORWARD) {
-    //~ ierr = VecScatterBegin(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
-    //~ ierr = VecScatterEnd(*_body2fault, bodyField, faultField, INSERT_VALUES, mode); CHKERRQ(ierr);
-  //~ }
-  //~ else { // mode == SCATTER_REVERSE
-    //~ ierr = VecScatterBegin(*_body2fault, faultField, bodyField, INSERT_VALUES, mode); CHKERRQ(ierr);
-    //~ ierr = VecScatterEnd(*_body2fault, faultField, bodyField, INSERT_VALUES, mode); CHKERRQ(ierr);
-  //~ }
-
-  //~ _scatterTime += MPI_Wtime() - scatterStart;
-
-  //~ #if VERBOSE > 1
-  //~ PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  //~ #endif
-  //~ return ierr;
-//~ }
-
-
-//~ // update shear stress on the fault based on the stress sxy body field
-//~ PetscErrorCode Fault::setTauQS(const Vec& sxy)
-//~ {
-  //~ PetscErrorCode ierr = 0;
-  //~ #if VERBOSE > 1
-    //~ std::string funcName = "Fault::setTauQS";
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
-  //~ #endif
-
-    //~ double scatterStart = MPI_Wtime();
-    //~ VecScatterBegin(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
-    //~ VecScatterEnd(*_body2fault, sxy, _tauQSP, INSERT_VALUES, SCATTER_FORWARD);
-    //~ _scatterTime += MPI_Wtime() - scatterStart;
-
-  //~ #if VERBOSE > 1
-    //~ PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  //~ #endif
-  //~ return ierr;
-//~ }
 
 // use pore pressure to compute total normal stress
 // sNEff = sN - rho*g*z - dp
@@ -638,6 +574,7 @@ Fault::~Fault()
 
   VecDestroy(&_psi);
   VecDestroy(&_slip);
+  VecDestroy(&_slip0);
   VecDestroy(&_slipVel);
 
   VecDestroy(&_locked);

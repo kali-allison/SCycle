@@ -28,12 +28,19 @@ int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  Domain d(inputFile);
-  // d.write();
+  Domain D(inputFile);
+  //~ VecScatter* _body2fault = &(D._scatters["body2L"]);
+  //~ Fault_qd _fault_qd(D,D._scatters["body2L"],2.0); // fault for quasidynamic problem
+  //~ Fault_fd _fault_fd(D, D._scatters["body2L"],2.0); // fault for fully dynamic problem
+  //~ HeatEquation _he(D);
+  //~ LinearElastic _material(D,"Dirichlet","Neumann","Dirichlet","Neumann");
+  //~ PowerLaw _material(D,_he,"Dirichlet","Neumann","Dirichlet","Neumann");
 
-  //~ PressureEq p(d); // pressure equation
-  //~ p.writeContext();
-  HeatEquation he(d); // heat equation
+  //~ strikeSlip_linearElastic_fd m(D);
+  //~ strikeSlip_linearElastic_qd_fd m(D);
+  //~ StrikeSlip_PowerLaw_qd m(D);
+  StrikeSlip_PowerLaw_qd_fd m(D);
+
 
   return ierr;
 }
@@ -147,13 +154,13 @@ int main(int argc,char **args)
   if (argc > 1) { inputFile = args[1]; }
   else { inputFile = "init.in"; }
 
-  {
-    Domain d(inputFile);
-    if (d._isMMS) { runMMSTests(inputFile); }
-    else { runEqCycle(d); }
-  }
+  //~ {
+    //~ Domain d(inputFile);
+    //~ if (d._isMMS) { runMMSTests(inputFile); }
+    //~ else { runEqCycle(d); }
+  //~ }
 
-  //~ runTests(inputFile);
+  runTests(inputFile);
 
   PetscFinalize();
   return ierr;

@@ -113,8 +113,6 @@ class Fault
     PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
       const PetscScalar maxVal);
 
-    //~ PetscErrorCode setTauQS(const Vec& sxy);
-    //~ PetscErrorCode setGetBody2Fault(Vec& bodyField, Vec& faultField, ScatterMode mode); // scatter to/from body to fault
     PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
     PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 

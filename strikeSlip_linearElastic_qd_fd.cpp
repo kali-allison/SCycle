@@ -102,6 +102,8 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   PetscViewerDestroy(&_regime1DV);
   PetscViewerDestroy(&_regime2DV);
   VecDestroy(&_u0);
+  VecDestroy(&_Fhat);
+  VecDestroy(&_ay);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -747,10 +749,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   }
 
   // compute Fhat = A*u - rhs
-  VecDuplicate(_material->_u, &_Fhat);
-  MatMult(A, _material->_u, _Fhat);
-  _material->setRHS();
-  VecAXPY(_Fhat, -1, _material->_rhs);
+  //~ VecDuplicate(_material->_u, &_Fhat);
+  //~ MatMult(A, _material->_u, _Fhat);
+  //~ _material->setRHS();
+  //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
 
   #if VERBOSE > 1
@@ -836,9 +838,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
 
   // compute Fhat
-  Mat A; _material->_sbp->getA(A);
-  MatMult(A, _material->_u, _Fhat);
-  VecAXPY(_Fhat, -1, _material->_rhs);
+  //~ Mat A; _material->_sbp->getA(A);
+  //~ MatMult(A, _material->_u, _Fhat);
+  //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
   // take 1 quasidynamic time step to compute variables at time n
   integrate_singleQDTimeStep();
@@ -1128,7 +1130,7 @@ double startPropagation = MPI_Wtime();
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, var.find("u")->second, temp);
-  ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
+  //~ ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if(_D->_sbpType.compare("mfc_coordTrans")==0){
