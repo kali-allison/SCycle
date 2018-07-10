@@ -574,24 +574,24 @@ _dynTime += MPI_Wtime() - startTime_fd;
   //~ }
 
   // for all cycles after 1st cycle
-  _cycleCount++;
-  while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
-    _allowed = false;
-    _inDynamic = false;
-    double startTime_qd = MPI_Wtime();
-    prepare_fd2qd();
-    integrate_qd();
-    _qdTime += MPI_Wtime() - startTime_qd;
+  //~ _cycleCount++;
+  //~ while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
+    //~ _allowed = false;
+    //~ _inDynamic = false;
+    //~ double startTime_qd = MPI_Wtime();
+    //~ prepare_fd2qd();
+    //~ integrate_qd();
+    //~ _qdTime += MPI_Wtime() - startTime_qd;
 
-    double startTime_fd = MPI_Wtime();
-    _allowed = false;
-    _inDynamic = true;
-    prepare_qd2fd();
-    integrate_fd();
-    _dynTime += MPI_Wtime() - startTime_fd;
+    //~ double startTime_fd = MPI_Wtime();
+    //~ _allowed = false;
+    //~ _inDynamic = true;
+    //~ prepare_qd2fd();
+    //~ integrate_fd();
+    //~ _dynTime += MPI_Wtime() - startTime_fd;
 
-    _cycleCount++;
-  }
+    //~ _cycleCount++;
+  //~ }
 
 
   _integrateTime += MPI_Wtime() - startTime_integrateTime;
@@ -734,9 +734,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel);
   VecCopy(_fault_qd->_slip,     _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,     _fault_fd->_slip0);
-  VecCopy(_fault_qd->_tauP,     _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
 
   // add psi and slip to varFD
   _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
@@ -871,6 +871,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
+  VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
@@ -1391,7 +1392,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_fd()
   //~ OdeSolver_WaveEq_Imex     *quadWaveImex;
 
   // initialize time integrator
-  quadWaveEx = new OdeSolver_WaveEq(_maxStepCount,_currTime,_maxTime,_deltaT_fd);
+  //~ quadWaveEx = new OdeSolver_WaveEq(_maxStepCount,_currTime,_maxTime,_deltaT_fd);
+  quadWaveEx = new OdeSolver_WaveEq(10,_currTime,_maxTime,_deltaT_fd);
   quadWaveEx->setInitialConds(_varFD);
   quadWaveEx->setInitialStepCount(_stepCount);
 
@@ -1682,6 +1684,7 @@ double startTime = MPI_Wtime();
 
   _currTime = time;
   _deltaT = deltaT;
+  if (_stepCount == stepCount && _stepCount != 0) { return ierr; }
   _stepCount = stepCount;
 
   if (_stride1D>0 && stepCount % _stride1D == 0) {

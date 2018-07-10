@@ -12,7 +12,7 @@ Fault::Fault(Domain&D,VecScatter& scatter2fault, const int& faultTypeScale)
   _f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
-  _rootTol(1e-9),_rootIts(0),_maxNumIts(1e4),
+  _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
   _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
   _body2fault(&scatter2fault)
 {
@@ -687,7 +687,7 @@ Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault, const int& faultTypeScale
   VecDuplicate(_tauP,&_eta_rad);  PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
   VecPointwiseMult(_eta_rad,_mu,_rho);
   VecSqrtAbs(_eta_rad);
-  VecScale(_eta_rad,1/_faultTypeScale);
+  VecScale(_eta_rad,1.0/_faultTypeScale);
 
   loadFieldsFromFiles(D._inputDir);
   loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
@@ -1413,7 +1413,7 @@ PetscErrorCode Fault_fd::setPhi(const PetscScalar deltaT)
   PetscInt Jj = 0;
   for (Ii = Istart; Ii < Iend; Ii++){
     an[Jj] = d2u[Jj] + tau0[Jj] / alphay[Jj];
-    Phi[Jj] = 2 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
+    Phi[Jj] = 2.0 / deltaT * (u[Jj] - uPrev[Jj]) + deltaT * an[Jj] / rho[Jj];
     fricPen[Jj] = deltaT / alphay[Jj] / rho[Jj];
     Jj++;
   }
