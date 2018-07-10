@@ -78,11 +78,20 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // adaptive time stepping containers
   map<string,Vec>::iterator it;
   for (it = _varQSEx.begin(); it!=_varQSEx.end(); it++ ) {
     VecDestroy(&it->second);
   }
   for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+
+  // wave equation time stepping containers
+  for (it = _varFD.begin(); it!=_varFD.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varFDPrev.begin(); it!=_varFDPrev.end(); it++ ) {
     VecDestroy(&it->second);
   }
 
@@ -110,6 +119,12 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
   delete _fault_fd;    _fault_fd = NULL;
   delete _he;          _he = NULL;
   delete _p;           _p = NULL;
+
+  VecDestroy(&_varSS["Temp"]);
+  VecDestroy(&_varSS["gVxy_t"]);
+  VecDestroy(&_varSS["gVxz_t"]);
+  VecDestroy(&_varSS["tau"]);
+  VecDestroy(&_varSS["v"]);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1068,7 +1083,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
   //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
   // take 1 quasidynamic time step to compute variables at time n
+  _inDynamic = 0;
   integrate_singleQDTimeStep();
+  _inDynamic = 1;
 
   // update varFD to reflect latest values
   VecCopy(_fault_qd->_slip,_varFD["slip"]);
@@ -1715,6 +1732,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSS()
   #endif
 
   guessTauSS(_varSS);
+  VecDuplicate(_material->_u,&_varSS["v"]); VecSet(_varSS["v"],0.);
+  VecDuplicate(_material->_u,&_varSS["gVxy_t"] ); VecSet(_varSS["gVxy_t"] ,0.);
+  VecDuplicate(_material->_u,&_varSS["gVxz_t"]); VecSet(_varSS["gVxz_t"],0.);
   _material->initiateVarSS(_varSS);
 
   solveSSViscoelasticProblem(); // converge to steady state eta etc

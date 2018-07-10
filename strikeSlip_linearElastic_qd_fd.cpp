@@ -82,7 +82,7 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-{
+  // adaptive time stepping containers
   map<string,Vec>::iterator it;
   for (it = _varQSEx.begin(); it!=_varQSEx.end(); it++ ) {
     VecDestroy(&it->second);
@@ -90,11 +90,15 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   for (it = _varIm.begin(); it!=_varIm.end(); it++ ) {
     VecDestroy(&it->second);
   }
-}
 
-  //~ for (std::map <string,std::pair<PetscViewer,string> > it = _viewers.begin(); it!=_viewers.end(); it++ ) {
-    //~ PetscViewerDestroy(&it->second);
-  //~ }
+  // wave equation time stepping containers
+  for (it = _varFD.begin(); it!=_varFD.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+  for (it = _varFDPrev.begin(); it!=_varFDPrev.end(); it++ ) {
+    VecDestroy(&it->second);
+  }
+
 
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
@@ -107,11 +111,11 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
-  delete _material;    _material = NULL;
+  delete _material;       _material = NULL;
   delete _fault_qd;       _fault_qd = NULL;
   delete _fault_fd;       _fault_fd = NULL;
-  delete _he;          _he = NULL;
-  delete _p;           _p = NULL;
+  delete _he;             _he = NULL;
+  delete _p;              _p = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -532,7 +536,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::computePenaltyVectors()
 
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate(){
+PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate()
+{
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "strikeSlip_linearElastic_qd_fd::integrate";
@@ -569,24 +574,24 @@ _dynTime += MPI_Wtime() - startTime_fd;
   //~ }
 
   // for all cycles after 1st cycle
-  _cycleCount++;
-  while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
-    _allowed = false;
-    _inDynamic = false;
-    double startTime_qd = MPI_Wtime();
-    prepare_fd2qd();
-    integrate_qd();
-    _qdTime += MPI_Wtime() - startTime_qd;
+  //~ _cycleCount++;
+  //~ while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
+    //~ _allowed = false;
+    //~ _inDynamic = false;
+    //~ double startTime_qd = MPI_Wtime();
+    //~ prepare_fd2qd();
+    //~ integrate_qd();
+    //~ _qdTime += MPI_Wtime() - startTime_qd;
 
-    double startTime_fd = MPI_Wtime();
-    _allowed = false;
-    _inDynamic = true;
-    prepare_qd2fd();
-    integrate_fd();
-    _dynTime += MPI_Wtime() - startTime_fd;
+    //~ double startTime_fd = MPI_Wtime();
+    //~ _allowed = false;
+    //~ _inDynamic = true;
+    //~ prepare_qd2fd();
+    //~ integrate_fd();
+    //~ _dynTime += MPI_Wtime() - startTime_fd;
 
-    _cycleCount++;
-  }
+    //~ _cycleCount++;
+  //~ }
 
 
   _integrateTime += MPI_Wtime() - startTime_integrateTime;
@@ -697,7 +702,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   Mat A; _material->_sbp->getA(A);
   _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
 
-  VecSet(_material->_bcR,_vL*_initTime/2.0);
+  VecSet(_material->_bcR,_vL*_initTime/_faultTypeScale);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -747,6 +752,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
+
 
   // compute Fhat = A*u - rhs
   //~ VecDuplicate(_material->_u, &_Fhat);
@@ -843,7 +849,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
   // take 1 quasidynamic time step to compute variables at time n
+  _inDynamic = 0;
   integrate_singleQDTimeStep();
+  _inDynamic = 1;
 
   // update varFD to reflect latest values
   VecCopy(_fault_qd->_slip,_varFD["slip"]);
@@ -862,11 +870,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
-  VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
-  _fault_qd->_viewers.swap(_fault_fd->_viewers);
+  _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);

@@ -95,6 +95,12 @@ StrikeSlip_PowerLaw_qd::~StrikeSlip_PowerLaw_qd()
   delete _he;          _he = NULL;
   delete _p;           _p = NULL;
 
+  VecDestroy(&_varSS["Temp"]);
+  VecDestroy(&_varSS["gVxy_t"]);
+  VecDestroy(&_varSS["gVxz_t"]);
+  VecDestroy(&_varSS["tau"]);
+  VecDestroy(&_varSS["v"]);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -341,11 +347,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
     std::string funcName = "StrikeSlip_PowerLaw_qd::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
-  //~ Mat A;
-  //~ _material->_sbp->getA(A);
-  //~ _material->setupKSP(A,_material->_ksp,_material->_pc);
-  //~ if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -961,6 +962,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
   #endif
 
   guessTauSS(_varSS);
+  VecDuplicate(_material->_u,&_varSS["v"]); VecSet(_varSS["v"],0.);
+  VecDuplicate(_material->_u,&_varSS["gVxy_t"] ); VecSet(_varSS["gVxy_t"] ,0.);
+  VecDuplicate(_material->_u,&_varSS["gVxz_t"]); VecSet(_varSS["gVxz_t"],0.);
   _material->initiateVarSS(_varSS);
 
   solveSSViscoelasticProblem(); // converge to steady state eta etc
@@ -969,7 +973,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS()
 
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
   ierr = VecScatterBegin(_D->_scatters["body2L"], sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(_D->_scatters["body2L"], sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 

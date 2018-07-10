@@ -1472,10 +1472,9 @@ PetscErrorCode PowerLaw::initiateVarSS(map<string,Vec>& varSS)
     CHKERRQ(ierr);
   #endif
 
-  Vec v,gVxy_t,gVxz_t;
-  VecDuplicate(_u,&v); VecSet(v,0.); varSS["v"] = v;
-  VecDuplicate(_u,&gVxy_t); VecSet(gVxy_t,0.); varSS["gVxy_t"] = gVxy_t;
-  VecDuplicate(_u,&gVxz_t); VecSet(gVxz_t,0.); varSS["gVxz_t"] = gVxz_t;
+  //~ VecDuplicate(_u,&varSS["v"]); VecSet(varSS["v"],0.);
+  //~ VecDuplicate(_u,&varSS["gVxy_t"] ); VecSet(varSS["gVxy_t"] ,0.);
+  //~ VecDuplicate(_u,&varSS["gVxz_t"]); VecSet(varSS["gVxz_t"],0.);
   varSS["effVisc"] = _effVisc;
   varSS["sDev"] = _sdev;
   varSS["sxy"] = _sxy; // included so it'll be written out
