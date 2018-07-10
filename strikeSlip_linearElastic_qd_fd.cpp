@@ -574,24 +574,24 @@ _dynTime += MPI_Wtime() - startTime_fd;
   //~ }
 
   // for all cycles after 1st cycle
-  //~ _cycleCount++;
-  //~ while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
-    //~ _allowed = false;
-    //~ _inDynamic = false;
-    //~ double startTime_qd = MPI_Wtime();
-    //~ prepare_fd2qd();
-    //~ integrate_qd();
-    //~ _qdTime += MPI_Wtime() - startTime_qd;
+  _cycleCount++;
+  while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
+    _allowed = false;
+    _inDynamic = false;
+    double startTime_qd = MPI_Wtime();
+    prepare_fd2qd();
+    integrate_qd();
+    _qdTime += MPI_Wtime() - startTime_qd;
 
-    //~ double startTime_fd = MPI_Wtime();
-    //~ _allowed = false;
-    //~ _inDynamic = true;
-    //~ prepare_qd2fd();
-    //~ integrate_fd();
-    //~ _dynTime += MPI_Wtime() - startTime_fd;
+    double startTime_fd = MPI_Wtime();
+    _allowed = false;
+    _inDynamic = true;
+    prepare_qd2fd();
+    integrate_fd();
+    _dynTime += MPI_Wtime() - startTime_fd;
 
-    //~ _cycleCount++;
-  //~ }
+    _cycleCount++;
+  }
 
 
   _integrateTime += MPI_Wtime() - startTime_integrateTime;
@@ -1427,7 +1427,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
  if (_qd_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
@@ -1479,7 +1479,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
  if (_qd_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
@@ -1577,7 +1577,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
    if (_qd_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
@@ -1642,7 +1642,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
    if (_qd_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);

@@ -339,26 +339,24 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
- if (_bcRType.compare("remoteLoading")==0) {
-    VecSet(_material->_bcR,_vL*_initTime/2.0);
-  }
-  else if (_bcRType.compare("freeSurface")==0) {
-    ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
-  }
+ //~ if (_bcRType.compare("remoteLoading")==0) {
+    //~ VecSet(_material->_bcR,_vL*_initTime/_faultScale);
+  //~ }
+  //~ else if (_bcRType.compare("freeSurface")==0) {
+    //~ ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
+  //~ }
 
-  if (_bcBType.compare("remoteLoading")==0) {
-    VecSet(_material->_bcB,_vL*_initTime/2.0);
-  }
-  else if (_bcBType.compare("freeSurface")==0) {
-    ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
-  }
+  //~ if (_bcBType.compare("remoteLoading")==0) {
+    //~ VecSet(_material->_bcB,_vL*_initTime/_faultScale);
+  //~ }
+  //~ else if (_bcBType.compare("freeSurface")==0) {
+    //~ ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
+  //~ }
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
-  if (_bcLType.compare("symm_fault")==0) {
-    VecScale(slip,2.0);
-  }
+  VecScale(slip,_faultTypeScale);
   ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
   _varEx["slip"] = slip;
 
@@ -626,7 +624,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
   if (_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
@@ -777,9 +775,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   _material->computeStresses();
 
 
+
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
+
+
+  ierr = io_initiateWriteAppend(_viewers, "SS_uSS0", _material->_u, _outputDir + "SS_uSS0"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "SS_sxySS", sxy, _outputDir + "SS_sxySS"); CHKERRQ(ierr);
+
   //~ ierr = _fault->setTauQS(sxy); CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -827,6 +831,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
     VecDestroy(&temp);
   }
 
+   ierr = io_initiateWriteAppend(_viewers, "SS_uSS1", _material->_u, _outputDir + "SS_uSS1"); CHKERRQ(ierr);
+
+
   // extract R boundary from u, to set _material->bcR
   VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
@@ -837,22 +844,25 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
 
-  if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
-  else {
-    Vec slip;
-    VecDuplicate(_material->_bcL,&slip);
-    VecCopy(uL,slip);
-    _varEx["slip"] = slip;
-  }
+  ierr = io_initiateWriteAppend(_viewers, "SS_uL", uL, _outputDir + "SS_uL"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "SS_bcRShift", _material->_bcRShift, _outputDir + "SS_bcRShift"); CHKERRQ(ierr);
 
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
-    VecCopy(uL,_material->_bcL);
-  }
-  if (_bcLType.compare("symm_fault")==0) {
-    VecScale(_varEx["slip"],2.0);
-  }
+  //~ if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
+  //~ else {
+    //~ Vec slip;
+    //~ VecDuplicate(_material->_bcL,&slip);
+    //~ VecCopy(uL,slip);
+    //~ _varEx["slip"] = slip;
+  //~ }
+  VecCopy(uL,_varEx["slip"]);
+  //~ VecScale(_varEx["slip"],_faultTypeScale);
+  VecScale(_varEx["slip"],2.0);
+
+  VecCopy(uL,_material->_bcL);
 
   VecDestroy(&uL);
+
+  ierr = io_initiateWriteAppend(_viewers, "SS_slip0", _varEx["slip"], _outputDir + "SS_slip0"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

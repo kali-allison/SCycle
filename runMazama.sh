@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N qd_le
-#PBS -l nodes=2:ppn=24
+#PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
