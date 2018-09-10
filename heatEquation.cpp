@@ -6,7 +6,7 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Nz_lab(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_Lz_lab(D._Lz),_dy(D._dq),_dz(D._dr),_y(NULL),_z(NULL),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(NULL),_z(NULL),
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(D._loadICs),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _kFile("unspecified"),

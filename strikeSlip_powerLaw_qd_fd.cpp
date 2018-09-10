@@ -677,7 +677,7 @@ double startTime = MPI_Wtime();
   else { if(checkSwitchRegime(_fault_qd)){ stopIntegration = 1; } }
 
   #if VERBOSE > 0
-    double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
+    //~ double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
     std::string regime = "quasidynamic";
     if(_inDynamic){ regime = "fully dynamic"; }
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s\n",stepCount,_currTime,_deltaT,regime.c_str());CHKERRQ(ierr);

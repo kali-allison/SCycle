@@ -917,7 +917,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,V
   return ierr;
 }
 
-PetscErrorCode SbpOps_fc_coordTrans::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; }
+PetscErrorCode SbpOps_fc_coordTrans::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; return 0; }
 
 PetscErrorCode SbpOps_fc_coordTrans::getA(Mat &mat) { mat = _A; return 0; }
 PetscErrorCode SbpOps_fc_coordTrans::getH(Mat &mat) { mat = _H; return 0; }

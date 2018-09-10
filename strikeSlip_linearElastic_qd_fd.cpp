@@ -15,17 +15,16 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _cycleCount(0),_maxNumCycles(1e3),
   _deltaT(-1), _CFL(-1),
   _y(&D._y),_z(&D._z),
-  _Fhat(NULL),
+  _Fhat(NULL),_inDynamic(false),_allowed(false),
+  _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(10),_stride2D(10),
   _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),_stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
   _maxStepCount(1e8),
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
-  _inDynamic(false),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
@@ -1589,8 +1588,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   if (_thermalCoupling.compare("no")!=0) {
     Vec V = _fault_fd->_slipVel;
     Vec tau = _fault_fd->_tauP;
-    Vec gVxy_t = NULL;
-    Vec gVxz_t = NULL;
+    //~ Vec gVxy_t = NULL;
+    //~ Vec gVxz_t = NULL;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
     ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);

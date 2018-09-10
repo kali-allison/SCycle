@@ -1188,7 +1188,7 @@ PetscErrorCode Fault_fd::computeVel()
   VecRestoreArray(_slipVel,&slipVel);
   VecRestoreArray(_locked, &locked);
 
-  _computeVelTime = MPI_Wtime();
+  _computeVelTime = MPI_Wtime() - startTime;
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1326,7 +1326,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT,
 
   PetscInt       Ii,Istart,Iend;
   PetscScalar   *u, *uPrev, *slip, *slipVel; // changed in this loop
-  const PetscScalar    *slipPrev, *rho, *sNEff, *a, *an, *Phi, *psi, *alphay; // constant in this loop
+  const PetscScalar  *rho, *sNEff, *a, *an, *Phi, *psi, *alphay; // constant in this loop
   ierr = VecGetOwnershipRange(_u,&Istart,&Iend); CHKERRQ(ierr);
   ierr = VecGetArray(_u, &u);
   ierr = VecGetArray(_uPrev, &uPrev);
@@ -1538,8 +1538,8 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
 ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b,
     PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_b(b),_slipVel(slipVel),_psiNext(psiNext),_psi(psi),
-_psiPrev(psiPrev), _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
+: _Dc(Dc),_b(b),_slipVel(slipVel),_psi(psi),_psiPrev(psiPrev),_psiNext(psiNext),
+ _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
 PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
@@ -1554,7 +1554,7 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
   BracketedNewton rootFinder(maxNumIts,rootTol);
   //~ Bisect rootFinder(maxNumIts,rootTol);
 
-  PetscScalar left, right, out, temp;
+  PetscScalar left, right, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
     left = -2.;
@@ -1628,7 +1628,7 @@ PetscErrorCode ComputeAging_fd::getResid(const PetscInt Jj,const PetscScalar sta
 ComputeSlipLaw_fd::ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,const PetscScalar* b,
     PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev,const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
-: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_psiNext(psiNext),_psi(psi), _psiPrev(psiPrev),
+: _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),_psi(psi),_psiPrev(psiPrev),_psiNext(psiNext),
   _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)
 { }
 
@@ -1643,7 +1643,7 @@ PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt
   // RegulaFalsi rootFinder(maxNumIts,rootTol);
   BracketedNewton rootFinder(maxNumIts,rootTol);
   // Bisect rootFinder(maxNumIts,rootTol);
-  PetscScalar left, right, out, temp;
+  PetscScalar left, right, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
     left = -2.;
@@ -1728,7 +1728,7 @@ ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScala
     PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),
-  _Vw(Vw),_psiNext(psiNext),_psi(psi),_psiPrev(psiPrev),
+  _Vw(Vw),_psi(psi),_psiPrev(psiPrev),_psiNext(psiNext),
   _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
 { }
 
@@ -1743,7 +1743,7 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
   // RegulaFalsi rootFinder(maxNumIts,rootTol);
   BracketedNewton rootFinder(maxNumIts,rootTol);
   // Bisect rootFinder(maxNumIts,rootTol);
-  PetscScalar left, right, out, temp;
+  PetscScalar left, right, temp;
   for (PetscInt Jj = 0; Jj<_N; Jj++) {
 
     left = -2.;

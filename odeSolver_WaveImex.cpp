@@ -25,6 +25,7 @@ PetscErrorCode OdeSolver_WaveEq_Imex::setInitialStepCount(const PetscReal stepCo
 {
   _stepCount = stepCount;
   _maxNumSteps = stepCount + _maxNumSteps;
+  return 0;
 }
 
 

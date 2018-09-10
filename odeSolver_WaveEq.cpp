@@ -41,6 +41,7 @@ PetscErrorCode OdeSolver_WaveEq::setInitialStepCount(const PetscReal stepCount)
 {
   _stepCount = stepCount;
   _maxNumSteps = stepCount + _maxNumSteps;
+  return 0;
 }
 
 PetscErrorCode OdeSolver_WaveEq::setTimeRange(const PetscReal initT,const PetscReal finalT)

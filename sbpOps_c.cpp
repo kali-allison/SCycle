@@ -787,7 +787,7 @@ PetscErrorCode SbpOps_c::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &bcB)
   return ierr;
 }
 
-PetscErrorCode SbpOps_c::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; }
+PetscErrorCode SbpOps_c::geth11(PetscScalar &h11y, PetscScalar &h11z) { h11y = _h11y; h11z = _h11z; return 0; }
 
 PetscErrorCode SbpOps_c::getA(Mat &mat) { mat = _A; return 0; }
 PetscErrorCode SbpOps_c::getH(Mat &mat) { mat = _H; return 0; }
