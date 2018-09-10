@@ -242,7 +242,9 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
       string str = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_TDepths);
       assert(_TDepths.size() >= 2);
-      _Lz_lab = _TDepths[1];
+      //~ if (_TDepths.size() > 2) {
+        _Lz_lab = _TDepths[1];
+      //~ }
     }
 
 
@@ -313,8 +315,9 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
     VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
     VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT_abs, INSERT_VALUES, SCATTER_FORWARD);
 
-    VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
+    // this scatter is incorrect
+    //~ VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
+    //~ VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB_abs, INSERT_VALUES, SCATTER_FORWARD);
   }
 
   // load T
@@ -628,8 +631,8 @@ PetscErrorCode HeatEquation::constructMapV()
   MatCreate(PETSC_COMM_WORLD,&_MapV);
   MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz_lab,_Nz_lab);
   MatSetFromOptions(_MapV);
-  MatMPIAIJSetPreallocation(_MapV,_Nz_lab,NULL,_Nz_lab,NULL);
-  MatSeqAIJSetPreallocation(_MapV,_Ny*_Nz_lab,NULL);
+  MatMPIAIJSetPreallocation(_MapV,1,NULL,1,NULL);
+  MatSeqAIJSetPreallocation(_MapV,1,NULL);
   MatSetUp(_MapV);
 
   PetscScalar v=1.0;
@@ -1681,12 +1684,12 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
     CHKERRQ(ierr);
   #endif
 
-    // compute q = tau * slipVel
-    Vec q; VecDuplicate(tau,&q);
-    VecPointwiseMult(q,tau,slipVel);
-    VecScatterBegin(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
-    VecDestroy(&q);
+  // compute q = tau * slipVel
+  Vec q; VecDuplicate(tau,&q);
+  VecPointwiseMult(q,tau,slipVel);
+  VecScatterBegin(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
+  VecDestroy(&q);
 
   // if left boundary condition is heat flux: q = bcL = tau*slipVel/2
   if (_wMax == 0) {
@@ -2007,7 +2010,7 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"Nz_lab = %i\n",_Nz_lab);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"Lz_lab = %i\n",_Lz_lab);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"Lz_lab = %g\n",_Lz_lab);CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"TVals = %s\n",vector2str(_TVals).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"TDepths = %s\n",vector2str(_TDepths).c_str());CHKERRQ(ierr);
@@ -2019,6 +2022,7 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

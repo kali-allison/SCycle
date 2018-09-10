@@ -27,7 +27,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
   _quadEx(NULL),_quadImex(NULL),
   _fault_qd(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e4),
+  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-6),_maxSSIts_effVisc(50),_maxSSIts_tau(75),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -632,6 +632,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::timeMonitor(const PetscScalar time,con
   #endif
 double startTime = MPI_Wtime();
 
+  if (_stepCount == stepCount && _stepCount != 0) { return ierr; } // don't write out the same step twice
   _stepCount = stepCount;
   _deltaT = deltaT;
   _currTime = time;
@@ -1105,6 +1106,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip);
   VecCopy(_fault_qd->_slip,      _fault_fd->_slip0);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);
+  VecCopy(_fault_qd->_tauP,      _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_strength,  _fault_fd->_strength);

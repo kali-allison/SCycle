@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
-  _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e5),
+  _fss_T(0.15),_fss_EffVisc(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tau(50),_maxSSIts_timesteps(2e5),
   _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
@@ -426,7 +426,7 @@ double startTime = MPI_Wtime();
     //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     //~ PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
     //~ if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
-    if (time >= 5e10) { stopIntegration = 1; }
+    if (time >= 1e11) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -816,7 +816,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   // initial guess for (thermo)mechanical problem
   solveSS();
   Vec T; VecDuplicate(_varSS["effVisc"],&T); _varSS["Temp"] = T; _he->getTemp(_varSS["Temp"]);
-  if (_thermalCoupling.compare("coupled")==0) {
+  if (_thermalCoupling.compare("coupled")==0 && _he->_loadICs==0) {
     _material->getStresses(sxy,sxz,sdev);
     _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
     _material->updateTemperature(_varSS["Temp"]);
@@ -939,9 +939,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
   _varSS["tau"] = tauSS;
   _material->initiateVarSS(_varSS);
   //~ _fault->initiateVarSS(_varSS);
+  ierr = loadVecFromInputFile(_fault->_slipVel,_inputDir,"VSS"); CHKERRQ(ierr);
   _varSS["slipVel"] = _fault->_slipVel;
   VecCopy(_varSS["tau"],_fault->_tauQSP);
   VecCopy(_varSS["tau"],_fault->_tauP);
+  _fault->computeVel();
 
   VecDestroy(&tauRS);
   VecDestroy(&tauVisc);
@@ -1050,6 +1052,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Temp", _varSS["Temp"], outputDir + "SS_Temp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "kTz", _he->_kTz, outputDir + "SS_kTz"); CHKERRQ(ierr);
+
+    ierr = io_initiateWriteAppend(_viewers, "he_Qfric", _he->_Qfric, outputDir + "SS_Qfric"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_Qvisc", _he->_Qvisc, outputDir + "SS_Qvisc"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_Q", _he->_Q, outputDir + "SS_Q"); CHKERRQ(ierr);
+
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
@@ -1067,6 +1077,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     if (_thermalCoupling.compare("coupled")==0) {
       ierr = VecView(_varSS["Temp"],_viewers["Temp"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
+
+      ierr = VecView(_he->_Qfric,_viewers["he_Qfric"].first); CHKERRQ(ierr);
+      ierr = VecView(_he->_Qvisc,_viewers["he_Qvisc"].first); CHKERRQ(ierr);
+      ierr = VecView(_he->_Q,_viewers["he_Q"].first); CHKERRQ(ierr);
+
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
     }
   }
 

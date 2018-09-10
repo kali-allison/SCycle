@@ -1,22 +1,19 @@
 #!/bin/bash
-#PBS -N qd_le
+#PBS -N SScs
 #PBS -l nodes=1:ppn=24
 #PBS -q tgp
 #PBS -V
 #PBS -m n
 #PBS -k oe
-#PBS -e /data/dunham/kallison/scycle/outFiles/qd_le.err
-#PBS -o /data/dunham/kallison/scycle/outFiles/qd_le.out
+#PBS -e /data/dunham/kallison/scycle/outFiles/SScs.err
+#PBS -o /data/dunham/kallison/scycle/outFiles/SScs.out
 
 EXEC_DIR=/data/dunham/kallison/scycle
-INIT_DIR=/data/dunham/kallison/scycle/in
+INIT_DIR=/data/dunham/kallison/scycle/tempIn
 cd $PBS_O_WORKDIR
 
-#~ mpirun $EXEC_DIR/main $INIT_DIR/he_ssits.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/he_eqs.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/qdfdcycles.in
-mpirun $EXEC_DIR/main $INIT_DIR/testQD.in
-#~ mpirun $EXEC_DIR/main $INIT_DIR/qdSS.in
+mpirun $EXEC_DIR/main $INIT_DIR/SScs_Lz60_zlab60_l0.8_w10.in
+#~ mpirun $EXEC_DIR/main $INIT_DIR/testSS.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/quasidynamic.in
 #~ mpirun $EXEC_DIR/main $INIT_DIR/singleDynamicRupture.in
 

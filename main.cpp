@@ -71,6 +71,88 @@ for(PetscInt Ny=11;Ny<82;Ny=(Ny-1)*2+1)
   return ierr;
 }
 
+int computeGreensFunction(const char * inputFile)
+{
+  PetscErrorCode ierr = 0;
+
+  Domain d(inputFile);
+  d.write();
+  //~ _sbp = new SbpOps_fc_coordTrans(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
+  LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
+  //~ std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype
+  //~ StrikeSlip_LinearElastic_qd le(d);
+
+  // set up boundaries
+  VecSet(le._bcT,0.0);
+  VecSet(le._bcB,0.0);
+  VecSet(le._bcR,0.0);
+
+  // prepare matrix to hold greens function
+  Mat G;
+  MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Nz,NULL,&G);
+  MatSetUp(G);
+
+  PetscInt *rows,*cols;
+  PetscMalloc1(d._Ny,&rows);
+  PetscMalloc1(d._Ny,&cols);
+  PetscScalar *si;
+
+  // loop over elements of bcL and compute corresponding entry of G
+  PetscScalar v = 1.0;
+  PetscInt Istart,Iend;
+  VecGetOwnershipRange(le._bcL,&Istart,&Iend);
+  for(PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    VecSet(le._bcL,0.0);
+    VecSetValue(le._bcL,Ii,v,INSERT_VALUES);
+
+    // solve for displacement
+    ierr = le._sbp->setRhs(le._rhs,le._bcL,le._bcR,le._bcT,le._bcB);CHKERRQ(ierr);
+    ierr = KSPSolve(le._ksp,le._rhs,le._u);CHKERRQ(ierr);
+    ierr = le.setSurfDisp();
+
+    // assign values to G
+    //~ _surfDisp
+    VecGetArray(le._surfDisp,&si);
+    for(PetscInt ind=0;ind<d._Ny;ind++) { rows[ind]=ind; }
+    for(PetscInt ind=0;ind<d._Ny;ind++) { cols[ind]=Ii; }
+    MatSetValues(G,d._Ny,rows,1,&Ii,si,INSERT_VALUES);
+    MatAssemblyBegin(G,MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(G,MAT_FINAL_ASSEMBLY);
+    VecRestoreArray(le._bcL,&si);
+  }
+
+  // output greens function
+  std::string str;
+
+  str =  d._outputDir + "G";
+  writeMat(G,str.c_str());
+
+
+
+  // output testing stuff
+  VecSet(le._bcL,0.0);
+  VecSet(le._bcR,5.0);
+  for(PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    v = ((PetscScalar) Ii+1)/((PetscScalar) d._Nz);
+    //~ if (Ii == 0) { v=1.0; } else { v=0.0; }
+    VecSetValue(le._bcL,Ii,v,INSERT_VALUES);
+  }
+  // solve for displacement
+  ierr = le._sbp->setRhs(le._rhs,le._bcL,le._bcR,le._bcT,le._bcB);CHKERRQ(ierr);
+  ierr = KSPSolve(le._ksp,le._rhs,le._u);CHKERRQ(ierr);
+  ierr = le.setSurfDisp();
+  //~ VecView(le._bcL,PETSC_VIEWER_STDOUT_WORLD);
+
+  str =  d._outputDir + "bcL";
+  writeVec(le._bcL,str.c_str());
+
+  str =  d._outputDir + "surfDisp";
+  writeVec(le._surfDisp,str.c_str());
+
+
+  MatDestroy(&G);
+  return ierr;
+}
 
 int runEqCycle(Domain& d)
 {
