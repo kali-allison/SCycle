@@ -8,7 +8,7 @@
 #PBS -e /data/dunham/kallison/scycle/outFiles/SScs.err
 #PBS -o /data/dunham/kallison/scycle/outFiles/SScs.out
 
-EXEC_DIR=/data/dunham/kallison/scycle
+EXEC_DIR=/data/dunham/kallison/scycle/source
 INIT_DIR=/data/dunham/kallison/scycle/tempIn
 cd $PBS_O_WORKDIR
 

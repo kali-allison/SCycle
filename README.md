@@ -1,9 +1,10 @@
 # README #
 
-### What is this repository for? ###
-
 * Scyle is a parallelized code that simulates earthquake cycles.
 * [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+
+
+Please see scycle-manual.pdf for more information, including example files.
 
 ### How do I get set up? ###
 
@@ -16,7 +17,7 @@
 
 ### Input Parameters ###
 
-* The input file does not use base SI units! 
+* The input file does not use base SI units!
 
 - Fluid diffusion equation
 
