@@ -59,13 +59,13 @@ private:
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     PetscInt             _cycleCount,_maxNumCycles;
     PetscScalar          _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
     Vec                 *_y,*_z;
     Vec                  _ay;
-    Vec                  _Fhat;
     Vec                  _alphay;
     bool                 _inDynamic,_allowed;
     PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_fd, _limit_stride_fd;
@@ -94,6 +94,9 @@ private:
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
+    // forcing term for ice stream problem
+    Vec _forcingTerm;
+
     // for mapping from body fields to the fault
     VecScatter* _body2fault;
 
@@ -112,6 +115,7 @@ private:
     PetscErrorCode parseBCs(); // parse boundary conditions
     PetscErrorCode computeTimeStep();
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
+    PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
   public:
     OdeSolver                 *_quadEx_qd; // explicit time stepping

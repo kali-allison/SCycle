@@ -56,6 +56,7 @@ private:
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // time stepping data
@@ -78,6 +79,9 @@ private:
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
 
+    // forcing term for ice stream problem
+    Vec _forcingTerm;
+
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
@@ -91,6 +95,7 @@ private:
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
+    PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
     // for mapping from body fields to the fault
     VecScatter* _body2fault;

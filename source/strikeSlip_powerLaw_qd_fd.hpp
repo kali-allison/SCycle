@@ -62,6 +62,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
+    std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     PetscInt             _cycleCount,_maxNumCycles;
@@ -95,6 +96,9 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
 
+    // forcing term for ice stream problem
+    Vec _forcingTerm;
+
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
@@ -126,6 +130,7 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscErrorCode parseBCs(); // parse boundary conditions
     PetscErrorCode computeTimeStep();
     PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
+    PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
     // estimating steady state conditions
     // viewers:

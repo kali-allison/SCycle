@@ -11,7 +11,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
+  _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
   _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
   _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),_u0(NULL),
@@ -64,6 +64,10 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
 
   computePenaltyVectors();
   computeTimeStep(); // compute fully dynamic time step
+
+  // body forcing term for ice stream
+  _forcingTerm = NULL;
+  if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -125,6 +129,7 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
   VecDestroy(&_varSS["gVxz_t"]);
   VecDestroy(&_varSS["tau"]);
   VecDestroy(&_varSS["v"]);
+  VecDestroy(&_forcingTerm);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -165,6 +170,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
 
     else if (var.compare("guessSteadyStateICs")==0) {
       _guessSteadyStateICs = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("forcingType")==0) {
+      _forcingType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     // for steady state iteration
@@ -276,6 +285,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   assert(_hydraulicCoupling.compare("coupled")==0 ||
       _hydraulicCoupling.compare("uncoupled")==0 ||
       _hydraulicCoupling.compare("no")==0 );
+
+  assert(_forcingType.compare("iceStream")==0 || _forcingType.compare("no")==0 );
 
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
@@ -828,6 +839,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
     _p->writeContext(_outputDir);
   }
 
+  if (_forcingType.compare("iceStream")==0) {
+    ierr = writeVec(_forcingTerm,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
+  }
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1200,15 +1215,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update fields based on varEx
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+  if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _material->updateFields(time,varEx);
   _fault_qd->updateFields(time,varEx);
@@ -1258,15 +1272,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  else if (_qd_bcLType.compare("rigid_fault")==0) {
-    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+  if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/2.0);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
 
   _material->updateFields(time,varEx);
   _fault_qd->updateFields(time,varEx);
@@ -1364,12 +1377,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = -eta_rad*slipVel + tauQSP
 
 
+  // update boundary conditions so they are consistent during output
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
 
   // explicitly integrate heat equation using forward Euler
   if (_thermalCoupling.compare("no")!=0) {
@@ -1431,26 +1447,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = -eta_rad*slipVel + tauQSP
 
 
+  // update boundary conditions so they are consistent during output
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
-  ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  if (_qd_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
 
 
-    // put implicitly integrated variables here
-  //~ if (varIm.find("Temp") != varIm.end()) {
-    //~ Vec sxy,sxz,sdev;
-    //~ _material->getStresses(sxy,sxz,sdev);
-    //~ Vec V = _fault_fd->_slipVel;
-    //~ Vec tau = _fault_fd->_tauP;
-    //~ Vec gVxy_t = NULL;
-    //~ Vec gVxz_t = NULL;
-    //~ Vec Told = varImPrev.find("Temp")->second;
-    //~ ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
-    //~ // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
-  //~ }
+  // put implicitly integrated variables here
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1479,6 +1487,26 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   _material->setRHS();
   ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
   VecDestroy(&viscSource);
+
+  if (_forcingType.compare("iceStream")==0) {
+    // add source term for driving the ice stream to rhs Vec
+
+    if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+      // multiply this term by H*J (the H matrix and the Jacobian)
+      Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      ierr = MatMult(J,_forcingTerm,temp1);
+      Mat H; _material->_sbp->getH(H);
+      ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+      VecDestroy(&temp1);
+    }
+    else{ // multiply forcing term by H
+      Mat H; _material->_sbp->getH(H);
+      ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+    }
+  }
+
 
   // solve for displacement
   ierr = _material->computeU(); CHKERRQ(ierr);
@@ -1960,3 +1988,59 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computePenaltyVectors()
 }
 
 
+// constructs the body forcing term for an ice stream
+// includes allocation of memory for this forcing term
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+
+
+  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  Mat MapV;
+  MatCreate(PETSC_COMM_WORLD,&MapV);
+  MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
+  MatSetFromOptions(MapV);
+  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
+  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  MatSetUp(MapV);
+
+  PetscScalar v=1.0;
+  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  MatGetOwnershipRange(MapV,&Istart,&Iend);
+  for (Ii = Istart; Ii < Iend; Ii++) {
+    Jj = Ii % _D->_Nz;
+    MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+
+
+  // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  VecDuplicate(_fault_qd->_eta_rad,&V); VecSet(V,_vL);
+  VecDuplicate(_fault_qd->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault_qd->_eta_rad,V);
+  _fault_qd->computeTauRS(tauSS,_vL);
+  VecAXPY(tauSS,1.0,radDamp);
+  VecScale(tauSS,-1./_D->_Ly);
+
+  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  MatMult(MapV,tauSS,_forcingTerm);
+
+  MatDestroy(&MapV);
+  VecDestroy(&tauSS);
+  VecDestroy(&radDamp);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}

@@ -11,7 +11,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),_faultTypeScale(2.0),
+  _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
@@ -56,6 +56,10 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
+  // body forcing term for ice stream
+  _forcingTerm = NULL;
+  if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -98,6 +102,8 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   delete _he;          _he = NULL;
   delete _p;           _p = NULL;
 
+  VecDestroy(&_forcingTerm);
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -137,6 +143,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
 
     else if (var.compare("guessSteadyStateICs")==0) {
       _guessSteadyStateICs = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
+    }
+
+    else if (var.compare("forcingType")==0) {
+      _forcingType = line.substr(pos+_delim.length(),line.npos).c_str();
     }
 
     // time integration properties
@@ -207,6 +217,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   assert(_hydraulicCoupling.compare("coupled")==0 ||
       _hydraulicCoupling.compare("uncoupled")==0 ||
       _hydraulicCoupling.compare("no")==0 );
+
+  assert(_forcingType.compare("iceStream")==0 || _forcingType.compare("no")==0 );
 
   assert(_timeIntegrator.compare("FEuler")==0 ||
       _timeIntegrator.compare("RK32")==0 ||
@@ -544,6 +556,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
     _p->writeContext(_outputDir);
   }
 
+  if (_forcingType.compare("iceStream")==0) {
+    ierr = writeVec(_forcingTerm,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
+  }
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -743,6 +759,26 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
   _material->setRHS();
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
+  if (_forcingType.compare("iceStream")==0) {
+    // add source term for driving the ice stream to rhs Vec
+
+    if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+      // multiply this term by H*J (the H matrix and the Jacobian)
+      Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+      Mat J,Jinv,qy,rz,yq,zr;
+      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      ierr = MatMult(J,_forcingTerm,temp1);
+      Mat H; _material->_sbp->getH(H);
+      ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
+      VecDestroy(&temp1);
+    }
+    else{ // multiply forcing term by H
+      Mat H; _material->_sbp->getH(H);
+      ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
+    }
+  }
+
+
   _material->computeU();
   _material->computeStresses();
 
@@ -865,6 +901,64 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// constructs the body forcing term for an ice stream
+// includes allocation of memory for this forcing term
+PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+
+
+  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  Mat MapV;
+  MatCreate(PETSC_COMM_WORLD,&MapV);
+  MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
+  MatSetFromOptions(MapV);
+  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
+  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  MatSetUp(MapV);
+
+  PetscScalar v=1.0;
+  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  MatGetOwnershipRange(MapV,&Istart,&Iend);
+  for (Ii = Istart; Ii < Iend; Ii++) {
+    Jj = Ii % _D->_Nz;
+    MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  }
+  MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+
+
+  // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
+  VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  _fault->computeTauRS(tauSS,_vL);
+  VecAXPY(tauSS,1.0,radDamp);
+  VecScale(tauSS,-1./_D->_Ly);
+
+  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  MatMult(MapV,tauSS,_forcingTerm);
+
+  MatDestroy(&MapV);
+  VecDestroy(&tauSS);
+  VecDestroy(&radDamp);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }

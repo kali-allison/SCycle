@@ -161,8 +161,9 @@ int runEqCycle(Domain& d)
   //~ Domain d(inputFile);
   d.write();
 
-  // solving linear elastic, quasi-dynamic simulation with a vertical strike-slip fault
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
+  // quasi-dynamic earthquake cycle simulation
+  // with a vertical strike-slip fault, and linear elastic off-fault material
+  if (d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
     StrikeSlip_LinearElastic_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
@@ -170,8 +171,9 @@ int runEqCycle(Domain& d)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  // solving linear elastic, dynamic simulation with a vertical strike-slip fault
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("dynamic")==0) {
+  // single dynamic earthquake simulation
+  // with a vertical strike-slip fault, and linear elastic off-fault material
+  if (d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("dynamic")==0) {
     strikeSlip_linearElastic_fd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
@@ -179,24 +181,9 @@ int runEqCycle(Domain& d)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
-    strikeSlip_linearElastic_qd_fd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = m.integrate(); CHKERRQ(ierr);
-    ierr = m.view();CHKERRQ(ierr);
-  }
-
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
-    StrikeSlip_PowerLaw_qd_fd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = m.integrate(); CHKERRQ(ierr);
-    ierr = m.view();CHKERRQ(ierr);
-  }
-
-  // solving viscoelastic, quasi-dynamic simulation with a vertical strike-slip fault
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
+  // quasi-dynamic earthquake cycle simulation
+  // with a vertical strike-slip fault, and power-law viscoelastic off-fault material
+  if (d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
     StrikeSlip_PowerLaw_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
@@ -205,7 +192,7 @@ int runEqCycle(Domain& d)
   }
 
   // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault
-  if (d._problemType.compare("strikeSlip")==0 && d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("steadyStateIts")==0) {
+  if (d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("steadyStateIts")==0) {
     StrikeSlip_PowerLaw_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
@@ -213,9 +200,20 @@ int runEqCycle(Domain& d)
     ierr = m.view();CHKERRQ(ierr);
   }
 
-  // solving linear elastic, quasi-dynamic simulation for an ice stream
-  if (d._problemType.compare("iceStream")==0 && d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic")==0) {
-    IceStream_LinearElastic_qd m(d);
+  // earthquake cycle simulation, with fully dynamic earthquakes and quasi-dynamic interseismic periods
+  // with a vertical strike-slip fault, and linear elastic off-fault material
+  if (d._bulkDeformationType.compare("linearElastic")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
+    strikeSlip_linearElastic_qd_fd m(d);
+    ierr = m.writeContext(); CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    ierr = m.integrate(); CHKERRQ(ierr);
+    ierr = m.view();CHKERRQ(ierr);
+  }
+
+  // earthquake cycle simulation, with fully dynamic earthquakes and quasi-dynamic interseismic periods
+  // with a vertical strike-slip fault, and viscoelastic off-fault material
+  if (d._bulkDeformationType.compare("powerLaw")==0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic")==0) {
+    StrikeSlip_PowerLaw_qd_fd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);

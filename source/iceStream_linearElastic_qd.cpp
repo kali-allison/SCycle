@@ -545,7 +545,6 @@ PetscErrorCode IceStream_LinearElastic_qd::d_dt(const PetscScalar time,const map
   if (_bcLType.compare("symm_fault")==0) {
     ierr = VecScale(_material->_bcL,0.5);CHKERRQ(ierr);
   }
-  //~ ierr = VecSet(_material->_bcR,_vL*time);CHKERRQ(ierr);
 
   _fault->updateFields(time,varEx);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
