@@ -84,7 +84,7 @@ private:
 
 
     // boundary conditions
-    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
+    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
     string              _bcRType,_bcTType,_bcLType,_bcBType;
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 

@@ -37,7 +37,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 
   // determine if material is symmetric about the fault, or if one side is rigid
   _faultTypeScale = 2.0;
-  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+  if (_bcLType.compare("rigidFault")==0 ) { _faultTypeScale = 1.0; }
 
   _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault

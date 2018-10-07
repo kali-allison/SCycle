@@ -11,7 +11,7 @@ OBJECTS := domain.o fault.o genFuncs.o\
  linearElastic.o powerLaw.o heatEquation.o \
  spmat.o sbpOps_c.o sbpOps_fc.o sbpOps_sc.o  sbpOps_fc_coordTrans.o \
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
- strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o powerLaw.o iceStream_linearElastic_qd.o \
+ strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o powerLaw.o \
  strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
 
 

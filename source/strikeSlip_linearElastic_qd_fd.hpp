@@ -101,7 +101,7 @@ private:
     VecScatter* _body2fault;
 
     // boundary conditions
-    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symm_fault, rigid_fault
+    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
     string              _qd_bcRType,_qd_bcTType,_qd_bcLType,_qd_bcBType;
     string              _fd_bcRType,_fd_bcTType,_fd_bcLType,_fd_bcBType;
     string              _mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType;

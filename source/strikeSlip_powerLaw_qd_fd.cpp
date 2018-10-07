@@ -22,7 +22,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),
-  _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symm_fault"),_qd_bcBType("freeSurface"),
+  _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
   _quadEx(NULL),_quadImex(NULL),
@@ -313,29 +313,29 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
     _qd_bcRType.compare("freeSurface")==0 ||
     _qd_bcRType.compare("tau")==0 ||
     _qd_bcRType.compare("remoteLoading")==0 ||
-    _qd_bcRType.compare("symm_fault")==0 ||
-    _qd_bcRType.compare("rigid_fault")==0 );
+    _qd_bcRType.compare("symmFault")==0 ||
+    _qd_bcRType.compare("rigidFault")==0 );
 
   assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
     _qd_bcTType.compare("freeSurface")==0 ||
     _qd_bcTType.compare("tau")==0 ||
     _qd_bcTType.compare("remoteLoading")==0 ||
-    _qd_bcTType.compare("symm_fault")==0 ||
-    _qd_bcTType.compare("rigid_fault")==0 );
+    _qd_bcTType.compare("symmFault")==0 ||
+    _qd_bcTType.compare("rigidFault")==0 );
 
   assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
     _qd_bcLType.compare("freeSurface")==0 ||
     _qd_bcLType.compare("tau")==0 ||
     _qd_bcLType.compare("remoteLoading")==0 ||
-    _qd_bcLType.compare("symm_fault")==0 ||
-    _qd_bcLType.compare("rigid_fault")==0 );
+    _qd_bcLType.compare("symmFault")==0 ||
+    _qd_bcLType.compare("rigidFault")==0 );
 
   assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
     _qd_bcBType.compare("freeSurface")==0 ||
     _qd_bcBType.compare("tau")==0 ||
     _qd_bcBType.compare("remoteLoading")==0 ||
-    _qd_bcBType.compare("symm_fault")==0 ||
-    _qd_bcBType.compare("rigid_fault")==0 );
+    _qd_bcBType.compare("symmFault")==0 ||
+    _qd_bcBType.compare("rigidFault")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);
@@ -357,28 +357,28 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_qd_bcRType.compare("symm_fault")==0 || _qd_bcRType.compare("rigid_fault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
+  if (_qd_bcRType.compare("symmFault")==0 || _qd_bcRType.compare("rigidFault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
     _mat_qd_bcRType = "Dirichlet";
   }
   else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("tau")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcRType = "Neumann";
   }
 
-  if (_qd_bcTType.compare("symm_fault")==0 || _qd_bcTType.compare("rigid_fault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
+  if (_qd_bcTType.compare("symmFault")==0 || _qd_bcTType.compare("rigidFault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
     _mat_qd_bcTType = "Dirichlet";
   }
   else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("tau")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcTType = "Neumann";
   }
 
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
     _mat_qd_bcLType = "Dirichlet";
   }
   else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("tau")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcLType = "Neumann";
   }
 
-  if (_qd_bcBType.compare("symm_fault")==0 || _qd_bcBType.compare("rigid_fault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
+  if (_qd_bcBType.compare("symmFault")==0 || _qd_bcBType.compare("rigidFault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
     _mat_qd_bcBType = "Dirichlet";
   }
   else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("tau")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
@@ -387,7 +387,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
 
   // determine if material is symmetric about the fault, or if one side is rigid
   _faultTypeScale = 2.0;
-  if (_qd_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+  if (_qd_bcLType.compare("rigidFault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1215,7 +1215,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update fields based on varEx
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
@@ -1246,7 +1246,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if (_hydraulicCoupling.compare("coupled")==0) { _fault_qd->setSNEff(_p->_p); }
 
   // rates for fault
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
@@ -1272,7 +1272,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
@@ -1313,7 +1313,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
@@ -1378,7 +1378,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
 
 
   // update boundary conditions so they are consistent during output
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
@@ -1448,7 +1448,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
 
 
   // update boundary conditions so they are consistent during output
-  if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
@@ -1915,7 +1915,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::setSSBCs()
     VecCopy(uL,slip);
     _varQSEx["slip"] = slip;
   }
-  if (_qd_bcLType.compare("symm_fault")==0) {
+  if (_qd_bcLType.compare("symmFault")==0) {
     VecScale(_varQSEx["slip"],2.);
   }
 

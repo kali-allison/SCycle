@@ -19,7 +19,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
-  _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symm_fault"),_bcBType("freeSurface"),
+  _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
 {
@@ -252,29 +252,29 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _bcRType.compare("freeSurface")==0 ||
     _bcRType.compare("tau")==0 ||
     _bcRType.compare("remoteLoading")==0 ||
-    _bcRType.compare("symm_fault")==0 ||
-    _bcRType.compare("rigid_fault")==0 );
+    _bcRType.compare("symmFault")==0 ||
+    _bcRType.compare("rigidFault")==0 );
 
   assert(_bcLType.compare("outGoingCharacteristics")==0 ||
     _bcTType.compare("freeSurface")==0 ||
     _bcTType.compare("tau")==0 ||
     _bcTType.compare("remoteLoading")==0 ||
-    _bcTType.compare("symm_fault")==0 ||
-    _bcTType.compare("rigid_fault")==0 );
+    _bcTType.compare("symmFault")==0 ||
+    _bcTType.compare("rigidFault")==0 );
 
   assert(_bcLType.compare("outGoingCharacteristics")==0 ||
     _bcLType.compare("freeSurface")==0 ||
     _bcLType.compare("tau")==0 ||
     _bcLType.compare("remoteLoading")==0 ||
-    _bcLType.compare("symm_fault")==0 ||
-    _bcLType.compare("rigid_fault")==0 );
+    _bcLType.compare("symmFault")==0 ||
+    _bcLType.compare("rigidFault")==0 );
 
   assert(_bcLType.compare("outGoingCharacteristics")==0 ||
     _bcBType.compare("freeSurface")==0 ||
     _bcBType.compare("tau")==0 ||
     _bcBType.compare("remoteLoading")==0 ||
-    _bcBType.compare("symm_fault")==0 ||
-    _bcBType.compare("rigid_fault")==0 );
+    _bcBType.compare("symmFault")==0 ||
+    _bcBType.compare("rigidFault")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);
@@ -297,28 +297,28 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::parseBCs()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_bcRType.compare("symm_fault")==0 || _bcRType.compare("rigid_fault")==0 || _bcRType.compare("remoteLoading")==0) {
+  if (_bcRType.compare("symmFault")==0 || _bcRType.compare("rigidFault")==0 || _bcRType.compare("remoteLoading")==0) {
     _mat_bcRType = "Dirichlet";
   }
   else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
     _mat_bcRType = "Neumann";
   }
 
-  if (_bcTType.compare("symm_fault")==0 || _bcTType.compare("rigid_fault")==0 || _bcTType.compare("remoteLoading")==0) {
+  if (_bcTType.compare("symmFault")==0 || _bcTType.compare("rigidFault")==0 || _bcTType.compare("remoteLoading")==0) {
     _mat_bcTType = "Dirichlet";
   }
   else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
     _mat_bcTType = "Neumann";
   }
 
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0 || _bcLType.compare("remoteLoading")==0) {
+  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0 || _bcLType.compare("remoteLoading")==0) {
     _mat_bcLType = "Dirichlet";
   }
   else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
     _mat_bcLType = "Neumann";
   }
 
-  if (_bcBType.compare("symm_fault")==0 || _bcBType.compare("rigid_fault")==0 || _bcBType.compare("remoteLoading")==0) {
+  if (_bcBType.compare("symmFault")==0 || _bcBType.compare("rigidFault")==0 || _bcBType.compare("remoteLoading")==0) {
     _mat_bcBType = "Dirichlet";
   }
   else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
@@ -327,7 +327,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::parseBCs()
 
   // determine if material is symmetric about the fault, or if one side is rigid
   _faultTypeScale = 2.0;
-  if (_bcLType.compare("rigid_fault")==0 ) { _faultTypeScale = 1.0; }
+  if (_bcLType.compare("rigidFault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -638,7 +638,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   PetscErrorCode ierr = 0;
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
@@ -690,7 +690,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symm_fault")==0 || _bcLType.compare("rigid_fault")==0) {
+  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
   }
