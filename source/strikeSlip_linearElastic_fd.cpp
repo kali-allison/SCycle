@@ -418,8 +418,8 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
-  if (_initialConditions.compare("tau")==0) { _fault->updateTau0(time); }
-  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
+  if (_initialConditions.compare("tau")==0) { _fault->updatePrestress(time); }
+  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev); CHKERRQ(ierr);
 
   // update body u from fault u
   ierr = VecScatterBegin(*_body2fault, _fault->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
@@ -429,9 +429,9 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
   _material->computeStresses();
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ _fault->setGetBody2Fault(sxy,_fault->_tauP,SCATTER_FORWARD); // update shear stress on fault
   ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  VecAXPY(_fault->_tauP, 1.0, _fault->_prestress);
   VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 

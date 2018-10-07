@@ -53,7 +53,7 @@ class Fault
     const PetscScalar  _L; // length of fault, grid spacing on fault
     Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
-    Vec          _tauQSP,_tauP,_tau0,_strength; // shear stress: quasistatic, not quasistatic, fault strength, pre-stress
+    Vec          _tauQSP,_tauP,_strength, _prestress; // shear stress: quasistatic,not qs,fault strength, prestress
     Vec          _slip,_slipVel, _slip0; // slip, slip velocity, initial slip
     Vec          _psi; // state variable
 
@@ -175,6 +175,7 @@ class Fault_fd: public Fault
     Vec                 _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
     PetscScalar         _deltaT;
     Vec                 _alphay;
+    Vec                 _tau0; // dU0/dy (stress at end of qd period)
 
     PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
     std::string         _timeMode;
@@ -194,7 +195,7 @@ class Fault_fd: public Fault
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
     PetscErrorCode setPhi(const PetscScalar _deltaT);
-    PetscErrorCode updateTau0(const PetscScalar currT);
+    PetscErrorCode updatePrestress(const PetscScalar currT);
 
 };
 

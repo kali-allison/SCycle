@@ -736,6 +736,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
   VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
   VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
+  VecCopy(_fault_qd->_prestress,  _fault_fd->_prestress);
 
   // add psi and slip to varFD
   _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
@@ -751,14 +752,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]); VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
-
-
-  // compute Fhat = A*u - rhs
-  //~ VecDuplicate(_material->_u, &_Fhat);
-  //~ MatMult(A, _material->_u, _Fhat);
-  //~ _material->setRHS();
-  //~ VecAXPY(_Fhat, -1, _material->_rhs);
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -817,7 +810,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
 
 
 
-// move from a fully dynamic phase to a quasidynamic phase
+// move from a quasidynamic phase to a fully dynamic phase
 PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
 {
   PetscErrorCode ierr = 0;
@@ -841,11 +834,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
   VecCopy(_material->_u,_varFDPrev["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
-
-  // compute Fhat
-  //~ Mat A; _material->_sbp->getA(A);
-  //~ MatMult(A, _material->_u, _Fhat);
-  //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
   // take 1 quasidynamic time step to compute variables at time n
   _inDynamic = 0;
@@ -873,6 +861,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
+  VecAXPY(_fault_fd->_tau0,1.0,_fault_fd->_prestress); // add prestress to tau0 so don't have to do this each time step
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
@@ -1451,7 +1440,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
@@ -1474,7 +1462,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // update state of each class from integrated variables varEx and varImo
+  // 1. update BCs, state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
@@ -1502,7 +1490,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     _fault_qd->setSNEff(_p->_p);
   }
 
-  // compute rates
+
+  // 2. compute rates, and update implicitly integrated variables
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
@@ -1512,7 +1501,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
@@ -1521,7 +1509,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"Computing new steady state temperature at stepCount = %i\n",_stepCount);
     Vec sxy,sxz,sdev;
     _material->getStresses(sxy,sxz,sdev);
     Vec V = dvarEx.find("slip")->second;
@@ -1554,6 +1541,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
+  // update fault
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
 
@@ -1570,11 +1558,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  // update shear stress: tau = tauQS - eta_rad * slipVel
+  VecAXPY(_fault_fd->_tauQSP, 1.0, _fault_fd->_prestress);
+  // update shear stress tauP: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
 
+  // update boundary conditions
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
@@ -1588,8 +1578,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   if (_thermalCoupling.compare("no")!=0) {
     Vec V = _fault_fd->_slipVel;
     Vec tau = _fault_fd->_tauP;
-    //~ Vec gVxy_t = NULL;
-    //~ Vec gVxz_t = NULL;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
     ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
@@ -1619,6 +1607,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
+  // update fault
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
 
@@ -1635,11 +1624,12 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  VecAXPY(_fault_fd->_tauQSP, 1.0, _fault_fd->_prestress);
   // update shear stress: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
-
+  // update boundary conditions
   if (_qd_bcLType.compare("symm_fault")==0 || _qd_bcLType.compare("rigid_fault")==0) {
     ierr = VecCopy(_fault_fd->_slip,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
@@ -1649,19 +1639,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
-    // put implicitly integrated variables here
-  //~ if (varIm.find("Temp") != varIm.end()) {
-    //~ Vec sxy,sxz,sdev;
-    //~ _material->getStresses(sxy,sxz,sdev);
-    //~ Vec V = _fault_fd->_slipVel;
-    //~ Vec tau = _fault_fd->_tauP;
-    //~ Vec gVxy_t = NULL;
-    //~ Vec gVxz_t = NULL;
-    //~ Vec Told = varImPrev.find("Temp")->second;
-    //~ ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,deltaT); CHKERRQ(ierr);
-    //~ // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
-  //~ }
+  // put implicitly integrated variables here
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
