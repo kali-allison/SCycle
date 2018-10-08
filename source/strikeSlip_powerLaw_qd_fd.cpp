@@ -426,7 +426,7 @@ bool StrikeSlip_PowerLaw_qd_fd::checkSwitchRegime(const Fault* _fault)
   }
 
   // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
-  // switching from fd to qd is allowed if maxV has ever been > limit_dyn
+  // switching from fd to qd is allowed if maxV has ever been > limit_fd
   if( _inDynamic && !_allowed && maxV > _limit_fd) { _allowed = true; }
 
   // switching from qd to fd is allowed if maxV has ever been < limit_qd
