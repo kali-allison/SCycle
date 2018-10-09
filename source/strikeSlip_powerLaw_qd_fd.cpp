@@ -309,33 +309,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   // check boundary condition types for momentum balance equation
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcRType.compare("freeSurface")==0 ||
-    _qd_bcRType.compare("tau")==0 ||
-    _qd_bcRType.compare("remoteLoading")==0 ||
-    _qd_bcRType.compare("symmFault")==0 ||
-    _qd_bcRType.compare("rigidFault")==0 );
+  assert(_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("remoteLoading")==0 );
+  assert(_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("remoteLoading")==0 );
+  assert(_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0 );
+  assert(_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("remoteLoading")==0 );
 
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcTType.compare("freeSurface")==0 ||
-    _qd_bcTType.compare("tau")==0 ||
-    _qd_bcTType.compare("remoteLoading")==0 ||
-    _qd_bcTType.compare("symmFault")==0 ||
-    _qd_bcTType.compare("rigidFault")==0 );
-
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcLType.compare("freeSurface")==0 ||
-    _qd_bcLType.compare("tau")==0 ||
-    _qd_bcLType.compare("remoteLoading")==0 ||
-    _qd_bcLType.compare("symmFault")==0 ||
-    _qd_bcLType.compare("rigidFault")==0 );
-
-  assert(_qd_bcLType.compare("outGoingCharacteristics")==0 ||
-    _qd_bcBType.compare("freeSurface")==0 ||
-    _qd_bcBType.compare("tau")==0 ||
-    _qd_bcBType.compare("remoteLoading")==0 ||
-    _qd_bcBType.compare("symmFault")==0 ||
-    _qd_bcBType.compare("rigidFault")==0 );
+  assert(_fd_bcRType.compare("freeSurface")==0 || _fd_bcRType.compare("outgoingCharacteristics")==0 );
+  assert(_fd_bcTType.compare("freeSurface")==0 || _fd_bcTType.compare("outgoingCharacteristics")==0 );
+  assert(_fd_bcLType.compare("symmFault")==0 || _fd_bcLType.compare("rigidFault")==0 );
+  assert(_fd_bcBType.compare("freeSurface")==0 || _fd_bcBType.compare("outgoingCharacteristics")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);

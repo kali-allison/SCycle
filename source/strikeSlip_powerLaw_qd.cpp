@@ -265,33 +265,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   // check boundary condition types for momentum balance equation
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcRType.compare("freeSurface")==0 ||
-    _bcRType.compare("tau")==0 ||
-    _bcRType.compare("remoteLoading")==0 ||
-    _bcRType.compare("symmFault")==0 ||
-    _bcRType.compare("rigidFault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcTType.compare("freeSurface")==0 ||
-    _bcTType.compare("tau")==0 ||
-    _bcTType.compare("remoteLoading")==0 ||
-    _bcTType.compare("symmFault")==0 ||
-    _bcTType.compare("rigidFault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcLType.compare("freeSurface")==0 ||
-    _bcLType.compare("tau")==0 ||
-    _bcLType.compare("remoteLoading")==0 ||
-    _bcLType.compare("symmFault")==0 ||
-    _bcLType.compare("rigidFault")==0 );
-
-  assert(_bcLType.compare("outGoingCharacteristics")==0 ||
-    _bcBType.compare("freeSurface")==0 ||
-    _bcBType.compare("tau")==0 ||
-    _bcBType.compare("remoteLoading")==0 ||
-    _bcBType.compare("symmFault")==0 ||
-    _bcBType.compare("rigidFault")==0 );
+  assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("remoteLoading")==0);
+  assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("remoteLoading")==0);
+  assert(_bcLType.compare("symmFault")==0   || _bcLType.compare("rigidFault")==0 );
+  assert(_bcBType.compare("freeSurface")==0 || _bcBType.compare("remoteLoading")==0);
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);
@@ -316,28 +293,28 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::parseBCs()
   if (_bcRType.compare("symmFault")==0 || _bcRType.compare("rigidFault")==0 || _bcRType.compare("remoteLoading")==0) {
     _mat_bcRType = "Dirichlet";
   }
-  else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("tau")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
+  else if (_bcRType.compare("freeSurface")==0 || _bcRType.compare("outGoingCharacteristics")==0) {
     _mat_bcRType = "Neumann";
   }
 
   if (_bcTType.compare("symmFault")==0 || _bcTType.compare("rigidFault")==0 || _bcTType.compare("remoteLoading")==0) {
     _mat_bcTType = "Dirichlet";
   }
-  else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("tau")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
+  else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
     _mat_bcTType = "Neumann";
   }
 
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0 || _bcLType.compare("remoteLoading")==0) {
     _mat_bcLType = "Dirichlet";
   }
-  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("tau")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
+  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
     _mat_bcLType = "Neumann";
   }
 
   if (_bcBType.compare("symmFault")==0 || _bcBType.compare("rigidFault")==0 || _bcBType.compare("remoteLoading")==0) {
     _mat_bcBType = "Dirichlet";
   }
-  else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("tau")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
+  else if (_bcBType.compare("freeSurface")==0 || _bcBType.compare("outGoingCharacteristics")==0) {
     _mat_bcBType = "Neumann";
   }
 
