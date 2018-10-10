@@ -22,7 +22,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _propagateTime(0),
-  _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("outGoingCharacteristics"),_bcBType("outGoingCharacteristics"),
+  _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("outGoingCharacteristics"),
   _mat_bcRType("Neumann"),_mat_bcTType("Neumann"),_mat_bcLType("Neumann"),_mat_bcBType("Neumann"),
   _quadWaveEx(NULL),
   _fault(NULL),_material(NULL)
@@ -649,10 +649,14 @@ PetscErrorCode strikeSlip_linearElastic_fd::computePenaltyVectors()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     ay[Jj] = 0;
-    if ( (Ii/_Nz == 0) && (_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
+
     if ( (Ii/_Nz == _Ny-1) && (_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
     if ( (Ii%_Nz == 0) && (_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
     if ( ((Ii+1)%_Nz == 0) && (_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+
+    if ( (Ii/_Nz == 0) && ( _bcLType.compare("outGoingCharacteristics") == 0 ||
+        _bcLType.compare("symmFault") == 0 || _bcLType.compare("rigidFault") == 0 ) )
+    { ay[Jj] += 0.5 / h11y; }
     Jj++;
   }
   VecRestoreArray(_ay,&ay);

@@ -23,7 +23,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
-  _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("outGoingCharacteristics"),_fd_bcBType("outGoingCharacteristics"),
+  _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
   _quadEx(NULL),_quadImex(NULL),
   _fault_qd(NULL),_material(NULL),_he(NULL),_p(NULL),
@@ -342,28 +342,28 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::parseBCs()
   if (_qd_bcRType.compare("symmFault")==0 || _qd_bcRType.compare("rigidFault")==0 || _qd_bcRType.compare("remoteLoading")==0) {
     _mat_qd_bcRType = "Dirichlet";
   }
-  else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("tau")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcRType = "Neumann";
   }
 
   if (_qd_bcTType.compare("symmFault")==0 || _qd_bcTType.compare("rigidFault")==0 || _qd_bcTType.compare("remoteLoading")==0) {
     _mat_qd_bcTType = "Dirichlet";
   }
-  else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("tau")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcTType = "Neumann";
   }
 
   if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0 || _qd_bcLType.compare("remoteLoading")==0) {
     _mat_qd_bcLType = "Dirichlet";
   }
-  else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("tau")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcLType.compare("freeSurface")==0 || _qd_bcLType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcLType = "Neumann";
   }
 
   if (_qd_bcBType.compare("symmFault")==0 || _qd_bcBType.compare("rigidFault")==0 || _qd_bcBType.compare("remoteLoading")==0) {
     _mat_qd_bcBType = "Dirichlet";
   }
-  else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("tau")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
+  else if (_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("outGoingCharacteristics")==0) {
     _mat_qd_bcBType = "Neumann";
   }
 
@@ -1953,10 +1953,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computePenaltyVectors()
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     ay[Jj] = 0;
-    if ( (Ii/_D->_Nz == 0) && (_fd_bcLType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
     if ( (Ii/_D->_Nz == _D->_Ny-1) && (_fd_bcRType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11y; }
     if ( (Ii%_D->_Nz == 0) && (_fd_bcTType.compare("outGoingCharacteristics") == 0 )) { ay[Jj] += 0.5 / h11z; }
     if ( ((Ii+1)%_D->_Nz == 0) && (_fd_bcBType.compare("outGoingCharacteristics") == 0) ) { ay[Jj] += 0.5 / h11z; }
+
+    if ( (Ii/_D->_Nz == 0) && ( _fd_bcLType.compare("outGoingCharacteristics") == 0 ||
+      _fd_bcLType.compare("symmFault") == 0 || _fd_bcLType.compare("rigidFault") == 0 ) )
     Jj++;
   }
   VecRestoreArray(_ay,&ay);
