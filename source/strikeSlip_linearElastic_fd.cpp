@@ -102,51 +102,51 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var;
+  string line,var,rhs;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = rhs;
+    }
 
-    if (var.compare("stride1D")==0){ _stride1D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("deltaT")==0) { _deltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("CFL")==0) { _CFL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
-    else if (var.compare("center_y")==0) { _yCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("center_z")==0) { _zCenterU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("std_y")==0) { _yStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("std_z")==0) { _zStdU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("amp_U")==0) { _ampU = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
+    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
+    else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
+    else if (var.compare("deltaT")==0) { _deltaT = atof( rhs.c_str() ); }
+    else if (var.compare("CFL")==0) { _CFL = atof( rhs.c_str() ); }
 
-    else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initialConditions")==0) { _initialConditions = line.substr(pos+_delim.length(),line.npos).c_str(); }
-    else if (var.compare("inputDir")==0) { _inputDir = line.substr(pos+_delim.length(),line.npos).c_str(); }
+    else if (var.compare("center_y")==0) { _yCenterU = atof( rhs.c_str() ); }
+    else if (var.compare("center_z")==0) { _zCenterU = atof( rhs.c_str() ); }
+    else if (var.compare("std_y")==0) { _yStdU = atof( rhs.c_str() ); }
+    else if (var.compare("std_z")==0) { _zStdU = atof( rhs.c_str() ); }
+    else if (var.compare("amp_U")==0) { _ampU = atof( rhs.c_str() ); }
+
+    else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
+    else if (var.compare("initialConditions")==0) { _initialConditions = rhs.c_str(); }
+    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
     else if (var.compare("timeIntInds")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
+      string str = rhs;
       loadVectorFromInputFile(str,_timeIntInds);
     }
 
-    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
 
     // boundary conditions for momentum balance equation
-    else if (var.compare("momBal_bcR_fd")==0) {
-      _bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcT_fd")==0) {
-      _bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcL_fd")==0) {
-      _bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcB_fd")==0) {
-      _bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    else if (var.compare("momBal_bcR_fd")==0) { _bcRType = rhs.c_str(); }
+    else if (var.compare("momBal_bcT_fd")==0) { _bcTType = rhs.c_str(); }
+    else if (var.compare("momBal_bcL_fd")==0) { _bcLType = rhs.c_str(); }
+    else if (var.compare("momBal_bcB_fd")==0) { _bcBType = rhs.c_str(); }
   }
 
   #if VERBOSE > 1

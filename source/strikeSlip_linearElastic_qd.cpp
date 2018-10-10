@@ -123,71 +123,53 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var;
+  string line,var,rhs;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
-
-    if (var.compare("thermalCoupling")==0) {
-      _thermalCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("hydraulicCoupling")==0) {
-      _hydraulicCoupling = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("stateLaw")==0) {
-      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
     }
 
-    else if (var.compare("guessSteadyStateICs")==0) {
-      _guessSteadyStateICs = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
-    else if (var.compare("forcingType")==0) {
-      _forcingType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
+    else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
+    else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
+    else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( (rhs).c_str() ); }
+    else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
 
     // time integration properties
-    else if (var.compare("timeIntegrator")==0) {
-      _timeIntegrator = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("timeControlType")==0) {
-      _timeControlType = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxTime")==0) { _maxTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
+    else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
+    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (rhs).c_str() ); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (rhs).c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (rhs).c_str() ); }
+    else if (var.compare("initTime")==0) { _initTime = atof( (rhs).c_str() ); }
+    else if (var.compare("maxTime")==0) { _maxTime = atof( (rhs).c_str() ); }
+    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (rhs).c_str() ); }
+    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (rhs).c_str() ); }
+    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (rhs).c_str() ); }
+    else if (var.compare("atol")==0) { _atol = atof( (rhs).c_str() ); }
     else if (var.compare("timeIntInds")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
+      string str = rhs;
       loadVectorFromInputFile(str,_timeIntInds);
     }
-    else if (var.compare("normType")==0) {
-      _normType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
-    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("vL")==0) { _vL = atof( (rhs).c_str() ); }
 
     // boundary conditions for momentum balance equation
-    else if (var.compare("momBal_bcR_qd")==0) {
-      _bcRType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcT_qd")==0) {
-      _bcTType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcL_qd")==0) {
-      _bcLType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("momBal_bcB_qd")==0) {
-      _bcBType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
+    else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
+    else if (var.compare("momBal_bcL_qd")==0) { _bcLType = rhs.c_str(); }
+    else if (var.compare("momBal_bcB_qd")==0) { _bcBType = rhs.c_str(); }
   }
 
   #if VERBOSE > 1

@@ -135,57 +135,42 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var;
+  string line,var,rhs;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
 
-    if (var.compare("order")==0) { _order = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Ny")==0 && _Ny < 0)
-    { _Ny = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Nz")==0 && _Nz < 0)
-    { _Nz = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Ly")==0) { _Ly = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
-    else if (var.compare("Lz")==0) { _Lz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
+
+    if (var.compare("order")==0) { _order = atoi( rhs.c_str() ); }
+    else if (var.compare("Ny")==0 && _Ny < 0) { _Ny = atoi( rhs.c_str() ); }
+    else if (var.compare("Nz")==0 && _Nz < 0) { _Nz = atoi( rhs.c_str() ); }
+    else if (var.compare("Ly")==0) { _Ly = atof( rhs.c_str() ); }
+    else if (var.compare("Lz")==0) { _Lz = atof( rhs.c_str() ); }
 
     else if (var.compare("isMMS")==0) {
       _isMMS = 0;
-      std::string temp = line.substr(pos+_delim.length(),line.npos);
+      std::string temp = rhs;
       if (temp.compare("yes")==0 || temp.compare("y")==0) { _isMMS = 1; }
     }
-    else if (var.compare("sbpType")==0) {
-      _sbpType = line.substr(pos+_delim.length(),line.npos);
-    }
 
-    else if (var.compare("bulkDeformationType")==0) {
-      _bulkDeformationType = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("momentumBalanceType")==0) {
-      _momentumBalanceType = line.substr(pos+_delim.length(),line.npos);
-    }
-
-    else if (var.compare("loadICs")==0) {
-      _loadICs = (int)atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-
-
-    else if (var.compare("inputDir")==0) {
-      _inputDir = line.substr(pos+_delim.length(),line.npos);
-    }
-
-    else if (var.compare("bCoordTrans")==0) {
-       _bCoordTrans = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-
-    // output directory
-    else if (var.compare("outputDir")==0) {
-      _outputDir =  line.substr(pos+_delim.length(),line.npos);
-    }
-
-    else if (var.compare("vL")==0) { _vL = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("sbpType")==0) { _sbpType = rhs; }
+    else if (var.compare("bulkDeformationType")==0) { _bulkDeformationType = rhs; }
+    else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
+    else if (var.compare("loadICs")==0) { _loadICs = (int)atof(rhs.c_str() ); }
+    else if (var.compare("inputDir")==0) { _inputDir = rhs; }
+    else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( (rhs).c_str() ); }
+    else if (var.compare("outputDir")==0) { _outputDir =  rhs; }
+    else if (var.compare("vL")==0) { _vL = atof( (rhs).c_str() ); }
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
