@@ -159,7 +159,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     var = line.substr(0,pos);
     rhs = "";
     if (line.length() > (pos + _delim.length())) {
-      rhs = rhs;
+      rhs = line.substr(pos+_delim.length(),line.npos);
     }
 
     // interpret everything after the appearance of a space on the line as a comment
@@ -751,6 +751,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
@@ -1446,24 +1447,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
   VecDestroy(&viscSource);
 
-  if (_forcingType.compare("iceStream")==0) {
-    // add source term for driving the ice stream to rhs Vec
-
-    if (_material->_sbpType.compare("mfc_coordTrans")==0) {
-      // multiply this term by H*J (the H matrix and the Jacobian)
-      Vec temp1; VecDuplicate(_forcingTerm,&temp1);
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      ierr = MatMult(J,_forcingTerm,temp1);
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
-      VecDestroy(&temp1);
-    }
-    else{ // multiply forcing term by H
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
-    }
-  }
+  // add source term for driving the ice stream to rhs Vec
+  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,1.0,_forcingTerm); }
 
 
   // solve for displacement
@@ -1982,12 +1967,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
 
 
   // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  VecDuplicate(_fault_qd->_eta_rad,&V); VecSet(V,_vL);
-  VecDuplicate(_fault_qd->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault_qd->_eta_rad,V);
+  // forcing = - tau_ss / Ly
+  Vec tauSS = NULL;
   _fault_qd->computeTauRS(tauSS,_vL);
-  VecAXPY(tauSS,1.0,radDamp);
   VecScale(tauSS,-1./_D->_Ly);
 
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
@@ -1995,7 +1977,25 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
 
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
-  VecDestroy(&radDamp);
+
+  // multiply forcing term by H, or by J*H if using a curvilinear grid
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    // multiply this term by H*J (the H matrix and the Jacobian)
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1); CHKERRQ(ierr);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,temp1,_forcingTerm); CHKERRQ(ierr);
+    VecDestroy(&temp1);
+  }
+  else{ // multiply forcing term by H
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,_forcingTerm,temp1); CHKERRQ(ierr);
+    VecCopy(temp1,_forcingTerm);
+    VecDestroy(&temp1);
+  }
 
 
   #if VERBOSE > 1

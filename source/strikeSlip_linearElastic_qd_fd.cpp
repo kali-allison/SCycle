@@ -38,6 +38,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
 
   loadSettings(D._file);
   checkInput();
+  parseBCs();
 
   _body2fault = &(D._scatters["body2L"]);
   _fault_qd = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault for quasidynamic problem
@@ -61,7 +62,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-  parseBCs();
+
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
   computePenaltyVectors();
@@ -148,7 +149,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     var = line.substr(0,pos);
     rhs = "";
     if (line.length() > (pos + _delim.length())) {
-      rhs = rhs;
+      rhs = line.substr(pos+_delim.length(),line.npos);
     }
 
     // interpret everything after the appearance of a space on the line as a comment
@@ -340,7 +341,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::parseBCs()
 
   // determine if material is symmetric about the fault, or if one side is rigid
   _faultTypeScale = 2.0;
-  if (_qd_bcRType.compare("rigidFault")==0 ) { _faultTypeScale = 1.0; }
+  if (_qd_bcLType.compare("rigidFault")==0 ) { _faultTypeScale = 1.0; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1011,6 +1012,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
@@ -1076,24 +1078,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveMomentumBalance(const PetscS
 
   _material->setRHS();
 
-  if (_forcingType.compare("iceStream")==0) {
-    // add source term for driving the ice stream to rhs Vec
-
-    if (_material->_sbpType.compare("mfc_coordTrans")==0) {
-      // multiply this term by H*J (the H matrix and the Jacobian)
-      Vec temp1; VecDuplicate(_forcingTerm,&temp1);
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      ierr = MatMult(J,_forcingTerm,temp1);
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
-      VecDestroy(&temp1);
-    }
-    else{ // multiply forcing term by H
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
-    }
-  }
+  // add source term for driving the ice stream to rhs Vec
+  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,1.0,_forcingTerm); }
 
   _material->computeU();
   _material->computeStresses();
@@ -1295,9 +1281,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
     CHKERRQ(ierr);
   #endif
 
-
-
-  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+// matrix to map the value for the forcing term, which lives on the fault, to all other processors
   Mat MapV;
   MatCreate(PETSC_COMM_WORLD,&MapV);
   MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
@@ -1316,14 +1300,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
 
-
   // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  VecDuplicate(_fault_qd->_eta_rad,&V); VecSet(V,_vL);
-  VecDuplicate(_fault_qd->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault_qd->_eta_rad,V);
+  // forcing = - tau_ss / Ly
+  Vec tauSS = NULL;
   _fault_qd->computeTauRS(tauSS,_vL);
-  VecAXPY(tauSS,1.0,radDamp);
   VecScale(tauSS,-1./_D->_Ly);
 
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
@@ -1331,7 +1311,25 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
 
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
-  VecDestroy(&radDamp);
+
+  // multiply forcing term by H, or by J*H if using a curvilinear grid
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    // multiply this term by H*J (the H matrix and the Jacobian)
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1); CHKERRQ(ierr);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,temp1,_forcingTerm); CHKERRQ(ierr);
+    VecDestroy(&temp1);
+  }
+  else{ // multiply forcing term by H
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,_forcingTerm,temp1); CHKERRQ(ierr);
+    VecCopy(temp1,_forcingTerm);
+    VecDestroy(&temp1);
+  }
 
 
   #if VERBOSE > 1

@@ -485,6 +485,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"vL = %g\n",_vL);CHKERRQ(ierr);
 
@@ -718,24 +719,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
   _material->setRHS();
   //~ if (_isMMS) { _material->addRHS_MMSSource(time,_material->_rhs); }
 
-  if (_forcingType.compare("iceStream")==0) {
-    // add source term for driving the ice stream to rhs Vec
-
-    if (_material->_sbpType.compare("mfc_coordTrans")==0) {
-      // multiply this term by H*J (the H matrix and the Jacobian)
-      Vec temp1; VecDuplicate(_forcingTerm,&temp1);
-      Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      ierr = MatMult(J,_forcingTerm,temp1);
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,temp1,_material->_rhs,_material->_rhs);
-      VecDestroy(&temp1);
-    }
-    else{ // multiply forcing term by H
-      Mat H; _material->_sbp->getH(H);
-      ierr = MatMultAdd(H,_forcingTerm,_material->_rhs,_material->_rhs); CHKERRQ(ierr);
-    }
-  }
+  // add source term for driving the ice stream to rhs Vec
+  if (_forcingType.compare("iceStream")==0) { VecAXPY(_material->_rhs,1.0,_forcingTerm); }
 
 
   _material->computeU();
@@ -913,6 +898,25 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
   VecDestroy(&radDamp);
+
+  // multiply forcing term by H, or by J*H if using a curvilinear grid
+  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+    // multiply this term by H*J (the H matrix and the Jacobian)
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    ierr = MatMult(J,_forcingTerm,temp1); CHKERRQ(ierr);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,temp1,_forcingTerm); CHKERRQ(ierr);
+    VecDestroy(&temp1);
+  }
+  else{ // multiply forcing term by H
+    Vec temp1; VecDuplicate(_forcingTerm,&temp1);
+    Mat H; _material->_sbp->getH(H);
+    ierr = MatMult(H,_forcingTerm,temp1); CHKERRQ(ierr);
+    VecCopy(temp1,_forcingTerm);
+    VecDestroy(&temp1);
+  }
 
 
   #if VERBOSE > 1
