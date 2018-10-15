@@ -205,7 +205,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) {
-      string str = rhs;
+      pos = line.find(_delim);
+      string str = rhs = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
     }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }

@@ -4,12 +4,11 @@
 # set up the computational domain
 Ny = 121 # points in y-direction
 Nz = 1 # points in z-direction
-Ly = 30 # (km) horizontal domain size
+Ly = 50 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9
 
 # specify what problem to simulate
-problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
@@ -18,18 +17,13 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
 # rate-and-state parameters
 
 # state variable evolution law
-stateLaw = slipLaw
+#stateLaw = slipLaw
+stateLaw = agingLaw
 
 DcVals = [16e-3 16e-3] # (m)
+#DcVals = [10 10] # (m)
 DcDepths = [0 60] # (km)
 
-# from Blanpied 1991 for a-b, 1995 for a, assuming 30 K/km
-#aVals = [0.0135 0.0300 0.0700 0.2652]
-#aDepths = [0 11.0000 19.3333 60]
-#bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-#bDepths = [0 10 11 19.3333 60]
-
-#aVals = [0.2 0.2]
 aVals = [0.01 0.01]
 aDepths = [0 60]
 bVals = [0.02 0.02]
@@ -58,11 +52,12 @@ stride2D = 10 # how often to write out body fields
 maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 2e11 # (s) final time
-initDeltaT = 1e-3 # (s) size of initial time step
-minDeltaT = 1e-3 # (s) size of minimum time step
+initDeltaT = 1e-5 # (s) size of initial time step
+minDeltaT = 1e-5 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-4 # absolute tolerance for time integration
+atol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
+#timeIntInds = [slip] # variables to use to compute time step
 
 # directory for output
 outputDir = data/ex1_

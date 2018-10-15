@@ -16,7 +16,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_relative"),
+  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
@@ -158,7 +158,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (rhs).c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof( (rhs).c_str() ); }
     else if (var.compare("timeIntInds")==0) {
-      string str = rhs;
+      pos = line.find(_delim);
+      string str = rhs = line.substr(pos+_delim.length(),line.npos);
       loadVectorFromInputFile(str,_timeIntInds);
     }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
@@ -168,7 +169,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
-    else if (var.compare("momBal_bcL_qd")==0) { _bcLType = rhs.c_str(); }
+    else if (var.compare("momBal_bcL_qd")==0) {
+      _bcLType = rhs.c_str();
+      PetscPrintf(PETSC_COMM_WORLD,"%s\n", _bcLType.c_str()); assert(0);
+    }
     else if (var.compare("momBal_bcB_qd")==0) { _bcBType = rhs.c_str(); }
   }
 
@@ -449,6 +453,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
 
   if (_timeIntegrator.compare("IMEX")==0&& _quadImex!=NULL) { ierr = _quadImex->view(); }
   if (_timeIntegrator.compare("RK32")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
+  if (_timeIntegrator.compare("RK43")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
 
   _material->view(_integrateTime);
   _fault->view(_integrateTime);
