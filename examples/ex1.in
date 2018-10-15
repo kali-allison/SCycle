@@ -5,7 +5,7 @@
 Ny = 121 # points in y-direction
 Nz = 1 # points in z-direction
 Ly = 50 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Lz = 30 # (km) vertical domain size (not used for this example)
 vL = 1e-9
 
 # specify what problem to simulate

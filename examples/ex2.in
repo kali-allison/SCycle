@@ -8,7 +8,6 @@ Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
 # specify what problem to simulate
-problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 0 # estimate steady-state initial conditions

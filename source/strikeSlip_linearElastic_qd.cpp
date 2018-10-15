@@ -169,10 +169,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
-    else if (var.compare("momBal_bcL_qd")==0) {
-      _bcLType = rhs.c_str();
-      PetscPrintf(PETSC_COMM_WORLD,"%s\n", _bcLType.c_str()); assert(0);
-    }
+    else if (var.compare("momBal_bcL_qd")==0) { _bcLType = rhs.c_str(); }
     else if (var.compare("momBal_bcB_qd")==0) { _bcBType = rhs.c_str(); }
   }
 
