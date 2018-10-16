@@ -6,11 +6,12 @@
 
 # set up the computational domain
 # note that if Nz = 1 then the problem is equivalent to the spring slide
-Ny = 121 # points in y-direction
+Ny = 201 # points in y-direction
 Nz = 1 # points in z-direction
-Ly = 50 # (km) horizontal domain size
+Ly = 30 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size (not used for this example)
 vL = 1e-9 # (m/s) loading velocity
+bCoordTrans = 5 # controls grid stretching perpendicular to the fault. larger b means more grid stretching
 
 # specify what problem to simulate
 bulkDeformationType = linearElastic # off-fault constitutive law
@@ -49,8 +50,6 @@ stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 2e11 # (s) final time
-initDeltaT = 1e-5 # (s) size of initial time step
-minDeltaT = 1e-5 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
 atol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step

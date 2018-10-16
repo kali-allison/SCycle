@@ -33,9 +33,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   parseBCs();
 
   // heat equation
-  if (_thermalCoupling.compare("no")!=0) {
-    _he = new HeatEquation(D);
-  }
+  if (_thermalCoupling.compare("no")!=0) { _he = new HeatEquation(D); }
 
   // fault
   _body2fault = &(D._scatters["body2L"]);
@@ -45,20 +43,18 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   }
 
   // pressure diffusion equation
-  if (_hydraulicCoupling.compare("no")!=0) {
-    _p = new PressureEq(D);
-  }
-  if (_hydraulicCoupling.compare("coupled")==0) {
-    _fault->setSNEff(_p->_p);
-  }
+  if (_hydraulicCoupling.compare("no")!=0) { _p = new PressureEq(D); }
+  if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
-  // initiate momentum balance equationparseBCs();
+  // initiate momentum balance equation
   if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
   // body forcing term for ice stream
   _forcingTerm = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
+
+  computeMinTimeStep(); // compute min allowed time step for adaptive time stepping method
 
 
   #if VERBOSE > 1
@@ -291,7 +287,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
   if (_minDeltaT == -1) { _minDeltaT = min_deltaT; } // provide if not user specified
   else if (_minDeltaT > min_deltaT) {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: minimum requested time step (minDeltaT) is larger than recommended.");
-    PetscPrintf(PETSC_COMM_WORLD,"Requested: %g s, Recommended (min(dy/cs,dz/cs)): %g s\n",_minDeltaT,min_deltaT);
+    PetscPrintf(PETSC_COMM_WORLD," Requested: %e s, Recommended (min(dy/cs,dz/cs)): %e s\n",_minDeltaT,min_deltaT);
   }
 
   #if VERBOSE > 1

@@ -6,9 +6,11 @@
 
 # set up the computational domain
 Ny = 151 # points in y-direction
-Nz = 201 # points in z-direction
+Nz = 151 # points in z-direction
 Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
+vL = 1e-9 # (m/s) loading velocity
+bCoordTrans = 5 # controls grid stretching perpendicular to the fault. larger b means more grid stretching
 
 # specify what problem to simulate
 bulkDeformationType = linearElastic # off-fault constitutive law
@@ -20,7 +22,7 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
  # state variable evolution law
 stateLaw = agingLaw
 
-DcVals = [12e-3 12e-3] # (m) state evolution distance
+DcVals = [20e-3 20e-3] # (m) state evolution distance
 DcDepths = [0 60] # (km)
 
 # based on Blanpied et al. (1991, 1995), assuming a geotherm of 30 K/km
@@ -52,9 +54,6 @@ stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 3e10 # (s) final time
-initDeltaT = 1e-3 # (s) size of initial time step
-minDeltaT = 1e-3 # (s) size of minimum time step
-maxDeltaT = 1e12 # (s) size of maximum time step
 atol = 1e-6 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 

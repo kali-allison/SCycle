@@ -26,3 +26,17 @@ title('Spring Slider')
 subplot(2,1,2)
 semilogy(d.time./3.14e7,d.slipVel)
 xlabel('time (years)'),ylabel('V (m/s)'),ylim([1e-14 10])
+
+% plot phase plot: integrated slip velocity vs integrated shear stress
+
+figure(2),clf
+semilogx(d.slipVel,d.tauP) % phase plot
+hold on
+semilogx(d.slipVel(1),d.tauP(1),'g*') % indicate initial condition
+semilogx(d.slipVel(end),d.tauP(end),'r*') % indicate final condition
+xlabel('integrated slip velocity (m/s km)'),ylabel('integrated shear stress (MPa km)')
+legend('simulation','initial condition','final condition','Location','Northwest')
+
+
+
+
