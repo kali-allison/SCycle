@@ -42,128 +42,62 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
 
   ifstream infile( file );
-  string line,var;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
 
-    if (var.compare("DcVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_DcVals);
-    }
-    else if (var.compare("DcDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_DcDepths);
-    }
+    // interpret everything after the appearance of a space on the line as a comment
+    //~ pos = rhs.find(" ");
+    //~ rhs = rhs.substr(0,pos);
 
-    else if (var.compare("sNVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_sigmaNVals);
-    }
-    else if (var.compare("sNDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_sigmaNDepths);
-    }
-    else if (var.compare("sN_cap")==0) {
-      _sigmaN_cap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("sN_floor")==0) {
-      _sigmaN_floor = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("aVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_aVals);
-    }
-    else if (var.compare("aDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_aDepths);
-    }
-    else if (var.compare("bVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_bVals);
-    }
-    else if (var.compare("bDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_bDepths);
-    }
-    else if (var.compare("cohesionVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_cohesionVals);
-    }
-    else if (var.compare("cohesionDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_cohesionDepths);
-    }
-    else if (var.compare("muVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muVals);
-    }
-    else if (var.compare("muDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muDepths);
-    }
-
-    else if (var.compare("rhoVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoVals);
-    }
-    else if (var.compare("rhoDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoDepths);
-    }
+    if (var.compare("DcVals")==0) { loadVectorFromInputFile(rhsFull,_DcVals); }
+    else if (var.compare("DcDepths")==0) { loadVectorFromInputFile(rhsFull,_DcDepths); }
+    else if (var.compare("sNVals")==0) { loadVectorFromInputFile(rhsFull,_sigmaNVals); }
+    else if (var.compare("sNDepths")==0) { loadVectorFromInputFile(rhsFull,_sigmaNDepths); }
+    else if (var.compare("sN_cap")==0) { _sigmaN_cap = atof( rhs.c_str() ); }
+    else if (var.compare("sN_floor")==0) { _sigmaN_floor = atof( rhs.c_str() ); }
+    else if (var.compare("aVals")==0) { loadVectorFromInputFile(rhsFull,_aVals); }
+    else if (var.compare("aDepths")==0) { loadVectorFromInputFile(rhsFull,_aDepths); }
+    else if (var.compare("bVals")==0) { loadVectorFromInputFile(rhsFull,_bVals); }
+    else if (var.compare("bDepths")==0) { loadVectorFromInputFile(rhsFull,_bDepths); }
+    else if (var.compare("cohesionVals")==0) { loadVectorFromInputFile(rhsFull,_cohesionVals); }
+    else if (var.compare("cohesionDepths")==0) { loadVectorFromInputFile(rhsFull,_cohesionDepths); }
+    else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
+    else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
+    else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
+    else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
 
-    else if (var.compare("stateLaw")==0) {
-      _stateLaw = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
 
     // tolerance for nonlinear solve
-    else if (var.compare("rootTol")==0) {
-      _rootTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("rootTol")==0) { _rootTol = atof( rhs.c_str() ); }
 
     // friction parameters
-    else if (var.compare("f0")==0) {
-      _f0 = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("v0")==0) {
-      _v0 = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("f0")==0) { _f0 = atof( rhs.c_str() ); }
+    else if (var.compare("v0")==0) { _v0 = atof( rhs.c_str() ); }
 
     // flash heating parameters
-    else if (var.compare("fw")==0) {
-      _fw = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("Vw")==0) {
-      _Vw_const = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("TwVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TwVals);
-    }
+    else if (var.compare("fw")==0) { _fw = atof( rhs.c_str() ); }
+    else if (var.compare("Vw")==0) { _Vw_const = atof( rhs.c_str() ); }
+    else if (var.compare("TwVals")==0) { loadVectorFromInputFile(rhsFull,_TwVals); }
     else if (var.compare("TwDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TwDepths);
-    }
-    else if (var.compare("D")==0) {
-      _D_fh = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("tau_c")==0) {
-      _tau_c = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+      loadVectorFromInputFile(rhsFull,_TwDepths); }
+    else if (var.compare("D")==0) { _D_fh = atof( rhs.c_str() ); }
+    else if (var.compare("tau_c")==0) { _tau_c = atof( rhs.c_str() ); }
 
     // for locking part of the fault
-    else if (var.compare("lockedVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_lockedVals);
-    }
-    else if (var.compare("lockedDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_lockedDepths);
-    }
+    else if (var.compare("lockedVals")==0) { loadVectorFromInputFile(rhsFull,_lockedVals); }
+    else if (var.compare("lockedDepths")==0) { loadVectorFromInputFile(rhsFull,_lockedDepths); }
 
   }
 
@@ -711,23 +645,6 @@ PetscErrorCode Fault_qd::loadSettings(const char *file)
 
   // nothing to do yet
 
-  //~ PetscMPIInt rank,size;
-  //~ MPI_Comm_size(PETSC_COMM_WORLD,&size);
-  //~ MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
-
-  //~ ifstream infile( file );
-  //~ string line,var;
-  //~ size_t pos = 0;
-  //~ while (getline(infile, line))
-  //~ {
-    //~ istringstream iss(line);
-    //~ pos = line.find(_delim); // find position of the delimiter
-    //~ var = line.substr(0,pos);
-
-
-  //~ }
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1070,33 +987,30 @@ PetscErrorCode Fault_fd::loadSettings(const char *file)
 
 
   ifstream infile( file );
-  string line,var;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
+
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
     // Tau dynamic parameters
-    if (var.compare("tCenterTau")==0) {
-      _tCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zCenterTau")==0) {
-      _zCenterTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("tStdTau")==0) {
-      _tStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("zStdTau")==0) {
-      _zStdTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("ampTau")==0) {
-      _ampTau = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("timeMode")==0) {
-      _timeMode = line.substr(pos+_delim.length(),line.npos);
-    }
+    if (var.compare("tCenterTau")==0) { _tCenterTau = atof( rhs.c_str() ); }
+    else if (var.compare("zCenterTau")==0) { _zCenterTau = atof( rhs.c_str() ); }
+    else if (var.compare("tStdTau")==0) { _tStdTau = atof( rhs.c_str() ); }
+    else if (var.compare("zStdTau")==0) { _zStdTau = atof( rhs.c_str() ); }
+    else if (var.compare("ampTau")==0) { _ampTau = atof( rhs.c_str() ); }
+    else if (var.compare("timeMode")==0) { _timeMode = rhs; }
   }
 
   #if VERBOSE > 1

@@ -9,8 +9,6 @@ HeatEquation::HeatEquation(Domain& D)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(NULL),_z(NULL),
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(D._loadICs),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
-  _kFile("unspecified"),
-  _rhoFile("unspecified"),_cFile("unspecified"),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
@@ -165,119 +163,63 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
 
 
   ifstream infile( file );
-  string line,var;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
 
-    if (var.compare("heatEquationType")==0) {
-      _heatEquationType = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("withViscShearHeating")==0) {
-      _wViscShearHeating = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("withFrictionalHeating")==0) {
-      _wFrictionalHeating = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("withRadioHeatGeneration")==0) {
-      _wRadioHeatGen = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
+
+    if (var.compare("heatEquationType")==0) { _heatEquationType = rhs.c_str(); }
+    else if (var.compare("withViscShearHeating")==0) { _wViscShearHeating = rhs.c_str(); }
+    else if (var.compare("withFrictionalHeating")==0) { _wFrictionalHeating = rhs.c_str(); }
+    else if (var.compare("withRadioHeatGeneration")==0) { _wRadioHeatGen = rhs.c_str(); }
 
     // linear solver settings
-    else if (var.compare("linSolver_heateq")==0) {
-      _linSolver = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("kspTol_heateq")==0) {
-      _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-      }
-
-    // names of each field's source file
-    else if (var.compare("rhoFile")==0) {
-      _rhoFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("kFile")==0) {
-      _kFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("cFile")==0) {
-      _cFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
+    else if (var.compare("linSolver_heateq")==0) { _linSolver = rhs.c_str(); }
+    else if (var.compare("kspTol_heateq")==0) { _kspTol = atof( rhs.c_str() ); }
 
     // if values are set by vector
-    else if (var.compare("rhoVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoVals);
-    }
-    else if (var.compare("rhoDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoDepths);
-    }
-
-    else if (var.compare("kVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_kVals);
-    }
-    else if (var.compare("kDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_kDepths);
-    }
-    else if (var.compare("cVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_cVals);
-    }
-    else if (var.compare("cDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_cDepths);
-    }
+    else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
+    else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
+    else if (var.compare("kVals")==0) { loadVectorFromInputFile(rhsFull,_kVals); }
+    else if (var.compare("kDepths")==0) { loadVectorFromInputFile(rhsFull,_kDepths); }
+    else if (var.compare("cVals")==0) { loadVectorFromInputFile(rhsFull,_cVals); }
+    else if (var.compare("cDepths")==0) { loadVectorFromInputFile(rhsFull,_cDepths); }
 
 
     else if (var.compare("Nz_lab")==0) { _Nz_lab = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
     else if (var.compare("TVals")==0) { // TVals = [T0 T_lab TN] || [T0 TN]
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TVals);
-    }
+      loadVectorFromInputFile(rhsFull,_TVals); }
     else if (var.compare("TDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_TDepths);
+      loadVectorFromInputFile(rhsFull,_TDepths);
       assert(_TDepths.size() >= 2);
       //~ if (_TDepths.size() > 2) {
         _Lz_lab = _TDepths[1];
       //~ }
     }
 
-
-
-    else if (var.compare("initTime")==0) {
-      _initTime = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("initDeltaT")==0) {
-      _initDeltaT = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
+    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
 
     // finite width shear zone
-    else if (var.compare("wVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_wVals);
-    }
-    else if (var.compare("wDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_wDepths);
-    }
+    else if (var.compare("wVals")==0) { loadVectorFromInputFile(rhsFull,_wVals); }
+    else if (var.compare("wDepths")==0) { loadVectorFromInputFile(rhsFull,_wDepths); }
 
     // radioactive heat generation
-    else if (var.compare("he_A0Vals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_A0Vals);
-    }
-    else if (var.compare("he_A0Depths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_A0Depths);
-    }
-    else if (var.compare("he_Lrad")==0) {
-      _Lrad = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("he_A0Vals")==0) { loadVectorFromInputFile(rhsFull,_A0Vals); }
+    else if (var.compare("he_A0Depths")==0) { loadVectorFromInputFile(rhsFull,_A0Depths); }
+    else if (var.compare("he_Lrad")==0) { _Lrad = atof( rhs.c_str() ); }
   }
 
   #if VERBOSE > 1

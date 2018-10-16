@@ -95,6 +95,7 @@ private:
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
+    PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
     PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
     // for mapping from body fields to the fault

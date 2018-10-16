@@ -168,9 +168,9 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
     else if (var.compare("loadICs")==0) { _loadICs = (int)atof(rhs.c_str() ); }
     else if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( (rhs).c_str() ); }
+    else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( rhs.c_str() ); }
     else if (var.compare("outputDir")==0) { _outputDir =  rhs; }
-    else if (var.compare("vL")==0) { _vL = atof( (rhs).c_str() ); }
+    else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
   }
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

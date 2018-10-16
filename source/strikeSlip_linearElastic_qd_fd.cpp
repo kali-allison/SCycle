@@ -140,7 +140,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var,rhs;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
@@ -151,6 +151,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     if (line.length() > (pos + _delim.length())) {
       rhs = line.substr(pos+_delim.length(),line.npos);
     }
+    rhsFull = rhs; // everything after _delim
 
     // interpret everything after the appearance of a space on the line as a comment
     pos = rhs.find(" ");
@@ -189,11 +190,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof(rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof(rhs.c_str() ); }
     else if (var.compare("atol")==0) { _atol = atof(rhs.c_str() ); }
-    else if (var.compare("timeIntInds")==0) {
-      pos = line.find(_delim);
-      string str = rhs = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_timeIntInds);
-    }
+    else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
 
     else if (var.compare("vL")==0) { _vL = atof(rhs.c_str() ); }
 

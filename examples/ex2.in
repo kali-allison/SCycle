@@ -17,8 +17,8 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters
-
-stateLaw = agingLaw # state variable evolution law
+ # state variable evolution law
+stateLaw = agingLaw
 
 DcVals = [12e-3 12e-3] # (m) state evolution distance
 DcDepths = [0 60] # (km)

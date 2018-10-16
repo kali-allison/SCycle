@@ -10,7 +10,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),
-  _viscDistribution("effectiveVisc"),_AFile("unspecified"),_BFile("unspecified"),_nFile("unspecified"),
+  _viscDistribution("effectiveVisc"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
@@ -138,87 +138,46 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
 
 
   ifstream infile( file );
-  string line,var;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
 
-    if (var.compare("linSolver")==0) {
-      _linSolver = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("kspTol")==0) {
-      _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
-    else if (var.compare("muVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muVals);
-    }
-    else if (var.compare("muDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muDepths);
-    }
-    else if (var.compare("rhoVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoVals);
-    }
-    else if (var.compare("rhoDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoDepths);
-    }
+    if (var.compare("linSolver")==0) { _linSolver = rhs; }
+    else if (var.compare("kspTol")==0) { _kspTol = atof( rhs.c_str() ); }
+    else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
+    else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
+    else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
+    else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
     // viscosity
     else if (var.compare("viscDistribution")==0) {
-      _viscDistribution = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-
-    // names of each field's source file
-    else if (var.compare("AFile")==0) {
-      _AFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("BFile")==0) {
-      _BFile = line.substr(pos+_delim.length(),line.npos).c_str();
-    }
-    else if (var.compare("nFile")==0) {
-      _nFile = line.substr(pos+_delim.length(),line.npos).c_str();
+      _viscDistribution = rhs.c_str();
     }
 
     // if values are set by a vector
-    else if (var.compare("AVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_AVals);
-    }
-    else if (var.compare("ADepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_ADepths);
-    }
-    else if (var.compare("BVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_BVals);
-    }
-    else if (var.compare("BDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_BDepths);
-    }
-    else if (var.compare("nVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_nVals);
-    }
-    else if (var.compare("nDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_nDepths);
-    }
+    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
 
     // cap on viscosity
-    else if (var.compare("maxEffVisc")==0) {
-      _effViscCap = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("ssEffViscScale")==0) {
-      _ssEffViscScale = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("maxEffVisc")==0) { _effViscCap = atof( rhs.c_str() ); }
+    else if (var.compare("ssEffViscScale")==0) { _ssEffViscScale = atof( rhs.c_str() ); }
 
   }
 

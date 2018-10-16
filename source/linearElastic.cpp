@@ -107,47 +107,35 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
 
 
   ifstream infile( file );
-  string line,var;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
+
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
 
-    if (var.compare("linSolver")==0) {
-      _linSolver = line.substr(pos+_delim.length(),line.npos);
-    }
-    else if (var.compare("kspTol")==0) {
-      _kspTol = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    if (var.compare("linSolver")==0) { _linSolver = rhs; }
+    else if (var.compare("kspTol")==0) { _kspTol = atof( (rhs).c_str() ); }
 
-
-    else if (var.compare("muVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muVals);
-    }
-    else if (var.compare("muDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_muDepths);
-    }
-    else if (var.compare("rhoVals")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoVals);
-    }
-    else if (var.compare("rhoDepths")==0) {
-      string str = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_rhoDepths);
-    }
+    else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
+    else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
+    else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
+    else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
     // switches for computing extra stresses
-    else if (var.compare("momBal_computeSxz")==0) {
-      _computeSxz = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
-    else if (var.compare("momBal_computeSdev")==0) {
-      _computeSdev = atof( (line.substr(pos+_delim.length(),line.npos)).c_str() );
-    }
+    else if (var.compare("momBal_computeSxz")==0) { _computeSxz = atof( rhs.c_str() ); }
+    else if (var.compare("momBal_computeSdev")==0) { _computeSdev = atof( rhs.c_str() ); }
 
   }
 

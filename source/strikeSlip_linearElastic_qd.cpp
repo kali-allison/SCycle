@@ -15,7 +15,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
-  _minDeltaT(1e-3),_maxDeltaT(1e10),
+  _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
@@ -123,7 +123,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var,rhs;
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
@@ -134,6 +134,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     if (line.length() > (pos + _delim.length())) {
       rhs = line.substr(pos+_delim.length(),line.npos);
     }
+    rhsFull = rhs; // everything after _delim
 
     // interpret everything after the appearance of a space on the line as a comment
     pos = rhs.find(" ");
@@ -142,29 +143,25 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
-    else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( (rhs).c_str() ); }
+    else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( (rhs).c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( (rhs).c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( (rhs).c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( (rhs).c_str() ); }
-    else if (var.compare("maxTime")==0) { _maxTime = atof( (rhs).c_str() ); }
-    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( (rhs).c_str() ); }
-    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( (rhs).c_str() ); }
-    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( (rhs).c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof( (rhs).c_str() ); }
-    else if (var.compare("timeIntInds")==0) {
-      pos = line.find(_delim);
-      string str = rhs = line.substr(pos+_delim.length(),line.npos);
-      loadVectorFromInputFile(str,_timeIntInds);
-    }
+    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
+    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
+    else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
+    else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
+    else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
+    else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
+    else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
+    else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
-    else if (var.compare("vL")==0) { _vL = atof( (rhs).c_str() ); }
+    else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
@@ -226,7 +223,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
   assert(_atol >= 1e-14);
-  assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
@@ -243,6 +239,63 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute recommended smallest time step based on grid spacing and shear wave speed
+// Note: defaults to user specified value
+// recommended minDeltaT <= min(dy/cs, dz/cs)
+PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_LinearElastic_qd::computeTimeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // compute grid spacing in y and z
+  Vec dy, dz;
+  VecDuplicate(_D->_y,&dy);
+  VecDuplicate(_D->_y,&dz);
+  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_D->_Ny-1));
+    MatGetDiagonal(zr, dz); VecScale(dz,1.0/(_D->_Nz-1));
+  }
+  else {
+    VecSet(dy,_D->_Ly/(_D->_Ny-1.0));
+    VecSet(dz,_D->_Lz/(_D->_Nz-1.0));
+  }
+
+  // compute time for shear wave to travel one dy or dz
+  Vec ts_dy,ts_dz;
+  VecDuplicate(_D->_y,&ts_dy);
+  VecDuplicate(_D->_z,&ts_dz);
+  VecPointwiseDivide(ts_dy,dy,_material->_cs);
+  VecPointwiseDivide(ts_dz,dz,_material->_cs);
+  PetscScalar min_ts_dy, min_ts_dz;
+  VecMin(ts_dy,NULL,&min_ts_dy);
+  VecMin(ts_dz,NULL,&min_ts_dz);
+
+  // clean up memory usage
+  VecDestroy(&dy);
+  VecDestroy(&dz);
+  VecDestroy(&ts_dy);
+  VecDestroy(&ts_dz);
+
+  // smallest reasonable time step
+  PetscScalar min_deltaT = min(min_ts_dy,min_ts_dz);
+
+  if (_minDeltaT == -1) { _minDeltaT = min_deltaT; } // provide if not user specified
+  else if (_minDeltaT > min_deltaT) {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: minimum requested time step (minDeltaT) is larger than recommended.");
+    PetscPrintf(PETSC_COMM_WORLD,"Requested: %g s, Recommended (min(dy/cs,dz/cs)): %g s\n",_minDeltaT,min_deltaT);
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
