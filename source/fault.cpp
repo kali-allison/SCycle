@@ -56,8 +56,8 @@ PetscErrorCode Fault::loadSettings(const char *file)
     rhsFull = rhs; // everything after _delim
 
     // interpret everything after the appearance of a space on the line as a comment
-    //~ pos = rhs.find(" ");
-    //~ rhs = rhs.substr(0,pos);
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
 
     if (var.compare("DcVals")==0) { loadVectorFromInputFile(rhsFull,_DcVals); }
     else if (var.compare("DcDepths")==0) { loadVectorFromInputFile(rhsFull,_DcDepths); }
