@@ -1,34 +1,33 @@
-# Example input file for a 2D linear elastic simulation, using the quasi-dynamic
-# approximation.
+# Example input file for a quasidynamic earthquake cycle simulation with a vertical
+% strike-slip fault and linear elastic off-fault material.
+
+#======================================================================
+# define the domain and problem type
 
 # set up the computational domain
-Ny = 101 # points in y-direction
-Nz = 101 # points in z-direction
-Ly = 30 # (km) horizontal domain size
+Ny = 151 # points in y-direction
+Nz = 201 # points in z-direction
+Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 
 # specify what problem to simulate
-bulkDeformationType = linearElastic
-momentumBalanceType = quasidynamic
+bulkDeformationType = linearElastic # off-fault constitutive law
+momentumBalanceType = quasidynamic # form of the momentum balance equation
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters
 
-# state variable evolution law
-stateLaw = agingLaw
+stateLaw = agingLaw # state variable evolution law
 
-DcVals = [12e-3 12e-3] # m
+DcVals = [12e-3 12e-3] # (m) state evolution distance
 DcDepths = [0 60] # (km)
 
-#lockedVals = [0 0 -1 -1]
-#lockedDepths = [0 15 15 30]
-
-# from Blanpied 1991 for a-b, 1995 for a, assuming 30 K/km
-aVals = [0.0135 0.0300 0.0700 0.2652]
-aDepths = [0 11.0000 19.3333 60]
-bVals = [0.0230 0.0379 0.0350 0.0375 0.0497]
-bDepths = [0 10 11 19.3333 60]
+# based on Blanpied et al. (1991, 1995), assuming a geotherm of 30 K/km
+aVals = [0.0135 0.0300 0.0700 0.2652] # direct effect parameter
+aDepths = [0 11.0000 19.3333 60] # (km)
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497] # state evolution effect parameter
+bDepths = [0 10 11 19.3333 60] # (km)
 
 sNVals = [50 50] # (MPa) effective normal stress
 sNDepths = [0 60] # (km)
@@ -37,24 +36,19 @@ sNDepths = [0 60] # (km)
 # off-fault material parameters
 
 # algorithm for momentum balance equation
-linSolver = MUMPSCHOLESKY
-#linSolver = CG
-kspTol = 1e-9
+#linSolver = MUMPSCHOLESKY
+linSolver = CG
 
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
-rhoVals = [3 3] # (g/cm^3)
+rhoVals = [3 3] # (g/cm^3) rock density
 rhoDepths = [0 60] # (km)
-
-# compute stress component sxz
-momBal_computeSxz = 1
 
 #=======================================================================
 # settings for time integration
 
-timeIntegrator = RK43
-stride1D = 10 # how often to write out fields that live on the fault
-stride2D = 10 # how often to write out body fields
+stride1D = 10 # number of time steps between output of 1D fields
+stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 3e10 # (s) final time
@@ -67,8 +61,4 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output
 outputDir = data/ex2_
-
-
-
-
 

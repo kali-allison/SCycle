@@ -12,7 +12,7 @@ Domain::Domain(const char *file)
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
-  _bCoordTrans(5.0)
+  _bCoordTrans(-1)
 {
   #if VERBOSE > 1
     std::string funcName = "Domain::Domain(const char *file)";
@@ -58,7 +58,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
-  _bCoordTrans(5.0)
+  _bCoordTrans(-1)
 {
   #if VERBOSE > 1
     std::string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
@@ -376,10 +376,11 @@ PetscErrorCode Domain::setFields()
     }
     else {
       // no transformation
-      //~ y[Jj] = q[Jj]*_Ly;
+      y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
 
-      y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans);
+      // hardcoded transformation (not available for z)
+      if (_bCoordTrans > 0) { y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans); }
     }
 
     Jj++;

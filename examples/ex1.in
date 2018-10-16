@@ -1,32 +1,33 @@
-# Example input file for a 1D linear elastic simulation, using the quasi-dynamic
-# approximation.
+# Example input file for  a quasidynamic earthquake cycle simulation for a spring slider
+# with linear elastic off-fault material.
+
+#======================================================================
+# define the domain and problem type
 
 # set up the computational domain
+# note that if Nz = 1 then the problem is equivalent to the spring slide
 Ny = 121 # points in y-direction
 Nz = 1 # points in z-direction
 Ly = 50 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size (not used for this example)
-vL = 1e-9
+vL = 1e-9 # (m/s) loading velocity
 
 # specify what problem to simulate
-bulkDeformationType = linearElastic
-momentumBalanceType = quasidynamic
+bulkDeformationType = linearElastic # off-fault constitutive law
+momentumBalanceType = quasidynamic # form of the momentum balance equation
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #======================================================================
 # rate-and-state parameters
 
-# state variable evolution law
-#stateLaw = slipLaw
-stateLaw = agingLaw
+stateLaw = agingLaw # state variable evolution law
 
-DcVals = [16e-3 16e-3] # (m)
-#DcVals = [10 10] # (m)
+DcVals = [30e-3 30e-3] # (m) state evolution distance
 DcDepths = [0 60] # (km)
 
-aVals = [0.01 0.01]
+aVals = [0.01 0.01]  # direct effect parameter
 aDepths = [0 60]
-bVals = [0.02 0.02]
+bVals = [0.02 0.02]  # state evolution effect parameter
 bDepths = [0 60]
 
 sNVals = [50 50] # (MPa) effective normal stress
@@ -35,20 +36,16 @@ sNDepths = [0 60] # (km)
 #======================================================================
 # off-fault material parameters
 
-# algorithm for momentum balance equation
-linSolver = MUMPSCHOLESKY
-
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
-rhoVals = [3 3] # (g/cm^3)
+rhoVals = [3 3] # (g/cm^3) rock density
 rhoDepths = [0 60] # (km)
 
 #======================================================================
 # settings for time integration
 
-timeIntegrator = RK43
-stride1D = 10 # how often to write out fields that live on the fault
-stride2D = 10 # how often to write out body fields
+stride1D = 10 # number of time steps between output of 1D fields
+stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 2e11 # (s) final time
@@ -57,13 +54,6 @@ minDeltaT = 1e-5 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
 atol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
-#timeIntInds = [slip] # variables to use to compute time step
 
 # directory for output
 outputDir = data/ex1_
-
-
-
-
-
-

@@ -1,6 +1,8 @@
-# Example input file for a 2D thermomechanical power-law viscoelastic simulation.
-# Demonstrates how to use the fixed-point iteration method to estimate steady
-# state conditions. Includes the steady state heat equation.
+# Example input file for a 2D steady-state thermomechanical power-law
+# viscoelastic simulation.
+# Demonstrates how to use the fixed-point iteration method to estimate
+# steady-state conditions, including the steady state heat equation.
+# Note that there are no earthquake cycles in this simulation.
 
 # set up the computational domain
 Ny = 201 # points in y-direction

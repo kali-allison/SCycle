@@ -1,4 +1,6 @@
-% Example script demonstrating how to load and visualize example 1.
+% Script demonstrating how to load and visualize example 1.
+% Example 1 is a quasidynamic earthquake cycle simulation for a spring slider
+% with linear elastic off-fault material.
 
 % define directory for output (can be relative or absolute path)
 sourceDir = '../data/ex1_';
