@@ -135,7 +135,7 @@ PetscErrorCode Domain::loadData(const char *file)
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   ifstream infile( file );
-  string line,var,rhs;
+  string line,var,rhs,rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
@@ -146,10 +146,12 @@ PetscErrorCode Domain::loadData(const char *file)
     if (line.length() > (pos + _delim.length())) {
       rhs = line.substr(pos+_delim.length(),line.npos);
     }
+    rhsFull = rhs; // everything after _delim
 
     // interpret everything after the appearance of a space on the line as a comment
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
+
 
     if (var.compare("order")==0) { _order = atoi( rhs.c_str() ); }
     else if (var.compare("Ny")==0 && _Ny < 0) { _Ny = atoi( rhs.c_str() ); }

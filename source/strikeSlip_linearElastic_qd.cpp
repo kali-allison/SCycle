@@ -683,6 +683,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->d_dt(time,varEx,dvarEx);
   }
+
   return ierr;
 }
 
@@ -703,21 +704,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update for momBal; var holds slip, bcL is displacement at y=0+
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-    ierr = VecScale(_material->_bcL,_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
- if (_bcRType.compare("remoteLoading")==0) {
+  if (_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
   _fault->updateFields(time,varEx);
-
-  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
+    if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->updateFields(time,varEx,varImo);
   }
-
-  // update temperature in fault
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
     _fault->updateTemperature(varImo.find("Temp")->second);
   }
@@ -727,11 +724,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     _fault->setSNEff(_p->_p);
   }
 
+
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
-    // _p->d_dt(time,varEx,dvarEx);
   }
 
   // update shear stress on fault from momentum balance computation
@@ -743,7 +740,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
-  // heat equation
+
+  // solve heat equation implicitly
   if (varIm.find("Temp") != varIm.end()) {
     Vec V = dvarEx.find("slip")->second;
     Vec tau = _fault->_tauP;
