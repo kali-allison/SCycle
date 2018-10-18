@@ -752,6 +752,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
