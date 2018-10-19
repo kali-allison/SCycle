@@ -15,3 +15,5 @@ matlab/visualizePetsc/._*
 .vscode
 .gitignore
 test_Maxime/*
+
+source/main

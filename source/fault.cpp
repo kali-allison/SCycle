@@ -331,6 +331,13 @@ PetscErrorCode Fault::setSN(const Vec& p)
 
   ierr = VecWAXPY(_sN,1.,p,_sNEff); CHKERRQ(ierr);
 
+  { // impose floor and ceiling on effective normal stress
+    Vec temp; VecDuplicate(_sN,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sN,_sN,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sN,_sN,temp);
+    VecDestroy(&temp);
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
@@ -348,6 +355,12 @@ PetscErrorCode Fault::setSNEff(const Vec& p)
   #endif
 
   ierr = VecWAXPY(_sNEff,-1.,p,_sN); CHKERRQ(ierr);
+  { // impose floor and ceiling on effective normal stress
+    Vec temp; VecDuplicate(_sNEff,&temp);
+    VecSet(temp,_sigmaN_cap); VecPointwiseMin(_sNEff,_sNEff,temp);
+    VecSet(temp,_sigmaN_floor); VecPointwiseMax(_sNEff,_sNEff,temp);
+    VecDestroy(&temp);
+  }
     //~ sNEff[Jj] = sN[Jj] - p[Jj];
 
   #if VERBOSE > 1
@@ -441,6 +454,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "strength", _strength, outputDir + "strength"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "sNEff", _sNEff, outputDir + "sNEff"); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
       ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
@@ -453,6 +467,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
     ierr = VecView(_strength,_viewers["strength"].first); CHKERRQ(ierr);
     ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
+    ierr = VecView(_sNEff,_viewers["sNEff"].first); CHKERRQ(ierr);
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
       ierr = VecView(_Vw,_viewers["Vw"].first); CHKERRQ(ierr);

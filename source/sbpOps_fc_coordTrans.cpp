@@ -6,7 +6,7 @@
 //================= constructor and destructor ========================
 SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(1./(Ny-1.)),_dz(1./(Nz-1.)),
-  _muVec(&muVec),
+  // _muVec(&muVec),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
   _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
@@ -14,6 +14,8 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_fc_coordTrans.cpp.\n");
 #endif
 
+  VecDuplicate(muVec, &_muVec);
+  VecCopy(muVec, _muVec);
   // ensure this is in an acceptable state
   setMatsToNull();
   assert(order == 2 || order == 4);
@@ -43,6 +45,8 @@ SbpOps_fc_coordTrans::~SbpOps_fc_coordTrans()
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in SbpOps_fc_coordTrans.cpp.\n");
   #endif
+
+  VecDestroy(&_muVec);
 
   MatDestroy(&_mu);
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
@@ -102,6 +106,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setMatsToNull()
   _e0y_Iz = NULL; _eNy_Iz = NULL; _Iy_e0z = NULL; _Iy_eNz = NULL;
   _E0y_Iz = NULL; _ENy_Iz = NULL; _Iy_E0z = NULL; _Iy_ENz = NULL;
   _muxBySy_IzT = NULL; _Iy_muxBzSzT = NULL;
+  _BSy_Iz = NULL; _Iy_BSz = NULL;
 
   _muqy = NULL; _murz = NULL;
   _yq = NULL; _zr = NULL;_qy = NULL; _rz = NULL;
@@ -161,7 +166,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setGrid(Vec* y, Vec* z)
 
 PetscErrorCode SbpOps_fc_coordTrans::setMultiplyByH(const int multByH)
 {
-  assert( _multByH == 1 || _multByH == 0 );
+  assert( multByH == 1 || multByH == 0 );
   _multByH = multByH;
   return 0;
 }
@@ -276,7 +281,7 @@ PetscErrorCode SbpOps_fc_coordTrans::computeMatrices()
 
   TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  constructMu(*_muVec);
+  constructMu(_muVec);
   constructJacobian(tempMats);
   constructEs(tempMats);
   constructes(tempMats);
@@ -330,11 +335,11 @@ PetscErrorCode SbpOps_fc_coordTrans::constructJacobian(const TempMats_fc_coordTr
   constructD1_qr(tempMats); // create Dq and Dr
 
   Vec ones;
-  VecDuplicate(*_muVec,&ones);
+  VecDuplicate(_muVec,&ones);
   VecSet(ones,1.0);
 
   Vec temp;
-  VecDuplicate(*_muVec,&temp);
+  VecDuplicate(_muVec,&temp);
 
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_yq);
   MatDuplicate(_mu,MAT_DO_NOT_COPY_VALUES,&_zr);
@@ -494,18 +499,47 @@ PetscErrorCode SbpOps_fc_coordTrans::constructBs(const TempMats_fc_coordTrans& t
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Mat temp;
-  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
-  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
-  MatTransposeMatMult(temp,_muqy,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
+  // Mat _BSy_Iz;
+  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,_BSy_Iz,3,3); }
+  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,_BSy_Iz,5,5); }
+  MatTransposeMatMult(_BSy_Iz,_muqy,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
   PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
-  MatDestroy(&temp);
+  // MatDestroy(&temp);
 
-  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
-  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
-  MatTransposeMatMult(temp,_murz,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
+  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,_Iy_BSz,3,3); }
+  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,_Iy_BSz,5,5); }
+  MatTransposeMatMult(_Iy_BSz,_murz,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
   PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
-  MatDestroy(&temp);
+  // MatDestroy(&temp);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+
+PetscErrorCode SbpOps_fc_coordTrans::updateBs()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc_coordTrans::constructBs";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // compute muqy and murz
+  ierr = MatMatMult(_mu,_qy,MAT_REUSE_MATRIX,1.,&_muqy); CHKERRQ(ierr);
+  ierr = MatMatMult(_mu,_rz,MAT_REUSE_MATRIX,1.,&_murz); CHKERRQ(ierr);
+
+  // Mat _BSy_Iz;
+  MatTransposeMatMult(_BSy_Iz,_muqy,MAT_REUSE_MATRIX,1.,&_muxBySy_IzT);
+  PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
+  // MatDestroy(&temp);
+
+  MatTransposeMatMult(_Iy_BSz,_murz,MAT_REUSE_MATRIX,1.,&_Iy_muxBzSzT);
+  PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
+  // MatDestroy(&temp);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -770,6 +804,8 @@ PetscErrorCode SbpOps_fc_coordTrans::constructD2(const TempMats_fc_coordTrans& t
 }
 
 
+
+
 // assumes A has not been computed before
 PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& tempMats)
 {
@@ -819,6 +855,58 @@ PetscErrorCode SbpOps_fc_coordTrans::constructA(const TempMats_fc_coordTrans& te
   _runTime = MPI_Wtime() - startTime;
   return 0;
 }
+
+PetscErrorCode SbpOps_fc_coordTrans::updateA(const TempMats_fc_coordTrans& tempMats)
+{
+  PetscErrorCode  ierr = 0;
+  double startTime = MPI_Wtime();
+  #if VERBOSE > 1
+    string funcName = "SbpOps_fc_coordTrans::constructA";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // assert(0);
+  if (_D2 == NULL) { constructD2(tempMats); }
+  MatDuplicate(_D2,MAT_COPY_VALUES,&_A);
+
+  if (_deleteMats) { MatDestroy(&_D2); }
+
+  // add SAT boundary condition terms
+  // constructBCMats();
+  // assert(0);
+
+  if (_D2type.compare("yz")==0) {
+    // use new Mats _AL etc
+    ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("y")==0) {
+    ierr = MatAXPY(_A,1.0,_AL,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else if (_D2type.compare("z")==0) {
+    ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+    ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
+    assert(0);
+  }
+
+  ierr = PetscObjectSetName((PetscObject) _A, "_A");CHKERRQ(ierr);
+
+  #if VERBOSE > 2
+    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
+  #endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  _runTime = MPI_Wtime() - startTime;
+  return 0;
+}
+
 
 // update A based on new BCs
 PetscErrorCode SbpOps_fc_coordTrans::updateA_BCs()
@@ -1017,13 +1105,13 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDzzmu(const TempMats_fc_coordTrans
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  Mat Rzmu,HinvxRzmu;
-  ierr = constructRzmu(tempMats,Rzmu); CHKERRQ(ierr);
-  ierr = MatMatMult(_Iy_Hzinv,Rzmu,MAT_INITIAL_MATRIX,1.,&HinvxRzmu); CHKERRQ(ierr);
-  ierr = MatMatMatMult(_Iy_Dr,_murz,_Iy_Dr,MAT_INITIAL_MATRIX,1.,&Dzzmu); CHKERRQ(ierr);
-  ierr = MatAXPY(Dzzmu,-1.,HinvxRzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-  MatDestroy(&HinvxRzmu);
-  MatDestroy(&Rzmu);
+  Mat Rzmu,HinvxRzmu; 
+  ierr = constructRzmu(tempMats,Rzmu); CHKERRQ(ierr);   
+  ierr = MatMatMult(_Iy_Hzinv,Rzmu,MAT_INITIAL_MATRIX,1.,&HinvxRzmu); CHKERRQ(ierr);   
+  ierr = MatMatMatMult(_Iy_Dr,_murz,_Iy_Dr,MAT_INITIAL_MATRIX,1.,&Dzzmu); CHKERRQ(ierr);   
+  ierr = MatAXPY(Dzzmu,-1.,HinvxRzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);   
+  MatDestroy(&HinvxRzmu);   
+  MatDestroy(&Rzmu); 
 
   if (!_multByH) {
     Mat temp;
@@ -1055,9 +1143,9 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRzmu(const TempMats_fc_coordTrans&
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
-  Vec murzV = NULL;
-  VecDuplicate(*_muVec,&murzV);
-  MatMult(_rz,*_muVec,murzV);
+  Vec murzV = NULL;  
+  VecDuplicate(_muVec,&murzV);
+  MatMult(_rz,_muVec,murzV);
 
 switch ( _order ) {
     case 2:
@@ -1120,7 +1208,7 @@ switch ( _order ) {
       sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
       //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
-      Mat mu3;
+      Mat mu3; 
       {
         MatDuplicate(_murz,MAT_COPY_VALUES,&mu3);
         ierr = MatDiagonalSet(mu3,murzV,INSERT_VALUES);CHKERRQ(ierr);
@@ -1149,7 +1237,7 @@ switch ( _order ) {
       }
 
       Mat Iy_D3z;
-      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6);
+      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6); 
 
       Mat Iy_C3z;
       kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
@@ -1229,8 +1317,8 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRymu(const TempMats_fc_coordTrans&
 #endif
 
   Vec muqyV = NULL;
-  VecDuplicate(*_muVec,&muqyV);
-  MatMult(_qy,*_muVec,muqyV);
+  VecDuplicate(_muVec,&muqyV);
+  MatMult(_qy,_muVec,muqyV);
 
 
 switch ( _order ) {
@@ -1390,12 +1478,41 @@ PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
     CHKERRQ(ierr);
   #endif
 
-  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
-  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
+  Vec murzV = NULL;  
 
+  VecCopy(coeff, _muVec);
+
+  // VecDuplicate(_muVec,&murzV); PetscPrintf(PETSC_COMM_WORLD, "LINE: 1173\n");
+  // assert(0);
+
+  MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
+  MatDestroy(&_rhsL_N); MatDestroy(&_rhsR_N); MatDestroy(&_rhsT_N); MatDestroy(&_rhsB_N);
+  MatDestroy(&_AR_D); MatDestroy(&_AT_D); MatDestroy(&_AL_D); MatDestroy(&_AB_D);
+  MatDestroy(&_rhsL_D); MatDestroy(&_rhsR_D); MatDestroy(&_rhsT_D); MatDestroy(&_rhsB_D);
+
+  MatDestroy(&_A);
+  MatDestroy(&_D2);
+  // MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+  // MatDestroy(&_muqy); MatDestroy(&_murz);
+
+  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
+
+  updateBs();
+  constructBCMats();
+
+
+  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
   // this approach fundamentally reallocates all the matrices
-  deleteIntermediateFields();
-  ierr = constructA(tempMats); CHKERRQ(ierr);
+
+  updateA(tempMats);
+  // assert(0);
+
+  if (_deleteMats) {
+    deleteIntermediateFields();
+  } 
+  
+  // assert(0);
+  CHKERRQ(ierr);
 
   _runTime = MPI_Wtime() - startTime;
   #if VERBOSE >1

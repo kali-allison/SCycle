@@ -44,7 +44,7 @@ public:
 
     const PetscInt      _order,_Ny,_Nz;
     PetscScalar         _dy,_dz;
-    Vec                *_muVec,*_y,*_z; // variable coefficient, y and z coordinate meshes
+    Vec                 _muVec,*_y,*_z; // variable coefficient, y and z coordinate meshes
     Mat                 _mu; // matrix of coefficient
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
@@ -72,6 +72,7 @@ public:
     Mat _e0y_Iz,_eNy_Iz,_Iy_e0z,_Iy_eNz;
     Mat _E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
     Mat _muxBySy_IzT,_Iy_muxBzSzT;
+    Mat _BSy_Iz, _Iy_BSz;
 
 
     SbpOps_fc_coordTrans(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly, const PetscScalar Lz,Vec& muVec);
@@ -96,6 +97,8 @@ public:
 
     // allow variable coefficient to change
     PetscErrorCode updateVarCoeff(const Vec& coeff);
+    PetscErrorCode updateBs();
+    PetscErrorCode updateA(const TempMats_fc_coordTrans& tempMats);
 
 
     // functions to compute various derivatives of input vectors (this
