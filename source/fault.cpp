@@ -123,6 +123,7 @@ PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
   // load shear stress: pre-stress, quasistatic, and full
   ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_prestress,inputDir,"prestress"); CHKERRQ(ierr);
+  VecAXPY(_tauQSP,1.0,_prestress);
   VecCopy(_tauQSP,_tauP);
 
   // rate and state parameters
@@ -785,7 +786,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time,const map<string,Vec>& varE
   VecPointwiseMult(_tauP,_eta_rad,_tauP); // tau = V * eta_rad
   VecAYPX(_tauP,-1.0,_tauQSP); // tau = tauQS - V*eta_rad
 
-  // compute frictional strength of fault based on
+  // compute frictional strength of fault based on slip velocity
   strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
 
 
