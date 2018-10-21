@@ -26,7 +26,7 @@ private:
   const bool _isMMS;      // true if running mms test
   // const bool        _nonlinear; // true if paramters are nolinear
   std::string _hydraulicTimeIntType; // time integration type (explicit vs implicit)
-  std::string _permSlipDependent, _permPressureDependent;
+
   int _guessSteadyStateICs;
   PetscScalar _initTime, _initDeltaT;
 
@@ -95,8 +95,15 @@ public:
   Domain *_D; // shallow copy of domain
   Vec _p;     // pressure
 
+  std::string _permSlipDependent, _permPressureDependent;
+
   PressureEq(Domain &D);
   ~PressureEq();
+
+  PetscErrorCode getPressure(Vec& P);
+  PetscErrorCode setPressure(const Vec& P);
+  PetscErrorCode getPermeability(Vec& K);
+  PetscErrorCode setPremeability(const Vec& K);
 
   PetscErrorCode setFields(Domain &D);
   PetscErrorCode loadSettings(const char *file);
@@ -111,7 +118,7 @@ public:
   PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
-
+  PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
   // implicit time integration
   PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
                       map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
@@ -121,7 +128,7 @@ public:
                         map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
 
   PetscErrorCode dk_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
-
+  PetscErrorCode dk_dt(const PetscScalar time, const Vec slipVel, const Vec &K, Vec &dKdt);
   // IO
   PetscErrorCode view(const double totRunTime);
   PetscErrorCode writeContext(const std::string outputDir);
