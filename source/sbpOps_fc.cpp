@@ -138,7 +138,7 @@ PetscErrorCode SbpOps_fc::setGrid(Vec* y, Vec* z) { return 0; } // not used for 
 
 PetscErrorCode SbpOps_fc::setMultiplyByH(const int multByH)
 {
-  assert( _multByH == 1 || _multByH == 0 );
+  assert( multByH == 1 || multByH == 0 );
   _multByH = multByH;
   return 0;
 }
@@ -249,8 +249,8 @@ PetscErrorCode SbpOps_fc::computeMatrices()
 
   TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  constructMu(*_muVec);
-  constructEs(tempMats);
+  constructMu(*_muVec); //no memory leak
+  constructEs(tempMats); //no memory leak
   constructes(tempMats);
   constructHs(tempMats);
   constructBs(tempMats);
