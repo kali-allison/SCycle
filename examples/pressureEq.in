@@ -1,0 +1,114 @@
+# Example input file for a quasidynamic earthquake cycle simulation with a vertical
+% strike-slip fault, linear elastic off-fault material and pore pressure on the fault.
+
+#======================================================================
+# define the domain and problem type
+
+# set up the computational domain
+Ny = 151 # points in y-direction
+Nz = 151 # points in z-direction
+Ly = 100 # (km) horizontal domain size
+Lz = 30 # (km) vertical domain size
+vL = 1e-9 # (m/s) loading velocity
+bCoordTrans = 5 # controls grid stretching perpendicular to the fault. larger b means more grid stretching
+
+# specify what problem to simulate
+bulkDeformationType = linearElastic # off-fault constitutive law
+momentumBalanceType = quasidynamic # form of the momentum balance equation
+guessSteadyStateICs = 1 # estimate steady-state initial conditions
+
+#=======================================================================
+# rate-and-state parameters
+ # state variable evolution law
+stateLaw = agingLaw
+
+DcVals = [0.05 0.05 0.01 0.01] # (m) state evolution distance
+DcDepths = [0.0 4 6 100.0] # (km)
+
+# based on Blanpied et al. (1991, 1995), assuming a geotherm of 30 K/km
+aVals = [0.0105 0.03 0.07 0.173] # direct effect parameter
+aDepths = [0 14.9 27.6 60] # (km)
+bVals = [0.02 0.0378 0.0356 0.0375 0.0424] # state evolution effect parameter
+bDepths = [0 13.6 14.9 27.6 60] # (km)
+
+sNVals = [0.00 11154.705882] # (MPa) effective normal stress
+sNDepths = [0.0 500.0] # (km)
+
+sN_floor = 5.0 # minimal effective normal stress
+
+#=======================================================================
+# off-fault material parameters
+
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+#linSolver = CG
+
+muVals = [32.4 32.4] # (GPa) shear modulus
+muDepths = [0 60] # (km)
+rhoVals = [2.7 2.7] # (g/cm^3) rock density
+rhoDepths = [0 60] # (km)
+
+#=======================================================================
+# hydraulic coupling
+hydraulicCoupling = coupled #options: no, uncoupled, coupled
+
+hydraulicTimeIntType = implicit #option: implicit, explicit
+
+# bottom boundary condition
+bcB_ratio = 0.1 # the extra pressure gradient 
+
+# actual, physical values
+n_pVals = [0.01 0.01]
+n_pDepths = [0 500]
+beta_pVals = [1 1] # 1/GPa
+beta_pDepths = [0 500]
+k_pVals = [1e-22 1e-22] # km^2
+k_pDepths = [0 500]
+eta_pVals = [1e-13 1e-13] # GPa.s
+eta_pDepths = [0 500]
+rho_fVals = [1 1] # g/cm^3
+rho_fDepths = [0 500]
+g = 9.8
+pVals = [0.0 0.0]
+pDepths = [0 500]
+
+# permeability evolution
+permSlipDependent = yes
+kL_pVals = [1e0 1e0] # m
+kL_pDepths = [0 500]
+kT_pVals = [1e9 1e9] # s
+kT_pDepths = [0 500]
+kmin_pVals = [1e-24 1e-24] # km^2
+kmin_pDepths = [0 500]
+kmax_pVals = [1e-21 1e-21]  # km^2
+kmax_pDepths = [0 500]
+
+permPressureDependent = no
+meanK_pVals = [1e-19, 1e-19]
+meanK_pDepths = [0 500]
+deltaK_pVals = [1e-19, 1e-19] # km^2
+deltaK_pDepths = [0 500]
+meanP_pVals = [0 0] #MPa
+meanP_pDepths = [0 500]
+stdP_pVals = [10 10] #Mpa
+stdP_pDepths = [0 500]
+maxBeIteration = 10
+maxBeDifference = 0.01 #1 percent
+
+#=======================================================================
+# settings for time integration
+
+timeIntegrator = RK43_WBE #options: RK43_WBE, RK43
+stride1D = 10 # number of time steps between output of 1D fields
+stride2D = 10 # number of time steps between output of 2D fields
+maxStepCount = 5e4 # maximum number of time steps
+initTime = 0 # (s) initial time
+maxTime = 3e10 # (s) final time
+atol = 1e-7 # absolute tolerance for time integration
+normType = L2_absolute #options: L2_absolute, L2_relative
+timeIntInds = [psi slip] # variables to use to compute time step
+
+
+# directory for output
+outputDir = data/hydralic_fault_
+
