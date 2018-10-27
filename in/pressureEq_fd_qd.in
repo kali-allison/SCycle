@@ -9,9 +9,9 @@
 
 # set up the computational domain
 Ny = 251 # points in y-direction
-Nz = 251 # points in z-direction
-Ly = 50 # (km) horizontal domain size
-Lz = 50 # (km) vertical domain size
+Nz = 1942 # points in z-direction
+Ly = 500 # (km) horizontal domain size
+Lz = 500 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
 bCoordTrans = 10 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
 
@@ -55,7 +55,7 @@ rhoDepths = [0 60] # (km)
 
 #=======================================================================
 # hydraulic coupling
-hydraulicCoupling = no #options: no, uncoupled, coupled
+hydraulicCoupling = coupled #options: no, uncoupled, coupled
 
 hydraulicTimeIntType = implicit #option: implicit, explicit
 
@@ -78,7 +78,7 @@ pVals = [0.0 0.0]
 pDepths = [0 500]
 
 # permeability evolution
-permSlipDependent = no
+permSlipDependent = yes
 kL_pVals = [1e0 1e0] # m
 kL_pDepths = [0 500]
 kT_pVals = [1e9 1e9] # s
@@ -111,7 +111,7 @@ maxTime = 1e12 # (s) final time
 atol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
-stride1D_qd = 1 # number of time steps between output of 1D fields during quasidynamic period
+stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
 stride2D_qd = 0 # number of time steps between output of 2D fields during quasidynamic period
 stride1D_fd = 2e2 # number of time steps between output of 1D fields during fully dynamic period
 stride2D_fd = 0 # number of time steps between output of 2D fields during fully dynamic period
@@ -130,6 +130,6 @@ maxNumCycles = 10
 CFL = 0.5
 
 # directory for output
-inputDir = reference_model_dum/
+inputDir = reference_model/
 outputDir = /scratch/zhuwq/data/pressureEq_fd_qd_
 

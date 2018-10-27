@@ -1495,7 +1495,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     _p->updateFields(time,varEx);
   }
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
-    _fault_qd->setSNEff(varEx.find("pressure")->second);
+    // _fault_qd->setSNEff(varEx.find("pressure")->second);
+    _fault_qd->setSNEff(_p->_p);
   }
 
   // compute rates
@@ -1644,19 +1645,19 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   }
 
   if (_hydraulicCoupling.compare("no")!=0 ) {
-    Vec P = var.find("pressure")->second;
-    Vec dPdt;
-    VecDuplicate(P, &dPdt);
-    ierr = _p->dp_dt(time, P, dPdt); CHKERRQ(ierr);
-    VecWAXPY(varNext["pressure"], deltaT, dPdt, P);
-    _p->setPressure(varNext["pressure"]);
+    // Vec P = var.find("pressure")->second;
+    // Vec dPdt;
+    // VecDuplicate(P, &dPdt);
+    // ierr = _p->dp_dt(time, P, dPdt); CHKERRQ(ierr);
+    // VecWAXPY(varNext["pressure"], deltaT, dPdt, P);
+    // _p->setPressure(varNext["pressure"]);
     if ((_p->_permSlipDependent).compare("no")!=0) {
       Vec V = _fault_fd->_slipVel;
       Vec K = var.find("permeability")->second;
       Vec dKdt;
       VecDuplicate(K, &dKdt);
       ierr = _p->dk_dt(time, V, K, dKdt); CHKERRQ(ierr);
-      VecWAXPY(varNext["permeability"], deltaT, dPdt, P);
+      VecWAXPY(varNext["permeability"], deltaT, dKdt, K);
       _p->setPremeability(varNext["permeability"]);
     }
   }
