@@ -659,17 +659,20 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   }
 
 
+
+  _fault->updateFields(time,varEx);
+
+
+  if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
+    _p->updateFields(time,varEx);
+  }
+
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
     _fault->setSNEff(varEx.find("pressure")->second);
-  }
-  _fault->updateFields(time,varEx);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->updateFields(time,varEx);
   }
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
-
 
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
@@ -680,7 +683,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+  if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
+
     _p->d_dt(time,varEx,dvarEx);
   }
 
@@ -712,7 +716,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   }
 
   _fault->updateFields(time,varEx);
-    if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
+
+  // if (( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0) {
+  if ( _hydraulicCoupling.compare("no")!=0 ) {
     _p->updateFields(time,varEx,varImo);
   }
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
@@ -727,9 +733,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
-  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
-  }
 
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
@@ -740,6 +743,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
+  // if (( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0) {
+  if ( _hydraulicCoupling.compare("no")!=0 ) {
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+  }
+
+  // heat equation
 
   // solve heat equation implicitly
   if (varIm.find("Temp") != varIm.end()) {
@@ -791,6 +800,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   // compute steady state stress on fault
   Vec tauSS = NULL;
   _fault->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+
 
   if (_inputDir.compare("unspecified") != 0) {
     ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
@@ -982,7 +992,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::measureMMSError()
 
   _material->measureMMSError(_currTime);
   //~ _he->measureMMSError(_currTime);
-  //~ _p->measureMMSError(_currTime);
+  _p->measureMMSError(_currTime);
 
   return ierr;
 }

@@ -249,7 +249,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("RK32_WBE")==0 ||
-    _timeIntegrator.compare("RK43_WBE")==0 ||
+      _timeIntegrator.compare("RK43_WBE")==0 ||
       _timeIntegrator.compare("WaveEq")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
@@ -716,6 +716,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
 
   // if solving the heat equation, add temperature to varFD
   if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
+  if (_hydraulicCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["pressure"], &_varFD["pressure"]); VecCopy(_varIm["pressure"], _varFD["pressure"]); }
 
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
@@ -755,6 +756,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
 
   // update implicitly integrated T
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varFD["Temp"],_varIm["Temp"]); } // if solving the heat equation
+  if (_hydraulicCoupling.compare("no")!=0 ) { VecCopy(_varFD["pressure"],_varIm["pressure"]); }
 
   // update fault internal variables
   VecCopy(_fault_fd->_psi,       _fault_qd->_psi);
@@ -803,6 +805,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
   VecCopy(_material->_u,_varFDPrev["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
+  if (_hydraulicCoupling.compare("no")!=0 ) { VecCopy(_varIm["pressure"], _varFDPrev["pressure"]); }
 
   // take 1 quasidynamic time step to compute variables at time n
   _inDynamic = 0;
@@ -814,6 +817,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_psi,_varFD["psi"]);
   VecCopy(_material->_u,_varFD["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFD["Temp"]); } // if solving the heat equation
+  if (_hydraulicCoupling.compare("no")!=0 ) { VecCopy(_varIm["pressure"], _varFD["pressure"]); }
 
   // now change u to du
   VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]);
@@ -978,8 +982,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::view()
 
   _material->view(_integrateTime);
   _fault_qd->view(_integrateTime);
-  if (_hydraulicCoupling.compare("no")!=0) { _p->view(_integrateTime); }
   if (_thermalCoupling.compare("no")!=0) { _he->view(); }
+  if (_hydraulicCoupling.compare("no")!=0) { _p->view(_integrateTime); }
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"strikeSlip_linearElastic_qd_fd Runtime Summary:\n");CHKERRQ(ierr);
@@ -1484,19 +1488,19 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-  if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
-    _fault_qd->setSNEff(varEx.find("pressure")->second);
-  }
+
   _fault_qd->updateFields(time,varEx);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
+
+  if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
     _p->updateFields(time,varEx);
+  }
+  if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
+    // _fault_qd->setSNEff(varEx.find("pressure")->second);
+    _fault_qd->setSNEff(_p->_p);
   }
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
-  if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->d_dt(time,varEx,dvarEx);
-  }
 
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
@@ -1506,6 +1510,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   // rates for fault
   ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
+  if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
+    _p->d_dt(time,varEx,dvarEx);
+  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1537,7 +1545,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   _fault_qd->updateFields(time,varEx);
 
-  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
+  if ( _hydraulicCoupling.compare("no")!=0 ) {
     _p->updateFields(time,varEx,varImo);
   }
 
@@ -1554,10 +1562,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   // 2. compute rates, and update implicitly integrated variables
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
-  if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
-    // _p->d_dt(time,varEx,dvarEx);
-  }
 
   // update shear stress on fault from momentum balance computation
   Vec sxy,sxz,sdev;
@@ -1567,6 +1571,11 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
   // rates for fault
   ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
+  if ( _hydraulicCoupling.compare("no")!=0 ) {
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    // _p->d_dt(time,varEx,dvarEx);
+  }
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
@@ -1633,6 +1642,24 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   if (_qd_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
+  }
+
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+    // Vec P = var.find("pressure")->second;
+    // Vec dPdt;
+    // VecDuplicate(P, &dPdt);
+    // ierr = _p->dp_dt(time, P, dPdt); CHKERRQ(ierr);
+    // VecWAXPY(varNext["pressure"], deltaT, dPdt, P);
+    // _p->setPressure(varNext["pressure"]);
+    if ((_p->_permSlipDependent).compare("no")!=0) {
+      Vec V = _fault_fd->_slipVel;
+      Vec K = var.find("permeability")->second;
+      Vec dKdt;
+      VecDuplicate(K, &dKdt);
+      ierr = _p->dk_dt(time, V, K, dKdt); CHKERRQ(ierr);
+      VecWAXPY(varNext["permeability"], deltaT, dKdt, K);
+      _p->setPremeability(varNext["permeability"]);
+    }
   }
 
   // explicitly integrate heat equation using forward Euler

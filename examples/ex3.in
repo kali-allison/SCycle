@@ -1,88 +1,89 @@
-# Example input file for a 2D linear elastic simulation of an ice stream,
-# using the quasi-dynamic approximation.
+
+# Example input file for a earthquake cycle simulation with a vertical
+% strike-slip fault and linear elastic off-fault material.
+#   - During the interseismic period, the quasidynamic approximation is used.
+#   - During the coseismic period, the code is fully dynamic.
+
+#======================================================================
+# define the domain and problem type
 
 # set up the computational domain
-Ny = 101 # points in y-direction
-Nz = 1 # points in z-direction
-Ly = 0.8 # (km) horizontal domain size
-Lz = 200 # (km) vertical domain size
+Ny = 301 # points in y-direction
+Nz = 757 # points in z-direction
+Ly = 500 # (km) horizontal domain size
+Lz = 500 # (km) vertical domain size
+vL = 1e-9 # (m/s) loading velocity
+bCoordTrans = 7 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
+
+# path to look for supplied z vector
+inputDir = examples/ex3_
 
 # specify what problem to simulate
-problemType = iceStream
-bulkDeformationType = linearElastic
-momentumBalanceType = quasidynamic
-guessSteadyStateICs = 0 # estimate steady-state initial conditions
+#bulkDeformationType = powerLaw # off-fault constitutive law
+bulkDeformationType = linearElastic # off-fault constitutive law
+momentumBalanceType = quasidynamic_and_dynamic # form of the momentum balance equation
+guessSteadyStateICs = 1 # use estimate of steady-state as initial condition
 
-#======================================================================
+#=======================================================================
 # rate-and-state parameters
 
-# state variable evolution law
-stateLaw = slipLaw
-f0 = 0.4
-v0 = 1e-5
+stateLaw = agingLaw # state variable evolution law
+DcVals = [20e-3 20e-3] # (m) state evolution distance
+DcDepths = [0 60] # (km)
 
-#lockedVals = [1 1 0 0 1 1]
-#lockedDepths = [0 10 10 20 20 200]
+# based on Blanpied et al. (1991, 1995), assuming a geotherm of 30 K/km
+aVals = [0.0135 0.0300 0.0700 0.2652] # direct effect parameter
+aDepths = [0 11.0000 19.3333 60] # (km)
+bVals = [0.0230 0.0379 0.0350 0.0375 0.0497] # state evolution effect parameter
+bDepths = [0 10 11 19.3333 60] # (km)
 
-DcVals = [3e-2 3e-2] # m
-DcDepths = [0 200] # m
+sNVals = [50 50] # (MPa) effective normal stress
+sNDepths = [0 60] # (km)
 
-# ice stream values
-aVals = [0.02 0.02]
-aDepths = [0 200]
-bVals = [0.025 0.025]
-bDepths = [0 200]
-
-sNVals = [1e-2 1e-2] # (MPa) effective normal stress
-sNDepths = [0 200]
-
-#======================================================================
+#=======================================================================
 # off-fault material parameters
 
-vL = 1.157e-5
+muVals = [30 30] # (GPa) shear modulus
+muDepths = [0 60] # (km)
+rhoVals = [3 3] # (g/cm^3) rock density
+rhoDepths = [0 60] # (km)
 
-# algorithm for momentum balance equation
-linSolver = MUMPSCHOLESKY
+# power law properties: wet feldspar
+AVals = [1585 1585]
+ADepths = [0 100]
+BVals = [4.157e4 4.157e4]
+BDepths = [0 100]
+nVals = [3 3]
+nDepths = [0 100]
 
-# coordinate transformation
-#bCoordTrans = 10.0
-#sbpType = mfc_coordTrans
-sbpType = mfc
-
-muVals = [3.6 3.6] # (GPa) shear modulus
-muDepths = [0 200] # (km)
-rhoVals = [0.9 0.9] # (g/cm^3)
-rhoDepths = [0 200] # (km)
-
-# boundary conditions
-momBal_bcR_qd = freeSurface
-momBal_bcT_qd = freeSurface
-momBal_bcL_qd = rigid_fault
-momBal_bcB_qd = freeSurface
-
-momBal_computeSxz = 1 # compute sxz
-
-#======================================================================
+#=======================================================================
 # settings for time integration
 
-timeIntegrator = RK43
-stride1D = 1 # how often to write out fields that live on the fault
-stride2D = 1 # how often to write out body fields
-maxStepCount = 3e3 # maximum number of time steps
+maxNumCycles = 10 # maximum number of earthquake cycles to simulate
+maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
-maxTime = 3e7 # (s) final time
-initDeltaT = 1 # (s) size of initial time step
-minDeltaT = 1e-3 # (s) size of minimum time step
-maxDeltaT = 1e15 # (s) size of maximum time step
-atol = 1e-6 # absolute tolerance for time integration
+maxTime = 1e12 # (s) final time
+atol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
-normType = L2_absolute
+
+stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
+stride2D_qd = 10 # number of time steps between output of 2D fields during quasidynamic period
+stride1D_fd = 20 # number of time steps between output of 1D fields during fully dynamic period
+stride2D_fd = 20 # number of time steps between output of 2D fields during fully dynamic period
+stride1D_fd_end = 200
+stride2D_fd_end = 200
+
+#=======================================================================
+# settings to control switching between quasidynamic and fully dynamic periods
+
+limit_fd = 1e-1
+limit_qd = 1e-7
+limit_stride_fd = 5e-2 # value of R to switch strides from stride*D_fd to stride_*D_fd_end
+trigger_qd2fd = 1e-3 # value of R used to transition from quasidynamic to fully dynamic
+trigger_fd2qd = 1e-4 # value of R used to transition from fully dynamic to quasidynamic
+CFL = 0.5 # CFL condition used to determine time step size in coseismic period
+
 
 # directory for output
 outputDir = data/ex3_
-
-
-
-
-
 
