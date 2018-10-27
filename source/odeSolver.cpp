@@ -393,12 +393,8 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   deltaT=min(_maxDeltaT,deltaT); // absolute max
   deltaT = max(_minDeltaT,deltaT);
 
-  if (_minDeltaT == deltaT) {
-    _numMinSteps++;
-  }
-  else if (_maxDeltaT == deltaT) {
-    _numMaxSteps++;
-  }
+  if (_minDeltaT == deltaT) { _numMinSteps++; }
+  else if (_maxDeltaT == deltaT) { _numMaxSteps++; }
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeStepSize in odeSolver.cpp.\n");
 #endif

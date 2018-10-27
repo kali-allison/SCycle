@@ -5,7 +5,7 @@ using namespace std;
 OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
-  _lenVar(0),_runTime(0),_controlType(controlType),_normType("L2_absolute"),
+  _N(0),_runTime(0),_controlType(controlType),_normType("L2_absolute"),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -164,6 +164,7 @@ PetscErrorCode RK32_WBE::setTolerance(const PetscReal tol)
 #endif
   double startTime = MPI_Wtime();
   _atol = tol;
+  _totTol = _atol;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -267,7 +268,7 @@ PetscErrorCode RK32_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK32_WBE::computeStepSize(const PetscReal _totErr)
+PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeStepSize in RK32_WBE.cpp.\n");
@@ -277,7 +278,7 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal _totErr)
   if (_controlType.compare("P") == 0) {
     // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
-    stepRatio = _kappa*pow(_atol/_totErr,alpha);
+    stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
     //if using proportional-integral-derivative feedback (PID)
@@ -287,12 +288,12 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal _totErr)
     PetscReal gamma = 0.1/_ord;
 
     if (_stepCount < 3) {
-      stepRatio = _kappa*pow(_atol/_totErr,1./(1.+_ord));
+      stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa * pow(_atol/_totErr,alpha)
-                         * pow(_errA[0]/_atol,beta)
-                         * pow(_atol/_errA[1],gamma);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
     }
   }
   else {
@@ -303,16 +304,12 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal _totErr)
   PetscReal deltaT = stepRatio*_deltaT;
 
   // respect bounds on min and max possible step size
-  deltaT=min(_maxDeltaT,deltaT); // absolute max
   deltaT = min(_deltaT*5.0,deltaT); // cap growth rate of step size
+  deltaT=min(_maxDeltaT,deltaT); // absolute max
   deltaT = max(_minDeltaT,deltaT);
 
-  if (_minDeltaT == deltaT) {
-    _numMinSteps++;
-  }
-  else if (_maxDeltaT == deltaT) {
-    _numMaxSteps++;
-  }
+  if (_minDeltaT == deltaT) { _numMinSteps++; }
+  else if (_maxDeltaT == deltaT) { _numMaxSteps++; }
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::computeStepSize in RK32_WBE.cpp.\n");
 #endif
@@ -639,6 +636,7 @@ PetscErrorCode RK43_WBE::setTolerance(const PetscReal tol)
 #endif
   double startTime = MPI_Wtime();
   _atol = tol;
+  _totTol = _atol;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -779,7 +777,7 @@ PetscErrorCode RK43_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK43_WBE::computeStepSize(const PetscReal _totErr)
+PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeStepSize in RK32_WBE.cpp.\n");
@@ -789,42 +787,36 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal _totErr)
   if (_controlType.compare("P") == 0) {
     // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
-    stepRatio = _kappa*pow(_atol/_totErr,alpha);
+    stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
   else if (_controlType.compare("PID") == 0) {
     //if using proportional-integral-derivative feedback (PID)
-
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    if (_stepCount < 3) {
-      stepRatio = _kappa*pow(_atol/_totErr,1./(1.+_ord));
+    if (_stepCount < 4) {
+      stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
-      stepRatio = _kappa * pow(_atol/_totErr,alpha)
-                         * pow(_errA[0]/_atol,beta)
-                         * pow(_atol/_errA[1],gamma);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
     }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
-    assert(0>1); // automatically fail
+    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
-
   PetscReal deltaT = stepRatio*_deltaT;
 
   // respect bounds on min and max possible step size
-  deltaT=min(_maxDeltaT,deltaT); // absolute max
   deltaT = min(_deltaT*5.0,deltaT); // cap growth rate of step size
+  deltaT= min(_maxDeltaT,deltaT); // absolute max
   deltaT = max(_minDeltaT,deltaT);
 
-  if (_minDeltaT == deltaT) {
-    _numMinSteps++;
-  }
-  else if (_maxDeltaT == deltaT) {
-    _numMaxSteps++;
-  }
+  if (_minDeltaT == deltaT) { _numMinSteps++; }
+  else if (_maxDeltaT == deltaT) { _numMaxSteps++; }
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeStepSize in RK32_WBE.cpp.\n");
 #endif
@@ -839,6 +831,23 @@ PetscReal RK43_WBE::computeError()
   PetscErrorCode ierr = 0;
   PetscReal      err,_totErr=0.0;
 
+  // if using absolute error for control
+  // error: the absolute L2 error
+  // tolerance: the absolute tolerance, weighted by _N
+  if (_normType.compare("L2_absolute")==0) {
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      std::string key = _errInds[i];
+      Vec errVec; VecDuplicate(_y3[key],&errVec); VecSet(errVec,0.0);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecDestroy(&errVec);
+
+      VecGetSize(_y4[key],&_N);
+      _totErr += err / sqrt(_N);
+    }
+    _totTol = _atol;
+  }
+/*
   if (_normType.compare("L2_relative")==0) { // relative error
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
@@ -885,7 +894,7 @@ PetscReal RK43_WBE::computeError()
       _totErr = max(_totErr,err);
       VecDestroy(&errVec);
     }
-  }
+  }*/
 
 
   /*for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
@@ -901,6 +910,7 @@ PetscReal RK43_WBE::computeError()
     _totErr += err/(size+1.0);
     VecDestroy(&errVec);
   }*/
+
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeError in RK32_WBE.cpp.\n");
@@ -981,6 +991,14 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
     }
     assert(_varEx.find(key) != _varEx.end());
+  }
+
+  // determine total length of _var being used for error control
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
+    PetscInt size;
+    VecGetSize(_varEx[key],&size);
+    _N += size;
   }
 
   if (_finalT==_initT) { return ierr; }

@@ -110,7 +110,8 @@ class RK32 : public OdeSolver
   public:
 
     PetscReal   _minDeltaT,_maxDeltaT;
-    PetscReal   _atol; // absolute and relative tolerances
+    PetscReal   _atol,_rtol; // absolute and relative tolerances
+    PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
     PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
@@ -147,7 +148,8 @@ class RK43 : public OdeSolver
   public:
 
     PetscReal   _minDeltaT,_maxDeltaT;
-    PetscReal   _atol; // absolute and relative tolerances
+    PetscReal   _atol,_rtol; // absolute and relative tolerances
+    PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
     PetscReal   _kappa,_ord; // safety factor in step size determinance
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 

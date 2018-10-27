@@ -64,7 +64,7 @@ class OdeSolverImex
     std::map<string,Vec>    _varEx,_dvar; // explicit integration variable and rate
     std::map<string,Vec>    _varIm; // implicit integration variable, once per time step
     std::vector<string>     _errInds; // which inds of _var to use for error control
-    int                     _lenVar;
+    int                     _N; // total length of Vecs being integrated
     double                  _runTime;
     string                  _controlType;
     string                  _normType;
@@ -72,7 +72,8 @@ class OdeSolverImex
   public:
 
     PetscReal   _minDeltaT,_maxDeltaT;
-    PetscReal   _atol; // absolute and relative tolerances
+    PetscReal   _atol,_rtol; // absolute and relative tolerances
+    PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
