@@ -67,9 +67,10 @@ private:
     PetscInt               _maxStepCount; // largest number of time steps
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
     int                    _stepCount;
-    PetscScalar            _atol;
+    PetscScalar            _timeStepTol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    std::vector<double>    _scale; // scale factor for entries in _timeIntInds
     std::string            _normType;
 
 

@@ -63,7 +63,7 @@ maxNumCycles = 10 # maximum number of earthquake cycles to simulate
 maxStepCount = 1e8 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 1e12 # (s) final time
-atol = 1e-7 # absolute tolerance for time integration
+timeStepTol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period

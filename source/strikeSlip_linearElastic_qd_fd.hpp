@@ -82,9 +82,10 @@ private:
     PetscScalar            _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
 
     int                    _stepCount;
-    PetscScalar            _atol;
+    PetscScalar            _timeStepTol;
     PetscScalar            _initDeltaT, _dT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    std::vector<double>    _scale; // scale factor for entries in _timeIntInds
     std::string            _normType;
 
 

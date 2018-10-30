@@ -22,7 +22,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),_stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
   _maxStepCount(1e8),
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+  _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
@@ -189,8 +189,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof(rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof(rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof(rhs.c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof(rhs.c_str() ); }
+    else if (var.compare("timeStepTol")==0) { _timeStepTol = atof(rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
+    else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
+    else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof(rhs.c_str() ); }
 
@@ -249,8 +251,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("RK32_WBE")==0 ||
-      _timeIntegrator.compare("RK43_WBE")==0 ||
-      _timeIntegrator.compare("WaveEq")==0 );
+      _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
@@ -260,7 +261,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
 
   assert(_initTime >= 0);
 
-  assert(_atol >= 1e-14);
+  assert(_timeStepTol >= 1e-14);
   assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
@@ -904,24 +905,24 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
 
   // integrate
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
     quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
-    quadImex->setErrInds(_timeIntInds);
+    quadImex->setErrInds(_timeIntInds,_scale);
 
     ierr = quadImex->integrate(this); CHKERRQ(ierr);
   }
   else {
-    quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadEx->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
     quadEx->setInitialConds(_varQSEx);
-    quadEx->setErrInds(_timeIntInds);
+    quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
   }
@@ -1057,7 +1058,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeStepTol = %g\n",_timeStepTol);CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  if (_scale.size() > 0) {
+    ierr = PetscViewerASCIIPrintf(viewer,"scale = %s\n",vector2str(_scale).c_str());CHKERRQ(ierr);
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"trigger_qd2fd = %.15e\n",_trigger_qd2fd);CHKERRQ(ierr);
@@ -1065,7 +1072,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
@@ -1413,13 +1419,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
 
   // integrate
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     quadImex->setTimeRange(_currTime,_maxTime);
     quadImex->setInitialStepCount(_stepCount);
     quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
-    quadImex->setErrInds(_timeIntInds);
+    quadImex->setErrInds(_timeIntInds,_scale);
 
     ierr = quadImex->integrate(this); CHKERRQ(ierr);
 
@@ -1429,13 +1435,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     }
   }
   else {
-    quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     quadEx->setTimeRange(_currTime,_maxTime);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
     quadEx->setInitialConds(_varQSEx);
-    quadEx->setErrInds(_timeIntInds);
+    quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
     std::map<string,Vec> varOut = quadEx->_var;
