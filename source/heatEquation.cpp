@@ -1518,28 +1518,20 @@ PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const V
   // shear heating terms: sdev * dgv  (stresses times viscous strain rates)
   // sdev = sqrt(sxy^2 + sxz^2)
   // dgv = sqrt(dgVxy^2 + dgVxz^2)
-  Vec Qvisc;
-  VecDuplicate(sdev,&Qvisc);
-  VecSet(Qvisc,0.0);
+  VecSet(_Qvisc,0.0);
 
 
   // compute dgv
-  VecPointwiseMult(Qvisc,dgxy,dgxy);
+  VecPointwiseMult(_Qvisc,dgxy,dgxy);
   Vec temp;
   VecDuplicate(sdev,&temp);
   VecPointwiseMult(temp,dgxz,dgxz);
-  VecAXPY(Qvisc,1.0,temp);
+  VecAXPY(_Qvisc,1.0,temp);
   VecDestroy(&temp);
-  VecSqrtAbs(Qvisc);
+  VecSqrtAbs(_Qvisc);
 
   // multiply by deviatoric stress
-  VecPointwiseMult(Qvisc,sdev,Qvisc); // Qvisc = sdev * Qvisc
-
-  // scatter full domain sized Qvisc to lithosphere-only-sized Qvisc_l for output
-  ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], Qvisc, _Qvisc, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], Qvisc, _Qvisc, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-  VecDestroy(&Qvisc);
+  VecPointwiseMult(_Qvisc,sdev,_Qvisc); // Qvisc = sdev * Qvisc
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
