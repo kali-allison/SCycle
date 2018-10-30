@@ -129,7 +129,7 @@ class HeatEquation
     PetscErrorCode checkInput();     // check input from file
 
 
-    PetscErrorCode constructScatters();
+    PetscErrorCode constructScatters(Vec& T, Vec& T_l);
     PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp();
     PetscErrorCode setUpSteadyStateProblem();
@@ -143,7 +143,6 @@ class HeatEquation
 
 
     Vec _Tamb,_dT,_T; // full domain: ambient temperature, change in temperature from ambiant, and total temperature
-    Vec _Tamb_l,_dT_l,_T_l; // lithosphere only: ambient temperature, change in temperature from ambiant and total temperature
     Vec _k,_rho,_c; // thermal conductivity, density, heat capacity,
     Vec _Qrad,_Qfric,_Qvisc,_Q; // source terms: radioactive decay, frictional, viscous, total heat generation
 

@@ -18,7 +18,7 @@ HeatEquation::HeatEquation(Domain& D)
   _MapV(NULL),_Gw(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
   _linSolveCount(0),
-  _Tamb(NULL),_dT(NULL),_T(NULL),_Tamb_l(NULL),_dT_l(NULL),_T_l(NULL),
+  _Tamb(NULL),_dT(NULL),_T(NULL),
   _k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Qfric(NULL),_Qvisc(NULL),_Q(NULL)
 {
   #if VERBOSE > 1
@@ -30,28 +30,6 @@ HeatEquation::HeatEquation(Domain& D)
   checkInput();
   allocateFields();
   setFields(); // sets material parameters
-
-  // stuff for computing ambient geotherm
-    // boundary conditions
-  //~ PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
-  //~ VecSet(_bcT,bcTval);
-
-  //~ PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
-  //~ VecSet(_bcB,bcBval);
-  //~ constructScatters();
-
-  //~ // set up radioactive heat generation source term
-  //~ // Qrad = A0 * exp(-z/Lrad)
-  //~ if (_wRadioHeatGen.compare("yes") == 0) {
-    //~ Vec A0; VecDuplicate(_Qrad,&A0);
-    //~ ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,*_z); CHKERRQ(ierr);
-    //~ VecCopy(*_z,_Qrad);
-    //~ VecScale(_Qrad,-1.0/_Lrad);
-    //~ VecExp(_Qrad);
-    //~ VecPointwiseMult(_Qrad,A0,_Qrad);
-    //~ VecDestroy(&A0);
-  //~ }
-  //~ else { VecSet(_Qrad,0.); }
 
   loadFieldsFromFiles();
   if (!_isMMS && _loadICs!=1) { computeInitialSteadyStateTemp(); }
@@ -90,9 +68,6 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_Tamb);
   VecDestroy(&_dT);
   VecDestroy(&_T);
-  VecDestroy(&_Tamb_l);
-  VecDestroy(&_dT_l);
-  VecDestroy(&_T_l);
   VecDestroy(&_kTz);
   VecDestroy(&_kTz_z0);
 
@@ -149,6 +124,7 @@ PetscErrorCode HeatEquation::setTemp(const Vec& T)
   #endif
 
   VecCopy(T,_T);
+  VecWAXPY(_dT,-1.0,_Tamb,_T);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -311,6 +287,21 @@ PetscErrorCode ierr = 0;
   VecDuplicate(_D->_y,&_Tamb);  VecSet(_Tamb,0.);
   VecDuplicate(_D->_y,&_dT);    VecSet(_dT,0.);
 
+    { // create scatter from body field to top boundary
+    // indices to scatter from
+    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
+
+    // indices to scatter to
+     PetscInt *ti; PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<(_Ny); Ii++) { ti[Ii] = Ii; }
+    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+    PetscFree(ti);
+
+    // create scatter
+    ierr = VecScatterCreate(*_y, isf, _bcT, ist, &_scatters["body2T"]); CHKERRQ(ierr);
+    ISDestroy(&isf); ISDestroy(&ist);
+  }
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -349,6 +340,19 @@ PetscErrorCode ierr = 0;
   }
 
   if (_wFrictionalHeating.compare("yes")==0) { constructMapV(); }
+
+  // set up radioactive heat generation source term
+  // Qrad = A0 * exp(-z/Lrad)
+  if (_wRadioHeatGen.compare("yes") == 0) {
+    Vec A0; VecDuplicate(_Qrad,&A0);
+    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,*_z); CHKERRQ(ierr);
+    VecCopy(*_z,_Qrad);
+    VecScale(_Qrad,-1.0/_Lrad);
+    VecExp(_Qrad);
+    VecPointwiseMult(_Qrad,A0,_Qrad);
+    VecDestroy(&A0);
+  }
+  else { VecSet(_Qrad,0.); }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -396,7 +400,7 @@ PetscErrorCode HeatEquation::checkInput()
 
 // create scatters for communication from full domain Vecs to lithosphere only Vecs
 // SCATTER_FORWARD is from full domain -> lithosphere
-PetscErrorCode HeatEquation::constructScatters()
+PetscErrorCode HeatEquation::constructScatters(Vec& T, Vec& T_l)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -426,11 +430,11 @@ PetscErrorCode HeatEquation::constructScatters()
     PetscFree(ti);
 
     // create scatter
-    ierr = VecScatterCreate(_T, isf, _T_l, ist, &_scatters["bodyFull2bodyLith"]); CHKERRQ(ierr);
+    ierr = VecScatterCreate(_T, isf, T_l, ist, &_scatters["bodyFull2bodyLith"]); CHKERRQ(ierr);
     ISDestroy(&isf); ISDestroy(&ist);
   }
 
-
+/*
   { // create scatter from full domain L/R boundary to lithosphere-only L/R boundary
     // indices to scatter from
     PetscInt *fi; PetscMalloc1(_Nz_lab,&fi);
@@ -466,22 +470,7 @@ PetscErrorCode HeatEquation::constructScatters()
     ierr = VecScatterCreate(_D->_y, isf, _bcR, ist, &_scatters["bodyFull2RLith"]); CHKERRQ(ierr);
     ISDestroy(&isf); ISDestroy(&ist);
   }
-
-  { // create scatter from lithosphere-size body field to lithsphere-size T boundary
-    // indices to scatter from
-    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz_lab, &isf);
-
-    // indices to scatter to
-     PetscInt *ti; PetscMalloc1(_Ny,&ti);
-    for (PetscInt Ii=0; Ii<(_Ny); Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
-    PetscFree(ti);
-
-    // create scatter
-    ierr = VecScatterCreate(*_y, isf, _bcT, ist, &_scatters["bodyLith2TLith"]); CHKERRQ(ierr);
-    ISDestroy(&isf); ISDestroy(&ist);
-  }
-
+*/
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -552,7 +541,8 @@ PetscErrorCode HeatEquation::constructMapV()
 }
 
 
-// compute T assuming that dT/dt = 0, and Qfric, Qvisc = 0
+// compute 1D steady-state geotherm in thelithosphere, optionally
+// including radioactive decay as a heat source
 PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 {
   PetscErrorCode ierr = 0;
@@ -562,29 +552,73 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     CHKERRQ(ierr);
   #endif
 
-  delete _sbp;
+  // no need for linear solve step if Nz == 1
+  if (_Nz == 1) {
+    VecSet(_Tamb,_TVals[0]);
+    VecSet(_T,_TVals[0]);
+    VecSet(_dT,0.0);
+    return 0;
+  }
 
+  // otherwise:
+
+  // boundary conditions
+  PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
+  VecSet(_bcT,bcTval);
+
+  PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
+  VecSet(_bcB,bcBval);
+
+
+  // fields that live only in the lithosphere
+  Vec y,z,k,Qrad,Tamb_l;
+  ierr = VecCreate(PETSC_COMM_WORLD,&y); CHKERRQ(ierr);
+  ierr = VecSetSizes(y,PETSC_DECIDE,_Ny*_Nz_lab); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(y); CHKERRQ(ierr);
+  VecSet(y,0.0);
+  VecDuplicate(y,&z); VecSet(z,0.0);
+  VecDuplicate(y,&k); VecSet(k,0.0);
+  VecDuplicate(y,&Qrad); VecSet(Qrad,0.0);
+  VecDuplicate(y,&Tamb_l); VecSet(Tamb_l,0.0);
+
+  constructScatters(_T,Tamb_l);
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], *_y, y, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], *_y, y, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], *_z, z, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], *_z, z, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _k, k, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _k, k, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_scatters["bodyFull2bodyLith"], _Qrad, Qrad, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["bodyFull2bodyLith"], _Qrad, Qrad, INSERT_VALUES, SCATTER_FORWARD);
+
+
+  // create SBP operators, 1D in z-direction only, only in lithosphere
+  SbpOps* sbp;
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+    sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+    if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
+    else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
+    else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(&y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  _sbp->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
-  _sbp->setMultiplyByH(1);
-  _sbp->setLaplaceType("z");
-  _sbp->setDeleteIntermediateFields(1);
-  _sbp->computeMatrices(); // actually create the matrices
+  sbp->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
+  sbp->setMultiplyByH(1);
+  sbp->setLaplaceType("z");
+  sbp->setDeleteIntermediateFields(1);
+  sbp->computeMatrices(); // actually create the matrices
 
 
   // radioactive heat generation source term
@@ -607,43 +641,57 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     }
   }
 
-  // compute Tamb_l
-  if (_Nz > 1) {
+    Mat A; sbp->getA(A);
+    setupKSP_SS(A); // set up KSP for steady-state problem
 
-    Mat A; _sbp->getA(A);
-    setupKSP_SS(A);
-
-    Vec rhs;
-    VecDuplicate(_k,&rhs);
+    Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.);
+    VecSet(_bcL,0.0); VecSet(_bcR,0.0);
     _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
     if (_wRadioHeatGen.compare("yes") == 0) {
       VecAXPY(rhs,-1.0,Qtemp);
       VecDestroy(&Qtemp);
     }
 
-    // solve for temperature
+    // solve for ambient temperature in the lithosphere
     double startTime = MPI_Wtime();
-    ierr = KSPSolve(_kspSS,rhs,_Tamb_l);CHKERRQ(ierr);
+    ierr = KSPSolve(_kspSS,rhs,Tamb_l);CHKERRQ(ierr);
     _linSolveTime += MPI_Wtime() - startTime;
     _linSolveCount++;
 
-    VecDestroy(&rhs);
+    // scatter Tamb_l to Tamb and T
+    VecScatterBegin(_scatters["bodyFull2bodyLith"], Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
+    VecScatterEnd(_scatters["bodyFull2bodyLith"], Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
+    VecSet(_dT,0.0);
+    VecCopy(_Tamb,_T);
+    computeHeatFlux();
+
     KSPDestroy(&_kspSS); _kspSS = NULL;
+    delete sbp;
+    VecDestroy(&y);
+    VecDestroy(&z);
+    VecDestroy(&k);
+    VecDestroy(&Qrad);
+    VecDestroy(&Tamb_l);
 
-    // scatter Tamb_l to Tamb
-    VecScatterBegin(_scatters["bodyFull2bodyLith"], _Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
-    VecScatterEnd(_scatters["bodyFull2bodyLith"], _Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
-  }
-  else{
-    VecSet(_Tamb_l,_TVals[0]);
+
+  // now overwrite Tamb(z>=LAB) with mantle adiabat
+  if (_Nz_lab < _Nz && _Lz_lab < _Lz && _TVals.size() == 3) {
+    PetscScalar a = (_TVals[2] - _TVals[1])/(_TDepths[2]-_TDepths[1]); // adiabat slope
+    PetscScalar const *zz;
+    PetscScalar *Tamb;
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_T,&Istart,&Iend);
+    VecGetArrayRead(*_z,&zz);
+    VecGetArray(_Tamb,&Tamb);
+    PetscInt Jj = 0;
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      Tamb[Jj] = a * (zz[Jj]-_TDepths[1]) + _TVals[1];
+      Jj++;
+    }
+    VecRestoreArrayRead(*_z,&zz);
+    VecRestoreArray(_Tamb,&Tamb);
   }
 
-  // compute dT, dT_l, T, T_l
-  VecSet(_dT_l,0.0);
-  VecSet(_dT,0.0);
-  VecCopy(_Tamb_l,_T_l);
-  VecCopy(_Tamb,_T);
-  computeHeatFlux();
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1405,7 +1453,9 @@ PetscErrorCode HeatEquation::updateSS(map<string,Vec>& varSS)
   return ierr;
 }
 
-// compute steady-state temperature given boundary conditions and shear heating source terms (assuming these remain constant)
+// compute steady-state temperature given boundary conditions and shear heating source terms (assuming these remain constant) Qfric and Qvisc
+// Note: solves for dT, where dT = T - Tamb and Tamb also satisfies the steady-state heat equation
+// and can includes radioactive heat generation.
 PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T)
 {
@@ -1424,13 +1474,10 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   }
 
   // set up boundary conditions and source terms
-  Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
-  if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
-  else { VecSet(_Q,0.); }
+  VecSet(_Q,0.);
 
-  // left boundary: heat generated by fault motion
+  // left boundary: heat generated by fault motion: bcL or Qfric depending on shear zone width
   if (_wFrictionalHeating.compare("yes")==0) {
-    // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_Qfric);
     VecScale(_bcL,-1.);
@@ -1443,6 +1490,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   }
 
   // rhs = J*H*Q + (SAT BC terms)
+  Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
   ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
@@ -1460,20 +1508,15 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  KSPSolve(_kspSS,rhs,_T_l);
+  KSPSolve(_kspSS,rhs,_dT);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   VecDestroy(&rhs);
 
-  VecWAXPY(_dT_l,-1.0,_Tamb_l,_T_l); // dT = - Tamb + T
-
-  // now update full domain: T_l -> T
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
-  VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = - Tamb + T
-
-
+  // compute total temperature _T (internal variable) and T (output variable)
+  VecWAXPY(_T,1.0,_dT,_Tamb);
   VecCopy(_T,T);
+
   computeHeatFlux();
 
   _beTime += MPI_Wtime() - beStartTime;
@@ -1706,12 +1749,12 @@ PetscErrorCode HeatEquation::computeHeatFlux()
   #endif
 
   // total heat flux in lithosphere
-  ierr = _sbp->muxDz(_T_l,_kTz); CHKERRQ(ierr);
+  ierr = _sbp->muxDz(_T,_kTz); CHKERRQ(ierr);
   VecScale(_kTz,1e9);
 
   // extract surface heat flux
-  VecScatterBegin(_scatters["bodyLith2TLith"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyLith2TLith"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterBegin(_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2T"], _kTz, _kTz_z0, INSERT_VALUES, SCATTER_FORWARD);
 
 
   #if VERBOSE > 1
