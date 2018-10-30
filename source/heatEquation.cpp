@@ -1558,12 +1558,8 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
     CHKERRQ(ierr);
   #endif
 
-  // compute q = tau * slipVel
-  Vec q; VecDuplicate(tau,&q);
-  VecPointwiseMult(q,tau,slipVel);
-  VecScatterBegin(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["y0Full2y0Lith"], q, _bcL, INSERT_VALUES, SCATTER_FORWARD);
-  VecDestroy(&q);
+  // compute bcL = q = tau * slipVel
+  VecPointwiseMult(_bcL,tau,slipVel);
 
   // if left boundary condition is heat flux: q = bcL = tau*slipVel/2
   if (_wMax == 0) {
