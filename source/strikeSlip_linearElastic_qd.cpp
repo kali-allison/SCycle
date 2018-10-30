@@ -16,7 +16,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(-1),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+  _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
@@ -153,8 +153,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
+    else if (var.compare("timeStepTol")==0) { _timeStepTol = atof( rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
+    else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
@@ -200,15 +201,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("RK32_WBE")==0 ||
-    _timeIntegrator.compare("RK43_WBE")==0 ||
-      _timeIntegrator.compare("WaveEq")==0 );
-
-  assert(_timeIntegrator.compare("FEuler")==0
-    || _timeIntegrator.compare("RK32")==0
-    || _timeIntegrator.compare("RK43")==0
-    || _timeIntegrator.compare("RK32_WBE")==0
-    || _timeIntegrator.compare("RK43_WBE")==0
-    || _timeIntegrator.compare("WaveEq")==0);
+    _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
@@ -218,7 +211,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
-  assert(_atol >= 1e-14);
+  assert(_timeStepTol >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
@@ -497,9 +490,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
 
   double totRunTime = MPI_Wtime() - _startTime;
 
-  if (_timeIntegrator.compare("IMEX")==0&& _quadImex!=NULL) { ierr = _quadImex->view(); }
-  if (_timeIntegrator.compare("RK32")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
-  if (_timeIntegrator.compare("RK43")==0 && _quadEx!=NULL) { ierr = _quadEx->view(); }
+  if ((_timeIntegrator.compare("RK32")==0 || _timeIntegrator.compare("RK43")==0) && _quadEx!=NULL) { ierr = _quadEx->view(); }
+  if ((_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) && _quadImex!=NULL) { ierr = _quadImex->view(); }
 
   _material->view(_integrateTime);
   _fault->view(_integrateTime);
@@ -551,8 +543,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeStepTol: %g\n",_timeStepTol);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  if (_scale.size() > 0) {
+    ierr = PetscViewerASCIIPrintf(viewer,"scale = %s\n",vector2str(_scale).c_str());CHKERRQ(ierr);
+  }
   ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
@@ -615,22 +611,22 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   }
 
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
-    ierr = _quadImex->setErrInds(_timeIntInds); // control which fields are used to select step size
+    ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
   else {
-    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds); // control which fields are used to select step size
+    ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }

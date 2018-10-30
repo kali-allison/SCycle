@@ -84,9 +84,10 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscInt               _maxStepCount; // largest number of time steps
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
     int                    _stepCount;
-    PetscScalar            _atol;
+    PetscScalar            _timeStepTol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
+    std::vector<double>    _scale; // scale factor for entries in _timeIntInds
     std::string            _normType;
 
 

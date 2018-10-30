@@ -64,7 +64,7 @@ class OdeSolverImex
     std::map<string,Vec>    _varEx,_dvar; // explicit integration variable and rate
     std::map<string,Vec>    _varIm; // implicit integration variable, once per time step
     std::vector<string>     _errInds; // which inds of _var to use for error control
-    int                     _N; // total length of Vecs being integrated
+    std::vector<double>     _scale; // scale factor for entries in _errInds
     double                  _runTime;
     string                  _controlType;
     string                  _normType;
@@ -84,10 +84,11 @@ class OdeSolverImex
     virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
     PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 
-    virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
+    virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
+    virtual PetscErrorCode setErrInds(std::vector<string>& errInds, vector<double> scale) = 0;
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
 
@@ -106,7 +107,7 @@ class RK32_WBE : public OdeSolverImex
     PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
     // intermediate values for time stepping for the explicit variable
-    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_var2nd,_dvar2nd,_var3rd;
+    std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
     std::map<string,Vec> _vardTIm;
 
 
@@ -116,10 +117,11 @@ class RK32_WBE : public OdeSolverImex
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
 
-    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
 
@@ -156,10 +158,11 @@ class RK43_WBE : public OdeSolverImex
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
 
-    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
 

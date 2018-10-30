@@ -19,7 +19,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_atol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+  _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
@@ -204,8 +204,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
-    else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
+    else if (var.compare("timeStepTol")==0) { _timeStepTol = atof( rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
+    else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
@@ -266,8 +267,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
       _timeIntegrator.compare("RK32")==0 ||
       _timeIntegrator.compare("RK43")==0 ||
       _timeIntegrator.compare("RK32_WBE")==0 ||
-      _timeIntegrator.compare("RK43_WBE")==0 ||
-      _timeIntegrator.compare("WaveEq")==0 );
+      _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
          _timeControlType.compare("PI")==0 ||
@@ -277,7 +277,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
-  assert(_atol >= 1e-14);
+  assert(_timeStepTol >= 1e-14);
   assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
@@ -764,8 +764,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"minDeltaT = %.15e # (s)\n",_minDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxDeltaT = %.15e # (s)\n",_maxDeltaT);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initDeltaT = %.15e # (s)\n",_initDeltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"timeStepTol: %g\n",_timeStepTol);CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
+  if (_scale.size() > 0) {
+    ierr = PetscViewerASCIIPrintf(viewer,"scale = %s\n",vector2str(_scale).c_str());CHKERRQ(ierr);
+  }
+  ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D_qd = %i\n",_stride1D_qd);CHKERRQ(ierr);
@@ -781,7 +786,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"limit_qd = %.15e\n",_limit_qd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_fd = %.15e\n",_limit_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_fd);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
@@ -909,13 +913,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
 
   // integrate
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     _quadImex->setTimeRange(_currTime,_maxTime);
     _quadImex->setInitialStepCount(_stepCount);
     _quadImex->setInitialConds(_varQSEx,_varIm);
     _quadImex->setToleranceType(_normType);
-    _quadImex->setErrInds(_timeIntInds);
+    _quadImex->setErrInds(_timeIntInds,_scale);
 
     ierr = _quadImex->integrate(this); CHKERRQ(ierr);
 
@@ -925,13 +929,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     }
   }
   else {
-    _quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     _quadEx->setTimeRange(_currTime,_maxTime);
     _quadEx->setInitialStepCount(_stepCount);
     _quadEx->setToleranceType(_normType);
     _quadEx->setInitialConds(_varQSEx);
-    _quadEx->setErrInds(_timeIntInds);
+    _quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = _quadEx->integrate(this); CHKERRQ(ierr);
     std::map<string,Vec> varOut = _quadEx->_var;
@@ -1129,24 +1133,24 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
 
   // integrate
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    quadImex->setTolerance(_atol);CHKERRQ(ierr);
+    quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
     quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
-    quadImex->setErrInds(_timeIntInds);
+    quadImex->setErrInds(_timeIntInds,_scale);
 
     ierr = quadImex->integrate(this); CHKERRQ(ierr);
   }
   else {
-    quadEx->setTolerance(_atol);CHKERRQ(ierr);
+    quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
     quadEx->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
     quadEx->setInitialConds(_varQSEx);
-    quadEx->setErrInds(_timeIntInds);
+    quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
   }
@@ -1600,12 +1604,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrateSS()
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: time integrator time not acceptable for fixed point iteration method.\n");
       assert(0);
     }
-    ierr = _quadEx->setTolerance(_atol); CHKERRQ(ierr);
+    ierr = _quadEx->setTolerance(_timeStepTol); CHKERRQ(ierr);
     ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varQSEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds);
+    ierr = _quadEx->setErrInds(_timeIntInds,_scale);
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
     delete _quadEx; _quadEx = NULL;
 

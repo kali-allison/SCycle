@@ -61,7 +61,7 @@ class OdeSolver
     PetscInt                _maxNumSteps,_stepCount;
     std::map<string,Vec>    _var,_dvar; // integration variable and rate
     std::vector<string>     _errInds; // which keys of _var to use for error control
-    int                     _lenVar;
+    std::vector<double>     _scale; // scale factor for entries in _errInds
     double                  _runTime;
     string                  _controlType;
     string                  _normType;
@@ -74,13 +74,14 @@ class OdeSolver
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 
-    virtual PetscErrorCode setTolerance(const PetscReal atol) = 0;
+    virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::map<string,Vec>& var){return 1;};
     virtual PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
+    virtual PetscErrorCode setErrInds(std::vector<string>& errInds, vector<double> scale) = 0;
     virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(IntegratorContextEx *obj){return 1;};
+    virtual PetscErrorCode integrate(IntegratorContextEx *obj) {return 1;};
 };
 
 //~ PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
@@ -95,11 +96,12 @@ class FEuler : public OdeSolver
     ~FEuler() {};
     PetscErrorCode view();
 
-    PetscErrorCode setTolerance(const PetscReal atol){return 0;};
+    PetscErrorCode setTolerance(const PetscReal tol){return 0;};
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
+    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale) {return 0;};
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
@@ -119,7 +121,7 @@ class RK32 : public OdeSolver
     boost::circular_buffer<double> _errA;
     PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
-    std::map<string,Vec> _varHalfdT,_dvarHalfdT,_vardT,_dvardT,_y2,_dy2,_y3;
+    std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
 
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
@@ -129,11 +131,12 @@ class RK32 : public OdeSolver
     RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32();
 
-    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContextEx *obj);
@@ -167,11 +170,12 @@ class RK43 : public OdeSolver
     RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK43();
 
-    PetscErrorCode setTolerance(const PetscReal atol);
+    PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
     PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
     PetscErrorCode setErrInds(std::vector<string>& errInds);
+    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
 
     PetscErrorCode integrate(IntegratorContextEx *obj);
