@@ -28,18 +28,33 @@ HeatEquation::HeatEquation(Domain& D)
 
   loadSettings(_file);
   checkInput();
-
   allocateFields();
-  constructScatters();
-  setFields(); // note this doesn't set _bcR correctly
-  if (_wFrictionalHeating.compare("yes")==0) { constructMapV(); }
+  setFields(); // sets material parameters
+
+  // stuff for computing ambient geotherm
+    // boundary conditions
+  //~ PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
+  //~ VecSet(_bcT,bcTval);
+
+  //~ PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
+  //~ VecSet(_bcB,bcBval);
+  //~ constructScatters();
+
+  //~ // set up radioactive heat generation source term
+  //~ // Qrad = A0 * exp(-z/Lrad)
+  //~ if (_wRadioHeatGen.compare("yes") == 0) {
+    //~ Vec A0; VecDuplicate(_Qrad,&A0);
+    //~ ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,*_z); CHKERRQ(ierr);
+    //~ VecCopy(*_z,_Qrad);
+    //~ VecScale(_Qrad,-1.0/_Lrad);
+    //~ VecExp(_Qrad);
+    //~ VecPointwiseMult(_Qrad,A0,_Qrad);
+    //~ VecDestroy(&A0);
+  //~ }
+  //~ else { VecSet(_Qrad,0.); }
+
   loadFieldsFromFiles();
   if (!_isMMS && _loadICs!=1) { computeInitialSteadyStateTemp(); }
-
-  // set up boundary conditions that are equal to absolute temperature
-  VecSet(_bcL,0.);
-  VecScatterBegin(_scatters["bodyFull2RLith"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2RLith"], _Tamb, _bcR, INSERT_VALUES, SCATTER_FORWARD);
 
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(); }
   else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(); }
@@ -243,28 +258,13 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
   // load Tamb (background geotherm)
   loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
-  if (chkTamb) { // if loaded Tamb, scatter to Tamb_l
-    _loadICs = 1;
-    ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _Tamb, _Tamb_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-    ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _Tamb, _Tamb_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-
-    VecScatterBegin(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2T"], _Tamb, _bcT, INSERT_VALUES, SCATTER_FORWARD);
-
-    // this scatter is incorrect
-    //~ VecScatterBegin(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-    //~ VecScatterEnd(_D->_scatters["body2B"], _Tamb, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-  }
+  if (chkTamb) { _loadICs = 1; }
 
   // load T
   loadVecFromInputFile(_T,_inputDir,"T",chkT);
-  if (chkT) { // if loaded T, scatter to T_l
-    ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _T, _T_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-    ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _T, _T_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  }
+
   if (chkT!=1 && chkTamb) { // if Tamb was loaded and T wasn't, copy Tamb into T
     VecCopy(_Tamb,_T);
-    VecCopy(_Tamb_l,_T_l);
   }
 
   // load dT (perturbation from ambient geotherm)
@@ -272,9 +272,6 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   if (chkdT!=1 && chkTamb) { // dT wasn't loaded, compute it from T and Tamb
     VecWAXPY(_dT,-1.0,_Tamb,_T);
   }
-  // since dT is computed above regardless of if it was loaded, update dT_l to match
-  ierr = VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT, _dT_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT, _dT_l, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -302,26 +299,14 @@ PetscErrorCode ierr = 0;
 
   VecDuplicate(_bcT,&_kTz_z0); VecSet(_kTz_z0,0.0); // heat flux
 
-
-  // set lithosphere-only sized 2D fields
-  ierr = VecCreate(PETSC_COMM_WORLD,&_k); CHKERRQ(ierr);
-  ierr = VecSetSizes(_k,PETSC_DECIDE,_Ny*_Nz_lab); CHKERRQ(ierr);
-  ierr = VecSetFromOptions(_k); CHKERRQ(ierr);
-  VecSet(_k,0.);
-
-  VecDuplicate(_k,&_rho);    VecSet(_rho,0.);
-  VecDuplicate(_k,&_c);      VecSet(_c,0.);
-  VecDuplicate(_k,&_Q);      VecSet(_Q,0.);
-  VecDuplicate(_k,&_Qrad);   VecSet(_Qrad,0.);
-  VecDuplicate(_k,&_Qfric);  VecSet(_Qfric,0.);
-  VecDuplicate(_k,&_Qvisc);  VecSet(_Qvisc,0.);
-  VecDuplicate(_k,&_dT_l);   VecSet(_dT_l,0.);
-  VecDuplicate(_k,&_Tamb_l); VecSet(_Tamb_l,0.0);
-  VecDuplicate(_k,&_T_l);    VecSet(_T_l,0.0);
-  VecDuplicate(_k,&_kTz);    VecSet(_kTz,0.0);
-
-
-  // set up full domain sized fields
+  VecDuplicate(*_y,&_k);         VecSet(_k,0.0); // conductivity
+  VecDuplicate(_k,&_rho);       VecSet(_rho,0.); // density
+  VecDuplicate(_k,&_c);         VecSet(_c,0.); // heat capacity
+  VecDuplicate(_k,&_Q);         VecSet(_Q,0.);
+  VecDuplicate(_k,&_Qrad);      VecSet(_Qrad,0.);
+  VecDuplicate(_k,&_Qfric);     VecSet(_Qfric,0.);
+  VecDuplicate(_k,&_Qvisc);     VecSet(_Qvisc,0.);
+  VecDuplicate(_k,&_kTz);       VecSet(_kTz,0.0);
   VecDuplicate(_D->_y,&_T);     VecSet(_T,0.);
   VecDuplicate(_D->_y,&_Tamb);  VecSet(_Tamb,0.);
   VecDuplicate(_D->_y,&_dT);    VecSet(_dT,0.);
@@ -345,21 +330,6 @@ PetscErrorCode ierr = 0;
     CHKERRQ(ierr);
   #endif
 
-
-  // y and z for lithosphere
-  //~ VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
-
-
-  // boundary conditions
-  PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
-  VecSet(_bcT,bcTval);
-
-  PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
-  VecSet(_bcB,bcBval);
-
   // set each field using it's vals and depths std::vectors
   if (_isMMS) {
     mapToVec(_k,zzmms_k,*_y,*_z);
@@ -378,20 +348,7 @@ PetscErrorCode ierr = 0;
     ierr = setVecFromVectors(_Tamb,_TVals,_TDepths,*_z); CHKERRQ(ierr);
   }
 
-  // set up radioactive heat generation source term
-  // Qrad = A0 * exp(-z/Lrad)
-  if (_wRadioHeatGen.compare("yes") == 0) {
-    Vec A0; VecDuplicate(_Qrad,&A0);
-    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,*_z); CHKERRQ(ierr);
-    VecCopy(*_z,_Qrad);
-    VecScale(_Qrad,-1.0/_Lrad);
-    VecExp(_Qrad);
-    VecPointwiseMult(_Qrad,A0,_Qrad);
-    VecDestroy(&A0);
-  }
-  else { VecSet(_Qrad,0.); }
-
-
+  if (_wFrictionalHeating.compare("yes")==0) { constructMapV(); }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -546,7 +503,7 @@ PetscErrorCode HeatEquation::constructMapV()
   #endif
 
   MatCreate(PETSC_COMM_WORLD,&_MapV);
-  MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz_lab,_Nz_lab);
+  MatSetSizes(_MapV,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Nz);
   MatSetFromOptions(_MapV);
   MatMPIAIJSetPreallocation(_MapV,1,NULL,1,NULL);
   MatSeqAIJSetPreallocation(_MapV,1,NULL);
@@ -556,7 +513,7 @@ PetscErrorCode HeatEquation::constructMapV()
   PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
   MatGetOwnershipRange(_MapV,&Istart,&Iend);
   for (Ii = Istart; Ii < Iend; Ii++) {
-    Jj = Ii % _Nz_lab;
+    Jj = Ii % _Nz;
     MatSetValues(_MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
   }
   MatAssemblyBegin(_MapV,MAT_FINAL_ASSEMBLY);
@@ -608,13 +565,13 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   delete _sbp;
 
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -1650,13 +1607,13 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
 
   // construct matrices
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz_lab > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz_lab == 1) { _sbp->setGrid(_y,NULL); }
@@ -1689,7 +1646,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     CHKERRQ(ierr);
   #endif
 
-  // set up boundary conditions
+  // ensure BCs are all 0
   VecSet(_bcR,0.);
   VecSet(_bcT,0.);
   VecSet(_bcL,0.);
@@ -1700,13 +1657,13 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   // construct matrices
   // BC order: right,top, left, bottom
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -1810,14 +1767,10 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
 
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcL", _bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
-
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR0", _bcR, outputDir + "he_bcR0"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT0", _bcT, outputDir + "he_bcT0"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB0", _bcB, outputDir + "he_bcB0"); CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"he_maxT.txt").c_str(),&_maxTempV);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
@@ -1825,9 +1778,9 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
   else {
     ierr = VecView(_kTz_z0,_viewers["kTz_y0"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
 
