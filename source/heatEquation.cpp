@@ -185,7 +185,7 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("cDepths")==0) { loadVectorFromInputFile(rhsFull,_cDepths); }
 
 
-    else if (var.compare("Nz_lab")==0) { _Nz_lab = atoi( (line.substr(pos+_delim.length(),line.npos)).c_str() ); }
+    else if (var.compare("Nz_lab")==0) { _Nz_lab = atoi( rhs.c_str() ); }
     else if (var.compare("TVals")==0) { // TVals = [T0 T_lab TN] || [T0 TN]
       loadVectorFromInputFile(rhsFull,_TVals); }
     else if (var.compare("TDepths")==0) {
@@ -239,9 +239,8 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   // load T
   loadVecFromInputFile(_T,_inputDir,"T",chkT);
 
-  if (chkT!=1 && chkTamb) { // if Tamb was loaded and T wasn't, copy Tamb into T
-    VecCopy(_Tamb,_T);
-  }
+  // if Tamb was loaded and T wasn't, copy Tamb into T
+  if (chkT!=1 && chkTamb) { VecCopy(_Tamb,_T); }
 
   // load dT (perturbation from ambient geotherm)
   loadVecFromInputFile(_dT,_inputDir,"dT",chkdT);
@@ -410,67 +409,29 @@ PetscErrorCode HeatEquation::constructScatters(Vec& T, Vec& T_l)
   #endif
 
 
-  { // create scatter from 2D full domain to 2D lithosphere only
-    // indices to scatter from
-    PetscInt *fi; PetscMalloc1(_Ny*_Nz_lab,&fi);
-    PetscInt count = 0;
-    for (PetscInt Ii=0; Ii<_Ny; Ii++) {
-      for (PetscInt Jj=0; Jj<_Nz_lab; Jj++) {
-        fi[count] = Ii*_Nz + Jj;
-        count++;
-      }
+  // create scatter from 2D full domain to 2D lithosphere only
+  // indices to scatter from
+  PetscInt *fi; PetscMalloc1(_Ny*_Nz_lab,&fi);
+  PetscInt count = 0;
+  for (PetscInt Ii=0; Ii<_Ny; Ii++) {
+    for (PetscInt Jj=0; Jj<_Nz_lab; Jj++) {
+      fi[count] = Ii*_Nz + Jj;
+      count++;
     }
-    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, fi, PETSC_COPY_VALUES, &isf);
-    PetscFree(fi);
-
-    // indices to scatter to
-     PetscInt *ti; PetscMalloc1(_Ny*_Nz_lab,&ti);
-    for (PetscInt Ii=0; Ii<(_Ny*_Nz_lab); Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist);
-    PetscFree(ti);
-
-    // create scatter
-    ierr = VecScatterCreate(_T, isf, T_l, ist, &_scatters["bodyFull2bodyLith"]); CHKERRQ(ierr);
-    ISDestroy(&isf); ISDestroy(&ist);
   }
+  IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, fi, PETSC_COPY_VALUES, &isf);
+  PetscFree(fi);
 
-/*
-  { // create scatter from full domain L/R boundary to lithosphere-only L/R boundary
-    // indices to scatter from
-    PetscInt *fi; PetscMalloc1(_Nz_lab,&fi);
-    for (PetscInt Ii=0; Ii<_Nz_lab; Ii++) { fi[Ii] = Ii; }
-    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, fi, PETSC_COPY_VALUES, &isf);
-    PetscFree(fi);
+  // indices to scatter to
+   PetscInt *ti; PetscMalloc1(_Ny*_Nz_lab,&ti);
+  for (PetscInt Ii=0; Ii<(_Ny*_Nz_lab); Ii++) { ti[Ii] = Ii; }
+  IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist);
+  PetscFree(ti);
 
-    // indices to scatter to
-     PetscInt *ti; PetscMalloc1(_Nz_lab,&ti);
-    for (PetscInt Ii=0; Ii<_Nz_lab; Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, ti, PETSC_COPY_VALUES, &ist);
-    PetscFree(ti);
+  // create scatter
+  ierr = VecScatterCreate(_T, isf, T_l, ist, &_scatters["bodyFull2bodyLith"]); CHKERRQ(ierr);
+  ISDestroy(&isf); ISDestroy(&ist);
 
-    // create scatter
-    ierr = VecScatterCreate(_D->_y0, isf, _bcL, ist, &_scatters["y0Full2y0Lith"]); CHKERRQ(ierr);
-    ISDestroy(&isf); ISDestroy(&ist);
-  }
-
-  { // create scatter from full domain body field to lithsphere-size R boundary
-    // indices to scatter from
-    PetscInt *fi; PetscMalloc1(_Nz,&fi);
-    for (PetscInt Ii=0; Ii<_Nz_lab; Ii++) { fi[Ii] = Ii + (_Ny*_Nz-_Nz); }
-    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, fi, PETSC_COPY_VALUES, &isf);
-    PetscFree(fi);
-
-    // indices to scatter to
-     PetscInt *ti; PetscMalloc1(_Nz_lab,&ti);
-    for (PetscInt Ii=0; Ii<(_Nz_lab); Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz_lab, ti, PETSC_COPY_VALUES, &ist);
-    PetscFree(ti);
-
-    // create scatter
-    ierr = VecScatterCreate(_D->_y, isf, _bcR, ist, &_scatters["bodyFull2RLith"]); CHKERRQ(ierr);
-    ISDestroy(&isf); ISDestroy(&ist);
-  }
-*/
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -563,11 +524,16 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   // otherwise:
 
   // boundary conditions
+  Vec bcT,bcB;
+  ierr = VecCreate(PETSC_COMM_WORLD,&bcT); CHKERRQ(ierr);
+  ierr = VecSetSizes(bcT,PETSC_DECIDE,_Ny); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(bcT); CHKERRQ(ierr);
+  VecDuplicate(bcT,&bcB);
   PetscScalar bcTval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (0-_TDepths[0]) + _TVals[0];
-  VecSet(_bcT,bcTval);
-
+  VecSet(bcT,bcTval);
   PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
-  VecSet(_bcB,bcBval);
+  VecSet(bcB,bcBval);
+
 
 
   // fields that live only in the lithosphere
@@ -595,7 +561,6 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   VecScatterBegin(_scatters["bodyFull2bodyLith"], _Qrad, Qrad, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_scatters["bodyFull2bodyLith"], _Qrad, Qrad, INSERT_VALUES, SCATTER_FORWARD);
 
-
   // create SBP operators, 1D in z-direction only, only in lithosphere
   SbpOps* sbp;
   if (_sbpType.compare("mc")==0) {
@@ -620,33 +585,31 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   sbp->setDeleteIntermediateFields(1);
   sbp->computeMatrices(); // actually create the matrices
 
-
   // radioactive heat generation source term
   // Vec QradR,Qtemp;
   Vec Qtemp;
   if (_wRadioHeatGen.compare("yes") == 0) {
-    VecDuplicate(_Qrad,&Qtemp);
+    VecDuplicate(Qrad,&Qtemp);
     if (_sbpType.compare("mfc_coordTrans")==0) {
-      Vec temp1; VecDuplicate(_Qrad,&temp1);
+      Vec temp1; VecDuplicate(Qrad,&temp1);
       Mat J,Jinv,qy,rz,yq,zr;
-      ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
-      ierr = MatMult(J,_Qrad,temp1);
-      Mat H; _sbp->getH(H);
+      ierr = sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+      ierr = MatMult(J,Qrad,temp1);
+      Mat H; sbp->getH(H);
       ierr = MatMult(H,temp1,Qtemp);
       VecDestroy(&temp1);
     }
     else{
-      Mat H; _sbp->getH(H);
-      ierr = MatMult(H,_Qrad,Qtemp); CHKERRQ(ierr);
+      Mat H; sbp->getH(H);
+      ierr = MatMult(H,Qrad,Qtemp); CHKERRQ(ierr);
     }
   }
 
     Mat A; sbp->getA(A);
     setupKSP_SS(A); // set up KSP for steady-state problem
 
-    Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.);
-    VecSet(_bcL,0.0); VecSet(_bcR,0.0);
-    _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);
+    Vec rhs; VecDuplicate(k,&rhs); VecSet(rhs,0.);
+    sbp->setRhs(rhs,_bcL,_bcR,bcT,bcB);
     if (_wRadioHeatGen.compare("yes") == 0) {
       VecAXPY(rhs,-1.0,Qtemp);
       VecDestroy(&Qtemp);
@@ -661,9 +624,6 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     // scatter Tamb_l to Tamb and T
     VecScatterBegin(_scatters["bodyFull2bodyLith"], Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
     VecScatterEnd(_scatters["bodyFull2bodyLith"], Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
-    VecSet(_dT,0.0);
-    VecCopy(_Tamb,_T);
-    computeHeatFlux();
 
     KSPDestroy(&_kspSS); _kspSS = NULL;
     delete sbp;
@@ -672,7 +632,8 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     VecDestroy(&k);
     VecDestroy(&Qrad);
     VecDestroy(&Tamb_l);
-
+    VecDestroy(&bcT);
+    VecDestroy(&bcB);
 
   // now overwrite Tamb(z>=LAB) with mantle adiabat
   if (_Nz_lab < _Nz && _Lz_lab < _Lz && _TVals.size() == 3) {
@@ -685,13 +646,16 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     VecGetArray(_Tamb,&Tamb);
     PetscInt Jj = 0;
     for (Ii=Istart;Ii<Iend;Ii++) {
-      Tamb[Jj] = a * (zz[Jj]-_TDepths[1]) + _TVals[1];
+      if (zz[Jj] >= _Lz_lab) { Tamb[Jj] = a * (zz[Jj]-_TDepths[1]) + _TVals[1]; }
       Jj++;
     }
     VecRestoreArrayRead(*_z,&zz);
     VecRestoreArray(_Tamb,&Tamb);
   }
 
+  // update _T, _dT
+    VecSet(_dT,0.0);
+    VecCopy(_Tamb,_T);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
