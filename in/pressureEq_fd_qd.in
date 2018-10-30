@@ -113,7 +113,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
 stride2D_qd = 0 # number of time steps between output of 2D fields during quasidynamic period
-stride1D_fd = 2e2 # number of time steps between output of 1D fields during fully dynamic period
+stride1D_fd = 2e3 # number of time steps between output of 1D fields during fully dynamic period
 stride2D_fd = 0 # number of time steps between output of 2D fields during fully dynamic period
 stride1D_fd_end = 5e3
 stride2D_fd_end = 0
@@ -126,7 +126,7 @@ trigger_qd2fd = 1e-3
 trigger_fd2qd = 1e-4
 maxNumCycles = 10
 
-#deltaT_fd = 2e-3
+# deltaT_fd = 1e-4
 CFL = 0.5
 
 # directory for output

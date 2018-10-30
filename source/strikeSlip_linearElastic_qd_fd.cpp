@@ -528,7 +528,6 @@ double startTime_fd = MPI_Wtime();
     _allowed = false;
     _inDynamic = true;
     prepare_qd2fd();
-    cout << "prepare_qd2fd fininsed!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
     integrate_fd();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
@@ -720,8 +719,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   if (_hydraulicCoupling.compare("no")!=0 ) { 
     VecDuplicate(_varIm["pressure"], &_varFD["pressure"]); VecCopy(_varIm["pressure"], _varFD["pressure"]); 
     if ((_p->_permSlipDependent).compare("no")!=0) {
-      VecDuplicate(_varQSEx["permeability"], &_varFD["preameability"]);
-      VecCopy(_varQSEx["permeability"], _varFD["preameability"]);
+      VecDuplicate(_varQSEx["permeability"], &_varFD["permeability"]);
+      VecCopy(_varQSEx["permeability"], _varFD["permeability"]);
     }
   }
 
@@ -812,7 +811,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   _stride1D = _stride1D_fd;
   _stride2D = _stride1D_fd;
 
-  cout << "start prepare_qd2fd"<< endl;
   // save current variables as n-1 time step
   VecCopy(_fault_qd->_slip,_varFDPrev["slip"]);
   VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
@@ -820,21 +818,15 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
   if (_hydraulicCoupling.compare("no")!=0 ) { 
     VecCopy(_varIm["pressure"], _varFDPrev["pressure"]);
-    cout << "1" << endl;
     if ((_p->_permSlipDependent).compare("no")!=0) {
-      cout << "2" << endl;
       VecCopy(_varQSEx["permeability"], _varFDPrev["permeability"]); 
-      cout << "3" << endl;
     } 
   }
-  cout << "finish save current variables as n-1 time step" << endl;
 
   // take 1 quasidynamic time step to compute variables at time n
   _inDynamic = 0;
   integrate_singleQDTimeStep();
   _inDynamic = 1;
-
-  cout << "finish take 1 quasidynamic time step to compute variables at time n" << endl;
 
   // update varFD to reflect latest values
   VecCopy(_fault_qd->_slip,_varFD["slip"]);
@@ -847,8 +839,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
       VecCopy(_varQSEx["permeability"], _varFD["permeability"]); 
     }
   }
-
-  cout << "finish update varFD to reflect latest values" << endl;
 
   // now change u to du
   VecAXPY(_varFD["u"],-1.0,_varFDPrev["u"]);
