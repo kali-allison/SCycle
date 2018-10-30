@@ -56,7 +56,7 @@ class HeatEquation
     PetscInt             _Nz_lab; // # of points to LAB depth (must be <= Nz)
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     PetscScalar          _Lz_lab; // depth of LAB (must be <= Lz)
-    Vec                  _y,_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
     std::string          _heatEquationType;
     int                  _isMMS;
     PetscScalar          _initTime,_initDeltaT;
@@ -92,7 +92,7 @@ class HeatEquation
     // linear system data
     std::string          _sbpType;
     SbpOps*              _sbp;
-    Vec                  _bcT,_bcR,_bcB,_bcL; // boundary conditions when solving for dT
+    Vec                  _bcR,_bcT,_bcL,_bcB; // boundary conditions when solving for dT
     std::string          _linSolver;
     PetscScalar          _kspTol;
     KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems

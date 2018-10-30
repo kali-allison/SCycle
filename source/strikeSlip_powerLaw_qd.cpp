@@ -1027,9 +1027,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "he_Qvisc", _he->_Qvisc, outputDir + "SS_Qvisc"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_Q", _he->_Q, outputDir + "SS_Q"); CHKERRQ(ierr);
 
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
@@ -1052,9 +1052,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
       ierr = VecView(_he->_Qvisc,_viewers["he_Qvisc"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_Q,_viewers["he_Q"].first); CHKERRQ(ierr);
 
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
+    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
     }
   }
 

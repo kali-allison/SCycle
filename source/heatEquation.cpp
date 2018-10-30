@@ -6,13 +6,13 @@
 
 HeatEquation::HeatEquation(Domain& D)
 : _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Nz_lab(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(NULL),_z(NULL),
+  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(&D._y),_z(&D._z),
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(D._loadICs),
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
-  _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),
+  _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
   _linSolver("CG"),_kspTol(1e-9),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
@@ -63,34 +63,29 @@ HeatEquation::~HeatEquation()
   MatDestroy(&_MapV);
   VecDestroy(&_Gw);
   VecDestroy(&_w);
-  VecDestroy(&_Qrad); //
-  VecDestroy(&_Qfric); //
-  VecDestroy(&_Qvisc); //
-  VecDestroy(&_Q); //
+  VecDestroy(&_Qrad);
+  VecDestroy(&_Qfric);
+  VecDestroy(&_Qvisc);
+  VecDestroy(&_Q);
 
-  VecDestroy(&_y); //
-  VecDestroy(&_z); //
-  VecDestroy(&_k); //
+  VecDestroy(&_k);
   VecDestroy(&_rho);
   VecDestroy(&_c);
 
-  VecDestroy(&_Tamb); //
-  VecDestroy(&_dT); //
-  VecDestroy(&_T); //
-  VecDestroy(&_Tamb_l); //
-  VecDestroy(&_dT_l); //
-  VecDestroy(&_T_l); //
-  VecDestroy(&_kTz); //
-  VecDestroy(&_kTz_z0); //
+  VecDestroy(&_Tamb);
+  VecDestroy(&_dT);
+  VecDestroy(&_T);
+  VecDestroy(&_Tamb_l);
+  VecDestroy(&_dT_l);
+  VecDestroy(&_T_l);
+  VecDestroy(&_kTz);
+  VecDestroy(&_kTz_z0);
 
   // boundary conditions
-  VecDestroy(&_bcL); //
-  VecDestroy(&_bcR); //
-  VecDestroy(&_bcT); //
-  VecDestroy(&_bcB); //
-  VecDestroy(&_bcR); //
-  VecDestroy(&_bcT); //
-  VecDestroy(&_bcB); //
+  VecDestroy(&_bcR);
+  VecDestroy(&_bcT);
+  VecDestroy(&_bcL);
+  VecDestroy(&_bcB);
 
 
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
@@ -302,11 +297,10 @@ PetscErrorCode ierr = 0;
   // allocate boundary conditions
   VecDuplicate(_D->_z0,&_bcT); VecSet(_bcT,0.);
   VecDuplicate(_D->_z0,&_bcB); VecSet(_bcB,0.);
-  VecDuplicate(_D->y0,_bcR); VecSet(_bcR,0.0);
-  VecDuplicate(_D->y0,_bcL); VecSet(_bcL,0.0);
+  VecDuplicate(_D->_y0,&_bcR); VecSet(_bcR,0.0);
+  VecDuplicate(_D->_y0,&_bcL); VecSet(_bcL,0.0);
 
   VecDuplicate(_bcT,&_kTz_z0); VecSet(_kTz_z0,0.0); // heat flux
-
 
 
   // set lithosphere-only sized 2D fields
@@ -315,8 +309,6 @@ PetscErrorCode ierr = 0;
   ierr = VecSetFromOptions(_k); CHKERRQ(ierr);
   VecSet(_k,0.);
 
-  VecDuplicate(_k,&_y);      VecSet(_y,0.);
-  VecDuplicate(_k,&_z);      VecSet(_z,0.);
   VecDuplicate(_k,&_rho);    VecSet(_rho,0.);
   VecDuplicate(_k,&_c);      VecSet(_c,0.);
   VecDuplicate(_k,&_Q);      VecSet(_Q,0.);
@@ -355,10 +347,10 @@ PetscErrorCode ierr = 0;
 
 
   // y and z for lithosphere
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_y,_y, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterBegin(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_scatters["bodyFull2bodyLith"], _D->_z,_z, INSERT_VALUES, SCATTER_FORWARD);
 
 
   // boundary conditions
@@ -370,28 +362,28 @@ PetscErrorCode ierr = 0;
 
   // set each field using it's vals and depths std::vectors
   if (_isMMS) {
-    mapToVec(_k,zzmms_k,_y,_z);
-    mapToVec(_rho,zzmms_rho,_y,_z);
-    mapToVec(_c,zzmms_c,_y,_z);
-    mapToVec(_Qrad,zzmms_h,_y,_z);
-    mapToVec(_Tamb,zzmms_T,_y,_z,_initTime);
-    mapToVec(_dT,zzmms_dT,_y,_z,_initTime);
+    mapToVec(_k,zzmms_k,*_y,*_z);
+    mapToVec(_rho,zzmms_rho,*_y,*_z);
+    mapToVec(_c,zzmms_c,*_y,*_z);
+    mapToVec(_Qrad,zzmms_h,*_y,*_z);
+    mapToVec(_Tamb,zzmms_T,*_y,*_z,_initTime);
+    mapToVec(_dT,zzmms_dT,*_y,*_z,_initTime);
     setMMSBoundaryConditions(_initTime,"Dirichlet","Dirichlet","Dirichlet","Dirichlet");
   }
   else {
-    ierr = setVecFromVectors(_k,_kVals,_kDepths,_z); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths,_z); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_c,_cVals,_cDepths,_z); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_T,_TVals,_TDepths,_D->_z); CHKERRQ(ierr);
-    ierr = setVecFromVectors(_Tamb,_TVals,_TDepths,_D->_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_k,_kVals,_kDepths,*_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_rho,_rhoVals,_rhoDepths,*_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_c,_cVals,_cDepths,*_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_T,_TVals,_TDepths,*_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_Tamb,_TVals,_TDepths,*_z); CHKERRQ(ierr);
   }
 
   // set up radioactive heat generation source term
   // Qrad = A0 * exp(-z/Lrad)
   if (_wRadioHeatGen.compare("yes") == 0) {
     Vec A0; VecDuplicate(_Qrad,&A0);
-    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,_z); CHKERRQ(ierr);
-    VecCopy(_z,_Qrad);
+    ierr = setVecFromVectors(A0,_A0Vals,_A0Depths,*_z); CHKERRQ(ierr);
+    VecCopy(*_z,_Qrad);
     VecScale(_Qrad,-1.0/_Lrad);
     VecExp(_Qrad);
     VecPointwiseMult(_Qrad,A0,_Qrad);
@@ -529,7 +521,7 @@ PetscErrorCode HeatEquation::constructScatters()
     PetscFree(ti);
 
     // create scatter
-    ierr = VecScatterCreate(_y, isf, _bcT, ist, &_scatters["bodyLith2TLith"]); CHKERRQ(ierr);
+    ierr = VecScatterCreate(*_y, isf, _bcT, ist, &_scatters["bodyLith2TLith"]); CHKERRQ(ierr);
     ISDestroy(&isf); ISDestroy(&ist);
   }
 
@@ -574,7 +566,7 @@ PetscErrorCode HeatEquation::constructMapV()
   VecDuplicate(_k,&_Gw); VecSet(_Gw,0.);
   VecDuplicate(_k,&_w);
   if (_wVals.size() > 0 ) {
-    ierr = setVecFromVectors(_w,_wVals,_wDepths,_z); CHKERRQ(ierr);
+    ierr = setVecFromVectors(_w,_wVals,_wDepths,*_z); CHKERRQ(ierr);
     VecScale(_w,1e-3); // convert from m to km
   }
   else { VecSet(_w,0.); }
@@ -583,7 +575,7 @@ PetscErrorCode HeatEquation::constructMapV()
   PetscScalar const *y,*w;
   PetscScalar *g;
   VecGetOwnershipRange(_Gw,&Istart,&Iend);
-  VecGetArrayRead(_y,&y);
+  VecGetArrayRead(*_y,&y);
   VecGetArrayRead(_w,&w);
   VecGetArray(_Gw,&g);
   Jj = 0;
@@ -591,7 +583,7 @@ PetscErrorCode HeatEquation::constructMapV()
     g[Jj] = exp(-y[Jj]*y[Jj] / (2.*w[Jj]*w[Jj])) / sqrt(2. * M_PI) / w[Jj];
     Jj++;
   }
-  VecRestoreArrayRead(_y,&y);
+  VecRestoreArrayRead(*_y,&y);
   VecRestoreArrayRead(_w,&w);
   VecRestoreArray(_Gw,&g);
 
@@ -623,9 +615,9 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,&_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(&_y,NULL); }
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -912,7 +904,7 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcL,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
-    ierr = VecGetValues(_z,1,&Ii,&z);CHKERRQ(ierr);
+    ierr = VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
     y = 0;
     if (!bcLType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
     else if (!bcLType.compare("Neumann")) { v = zzmms_k(y,z)*zzmms_T_y(y,z,time); }
@@ -929,10 +921,10 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
   ierr = VecAssemblyEnd(_bcR);CHKERRQ(ierr);
 
   // set up boundary conditions: T and B
-  ierr = VecGetOwnershipRange(_y,&Istart,&Iend);CHKERRQ(ierr);
+  ierr = VecGetOwnershipRange(*_y,&Istart,&Iend);CHKERRQ(ierr);
   for(Ii=Istart;Ii<Iend;Ii++) {
     if (Ii % _Nz == 0) {
-      ierr = VecGetValues(_y,1,&Ii,&y);CHKERRQ(ierr);
+      ierr = VecGetValues(*_y,1,&Ii,&y);CHKERRQ(ierr);
       PetscInt Jj = Ii / _Nz;
 
       z = 0;
@@ -970,7 +962,7 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
   Vec dTA;
   VecDuplicate(_dT,&dTA);
 
-  mapToVec(dTA,zzmms_T,_y,_z,time);
+  mapToVec(dTA,zzmms_T,*_y,*_z,time);
 
   writeVec(dTA,_outputDir+"mms_dTA");
   writeVec(_dT,_outputDir+"mms_dT");
@@ -1665,9 +1657,9 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
-    else if (_Ny == 1 && _Nz_lab > 1) { _sbp->setGrid(NULL,&_z); }
-    else if (_Ny > 1 && _Nz_lab == 1) { _sbp->setGrid(&_y,NULL); }
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz_lab > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz_lab == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
@@ -1715,9 +1707,9 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,_k);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(&_y,&_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,&_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(&_y,NULL); }
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
