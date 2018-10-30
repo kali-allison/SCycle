@@ -943,6 +943,7 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
 
 
 // for thermomechanical coupling with explicit time stepping
+// Note: This actually returns d/dt (T - Tamb), where Tamb is the 1D steady-state geotherm
 PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt)
 {
   PetscErrorCode ierr = 0;
@@ -954,28 +955,18 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
 
   // update fields
   VecCopy(T,_T);
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], T,_T_l, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], T,_T_l, INSERT_VALUES, SCATTER_FORWARD);
-
-  Vec dTdt_l;
-  VecDuplicate(_k,&dTdt_l); VecSet(dTdt_l,0.);
+  VecWAXPY(_dT,-1.0,_Tamb,T);
 
   // set up boundary conditions and source terms
-  Vec rhs,temp;
-  VecDuplicate(_k,&rhs);
-  VecDuplicate(_k,&temp);
-  VecSet(rhs,0.0);
-  VecSet(temp,0.0);
 
 
-  // compute source terms: Q = Qrad + Qfric + Qvisc
+  // compute source term: Q = Qrad + Qfric + Qvisc
 
   // radioactive heat generation Qrad
-  VecCopy(_Qrad,_Q);
+  VecSet(_Q,0.0);
 
-  // frictional heat generation: Qfric (= omega) or bcL
+  // frictional heat generation: Qfric or bcL depending on shear zone width
   if (_wFrictionalHeating.compare("yes")==0) {
-    // set bcL and/or omega depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,1.0,_Qfric);
   }
@@ -987,26 +978,26 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   }
 
   // rhs = -H*J*(SAT bc terms) + H*J*Q
-  ierr = _sbp->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // put SAT terms in temp
-  VecScale(temp,-1.); // sign convention in setRhs is opposite of what's needed for explicit time stepping
+  Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
+  ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // put SAT terms in temp
+  VecScale(rhs,-1.); // sign convention in setRhs is opposite of what's needed for explicit time stepping
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMult(J,_Q,temp1);
     Mat H; _sbp->getH(H);
-    ierr = MatMultAdd(H,temp1,temp,rhs); CHKERRQ(ierr); // rhs = H*temp1 + temp
+    ierr = MatMultAdd(H,temp1,rhs,rhs); CHKERRQ(ierr); // rhs = H*temp1 + temp
     VecDestroy(&temp1);
   }
   else {
     Mat H; _sbp->getH(H);
-    ierr = MatMultAdd(H,_Q,temp,rhs); CHKERRQ(ierr); // rhs = H*temp1 + temp
+    ierr = MatMultAdd(H,_Q,rhs,rhs); CHKERRQ(ierr); // rhs = H*temp1 + temp
   }
 
-
-  // add H*J*D2 * Tn
+  // add H*J*D2 * dTn
   Mat A; _sbp->getA(A);
-  MatMultAdd(A,_T_l,rhs,rhs); // rhs = A*Tn + rhs
+  MatMultAdd(A,_dT,rhs,rhs); // rhs = A*dTn + rhs
 
   // dT = 1/(rho*c) * Hinv *Jinv * rhs
   VecPointwiseDivide(rhs,rhs,_rho);
@@ -1016,20 +1007,16 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMult(Jinv,rhs,temp1);
-    _sbp->Hinv(temp1,dTdt_l);
+    _sbp->Hinv(temp1,dTdt);
     VecDestroy(&temp1);
   }
   else {
-    _sbp->Hinv(rhs,dTdt_l);
+    _sbp->Hinv(rhs,dTdt);
   }
+  VecDestroy(&rhs);
 
-  // scatter dTdt_l into dTdt for output
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], dTdt_l,dTdt, INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], dTdt_l,dTdt, INSERT_VALUES, SCATTER_REVERSE);
   computeHeatFlux();
 
-  VecDestroy(&temp);
-  VecDestroy(&rhs);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -1137,6 +1124,9 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
     CHKERRQ(ierr);
   #endif
 
+  // update fields
+  VecCopy(Tn,_T);
+
   // set up matrix
   MatCopy(_D2ath,_B,SAME_NONZERO_PATTERN);
   MatScale(_B,-dt);
@@ -1156,9 +1146,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   VecSet(temp,0.0);
   VecSet(_Q,0.); // radioactive heat generation is already included in Tamb
 
-  // frictional heat generation: Qfric or bcL
+  // frictional heat generation: Qfric or bcL depending on shear zone width
   if (_wFrictionalHeating.compare("yes")==0) {
-    // set bcL and/or depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_Qfric);
   }
@@ -1223,7 +1212,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   return ierr;
 }
 
-// for thermomechanical problem only the steady-state heat equation
+// for thermomechanical problem when solving only the steady-state heat equation
+// Note: This function uses the KSP algorithm to solve for dT, where T = Tamb + dT
 PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
   const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& Tn,const PetscScalar dt)
 {
@@ -1233,6 +1223,9 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
+
+  // update fields
+  VecCopy(Tn,_T);
 
   if (_kspSS == NULL) {
     KSPDestroy(&_kspTrans);
@@ -1248,7 +1241,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   // Note: this does not include Qrad because that is included in the ambient geotherm
   VecSet(_Q,0.);
 
-  // frictional heat generation: Qfric or bcL
+  // frictional heat generation: Qfric or bcL depending on shear zone width
   if (_wFrictionalHeating.compare("yes")==0) {
     // set bcL and/or Qfric depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
