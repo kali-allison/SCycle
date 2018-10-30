@@ -1156,9 +1156,9 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   VecSet(temp,0.0);
   VecSet(_Q,0.); // radioactive heat generation is already included in Tamb
 
-  // frictional heat generation: Qfric (= omega) or bcL
+  // frictional heat generation: Qfric or bcL
   if (_wFrictionalHeating.compare("yes")==0) {
-    // set bcL and/or omega depending on shear zone width
+    // set bcL and/or depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_Qfric);
   }
@@ -1189,12 +1189,10 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
 
   // solve in terms of dT
-  // add H * Tn to rhs
+  // add H * dTn to rhs
   VecSet(temp,0.0);
-  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dT = Tn - Tamb
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT,_dT_l, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT,_dT_l, INSERT_VALUES, SCATTER_FORWARD);
-  _sbp->H(_dT_l,temp);
+  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dTn = Tn - Tamb
+  _sbp->H(_dT,temp);
   if (_sbpType.compare("mfc_coordTrans")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1208,18 +1206,13 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   // solve for temperature and record run time required
   double startTime = MPI_Wtime();
-  KSPSolve(_kspTrans,rhs,_dT_l);
+  KSPSolve(_kspTrans,rhs,_dT);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
   VecDestroy(&rhs);
 
-
-  VecWAXPY(_T_l,1.0,_Tamb_l,_dT_l); // T = dT + Tamb
-
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _dT_l,_dT, INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _dT_l,_dT, INSERT_VALUES, SCATTER_REVERSE);
+  // update total temperature: _T (internal variable) and T (output)
   VecWAXPY(_T,1.0,_Tamb,_dT); // T = dT + Tamb
-
   VecCopy(_T,T);
   computeHeatFlux();
 
@@ -1250,13 +1243,14 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   // set up boundary conditions and source terms: Q = Qrad + Qfric + Qvisc
   Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
 
-  // radioactive heat generation: Qrad
-  if (_wRadioHeatGen.compare("yes") == 0) { VecCopy(_Qrad,_Q); VecScale(_Q,-1); }
-  else { VecSet(_Q,0.); }
 
-  // frictional heat generation: Qfric (= omega) or bcL
+  // compute heat source terms
+  // Note: this does not include Qrad because that is included in the ambient geotherm
+  VecSet(_Q,0.);
+
+  // frictional heat generation: Qfric or bcL
   if (_wFrictionalHeating.compare("yes")==0) {
-    // set bcL and/or omega depending on shear zone width
+    // set bcL and/or Qfric depending on shear zone width
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_Qfric);
   }
@@ -1285,25 +1279,20 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
     ierr = MatMultAdd(H,_Q,rhs,rhs); CHKERRQ(ierr);
   }
 
-  // solve for temperature and record run time required
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], Tn,_T_l, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], Tn,_T_l, INSERT_VALUES, SCATTER_FORWARD);
+  // solve for dT and record run time required
+  VecWAXPY(_dT,-1.0,_Tamb,Tn); // dT = Tn - Tamb
   double startTime = MPI_Wtime();
-  KSPSolve(_kspSS,rhs,_T_l);
+  KSPSolve(_kspSS,rhs,_dT);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
+  VecDestroy(&rhs);
 
-  VecWAXPY(_dT_l,-1.0,_Tamb_l,_T_l); // dT = - Tamb + T
-
-  VecScatterBegin(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(_scatters["bodyFull2bodyLith"], _T_l,_T, INSERT_VALUES, SCATTER_REVERSE);
-  VecWAXPY(_dT,-1.0,_Tamb,_T); // dT = - Tamb + T
-
-
+  // update total temperature: _T (internal variable) and T (output)
+  VecWAXPY(_T,1.0,_Tamb,_dT);
   VecCopy(_T,T);
+
   computeHeatFlux();
 
-  VecDestroy(&rhs);
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
