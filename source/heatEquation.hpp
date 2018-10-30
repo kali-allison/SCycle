@@ -92,8 +92,7 @@ class HeatEquation
     // linear system data
     std::string          _sbpType;
     SbpOps*              _sbp;
-    Vec                  _bcT_0,_bcR_0,_bcB_0,_bcL; // boundary conditions when solving for dT
-    Vec                  _bcT_abs,_bcR_abs,_bcB_abs; // boundary conditions equal to absolute temperature
+    Vec                  _bcT,_bcR,_bcB,_bcL; // boundary conditions when solving for dT
     std::string          _linSolver;
     PetscScalar          _kspTol;
     KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems
