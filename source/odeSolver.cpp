@@ -220,6 +220,7 @@ PetscErrorCode RK32::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   norm type used to measure error: %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   variables used in determining time step = %s\n",vector2str(_errInds).c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   scale factors = %s\n",vector2str(_scale).c_str());CHKERRQ(ierr);
 
@@ -595,6 +596,7 @@ PetscErrorCode RK43::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (4,3)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   norm type used to measure error: %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   variables used in determining time step = %s\n",vector2str(_errInds).c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   scale factors = %s\n",vector2str(_scale).c_str());CHKERRQ(ierr);
 
