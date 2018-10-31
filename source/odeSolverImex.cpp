@@ -587,7 +587,6 @@ PetscErrorCode RK43_WBE::view()
 
 PetscErrorCode RK43_WBE::setTolerance(const PetscReal tol)
 {
-  double startTime = MPI_Wtime();
   _atol = tol;
   _totTol = tol;
   _totTol = tol; // default
