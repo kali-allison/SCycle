@@ -172,6 +172,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
+    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
 
     // for steady state iteration
     else if (var.compare("fss_T")==0) { _fss_T = atof( rhs.c_str() ); }
@@ -213,23 +214,23 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_fd")==0) { _fd_bcRType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcTType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcLType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcBType = rhs.c_str(); }
+    else if (var.compare("momBal_bcT_fd")==0) { _fd_bcTType = rhs.c_str(); }
+    else if (var.compare("momBal_bcL_fd")==0) { _fd_bcLType = rhs.c_str(); }
+    else if (var.compare("momBal_bcB_fd")==0) { _fd_bcBType = rhs.c_str(); }
+
     else if (var.compare("momBal_bcR_qd")==0) { _qd_bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _qd_bcTType = rhs.c_str(); }
     else if (var.compare("momBal_bcL_qd")==0) { _qd_bcLType = rhs.c_str(); }
     else if (var.compare("momBal_bcB_qd")==0) { _qd_bcBType = rhs.c_str(); }
+
     else if (var.compare("trigger_qd2fd")==0) { _trigger_qd2fd = atof( rhs.c_str() ); }
     else if (var.compare("trigger_fd2qd")==0) { _trigger_fd2qd = atof( rhs.c_str() ); }
-
-    else if (var.compare("deltaT_fd")==0) { _deltaT_fd = atof( rhs.c_str() ); }
-    else if (var.compare("CFL")==0) { _CFL = atof( rhs.c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof( rhs.c_str() ); }
     else if (var.compare("limit_fd")==0) { _limit_fd = atof( rhs.c_str() ); }
     else if (var.compare("limit_stride_fd")==0) { _limit_stride_fd = atof( rhs.c_str() ); }
-    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
 
+    else if (var.compare("deltaT_fd")==0) { _deltaT_fd = atof( rhs.c_str() ); }
+    else if (var.compare("CFL")==0) { _CFL = atof( rhs.c_str() ); }
     else if (var.compare("maxNumCycles")==0) { _maxNumCycles = atoi( rhs.c_str() ); }
   }
 
@@ -789,6 +790,17 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
+
+  // boundary conditions for momentum balance equation
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR_qd = %s\n",_qd_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT_qd = %s\n",_qd_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL_qd = %s\n",_qd_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB_qd = %s\n",_qd_bcBType.c_str());CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR_fd = %s\n",_fd_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT_fd = %s\n",_fd_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL_fd = %s\n",_fd_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB_fd = %s\n",_fd_bcBType.c_str());CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
 

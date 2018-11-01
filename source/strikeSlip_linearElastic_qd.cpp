@@ -353,20 +353,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
- //~ if (_bcRType.compare("remoteLoading")==0) {
-    //~ VecSet(_material->_bcR,_vL*_initTime/_faultScale);
-  //~ }
-  //~ else if (_bcRType.compare("freeSurface")==0) {
-    //~ ierr = VecSet(_material->_bcR,0.);CHKERRQ(ierr);
-  //~ }
-
-  //~ if (_bcBType.compare("remoteLoading")==0) {
-    //~ VecSet(_material->_bcB,_vL*_initTime/_faultScale);
-  //~ }
-  //~ else if (_bcBType.compare("freeSurface")==0) {
-    //~ ierr = VecSet(_material->_bcB,0.);CHKERRQ(ierr);
-  //~ }
-
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
@@ -552,6 +538,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
+
+  // boundary conditions for momentum balance equation
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"faultTypeScale = %g\n",_faultTypeScale);CHKERRQ(ierr);
+
   PetscViewerDestroy(&viewer);
 
   _material->writeContext(_outputDir);
@@ -654,15 +649,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
-
   _fault->updateFields(time,varEx);
-
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
     _p->updateFields(time,varEx);
   }
-
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
     _fault->setSNEff(varEx.find("pressure")->second);
   }
@@ -680,7 +671,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
-
     _p->d_dt(time,varEx,dvarEx);
   }
 
