@@ -1149,12 +1149,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
 
   // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
-  VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  // forcing = - tau_ss / Ly
+  Vec tauSS = NULL;
   _fault->computeTauRS(tauSS,_vL);
-  VecAXPY(tauSS,1.0,radDamp);
   VecScale(tauSS,-1./_D->_Ly);
 
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
@@ -1162,7 +1159,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
-  VecDestroy(&radDamp);
+
+  // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  //~ Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  //~ VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
+  //~ VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  //~ _fault->computeTauRS(tauSS,_vL);
+  //~ VecAXPY(tauSS,1.0,radDamp);
+  //~ VecScale(tauSS,-1./_D->_Ly);
+
+  //~ VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  //~ MatMult(MapV,tauSS,_forcingTerm);
+
+  //~ MatDestroy(&MapV);
+  //~ VecDestroy(&tauSS);
+  //~ VecDestroy(&radDamp);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {

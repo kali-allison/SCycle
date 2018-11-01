@@ -1980,6 +1980,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
 
+  // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  //~ Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  //~ VecDuplicate(_fault_qd->_eta_rad,&V); VecSet(V,_vL);
+  //~ VecDuplicate(_fault_qd->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault_qd->_eta_rad,V);
+  //~ _fault_qd->computeTauRS(tauSS,_vL);
+  //~ VecAXPY(tauSS,1.0,radDamp);
+  //~ VecScale(tauSS,-1./_D->_Ly);
+
+  //~ VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  //~ MatMult(MapV,tauSS,_forcingTerm);
+
+  //~ MatDestroy(&MapV);
+  //~ VecDestroy(&tauSS);
+  //~ VecDestroy(&radDamp);
+
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {
     // multiply this term by H*J (the H matrix and the Jacobian)
