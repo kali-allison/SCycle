@@ -528,6 +528,8 @@ double startTime_qd = MPI_Wtime();
     integrate_qd();
 _qdTime += MPI_Wtime() - startTime_qd;
 
+  if(_currTime >= _maxTime || _stepCount >= _maxStepCount){ return 0; }
+
 double startTime_fd = MPI_Wtime();
     _allowed = false;
     _inDynamic = true;
@@ -535,6 +537,8 @@ double startTime_fd = MPI_Wtime();
     integrate_fd();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
+
+  if(_currTime >= _maxTime || _stepCount >= _maxStepCount || _cycleCount <= 1){ return 0; }
 
   // if start with fully dynamic phase
   //~ {
@@ -600,11 +604,11 @@ bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
   VecDestroy(&R);
 
 
-  // if integrating past allowed time or step count, force switching now
-  if(_currTime > _maxTime || _stepCount > _maxStepCount){
-    mustSwitch = true;
-    return mustSwitch;
-  }
+  //~ // if integrating past allowed time or step count, force switching now
+  //~ if(_currTime > _maxTime || _stepCount > _maxStepCount){
+    //~ mustSwitch = true;
+    //~ return mustSwitch;
+  //~ }
 
   // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
   // switching from fd to qd is allowed if maxV has ever been > limit_dyn
@@ -1532,14 +1536,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
   _fault_qd->updateFields(time,varEx);
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
     _p->updateFields(time,varEx);
   }
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end() ) {
-    _fault_qd->setSNEff(_p->_p);
+    _fault_qd->setSNEff(varEx.find("pressure")->second);
   }
 
   // compute rates
@@ -1649,7 +1652,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
     std::string funcName = "strikeSlip_linearElastic_qd_fd::d_dt fd explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-assert(0);
 
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);
