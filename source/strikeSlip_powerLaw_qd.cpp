@@ -34,7 +34,12 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   checkInput();
   parseBCs();
 
-  _he = new HeatEquation(D); // heat equation
+  if ( _viscosityType.compare("linearMaxwell")!=0 ||
+    (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) ) {
+      assert(0);
+    _he = new HeatEquation(D); // heat equation
+  }
+
 
   _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
@@ -148,6 +153,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
+    else if (var.compare("viscosityType")==0) { _viscosityType = rhs.c_str(); }
 
     // for steady state iteration
     else if (var.compare("fss_T")==0) { _fss_T = atof( rhs.c_str() ); }

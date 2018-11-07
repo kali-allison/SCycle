@@ -538,7 +538,7 @@ double startTime_fd = MPI_Wtime();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
 
-  if(_currTime >= _maxTime || _stepCount >= _maxStepCount || _cycleCount <= 1){ return 0; }
+  if(_currTime >= _maxTime || _stepCount >= _maxStepCount || _maxNumCycles <= 1){ return 0; }
 
   // if start with fully dynamic phase
   //~ {
@@ -628,10 +628,10 @@ bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
 
   // also change stride for IO to avoid writing out too many time steps
   // at the end of an earthquake
-  if (_inDynamic && _allowed && maxV < _limit_stride_fd) {
-    _stride1D = _stride1D_fd_end;
-    _stride2D = _stride2D_fd_end;
-  }
+  //~ if (_inDynamic && _allowed && maxV < _limit_stride_fd) {
+    //~ _stride1D = _stride1D_fd_end;
+    //~ _stride2D = _stride2D_fd_end;
+  //~ }
 
   //~ if(_inDynamic){
     //~ if(!_allowed){

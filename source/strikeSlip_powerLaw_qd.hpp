@@ -60,6 +60,8 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
     std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+    std::string          _viscosityType; // options: power-law, linearMaxwell
+    // if linear Maxwell, do not create a heat equation data member
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time

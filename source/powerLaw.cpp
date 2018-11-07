@@ -10,7 +10,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),
-  _viscDistribution("effectiveVisc"),
+  _viscosityType("power-law"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
@@ -162,12 +162,14 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
     else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
-    // viscosity
-    else if (var.compare("viscDistribution")==0) {
-      _viscDistribution = rhs.c_str();
-    }
+    // viscosity type
+    else if (var.compare("viscosityType")==0) { _viscosityType = rhs.c_str(); }
 
-    // if values are set by a vector
+    // linear Maxwell viscosity
+    else if (var.compare("effViscVals_lm")==0) { loadVectorFromInputFile(rhsFull,_effViscVals_lm); }
+    else if (var.compare("effViscDepths_lm")==0) { loadVectorFromInputFile(rhsFull,_effViscDepths_lm); }
+
+    // power-law dislocation creep parameters
     else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
@@ -318,10 +320,15 @@ PetscErrorCode PowerLaw::setMaterialParameters()
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
     else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   }
-  if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
+  if (_viscosityType.compare("linearMaxwell")==0) {
+    setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
+  }
+  loadEffViscFromFiles();
 
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
   VecSqrtAbs(_cs);
+
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1058,12 +1065,16 @@ PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gx
 
 PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
 {
-    PetscErrorCode ierr = 0;
+  PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::computeViscosity";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
+  if (_viscosityType.compare("linearMaxwell")==0) {
+    return ierr;
+  }
 
   // compute effective viscosity
   PetscScalar const *sigmadev,*A,*B,*n,*T=0;
@@ -1627,7 +1638,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"viscDistribution = %s\n",_viscDistribution.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscosityType = %s\n",_viscosityType.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"effViscCap = %.15e\n",_effViscCap);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"ssEffViscScale = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);
