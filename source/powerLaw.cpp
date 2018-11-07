@@ -35,23 +35,19 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   loadSettings(_file);
   checkInput();
   allocateFields(); // initialize fields
-  he.getTemp(_T);
+  if (_viscosityType.compare("linearMaxwell")!=0) {
+    he.getTemp(_T);
+  }
   setMaterialParameters();
 
   // set up matrix operators and KSP environment
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
-  //~ computeTotalStrains();
-  //~ computeStresses();
-  //~ computeViscosity(_effViscCap);
-
-  //~ if (_inputDir.compare("unspecified") != 0) {
-    loadFieldsFromFiles(); // load from previous simulation
-    computeTotalStrains();
-    computeStresses();
-    computeViscosity(_effViscCap);
-  //~ }
+  loadFieldsFromFiles(); // load from previous simulation
+  computeTotalStrains();
+  computeStresses();
+  computeViscosity(_effViscCap);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -209,9 +205,21 @@ PetscErrorCode PowerLaw::checkInput()
     assert(_kspTol >= 1e-14);
   }
 
-  assert(_AVals.size() == _ADepths.size() );
-  assert(_BVals.size() == _BDepths.size() );
-  assert(_nVals.size() == _nDepths.size() );
+  if (_viscosityType.compare("power-law")==0) {
+    assert(_AVals.size() >= 2);
+    assert(_BVals.size() >= 2);
+    assert(_nVals.size() >= 2);
+    assert(_AVals.size() == _ADepths.size() );
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_nVals.size() == _nDepths.size() );
+  }
+
+  if (_viscosityType.compare("linearMaxwell")==0) {
+    assert(_effViscVals_lm.size() >= 2);
+    assert(_effViscVals_lm.size() == _effViscDepths_lm.size() );
+  }
+
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -305,11 +313,18 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   #endif
 
   // set each field using it's vals and depths std::vectors
-  ierr = setVec(_muVec,*_z,_muVals,_muDepths);        CHKERRQ(ierr);
+  ierr = setVec(_muVec,*_z,_muVals,_muDepths);     CHKERRQ(ierr);
   ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);  CHKERRQ(ierr);
-  ierr = setVec(_A,*_z,_AVals,_ADepths);           CHKERRQ(ierr);
-  ierr = setVec(_QR,*_z,_BVals,_BDepths);        CHKERRQ(ierr);
-  ierr = setVec(_n,*_z,_nVals,_nDepths);         CHKERRQ(ierr);
+
+  if (_viscosityType.compare("linearMaxwell")!=0) {
+    setVec(_A,*_z,_AVals,_ADepths);
+    setVec(_QR,*_z,_BVals,_BDepths);
+    setVec(_n,*_z,_nVals,_nDepths);
+  }
+  else if (_viscosityType.compare("linearMaxwell")==0) {
+    setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
+  }
+
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
     else { mapToVec(_A,zzmms_A,*_y,*_z); }
@@ -319,9 +334,6 @@ PetscErrorCode PowerLaw::setMaterialParameters()
     else { mapToVec(_n,zzmms_n,*_y,*_z); }
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
     else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
-  }
-  if (_viscosityType.compare("linearMaxwell")==0) {
-    setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
   }
   loadEffViscFromFiles();
 

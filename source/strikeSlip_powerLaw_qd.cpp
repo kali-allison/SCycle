@@ -36,10 +36,9 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   if ( _viscosityType.compare("linearMaxwell")!=0 ||
     (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) ) {
-      assert(0);
     _he = new HeatEquation(D); // heat equation
   }
-
+  else { _he = NULL; }
 
   _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
@@ -522,7 +521,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   PetscViewerDestroy(&viewer);
 
   _material->writeContext(_outputDir);
+  if (_he != NULL) {
    _he->writeContext(_outputDir);
+  }
   _fault->writeContext(_outputDir);
 
   if (_hydraulicCoupling.compare("no")!=0) {
