@@ -198,10 +198,10 @@ PetscErrorCode PowerLaw::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("CG") == 0 ||
          _linSolver.compare("AMG") == 0 );
 
-  if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
+  if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
   }
 
@@ -528,12 +528,15 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
+  else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
   }
   else {
