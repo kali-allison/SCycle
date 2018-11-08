@@ -127,8 +127,6 @@ class PowerLaw
     PetscErrorCode setSurfDisp();
     PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
 
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
-
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);

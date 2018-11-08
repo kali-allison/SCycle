@@ -40,11 +40,12 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   }
   setMaterialParameters();
 
+  loadFieldsFromFiles(); // load from previous simulation
+
   // set up matrix operators and KSP environment
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
-  loadFieldsFromFiles(); // load from previous simulation
   computeTotalStrains();
   computeStresses();
   computeViscosity(_effViscCap);
@@ -335,7 +336,6 @@ PetscErrorCode PowerLaw::setMaterialParameters()
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
     else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   }
-  loadEffViscFromFiles();
 
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
   VecSqrtAbs(_cs);
@@ -361,9 +361,9 @@ PetscErrorCode PowerLaw::loadEffViscFromFiles()
   #endif
 
   ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_A,_inputDir,"A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"B"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_B"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1582,46 +1582,6 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
   #endif
   return ierr;
 }
-
-
-PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    string funcName = "PowerLaw::setVecFromVectors";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
-    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-        z0 = depths[0+ind];
-        z1 = depths[0+ind+1];
-        v0 = vals[0+ind];
-        v1 = vals[0+ind+1];
-        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
 
 
 

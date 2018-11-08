@@ -124,7 +124,6 @@ class HeatEquation
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode allocateFields();
     PetscErrorCode setFields();
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const Vec& z);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode checkInput();     // check input from file
 
