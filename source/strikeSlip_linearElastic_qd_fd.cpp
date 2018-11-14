@@ -199,21 +199,24 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_fd")==0) { _fd_bcRType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcTType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcLType = rhs.c_str(); }
-    else if (var.compare("momBal_bcR_fd")==0) { _fd_bcBType = rhs.c_str(); }
+    else if (var.compare("momBal_bcT_fd")==0) { _fd_bcTType = rhs.c_str(); }
+    else if (var.compare("momBal_bcL_fd")==0) { _fd_bcLType = rhs.c_str(); }
+    else if (var.compare("momBal_bcB_fd")==0) { _fd_bcBType = rhs.c_str(); }
+
     else if (var.compare("momBal_bcR_qd")==0) { _qd_bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _qd_bcTType = rhs.c_str(); }
     else if (var.compare("momBal_bcL_qd")==0) { _qd_bcLType = rhs.c_str(); }
     else if (var.compare("momBal_bcB_qd")==0) { _qd_bcBType = rhs.c_str(); }
+
     else if (var.compare("trigger_qd2fd")==0) { _trigger_qd2fd = atof(rhs.c_str() ); }
     else if (var.compare("trigger_fd2qd")==0) { _trigger_fd2qd = atof(rhs.c_str() ); }
-
-    else if (var.compare("deltaT_fd")==0) { _deltaT = atof(rhs.c_str() ); }
-    else if (var.compare("CFL")==0) { _CFL = atof(rhs.c_str() ); }
     else if (var.compare("limit_qd")==0) { _limit_qd = atof(rhs.c_str() ); }
     else if (var.compare("limit_fd")==0) { _limit_fd = atof(rhs.c_str() ); }
     else if (var.compare("limit_stride_fd")==0) { _limit_stride_fd = atof(rhs.c_str() ); }
+
+    else if (var.compare("deltaT_fd")==0) { _deltaT = atof(rhs.c_str() ); }
+    else if (var.compare("CFL")==0) { _CFL = atof(rhs.c_str() ); }
+
     else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
 
     else if (var.compare("maxNumCycles")==0) { _maxNumCycles = atoi(rhs.c_str() ); }
@@ -527,6 +530,8 @@ double startTime_qd = MPI_Wtime();
     integrate_qd();
 _qdTime += MPI_Wtime() - startTime_qd;
 
+  if(_currTime >= _maxTime || _stepCount >= _maxStepCount){ return 0; }
+
 double startTime_fd = MPI_Wtime();
     _allowed = false;
     _inDynamic = true;
@@ -534,6 +539,8 @@ double startTime_fd = MPI_Wtime();
     integrate_fd();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
+
+  if(_currTime >= _maxTime || _stepCount >= _maxStepCount || _maxNumCycles <= 1){ return 0; }
 
   // if start with fully dynamic phase
   //~ {
@@ -599,11 +606,11 @@ bool strikeSlip_linearElastic_qd_fd::checkSwitchRegime(const Fault* _fault)
   VecDestroy(&R);
 
 
-  // if integrating past allowed time or step count, force switching now
-  if(_currTime > _maxTime || _stepCount > _maxStepCount){
-    mustSwitch = true;
-    return mustSwitch;
-  }
+  //~ // if integrating past allowed time or step count, force switching now
+  //~ if(_currTime > _maxTime || _stepCount > _maxStepCount){
+    //~ mustSwitch = true;
+    //~ return mustSwitch;
+  //~ }
 
   // Otherwise, first check if switching from qd to fd, or from fd to qd, is allowed:
   // switching from fd to qd is allowed if maxV has ever been > limit_dyn
@@ -672,8 +679,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   // LinearElastic does not set up its KSP, so must set it up here
   Mat A; _material->_sbp->getA(A);
   _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
-
-  VecSet(_material->_bcR,_vL*_initTime/_faultTypeScale);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -766,7 +771,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
 
   // update implicitly integrated T
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varFD["Temp"],_varIm["Temp"]); } // if solving the heat equation
-  if (_hydraulicCoupling.compare("no")!=0 ) { 
+  if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varFD["pressure"], _varIm["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
       VecCopy(_varFD["permeability"], _varQSEx["permeability"]); 
@@ -824,7 +829,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_psi,_varFDPrev["psi"]);
   VecCopy(_material->_u,_varFDPrev["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
-  if (_hydraulicCoupling.compare("no")!=0 ) { 
+  if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varIm["pressure"], _varFDPrev["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
       VecCopy(_varQSEx["permeability"], _varFDPrev["permeability"]); 
@@ -1088,6 +1093,22 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"limit_stride_fd = %.15e\n",_limit_stride_fd);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"CFL = %.15e\n",_CFL);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT_fd = %.15e\n",_deltaT_fd);CHKERRQ(ierr);
+
+
+  // boundary conditions for momentum balance equation
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR_qd = %s\n",_qd_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT_qd = %s\n",_qd_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL_qd = %s\n",_qd_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB_qd = %s\n",_qd_bcBType.c_str());CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR_fd = %s\n",_fd_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT_fd = %s\n",_fd_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL_fd = %s\n",_fd_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB_fd = %s\n",_fd_bcBType.c_str());CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIPrintf(viewer,"faultTypeScale = %g\n",_faultTypeScale);CHKERRQ(ierr);
+
+
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
@@ -1529,7 +1550,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
   _fault_qd->updateFields(time,varEx);
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0 ){
@@ -1647,7 +1667,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
     std::string funcName = "strikeSlip_linearElastic_qd_fd::d_dt fd explicit";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
 
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);

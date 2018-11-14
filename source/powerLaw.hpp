@@ -37,8 +37,9 @@ class PowerLaw
     std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
 
-    std::string          _viscDistribution; // options: mms, fromVector,loadFromFile
+    std::string          _viscosityType; // options: power-law, linearMaxwell
     std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
+    std::vector<double>  _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     Vec                  _A,_n,_QR,_T;
     Vec                  _effVisc;
     PetscScalar          _effViscCap; // imposed upper limit on effective viscosity
@@ -125,8 +126,6 @@ class PowerLaw
     PetscErrorCode changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype);
     PetscErrorCode setSurfDisp();
     PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
-
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths);
 
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);

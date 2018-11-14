@@ -10,7 +10,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
   _muVec(NULL),_rhoVec(NULL),_cs(NULL),
-  _viscDistribution("effectiveVisc"),
+  _viscosityType("power-law"),
   _A(NULL),_n(NULL),_QR(NULL),_T(NULL),_effVisc(NULL),_effViscCap(1e30),
   _linSolver("unspecified"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
@@ -35,23 +35,20 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   loadSettings(_file);
   checkInput();
   allocateFields(); // initialize fields
-  he.getTemp(_T);
+  if (_viscosityType.compare("linearMaxwell")!=0) {
+    he.getTemp(_T);
+  }
   setMaterialParameters();
+
+  loadFieldsFromFiles(); // load from previous simulation
 
   // set up matrix operators and KSP environment
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
-  //~ computeTotalStrains();
-  //~ computeStresses();
-  //~ computeViscosity(_effViscCap);
-
-  //~ if (_inputDir.compare("unspecified") != 0) {
-    loadFieldsFromFiles(); // load from previous simulation
-    computeTotalStrains();
-    computeStresses();
-    computeViscosity(_effViscCap);
-  //~ }
+  computeTotalStrains();
+  computeStresses();
+  computeViscosity(_effViscCap);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -162,12 +159,14 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
     else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
-    // viscosity
-    else if (var.compare("viscDistribution")==0) {
-      _viscDistribution = rhs.c_str();
-    }
+    // viscosity type
+    else if (var.compare("viscosityType")==0) { _viscosityType = rhs.c_str(); }
 
-    // if values are set by a vector
+    // linear Maxwell viscosity
+    else if (var.compare("effViscVals_lm")==0) { loadVectorFromInputFile(rhsFull,_effViscVals_lm); }
+    else if (var.compare("effViscDepths_lm")==0) { loadVectorFromInputFile(rhsFull,_effViscDepths_lm); }
+
+    // power-law dislocation creep parameters
     else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
@@ -200,16 +199,28 @@ PetscErrorCode PowerLaw::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("CG") == 0 ||
          _linSolver.compare("AMG") == 0 );
 
-  if (_linSolver.compare("PCG")==0 || _linSolver.compare("AMG")==0) {
+  if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
   }
 
-  assert(_AVals.size() == _ADepths.size() );
-  assert(_BVals.size() == _BDepths.size() );
-  assert(_nVals.size() == _nDepths.size() );
+  if (_viscosityType.compare("power-law")==0) {
+    assert(_AVals.size() >= 2);
+    assert(_BVals.size() >= 2);
+    assert(_nVals.size() >= 2);
+    assert(_AVals.size() == _ADepths.size() );
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_nVals.size() == _nDepths.size() );
+  }
+
+  if (_viscosityType.compare("linearMaxwell")==0) {
+    assert(_effViscVals_lm.size() >= 2);
+    assert(_effViscVals_lm.size() == _effViscDepths_lm.size() );
+  }
+
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -303,11 +314,18 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   #endif
 
   // set each field using it's vals and depths std::vectors
-  ierr = setVec(_muVec,*_z,_muVals,_muDepths);        CHKERRQ(ierr);
+  ierr = setVec(_muVec,*_z,_muVals,_muDepths);     CHKERRQ(ierr);
   ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);  CHKERRQ(ierr);
-  ierr = setVec(_A,*_z,_AVals,_ADepths);           CHKERRQ(ierr);
-  ierr = setVec(_QR,*_z,_BVals,_BDepths);        CHKERRQ(ierr);
-  ierr = setVec(_n,*_z,_nVals,_nDepths);         CHKERRQ(ierr);
+
+  if (_viscosityType.compare("linearMaxwell")!=0) {
+    setVec(_A,*_z,_AVals,_ADepths);
+    setVec(_QR,*_z,_BVals,_BDepths);
+    setVec(_n,*_z,_nVals,_nDepths);
+  }
+  else if (_viscosityType.compare("linearMaxwell")==0) {
+    setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
+  }
+
   if (_isMMS) {
     if (_Nz == 1) { mapToVec(_A,zzmms_A1D,*_y); }
     else { mapToVec(_A,zzmms_A,*_y,*_z); }
@@ -318,10 +336,11 @@ PetscErrorCode PowerLaw::setMaterialParameters()
     if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
     else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
   }
-  if (_viscDistribution.compare("loadFromFile")==0) { loadEffViscFromFiles(); }
 
   VecPointwiseDivide(_cs, _muVec, _rhoVec);
   VecSqrtAbs(_cs);
+
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -342,9 +361,9 @@ PetscErrorCode PowerLaw::loadEffViscFromFiles()
   #endif
 
   ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_A,_inputDir,"A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"B"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_B"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -509,12 +528,15 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
+  else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
   }
   else {
@@ -1058,17 +1080,20 @@ PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gx
 
 PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
 {
-    PetscErrorCode ierr = 0;
+  PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::computeViscosity";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
+  if (_viscosityType.compare("linearMaxwell")==0) {
+    return ierr;
+  }
+
   // compute effective viscosity
   PetscScalar const *sigmadev,*A,*B,*n,*T=0;
   PetscScalar *effVisc=0;
-  // PetscScalar *effViscTemp=0;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_effVisc,&Istart,&Iend);
   VecGetArrayRead(_sdev,&sigmadev);
@@ -1559,46 +1584,6 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 }
 
 
-PetscErrorCode PowerLaw::setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths)
-{
-  PetscErrorCode ierr = 0;
-  PetscInt       Istart,Iend;
-  PetscScalar    v,z,z0,z1,v0,v1;
-  #if VERBOSE > 1
-    string funcName = "PowerLaw::setVecFromVectors";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-
-  // build structure from generalized input
-  size_t vecLen = depths.size();
-  ierr = VecGetOwnershipRange(vec,&Istart,&Iend);CHKERRQ(ierr);
-  for (PetscInt Ii=Istart;Ii<Iend;Ii++)
-  {
-    //~ z = _dz*(Ii-_Nz*(Ii/_Nz));
-    VecGetValues(*_z,1,&Ii,&z);CHKERRQ(ierr);
-    //~PetscPrintf(PETSC_COMM_WORLD,"1: Ii = %i, z = %g\n",Ii,z);
-    for (size_t ind = 0; ind < vecLen-1; ind++) {
-        z0 = depths[0+ind];
-        z1 = depths[0+ind+1];
-        v0 = vals[0+ind];
-        v1 = vals[0+ind+1];
-        if (z>=z0 && z<=z1) { v = (v1 - v0)/(z1-z0) * (z-z0) + v0; }
-        ierr = VecSetValues(vec,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-    }
-  }
-  ierr = VecAssemblyBegin(vec);CHKERRQ(ierr);
-  ierr = VecAssemblyEnd(vec);CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
-
-
 
 //======================================================================
 // IO functions
@@ -1628,7 +1613,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"viscDistribution = %s\n",_viscDistribution.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"viscosityType = %s\n",_viscosityType.c_str());CHKERRQ(ierr);
 
   ierr = PetscViewerASCIIPrintf(viewer,"effViscCap = %.15e\n",_effViscCap);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"ssEffViscScale = %.15e\n",_ssEffViscScale);CHKERRQ(ierr);

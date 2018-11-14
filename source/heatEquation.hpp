@@ -56,7 +56,7 @@ class HeatEquation
     PetscInt             _Nz_lab; // # of points to LAB depth (must be <= Nz)
     const PetscScalar    _Ly,_Lz,_dy,_dz;
     PetscScalar          _Lz_lab; // depth of LAB (must be <= Lz)
-    Vec                  _y,_z; // to handle variable grid spacing
+    Vec                 *_y,*_z; // to handle variable grid spacing
     std::string          _heatEquationType;
     int                  _isMMS;
     PetscScalar          _initTime,_initDeltaT;
@@ -92,8 +92,7 @@ class HeatEquation
     // linear system data
     std::string          _sbpType;
     SbpOps*              _sbp;
-    Vec                  _bcT_0,_bcR_0,_bcB_0,_bcL; // boundary conditions when solving for dT
-    Vec                  _bcT_abs,_bcR_abs,_bcB_abs; // boundary conditions equal to absolute temperature
+    Vec                  _bcR,_bcT,_bcL,_bcB; // boundary conditions when solving for dT
     std::string          _linSolver;
     PetscScalar          _kspTol;
     KSP                  _kspSS,_kspTrans; // KSPs for steady state and transient problems
@@ -125,12 +124,11 @@ class HeatEquation
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode allocateFields();
     PetscErrorCode setFields();
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const Vec& z);
     PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode checkInput();     // check input from file
 
 
-    PetscErrorCode constructScatters();
+    PetscErrorCode constructScatters(Vec& T, Vec& T_l);
     PetscErrorCode constructMapV();
     PetscErrorCode computeInitialSteadyStateTemp();
     PetscErrorCode setUpSteadyStateProblem();
@@ -144,7 +142,6 @@ class HeatEquation
 
 
     Vec _Tamb,_dT,_T; // full domain: ambient temperature, change in temperature from ambiant, and total temperature
-    Vec _Tamb_l,_dT_l,_T_l; // lithosphere only: ambient temperature, change in temperature from ambiant and total temperature
     Vec _k,_rho,_c; // thermal conductivity, density, heat capacity,
     Vec _Qrad,_Qfric,_Qvisc,_Q; // source terms: radioactive decay, frictional, viscous, total heat generation
 

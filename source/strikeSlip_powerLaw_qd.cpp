@@ -34,7 +34,11 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   checkInput();
   parseBCs();
 
-  _he = new HeatEquation(D); // heat equation
+  if ( _viscosityType.compare("linearMaxwell")!=0 ||
+    (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating")==0) ) {
+    _he = new HeatEquation(D); // heat equation
+  }
+  else { _he = NULL; }
 
   _body2fault = &(D._scatters["body2L"]);
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale); // fault
@@ -148,6 +152,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
+    else if (var.compare("viscosityType")==0) { _viscosityType = rhs.c_str(); }
 
     // for steady state iteration
     else if (var.compare("fss_T")==0) { _fss_T = atof( rhs.c_str() ); }
@@ -507,10 +512,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"normType = %s\n",_normType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
+  // boundary conditions for momentum balance equation
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcR = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcT = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+
   PetscViewerDestroy(&viewer);
 
   _material->writeContext(_outputDir);
+  if (_he != NULL) {
    _he->writeContext(_outputDir);
+  }
   _fault->writeContext(_outputDir);
 
   if (_hydraulicCoupling.compare("no")!=0) {
@@ -1026,10 +1039,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "he_Qfric", _he->_Qfric, outputDir + "SS_Qfric"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_Qvisc", _he->_Qvisc, outputDir + "SS_Qvisc"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_Q", _he->_Q, outputDir + "SS_Q"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_dT", _he->_dT, outputDir + "SS_dT"); CHKERRQ(ierr);
 
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _he->_bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _he->_bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcL", _he->_bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _he->_bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_varSS["slipVel"],_viewers["slipVel"].first); CHKERRQ(ierr);
@@ -1051,10 +1066,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
       ierr = VecView(_he->_Qfric,_viewers["he_Qfric"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_Qvisc,_viewers["he_Qvisc"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_Q,_viewers["he_Q"].first); CHKERRQ(ierr);
+      ierr = VecView(_he->_dT,_viewers["he_dT"].first); CHKERRQ(ierr);
 
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR_abs", _he->_bcR_abs, outputDir + "he_bcR_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT_abs", _he->_bcT_abs, outputDir + "he_bcT_abs"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB_abs", _he->_bcB_abs, outputDir + "he_bcB_abs"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _he->_bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _he->_bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcL", _he->_bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _he->_bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
     }
   }
 
@@ -1149,12 +1166,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
 
   // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
-  VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  // forcing = - tau_ss / Ly
+  Vec tauSS = NULL;
   _fault->computeTauRS(tauSS,_vL);
-  VecAXPY(tauSS,1.0,radDamp);
   VecScale(tauSS,-1./_D->_Ly);
 
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
@@ -1162,7 +1176,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
-  VecDestroy(&radDamp);
+
+  // compute forcing term for momentum balance equation
+  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
+  //~ Vec tauSS = NULL,radDamp=NULL,V=NULL;
+  //~ VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
+  //~ VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
+  //~ _fault->computeTauRS(tauSS,_vL);
+  //~ VecAXPY(tauSS,1.0,radDamp);
+  //~ VecScale(tauSS,-1./_D->_Ly);
+
+  //~ VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  //~ MatMult(MapV,tauSS,_forcingTerm);
+
+  //~ MatDestroy(&MapV);
+  //~ VecDestroy(&tauSS);
+  //~ VecDestroy(&radDamp);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {
