@@ -37,6 +37,7 @@ bVals = [0.02 0.0378 0.0356 0.0375 0.0424] # state evolution effect parameter
 bDepths = [0 13.6 14.9 27.6 60] # (km)
 
 sNVals = [0.00 11154.705882] # (MPa) effective normal stress
+#sNVals = [0.00 5764.705882] # (MPa) effective normal stress
 sNDepths = [0.0 500.0] # (km)
 
 sN_floor = 5.0 # minimal effective normal stress
@@ -67,7 +68,7 @@ n_pVals = [0.01 0.01]
 n_pDepths = [0 500]
 beta_pVals = [1 1] # 1/GPa
 beta_pDepths = [0 500]
-k_pVals = [1e-22 1e-22] # km^2
+k_pVals = [1e-24 1e-24] # km^2
 k_pDepths = [0 500]
 eta_pVals = [1e-13 1e-13] # GPa.s
 eta_pDepths = [0 500]
@@ -78,7 +79,7 @@ pVals = [0.0 0.0]
 pDepths = [0 500]
 
 # permeability evolution
-permSlipDependent = yes
+permSlipDependent = no
 kL_pVals = [1e0 1e0] # m
 kL_pDepths = [0 500]
 kT_pVals = [1e9 1e9] # s
@@ -113,7 +114,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
 stride2D_qd = 0 # number of time steps between output of 2D fields during quasidynamic period
-stride1D_fd = 2e3 # number of time steps between output of 1D fields during fully dynamic period
+stride1D_fd = 1e3 # number of time steps between output of 1D fields during fully dynamic period
 stride2D_fd = 0 # number of time steps between output of 2D fields during fully dynamic period
 stride1D_fd_end = 5e3
 stride2D_fd_end = 0
@@ -126,10 +127,10 @@ trigger_qd2fd = 1e-3
 trigger_fd2qd = 1e-4
 maxNumCycles = 10
 
-# deltaT_fd = 1e-4
+#deltaT_fd = 2e-3
 CFL = 0.5
 
 # directory for output
 inputDir = reference_model/
-outputDir = /scratch/zhuwq/data/pressureEq_fd_qd_
+outputDir = /data/dunham/zhuwq/scycle/data_fd_qd/pressureEq_fd_qd_50_
 
