@@ -17,3 +17,6 @@ matlab/visualizePetsc/._*
 test_Maxime/*
 
 source/main
+
+
+log_*
