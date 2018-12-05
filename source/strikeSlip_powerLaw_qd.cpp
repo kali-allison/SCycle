@@ -12,7 +12,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
-  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
@@ -388,7 +388,7 @@ double startTime = MPI_Wtime();
     //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     //~ PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
     //~ if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
-    if (time >= 1e11) { stopIntegration = 1; }
+    if (time >= 1.5e11) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -865,6 +865,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       VecDestroy(&V);
       VecScale(_varSS["Temp"],_fss_T);
       VecAXPY(_varSS["Temp"],1.-_fss_T,T_old);
+      VecWAXPY(_he->_dT,-1.0,_he->_Tamb,_varSS["Temp"]);
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
     }

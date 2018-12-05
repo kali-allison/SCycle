@@ -13,7 +13,7 @@ HeatEquation::HeatEquation(Domain& D)
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
-  _linSolver("CG"),_kspTol(1e-10),
+  _linSolver("CG"),_kspTol(1e-11),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
@@ -169,7 +169,7 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
 
     if (var.compare("heatEquationType")==0) { _heatEquationType = rhs.c_str(); }
     else if (var.compare("withViscShearHeating")==0) { _wViscShearHeating = rhs.c_str(); }
-    else if (var.compare("withFrictionalHeating")==0) { _wFrictionalHeating = rhs.c_str(); }
+    else if (var.compare("withFrictionalHeating")==0) { _wFrictionalHeating = rhs.c_str();}
     else if (var.compare("withRadioHeatGeneration")==0) { _wRadioHeatGen = rhs.c_str(); }
 
     // linear solver settings
@@ -1163,32 +1163,28 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   // frictional heat generation: Qfric or bcL depending on shear zone width
   if (_wFrictionalHeating.compare("yes")==0) {
     computeFrictionalShearHeating(tau,slipVel);
-    VecAXPY(_Q,-1.0,_Qfric);
+    VecAXPY(_Q,1.0,_Qfric);
   }
 
   // viscous shear heating: Qvisc
   if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
     computeViscousShearHeating(sdev, dgxy, dgxz);
-    VecAXPY(_Q,-1.0,_Qvisc);
+    VecAXPY(_Q,1.0,_Qvisc);
   }
 
 
   ierr = _sbp->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
+  Vec temp1; VecDuplicate(_Q,&temp1);
   if (_sbpType.compare("mfc_coordTrans")==0) {
-    Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMult(J,_Q,temp1);
-    Mat H; _sbp->getH(H);
-    ierr = MatMultAdd(H,temp1,temp,temp); CHKERRQ(ierr);
-    VecDestroy(&temp1);
   }
-  else {
-    Mat H; _sbp->getH(H);
-    ierr = MatMultAdd(H,_Q,temp,temp); CHKERRQ(ierr);
-  }
+  Mat H; _sbp->getH(H);
+  ierr = MatMultAdd(H,temp1,temp,temp); CHKERRQ(ierr);
+  VecDestroy(&temp1);
   MatMult(_rcInv,temp,rhs);
-  VecScale(rhs,-dt);
+  VecScale(rhs,dt);
 
 
   // solve in terms of dT
@@ -1744,13 +1740,13 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
 
   double startTime = MPI_Wtime();
 
-  VecMax(_T, NULL, &_maxTemp); // compute max T for output
+  VecMax(_dT, NULL, &_maxTemp); // compute max T for output
 
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
-    //~ ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "he_bcL", _bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"he_maxT.txt").c_str(),&_maxTempV);CHKERRQ(ierr);
@@ -1759,9 +1755,9 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
   else {
     ierr = VecView(_kTz_z0,_viewers["kTz_y0"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
 
@@ -1791,6 +1787,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
     ierr = io_initiateWriteAppend(_viewers, "dT", _dT, outputDir + "he_dT"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "kTz", _kTz, outputDir + "he_kTz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Qfric", _Qfric, outputDir + "he_Qfric"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "Qvisc", _Qvisc, outputDir + "he_Qvisc"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "Q", _Q, outputDir + "he_Q"); CHKERRQ(ierr);
   }
   else {
@@ -1798,6 +1795,7 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
     ierr = VecView(_dT,_viewers["dT"].first); CHKERRQ(ierr);
     ierr = VecView(_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
     ierr = VecView(_Qfric,_viewers["Qfric"].first); CHKERRQ(ierr);
+    ierr = VecView(_Qvisc,_viewers["Qvisc"].first); CHKERRQ(ierr);
     ierr = VecView(_Q,_viewers["Q"].first); CHKERRQ(ierr);
   }
 

@@ -285,14 +285,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
 
   // check boundary condition types for momentum balance equation
   assert(_qd_bcRType.compare("freeSurface")==0 || _qd_bcRType.compare("remoteLoading")==0 );
-  assert(_qd_bcTType.compare("freeSurface")==0 || _qd_bcTType.compare("remoteLoading")==0 );
+  assert(_qd_bcTType.compare("freeSurface")==0 );
   assert(_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0 );
-  assert(_qd_bcBType.compare("freeSurface")==0 || _qd_bcBType.compare("remoteLoading")==0 );
+  assert(_qd_bcBType.compare("freeSurface")==0 );
 
-  assert(_fd_bcRType.compare("freeSurface")==0 || _fd_bcRType.compare("outgoingCharacteristics")==0 );
-  assert(_fd_bcTType.compare("freeSurface")==0 || _fd_bcTType.compare("outgoingCharacteristics")==0 );
+  assert(_fd_bcRType.compare("freeSurface")==0 || _fd_bcRType.compare("outGoingCharacteristics")==0 );
+  assert(_fd_bcTType.compare("freeSurface")==0 || _fd_bcTType.compare("outGoingCharacteristics")==0 );
   assert(_fd_bcLType.compare("symmFault")==0 || _fd_bcLType.compare("rigidFault")==0 );
-  assert(_fd_bcBType.compare("freeSurface")==0 || _fd_bcBType.compare("outgoingCharacteristics")==0 );
+  assert(_fd_bcBType.compare("freeSurface")==0 || _fd_bcBType.compare("outGoingCharacteristics")==0 );
 
   if (_stateLaw.compare("flashHeating")==0) {
     assert(_thermalCoupling.compare("no")!=0);
