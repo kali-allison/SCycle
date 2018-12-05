@@ -1429,6 +1429,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
   VecSet(rho_k_eta_g, _g); //g
   // add gradient instead of flux
   VecSet(rho_k_eta_g, _g * (1.0 + _bcB_ratio)); //g
+  // VecSet(rho_k_eta_g, _g * 1.0); //g
   VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);
   VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);   //rho^2*g
   VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _k_p);     //rho^2*g * k
