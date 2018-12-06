@@ -79,7 +79,7 @@ pVals = [0.0 0.0]
 pDepths = [0 500]
 
 # permeability evolution
-permSlipDependent = yes
+permSlipDependent = no
 kL_pVals = [1e0 1e0] # m
 kL_pDepths = [0 500]
 kT_pVals = [1e9 1e9] # s
@@ -89,15 +89,11 @@ kmin_pDepths = [0 500]
 kmax_pVals = [1e-21 1e-21]  # km^2
 kmax_pDepths = [0 500]
 
-permPressureDependent = no
-meanK_pVals = [1e-19, 1e-19]
-meanK_pDepths = [0 500]
-deltaK_pVals = [1e-19, 1e-19] # km^2
-deltaK_pDepths = [0 500]
-meanP_pVals = [0 0] #MPa
-meanP_pDepths = [0 500]
-stdP_pVals = [10 10] #Mpa
-stdP_pDepths = [0 500]
+permPressureDependent = yes
+pstd_pVals = [150 150] #Mpa
+pstd_pDepths = [0 500]
+kmin2_pVals = [5e-23 5e-23] # km^2
+kmin2_pDepths = [0 500]
 maxBeIteration = 10
 maxBeDifference = 0.01 #1 percent
 
@@ -106,13 +102,13 @@ maxBeDifference = 0.01 #1 percent
 
 #timeIntegrator = RK43
 timeIntegrator = RK43_WBE
-maxStepCount = 1e8 # maximum number of time steps
+maxStepCount = 0 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 1e12 # (s) final time
 atol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
-stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
+stride1D_qd = 1 # number of time steps between output of 1D fields during quasidynamic period
 stride2D_qd = 0 # number of time steps between output of 2D fields during quasidynamic period
 stride1D_fd = 1e3 # number of time steps between output of 1D fields during fully dynamic period
 stride2D_fd = 0 # number of time steps between output of 2D fields during fully dynamic period
