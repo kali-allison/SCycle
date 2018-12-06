@@ -62,6 +62,7 @@ hydraulicTimeIntType = implicit #option: implicit, explicit
 
 # bottom boundary condition
 bcB_ratio = 0.1 # the extra pressure gradient 
+bcB_type = Q #options: Q, Dp
 
 # actual, physical values
 n_pVals = [0.01 0.01]
@@ -102,7 +103,7 @@ maxBeDifference = 0.01 #1 percent
 
 #timeIntegrator = RK43
 timeIntegrator = RK43_WBE
-maxStepCount = 0 # maximum number of time steps
+maxStepCount = 10 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 1e12 # (s) final time
 atol = 1e-7 # absolute tolerance for time integration

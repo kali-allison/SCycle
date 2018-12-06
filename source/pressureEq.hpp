@@ -24,7 +24,6 @@ private:
   std::string _outputDir; // directory for output
   std::string _inputDir;  // directory for input
   const bool _isMMS;      // true if running mms test
-  // const bool        _nonlinear; // true if paramters are nolinear
   std::string _hydraulicTimeIntType; // time integration type (explicit vs implicit)
 
   int _guessSteadyStateICs;
@@ -37,12 +36,12 @@ private:
   Vec _z;                   // vector of z-coordinates on fault (allows for variable grid spacing)
 
   // material properties
-  Vec _n_p, _beta_p, _k_p, _eta_p, _rho_f;
+  Vec _n_p, _beta_p, _k_p, _eta_p, _rho_f, _k_slip; 
   Vec _kL_p, _kT_p, _kmin_p, _kmax_p;
   Vec _kmin2_p, _pstd_p;
-  // Vec _meanK_p, _deltaK_p, _meanP_p, _stdP_p;
   PetscScalar _g; // gravitational acceleration
   PetscScalar _bcB_ratio;
+  std::string _bcB_type;
   int _maxBeIteration;
   double _minBeDifference;
 
@@ -53,7 +52,7 @@ private:
   SbpOps *_sbp;
   std::string _sbpType;
   int _linSolveCount;
-  Vec _bcL, _bcT, _bcB;
+  Vec _bcL, _bcT, _bcB, _bcB_gravity, _bcB_impose;
   Vec _p_t;
 
   // input fields
@@ -61,11 +60,11 @@ private:
   std::vector<double> _eta_pVals, _eta_pDepths, _rho_fVals, _rho_fDepths;
   std::vector<double> _pVals, _pDepths, _dpVals, _dpDepths;
   std::vector<double> _kL_pVals, _kL_pDepths, _kT_pVals, _kT_pDepths, _kmin_pVals, _kmin_pDepths, _kmax_pVals, _kmax_pDepths;
-  // std::vector<double> _meanK_pVals, _meanK_pDepths, _deltaK_pVals, _deltaK_pDepths, _meanP_pVals, _meanP_pDepths, _stdP_pVals, _stdP_pDepths;
   std::vector<double> _kmin2_pVals, _kmin2_pDepths, _pstd_pVals, _pstd_pDepths;
-  std::vector<double>   _sigmaNVals,_sigmaNDepths;
-  Vec                   _sN; // total normal stress
+  std::vector<double> _sigmaNVals,_sigmaNDepths;
+  Vec                 _sN; // total normal stress
 
+  VecScatter _scatters;
   // run time monitoring
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
@@ -84,11 +83,8 @@ private:
   PressureEq(const PressureEq &that);
   PressureEq &operator=(const PressureEq &rhs);
 
-  PetscErrorCode setVecFromVectors(Vec &, vector<double> &, vector<double> &);
-  PetscErrorCode setVecFromVectors(Vec &vec, vector<double> &vals, vector<double> &depths,
-                                   const PetscScalar maxVal);
-
-  PetscErrorCode computeVariableCoefficient(const Vec &p, Vec &coeff);
+  PetscErrorCode computeVariableCoefficient(Vec &coeff);
+  PetscErrorCode updateBoundaryCoefficient(const Vec &coeff);
   PetscErrorCode setUpSBP();
   PetscErrorCode computeInitialSteadyStatePressure(Domain &D);
   PetscErrorCode setUpBe(Domain &D);
@@ -138,11 +134,9 @@ public:
   PetscErrorCode writeContext(const std::string outputDir);
   PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
   PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
-  //~ PetscErrorCode view();
 
   // mms error
   PetscErrorCode measureMMSError(const double totRunTime);
-
   static double zzmms_pSource1D(const double z, const double t);
   static double zzmms_pA1D(const double y, const double t);
   static double zzmms_pt1D(const double z, const double t);
