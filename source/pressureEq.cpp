@@ -447,45 +447,45 @@ PetscErrorCode PressureEq::computeVariableCoefficient(Vec &coeff)
   return ierr;
 }
 
-// PetscErrorCode PressureEq::computeVariableCoefficient(const Vec &p, Vec &coeff)
-// {
-//   PetscErrorCode ierr = 0;
-//   #if VERBOSE > 1
-//     string funcName = "PressureEq::computeVariableCoefficient";
-//     ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
-//     CHKERRQ(ierr);
-//   #endif
+PetscErrorCode PressureEq::updateBoundaryCoefficient(const Vec &coeff)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEq::be";
+    PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
+  #endif
+  double startTime = MPI_Wtime(); // time this section
 
-//   VecDuplicate(p, &coeff);
+  Vec coeff_rho_g;
+  VecDuplicate(coeff, &coeff_rho_g);
+  VecCopy(coeff, coeff_rho_g);
+  VecPointwiseMult(coeff_rho_g, coeff_rho_g, _rho_f); 
+  Vec tmp;
+  VecDuplicate(coeff, &tmp);
+  // add gradient instead of flux
+  if ( _bcB_type.compare("Dp") == 0 ) {
+    VecSet(tmp, _g * (1.0 + _bcB_ratio)); //g
+  }
+  else if ( _bcB_type.compare("Q") == 0 ) {
+    VecSet(tmp, _g * 1.0); //g
+  }
+  VecPointwiseMult(coeff_rho_g, coeff_rho_g, tmp); 
+  VecScatterBegin(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
 
-//   // coeff = rho_f * k_p / eta_p
-//   PetscScalar *rho_f, *k, *eta, *coeffA = 0;
-//   PetscInt Ii, Istart, Iend;
-//   VecGetArray(_rho_f, &rho_f);
-//   VecGetArray(_k_p, &k);
-//   VecGetArray(_eta_p, &eta);
-//   VecGetArray(coeff, &coeffA);
-//   PetscInt Jj = 0;
-//   VecGetOwnershipRange(_p, &Istart, &Iend);
-//   for (Ii = Istart; Ii < Iend; Ii++) {
-//     coeffA[Jj] = rho_f[Jj] * k[Jj] / eta[Jj];
-//     assert(~isnan(coeffA[Jj]));
-//     assert(~isinf(coeffA[Jj]));
-//     Jj++;
-//   }
-//   VecRestoreArray(_rho_f, &rho_f);
-//   VecRestoreArray(_k_p, &k);
-//   VecRestoreArray(_eta_p, &eta);
-//   VecRestoreArray(coeff, &coeffA);
+  if ( _bcB_type.compare("Q") == 0 ) {
+    VecAXPY(_bcB, 1.0, _bcB_impose);
+  }
 
-//   // updateBoundary();
+  VecDestroy(&tmp);
+  VecDestroy(&coeff_rho_g);
 
-//   #if VERBOSE > 1
-//     ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-//     CHKERRQ(ierr);
-//   #endif
-//   return ierr;
-// }
+  _ptTime += MPI_Wtime() - startTime; 
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+  #endif
+  return ierr;
+}
 
 PetscErrorCode PressureEq::setUpSBP()
 {
@@ -537,6 +537,99 @@ PetscErrorCode PressureEq::setUpSBP()
   _sbp->computeMatrices(); // actually create the matrices
 
   VecDestroy(&coeff);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// set up KSP, matrices, boundary conditions for the hydralic problem
+PetscErrorCode PressureEq::setUpBe(Domain &D)
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+  string funcName = "PressureEq::setUpBe";
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
+  CHKERRQ(ierr);
+#endif
+
+  Mat D2;
+  _sbp->getA(D2);
+  Mat H;
+  _sbp->getH(H);
+
+  // set up boundary terms
+  Vec rhs;
+  VecDuplicate(_p, &rhs);
+  _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
+
+  // VecDestroy(&rhoCV);
+
+  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
+  VecDuplicate(_p, &rho_n_beta);
+  VecSet(rho_n_beta, 1);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
+  VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
+  Mat Diag_rho_n_beta;
+  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
+
+  Mat D2_rho_n_beta;
+  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+
+  MatScale(D2_rho_n_beta, -_initDeltaT);
+
+  // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
+  MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
+
+  setupKSP(D2_rho_n_beta);
+
+  MatDestroy(&Diag_rho_n_beta);
+  MatDestroy(&D2_rho_n_beta);
+  VecDestroy(&rho_n_beta);
+  VecDestroy(&rhs);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PressureEq::setupKSP(const Mat &A)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "PressureEquation::setupKSP";
+    PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
+  #endif
+
+  // set up linear solver context
+  PC pc;
+  KSPCreate(PETSC_COMM_WORLD, &_ksp);
+  ierr = KSPSetType(_ksp, KSPRICHARDSON); CHKERRQ(ierr);
+  ierr = KSPSetOperators(_ksp, A, A); CHKERRQ(ierr);
+  ierr = KSPSetReusePreconditioner(_ksp, PETSC_FALSE); CHKERRQ(ierr);
+  // ierr = KSPSetReusePreconditioner(_ksp,PETSC_FALSE);CHKERRQ(ierr);
+  //Set up preconditioner, using the boomerAMG PC from Hypre
+  ierr = KSPGetPC(_ksp, &pc); CHKERRQ(ierr);
+  ierr = PCSetType(pc, PCHYPRE); CHKERRQ(ierr);
+  ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr);
+  ierr = KSPSetTolerances(_ksp, _kspTol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
+  ierr = PCFactorSetLevels(pc, 4); CHKERRQ(ierr);
+  ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE); CHKERRQ(ierr);
+
+  // finish setting up KSP context using options defined above
+  ierr = KSPSetFromOptions(_ksp); CHKERRQ(ierr);
+
+  // perform computation of preconditioners now, rather than on first use
+  double startTime = MPI_Wtime();
+  ierr = KSPSetUp(_ksp); CHKERRQ(ierr);
+  _ptTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
@@ -1114,46 +1207,6 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time, const map<string, Ve
   return ierr;
 }
 
-PetscErrorCode PressureEq::updateBoundaryCoefficient(const Vec &coeff)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "PressureEq::be";
-    PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
-  #endif
-  double startTime = MPI_Wtime(); // time this section
-
-  Vec coeff_rho_g;
-  VecDuplicate(coeff, &coeff_rho_g);
-  VecCopy(coeff, coeff_rho_g);
-  VecPointwiseMult(coeff_rho_g, coeff_rho_g, _rho_f); 
-  Vec tmp;
-  VecDuplicate(coeff, &tmp);
-  // add gradient instead of flux
-  if ( _bcB_type.compare("Dp") == 0 ) {
-    VecSet(tmp, _g * (1.0 + _bcB_ratio)); //g
-  }
-  else if ( _bcB_type.compare("Q") == 0 ) {
-    VecSet(tmp, _g * 1.0); //g
-  }
-  VecPointwiseMult(coeff_rho_g, coeff_rho_g, tmp); 
-  VecScatterBegin(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-
-  if ( _bcB_type.compare("Q") == 0 ) {
-    VecAXPY(_bcB, 1.0, _bcB_impose);
-  }
-
-  VecDestroy(&tmp);
-  VecDestroy(&coeff_rho_g);
-
-  _ptTime += MPI_Wtime() - startTime; 
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-  #endif
-  return ierr;
-}
-
 // backward Euler implicit solve
 // new result goes in varIm
 PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
@@ -1574,98 +1627,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string, Vec>
   return ierr;
 }
 
-// set up KSP, matrices, boundary conditions for the hydralic problem
-PetscErrorCode PressureEq::setUpBe(Domain &D)
-{
-  PetscErrorCode ierr = 0;
-#if VERBOSE > 1
-  string funcName = "PressureEq::setUpBe";
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
-  CHKERRQ(ierr);
-#endif
 
-  Mat D2;
-  _sbp->getA(D2);
-  Mat H;
-  _sbp->getH(H);
-
-  // set up boundary terms
-  Vec rhs;
-  VecDuplicate(_p, &rhs);
-  _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
-
-  // VecDestroy(&rhoCV);
-
-  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
-  VecDuplicate(_p, &rho_n_beta);
-  VecSet(rho_n_beta, 1);
-  VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
-  VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
-  VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
-  Mat Diag_rho_n_beta;
-  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
-  MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
-
-  Mat D2_rho_n_beta;
-  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
-  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
-
-  MatScale(D2_rho_n_beta, -_initDeltaT);
-
-  // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
-  MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
-
-  setupKSP(D2_rho_n_beta);
-
-  MatDestroy(&Diag_rho_n_beta);
-  MatDestroy(&D2_rho_n_beta);
-  VecDestroy(&rho_n_beta);
-  VecDestroy(&rhs);
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode PressureEq::setupKSP(const Mat &A)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "PressureEquation::setupKSP";
-    PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
-  #endif
-
-  // set up linear solver context
-  PC pc;
-  KSPCreate(PETSC_COMM_WORLD, &_ksp);
-  ierr = KSPSetType(_ksp, KSPRICHARDSON); CHKERRQ(ierr);
-  ierr = KSPSetOperators(_ksp, A, A); CHKERRQ(ierr);
-  ierr = KSPSetReusePreconditioner(_ksp, PETSC_FALSE); CHKERRQ(ierr);
-  // ierr = KSPSetReusePreconditioner(_ksp,PETSC_FALSE);CHKERRQ(ierr);
-  //Set up preconditioner, using the boomerAMG PC from Hypre
-  ierr = KSPGetPC(_ksp, &pc); CHKERRQ(ierr);
-  ierr = PCSetType(pc, PCHYPRE); CHKERRQ(ierr);
-  ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr);
-  ierr = KSPSetTolerances(_ksp, _kspTol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-  ierr = PCFactorSetLevels(pc, 4); CHKERRQ(ierr);
-  ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE); CHKERRQ(ierr);
-
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(_ksp); CHKERRQ(ierr);
-
-  // perform computation of preconditioners now, rather than on first use
-  double startTime = MPI_Wtime();
-  ierr = KSPSetUp(_ksp); CHKERRQ(ierr);
-  _ptTime += MPI_Wtime() - startTime;
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
 
 // =====================================================================
 // IO commands

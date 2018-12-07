@@ -62,7 +62,7 @@ hydraulicTimeIntType = implicit #option: implicit, explicit
 
 # bottom boundary condition
 bcB_ratio = 0.1 # the extra pressure gradient 
-bcB_type = Q #options: Q, Dp
+bcB_type = Dp #options: Q, Dp
 
 # actual, physical values
 n_pVals = [0.01 0.01]
