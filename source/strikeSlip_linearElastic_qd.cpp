@@ -941,6 +941,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
 
+  // alternatively, load forcing term from user input
+  ierr = loadVecFromInputFile(_forcingTerm,inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+
   // compute forcing term for momentum balance equation
   // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
   //~ Vec tauSS = NULL,radDamp=NULL,V=NULL;

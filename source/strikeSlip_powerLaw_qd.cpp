@@ -388,7 +388,7 @@ double startTime = MPI_Wtime();
     //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
     //~ PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
     //~ if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
-    if (time >= 1.5e11) { stopIntegration = 1; }
+    if (time >= 1e11) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
