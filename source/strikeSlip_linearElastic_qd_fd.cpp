@@ -724,9 +724,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
 
   // if solving the heat equation, add temperature to varFD
   if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
-  if (_hydraulicCoupling.compare("no")!=0 ) { 
-    VecDuplicate(_varIm["pressure"], &_varFD["pressure"]); 
-    VecCopy(_varIm["pressure"], _varFD["pressure"]); 
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+    VecDuplicate(_varIm["pressure"], &_varFD["pressure"]);
+    VecCopy(_varIm["pressure"], _varFD["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
       VecDuplicate(_varQSEx["permeability"], &_varFD["permeability"]);
       VecCopy(_varQSEx["permeability"], _varFD["permeability"]);
@@ -774,7 +774,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varFD["pressure"], _varIm["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
-      VecCopy(_varFD["permeability"], _varQSEx["permeability"]); 
+      VecCopy(_varFD["permeability"], _varQSEx["permeability"]);
     }
     if (_hydraulicCoupling.compare("coupled")==0){
       // _fault_qd->setSNEff(_varIm["pressure"]);
@@ -832,8 +832,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   if (_hydraulicCoupling.compare("no")!=0 ) {
     VecCopy(_varIm["pressure"], _varFDPrev["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
-      VecCopy(_varQSEx["permeability"], _varFDPrev["permeability"]); 
-    } 
+      VecCopy(_varQSEx["permeability"], _varFDPrev["permeability"]);
+    }
     // if (_hydraulicCoupling.compare("coupled")==0 ){
     //   _fault_fd->setSNEff(_varFD["pressure"]);
     // }
@@ -849,10 +849,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_psi,_varFD["psi"]);
   VecCopy(_material->_u,_varFD["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFD["Temp"]); } // if solving the heat equation
-  if (_hydraulicCoupling.compare("no")!=0 ) { 
-    VecCopy(_varIm["pressure"], _varFD["pressure"]); 
+  if (_hydraulicCoupling.compare("no")!=0 ) {
+    VecCopy(_varIm["pressure"], _varFD["pressure"]);
     if ((_p->_permSlipDependent).compare("yes")==0) {
-      VecCopy(_varQSEx["permeability"], _varFD["permeability"]); 
+      VecCopy(_varQSEx["permeability"], _varFD["permeability"]);
     }
     if (_hydraulicCoupling.compare("coupled")==0 ){
       // _fault_fd->setSNEff(_varFD["pressure"]);
@@ -1375,6 +1375,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
 
   MatDestroy(&MapV);
   VecDestroy(&tauSS);
+
+  // alternatively, load forcing term from user input
+  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // compute forcing term for momentum balance equation
   // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
