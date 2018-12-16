@@ -80,13 +80,14 @@ PressureEq::~PressureEq()
   VecDestroy(&_eta_p);
   VecDestroy(&_rho_f);
 
+
   // permeability
+  VecDestroy(&_k_slip);
   VecDestroy(&_kL_p);
   VecDestroy(&_kT_p);
   VecDestroy(&_kmin_p);
   VecDestroy(&_kmax_p);
-  VecDestroy(&_kmin_p);
-  VecDestroy(&_kmax_p);
+  VecDestroy(&_k_press);
   VecDestroy(&_kmin2_p);
   VecDestroy(&_pstd_p);
 
@@ -96,6 +97,9 @@ PressureEq::~PressureEq()
   VecDestroy(&_bcB);
   VecDestroy(&_p_t);
   VecDestroy(&_z);
+  VecDestroy(&_bcB_gravity);
+  VecDestroy(&_bcB_impose);
+  VecDestroy(&_sN);
   KSPDestroy(&_ksp);
 
   delete _sbp;
@@ -587,7 +591,6 @@ PetscErrorCode PressureEq::setUpBe(Domain &D)
   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
 
   Mat D2_rho_n_beta;
-  // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
   MatScale(D2_rho_n_beta, -_initDeltaT);
@@ -1269,6 +1272,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
 
   Vec rhog, rhog_y;
   VecDuplicate(_p, &rhog);
+  VecDuplicate(_p, &rhog_y);
 
   Vec rhs;
   VecDuplicate(_p, &rhs);
@@ -1283,11 +1287,25 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
   Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
   VecDuplicate(_p, &rho_n_beta);
 
-  Mat Diag_rho_n_beta;
-  Mat D2_rho_n_beta;
+  Mat Diag_rho_n_beta = NULL;
+  Mat D2_rho_n_beta = NULL;
+
+  Mat H;
+  _sbp->getH(H);
+  MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  Mat D2;
+  _sbp->getA(D2);
+  MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta);
 
   Vec Hxp;
   VecDuplicate(_p, &Hxp);
+
+  Vec tmp1;
+  VecDuplicate(_p, &tmp1);
+  Mat tmp2;
+  Mat J, Jinv, qy, rz, yq, zr;
+  ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
+  MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
 
   if (_permPressureDependent.compare("no") == 0){
     _maxBeIteration = 1;
@@ -1312,7 +1330,6 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     VecPointwiseMult(rhog, rhog, _rho_f);   //rho^2*g
     VecPointwiseMult(rhog, rhog, _k_p);     //rho^2*g * k
     VecPointwiseDivide(rhog, rhog, _eta_p); //rhog = rho^2*g * k/eta
-    VecDuplicate(_p, &rhog_y);
     _sbp->Dz(rhog, rhog_y); //rhog_y = D1(rho^2*g * k/eta)
 
     Mat D2;
@@ -1330,28 +1347,22 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
     VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
     VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
-    MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
     MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
 
     // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
-    MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+    // MatDestroy(&D2_rho_n_beta);
+    // Mat D2_rho_n_beta;
+    MatMatMult(Diag_rho_n_beta, D2, MAT_REUSE_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
     if (_sbpType.compare("mfc_coordTrans") == 0) {
       Mat J, Jinv, qy, rz, yq, zr;
-      ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
-      CHKERRQ(ierr);
+      ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
 
-      Vec tmp1;
-      VecDuplicate(_p, &tmp1);
       ierr = MatMult(Jinv, rhs, tmp1);
       VecCopy(tmp1, rhs);
-      VecDestroy(&tmp1);
 
-      Mat tmp2;
-      // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &tmp2);
-      MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
+      MatMatMult(Jinv, D2_rho_n_beta, MAT_REUSE_MATRIX, PETSC_DEFAULT, &tmp2);
       MatCopy(tmp2, D2_rho_n_beta, SAME_NONZERO_PATTERN);
-      MatDestroy(&tmp2);
     }
 
     _sbp->H(rhog_y, temp);
@@ -1416,6 +1427,8 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
   VecDestroy(&p_prev);
   MatDestroy(&Diag_rho_n_beta);
   MatDestroy(&D2_rho_n_beta);
+  VecDestroy(&tmp1);
+  MatDestroy(&tmp2);
 
   _ptTime += MPI_Wtime() - startTime;
 
@@ -1436,232 +1449,232 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string, Vec>
     PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
   #endif
 
-  double startTime = MPI_Wtime(); // time this section
+  // double startTime = MPI_Wtime(); // time this section
 
-  if (_permSlipDependent.compare("yes") == 0) {
-    Vec coeff;
-    computeVariableCoefficient(coeff);
-    _sbp->updateVarCoeff(coeff);
-    updateBoundaryCoefficient(coeff);
-    VecDestroy(&coeff);
-  }
+  // if (_permSlipDependent.compare("yes") == 0) {
+  //   Vec coeff;
+  //   computeVariableCoefficient(coeff);
+  //   _sbp->updateVarCoeff(coeff);
+  //   updateBoundaryCoefficient(coeff);
+  //   VecDestroy(&coeff);
+  // }
 
-  Vec rho_k_eta_g;
-  VecDuplicate(_p, &rho_k_eta_g);
-  VecSet(rho_k_eta_g, _g * _bcB_ratio); //g
-  VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);
-  VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);   //rho^2*g
-  VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _k_p);     //rho^2*g * k
-  VecPointwiseDivide(rho_k_eta_g, rho_k_eta_g, _eta_p); //rhog = rho^2*g * k/eta
+  // Vec rho_k_eta_g;
+  // VecDuplicate(_p, &rho_k_eta_g);
+  // VecSet(rho_k_eta_g, _g * _bcB_ratio); //g
+  // VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);
+  // VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _rho_f);   //rho^2*g
+  // VecPointwiseMult(rho_k_eta_g, rho_k_eta_g, _k_p);     //rho^2*g * k
+  // VecPointwiseDivide(rho_k_eta_g, rho_k_eta_g, _eta_p); //rhog = rho^2*g * k/eta
 
-  { // set up scatter context to take values for y=Ly from body field and put them on a Vec of size Nz
-    // indices to scatter from
-    VecScatter _scatters;
-    PetscInt *fi;
-    PetscMalloc1(1, &fi);
-    // for (PetscInt Ii=0; Ii<1; Ii++) { fi[Ii] = Ii + _N-1; }
-    fi[0] = _N - 1;
-    IS isf;
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, 1, fi, PETSC_COPY_VALUES, &isf);
+  // { // set up scatter context to take values for y=Ly from body field and put them on a Vec of size Nz
+  //   // indices to scatter from
+  //   VecScatter _scatters;
+  //   PetscInt *fi;
+  //   PetscMalloc1(1, &fi);
+  //   // for (PetscInt Ii=0; Ii<1; Ii++) { fi[Ii] = Ii + _N-1; }
+  //   fi[0] = _N - 1;
+  //   IS isf;
+  //   ierr = ISCreateGeneral(PETSC_COMM_WORLD, 1, fi, PETSC_COPY_VALUES, &isf);
 
-    // indices to scatter to
-    PetscInt *ti;
-    PetscMalloc1(1, &ti);
-    // for (PetscInt Ii=0; Ii<1; Ii++) { ti[Ii] = Ii; };
-    ti[0] = 0;
-    IS ist;
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, 1, ti, PETSC_COPY_VALUES, &ist);
+  //   // indices to scatter to
+  //   PetscInt *ti;
+  //   PetscMalloc1(1, &ti);
+  //   // for (PetscInt Ii=0; Ii<1; Ii++) { ti[Ii] = Ii; };
+  //   ti[0] = 0;
+  //   IS ist;
+  //   ierr = ISCreateGeneral(PETSC_COMM_WORLD, 1, ti, PETSC_COPY_VALUES, &ist);
 
-    ierr = VecScatterCreate(rho_k_eta_g, isf, _bcB, ist, &_scatters);
-    CHKERRQ(ierr);
-    PetscFree(fi);
-    PetscFree(ti);
-    ISDestroy(&isf);
-    ISDestroy(&ist);
-    VecScatterBegin(_scatters, rho_k_eta_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_scatters, rho_k_eta_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterDestroy(&_scatters);
-  }
+  //   ierr = VecScatterCreate(rho_k_eta_g, isf, _bcB, ist, &_scatters);
+  //   CHKERRQ(ierr);
+  //   PetscFree(fi);
+  //   PetscFree(ti);
+  //   ISDestroy(&isf);
+  //   ISDestroy(&ist);
+  //   VecScatterBegin(_scatters, rho_k_eta_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+  //   VecScatterEnd(_scatters, rho_k_eta_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
+  //   VecScatterDestroy(&_scatters);
+  // }
 
-  VecDestroy(&rho_k_eta_g);
+  // VecDestroy(&rho_k_eta_g);
 
-  // VecShift(_bcB, _g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back()*0.5);
+  // // VecShift(_bcB, _g*_rho_fVals.back()*_k_pVals.back()/_eta_pVals.back()*0.5);
 
-  // Vec _p = varImo.find("pressure")->second;
-  VecCopy(varImo.find("pressure")->second, _p);
+  // // Vec _p = varImo.find("pressure")->second;
+  // VecCopy(varImo.find("pressure")->second, _p);
 
-  Vec rhog, rhog_y;
-  VecDuplicate(_p, &rhog);
+  // Vec rhog, rhog_y;
+  // VecDuplicate(_p, &rhog);
 
-  Vec rhs;
-  VecDuplicate(_k_p, &rhs);
+  // Vec rhs;
+  // VecDuplicate(_k_p, &rhs);
 
-  Vec temp;
-  VecDuplicate(_p, &temp);
+  // Vec temp;
+  // VecDuplicate(_p, &temp);
 
-  Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
-  VecDuplicate(_p, &rho_n_beta);
+  // Vec rho_n_beta; // rho_n_beta = 1/(rho * n * beta)
+  // VecDuplicate(_p, &rho_n_beta);
 
-  Mat Diag_rho_n_beta;
-  Mat D2_rho_n_beta;
+  // Mat Diag_rho_n_beta;
+  // Mat D2_rho_n_beta;
 
-  Vec source, Hxsource;
-  VecDuplicate(_p, &source);
-  VecDuplicate(_p, &Hxsource);
+  // Vec source, Hxsource;
+  // VecDuplicate(_p, &source);
+  // VecDuplicate(_p, &Hxsource);
 
-  Vec Hxp;
-  VecDuplicate(_p, &Hxp);
+  // Vec Hxp;
+  // VecDuplicate(_p, &Hxp);
 
-  // assert(0);
-  if (_permPressureDependent.compare("no") == 0)
-  {
-    _maxBeIteration = 1;
-  }
+  // // assert(0);
+  // if (_permPressureDependent.compare("no") == 0)
+  // {
+  //   _maxBeIteration = 1;
+  // }
 
-  for (int i = 0; i < _maxBeIteration; i++)
-  {
+  // for (int i = 0; i < _maxBeIteration; i++)
+  // {
 
-    double tmpTime = MPI_Wtime();
-    if (_permPressureDependent.compare("no") != 0) {
-      delete _sbp;
-      updatePermPressureDependent();
-      setUpSBP();
-    }
-    _miscTime += MPI_Wtime() - tmpTime;
+  //   double tmpTime = MPI_Wtime();
+  //   if (_permPressureDependent.compare("no") != 0) {
+  //     delete _sbp;
+  //     updatePermPressureDependent();
+  //     setUpSBP();
+  //   }
+  //   _miscTime += MPI_Wtime() - tmpTime;
 
-    // source term from gravity: d/dz ( rho*k/eta * g )
+  //   // source term from gravity: d/dz ( rho*k/eta * g )
 
-    VecSet(rhog, _g);                       //g
-    VecPointwiseMult(rhog, rhog, _rho_f);   //rho*g
-    VecPointwiseMult(rhog, rhog, _rho_f);   //rho^2*g
-    VecPointwiseMult(rhog, rhog, _k_p);     //rho^2*g * k
-    VecPointwiseDivide(rhog, rhog, _eta_p); //rhog = rho^2*g * k/eta
-    VecDuplicate(_p, &rhog_y);
-    _sbp->Dz(rhog, rhog_y); //rhog_y = D1(rho^2*g * k/eta)
+  //   VecSet(rhog, _g);                       //g
+  //   VecPointwiseMult(rhog, rhog, _rho_f);   //rho*g
+  //   VecPointwiseMult(rhog, rhog, _rho_f);   //rho^2*g
+  //   VecPointwiseMult(rhog, rhog, _k_p);     //rho^2*g * k
+  //   VecPointwiseDivide(rhog, rhog, _eta_p); //rhog = rho^2*g * k/eta
+  //   VecDuplicate(_p, &rhog_y);
+  //   _sbp->Dz(rhog, rhog_y); //rhog_y = D1(rho^2*g * k/eta)
 
-    Mat D2;
-    _sbp->getA(D2);
+  //   Mat D2;
+  //   _sbp->getA(D2);
 
-    Mat H;
-    _sbp->getH(H);
+  //   Mat H;
+  //   _sbp->getH(H);
 
-    // set up boundary terms
-    _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
-    ierr = VecScale(rhs, -1.0);
-    CHKERRQ(ierr);
+  //   // set up boundary terms
+  //   _sbp->setRhs(rhs, _bcL, _bcL, _bcT, _bcB);
+  //   ierr = VecScale(rhs, -1.0);
+  //   CHKERRQ(ierr);
 
-    // solve Mx = rhs
-    // M = I - dt/(rho*n*beta)*D2
-    // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
+  //   // solve Mx = rhs
+  //   // M = I - dt/(rho*n*beta)*D2
+  //   // rhs = p + dt/(rho*n*beta) *( -D1(k/eta*rho^2*g) + SAT + source )
 
-    // _sbp->H(rhog_y,temp);
+  //   // _sbp->H(rhog_y,temp);
 
-    // VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
-    // VecAXPY(rhs, -1.0, temp); // - D1(rho^2*g * k/eta) + SAT
+  //   // VecAXPY(rhs, -1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
+  //   // VecAXPY(rhs, -1.0, temp); // - D1(rho^2*g * k/eta) + SAT
 
-    // compute MMS source
+  //   // compute MMS source
 
-    // PetscPrintf(PETSC_COMM_WORLD,"Time: %f", time);
+  //   // PetscPrintf(PETSC_COMM_WORLD,"Time: %f", time);
 
-    mapToVec(source, zzmms_pSource1D, _z, time);
+  //   mapToVec(source, zzmms_pSource1D, _z, time);
 
-    ierr = _sbp->H(source, Hxsource);
+  //   ierr = _sbp->H(source, Hxsource);
 
-    //~ writeVec(source,_outputDir + "mms_pSource");
+  //   //~ writeVec(source,_outputDir + "mms_pSource");
 
-    // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
-    // VecAXPY(p_t,1.0,source);
+  //   // d/dt p = (D2*p - rhs + source) / (rho * n * beta)
+  //   // VecAXPY(p_t,1.0,source);
 
-    VecSet(rho_n_beta, 1);
-    VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
-    VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
-    VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
+  //   VecSet(rho_n_beta, 1);
+  //   VecPointwiseDivide(rho_n_beta, rho_n_beta, _rho_f);
+  //   VecPointwiseDivide(rho_n_beta, rho_n_beta, _n_p);
+  //   VecPointwiseDivide(rho_n_beta, rho_n_beta, _beta_p);
 
-    MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
-    MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
+  //   MatDuplicate(H, MAT_DO_NOT_COPY_VALUES, &Diag_rho_n_beta);
+  //   MatDiagonalSet(Diag_rho_n_beta, rho_n_beta, INSERT_VALUES);
 
-    // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
-    MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
+  //   // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
+  //   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-    if (_sbpType.compare("mfc_coordTrans") == 0)
-    {
+  //   if (_sbpType.compare("mfc_coordTrans") == 0)
+  //   {
 
-      Mat J, Jinv, qy, rz, yq, zr;
-      ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
-      CHKERRQ(ierr);
+  //     Mat J, Jinv, qy, rz, yq, zr;
+  //     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
+  //     CHKERRQ(ierr);
 
-      Vec tmp1;
-      VecDuplicate(_p, &tmp1);
-      ierr = MatMult(Jinv, rhs, tmp1);
-      VecCopy(tmp1, rhs);
-      VecDestroy(&tmp1);
+  //     Vec tmp1;
+  //     VecDuplicate(_p, &tmp1);
+  //     ierr = MatMult(Jinv, rhs, tmp1);
+  //     VecCopy(tmp1, rhs);
+  //     VecDestroy(&tmp1);
 
-      Mat tmp2;
-      // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &tmp2);
-      MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
-      MatCopy(tmp2, D2_rho_n_beta, SAME_NONZERO_PATTERN);
-      MatDestroy(&tmp2);
-    }
+  //     Mat tmp2;
+  //     // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &tmp2);
+  //     MatMatMult(Jinv, D2_rho_n_beta, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &tmp2);
+  //     MatCopy(tmp2, D2_rho_n_beta, SAME_NONZERO_PATTERN);
+  //     MatDestroy(&tmp2);
+  //   }
 
-    _sbp->H(rhog_y, temp);
-    VecAXPY(rhs, -1.0, temp); // - D1(rho^2*g * k/eta) + SAT
-    // VecAXPY(rhs, 1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
+  //   _sbp->H(rhog_y, temp);
+  //   VecAXPY(rhs, -1.0, temp); // - D1(rho^2*g * k/eta) + SAT
+  //   // VecAXPY(rhs, 1.0, rhog_y); // - D1(rho^2*g * k/eta) + SAT
 
-    MatScale(D2_rho_n_beta, -dt);
+  //   MatScale(D2_rho_n_beta, -dt);
 
-    // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
-    MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
+  //   // MatShift(D2_rho_n_beta, 1); // I - dt/(rho*n*beta)*D2
+  //   MatAXPY(D2_rho_n_beta, 1, H, SUBSET_NONZERO_PATTERN); // H - dt/(rho*n*beta)*D2
 
-    VecPointwiseMult(rhs, rhs, rho_n_beta); //1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT)
+  //   VecPointwiseMult(rhs, rhs, rho_n_beta); //1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT)
 
-    // VecAXPY(rhs, 1.0, source); // 1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + src
+  //   // VecAXPY(rhs, 1.0, source); // 1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + src
 
-    // correct
-    VecAXPY(rhs, 1.0, Hxsource); // 1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + H * src
+  //   // correct
+  //   VecAXPY(rhs, 1.0, Hxsource); // 1/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + H * src
 
-    // VecView(source, PETSC_VIEWER_STDOUT_WORLD);
-    VecScale(rhs, dt); // dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
+  //   // VecView(source, PETSC_VIEWER_STDOUT_WORLD);
+  //   VecScale(rhs, dt); // dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
 
-    ierr = _sbp->H(varImo.find("pressure")->second, Hxp); // H * p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) +  dt * H * src
+  //   ierr = _sbp->H(varImo.find("pressure")->second, Hxp); // H * p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) +  dt * H * src
 
-    // VecAXPY(rhs, 1, varImo.find("pressure")->second); // p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
-    VecAXPY(rhs, 1, Hxp);
+  //   // VecAXPY(rhs, 1, varImo.find("pressure")->second); // p(t) + dt/(rho * n * beta) * ( - D1(rho^2*g * k/eta) + SAT ) + dt * src
+  //   VecAXPY(rhs, 1, Hxp);
 
-    tmpTime = MPI_Wtime();
-    ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);
-    CHKERRQ(ierr);
-    // KSPSetUp(_ksp);
-    // ierr = KSPSolve(solver, rhs, varIm["pressure"]);CHKERRQ(ierr);
-    // ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
-    ierr = KSPSolve(_ksp, rhs, _p);
-    CHKERRQ(ierr);
-    _invTime += MPI_Wtime() - tmpTime;
-  }
+  //   tmpTime = MPI_Wtime();
+  //   ierr = KSPSetOperators(_ksp, D2_rho_n_beta, D2_rho_n_beta);
+  //   CHKERRQ(ierr);
+  //   // KSPSetUp(_ksp);
+  //   // ierr = KSPSolve(solver, rhs, varIm["pressure"]);CHKERRQ(ierr);
+  //   // ierr = KSPSolve(_ksp, rhs, varIm["pressure"]);CHKERRQ(ierr);
+  //   ierr = KSPSolve(_ksp, rhs, _p);
+  //   CHKERRQ(ierr);
+  //   _invTime += MPI_Wtime() - tmpTime;
+  // }
 
-  // VecView(_p, PETSC_VIEWER_STDOUT_WORLD);
+  // // VecView(_p, PETSC_VIEWER_STDOUT_WORLD);
 
-  // varIm["pressure"] = _p;
-  VecCopy(_p, varIm["pressure"]);
+  // // varIm["pressure"] = _p;
+  // VecCopy(_p, varIm["pressure"]);
 
-  _linSolveTime += MPI_Wtime() - startTime;
-  _linSolveCount++;
+  // _linSolveTime += MPI_Wtime() - startTime;
+  // _linSolveCount++;
 
-  //~ mapToVec(dvarEx["pressure"], zzmms_pt1D, _z, time);
-  VecDestroy(&rhog);
-  VecDestroy(&rhog_y);
-  VecDestroy(&temp);
-  VecDestroy(&rhs);
-  VecDestroy(&rho_n_beta);
-  VecDestroy(&source);
-  VecDestroy(&Hxsource);
-  VecDestroy(&Hxp);
+  // //~ mapToVec(dvarEx["pressure"], zzmms_pt1D, _z, time);
+  // VecDestroy(&rhog);
+  // VecDestroy(&rhog_y);
+  // VecDestroy(&temp);
+  // VecDestroy(&rhs);
+  // VecDestroy(&rho_n_beta);
+  // VecDestroy(&source);
+  // VecDestroy(&Hxsource);
+  // VecDestroy(&Hxp);
 
-  MatDestroy(&Diag_rho_n_beta);
-  MatDestroy(&D2_rho_n_beta);
+  // MatDestroy(&Diag_rho_n_beta);
+  // MatDestroy(&D2_rho_n_beta);
 
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-#endif
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+  #endif
   return ierr;
 }
 
