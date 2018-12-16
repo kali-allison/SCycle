@@ -9,7 +9,8 @@
 
 # set up the computational domain
 Ny = 251 # points in y-direction
-Nz = 1942 # points in z-direction
+# Nz = 1942 # points in z-direction
+Nz = 1418 # points in z-direction
 Ly = 500 # (km) horizontal domain size
 Lz = 500 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
@@ -62,7 +63,7 @@ hydraulicTimeIntType = implicit #option: implicit, explicit
 
 # bottom boundary condition
 bcB_ratio = 0.1 # the extra pressure gradient 
-bcB_type = Dp #options: Q, Dp
+bcB_type = Q #options: Q, Dp
 
 # actual, physical values
 n_pVals = [0.01 0.01]
@@ -80,12 +81,12 @@ pVals = [0.0 0.0]
 pDepths = [0 500]
 
 # permeability evolution
-permSlipDependent = no
+permSlipDependent = yes
 kL_pVals = [1e0 1e0] # m
 kL_pDepths = [0 500]
 kT_pVals = [1e9 1e9] # s
 kT_pDepths = [0 500]
-kmin_pVals = [1e-24 1e-24] # km^2
+kmin_pVals = [1e-23 1e-23] # km^2
 kmin_pDepths = [0 500]
 kmax_pVals = [1e-21 1e-21]  # km^2
 kmax_pDepths = [0 500]
@@ -93,9 +94,9 @@ kmax_pDepths = [0 500]
 permPressureDependent = yes
 pstd_pVals = [150 150] #Mpa
 pstd_pDepths = [0 500]
-kmin2_pVals = [5e-23 5e-23] # km^2
+kmin2_pVals = [1e-23 1e-23] # km^2
 kmin2_pDepths = [0 500]
-maxBeIteration = 10
+maxBeIteration = 2
 maxBeDifference = 0.01 #1 percent
 
 #=======================================================================
@@ -103,13 +104,13 @@ maxBeDifference = 0.01 #1 percent
 
 #timeIntegrator = RK43
 timeIntegrator = RK43_WBE
-maxStepCount = 10 # maximum number of time steps
+maxStepCount = 1e9 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 1e12 # (s) final time
 atol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
-stride1D_qd = 1 # number of time steps between output of 1D fields during quasidynamic period
+stride1D_qd = 10 # number of time steps between output of 1D fields during quasidynamic period
 stride2D_qd = 0 # number of time steps between output of 2D fields during quasidynamic period
 stride1D_fd = 1e3 # number of time steps between output of 1D fields during fully dynamic period
 stride2D_fd = 0 # number of time steps between output of 2D fields during fully dynamic period

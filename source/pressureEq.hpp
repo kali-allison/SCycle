@@ -36,10 +36,11 @@ private:
   Vec _z;                   // vector of z-coordinates on fault (allows for variable grid spacing)
 
   // material properties
-  Vec _n_p, _beta_p, _k_p, _eta_p, _rho_f, _k_slip; 
+  Vec _n_p, _beta_p, _k_p, _eta_p, _rho_f, _k_slip, _k_press; 
   Vec _kL_p, _kT_p, _kmin_p, _kmax_p;
   Vec _kmin2_p, _pstd_p;
   PetscScalar _g; // gravitational acceleration
+  PetscScalar _vL;
   PetscScalar _bcB_ratio;
   std::string _bcB_type;
   int _maxBeIteration;

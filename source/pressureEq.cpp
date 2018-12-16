@@ -38,6 +38,9 @@ PressureEq::PressureEq(Domain &D)
       if (_permPressureDependent.compare("no") == 0) {
         _maxBeIteration = 1;
       }
+      if (_permPressureDependent.compare("yes") == 0 && _permSlipDependent.compare("yes") == 0) {
+        VecCopy(_k_p, _k_slip);
+      }
       for (int i = 0; i < _maxBeIteration; i++) {
         computeInitialSteadyStatePressure(D);
         if (_permPressureDependent.compare("yes") == 0) {
@@ -48,6 +51,9 @@ PressureEq::PressureEq(Domain &D)
           updateBoundaryCoefficient(coeff);
           VecDestroy(&coeff);
         }
+      }
+      if (_permPressureDependent.compare("yes") == 0 && _permSlipDependent.compare("yes") == 0) {
+        VecCopy(_k_slip, _k_p);
       }
     }
   }
@@ -224,6 +230,7 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("g") == 0) { _g = atof(rhs.c_str()); }
     else if (var.compare("pVals") == 0) { loadVectorFromInputFile(rhsFull, _pVals); }
     else if (var.compare("pDepths") == 0) { loadVectorFromInputFile(rhsFull, _pDepths); }
+    else if (var.compare("vL") == 0) { _vL = atof(rhs.c_str()); }
     else if (var.compare("sNVals") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNVals); }
     else if (var.compare("sNDepths") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNDepths); }
 
@@ -287,13 +294,15 @@ PetscErrorCode PressureEq::setFields(Domain &D)
   VecDuplicate(_p, &_beta_p); PetscObjectSetName((PetscObject)_beta_p, "beta_p"); VecSet(_beta_p, 0.0);
   VecDuplicate(_p, &_k_p); PetscObjectSetName((PetscObject)_k_p, "k_p"); VecSet(_k_p, 0.0);
   VecDuplicate(_p, &_k_slip); PetscObjectSetName((PetscObject)_k_slip, "k_slip"); VecSet(_k_slip, 0.0);
+  VecDuplicate(_p, &_k_press); PetscObjectSetName((PetscObject)_k_press, "k_press"); VecSet(_k_press, 0.0);
   VecDuplicate(_p, &_eta_p); PetscObjectSetName((PetscObject)_eta_p, "eta_p"); VecSet(_eta_p, 0.0);
   VecDuplicate(_p, &_rho_f); PetscObjectSetName((PetscObject)_rho_f, "rho_f"); VecSet(_rho_f, 0.0);
   VecDuplicate(_p, &_sN); PetscObjectSetName((PetscObject)_sN, "sN");VecSet(_sN, 0.0);
   ierr = setVec(_n_p, _z, _n_pVals, _n_pDepths); CHKERRQ(ierr);
   ierr = setVec(_beta_p, _z, _beta_pVals, _beta_pDepths); CHKERRQ(ierr);
   ierr = setVec(_k_p, _z, _k_pVals, _k_pDepths); CHKERRQ(ierr);
-  ierr = setVec(_k_slip, _z, _k_pVals, _k_pDepths); CHKERRQ(ierr);
+  VecCopy(_k_p, _k_slip);
+  VecCopy(_k_p, _k_press);
   ierr = setVec(_eta_p, _z, _eta_pVals, _eta_pDepths); CHKERRQ(ierr);
   ierr = setVec(_rho_f, _z, _rho_fVals, _rho_fDepths); CHKERRQ(ierr);
   ierr = setVec(_sN, _z, _sigmaNVals, _sigmaNDepths); CHKERRQ(ierr);
@@ -646,6 +655,29 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain &D)
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
   #endif
 
+  // permeability for plate loading velocity
+  // k = (V/L*kmax + 1.0/T*kmin)/(V/L + 1.0/T)
+  // Vec tmp1;  // |V|/L 
+  // VecDuplicate(_p, &tmp1);
+  // VecSet(tmp1, _vL);
+  // VecPointwiseDivide(tmp1, tmp1, _kL_p);
+  // Vec tmp2; // 1.0/T
+  // VecDuplicate(_p, &tmp2);
+  // VecSet(tmp2, 1.0);
+  // VecPointwiseDivide(tmp2, tmp2, _kT_p);
+  // Vec tmp3; //(V/L + 1.0/T)
+  // VecDuplicate(_p, &tmp3);
+  // VecCopy(tmp1, tmp3);
+  // VecAXPY(tmp3, 1.0, tmp2);
+  // VecPointwiseMult(tmp1, tmp1, _kmax_p); //V/L*kmax
+  // VecPointwiseMult(tmp2, tmp2, _kmin_p); //1.0/T*kmin
+  // VecCopy(tmp1, _k_p);
+  // VecAXPY(_k_p, 1.0, tmp2);
+  // VecPointwiseDivide(_k_p, _k_p, tmp3); //k = (V/L*kmax + 1.0/T*kmin)/(V/L + 1.0/T)
+  // VecCopy(_k_p, _k_slip);
+  // VecCopy(_k_p, _k_press);
+  // VecDestroy(&tmp1);VecDestroy(&tmp2);VecDestroy(&tmp3);
+
   // set up linear solver context
   KSP ksp;
   PC pc;
@@ -829,6 +861,7 @@ PetscErrorCode PressureEq::updatePermPressureDependent()
   ierr = VecPointwiseDivide(tmp1, tmp1, tmp2);
   ierr = VecAXPY(tmp1, 1.0, _kmin2_p);
   ierr = VecCopy(tmp1, _k_p);
+  VecCopy(_k_p, _k_press);
   ierr = VecDestroy(&tmp1);
   ierr = VecDestroy(&tmp2);
 
@@ -1226,7 +1259,9 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     _sbp->updateVarCoeff(coeff);
     updateBoundaryCoefficient(coeff);
     VecDestroy(&coeff);
-    VecCopy(_k_p, _k_slip); // used in permPressureDependent
+    if (_permPressureDependent.compare("yes") == 0) {
+      VecCopy(_k_p, _k_slip); // used in permPressureDependent
+    }
   }
 
   // Vec _p = varImo.find("pressure")->second;
@@ -1365,6 +1400,9 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
   }
 
   VecCopy(_p, varIm["pressure"]);
+  if (_permPressureDependent.compare("yes") == 0 && _permSlipDependent.compare("yes") == 0) {
+    VecCopy(_k_slip, _k_p); // combine slip dependent and pressure dependent
+  }
 
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
@@ -1674,6 +1712,8 @@ PetscErrorCode PressureEq::writeContext(const std::string outputDir)
   ierr = writeVec(_n_p, outputDir + "p_n"); CHKERRQ(ierr);
   ierr = writeVec(_beta_p, outputDir + "p_beta"); CHKERRQ(ierr);
   ierr = writeVec(_k_p, outputDir + "p_k"); CHKERRQ(ierr);
+  ierr = writeVec(_k_slip, outputDir + "p_k_slip"); CHKERRQ(ierr);
+  ierr = writeVec(_k_press, outputDir + "p_k_press"); CHKERRQ(ierr);
   ierr = writeVec(_eta_p, outputDir + "p_eta"); CHKERRQ(ierr);
   ierr = writeVec(_rho_f, outputDir + "p_rho_f"); CHKERRQ(ierr);
 
@@ -1728,11 +1768,15 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     ierr = io_initiateWriteAppend(_viewers, "p", _p, outputDir + "p_p"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "p_t", _p_t, outputDir + "p_p_t"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "k", _k_p, outputDir + "p_k"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "k_slip", _k_slip, outputDir + "p_k_slip"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "k_press", _k_press, outputDir + "p_k_press"); CHKERRQ(ierr);
   }
   else {
     ierr = VecView(_p, _viewers["p"].first); CHKERRQ(ierr);
     ierr = VecView(_p_t, _viewers["p_t"].first); CHKERRQ(ierr);
     ierr = VecView(_k_p, _viewers["k"].first); CHKERRQ(ierr);
+    ierr = VecView(_k_slip, _viewers["k_slip"].first); CHKERRQ(ierr);
+    ierr = VecView(_k_press, _viewers["k_press"].first); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
