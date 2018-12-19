@@ -36,9 +36,10 @@ private:
   Vec _z;                   // vector of z-coordinates on fault (allows for variable grid spacing)
 
   // material properties
-  Vec _n_p, _beta_p, _k_p, _eta_p, _rho_f, _k_slip, _k_press; 
-  Vec _kL_p, _kT_p, _kmin_p, _kmax_p;
-  Vec _kmin2_p, _pstd_p;
+  Vec _n_p = NULL, _beta_p = NULL, _k_p = NULL, _eta_p = NULL, _rho_f = NULL;
+  Vec _k_slip = NULL, _k_press = NULL; 
+  Vec _kL_p = NULL, _kT_p = NULL, _kmin_p = NULL, _kmax_p = NULL;
+  Vec _kmin2_p = NULL, _pstd_p = NULL;
   PetscScalar _g; // gravitational acceleration
   PetscScalar _vL;
   PetscScalar _bcB_ratio;
@@ -53,8 +54,8 @@ private:
   SbpOps *_sbp;
   std::string _sbpType;
   int _linSolveCount;
-  Vec _bcL, _bcT, _bcB, _bcB_gravity, _bcB_impose;
-  Vec _p_t;
+  Vec _bcL = NULL, _bcT = NULL, _bcB = NULL, _bcB_gravity = NULL, _bcB_impose = NULL;
+  Vec _p_t = NULL;
 
   // input fields
   std::vector<double> _n_pVals, _n_pDepths, _beta_pVals, _beta_pDepths, _k_pVals, _k_pDepths;
@@ -94,7 +95,7 @@ private:
 
 public:
   Domain *_D; // shallow copy of domain
-  Vec _p;     // pressure
+  Vec _p = NULL;     // pressure
 
   std::string _permSlipDependent, _permPressureDependent;
 
