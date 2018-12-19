@@ -96,7 +96,8 @@ private:
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
     // forcing term for ice stream problem
-    Vec _forcingTerm;
+    Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
+    PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
 
     // for mapping from body fields to the fault
     VecScatter* _body2fault;

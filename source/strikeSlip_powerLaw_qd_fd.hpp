@@ -98,7 +98,8 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
 
     // forcing term for ice stream problem
-    Vec _forcingTerm;
+    Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
+    PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
 
 
     // boundary conditions

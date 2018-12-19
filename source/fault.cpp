@@ -75,6 +75,8 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
     else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
     else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
+    else if (var.compare("stateVals")==0) { loadVectorFromInputFile(rhsFull,_stateVals); }
+    else if (var.compare("stateDepths")==0) { loadVectorFromInputFile(rhsFull,_stateDepths); }
 
 
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
@@ -152,6 +154,7 @@ PetscErrorCode Fault::checkInput()
   assert(_cohesionVals.size() == _cohesionDepths.size() );
   assert(_rhoVals.size() == _rhoDepths.size() );
   assert(_muVals.size() == _muDepths.size() );
+  assert(_stateVals.size() == _stateDepths.size() );
 
   assert(_DcVals.size() != 0 );
   assert(_aVals.size() != 0 );
@@ -549,7 +552,7 @@ PetscErrorCode Fault::computeTauRS(Vec& tauRS, const PetscScalar vL)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  computePsiSS(vL);
+  if (_stateVals.size() == 0) { computePsiSS(vL); }
   VecSet(_slipVel,vL);
 
   if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }

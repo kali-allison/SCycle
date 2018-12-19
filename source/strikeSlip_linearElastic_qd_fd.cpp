@@ -23,7 +23,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   _maxStepCount(1e8),
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),_forcingVal(0),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
@@ -113,6 +113,7 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   VecDestroy(&_u0);
   VecDestroy(&_ay);
   VecDestroy(&_forcingTerm);
+  VecDestroy(&_forcingTermPlain);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -196,6 +197,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof(rhs.c_str() ); }
+
+    else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_fd")==0) { _fd_bcRType = rhs.c_str(); }
@@ -1123,7 +1126,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
   }
 
   if (_forcingType.compare("iceStream")==0) {
-    ierr = writeVec(_forcingTerm,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
+    ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -1364,17 +1367,21 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
 
-  // compute forcing term for momentum balance equation
-  // forcing = - tau_ss / Ly
-  Vec tauSS = NULL;
-  _fault_qd->computeTauRS(tauSS,_vL);
-  VecScale(tauSS,-1./_D->_Ly);
+  //~ // compute forcing term for momentum balance equation
+  //~ // forcing = - tau_ss / Ly
+  //~ Vec tauSS = NULL;
+  //~ _fault_qd->computeTauRS(tauSS,_vL);
+  //~ VecScale(tauSS,-1./_D->_Ly);
 
-  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  MatMult(MapV,tauSS,_forcingTerm);
+  //~ VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  //~ MatMult(MapV,tauSS,_forcingTerm);
 
-  MatDestroy(&MapV);
-  VecDestroy(&tauSS);
+  //~ MatDestroy(&MapV);
+  //~ VecDestroy(&tauSS);
+
+  // compute forcing term using scalar input
+  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,_forcingVal);
+  VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);

@@ -18,7 +18,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
+  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),
@@ -180,6 +180,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
 
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
+
+    else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
 
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
@@ -531,7 +533,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   }
 
   if (_forcingType.compare("iceStream")==0) {
-    ierr = writeVec(_forcingTerm,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
+    ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -1168,15 +1170,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
   // compute forcing term for momentum balance equation
   // forcing = - tau_ss / Ly
-  Vec tauSS = NULL;
-  _fault->computeTauRS(tauSS,_vL);
-  VecScale(tauSS,-1./_D->_Ly);
+  //~ Vec tauSS = NULL;
+  //~ _fault->computeTauRS(tauSS,_vL);
+  //~ VecScale(tauSS,-1./_D->_Ly);
 
-  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  MatMult(MapV,tauSS,_forcingTerm);
+  //~ VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
+  //~ MatMult(MapV,tauSS,_forcingTerm);
 
-  MatDestroy(&MapV);
-  VecDestroy(&tauSS);
+  //~ MatDestroy(&MapV);
+  //~ VecDestroy(&tauSS);
 
   // compute forcing term for momentum balance equation
   // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
@@ -1193,6 +1195,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
   //~ MatDestroy(&MapV);
   //~ VecDestroy(&tauSS);
   //~ VecDestroy(&radDamp);
+
+  // compute forcing term using scalar input
+  VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,_forcingVal);
+  VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
+
+  // alternatively, load forcing term from user input
+  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {

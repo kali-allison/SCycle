@@ -81,7 +81,8 @@ private:
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
 
     // forcing term for ice stream problem
-    Vec _forcingTerm;
+    Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
+    PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
 
 
     // boundary conditions

@@ -68,6 +68,7 @@ class Fault
     std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
     Vec                   _cohesion,_mu,_rho;
     std::vector<double>   _sigmaNVals,_sigmaNDepths;
+    std::vector<double>   _stateVals,_stateDepths; // initial conditions for state variable
     PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
