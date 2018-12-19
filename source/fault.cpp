@@ -254,7 +254,9 @@ PetscErrorCode Fault::setFields(Domain& D)
 
     VecDestroy(&temp);
   }
-  ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
+  //~ ierr = VecSet(_psi,_f0);CHKERRQ(ierr);
+  if (_stateVals.size() > 0) { ierr = setVec(_psi,_z,_stateVals,_stateDepths); CHKERRQ(ierr); }
+  else { ierr = VecSet(_psi,_f0);CHKERRQ(ierr); }
 
   { // impose floor and ceiling on effective normal stress
     Vec temp; VecDuplicate(_sN,&temp);
