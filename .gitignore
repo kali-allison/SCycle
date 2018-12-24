@@ -1,6 +1,7 @@
 *.o
 
 data/**
+in/**
 
 matlabAnswers/**
 matlab/visualizePetsc/@PetscOpenSocket/.*
