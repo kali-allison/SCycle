@@ -4,9 +4,9 @@
 #include <petscksp.h>
 #include <string>
 #include <assert.h>
-#include "domain.hpp"
 #include "spmat.hpp"
 #include "sbpOps.hpp"
+#include "genFuncs.hpp"
 
 using namespace std;
 
@@ -24,12 +24,11 @@ struct TempMats_fc_coordTrans
 {
   const PetscInt    _order,_Ny,_Nz;
   const PetscScalar   _dy,_dz;
-  Mat               _mu;
 
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, Mat& mu);
+  TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
   ~TempMats_fc_coordTrans();
 
   private:
@@ -46,7 +45,7 @@ public:
     PetscScalar         _dy,_dz;
     Vec                 _muVec,*_y,*_z; // variable coefficient, y and z coordinate meshes
     Mat                 _mu; // matrix of coefficient
-    std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
+    std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Neumann"
     double              _runTime;
     string              _D2type; // "yz", "y", or "z"
     int                 _multByH; // (default: 0) 1 if yes, 0 if no
@@ -97,8 +96,6 @@ public:
 
     // allow variable coefficient to change
     PetscErrorCode updateVarCoeff(const Vec& coeff);
-    PetscErrorCode updateBs();
-    PetscErrorCode updateA(const TempMats_fc_coordTrans& tempMats);
 
 
     // functions to compute various derivatives of input vectors (this
@@ -154,6 +151,8 @@ public:
     PetscErrorCode constructJacobian(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode constructA(const TempMats_fc_coordTrans& tempMats);
     PetscErrorCode updateA_BCs();
+    PetscErrorCode updateA_BCs(TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode updateBCMats();
     PetscErrorCode constructDyymu(const TempMats_fc_coordTrans& tempMats, Mat &Dyymu);
     PetscErrorCode constructDzzmu(const TempMats_fc_coordTrans& tempMats, Mat &D2zmu);
     PetscErrorCode constructD2(const TempMats_fc_coordTrans& tempMats);
