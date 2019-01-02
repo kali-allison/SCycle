@@ -4,6 +4,7 @@
 #include <petscksp.h>
 #include <string>
 #include <assert.h>
+#include "domain.hpp"
 #include "spmat.hpp"
 #include "sbpOps.hpp"
 
@@ -22,11 +23,12 @@ struct TempMats_fc
 {
   const PetscInt    _order,_Ny,_Nz;
   const PetscReal   _dy,_dz;
+  Mat               _mu;
 
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
+  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
   ~TempMats_fc();
 
 private:
@@ -43,7 +45,7 @@ class SbpOps_fc : public SbpOps
 
     const PetscInt      _order,_Ny,_Nz;
     PetscScalar         _dy,_dz;
-    Vec                 _muVec; // variable coefficient
+    Vec                *_muVec; // variable coefficient
     Mat                 _mu; // matrix of coefficient
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
@@ -68,7 +70,6 @@ class SbpOps_fc : public SbpOps
     Mat _e0y_Iz,_eNy_Iz,_Iy_e0z,_Iy_eNz;
     Mat _E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
     Mat _muxBySy_IzT,_Iy_muxBzSzT;
-    Mat _BSy_Iz, _Iy_BSz;
 
 
     //~ SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
@@ -129,10 +130,10 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode getHs(Mat& Hy_Iz,Mat& Iy_Hz);
     PetscErrorCode getHinvs(Mat& Hyinv_Iz,Mat& Iy_Hzinv);
 
-  //~ private:
+  private:
     // disable default copy constructor and assignment operator
-    //~ SbpOps_fc(const SbpOps_fc & that);
-    //~ SbpOps_fc& operator=( const SbpOps_fc& rhs );
+    SbpOps_fc(const SbpOps_fc & that);
+    SbpOps_fc& operator=( const SbpOps_fc& rhs );
 
     PetscErrorCode setMatsToNull();
 
@@ -158,8 +159,6 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall); // for A
     PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
     PetscErrorCode constructBCMats();
-    PetscErrorCode updateBCMats();
-    PetscErrorCode updateA_BCs(TempMats_fc& tempMats);
 };
 
 // functions to construct 1D sbp operators

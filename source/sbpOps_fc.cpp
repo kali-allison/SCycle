@@ -8,6 +8,7 @@
 //======================================================================
 SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(Ly/(Ny-1.)),_dz(Lz/(Nz-1.)),
+  _muVec(&muVec),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
   _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
@@ -22,8 +23,7 @@ SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const P
   assert(Ly > 0); assert(Lz > 0);
   if (Ny == 1) { _dy = Ly; }
   if (Nz == 1) { _dz = Lz; }
-  assert(muVec != NULL);
-  VecDuplicate(muVec,&_muVec); VecCopy(muVec,_muVec);
+  assert(_muVec != NULL);
 
   // penalty weights
   _alphaT = -1.0; // von Neumann
@@ -47,7 +47,6 @@ SbpOps_fc::~SbpOps_fc()
     PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
   #endif
 
-  VecDestroy(&_muVec);
   MatDestroy(&_mu);
 
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
@@ -57,15 +56,15 @@ SbpOps_fc::~SbpOps_fc()
 
   MatDestroy(&_A);
   MatDestroy(&_D2);
-  MatDestroy(&_Dy_Iz); MatDestroy(&_Iy_Dz);
-  MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
-  MatDestroy(&_BSy_Iz); MatDestroy(&_Iy_BSz);
-
+  MatDestroy(&_Dy_Iz);
+  MatDestroy(&_Iy_Dz);
   MatDestroy(&_Hinv); MatDestroy(&_H);
   MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
   MatDestroy(&_Hy_Iz); MatDestroy(&_Iy_Hz);
   MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
   MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
+  MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending destructor in sbpOps_fc.cpp.\n");
@@ -87,9 +86,6 @@ PetscErrorCode SbpOps_fc::setMatsToNull()
 
   _mu = NULL;
 
-  _A = NULL;
-  _D2 = NULL;
-
   _AR = NULL; _AT = NULL; _AL = NULL; _AB = NULL;
   _rhsL = NULL; _rhsR = NULL; _rhsT = NULL; _rhsB = NULL;
   _AR_N = NULL; _AT_N = NULL; _AL_N = NULL; _AB_N = NULL;
@@ -97,14 +93,13 @@ PetscErrorCode SbpOps_fc::setMatsToNull()
   _AR_D = NULL; _AT_D = NULL; _AL_D = NULL; _AB_D = NULL;
   _rhsL_D = NULL; _rhsR_D = NULL; _rhsT_D = NULL; _rhsB_D = NULL;
 
+  _A = NULL;
   _Dy_Iz = NULL; _Iy_Dz = NULL;
-  _muxBySy_IzT = NULL; _Iy_muxBzSzT = NULL;
-  _BSy_Iz = NULL; _Iy_BSz = NULL;
-
+  _D2 = NULL;
   _Hinv = NULL; _H = NULL; _Hyinv_Iz = NULL; _Iy_Hzinv = NULL; _Hy_Iz = NULL; _Iy_Hz = NULL;
   _e0y_Iz = NULL; _eNy_Iz = NULL; _Iy_e0z = NULL; _Iy_eNz = NULL;
   _E0y_Iz = NULL; _ENy_Iz = NULL; _Iy_E0z = NULL; _Iy_ENz = NULL;
-
+  _muxBySy_IzT = NULL; _Iy_muxBzSzT = NULL;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -224,8 +219,13 @@ PetscErrorCode SbpOps_fc::deleteIntermediateFields()
   else if ( _bcBType.compare("Neumann") == 0 ) { MatDestroy(&_AB_D); MatDestroy(&_rhsB_D); }
 
   MatDestroy(&_D2);
+
+  //~ MatDestroy(&_Hinv); MatDestroy(&_H);
+  //~ MatDestroy(&_Hyinv_Iz); MatDestroy(&_Iy_Hzinv);
   MatDestroy(&_Hy_Iz); MatDestroy(&_Iy_Hz);
-  MatDestroy(&_BSy_Iz); MatDestroy(&_Iy_BSz);
+  //~ MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
+  //~ MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
+  //~ MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -247,10 +247,10 @@ PetscErrorCode SbpOps_fc::computeMatrices()
   #endif
 
 
-  TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz);
+  TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  constructMu(_muVec);
-  constructEs(tempMats);
+  constructMu(*_muVec); //no memory leak
+  constructEs(tempMats); //no memory leak
   constructes(tempMats);
   constructHs(tempMats);
   constructBs(tempMats);
@@ -277,10 +277,11 @@ PetscErrorCode SbpOps_fc::constructMu(Vec& muVec)
   MatCreate(PETSC_COMM_WORLD,&_mu);
   MatSetSizes(_mu,PETSC_DECIDE,PETSC_DECIDE,_Ny*_Nz,_Ny*_Nz);
   MatSetFromOptions(_mu);
-  MatMPIAIJSetPreallocation(_mu,1,NULL,0,NULL);
+  MatMPIAIJSetPreallocation(_mu,1,NULL,1,NULL);
   MatSeqAIJSetPreallocation(_mu,1,NULL);
   MatSetUp(_mu);
   MatDiagonalSet(_mu,muVec,INSERT_VALUES);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -357,20 +358,18 @@ PetscErrorCode SbpOps_fc::constructBs(const TempMats_fc& tempMats)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_order==2 && _BSy_Iz == NULL) { kronConvert(tempMats._BSy,tempMats._Iz,_BSy_Iz,3,0); }
-  if (_order==4 && _BSy_Iz == NULL) { kronConvert(tempMats._BSy,tempMats._Iz,_BSy_Iz,5,0); }
-  if (_muxBySy_IzT == NULL) { MatTransposeMatMult(_BSy_Iz,_mu,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT); }
-  else{ MatTransposeMatMult(_BSy_Iz,_mu,MAT_REUSE_MATRIX,1.,&_muxBySy_IzT); }
+  Mat temp;
+  if (_order==2) { kronConvert(tempMats._BSy,tempMats._Iz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._BSy,tempMats._Iz,temp,5,5); }
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_muxBySy_IzT);
+  PetscObjectSetName((PetscObject) _muxBySy_IzT, "muxBySy_IzT");
+  MatDestroy(&temp);
 
-  if (_order==2 && _Iy_BSz == NULL) { kronConvert(tempMats._Iy,tempMats._BSz,_Iy_BSz,3,0); }
-  if (_order==4 && _Iy_BSz == NULL) { kronConvert(tempMats._Iy,tempMats._BSz,_Iy_BSz,5,0); }
-  if (_Iy_muxBzSzT == NULL) { MatTransposeMatMult(_Iy_BSz,_mu,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT); }
-  else{ MatTransposeMatMult(_Iy_BSz,_mu,MAT_REUSE_MATRIX,1.,&_Iy_muxBzSzT); }
-
-  if (_deleteMats) {
-    MatDestroy(&_BSy_Iz);
-    MatDestroy(&_Iy_BSz);
-  }
+  if (_order==2) { kronConvert(tempMats._Iy,tempMats._BSz,temp,3,3); }
+  if (_order==4) { kronConvert(tempMats._Iy,tempMats._BSz,temp,5,5); }
+  MatTransposeMatMult(temp,_mu,MAT_INITIAL_MATRIX,1.,&_Iy_muxBzSzT);
+  PetscObjectSetName((PetscObject) _Iy_muxBzSzT, "Iy_muxBzSzT");
+  MatDestroy(&temp);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -581,83 +580,6 @@ PetscErrorCode SbpOps_fc::constructBCMats()
   return ierr;
 }
 
-// update SAT matrices for boundary conditions if the variable coefficient has changed
-PetscErrorCode SbpOps_fc::updateBCMats()
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "SbpOps_fc::constructBCMats";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  if (_bcRType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AR_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_ENy_Iz,MAT_REUSE_MATRIX);
-    constructBC_Dirichlet(_rhsR_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_eNy_Iz,MAT_REUSE_MATRIX);
-    _AR = _AR_D;
-    _rhsR = _rhsR_D;
-    MatDestroy(&_AR_N); MatDestroy(&_rhsR_N);
-  }
-  else if (_bcRType.compare("Neumann")==0) {
-    constructBC_Neumann(_AR_N,_Hyinv_Iz, 1.,_ENy_Iz,_mu,_Dy_Iz,MAT_REUSE_MATRIX);
-    constructBC_Neumann(_rhsR_N,_Hyinv_Iz, 1.,_eNy_Iz,MAT_REUSE_MATRIX);
-    _AR = _AR_N;
-    _rhsR = _rhsR_N;
-    MatDestroy(&_AR_D); MatDestroy(&_rhsR_D);
-  }
-
-  if (_bcTType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AT_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_E0z,MAT_REUSE_MATRIX);
-    constructBC_Dirichlet(_rhsT_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_e0z,MAT_REUSE_MATRIX);
-    _AT = _AT_D;
-    _rhsT = _rhsT_D;
-    MatDestroy(&_AT_N); MatDestroy(&_rhsT_N);
-  }
-  else if (_bcTType.compare("Neumann")==0) {
-    constructBC_Neumann(_AT_N,_Iy_Hzinv, -1.,_Iy_E0z,_mu,_Iy_Dz,MAT_REUSE_MATRIX);
-    constructBC_Neumann(_rhsT_N,_Iy_Hzinv, -1.,_Iy_e0z,MAT_REUSE_MATRIX);
-    _AT = _AT_N;
-    _rhsT = _rhsT_N;
-    MatDestroy(&_AT_D); MatDestroy(&_rhsT_D);
-  }
-
-
-  if (_bcLType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AL_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_REUSE_MATRIX);
-    constructBC_Dirichlet(_rhsL_D,_alphaDy,_mu,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_REUSE_MATRIX);
-    _AL = _AL_D;
-    _rhsL = _rhsL_D;
-    MatDestroy(&_AL_N); MatDestroy(&_rhsL_N);
-  }
-  else if (_bcLType.compare("Neumann")==0) {
-    constructBC_Neumann(_AL_N, _Hyinv_Iz, -1., _E0y_Iz, _mu, _Dy_Iz,MAT_REUSE_MATRIX);
-    constructBC_Neumann(_rhsL_N, _Hyinv_Iz, -1., _e0y_Iz,MAT_REUSE_MATRIX);
-    _AL = _AL_N;
-    _rhsL = _rhsL_N;
-    MatDestroy(&_AL_D); MatDestroy(&_rhsL_D);
-  }
-
-
-  if (_bcBType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AB_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_REUSE_MATRIX);
-    constructBC_Dirichlet(_rhsB_D,_alphaDz,_mu,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_REUSE_MATRIX);
-    _AB = _AB_D;
-    _rhsB = _rhsB_D;
-    MatDestroy(&_AB_N); MatDestroy(&_rhsB_N);
-  }
-  else if (_bcBType.compare("Neumann")==0) {
-    constructBC_Neumann(_AB_N,_Iy_Hzinv, 1.,_Iy_ENz,_mu,_Iy_Dz,MAT_REUSE_MATRIX);
-    constructBC_Neumann(_rhsB_N,_Iy_Hzinv, 1.,_Iy_eNz,MAT_REUSE_MATRIX);
-    _AB = _AB_N;
-    _rhsB = _rhsB_N;
-    MatDestroy(&_AB_D); MatDestroy(&_rhsB_D);
-  }
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
 // construct // D2 = d/dy(mu d/dy) + d/dz(mu d/dz)
 PetscErrorCode SbpOps_fc::constructD2(const TempMats_fc& tempMats)
 {
@@ -734,8 +656,11 @@ PetscErrorCode SbpOps_fc::constructA(const TempMats_fc& tempMats)
     ierr = MatAXPY(_A,1.0,_AR,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
   }
   else if (_D2type.compare("z")==0) {
+
     ierr = MatAXPY(_A,1.0,_AT,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,_AB,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+
+
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
@@ -764,7 +689,7 @@ PetscErrorCode SbpOps_fc::updateA_BCs()
   #endif
 
   if (_D2 == NULL) {
-    TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz);
+    TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
     constructD2(tempMats);
   }
   MatZeroEntries(_A);
@@ -778,53 +703,6 @@ PetscErrorCode SbpOps_fc::updateA_BCs()
 
   if (_D2type.compare("yz")==0) {
     // use new Mats _AL etc
-    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else if (_D2type.compare("y")==0) {
-    ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else if (_D2type.compare("z")==0) {
-    ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-    ierr = MatAXPY(_A,1.0,_AB,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
-  }
-  else {
-    PetscPrintf(PETSC_COMM_WORLD,"Warning in SbpOps: D2type of %s not understood. Choices: 'yz', 'y', 'z'.\n",_D2type.c_str());
-    assert(0);
-  }
-
-  #if VERBOSE > 2
-    MatView(_A,PETSC_VIEWER_STDOUT_WORLD);
-  #endif
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  _runTime = MPI_Wtime() - startTime;
-  return 0;
-}
-
-// update A based on new BCs
-PetscErrorCode SbpOps_fc::updateA_BCs(TempMats_fc& tempMats)
-{
-  PetscErrorCode  ierr = 0;
-  double startTime = MPI_Wtime();
-  #if VERBOSE > 1
-    string funcName = "SbpOps_fc::updateA_BCs(TempMats_fc& tempMats)";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  // update D2 component of A
-  if (_D2 == NULL) { constructD2(tempMats); }
-  MatZeroEntries(_A);
-  MatCopy(_D2,_A,SAME_NONZERO_PATTERN);
-  if (_deleteMats) { MatDestroy(&_D2); }
-
-  // add SAT boundary condition terms
-  constructBCMats();
-  if (_D2type.compare("yz")==0) {
     ierr = MatAXPY(_A,1.0,_AL,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,_AR,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
     ierr = MatAXPY(_A,1.0,_AT,SUBSET_NONZERO_PATTERN);CHKERRQ(ierr);
@@ -1001,7 +879,7 @@ PetscErrorCode SbpOps_fc::constructDzzmu(const TempMats_fc& tempMats,Mat &Dzzmu)
 }
 
 
-PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
+PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
@@ -1009,12 +887,13 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
 #endif
 
 
-  switch ( _order ) {
+switch ( _order ) {
     case 2:
     {
       Spmat D2z(_Nz,_Nz);
       Spmat C2z(_Nz,_Nz);
       sbp_fc_Spmat2(_Nz,1.0/_dz,D2z,C2z);
+      //~ if (_Nz > 1) { sbp_fc_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
 
       // kron(Iy,C2z)
       Mat Iy_C2z;
@@ -1032,7 +911,7 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
       // kron(Iy,D2z)
       Mat Iy_D2z;
       {
-        kronConvert(tempMats._Iy,D2z,Iy_D2z,5,0);
+        kronConvert(tempMats._Iy,D2z,Iy_D2z,5,5);
         ierr = PetscObjectSetName((PetscObject) Iy_D2z, "Iy_D2z");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = checkMatrix(&Iy_D2z,_debugFolder,"Iy_D2z");CHKERRQ(ierr);
@@ -1044,6 +923,7 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
 
       // Rzmu = (Iy_D2z^T x Iy_C2z x mu x Iy_D2z)/4/dz^3;
       Mat temp;
+      //~ ierr = MatTransposeMatMult(Iy_D2z,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       Mat Iy_D2zT;
       MatTranspose(Iy_D2z,MAT_INITIAL_MATRIX,&Iy_D2zT);
       MatMatMult(Iy_D2zT,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
@@ -1065,26 +945,27 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
       Spmat C3z(_Nz,_Nz);
       Spmat C4z(_Nz,_Nz);
       sbp_fc_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
+      //~ if (_Nz > 1) { sbp_fc_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
       Mat mu3;
       {
         PetscScalar mu=0;
         MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        VecGetOwnershipRange(_muVec,&Istart,&Iend);
+        VecGetOwnershipRange(*_muVec,&Istart,&Iend);
         if (Istart==0) {
           Jj = Istart + 1;
-          VecGetValues(_muVec,1,&Jj,&mu);
+          VecGetValues(*_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Istart,1,&Istart,&mu,ADD_VALUES);
         }
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
-          VecGetValues(_muVec,1,&Jj,&mu);
+          VecGetValues(*_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
         for (Ii=Istart+1;Ii<Iend-1;Ii++) {
-          VecGetValues(_muVec,1,&Ii,&mu);
+          VecGetValues(*_muVec,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);
         }
@@ -1093,40 +974,49 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
         MatScale(mu3,0.5);
       }
 
-      Mat Iy_D3z; kronConvert(tempMats._Iy,D3z,Iy_D3z,6,0);
-      Mat Iy_C3z; kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
+      Mat Iy_D3z;
+      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6);
 
-      // 1. Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
+      Mat Iy_C3z;
+      kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
+
+      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
       //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
-      Mat Iy_D3zT, temp1, temp2;
+      Mat temp1,temp2;
+      //~ ierr = MatTransposeMatMult(Iy_D3z,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat Iy_D3zT;
       MatTranspose(Iy_D3z,MAT_INITIAL_MATRIX,&Iy_D3zT);
-      MatMatMult(Iy_D3zT,Iy_C3z,MAT_INITIAL_MATRIX,1,&temp1);
+      MatMatMult(Iy_D3zT,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
       MatDestroy(&Iy_D3zT);
-      ierr = MatMatMatMult(temp1,mu3,Iy_D3z,MAT_INITIAL_MATRIX,1,&temp2);CHKERRQ(ierr);
-      ierr = MatScale(temp2,1.0/_dz/18.0);CHKERRQ(ierr);
+      ierr = MatMatMatMult(temp1,mu3,Iy_D3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
+      ierr = MatScale(temp2,1.0/_dz/18);CHKERRQ(ierr);
       MatDestroy(&temp1);
       MatDestroy(&Iy_D3z);
       MatDestroy(&Iy_C3z);
       MatDestroy(&mu3);
 
 
-      Mat Iy_D4z; kronConvert(tempMats._Iy,D4z,Iy_D4z,5,0);
-      Mat Iy_C4z; kronConvert(tempMats._Iy,C4z,Iy_C4z,1,0);
+      Mat Iy_D4z;
+        kronConvert(tempMats._Iy,D4z,Iy_D4z,5,5);
+
+      Mat Iy_C4z;
+      kronConvert(tempMats._Iy,C4z,Iy_C4z,1,1);
 
 
-      // 2. Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
+      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
       //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
-      Mat Iy_D4zT, temp3;
+      //~ ierr = MatTransposeMatMult(Iy_D4z,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat Iy_D4zT;
       MatTranspose(Iy_D4z,MAT_INITIAL_MATRIX,&Iy_D4zT);
-      MatMatMult(Iy_D4zT,Iy_C4z,MAT_INITIAL_MATRIX,1,&temp3);
+      MatMatMult(Iy_D4zT,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
       MatDestroy(&Iy_D4zT);
-      ierr = MatMatMatMult(temp3,_mu,Iy_D4z,MAT_INITIAL_MATRIX,1,&Rzmu);
-      ierr = MatScale(Rzmu,1.0/_dz/144.0);CHKERRQ(ierr);
+      ierr = MatMatMatMult(temp1,_mu,Iy_D4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rzmu);
+      ierr = MatScale(Rzmu,1.0/_dz/144);CHKERRQ(ierr);
 
       ierr = MatAYPX(Rzmu,1.0,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) Rzmu, "Rzmu");CHKERRQ(ierr);
 
-      MatDestroy(&temp3);
+      MatDestroy(&temp1);
       MatDestroy(&temp2);
       MatDestroy(&Iy_D4z);
       MatDestroy(&Iy_C4z);
@@ -1139,12 +1029,16 @@ PetscErrorCode SbpOps_fc::constructRzmu(const TempMats_fc& tempMats, Mat& Rzmu)
   }
 
 
-  #if VERBOSE > 2
-    ierr = MatView(Rzmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
-  #endif
+#if DEBUG > 0
+  ierr = checkMatrix(&Rzmu,_debugFolder,"Rzmu");CHKERRQ(ierr);
+#endif
+#if VERBOSE > 2
+  ierr = MatView(Rzmu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+#endif
+
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function computeR2zmu in sbpOps.cpp.\n");CHKERRQ(ierr);
+#endif
   return ierr;
 }
 
@@ -1158,7 +1052,7 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
 #endif
 
 
-  switch ( _order ) {
+switch ( _order ) {
     case 2:
     {
       Spmat D2y(_Ny,_Ny);
@@ -1169,7 +1063,7 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
       // kron(D2y,Iz)
       Mat D2y_Iz;
       {
-        kronConvert(D2y,tempMats._Iz,D2y_Iz,5,0);
+        kronConvert(D2y,tempMats._Iz,D2y_Iz,5,5);
         ierr = PetscObjectSetName((PetscObject) D2y_Iz, "D2y_Iz");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = checkMatrix(&D2y_Iz,_debugFolder,"D2y_Iz");CHKERRQ(ierr);
@@ -1182,7 +1076,7 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
       // kron(C2y,Iz)
       Mat C2y_Iz;
       {
-        kronConvert(C2y,tempMats._Iz,C2y_Iz,5,0);
+        kronConvert(C2y,tempMats._Iz,C2y_Iz,5,5);
         ierr = PetscObjectSetName((PetscObject) C2y_Iz, "C2y_Iz");CHKERRQ(ierr);
         #if DEBUG > 0
           ierr = MatView(C2y_Iz,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
@@ -1194,6 +1088,7 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
 
       //~ // Rymu = (D2y_Iz^T x C2y_Iz x mu x D2y_Iz)/4/dy^3;
       Mat temp;
+      //~ ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       Mat D2y_IzT;
       MatTranspose(D2y_Iz,MAT_INITIAL_MATRIX,&D2y_IzT);
       MatMatMult(D2y_IzT,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
@@ -1222,15 +1117,15 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
         PetscScalar mu=0;
         MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        VecGetOwnershipRange(_muVec,&Istart,&Iend);
+        VecGetOwnershipRange(*_muVec,&Istart,&Iend);
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
-          VecGetValues(_muVec,1,&Jj,&mu);
+          VecGetValues(*_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
         for (Ii=Istart+1;Ii<Iend;Ii++) {
-          VecGetValues(_muVec,1,&Ii,&mu);
+          VecGetValues(*_muVec,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);
         }
@@ -1239,17 +1134,22 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
         MatScale(mu3,0.5);
       }
 
-      Mat D3y_Iz; kronConvert(D3y,tempMats._Iz,D3y_Iz,6,0);
-      Mat C3y_Iz; kronConvert(C3y,tempMats._Iz,C3y_Iz,1,0);
+      Mat D3y_Iz;
+      kronConvert(D3y,tempMats._Iz,D3y_Iz,6,6);
+
+      Mat C3y_Iz;
+      kronConvert(C3y,tempMats._Iz,C3y_Iz,1,1);
 
 
       // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy
       //      + (D4y_Iz^T x C4y_Iz x mu x D4y_Iz)/144/dy
-      Mat D3y_IzT, temp1, temp2;
+      Mat temp1,temp2;
+      //~ ierr = MatTransposeMatMult(D3y_Iz,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat D3y_IzT;
       MatTranspose(D3y_Iz,MAT_INITIAL_MATRIX,&D3y_IzT);
-      MatMatMult(D3y_IzT,C3y_Iz,MAT_INITIAL_MATRIX,1,&temp1);
+      MatMatMult(D3y_IzT,C3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
       MatDestroy(&D3y_IzT);
-      ierr = MatMatMatMult(temp1,mu3,D3y_Iz,MAT_INITIAL_MATRIX,1,&temp2);CHKERRQ(ierr);
+      ierr = MatMatMatMult(temp1,mu3,D3y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp2);CHKERRQ(ierr);
       ierr = MatScale(temp2,1.0/_dy/18.0);CHKERRQ(ierr);
       MatDestroy(&temp1);
       MatDestroy(&D3y_Iz);
@@ -1257,20 +1157,24 @@ PetscErrorCode SbpOps_fc::constructRymu(const TempMats_fc& tempMats,Mat &Rymu)
       MatDestroy(&mu3);
 
 
-      Mat D4y_Iz; kronConvert(D4y,tempMats._Iz,D4y_Iz,5,0);
-      Mat C4y_Iz; kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
+      Mat D4y_Iz;
+      kronConvert(D4y,tempMats._Iz,D4y_Iz,5,5);
 
-      Mat D4y_IzT, temp3;
+      Mat C4y_Iz;
+      kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
+
+      //~ ierr = MatTransposeMatMult(D4y_Iz,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat D4y_IzT;
       MatTranspose(D4y_Iz,MAT_INITIAL_MATRIX,&D4y_IzT);
-      MatMatMult(D4y_IzT,C4y_Iz,MAT_INITIAL_MATRIX,1,&temp3);
+      MatMatMult(D4y_IzT,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
       MatDestroy(&D4y_IzT);
-      ierr = MatMatMatMult(temp3,_mu,D4y_Iz,MAT_INITIAL_MATRIX,1,&Rymu);CHKERRQ(ierr);
+      ierr = MatMatMatMult(temp1,_mu,D4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&Rymu);CHKERRQ(ierr);
       ierr = MatScale(Rymu,1.0/_dy/144.0);CHKERRQ(ierr);
 
       ierr = MatAYPX(Rymu,1.0,temp2,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
       ierr = PetscObjectSetName((PetscObject) Rymu, "Rymu");CHKERRQ(ierr);
 
-      MatDestroy(&temp3);
+      MatDestroy(&temp1);
       MatDestroy(&temp2);
       MatDestroy(&D4y_Iz);
       MatDestroy(&C4y_Iz);
@@ -1307,10 +1211,10 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
 #endif
 
 
-  kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,0);
+  kronConvert(tempMats._D1y,tempMats._Iz,_Dy_Iz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Dy_Iz, "_Dy_Iz");CHKERRQ(ierr);
 
-  kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,0);
+  kronConvert(tempMats._Iy,tempMats._D1z,_Iy_Dz,5,5);
   ierr = PetscObjectSetName((PetscObject) _Iy_Dz, "_Iy_Dz");CHKERRQ(ierr);
 
 #if VERBOSE > 2
@@ -1325,7 +1229,6 @@ PetscErrorCode SbpOps_fc::construct1stDerivs(const TempMats_fc& tempMats)
   return ierr;
 }
 
-// update variable coefficient, and all affected matrices
 PetscErrorCode SbpOps_fc::updateVarCoeff(const Vec& coeff)
 {
   PetscErrorCode  ierr = 0;
@@ -1335,18 +1238,12 @@ PetscErrorCode SbpOps_fc::updateVarCoeff(const Vec& coeff)
     CHKERRQ(ierr);
   #endif
 
-  MatDestroy(&_D2);
+  ierr = MatDiagonalSet(_mu,coeff,INSERT_VALUES); CHKERRQ(ierr);
+  TempMats_fc tempFactors(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  // update coefficient Vec and Mat
-  VecCopy(coeff,_muVec);
-  MatDiagonalSet(_mu,coeff,INSERT_VALUES);
-
-  // update Mats
-  TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz);
-  constructBs(tempMats);
-  updateBCMats();
-  updateA_BCs(tempMats);
-
+  // this approach fundamentally reallocates all the matrices
+  deleteIntermediateFields();
+  ierr = constructA(tempFactors); CHKERRQ(ierr);
 
   _runTime = MPI_Wtime() - startTime;
   #if VERBOSE >1
@@ -1758,14 +1655,16 @@ PetscErrorCode SbpOps_fc::HzinvxENz(const Vec &in, Vec &out)
 //=================== functions for struct =============================
 
 TempMats_fc::TempMats_fc(const PetscInt order,const PetscInt Ny,
-      const PetscScalar dy,const PetscInt Nz,const PetscScalar dz)
-: _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),
+      const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu)
+: _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),_mu(NULL),
   _Hy(Ny,Ny),_Hyinv(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_BSy(Ny,Ny),_Iy(Ny,Ny),
   _Hz(Nz,Nz),_Hzinv(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_BSz(Nz,Nz),_Iz(Nz,Nz)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting TempMats_fc::TempMats_fc in sbpOps.cpp.\n");
 #endif
+
+  _mu = mu; // shallow copy
 
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
