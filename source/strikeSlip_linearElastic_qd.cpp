@@ -51,7 +51,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   else {_material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
   // body forcing term for ice stream
-  _forcingTerm = NULL;
+  _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   computeMinTimeStep(); // compute min allowed time step for adaptive time stepping method

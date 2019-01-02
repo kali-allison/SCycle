@@ -60,7 +60,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _material = new PowerLaw(D,*_he,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   // body forcing term for ice stream
-  _forcingTerm = NULL;
+  _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   #if VERBOSE > 1

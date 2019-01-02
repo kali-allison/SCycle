@@ -66,7 +66,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   computeTimeStep(); // compute fully dynamic time step
 
   // body forcing term for ice stream
-  _forcingTerm = NULL;
+  _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   #if VERBOSE > 1

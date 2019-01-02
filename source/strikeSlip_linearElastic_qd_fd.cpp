@@ -69,7 +69,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   computePenaltyVectors();
 
   // body forcing term for ice stream
-  _forcingTerm = NULL;
+  _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
   computeTimeStep(); // compute fully dynamic time step size
