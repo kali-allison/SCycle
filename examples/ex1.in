@@ -45,7 +45,7 @@ rhoDepths = [0 60] # (km)
 #======================================================================
 # settings for time integration
 
-stride1D = 10 # number of time steps between output of 1D fields
+stride1D = 5 # number of time steps between output of 1D fields
 stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
