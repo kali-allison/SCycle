@@ -1105,13 +1105,13 @@ PetscErrorCode SbpOps_fc_coordTrans::constructDzzmu(const TempMats_fc_coordTrans
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
 #endif
 
-  Mat Rzmu,HinvxRzmu; 
-  ierr = constructRzmu(tempMats,Rzmu); CHKERRQ(ierr);   
-  ierr = MatMatMult(_Iy_Hzinv,Rzmu,MAT_INITIAL_MATRIX,1.,&HinvxRzmu); CHKERRQ(ierr);   
-  ierr = MatMatMatMult(_Iy_Dr,_murz,_Iy_Dr,MAT_INITIAL_MATRIX,1.,&Dzzmu); CHKERRQ(ierr);   
-  ierr = MatAXPY(Dzzmu,-1.,HinvxRzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);   
-  MatDestroy(&HinvxRzmu);   
-  MatDestroy(&Rzmu); 
+  Mat Rzmu,HinvxRzmu;
+  ierr = constructRzmu(tempMats,Rzmu); CHKERRQ(ierr);
+  ierr = MatMatMult(_Iy_Hzinv,Rzmu,MAT_INITIAL_MATRIX,1.,&HinvxRzmu); CHKERRQ(ierr);
+  ierr = MatMatMatMult(_Iy_Dr,_murz,_Iy_Dr,MAT_INITIAL_MATRIX,1.,&Dzzmu); CHKERRQ(ierr);
+  ierr = MatAXPY(Dzzmu,-1.,HinvxRzmu,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+  MatDestroy(&HinvxRzmu);
+  MatDestroy(&Rzmu);
 
   if (!_multByH) {
     Mat temp;
@@ -1143,7 +1143,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRzmu(const TempMats_fc_coordTrans&
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
   #endif
 
-  Vec murzV = NULL;  
+  Vec murzV = NULL;
   VecDuplicate(_muVec,&murzV);
   MatMult(_rz,_muVec,murzV);
 
@@ -1208,7 +1208,7 @@ switch ( _order ) {
       sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
       //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
-      Mat mu3; 
+      Mat mu3;
       {
         MatDuplicate(_murz,MAT_COPY_VALUES,&mu3);
         ierr = MatDiagonalSet(mu3,murzV,INSERT_VALUES);CHKERRQ(ierr);
@@ -1237,7 +1237,7 @@ switch ( _order ) {
       }
 
       Mat Iy_D3z;
-      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6); 
+      kronConvert(tempMats._Iy,D3z,Iy_D3z,6,6);
 
       Mat Iy_C3z;
       kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
@@ -1478,7 +1478,7 @@ PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
     CHKERRQ(ierr);
   #endif
 
-  Vec murzV = NULL;  
+  //~ Vec murzV = NULL;
 
   VecCopy(coeff, _muVec);
 
@@ -1509,8 +1509,8 @@ PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
 
   if (_deleteMats) {
     deleteIntermediateFields();
-  } 
-  
+  }
+
   // assert(0);
   CHKERRQ(ierr);
 
