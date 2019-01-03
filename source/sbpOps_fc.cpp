@@ -66,6 +66,7 @@ SbpOps_fc::~SbpOps_fc()
   MatDestroy(&_e0y_Iz); MatDestroy(&_eNy_Iz); MatDestroy(&_Iy_e0z); MatDestroy(&_Iy_eNz);
   MatDestroy(&_E0y_Iz); MatDestroy(&_ENy_Iz); MatDestroy(&_Iy_E0z); MatDestroy(&_Iy_ENz);
   MatDestroy(&_muxBySy_IzT); MatDestroy(&_Iy_muxBzSzT);
+  MatDestroy(&_BSy_Iz); MatDestroy(&_Iy_BSz);
 
 
   #if VERBOSE > 1
