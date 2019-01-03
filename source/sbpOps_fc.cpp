@@ -8,7 +8,6 @@
 //======================================================================
 SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(Ly/(Ny-1.)),_dz(Lz/(Nz-1.)),
-  _muVec(&muVec),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
   _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
@@ -23,7 +22,9 @@ SbpOps_fc::SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const P
   assert(Ly > 0); assert(Lz > 0);
   if (Ny == 1) { _dy = Ly; }
   if (Nz == 1) { _dz = Lz; }
-  assert(_muVec != NULL);
+  assert(muVec != NULL);
+  VecDuplicate(muVec, &_muVec);
+  VecCopy(muVec, _muVec);
 
   // penalty weights
   _alphaT = -1.0; // von Neumann
@@ -47,6 +48,7 @@ SbpOps_fc::~SbpOps_fc()
     PetscPrintf(PETSC_COMM_WORLD,"Starting destructor in sbpOps_fc.cpp.\n");
   #endif
 
+  VecDestroy(&_muVec);
   MatDestroy(&_mu);
 
   MatDestroy(&_AR_N); MatDestroy(&_AT_N); MatDestroy(&_AL_N); MatDestroy(&_AB_N);
@@ -249,7 +251,7 @@ PetscErrorCode SbpOps_fc::computeMatrices()
 
   TempMats_fc tempMats(_order,_Ny,_dy,_Nz,_dz,_mu);
 
-  constructMu(*_muVec); //no memory leak
+  constructMu(_muVec); //no memory leak
   constructEs(tempMats); //no memory leak
   constructes(tempMats);
   constructHs(tempMats);
@@ -952,20 +954,20 @@ switch ( _order ) {
         PetscScalar mu=0;
         MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        VecGetOwnershipRange(*_muVec,&Istart,&Iend);
+        VecGetOwnershipRange(_muVec,&Istart,&Iend);
         if (Istart==0) {
           Jj = Istart + 1;
-          VecGetValues(*_muVec,1,&Jj,&mu);
+          VecGetValues(_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Istart,1,&Istart,&mu,ADD_VALUES);
         }
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
-          VecGetValues(*_muVec,1,&Jj,&mu);
+          VecGetValues(_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
         for (Ii=Istart+1;Ii<Iend-1;Ii++) {
-          VecGetValues(*_muVec,1,&Ii,&mu);
+          VecGetValues(_muVec,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);
         }
@@ -1000,7 +1002,7 @@ switch ( _order ) {
         kronConvert(tempMats._Iy,D4z,Iy_D4z,5,5);
 
       Mat Iy_C4z;
-      kronConvert(tempMats._Iy,C4z,Iy_C4z,1,1);
+      kronConvert(tempMats._Iy,C4z,Iy_C4z,1,0);
 
 
       // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
@@ -1117,15 +1119,15 @@ switch ( _order ) {
         PetscScalar mu=0;
         MatDuplicate(_mu,MAT_COPY_VALUES,&mu3);
         PetscInt Ii,Jj,Istart,Iend=0;
-        VecGetOwnershipRange(*_muVec,&Istart,&Iend);
+        VecGetOwnershipRange(_muVec,&Istart,&Iend);
         if (Iend==_Ny*_Nz) {
           Jj = Iend - 2;
           Ii = Iend - 1;
-          VecGetValues(*_muVec,1,&Jj,&mu);
+          VecGetValues(_muVec,1,&Jj,&mu);
           MatSetValues(mu3,1,&Ii,1,&Ii,&mu,ADD_VALUES);
         }
         for (Ii=Istart+1;Ii<Iend;Ii++) {
-          VecGetValues(*_muVec,1,&Ii,&mu);
+          VecGetValues(_muVec,1,&Ii,&mu);
           Jj = Ii - 1;
           MatSetValues(mu3,1,&Jj,1,&Jj,&mu,ADD_VALUES);
         }
@@ -1134,11 +1136,8 @@ switch ( _order ) {
         MatScale(mu3,0.5);
       }
 
-      Mat D3y_Iz;
-      kronConvert(D3y,tempMats._Iz,D3y_Iz,6,6);
-
-      Mat C3y_Iz;
-      kronConvert(C3y,tempMats._Iz,C3y_Iz,1,1);
+      Mat D3y_Iz; kronConvert(D3y,tempMats._Iz,D3y_Iz,6,0);
+      Mat C3y_Iz; kronConvert(C3y,tempMats._Iz,C3y_Iz,1,0);
 
 
       // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy

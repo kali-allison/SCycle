@@ -45,7 +45,7 @@ class SbpOps_fc : public SbpOps
 
     const PetscInt      _order,_Ny,_Nz;
     PetscScalar         _dy,_dz;
-    Vec                *_muVec; // variable coefficient
+    Vec                 _muVec; // variable coefficient
     Mat                 _mu; // matrix of coefficient
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;

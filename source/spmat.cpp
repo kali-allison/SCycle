@@ -212,6 +212,9 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
   MatSetUp(mat);
   MatGetOwnershipRange(mat,&Istart,&Iend);
 
+   // NOTE: This might potentially really slow things down!!
+  MatSetOption(mat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+
   // iterate over only nnz entries
   Spmat::const_row_iter IiL,IiR;
   Spmat::const_col_iter JjL,JjR;
