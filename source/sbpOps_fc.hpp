@@ -23,12 +23,11 @@ struct TempMats_fc
 {
   const PetscInt    _order,_Ny,_Nz;
   const PetscReal   _dy,_dz;
-  Mat               _mu;
 
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,Mat& mu);
+  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
   ~TempMats_fc();
 
 private:
@@ -70,6 +69,7 @@ class SbpOps_fc : public SbpOps
     Mat _e0y_Iz,_eNy_Iz,_Iy_e0z,_Iy_eNz;
     Mat _E0y_Iz,_ENy_Iz,_Iy_E0z,_Iy_ENz;
     Mat _muxBySy_IzT,_Iy_muxBzSzT;
+    Mat _BSy_Iz, _Iy_BSz;
 
 
     //~ SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
@@ -148,6 +148,8 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
     PetscErrorCode constructA(const TempMats_fc& tempMats);
     PetscErrorCode updateA_BCs();
+    PetscErrorCode updateA_BCs(TempMats_fc& tempMats);
+    PetscErrorCode updateBCMats();
     PetscErrorCode constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu);
     PetscErrorCode constructDzzmu(const TempMats_fc& tempMats, Mat &Dzzmu);
     PetscErrorCode constructD2(const TempMats_fc& tempMats);
