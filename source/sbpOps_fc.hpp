@@ -27,7 +27,7 @@ struct TempMats_fc
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
+  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, const string type);
   ~TempMats_fc();
 
 private:
@@ -49,6 +49,7 @@ class SbpOps_fc : public SbpOps
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
     string              _D2type; // "yz", "y", or "z"
+    string              _compatibilityType; // "fc" (fully compatible, S = D),  or "c" (compatible, S =/= D)
     int                 _multByH; // (default: 0) 1 if yes, 0 if no
     int                 _deleteMats; // (default: 0) 1 if yes, 0 if no
 
@@ -80,6 +81,7 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
+    PetscErrorCode setCompatibilityType(const string type); // "fc" or "c"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
     PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB);
     PetscErrorCode computeMatrices(); // matrices not constructed until now
@@ -163,11 +165,5 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode constructBCMats();
 };
 
-// functions to construct 1D sbp operators
-PetscErrorCode sbp_fc_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
-                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
-PetscErrorCode sbp_fc_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
-PetscErrorCode sbp_fc_Spmat4(const PetscInt N,const PetscScalar scale,
-                         Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

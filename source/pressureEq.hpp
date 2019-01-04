@@ -10,7 +10,6 @@
 #include "domain.hpp"
 #include "fault.hpp"
 #include "sbpOps.hpp"
-#include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "integratorContextEx.hpp"
@@ -37,7 +36,7 @@ private:
 
   // material properties
   Vec _n_p = NULL, _beta_p = NULL, _k_p = NULL, _eta_p = NULL, _rho_f = NULL;
-  Vec _k_slip = NULL, _k_press = NULL; 
+  Vec _k_slip = NULL, _k_press = NULL;
   Vec _kL_p = NULL, _kT_p = NULL, _kmin_p = NULL, _kmax_p = NULL;
   Vec _kmin2_p = NULL, _pstd_p = NULL;
   PetscScalar _g; // gravitational acceleration

@@ -68,6 +68,7 @@ class SbpOps_c : public SbpOps
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
     string              _D2type; // "yz", "y", or "z"
+    string              _compatibilityType; // "fc" (fully compatible, S = D),  or "c" (compatible, S =/= D)
     int                 _multByH; // (default: 0) 1 if yes, 0 if no
     int                 _deleteMats; // (default: 0) 1 if yes, 0 if no
 
@@ -98,6 +99,7 @@ class SbpOps_c : public SbpOps
     PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
+    PetscErrorCode setCompatibilityType(const string type); // "fc" or "c"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
     PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB);
     PetscErrorCode computeMatrices(); // matrices not constructed until now

@@ -395,10 +395,10 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   KSPDestroy(&_ksp);
 
 
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+  //~ }
+  if (_sbpType.compare("mfc")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {

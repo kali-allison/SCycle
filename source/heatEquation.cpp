@@ -565,10 +565,10 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 
   // create SBP operators, 1D in z-direction only, only in lithosphere
   SbpOps* sbp;
-  if (_sbpType.compare("mc")==0) {
-    sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+  //~ }
+  if (_sbpType.compare("mfc")==0) {
     sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
@@ -1583,11 +1583,12 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   std::string bcBType = "Dirichlet";
 
   // construct matrices
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+  //~ }
+  if (_sbpType.compare("mfc")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp->setCompatibilityType("fc");
   }
   else if (_sbpType.compare("mfc_coordTrans")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
@@ -1634,7 +1635,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   // construct matrices
   // BC order: right,top, left, bottom
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_sbpType.compare("mfc")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);

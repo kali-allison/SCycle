@@ -331,7 +331,7 @@ PetscErrorCode PressureEq::setFields(Domain &D)
 
   // boundary conditions
   VecDuplicate(_p, &_bcL); PetscObjectSetName((PetscObject)_bcL, "bcL"); VecSet(_bcL, 0.0);
-  VecCreate(PETSC_COMM_WORLD, &_bcT); 
+  VecCreate(PETSC_COMM_WORLD, &_bcT);
   VecSetSizes(_bcT, PETSC_DECIDE, 1);
   VecSetFromOptions(_bcT);
   PetscObjectSetName((PetscObject)_bcT, "bcT");
@@ -472,7 +472,7 @@ PetscErrorCode PressureEq::updateBoundaryCoefficient(const Vec &coeff)
   Vec coeff_rho_g;
   VecDuplicate(coeff, &coeff_rho_g);
   VecCopy(coeff, coeff_rho_g);
-  VecPointwiseMult(coeff_rho_g, coeff_rho_g, _rho_f); 
+  VecPointwiseMult(coeff_rho_g, coeff_rho_g, _rho_f);
   Vec tmp;
   VecDuplicate(coeff, &tmp);
   // add gradient instead of flux
@@ -482,7 +482,7 @@ PetscErrorCode PressureEq::updateBoundaryCoefficient(const Vec &coeff)
   else if ( _bcB_type.compare("Q") == 0 ) {
     VecSet(tmp, _g * 1.0); //g
   }
-  VecPointwiseMult(coeff_rho_g, coeff_rho_g, tmp); 
+  VecPointwiseMult(coeff_rho_g, coeff_rho_g, tmp);
   VecScatterBegin(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_scatters, coeff_rho_g, _bcB, INSERT_VALUES, SCATTER_FORWARD);
 
@@ -493,7 +493,7 @@ PetscErrorCode PressureEq::updateBoundaryCoefficient(const Vec &coeff)
   VecDestroy(&tmp);
   VecDestroy(&coeff_rho_g);
 
-  _ptTime += MPI_Wtime() - startTime; 
+  _ptTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
   #endif
@@ -514,10 +514,10 @@ PetscErrorCode PressureEq::setUpSBP()
   computeVariableCoefficient(coeff);
 
   // Set up linear system
-  if (_sbpType.compare("mc") == 0) {
-    _sbp = new SbpOps_c(_order, 1, _N, 1, _L, coeff);
-  }
-  else if (_sbpType.compare("mfc") == 0) {
+  //~ if (_sbpType.compare("mc") == 0) {
+    //~ _sbp = new SbpOps_c(_order, 1, _N, 1, _L, coeff);
+  //~ }
+  if (_sbpType.compare("mfc") == 0) {
     _sbp = new SbpOps_fc(_order, 1, _N, 1, _L, coeff);
   }
   else if (_sbpType.compare("mfc_coordTrans") == 0) {
@@ -528,7 +528,7 @@ PetscErrorCode PressureEq::setUpSBP()
     PetscPrintf(PETSC_COMM_WORLD, "ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  
+
   _sbp->setBCTypes("Dirichlet", "Dirichlet", "Dirichlet", "Neumann"); //bcR, bcT, bcL, bcB
   VecSet(_bcL, 0);
   VecSet(_bcT, 0);
@@ -660,7 +660,7 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain &D)
 
   // permeability for plate loading velocity
   // k = (V/L*kmax + 1.0/T*kmin)/(V/L + 1.0/T)
-  // Vec tmp1;  // |V|/L 
+  // Vec tmp1;  // |V|/L
   // VecDuplicate(_p, &tmp1);
   // VecSet(tmp1, _vL);
   // VecPointwiseDivide(tmp1, tmp1, _kL_p);
@@ -775,7 +775,7 @@ PetscErrorCode PressureEq::initiateIntegrand(const PetscScalar time, map<string,
     varEx["pressure"] = p;
   }
   // put variable to be integrated implicity into varIm
-  else if (_hydraulicTimeIntType.compare("implicit") == 0) { 
+  else if (_hydraulicTimeIntType.compare("implicit") == 0) {
     varIm["pressure"] = p;
   }
 
@@ -972,7 +972,7 @@ PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &
     if (_isMMS) {
       ierr = d_dt_mms(time, varEx, dvarEx); CHKERRQ(ierr);
     }
-    else { 
+    else {
       ierr = dp_dt(time, varEx, dvarEx); CHKERRQ(ierr);
     }
   }
@@ -1404,7 +1404,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     VecDestroy(&errVec);
     VecNorm(_p, NORM_2, &s);
     err = err / s;
-  
+
     VecCopy(_p, p_prev);
 
     _invTime += MPI_Wtime() - tmpTime;

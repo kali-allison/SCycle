@@ -150,6 +150,14 @@ PetscErrorCode SbpOps_c::setLaplaceType(const std::string type)
   return 0;
 }
 
+
+PetscErrorCode SbpOps_c::setCompatibilityType(const string type)
+{
+  _compatibilityType = type;
+  assert(_compatibilityType.compare("fc") == 0 || _compatibilityType.compare("c") == 0 );
+  return 0;
+}
+
 PetscErrorCode SbpOps_c::changeBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB)
 {
   PetscErrorCode ierr = 0;

@@ -20,21 +20,21 @@ using namespace std;
  */
 
 
-struct TempMats_fc_coordTrans
+struct TempMats_coordTrans
 {
-  const PetscInt    _order,_Ny,_Nz;
+  const PetscInt      _order,_Ny,_Nz;
   const PetscScalar   _dy,_dz;
 
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
-  ~TempMats_fc_coordTrans();
+  TempMats_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz, const string type);
+  ~TempMats_coordTrans();
 
   private:
     // disable default copy constructor and assignment operator
-    TempMats_fc_coordTrans(const TempMats_fc_coordTrans & that);
-    TempMats_fc_coordTrans& operator=( const TempMats_fc_coordTrans& rhs );
+    TempMats_coordTrans(const TempMats_coordTrans & that);
+    TempMats_coordTrans& operator=( const TempMats_coordTrans& rhs );
 };
 
 class SbpOps_fc_coordTrans : public SbpOps
@@ -48,6 +48,7 @@ public:
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
     string              _D2type; // "yz", "y", or "z"
+    string              _compatibilityType; // "fc" (fully compatible, S = D),  or "c" (compatible, S =/= D)
     int                 _multByH; // (default: 0) 1 if yes, 0 if no
     int                 _deleteMats; // (default: 0) 1 if yes, 0 if no
 
@@ -81,6 +82,7 @@ public:
     PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
+    PetscErrorCode setCompatibilityType(const string type); // "fc" or "c"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
     PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB);
     PetscErrorCode computeMatrices(); // matrices not constructed until now
@@ -140,24 +142,24 @@ public:
 
     // functions to construct various matrices
     PetscErrorCode constructMu(Vec& muVec);
-    PetscErrorCode constructEs(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructes(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructBs(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructHs(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructH(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructHinv(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructD1_qr(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode construct1stDerivs(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructJacobian(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructA(const TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode constructEs(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructes(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructBs(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructHs(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructH(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructHinv(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructD1_qr(const TempMats_coordTrans& tempMats);
+    PetscErrorCode construct1stDerivs(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructJacobian(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructA(const TempMats_coordTrans& tempMats);
     PetscErrorCode updateA_BCs();
-    PetscErrorCode updateA_BCs(TempMats_fc_coordTrans& tempMats);
+    PetscErrorCode updateA_BCs(TempMats_coordTrans& tempMats);
     PetscErrorCode updateBCMats();
-    PetscErrorCode constructDyymu(const TempMats_fc_coordTrans& tempMats, Mat &Dyymu);
-    PetscErrorCode constructDzzmu(const TempMats_fc_coordTrans& tempMats, Mat &D2zmu);
-    PetscErrorCode constructD2(const TempMats_fc_coordTrans& tempMats);
-    PetscErrorCode constructRymu(const TempMats_fc_coordTrans& tempMats,Mat &Rymu);
-    PetscErrorCode constructRzmu(const TempMats_fc_coordTrans& tempMats,Mat &Rzmu);
+    PetscErrorCode constructDyymu(const TempMats_coordTrans& tempMats, Mat &Dyymu);
+    PetscErrorCode constructDzzmu(const TempMats_coordTrans& tempMats, Mat &D2zmu);
+    PetscErrorCode constructD2(const TempMats_coordTrans& tempMats);
+    PetscErrorCode constructRymu(const TempMats_coordTrans& tempMats,Mat &Rymu);
+    PetscErrorCode constructRzmu(const TempMats_coordTrans& tempMats,Mat &Rzmu);
     PetscErrorCode deleteIntermediateFields();
 
     PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& L,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);
@@ -165,12 +167,5 @@ public:
     PetscErrorCode constructBC_Neumann(Mat& out, Mat& L, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
     PetscErrorCode constructBCMats();
 };
-
-// functions to construct 1D sbp operators
-PetscErrorCode sbp_fc_coordTrans_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
-                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
-PetscErrorCode sbp_fc_coordTrans_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
-PetscErrorCode sbp_fc_coordTrans_Spmat4(const PetscInt N,const PetscScalar scale,
-                         Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

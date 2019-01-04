@@ -436,7 +436,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 
 
   if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_sbpType.compare("mfc")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
@@ -1401,7 +1401,7 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
 
   // set up SBP operators
   if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_sbpType.compare("mfc")==0) {
     _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);

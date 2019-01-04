@@ -9,7 +9,6 @@
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
-#include "sbpOps_c.hpp"
 #include "sbpOps_fc.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 #include "integratorContextEx.hpp"
