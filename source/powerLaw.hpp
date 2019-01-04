@@ -50,7 +50,6 @@ class PowerLaw
     PC                   _pc;
     PetscScalar          _kspTol;
     SbpOps              *_sbp;
-    std::string          _sbpType;
     Vec                  _rhs;
     Mat                  _B,_C; // composite matrices to make momentum balance simpler
     PetscErrorCode       initializeMomBalMats(); // computes B and C

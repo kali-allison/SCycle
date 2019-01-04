@@ -89,7 +89,6 @@ class HeatEquation
     std::string          _wViscShearHeating,_wFrictionalHeating,_wRadioHeatGen;
 
     // linear system data
-    std::string          _sbpType;
     SbpOps*              _sbp;
     Vec                  _bcR,_bcT,_bcL,_bcB; // boundary conditions when solving for dT
     std::string          _linSolver;

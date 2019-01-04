@@ -7,7 +7,7 @@ using namespace std;
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
-  _sbpType("mfc_coordTrans"),
+  _sbpType("fullyCompatible"),_gridSpacingType("variableGridSpacing"),
   _isMMS(0),_loadICs(0), _inputDir("unspecified_"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
@@ -53,7 +53,7 @@ Domain::Domain(const char *file)
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
-  _sbpType("mfc_coordTrans"),
+  _sbpType("fullyCompatible"),_gridSpacingType("variableGridSpacing"),
   _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _vL(1e-9),
@@ -166,6 +166,7 @@ PetscErrorCode Domain::loadData(const char *file)
     }
 
     else if (var.compare("sbpType")==0) { _sbpType = rhs; }
+    else if (var.compare("gridSpacingType")==0) { _gridSpacingType = rhs; }
     else if (var.compare("bulkDeformationType")==0) { _bulkDeformationType = rhs; }
     else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
     else if (var.compare("loadICs")==0) { _loadICs = (int)atof(rhs.c_str() ); }
@@ -206,6 +207,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"momBalType = %s\n",_momentumBalanceType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"gridSpacingType = %s\n",_gridSpacingType.c_str());CHKERRQ(ierr);
 
     ierr = PetscPrintf(PETSC_COMM_SELF,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
@@ -228,6 +230,12 @@ PetscErrorCode Domain::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
+  assert(_gridSpacingType.compare("variableGridSpacing")==0 ||
+    _gridSpacingType.compare("constantGridSpacing")==0 );
+
+  assert(_sbpType.compare("fullyCompatible")==0 ||
+    _sbpType.compare("fullyCompatible")==0 );
 
   assert(_bulkDeformationType.compare("linearElastic")==0 ||
     _bulkDeformationType.compare("powerLaw")==0 );
@@ -372,7 +380,7 @@ PetscErrorCode Domain::setFields()
   for (Ii=Istart;Ii<Iend;Ii++) {
     q[Jj] = _dq*(Ii/_Nz);
     r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
-    if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
+    if (_gridSpacingType.compare("constantGridSpacing")==0 ) { // no coordinate transform
       y[Jj] = (_dq*_Ly)*(Ii/_Nz);
       z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
     }
@@ -391,6 +399,8 @@ PetscErrorCode Domain::setFields()
   VecRestoreArray(_z,&z);
   VecRestoreArray(_q,&q);
   VecRestoreArray(_r,&r);
+
+  if (_bCoordTrans > 0) { _gridSpacingType = "variableGridSpacing"; }
 
 
   // load y and z instead

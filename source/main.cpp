@@ -14,7 +14,6 @@
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
 #include "powerLaw.hpp"
-#include "iceStream_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_qd.hpp"
 #include "strikeSlip_linearElastic_fd.hpp"
 #include "strikeSlip_linearElastic_qd_fd.hpp"

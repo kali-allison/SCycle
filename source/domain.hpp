@@ -36,7 +36,8 @@ class Domain
     std::string    _outputDir; // directory for output
     std::string    _bulkDeformationType; // options: linearElastic, powerLaw
     std::string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-    std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
+    std::string    _sbpType; // fullyCompatible (D == S), or compatible (D =/= S)
+    std::string    _gridSpacingType; // variableGridSpacing, constantGridSpacing
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
     std::string    _inputDir; // directory to load input files from

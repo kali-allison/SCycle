@@ -11,7 +11,7 @@ PressureEq::PressureEq(Domain &D)
   _order(D._order), _N(D._Nz), _L(D._Lz), _h(D._dr), _z(NULL), _bcB_ratio(1.0),
   _n_p(NULL), _beta_p(NULL), _k_p(NULL), _eta_p(NULL), _rho_f(NULL), _g(9.8),
   _maxBeIteration(1), _minBeDifference(0.01),
-  _linSolver("AMG"), _ksp(NULL), _kspTol(1e-10), _sbp(NULL), _sbpType(D._sbpType), _linSolveCount(0),
+  _linSolver("AMG"), _ksp(NULL), _kspTol(1e-10), _sbp(NULL), _linSolveCount(0),
   _writeTime(0), _linSolveTime(0), _ptTime(0), _startTime(0), _miscTime(0), _invTime(0),
   _p(NULL)
 {
@@ -514,13 +514,10 @@ PetscErrorCode PressureEq::setUpSBP()
   computeVariableCoefficient(coeff);
 
   // Set up linear system
-  //~ if (_sbpType.compare("mc") == 0) {
-    //~ _sbp = new SbpOps_c(_order, 1, _N, 1, _L, coeff);
-  //~ }
-  if (_sbpType.compare("mfc") == 0) {
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_fc(_order, 1, _N, 1, _L, coeff);
   }
-  else if (_sbpType.compare("mfc_coordTrans") == 0) {
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order, 1, _N, 1, _L, coeff);
     _sbp->setGrid(NULL, &_z);
   }
@@ -528,7 +525,7 @@ PetscErrorCode PressureEq::setUpSBP()
     PetscPrintf(PETSC_COMM_WORLD, "ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-
+  _sbp->setCompatibilityType(_D->_sbpType);
   _sbp->setBCTypes("Dirichlet", "Dirichlet", "Dirichlet", "Neumann"); //bcR, bcT, bcL, bcB
   VecSet(_bcL, 0);
   VecSet(_bcT, 0);
@@ -720,7 +717,7 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain &D)
   VecDuplicate(_p, &rhog_y);
   _sbp->Dz(rhog, rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
 
@@ -1063,7 +1060,7 @@ PetscErrorCode PressureEq::dp_dt(const PetscScalar time, const map<string, Vec> 
 
   VecAXPY(p_t, -1.0, rhs);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
     CHKERRQ(ierr);
@@ -1140,7 +1137,7 @@ PetscErrorCode PressureEq::dp_dt(const PetscScalar time, const Vec &P, Vec &dPdt
   VecAXPY(dPdt, -1.0, rhs);
   // VecAXPY(p_t,-1.0,rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0)
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
@@ -1207,7 +1204,7 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time, const map<string, Ve
   VecAXPY(p_t, -1.0, rhs);
   // VecAXPY(p_t,-1.0,rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0)
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
@@ -1354,7 +1351,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     // Mat D2_rho_n_beta;
     MatMatMult(Diag_rho_n_beta, D2, MAT_REUSE_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-    if (_sbpType.compare("mfc_coordTrans") == 0) {
+    if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
       Mat J, Jinv, qy, rz, yq, zr;
       ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
 
@@ -1596,7 +1593,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string, Vec>
   //   // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   //   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-  //   if (_sbpType.compare("mfc_coordTrans") == 0)
+  //   if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   //   {
 
   //     Mat J, Jinv, qy, rz, yq, zr;

@@ -16,7 +16,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
-  _sbp(NULL),_sbpType(D._sbpType),
+  _sbp(NULL),
   _timeV1D(NULL),_timeV2D(NULL),
   _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _matrixTime(0), _linSolveCount(0),
@@ -395,13 +395,10 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   KSPDestroy(&_ksp);
 
 
-  //~ if (_sbpType.compare("mc")==0) {
-    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  //~ }
-  if (_sbpType.compare("mfc")==0) {
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
@@ -411,6 +408,7 @@ PetscErrorCode LinearElastic::setUpSBPContext()
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setCompatibilityType(_D->_sbpType);
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->setDeleteIntermediateFields(1);
@@ -816,7 +814,7 @@ PetscErrorCode LinearElastic::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
   if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(source,Hxsource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
@@ -849,7 +847,7 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);

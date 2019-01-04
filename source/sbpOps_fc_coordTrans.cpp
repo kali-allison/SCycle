@@ -7,7 +7,7 @@
 SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(1./(Ny-1.)),_dz(1./(Nz-1.)),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
-  _runTime(0),_D2type("yz"),_compatibilityType("fc"),_multByH(0),_deleteMats(0)
+  _runTime(0),_D2type("yz"),_compatibilityType("fullyCompatible"),_multByH(0),_deleteMats(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_fc_coordTrans.cpp.\n");

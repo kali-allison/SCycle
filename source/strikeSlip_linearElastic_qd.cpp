@@ -972,7 +972,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
 
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     // multiply this term by H*J (the H matrix and the Jacobian)
     Vec temp1; VecDuplicate(_forcingTerm,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;

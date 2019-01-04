@@ -385,14 +385,15 @@ switch ( order ) {
       #endif
 
       // fully compatible
-      if (type.compare("fc")==0 ) {
+      if (type.compare("fullyCompatible")==0 ) {
         BS(0,0,-D1int(0,0)); BS(0,1,-D1int(0,1));
         BS(N-1,N-2,D1int(N-1,N-2)); BS(N-1,N-1,D1int(N-1,N-1));
       }
-      else if (type.compare("c")==0) {
+      else if (type.compare("compatible")==0) {
         BS(0,0,1.5*scale);     BS(0,1,-2.0*scale);     BS(0,2,0.5*scale); // -1* p666 of Mattsson 2010
         BS(N-1,N-3,0.5*scale); BS(N-1,N-2,-2.0*scale); BS(N-1,N-1,1.5*scale);
       }
+      else { PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n"); assert(0); }
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nBS:\n");CHKERRQ(ierr);
         BS.printPetsc();
