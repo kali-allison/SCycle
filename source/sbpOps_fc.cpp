@@ -156,7 +156,7 @@ PetscErrorCode SbpOps_fc::setLaplaceType(const std::string type)
 PetscErrorCode SbpOps_fc::setCompatibilityType(const string type)
 {
   _compatibilityType = type;
-  assert(_compatibilityType.compare("fc") == 0 || _compatibilityType.compare("c") == 0 );
+  assert(_compatibilityType.compare("fullyCompatible") == 0 || _compatibilityType.compare("compatible") == 0 );
   return 0;
 }
 

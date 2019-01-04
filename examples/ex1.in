@@ -51,7 +51,7 @@ maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 2e11 # (s) final time
 maxDeltaT = 1e12 # (s) size of maximum time step
-timeStepTol = 1e-5 # absolute tolerance for time integration
+timeStepTol = 1e-6 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output

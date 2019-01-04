@@ -182,7 +182,7 @@ PetscErrorCode SbpOps_fc_coordTrans::setLaplaceType(const std::string type)
 PetscErrorCode SbpOps_fc_coordTrans::setCompatibilityType(const string type)
 {
   _compatibilityType = type;
-  assert(_compatibilityType.compare("fc") == 0 || _compatibilityType.compare("c") == 0 );
+  assert(_compatibilityType.compare("fullyCompatible") == 0 || _compatibilityType.compare("compatible") == 0 );
   return 0;
 }
 
