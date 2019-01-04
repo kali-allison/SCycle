@@ -4,7 +4,7 @@
 #include <petscksp.h>
 #include <string>
 #include <assert.h>
-#include "domain.hpp"
+#include "genFuncs.hpp"
 #include "spmat.hpp"
 #include "sbpOps.hpp"
 

@@ -2,8 +2,7 @@
 #define SBPOPS_H_INCLUDED
 
 #include <petscksp.h>
-#include "domain.hpp"
-
+#include "genFuncs.hpp"
 
 /*
  * This is an abstract that defines an interface for SBP operators.
