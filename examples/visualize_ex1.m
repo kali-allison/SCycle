@@ -9,8 +9,9 @@ sourceDir = '../data/ex1_';
 d = loadContext(sourceDir);
 
 % load fields that are either size Ny or size Nz
-d = loadData1D(d,sourceDir);
-
+d.time = load(strcat(sourceDir,'med_time1D.txt'));
+d.tau = loadVec(sourceDir,'tauP');
+d.slipVel = loadVec(sourceDir,'slipVel');
 
 %% make plots
 
@@ -18,7 +19,7 @@ figure(1),clf
 
 % plot shear stress
 subplot(2,1,1)
-plot(d.time./3.14e7,d.tauP)
+plot(d.time./3.14e7,d.tau)
 xlabel('time (years)'),ylabel('\tau (MPa)')
 title('Spring Slider')
 
@@ -30,10 +31,10 @@ xlabel('time (years)'),ylabel('V (m/s)'),ylim([1e-14 10])
 % plot phase plot: integrated slip velocity vs integrated shear stress
 
 figure(2),clf
-semilogx(d.slipVel,d.tauP) % phase plot
+semilogx(d.slipVel,d.tau) % phase plot
 hold on
-semilogx(d.slipVel(1),d.tauP(1),'g*') % indicate initial condition
-semilogx(d.slipVel(end),d.tauP(end),'r*') % indicate final condition
+semilogx(d.slipVel(1),d.tau(1),'g*') % indicate initial condition
+semilogx(d.slipVel(end),d.tau(end),'r*') % indicate final condition
 xlabel('integrated slip velocity (m/s km)'),ylabel('integrated shear stress (MPa km)')
 legend('simulation','initial condition','final condition','Location','Northwest')
 

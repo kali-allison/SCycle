@@ -9,7 +9,9 @@ sourceDir = '../data/ex2_';
 d = loadContext(sourceDir);
 
 % load fields that are either size Ny or size Nz
-d = loadData1D(d,sourceDir);
+d.time = load(strcat(sourceDir,'med_time1D.txt'));
+d.tau = loadVec(sourceDir,'tauP');
+d.slipVel = loadVec(sourceDir,'slipVel');
 
 %% plot results
 
@@ -32,10 +34,10 @@ legend('a','a-b','b'),ylabel('depth (km)'),title('rate-and-state parameters')
 % shear stress
 figure(2),clf
 tauStride = ceil(length(d.time)/100);
-h3 = plot(d.tauP(:,1:tauStride:end),d.z(:,1),'c-');
+h3 = plot(d.tau(:,1:tauStride:end),d.z(:,1),'c-');
 hold on
-h1 = plot(d.tauP(:,1),d.z(:,1),'.-','Color',[0,128,0]./255,'Linewidth',1);
-h2 = plot(d.tauP(:,end),d.z(:,1),'r.-','Linewidth',1);
+h1 = plot(d.tau(:,1),d.z(:,1),'.-','Color',[0,128,0]./255,'Linewidth',1);
+h2 = plot(d.tau(:,end),d.z(:,1),'r.-','Linewidth',1);
 set(gca,'YDir','reverse')
 title(sprintf('%i: %.9e',length(d.time),d.time(end)))
 ylabel('depth (km)'),xlabel('\tau (MPa)')
@@ -47,7 +49,6 @@ legend([h1 h2 h3(1)],{'initial \tau','final \tau','intermediate values of \tau'}
 [map,hotMap] = createDivColormap(-14,-9,1,100); % create colormap highlighting loading vel
 figure(3),clf
 pcolored(1:size(d.slipVel,2),d.z(:,1)',log10(abs(d.slipVel)))
-% pcolored(1:size(d.slipVel,2),d.z(:,1)',abs(d.slipVel))
 colormap(map)
 hcb = colorbar; ylabel(hcb,'log V (m/s)')
 set(hcb,'YTick',-14:1:1)
@@ -60,7 +61,7 @@ grid on, grid minor
 
 % plot phase plot: integrated slip velocity vs integrated shear stress
 p = trapz(d.z(:,1),d.slipVel);
-t = trapz(d.z(:,1),d.tauP);
+t = trapz(d.z(:,1),d.tau);
 
 figure(4),clf
 semilogx(p,t) % phase plot
