@@ -384,6 +384,8 @@ switch ( order ) {
         D1int.printPetsc();
       #endif
 
+      D1 = D1int; // copy D1int's interior
+
       // fully compatible
       if (type.compare("fullyCompatible")==0 ) {
         BS(0,0,-D1int(0,0)); BS(0,1,-D1int(0,1));
@@ -392,6 +394,9 @@ switch ( order ) {
       else if (type.compare("compatible")==0) {
         BS(0,0,1.5*scale);     BS(0,1,-2.0*scale);     BS(0,2,0.5*scale); // -1* p666 of Mattsson 2010
         BS(N-1,N-3,0.5*scale); BS(N-1,N-2,-2.0*scale); BS(N-1,N-1,1.5*scale);
+
+        D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); D1(0,2,-BS(0,2));
+        D1(N-1,N-3,BS(N-1,N-3)); D1(N-1,N-2,BS(N-1,N-2)); D1(N-1,N-1,BS(N-1,N-1));
       }
       else { PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n"); assert(0); }
       #if VERBOSE > 2
@@ -399,11 +404,6 @@ switch ( order ) {
         BS.printPetsc();
       #endif
 
-      D1 = D1int; // copy D1int's interior
-      // last row
-      D1(N-1,N-2,BS(N-1,N-2));
-      D1(N-1,N-1,BS(N-1,N-1));
-      D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); // first row
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
         D1.printPetsc();
@@ -481,26 +481,26 @@ switch ( order ) {
         D1int.printPetsc();
       #endif
 
-      // not fully compatible
-      // row 1: -1* p666 of Mattsson 2010
-      //~BS(0,0,11.0/6.0*scale); BS(0,1,-3.0*scale); BS(0,2,1.5*scale); BS(0,3,-1.0/3.0*scale);
-      //~BS(N-1,N-1,11.0/6.0); BS(N-1,N-2,-3.0); BS(N-1,N-3,1.5); BS(N-1,N-4,-1.0/3.0);
+      D1 = D1int;
 
       // fully compatible
-      BS(0,0,24.0/17.0*scale); BS(0,1,-59.0/34.0*scale);
-      BS(0,2,4.0/17.0*scale); BS(0,3,3.0/34.0*scale);
-      BS(N-1,N-1,24.0/17.0*scale); BS(N-1,N-2,-59.0/34.0*scale);
-      BS(N-1,N-3,4.0/17.0*scale); BS(N-1,N-4,3.0/34.0*scale);
+      if (type.compare("fullyCompatible")==0 ) {
+        BS(0,0,24.0/17.0*scale); BS(0,1,-59.0/34.0*scale);
+        BS(0,2,4.0/17.0*scale); BS(0,3,3.0/34.0*scale);
+        BS(N-1,N-1,24.0/17.0*scale); BS(N-1,N-2,-59.0/34.0*scale);
+        BS(N-1,N-3,4.0/17.0*scale); BS(N-1,N-4,3.0/34.0*scale);
+      }
+      else if (type.compare("compatible")==0) {
+        BS(0,0,11.0/6.0*scale); BS(0,1,-3.0*scale); BS(0,2,1.5*scale); BS(0,3,-1.0/3.0*scale);
+        BS(N-1,N-1,11.0/6.0); BS(N-1,N-2,-3.0); BS(N-1,N-3,1.5); BS(N-1,N-4,-1.0/3.0);
 
+        D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); D1(0,2,-BS(0,2)); D1(0,3,-BS(0,3));
+        D1(N-1,N-4,BS(N-1,N-4)); D1(N-1,N-4,BS(N-1,N-4)); D1(N-1,N-2,BS(N-1,N-2)); D1(N-1,N-1,BS(N-1,N-1));
+      }
       #if VERBOBSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nBS:\n");CHKERRQ(ierr);
         BS.printPetsc();
       #endif
-
-     // for simulations with viscoelasticity, need
-     // 1st deriv on interior as well
-     D1 = D1int;
-
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
         D1.printPetsc();
