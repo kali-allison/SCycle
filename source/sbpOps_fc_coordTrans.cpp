@@ -279,7 +279,7 @@ PetscErrorCode SbpOps_fc_coordTrans::computeMatrices()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz);
+  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_compatibilityType);
 
   constructMu(_muVec);
   constructJacobian(tempMats);
@@ -540,7 +540,7 @@ PetscErrorCode SbpOps_fc_coordTrans::updateVarCoeff(const Vec& coeff)
   MatMatMult(_mu,_rz,MAT_REUSE_MATRIX,1.,&_murz);
 
   // update Mats
-  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz);
+  TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_compatibilityType);
   constructBs(tempMats);
   updateBCMats();
   updateA_BCs(tempMats);
@@ -874,7 +874,7 @@ PetscErrorCode SbpOps_fc_coordTrans::updateA_BCs()
   #endif
 
   if (_D2 == NULL) {
-    TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz);
+    TempMats_fc_coordTrans tempMats(_order,_Ny,_dy,_Nz,_dz,_compatibilityType);
     constructD2(tempMats);
   }
 
@@ -1945,7 +1945,7 @@ PetscErrorCode SbpOps_fc_coordTrans::HzinvxENz(const Vec &in, Vec &out)
 //=================== functions for struct =============================
 
 TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
-    const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz)
+    const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,const string type)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(dy),_dz(dz),
   _Hy(Ny,Ny),_Hyinv(Ny,Ny),_D1y(Ny,Ny),_D1yint(Ny,Ny),_BSy(Ny,Ny),_Iy(Ny,Ny),
   _Hz(Nz,Nz),_Hzinv(Nz,Nz),_D1z(Nz,Nz),_D1zint(Nz,Nz),_BSz(Nz,Nz),_Iz(Nz,Nz)
@@ -1959,7 +1959,6 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
 
-  std::string type = "fullyCompatible";
   sbp_Spmat(order,Ny,1./dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy,type);
   sbp_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz,type);
 

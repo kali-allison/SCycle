@@ -27,7 +27,7 @@ struct TempMats_fc_coordTrans
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
+  TempMats_fc_coordTrans(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,const string type);
   ~TempMats_fc_coordTrans();
 
   private:

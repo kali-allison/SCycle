@@ -26,7 +26,7 @@ struct TempMats_fc
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz);
+  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,const string type);
   ~TempMats_fc();
 
 private:
