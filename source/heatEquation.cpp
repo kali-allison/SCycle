@@ -565,22 +565,36 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 
   // create SBP operators, 1D in z-direction only, only in lithosphere
   SbpOps* sbp;
-  if (_sbpType.compare("mc")==0) {
-    sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+  //~ }
+  //~ else if (_sbpType.compare("mfc")==0) {
+    //~ sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+  //~ }
+  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
+    //~ sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+    //~ if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
+    //~ else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
+    //~ else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(&y,NULL); }
+  //~ }
+  //~ else {
+    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    //~ assert(0); // automatically fail
+  //~ }
+    if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
+    sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (_sbpType.compare("mfc")==0) {
-    sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-  }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
-    sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-    if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
-    else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
-    else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(&y,NULL); }
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
+    sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    if (_Ny > 1 && _Nz > 1) { sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  sbp->setCompatibilityType(_D->_sbpCompatibilityType);
   sbp->setBCTypes("Dirichlet","Dirichlet","Dirichlet","Dirichlet");
   sbp->setMultiplyByH(1);
   sbp->setLaplaceType("z");
@@ -1583,22 +1597,20 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
   std::string bcBType = "Dirichlet";
 
   // construct matrices
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz_lab > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz_lab == 1) { _sbp->setGrid(_y,NULL); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
   _sbp->setBCTypes(bcRType,bcTType,bcLType,bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");
@@ -1633,13 +1645,10 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   delete _sbp; _sbp = NULL;
   // construct matrices
   // BC order: right,top, left, bottom
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_k);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
@@ -1649,6 +1658,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
   _sbp->setBCTypes("Dirichlet","Dirichlet","Neumann","Dirichlet");
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");

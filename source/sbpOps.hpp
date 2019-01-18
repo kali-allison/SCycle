@@ -53,6 +53,7 @@ class SbpOps
     virtual PetscErrorCode setGrid(Vec* y, Vec* z) = 0;
     virtual PetscErrorCode setMultiplyByH(const int multByH) = 0;
     virtual PetscErrorCode setLaplaceType(const string type) = 0; // "y", "z", or "yz"
+    virtual PetscErrorCode setCompatibilityType(const string type) = 0; // "fullyCompatible" or "compatible"
     virtual PetscErrorCode setDeleteIntermediateFields(const int deleteMats) = 0;
     virtual PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB) = 0;
     virtual PetscErrorCode computeMatrices() = 0; // matrices not constructed until now

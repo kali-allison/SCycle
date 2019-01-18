@@ -435,13 +435,29 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   KSPDestroy(&_ksp);
 
 
-  if (_sbpType.compare("mc")==0) {
-    _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  }
-  else if (_sbpType.compare("mfc")==0) {
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+  //~ }
+  //~ else if (_sbpType.compare("mfc")==0) {
+    //~ _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+  //~ }
+  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
+    //~ _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    //~ if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    //~ else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    //~ else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+  //~ }
+  //~ else {
+    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    //~ assert(0); // automatically fail
+  //~ }
+  //~ _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
+  //~ _sbp->setMultiplyByH(1);
+  //~ _sbp->computeMatrices(); // actually create the matrices
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
@@ -451,8 +467,11 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
+  _sbp->setLaplaceType("yz");
+  _sbp->setDeleteIntermediateFields(1);
   _sbp->computeMatrices(); // actually create the matrices
 
 
@@ -1400,23 +1419,42 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
   #endif
 
   // set up SBP operators
-  if (_sbpType.compare("mc")==0) {
-    _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+  //~ if (_sbpType.compare("mc")==0) {
+    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+  //~ }
+  //~ else if (_sbpType.compare("mfc")==0) {
+    //~ _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+  //~ }
+  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
+    //~ _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta->setGrid(_y,_z);
+  //~ }
+  //~ else {
+    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
+    //~ assert(0); // automatically fail
+  //~ }
+  //~ _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
+  //~ _sbp_eta->setMultiplyByH(1);
+  //~ _sbp_eta->computeMatrices(); // actually create the matrices
+
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
+    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
-  else if (_sbpType.compare("mfc")==0) {
-    _sbp_eta = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-  }
-  else if (_sbpType.compare("mfc_coordTrans")==0) {
-    _sbp_eta = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    _sbp_eta->setGrid(_y,_z);
+  else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
+    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
+  _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
   _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  _sbp_eta->setMultiplyByH(1);
-  _sbp_eta->computeMatrices(); // actually create the matrices
+  _sbp->setMultiplyByH(1);
+  _sbp->setLaplaceType("yz");
+  _sbp->computeMatrices(); // actually create the matrices
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

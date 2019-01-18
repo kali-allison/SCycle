@@ -12,7 +12,7 @@ SbpOps_c::SbpOps_c(const int order,const PetscInt Ny,const PetscInt Nz,const Pet
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(Ly/(Ny-1.)),_dz(Lz/(Nz-1.)),
   _muVec(&muVec),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
-  _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
+  _runTime(0),_compatibilityType("fullyCompatible"),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_c.cpp.\n");
@@ -147,6 +147,14 @@ PetscErrorCode SbpOps_c::setLaplaceType(const std::string type)
 {
   assert(_D2type.compare("yz") == 0 || _D2type.compare("y") == 0 || _D2type.compare("z") == 0 );
   _D2type = type;
+  return 0;
+}
+
+
+PetscErrorCode SbpOps_c::setCompatibilityType(const string type)
+{
+  _compatibilityType = type;
+  assert(_compatibilityType.compare("fullyCompatible") == 0 || _compatibilityType.compare("compatible") == 0 );
   return 0;
 }
 

@@ -228,7 +228,7 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
       rowL = IiL->first;
       colL = JjL->first;
       valL = JjL->second;
-      if (valL==0) {break;}
+      if (valL==0) {continue;}
 
       // loop over all values in right
       for(IiR=right._mat.begin(); IiR!=right._mat.end(); IiR++)
