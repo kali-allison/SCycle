@@ -1,6 +1,6 @@
-#include "sbpOps_fc.hpp"
+#include "sbpOps_m_constGrid.hpp"
 
-#define FILENAME "sbpOps_fc.cpp"
+#define FILENAME "sbpOps_m_constGrid.cpp"
 
 
 //======================================================================

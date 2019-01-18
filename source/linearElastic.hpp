@@ -11,7 +11,7 @@
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "sbpOps.hpp"
-#include "sbpOps_fc.hpp"
+#include "sbpOps_m_constGrid.hpp"
 #include "sbpOps_fc_coordTrans.hpp"
 
 
