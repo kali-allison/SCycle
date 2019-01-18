@@ -441,7 +441,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   //~ else if (_sbpType.compare("mfc")==0) {
     //~ _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   //~ }
-  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
+  //~ else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     //~ _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
     //~ if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     //~ else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
@@ -666,7 +666,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
 
   // helpful factor qyxrzxH = qy * rz * H, and yqxzrxH = yq * zr * H
   Mat yqxHy,zrxHz,yqxzrxH;
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
     //~ ierr = MatMatMult(yqxzrxH,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
@@ -798,7 +798,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions(const PetscScalar time)
   else { mapToVec(uSource,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(uSource,HxuSource); CHKERRQ(ierr);
   VecDestroy(&uSource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,viscSource); CHKERRQ(ierr);
@@ -880,7 +880,7 @@ PetscErrorCode PowerLaw::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
   else { mapToVec(uSource,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(uSource,HxuSource);
   VecDestroy(&uSource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = multMatsVec(yq,zr,HxviscSourceMMS); CHKERRQ(ierr);
@@ -1219,7 +1219,7 @@ PetscErrorCode PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, V
   VecDestroy(&temp1);
 
   // include effects of coordinate transform
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     Vec temp1;
     VecDuplicate(_gxy,&temp1);
@@ -1419,24 +1419,6 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
   #endif
 
   // set up SBP operators
-  //~ if (_sbpType.compare("mc")==0) {
-    //~ _sbp_eta = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-  //~ }
-  //~ else if (_sbpType.compare("mfc")==0) {
-    //~ _sbp_eta = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-  //~ }
-  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ _sbp_eta = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    //~ _sbp_eta->setGrid(_y,_z);
-  //~ }
-  //~ else {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    //~ assert(0); // automatically fail
-  //~ }
-  //~ _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  //~ _sbp_eta->setMultiplyByH(1);
-  //~ _sbp_eta->computeMatrices(); // actually create the matrices
-
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }

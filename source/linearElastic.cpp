@@ -814,7 +814,7 @@ PetscErrorCode LinearElastic::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
   if (_Nz==1) { mapToVec(source,zzmms_uSource1D,*_y,time); }
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   ierr = _sbp->H(source,Hxsource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
@@ -847,7 +847,7 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
   else { mapToVec(source,zzmms_uSource,*_y,*_z,time); }
   writeVec(source,_outputDir + "mms_uSource");
   ierr = _sbp->H(source,Hxsource); CHKERRQ(ierr);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);

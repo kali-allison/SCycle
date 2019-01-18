@@ -718,7 +718,7 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain &D)
   VecDuplicate(_p, &rhog_y);
   _sbp->Dz(rhog, rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
 
@@ -1061,7 +1061,7 @@ PetscErrorCode PressureEq::dp_dt(const PetscScalar time, const map<string, Vec> 
 
   VecAXPY(p_t, -1.0, rhs);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
     CHKERRQ(ierr);
@@ -1138,7 +1138,7 @@ PetscErrorCode PressureEq::dp_dt(const PetscScalar time, const Vec &P, Vec &dPdt
   VecAXPY(dPdt, -1.0, rhs);
   // VecAXPY(p_t,-1.0,rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0)
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
@@ -1205,7 +1205,7 @@ PetscErrorCode PressureEq::d_dt_mms(const PetscScalar time, const map<string, Ve
   VecAXPY(p_t, -1.0, rhs);
   // VecAXPY(p_t,-1.0,rhog_y);
 
-  if (_sbpType.compare("mfc_coordTrans") == 0)
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   {
     Mat J, Jinv, qy, rz, yq, zr;
     ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr);
@@ -1352,7 +1352,7 @@ PetscErrorCode PressureEq::be(const PetscScalar time, const map<string, Vec> &va
     // Mat D2_rho_n_beta;
     MatMatMult(Diag_rho_n_beta, D2, MAT_REUSE_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-    if (_sbpType.compare("mfc_coordTrans") == 0) {
+    if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
       Mat J, Jinv, qy, rz, yq, zr;
       ierr = _sbp->getCoordTrans(J, Jinv, qy, rz, yq, zr); CHKERRQ(ierr);
 
@@ -1594,7 +1594,7 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string, Vec>
   //   // MatDuplicate(D2, MAT_DO_NOT_COPY_VALUES, &D2_rho_n_beta);
   //   MatMatMult(Diag_rho_n_beta, D2, MAT_INITIAL_MATRIX, PETSC_DEFAULT, &D2_rho_n_beta); // 1/(rho * n * beta) D2
 
-  //   if (_sbpType.compare("mfc_coordTrans") == 0)
+  //   if (_D->_gridSpacingType.compare("variableGridSpacing")==0)
   //   {
 
   //     Mat J, Jinv, qy, rz, yq, zr;

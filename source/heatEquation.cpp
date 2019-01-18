@@ -571,7 +571,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   //~ else if (_sbpType.compare("mfc")==0) {
     //~ sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   //~ }
-  //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
+  //~ else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     //~ sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
     //~ if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
     //~ else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
@@ -606,7 +606,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   Vec Qtemp;
   if (_wRadioHeatGen.compare("yes") == 0) {
     VecDuplicate(Qrad,&Qtemp);
-    if (_sbpType.compare("mfc_coordTrans")==0) {
+    if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
       Vec temp1; VecDuplicate(Qrad,&temp1);
       Mat J,Jinv,qy,rz,yq,zr;
       ierr = sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1009,7 +1009,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
   ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr); // put SAT terms in temp
   VecScale(rhs,-1.); // sign convention in setRhs is opposite of what's needed for explicit time stepping
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1030,7 +1030,7 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   // dT = 1/(rho*c) * Hinv *Jinv * rhs
   VecPointwiseDivide(rhs,rhs,_rho);
   VecPointwiseDivide(rhs,rhs,_c);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1189,7 +1189,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 
   ierr = _sbp->setRhs(temp,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
   Vec temp1; VecDuplicate(_Q,&temp1);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMult(J,_Q,temp1);
@@ -1206,7 +1206,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   VecSet(temp,0.0);
   VecWAXPY(_dT,-1.0,_Tamb,Tn); // dTn = Tn - Tamb
   _sbp->H(_dT,temp);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     Vec temp1; VecDuplicate(temp,&temp1);
@@ -1282,7 +1282,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
   // rhs = J*H*Q + (SAT BC terms)
   ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1344,7 +1344,7 @@ PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec 
   //~ mapToVec(source,zzmms_SSdTsource,*_y,*_z,time);
   mapToVec(source,zzmms_SSTsource,*_y,*_z,time);
   ierr = _sbp->H(source,Hxsource);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
@@ -1468,7 +1468,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   // rhs = J*H*Q + (SAT BC terms)
   Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
   ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1667,7 +1667,7 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   // create identity matrix I (multiplied by H)
   Mat H;
   _sbp->getH(H);
-  if (_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatMatMult(J,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&_I);

@@ -1000,28 +1000,28 @@ PetscErrorCode SbpOps_m_varGrid::updateBCMats()
 
 
   if (_bcLType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_INITIAL_MATRIX);
-    constructBC_Dirichlet(_rhsL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_INITIAL_MATRIX);
+    constructBC_Dirichlet(_AL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_E0y_Iz,MAT_REUSE_MATRIX);
+    constructBC_Dirichlet(_rhsL_D,_alphaDy,_zr,_muqy,_Hyinv_Iz,_muxBySy_IzT,_e0y_Iz,MAT_REUSE_MATRIX);
     _AL = _AL_D; _rhsL = _rhsL_D;
     MatDestroy(&_AL_N); MatDestroy(&_rhsL_N);
   }
   else if (_bcLType.compare("Neumann")==0) {
-    constructBC_Neumann(_AL_N,_zr,_Hyinv_Iz, -1., _E0y_Iz, _mu, _Dy_Iz,MAT_INITIAL_MATRIX);
-    constructBC_Neumann(_rhsL_N,_zr,_Hyinv_Iz, -1., _e0y_Iz,MAT_INITIAL_MATRIX);
+    constructBC_Neumann(_AL_N,_zr,_Hyinv_Iz, -1., _E0y_Iz, _mu, _Dy_Iz,MAT_REUSE_MATRIX);
+    constructBC_Neumann(_rhsL_N,_zr,_Hyinv_Iz, -1., _e0y_Iz,MAT_REUSE_MATRIX);
     _AL = _AL_N; _rhsL = _rhsL_N;
     MatDestroy(&_AL_D); MatDestroy(&_rhsL_D);
   }
 
 
   if (_bcBType.compare("Dirichlet")==0) {
-    constructBC_Dirichlet(_AB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_INITIAL_MATRIX);
-    constructBC_Dirichlet(_rhsB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_INITIAL_MATRIX);
+    constructBC_Dirichlet(_AB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_ENz,MAT_REUSE_MATRIX);
+    constructBC_Dirichlet(_rhsB_D,_alphaDz,_yq,_murz,_Iy_Hzinv,_Iy_muxBzSzT,_Iy_eNz,MAT_REUSE_MATRIX);
     _AB = _AB_D; _rhsB = _rhsB_D;
     MatDestroy(&_AB_N); MatDestroy(&_rhsB_N);
   }
   else if (_bcBType.compare("Neumann")==0) {
-    constructBC_Neumann(_AB_N,_yq,_Iy_Hzinv, 1.,_Iy_ENz,_mu,_Iy_Dz,MAT_INITIAL_MATRIX);
-    constructBC_Neumann(_rhsB_N,_yq,_Iy_Hzinv, 1.,_Iy_eNz,MAT_INITIAL_MATRIX);
+    constructBC_Neumann(_AB_N,_yq,_Iy_Hzinv, 1.,_Iy_ENz,_mu,_Iy_Dz,MAT_REUSE_MATRIX);
+    constructBC_Neumann(_rhsB_N,_yq,_Iy_Hzinv, 1.,_Iy_eNz,MAT_REUSE_MATRIX);
     _AB = _AB_N; _rhsB = _rhsB_N;
     MatDestroy(&_AB_D); MatDestroy(&_rhsB_D);
   }
