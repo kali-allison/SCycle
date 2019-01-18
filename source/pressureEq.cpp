@@ -5,7 +5,7 @@
 using namespace std;
 
 PressureEq::PressureEq(Domain &D)
-: _file(D._file), _delim(D._delim), _outputDir(D._outputDir), _inputDir(D._inputDir), _isMMS(D._isMMS),
+: _D(&D), _file(D._file), _delim(D._delim), _outputDir(D._outputDir), _inputDir(D._inputDir), _isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"), _permSlipDependent("no"), _permPressureDependent("no"), _bcB_type("Q"),
   _guessSteadyStateICs(1), _initTime(0.0), _initDeltaT(1e-3),
   _order(D._order), _N(D._Nz), _L(D._Lz), _h(D._dr), _z(NULL), _bcB_ratio(1.0),
@@ -512,7 +512,6 @@ PetscErrorCode PressureEq::setUpSBP()
   // set up variable coefficient
   Vec coeff;
   computeVariableCoefficient(coeff);
-
   // Set up linear system
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_m_constGrid(_order, 1, _N, 1, _L, coeff);
