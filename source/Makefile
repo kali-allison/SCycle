@@ -9,7 +9,7 @@ CLINKER		      = openmpicc
 OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
  linearElastic.o powerLaw.o heatEquation.o \
- spmat.o sbpOps_m_constGrid.o sbpOps_sc.o  sbpOps_m_varGrid.o \
+ spmat.o sbpOps_m_constGrid.o sbpOps_m_varGrid.o \
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
  strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o powerLaw.o \
  strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
@@ -87,12 +87,9 @@ pressureEq.o: pressureEq.cpp pressureEq.hpp genFuncs.hpp domain.hpp \
  spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp integratorContextEx.hpp \
  odeSolver.hpp integratorContextImex.hpp
 rootFinder.o: rootFinder.cpp rootFinder.hpp rootFinderContext.hpp
-sbpOps_arrays.o: sbpOps_arrays.cpp sbpOps.hpp domain.hpp genFuncs.hpp
 sbpOps_m_varGrid.o: sbpOps_m_varGrid.cpp sbpOps_m_varGrid.hpp \
  domain.hpp genFuncs.hpp spmat.hpp sbpOps.hpp
 sbpOps_m_constGrid.o: sbpOps_m_constGrid.cpp sbpOps_m_constGrid.hpp domain.hpp genFuncs.hpp \
- spmat.hpp sbpOps.hpp
-sbpOps_sc.o: sbpOps_sc.cpp sbpOps_sc.hpp domain.hpp genFuncs.hpp \
  spmat.hpp sbpOps.hpp
 spmat.o: spmat.cpp spmat.hpp
 strikeSlip_linearElastic_fd.o: strikeSlip_linearElastic_fd.cpp \
