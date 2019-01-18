@@ -10,7 +10,7 @@
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "sbpOps_m_constGrid.hpp"
-#include "sbpOps_fc_coordTrans.hpp"
+#include "sbpOps_m_varGrid.hpp"
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 #include "odeSolver.hpp"

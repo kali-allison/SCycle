@@ -518,7 +518,7 @@ PetscErrorCode PressureEq::setUpSBP()
     _sbp = new SbpOps_m_constGrid(_order, 1, _N, 1, _L, coeff);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_m_varGridSpacing(_order, 1, _N, 1, _L, coeff);
+    _sbp = new SbpOps_m_varGrid(_order, 1, _N, 1, _L, coeff);
     _sbp->setGrid(NULL, &_z);
   }
   else {

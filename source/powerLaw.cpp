@@ -442,7 +442,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
     //~ _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   //~ }
   //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ _sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    //~ _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
     //~ if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     //~ else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     //~ else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -458,7 +458,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
     _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -1426,7 +1426,7 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
     //~ _sbp_eta = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   //~ }
   //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ _sbp_eta = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    //~ _sbp_eta = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
     //~ _sbp_eta->setGrid(_y,_z);
   //~ }
   //~ else {
@@ -1441,7 +1441,7 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
     _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }

@@ -22,7 +22,7 @@
 #include "domain.hpp"
 #include "sbpOps.hpp"
 #include "sbpOps_m_constGrid.hpp"
-#include "sbpOps_fc_coordTrans.hpp"
+#include "sbpOps_m_varGrid.hpp"
 #include "fault.hpp"
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"

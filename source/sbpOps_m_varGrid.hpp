@@ -36,7 +36,7 @@ struct TempMats_m_varGrid
     TempMats_m_varGrid& operator=( const TempMats_m_varGrid& rhs );
 };
 
-class SbpOps_m_varGridSpacing : public SbpOps
+class SbpOps_m_varGrid : public SbpOps
 {
 public:
 
@@ -74,8 +74,8 @@ public:
     Mat _BSy_Iz, _Iy_BSz;
 
 
-    SbpOps_m_varGridSpacing(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly, const PetscScalar Lz,Vec& muVec);
-    ~SbpOps_m_varGridSpacing();
+    SbpOps_m_varGrid(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly, const PetscScalar Lz,Vec& muVec);
+    ~SbpOps_m_varGrid();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
     PetscErrorCode setGrid(Vec* y, Vec* z);
@@ -134,8 +134,8 @@ public:
 
   private:
     // disable default copy constructor and assignment operator
-    SbpOps_m_varGridSpacing(const SbpOps_m_varGridSpacing & that);
-    SbpOps_m_varGridSpacing& operator=( const SbpOps_m_varGridSpacing& rhs );
+    SbpOps_m_varGrid(const SbpOps_m_varGrid & that);
+    SbpOps_m_varGrid& operator=( const SbpOps_m_varGrid& rhs );
 
     PetscErrorCode setMatsToNull();
 
