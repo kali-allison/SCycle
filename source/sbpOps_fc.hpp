@@ -18,7 +18,7 @@ using namespace std;
  *
  */
 
-struct TempMats_fc
+struct TempMats_m_constGrid
 {
   const PetscInt    _order,_Ny,_Nz;
   const PetscReal   _dy,_dz;
@@ -26,18 +26,18 @@ struct TempMats_fc
   Spmat _Hy,_Hyinv,_D1y,_D1yint,_BSy,_Iy;
   Spmat _Hz,_Hzinv,_D1z,_D1zint,_BSz,_Iz;
 
-  TempMats_fc(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,const string type);
-  ~TempMats_fc();
+  TempMats_m_constGrid(const PetscInt order,const PetscInt Ny,const PetscScalar dy,const PetscInt Nz,const PetscScalar dz,const string type);
+  ~TempMats_m_constGrid();
 
 private:
 
   // disable default copy constructor and assignment operator
-  TempMats_fc(const TempMats_fc & that);
-  TempMats_fc& operator=( const TempMats_fc& rhs );
+  TempMats_m_constGrid(const TempMats_m_constGrid & that);
+  TempMats_m_constGrid& operator=( const TempMats_m_constGrid& rhs );
 };
 
 
-class SbpOps_fc : public SbpOps
+class SbpOps_m_constGrid : public SbpOps
 {
   public:
 
@@ -72,9 +72,9 @@ class SbpOps_fc : public SbpOps
     Mat _BSy_Iz, _Iy_BSz;
 
 
-    //~ SbpOps_fc(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
-    SbpOps_fc(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly, const PetscScalar Lz,Vec& muVec);
-    ~SbpOps_fc();
+    //~ SbpOps_m_constGrid(Domain&D,PetscInt Ny, PetscInt Nz,Vec& muVec,string bcT,string bcR,string bcB, string bcL, string type);
+    SbpOps_m_constGrid(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly, const PetscScalar Lz,Vec& muVec);
+    ~SbpOps_m_constGrid();
 
     PetscErrorCode setBCTypes(std::string bcR, std::string bcT, std::string bcL, std::string bcB);
     PetscErrorCode setGrid(Vec* y, Vec* z);
@@ -133,29 +133,29 @@ class SbpOps_fc : public SbpOps
 
   private:
     // disable default copy constructor and assignment operator
-    SbpOps_fc(const SbpOps_fc & that);
-    SbpOps_fc& operator=( const SbpOps_fc& rhs );
+    SbpOps_m_constGrid(const SbpOps_m_constGrid & that);
+    SbpOps_m_constGrid& operator=( const SbpOps_m_constGrid& rhs );
 
     PetscErrorCode setMatsToNull();
 
     // functions to construct various matrices
     PetscErrorCode constructMu(Vec& muVec);
-    PetscErrorCode constructEs(const TempMats_fc& tempMats);
-    PetscErrorCode constructes(const TempMats_fc& tempMats);
-    PetscErrorCode constructBs(const TempMats_fc& tempMats);
-    PetscErrorCode constructHs(const TempMats_fc& tempMats);
-    PetscErrorCode constructH(const TempMats_fc& tempMats);
-    PetscErrorCode constructHinv(const TempMats_fc& tempMats);
-    PetscErrorCode construct1stDerivs(const TempMats_fc& tempMats);
-    PetscErrorCode constructA(const TempMats_fc& tempMats);
+    PetscErrorCode constructEs(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructes(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructBs(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructHs(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructH(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructHinv(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode construct1stDerivs(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructA(const TempMats_m_constGrid& tempMats);
     PetscErrorCode updateA_BCs();
-    PetscErrorCode updateA_BCs(TempMats_fc& tempMats);
+    PetscErrorCode updateA_BCs(TempMats_m_constGrid& tempMats);
     PetscErrorCode updateBCMats();
-    PetscErrorCode constructDyymu(const TempMats_fc& tempMats, Mat &Dyymu);
-    PetscErrorCode constructDzzmu(const TempMats_fc& tempMats, Mat &Dzzmu);
-    PetscErrorCode constructD2(const TempMats_fc& tempMats);
-    PetscErrorCode constructRymu(const TempMats_fc& tempMats,Mat &Rymu);
-    PetscErrorCode constructRzmu(const TempMats_fc& tempMats,Mat &Rzmu);
+    PetscErrorCode constructDyymu(const TempMats_m_constGrid& tempMats, Mat &Dyymu);
+    PetscErrorCode constructDzzmu(const TempMats_m_constGrid& tempMats, Mat &Dzzmu);
+    PetscErrorCode constructD2(const TempMats_m_constGrid& tempMats);
+    PetscErrorCode constructRymu(const TempMats_m_constGrid& tempMats,Mat &Rymu);
+    PetscErrorCode constructRzmu(const TempMats_m_constGrid& tempMats,Mat &Rzmu);
     PetscErrorCode deleteIntermediateFields();
 
     PetscErrorCode constructBC_Dirichlet(Mat& out,PetscScalar alphaD,Mat& mu,Mat& Hinv,Mat& BD1T,Mat& E,MatReuse scall);

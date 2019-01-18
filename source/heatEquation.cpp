@@ -569,10 +569,10 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     //~ sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   //~ }
   //~ else if (_sbpType.compare("mfc")==0) {
-    //~ sbp = new SbpOps_fc(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+    //~ sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
   //~ }
   //~ else if (_sbpType.compare("mfc_coordTrans")==0) {
-    //~ sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
+    //~ sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
     //~ if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
     //~ else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
     //~ else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(&y,NULL); }
@@ -582,10 +582,10 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     //~ assert(0); // automatically fail
   //~ }
     if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(_y,NULL); }
@@ -1598,10 +1598,10 @@ PetscErrorCode HeatEquation::setUpSteadyStateProblem()
 
   // construct matrices
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -1646,10 +1646,10 @@ PetscErrorCode HeatEquation::setUpTransientProblem()
   // construct matrices
   // BC order: right,top, left, bottom
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    _sbp = new SbpOps_fc(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_k);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    _sbp = new SbpOps_m_varGridSpacing(_order,_Ny,_Nz,_Ly,_Lz,_k);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }

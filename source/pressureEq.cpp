@@ -515,10 +515,10 @@ PetscErrorCode PressureEq::setUpSBP()
 
   // Set up linear system
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    _sbp = new SbpOps_fc(_order, 1, _N, 1, _L, coeff);
+    _sbp = new SbpOps_m_constGrid(_order, 1, _N, 1, _L, coeff);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_fc_coordTrans(_order, 1, _N, 1, _L, coeff);
+    _sbp = new SbpOps_m_varGridSpacing(_order, 1, _N, 1, _L, coeff);
     _sbp->setGrid(NULL, &_z);
   }
   else {
@@ -526,20 +526,6 @@ PetscErrorCode PressureEq::setUpSBP()
     assert(0); // automatically fail
   }
 
-  //~ if (_sbpType.compare("mc") == 0) {
-    //~ _sbp = new SbpOps_c(_order, 1, _N, 1, _L, coeff);
-  //~ }
-  //~ else if (_sbpType.compare("mfc") == 0) {
-    //~ _sbp = new SbpOps_fc(_order, 1, _N, 1, _L, coeff);
-  //~ }
-  //~ else if (_sbpType.compare("mfc_coordTrans") == 0) {
-    //~ _sbp = new SbpOps_fc_coordTrans(_order, 1, _N, 1, _L, coeff);
-    //~ _sbp->setGrid(NULL, &_z);
-  //~ }
-  //~ else {
-    //~ PetscPrintf(PETSC_COMM_WORLD, "ERROR: SBP type type not understood\n");
-    //~ assert(0); // automatically fail
-  //~ }
   _sbp->setBCTypes("Dirichlet", "Dirichlet", "Dirichlet", "Neumann"); //bcR, bcT, bcL, bcB
   VecSet(_bcL, 0);
   VecSet(_bcT, 0);
