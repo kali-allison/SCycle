@@ -58,7 +58,7 @@ main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  sbpOps_fc.hpp sbpOps_fc_coordTrans.hpp powerLaw.hpp heatEquation.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
- odeSolverImex.hpp pressureEq.hpp iceStream_linearElastic_qd.hpp \
+ odeSolverImex.hpp pressureEq.hpp \
  strikeSlip_linearElastic_qd.hpp strikeSlip_linearElastic_fd.hpp \
  integratorContext_WaveEq.hpp odeSolver_WaveEq.hpp \
  strikeSlip_linearElastic_qd_fd.hpp integratorContext_WaveEq_Imex.hpp \
