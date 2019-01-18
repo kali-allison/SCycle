@@ -47,6 +47,7 @@ class SbpOps_fc : public SbpOps
     Mat                 _mu; // matrix of coefficient
     std::string         _bcRType,_bcTType,_bcLType,_bcBType; // options: "Dirichlet", "Traction"
     double              _runTime;
+    string              _compatibilityType; // "fullyCompatible" (S = D),  or "compatible" (S =/= D)
     string              _D2type; // "yz", "y", or "z"
     int                 _multByH; // (default: 0) 1 if yes, 0 if no
     int                 _deleteMats; // (default: 0) 1 if yes, 0 if no
@@ -79,6 +80,7 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode setGrid(Vec* y, Vec* z);
     PetscErrorCode setMultiplyByH(const int multByH);
     PetscErrorCode setLaplaceType(const string type); // "y", "z", or "yz"
+    PetscErrorCode setCompatibilityType(const string type); // "fullyCompatible" or "compatible"
     PetscErrorCode setDeleteIntermediateFields(const int deleteMats);
     PetscErrorCode changeBCTypes(string bcR, string bcT, string bcL, string bcB);
     PetscErrorCode computeMatrices(); // matrices not constructed until now
@@ -161,12 +163,5 @@ class SbpOps_fc : public SbpOps
     PetscErrorCode constructBC_Neumann(Mat& out, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall); // for rhs
     PetscErrorCode constructBCMats();
 };
-
-// functions to construct 1D sbp operators
-PetscErrorCode sbp_fc_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
-                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S);
-PetscErrorCode sbp_fc_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
-PetscErrorCode sbp_fc_Spmat4(const PetscInt N,const PetscScalar scale,
-                         Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

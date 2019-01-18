@@ -72,7 +72,11 @@ public:
 
 };
 
-//~Mat& kron(const Spmat& left,const Spmat& right);
-int spmatTests();
+// functions to construct 1D sbp operators
+PetscErrorCode sbp_Spmat(const PetscInt order,const PetscInt N,const PetscScalar scale,
+                        Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& S, const std::string type);
+PetscErrorCode sbp_Spmat2(const PetscInt N,const PetscScalar scale,Spmat& D2,Spmat& C2);
+PetscErrorCode sbp_Spmat4(const PetscInt N,const PetscScalar scale,
+                         Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4);
 
 #endif

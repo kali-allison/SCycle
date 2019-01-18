@@ -8,7 +8,7 @@ SbpOps_fc_coordTrans::SbpOps_fc_coordTrans(const int order,const PetscInt Ny,con
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(1./(Ny-1.)),_dz(1./(Nz-1.)),
   // _muVec(&muVec),
   _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
-  _runTime(0),_D2type("yz"),_multByH(0),_deleteMats(0)
+  _runTime(0),_compatibilityType("fullyCompatible"),_D2type("yz"),_multByH(0),_deleteMats(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_fc_coordTrans.cpp.\n");
@@ -177,6 +177,13 @@ PetscErrorCode SbpOps_fc_coordTrans::setLaplaceType(const std::string type)
 {
   assert(_D2type.compare("yz") == 0 || _D2type.compare("y") == 0 || _D2type.compare("z") == 0 );
   _D2type = type;
+  return 0;
+}
+
+PetscErrorCode SbpOps_fc_coordTrans::setCompatibilityType(const string type)
+{
+  _compatibilityType = type;
+  assert(_compatibilityType.compare("fullyCompatible") == 0 || _compatibilityType.compare("compatible") == 0 );
   return 0;
 }
 
@@ -1216,8 +1223,8 @@ switch ( _order ) {
     {
       Spmat D2z(_Nz,_Nz);
       Spmat C2z(_Nz,_Nz);
-      sbp_fc_coordTrans_Spmat2(_Nz,1.0/_dz,D2z,C2z);
-      //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
+      sbp_Spmat2(_Nz,1.0/_dz,D2z,C2z);
+      //~ if (_Nz > 1) { sbp_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
 
 
       // kron(Iy,C2z)
@@ -1269,8 +1276,8 @@ switch ( _order ) {
       Spmat D4z(_Nz,_Nz);
       Spmat C3z(_Nz,_Nz);
       Spmat C4z(_Nz,_Nz);
-      sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
-      //~ if (_Nz > 1) { sbp_fc_coordTrans_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
+      sbp_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
+      //~ if (_Nz > 1) { sbp_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
       Mat mu3;
       {
@@ -1384,7 +1391,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRymu(const TempMats_fc_coordTrans&
     {
       Spmat D2y(_Ny,_Ny);
       Spmat C2y(_Ny,_Ny);
-      sbp_fc_coordTrans_Spmat2(_Ny,1/_dy,D2y,C2y);
+      sbp_Spmat2(_Ny,1/_dy,D2y,C2y);
 
 
       // kron(D2y,Iz)
@@ -1436,7 +1443,7 @@ PetscErrorCode SbpOps_fc_coordTrans::constructRymu(const TempMats_fc_coordTrans&
       Spmat D4y(_Ny,_Ny);
       Spmat C3y(_Ny,_Ny);
       Spmat C4y(_Ny,_Ny);
-      sbp_fc_coordTrans_Spmat4(_Ny,1/_dy,D3y,D4y,C3y,C4y);
+      sbp_Spmat4(_Ny,1/_dy,D3y,D4y,C3y,C4y);
 
       Mat mu3;
       {
@@ -1952,8 +1959,9 @@ TempMats_fc_coordTrans::TempMats_fc_coordTrans(const PetscInt order,
   _Iy.eye(); // matrix size is set during colon initialization
   _Iz.eye();
 
-  sbp_fc_coordTrans_Spmat(order,Ny,1./dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy);
-  sbp_fc_coordTrans_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz);
+  std::string type = "fullyCompatible";
+  sbp_Spmat(order,Ny,1./dy,_Hy,_Hyinv,_D1y,_D1yint,_BSy,type);
+  sbp_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz,type);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1976,343 +1984,4 @@ TempMats_fc_coordTrans::~TempMats_fc_coordTrans()
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
 #endif
 }
-
-
-
-
-PetscErrorCode sbp_fc_coordTrans_Spmat(const PetscInt order, const PetscInt N,const PetscScalar scale,
-  Spmat& H,Spmat& Hinv,Spmat& D1,Spmat& D1int, Spmat& BS)
-{
-PetscErrorCode ierr = 0;
-//~double startTime = MPI_Wtime();
-#if VERBOSE >1
-  string funcName = "sbp_fc_coordTrans_Spmat";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-
-  if (N == 1) {
-    H.eye();
-    //~ Hinv.eye();
-    //~ D1.eye();
-    //~ D1int.eye();
-    //~ BS.eye();
-    return ierr;
-  }
-
-PetscInt Ii=0;
-
-switch ( order ) {
-    case 2:
-    {
-      H.eye(); H(0,0,0.5); H(N-1,N-1,0.5); H.scale(1/scale);
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-        H.printPetsc();
-      #endif
-
-      for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
-        Hinv.printPetsc();
-      #endif
-
-      D1int(0,0,-1.0*scale);D1int(0,1,scale); // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D1int(Ii,Ii-1,-0.5*scale);
-        D1int(Ii,Ii+1,0.5*scale);
-      }
-      D1int(N-1,N-1,scale);D1int(N-1,N-2,-1*scale); // last row
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1int:\n");CHKERRQ(ierr);
-        D1int.printPetsc();
-      #endif
-
-      // not fully compatible
-      //~BS(0,0,1.5*scale);     BS(0,1,-2.0*scale);     BS(0,2,0.5*scale); // -1* p666 of Mattsson 2010
-      //~BS(N-1,N-3,0.5*scale); BS(N-1,N-2,-2.0*scale); BS(N-1,N-1,1.5*scale);
-
-      // fully compatible
-      BS(0,0,-D1int(0,0)); BS(0,1,-D1int(0,1));
-      BS(N-1,N-2,D1int(N-1,N-2)); BS(N-1,N-1,D1int(N-1,N-1));
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nBS:\n");CHKERRQ(ierr);
-        BS.printPetsc();
-      #endif
-
-      D1 = D1int; // copy D1int's interior
-      // last row
-      D1(N-1,N-2,BS(N-1,N-2));
-      D1(N-1,N-1,BS(N-1,N-1));
-      D1(0,0,-BS(0,0)); D1(0,1,-BS(0,1)); // first row
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD1:\n");CHKERRQ(ierr);
-        D1.printPetsc();
-      #endif
-
-      break;
-    }
-    case 4:
-    {
-      assert(N>8); // N must be >8 for 4th order SBP
-      //~if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
-
-      H.eye();
-      H(0,0,17.0/48.0);
-      H(1,1,59.0/48.0);
-      H(2,2,43.0/48.0);
-      H(3,3,49.0/48.0);
-      H(N-1,N-1,17.0/48.0);
-      H(N-2,N-2,59.0/48.0);
-      H(N-3,N-3,43.0/48.0);
-      H(N-4,N-4,49.0/48.0);
-      H.scale(1/scale);
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
-        H.printPetsc();
-      #endif
-
-      for (Ii=0;Ii<N;Ii++) { Hinv(Ii,Ii,1/H(Ii,Ii)); }
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nHinv:\n");CHKERRQ(ierr);
-        Hinv.printPetsc();
-      #endif
-
-      // interior stencil for 1st derivative, scaled by multiplication with Hinv's values
-      for (Ii=4;Ii<N-4;Ii++)
-      {
-        D1int(Ii,Ii-2,1.0/12.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii-1,-2.0/3.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii+1,2.0/3.0*Hinv(Ii,Ii));
-        D1int(Ii,Ii+2,-1.0/12.0*Hinv(Ii,Ii));
-      }
-
-      // closures
-      D1int(0,0,-1.0/2.0*Hinv(0,0)); // row 0
-      D1int(0,1,59.0/96.0*Hinv(0,0));
-      D1int(0,2,-1.0/12.0*Hinv(0,0));
-      D1int(0,3,-1.0/32.0*Hinv(0,0));
-      D1int(1,0,-59.0/96.0*Hinv(1,1)); // row 1
-      D1int(1,2,59.0/96.0*Hinv(1,1));
-      D1int(2,0,1.0/12.0*Hinv(2,2)); // row 2
-      D1int(2,1,-59.0/96.0*Hinv(2,2));
-      D1int(2,3,59.0/96.0*Hinv(2,2));
-      D1int(2,4,-1.0/12.0*Hinv(2,2));
-      D1int(3,0,1.0/32.0*Hinv(3,3)); // row 3
-      D1int(3,2,-59.0/96.0*Hinv(3,3));
-      D1int(3,4,2.0/3.0*Hinv(3,3));
-      D1int(3,5,-1.0/12.0*Hinv(3,3));
-
-      D1int(N-1,N-1,1.0/2.0*Hinv(N-1,N-1)); // row N-1
-      D1int(N-1,N-2,-59.0/96.0*Hinv(N-1,N-1));
-      D1int(N-1,N-3,1.0/12.0*Hinv(N-1,N-1));
-      D1int(N-1,N-4,1.0/32.0*Hinv(N-1,N-1));
-      D1int(N-2,N-1,59.0/96.0*Hinv(N-2,N-2)); // row N-2
-      D1int(N-2,N-3,-59.0/96.0*Hinv(N-2,N-2));
-      D1int(N-3,N-1,-1.0/12.0*Hinv(N-3,N-3)); // row N-3
-      D1int(N-3,N-2,59.0/96.0*Hinv(N-3,N-3));
-      D1int(N-3,N-4,-59.0/96.0*Hinv(N-3,N-3));
-      D1int(N-3,N-5,1.0/12.0*Hinv(N-3,N-3));
-      D1int(N-4,N-1,-1.0/32.0*Hinv(N-4,N-4)); // row N-4
-      D1int(N-4,N-3,59.0/96.0*Hinv(N-4,N-4));
-      D1int(N-4,N-5,-2.0/3.0*Hinv(N-4,N-4));
-      D1int(N-4,N-6,1.0/12.0*Hinv(N-4,N-4));
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1int:\n");CHKERRQ(ierr);
-        D1int.printPetsc();
-      #endif
-
-      // not fully compatible
-      // row 1: -1* p666 of Mattsson 2010
-      //~BS(0,0,11.0/6.0*scale); BS(0,1,-3.0*scale); BS(0,2,1.5*scale); BS(0,3,-1.0/3.0*scale);
-      //~BS(N-1,N-1,11.0/6.0); BS(N-1,N-2,-3.0); BS(N-1,N-3,1.5); BS(N-1,N-4,-1.0/3.0);
-
-      // fully compatible
-      BS(0,0,24.0/17.0*scale); BS(0,1,-59.0/34.0*scale);
-      BS(0,2,4.0/17.0*scale); BS(0,3,3.0/34.0*scale);
-      BS(N-1,N-1,24.0/17.0*scale); BS(N-1,N-2,-59.0/34.0*scale);
-      BS(N-1,N-3,4.0/17.0*scale); BS(N-1,N-4,3.0/34.0*scale);
-
-      #if VERBOBSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nBS:\n");CHKERRQ(ierr);
-        BS.printPetsc();
-      #endif
-
-     // for simulations with viscoelasticity, need
-     // 1st deriv on interior as well
-     D1 = D1int;
-
-      #if VERBOSE > 2
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD1:\n");CHKERRQ(ierr);
-        D1.printPetsc();
-      #endif
-
-      break;
-    }
-
-    default:
-      SETERRQ(PETSC_COMM_WORLD,1,"order not understood.");
-      break;
-  }
-
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  //~_runTime = MPI_Wtime() - startTime;
-  return ierr;
-}
-
-
-PetscErrorCode sbp_fc_coordTrans_Spmat2(const PetscInt N,const PetscScalar scale, Spmat& D2, Spmat& C2)
-{
-PetscErrorCode ierr = 0;
-//~double startTime = MPI_Wtime();
-#if VERBOSE >1
-  string funcName = "sbp_fc_coordTrans_Spmat2";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  assert(N > 2 || N == 1);
-
-  if (N == 1) {
-    //~ D2.eye();
-    //~ C2.eye();
-    return ierr;
-  }
-
-  assert(N > 2);
-
-  PetscInt Ii=0;
-
-  D2(0,0,scale*scale); D2(0,1,-2.0*scale*scale); D2(0,2,scale*scale); // first row
-      for (Ii=1;Ii<N-1;Ii++) {
-        D2(Ii,Ii-1,scale*scale);
-        D2(Ii,Ii,-2.0*scale*scale);
-        D2(Ii,Ii+1,scale*scale);
-      }
-  D2(N-1,N-3,scale*scale);D2(N-1,N-2,-2.0*scale*scale);D2(N-1,N-1,scale*scale); // last row
-
-  #if VERBOSE > 2
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"\nD2:\n");CHKERRQ(ierr);
-    D2.printPetsc();
-  #endif
-
-
-  C2.eye();
-  C2(0,0,0);
-  C2(N-1,N-1,0);
-  #if VERBOSE > 2
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"\nC2:\n");CHKERRQ(ierr);
-    C2.printPetsc();
-  #endif
-
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  //~_runTime = MPI_Wtime() - startTime;
-  return ierr;
-}
-
-
-PetscErrorCode sbp_fc_coordTrans_Spmat4(const PetscInt N,const PetscScalar scale,
-                Spmat& D3, Spmat& D4, Spmat& C3, Spmat& C4)
-{
-PetscErrorCode ierr = 0;
-#if VERBOSE >1
-  string funcName = "sbp_fc_coordTrans_Spmat4";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-
-  assert(N > 8 || N == 1);
-
-  if (N==1) {
-    //~ D3.eye();
-    //~ D4.eye();
-    //~ C3.eye();
-    //~ C4.eye();
-    return ierr;
-  }
-
-  PetscInt Ii = 0;
-
-  D3(0,0,-1);D3(0,1,3);D3(0,2,-3);D3(0,3,1); // 1st row
-  D3(1,0,-1);D3(1,1,3);D3(1,2,-3);D3(1,3,1); // 2nd row
-  D3(2,0,-185893.0/301051.0); // 3rd row
-  D3(2,1,79000249461.0/54642863857.0);
-  D3(2,2,-33235054191.0/54642863857.0);
-  D3(2,3,-36887526683.0/54642863857.0);
-  D3(2,4,26183621850.0/54642863857.0);
-  D3(2,5,-4386.0/181507.0);
-  for (Ii=3;Ii<N-4;Ii++)
-  {
-    D3(Ii,Ii-1,-1.0);
-    D3(Ii,Ii,3);
-    D3(Ii,Ii+1,-3);
-    D3(Ii,Ii+2,1.0);
-  }
-  D3(N-3,N-1,-D3(2,0));// third to last row
-  D3(N-3,N-2,-D3(2,1));
-  D3(N-3,N-3,-D3(2,2));
-  D3(N-3,N-4,-D3(2,3));
-  D3(N-3,N-5,-D3(2,4));
-  D3(N-3,N-6,-D3(2,5));
-  D3(N-2,N-4,-1);D3(N-2,N-3,3);D3(N-2,N-2,-3);D3(N-2,N-1,1); // 2nd to last row
-  D3(N-1,N-4,-1);D3(N-1,N-3,3);D3(N-1,N-2,-3);D3(N-1,N-1,1); // last row
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD3:\n");CHKERRQ(ierr);
-  //~D3.printPetsc();
-
-
-  D4(0,0,1); D4(0,1,-4); D4(0,2,6); D4(0,3,-4); D4(0,4,1); // 1st row
-  D4(1,0,1); D4(1,1,-4); D4(1,2,6); D4(1,3,-4); D4(1,4,1); // 1st row
-  for (Ii=2;Ii<N-2;Ii++)
-  {
-    D4(Ii,Ii-2,1);
-    D4(Ii,Ii-1,-4);
-    D4(Ii,Ii,6);
-    D4(Ii,Ii+1,-4);
-    D4(Ii,Ii+2,1);
-  }
-  D4(N-2,N-5,1); D4(N-2,N-4,-4); D4(N-2,N-3,6); D4(N-2,N-2,-4); D4(N-2,N-1,1); // 2nd to last row
-  D4(N-1,N-5,1); D4(N-1,N-4,-4); D4(N-1,N-3,6); D4(N-1,N-2,-4); D4(N-1,N-1,1); // last row
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD4:\n");CHKERRQ(ierr);
-  //~D4.printPetsc();
-
-
-  C3.eye();
-  C3(0,0,0);
-  C3(1,1,0);
-  C3(2,2,163928591571.0/53268010936.0);
-  C3(3,3,189284.0/185893.0);
-  C3(N-5,N-5,C3(3,3));
-  C3(N-4,N-4,0);
-  C3(N-3,N-3,C3(2,2));
-  C3(N-2,N-2,0);
-  C3(N-1,N-1,0);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC3:\n");CHKERRQ(ierr);
-  //~C3.printPetsc();
-
-  C4.eye();
-  C4(0,0,0);
-  C4(1,1,0);
-  C4(2,2,1644330.0/301051.0);
-  C4(3,3,156114.0/181507.0);
-  C4(N-4,N-4,C4(3,3));
-  C4(N-3,N-3,C4(2,2));
-  C4(N-2,N-2,0);
-  C4(N-1,N-1,0);
-  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC4:\n");CHKERRQ(ierr);
-  //~C4.printPetsc();
-
-#if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
-#endif
-  return ierr;
-}
-
-
 
