@@ -191,29 +191,27 @@ Spmat kron(const Spmat& left,const Spmat& right)
 }
 
 
-
-// performs Kronecker product and converts to PETSc Mat
-void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag)
+// calculate the exact nonzero structure which results from the kronecker outer product of
+// left and right
+void kronConvert_symbolic(const Spmat& left,const Spmat& right,Mat& mat,PetscInt* d_nnz,PetscInt* o_nnz)
 {
   size_t leftRowSize = left.size(1);
   size_t leftColSize = left.size(2);
   size_t rightRowSize = right.size(1);
   size_t rightColSize = right.size(2);
 
-
-  PetscInt Istart,Iend;
+  PetscInt Istart,Iend; // rows owned by current processor
+  PetscInt Jstart,Jend; // cols owned by current processor
 
   // allocate space for mat
-  MatCreate(PETSC_COMM_WORLD,&mat);
-  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,leftRowSize*rightRowSize,leftColSize*rightColSize);
-  MatSetFromOptions(mat);
-  MatMPIAIJSetPreallocation(mat,diag,NULL,offDiag,NULL);
-  MatSeqAIJSetPreallocation(mat,diag+offDiag,NULL);
-  MatSetUp(mat);
   MatGetOwnershipRange(mat,&Istart,&Iend);
+  MatGetOwnershipRangeColumn(mat,&Jstart,&Jend);
+  PetscInt m = Iend - Istart;
+  PetscInt n = Jend - Jstart;
 
-   // NOTE: This might potentially really slow things down!!
-  MatSetOption(mat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  for(int ii=0; ii<m; ii++) { d_nnz[ii] = 0; }
+  for(int ii=0; ii<m; ii++) { o_nnz[ii] = 0; }
+
 
   // iterate over only nnz entries
   Spmat::const_row_iter IiL,IiR;
@@ -228,7 +226,76 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
       rowL = IiL->first;
       colL = JjL->first;
       valL = JjL->second;
-      if (valL==0) {continue;}
+      if (valL==0) { continue; }
+
+      // loop over all values in right
+      for(IiR=right._mat.begin(); IiR!=right._mat.end(); IiR++)
+      {
+        for( JjR=(IiR->second).begin(); JjR!=(IiR->second).end(); JjR++)
+        {
+          rowR = IiR->first;
+          colR = JjR->first;
+          valR = JjR->second;
+
+          // the new values and coordinates for the product matrix
+          val = valL*valR;
+          row = rowL*rightRowSize + rowR;
+          col = colL*rightColSize + colR;
+
+          PetscInt ii = row - Istart; // array index for d_nnz and o_nnz
+          if (val!=0 && row >= Istart && row < Iend && col >= Jstart && col < Jend) { d_nnz[ii]++; }
+          if ( (val!=0 && row >= Istart && row < Iend) && (col < Jstart || col >= Jend) ) { o_nnz[ii]++; }
+        }
+      }
+    }
+  }
+}
+
+
+// performs Kronecker product and converts to PETSc Mat
+void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag)
+{
+  size_t leftRowSize = left.size(1);
+  size_t leftColSize = left.size(2);
+  size_t rightRowSize = right.size(1);
+  size_t rightColSize = right.size(2);
+
+  // create matrix
+  MatCreate(PETSC_COMM_WORLD,&mat);
+  MatSetSizes(mat,PETSC_DECIDE,PETSC_DECIDE,leftRowSize*rightRowSize,leftColSize*rightColSize);
+  MatSetFromOptions(mat);
+  MatSetUp(mat);
+
+  // symbolic kronConvert to allocate space for matrix
+  PetscInt Istart,Iend; // rows owned by processor
+  PetscInt Jstart,Jend; // cols owned by processor
+  MatGetOwnershipRange(mat,&Istart,&Iend);
+  MatGetOwnershipRangeColumn(mat,&Jstart,&Jend);
+  PetscInt m = Iend - Istart;
+  PetscInt n = Jend - Jstart;
+  PetscInt d_nnz[m], o_nnz[m];
+  kronConvert_symbolic(left,right,mat,d_nnz,o_nnz);
+
+  // allocate space for mat
+  MatMPIAIJSetPreallocation(mat,NULL,d_nnz,NULL,o_nnz);
+  MatSeqAIJSetPreallocation(mat,NULL,d_nnz);
+  MatSetUp(mat);
+
+
+  // iterate over only nnz entries
+  Spmat::const_row_iter IiL,IiR;
+  Spmat::const_col_iter JjL,JjR;
+  double valL=0.0,valR=0.0,val=0.0;
+  PetscInt row,col;
+  size_t rowL,colL,rowR,colR;
+  for(IiL=left._mat.begin(); IiL!=left._mat.end(); IiL++) // loop over all values in left
+  {
+    for( JjL=(IiL->second).begin(); JjL!=(IiL->second).end(); JjL++)
+    {
+      rowL = IiL->first;
+      colL = JjL->first;
+      valL = JjL->second;
+      if (valL==0) { continue; }
 
       // loop over all values in right
       for(IiR=right._mat.begin(); IiR!=right._mat.end(); IiR++)

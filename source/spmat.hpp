@@ -40,6 +40,7 @@ public:
 
   friend Spmat kron(const Spmat& left,const Spmat& right);
   friend void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,PetscInt offDiag);
+  friend void kronConvert_symbolic(const Spmat& left,const Spmat& right,Mat& mat,PetscInt* d_nnz,PetscInt* o_nnz);
 
 
   // inline functions are defined in the header file
