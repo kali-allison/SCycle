@@ -197,8 +197,6 @@ Spmat kron(const Spmat& left,const Spmat& right)
 // left and right
 void kronConvert_symbolic(const Spmat& left,const Spmat& right,Mat& mat,PetscInt* d_nnz,PetscInt* o_nnz)
 {
-  size_t leftRowSize = left.size(1);
-  size_t leftColSize = left.size(2);
   size_t rightRowSize = right.size(1);
   size_t rightColSize = right.size(2);
 
@@ -209,7 +207,6 @@ void kronConvert_symbolic(const Spmat& left,const Spmat& right,Mat& mat,PetscInt
   MatGetOwnershipRange(mat,&Istart,&Iend);
   MatGetOwnershipRangeColumn(mat,&Jstart,&Jend);
   PetscInt m = Iend - Istart;
-  PetscInt n = Jend - Jstart;
 
   for(int ii=0; ii<m; ii++) { d_nnz[ii] = 0; }
   for(int ii=0; ii<m; ii++) { o_nnz[ii] = 0; }
@@ -274,13 +271,12 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
   MatGetOwnershipRange(mat,&Istart,&Iend);
   MatGetOwnershipRangeColumn(mat,&Jstart,&Jend);
   PetscInt m = Iend - Istart;
-  PetscInt n = Jend - Jstart;
   PetscInt d_nnz[m], o_nnz[m];
   kronConvert_symbolic(left,right,mat,d_nnz,o_nnz);
 
   // allocate space for mat
-  MatMPIAIJSetPreallocation(mat,NULL,d_nnz,NULL,o_nnz);
-  MatSeqAIJSetPreallocation(mat,NULL,d_nnz);
+  MatMPIAIJSetPreallocation(mat,diag,d_nnz,offDiag,o_nnz); // arguments diag, offdiag will be ignored
+  MatSeqAIJSetPreallocation(mat,diag,d_nnz); // argument diag will be ignored
   MatSetUp(mat);
 
 
