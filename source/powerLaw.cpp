@@ -447,6 +447,8 @@ PetscErrorCode DiffusionCreep::loadSettings()
     else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
     else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
+    else if (var.compare("mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
 
   }
 
@@ -469,9 +471,11 @@ PetscErrorCode DiffusionCreep::checkInput()
     assert(_AVals.size() >= 2);
     assert(_BVals.size() >= 2);
     assert(_nVals.size() >= 2);
+    assert(_mVals.size() >= 2);
     assert(_AVals.size() == _ADepths.size() );
     assert(_BVals.size() == _BDepths.size() );
     assert(_nVals.size() == _nDepths.size() );
+    assert(_mVals.size() == _mDepths.size() );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -490,10 +494,11 @@ PetscErrorCode DiffusionCreep::setMaterialParameters()
   #endif
 
   VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths);
-  VecDuplicate(*_y,&_QR); setVec(_QR,*_z,_BVals,_BDepths);
-  VecDuplicate(*_y,&_n);  setVec(_n,*_z,_nVals,_nDepths);
+  VecDuplicate(_A,&_QR); setVec(_QR,*_z,_BVals,_BDepths);
+  VecDuplicate(_A,&_n);  setVec(_n,*_z,_nVals,_nDepths);
+  VecDuplicate(_A,&_m);  setVec(_m,*_z,_nVals,_nDepths);
 
-  VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
+  VecDuplicate(_A,&_invEffVisc); VecSet(_invEffVisc,1.0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -514,6 +519,7 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_m,_inputDir,"momBal_m"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"momBal_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
