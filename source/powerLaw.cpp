@@ -3,6 +3,189 @@
 #define FILENAME "powerLaw.cpp"
 
 
+//======================================================================
+// pseudoplasticity class
+
+Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const std::string delim)
+: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+{
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::Pseudoplasticity";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  loadSettings();
+  checkInput();
+  setMaterialParameters();
+  loadFieldsFromFiles();
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+Pseudoplasticity::~Pseudoplasticity()
+{
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::~Pseudoplasticity";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecDestroy(&_yieldStress);
+  VecDestroy(&_invEffVisc);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+// loads settings from the input text file
+PetscErrorCode Pseudoplasticity::loadSettings()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::loadSettings()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( _file );
+  string line, var, rhs, rhsFull;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
+
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
+
+    if (var.compare("inputDir")==0) { _inputDir = rhs; }
+    else if (var.compare("yieldStressVals")==0) { loadVectorFromInputFile(rhsFull,_yieldStressVals); }
+    else if (var.compare("yieldStressDepths")==0) { loadVectorFromInputFile(rhsFull,_yieldStressDepths); }
+
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Pseudoplasticity::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::checkInput";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+    assert(_yieldStressVals.size() >= 2);
+    assert(_yieldStressVals.size() == _yieldStressDepths.size() );
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Pseudoplasticity::setMaterialParameters()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::setMaterialParameters";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  VecDuplicate(*_y,&_yieldStress);
+  ierr = setVec(_yieldStress,*_z,_yieldStressVals,_yieldStressDepths); CHKERRQ(ierr);
+
+  VecDuplicate(*_y,&_invEffVisc);
+  VecSet(_invEffVisc,1.0);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Pseudoplasticity::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::loadFieldsFromFiles()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = loadVecFromInputFile(_yieldStress,_inputDir,"momBal_yieldStress"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"momBal_invEffVisc"); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute 1 / (effective viscosity)
+PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Pseudoplasticity::computeInvEffVisc()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscScalar const *dg=0,*sy=0;
+  PetscScalar *invEffVisc=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
+  VecGetArrayRead(_yieldStress,&sy);
+  VecGetArrayRead(dgdev,&dg);
+  VecGetArray(_invEffVisc,&invEffVisc);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    invEffVisc[Jj] = sy[Jj] / dg[Jj];
+    Jj++;
+  }
+  VecRestoreArrayRead(dgdev,&dg);
+  VecRestoreArray(_invEffVisc,&invEffVisc);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+//======================================================================
+// dislocation creep class
+
+//======================================================================
+// diffusion creep class
+
+
+//======================================================================
+// power-law rheology class
+
 PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
@@ -21,9 +204,7 @@ PowerLaw::PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bc
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0),_linSolveCount(0),
   _u(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
-  _gxy(NULL),_dgxy(NULL),
-  _gxz(NULL),_dgxz(NULL),
-  _gTxy(NULL),_gTxz(NULL),
+  _gxy(NULL),_dgxy(NULL),_gxz(NULL),_dgxz(NULL),_gdev(NULL),_dgdev(NULL),_gTxy(NULL),_gTxz(NULL),
   _bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
   _bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL)
 {

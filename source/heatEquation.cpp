@@ -1506,7 +1506,6 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
 
 // compute viscous shear heating term (uses temperature from previous time step)
-// output is sized lithosphere-only
 PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const Vec& dgxy, const Vec& dgxz)
 {
   PetscErrorCode ierr = 0;

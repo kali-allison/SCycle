@@ -13,6 +13,94 @@
 #include "sbpOps_m_varGrid.hpp"
 
 
+// computes effective viscosity for pseudoplasticity
+// 1 / (effVisc) = (yield stress) / (inelastic strain rate)
+class Pseudoplasticity
+{
+  private:
+    // disable default copy constructor and assignment operator
+    Pseudoplasticity(const Pseudoplasticity &that);
+    Pseudoplasticity& operator=(const Pseudoplasticity &rhs);
+
+    // load settings and set material parameters
+    std::vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
+    PetscErrorCode loadSettings(); // load settings from input file
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode checkInput(); // check input from file
+    PetscErrorCode setMaterialParameters();
+
+  public:
+    const char          *_file;
+    const std::string    _delim;
+    std::string          _inputDir; // directory to load fields from
+    const Vec           *_y,*_z;
+    Vec                  _yieldStress; // (MPa)
+    Vec                  _invEffVisc; // (GPa) eff. viscosity from plasticity
+
+    Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const std::string delim);
+    ~Pseudoplasticity();
+    PetscErrorCode computeInvEffVisc(const Vec& dgdev);
+};
+
+// computes effective viscosity for dislocation creep
+// 1 / (effVisc) = A exp(-B/T) sdev^n
+class DislocationCreep
+{
+  private:
+    // disable default copy constructor and assignment operator
+    DislocationCreep(const DislocationCreep &that);
+    DislocationCreep& operator=(const DislocationCreep &rhs);
+
+    // load settings and set material parameters
+    std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
+    PetscErrorCode loadSettings(); // load settings from input file
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode checkInput(); // check input from file
+    PetscErrorCode setMaterialParameters();
+
+  public:
+    const char          *_file;
+    std::string          _delim;
+    std::string          _inputDir; // directory to load fields from
+    const Vec           *_y,*_z;
+    Vec                  _A,_n,_QR;
+    Vec                  _invEffVisc; // 1 / (effective viscosity)
+
+    DislocationCreep(const Vec y, const Vec z, const char *file);
+    ~DislocationCreep();
+    PetscErrorCode computeInvEffVisc(const Vec& T,const Vec& sdev);
+};
+
+// computes effective viscosity for diffusion creep
+// 1 / (effVisc) = A exp(-B/T) sdev^n d^-m
+class DiffusionCreep
+{
+  private:
+    // disable default copy constructor and assignment operator
+    DiffusionCreep(const DiffusionCreep &that);
+    DiffusionCreep& operator=(const DiffusionCreep &rhs);
+
+    // load settings and set material parameters
+    std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_mVals,_mDepths;
+    PetscErrorCode loadSettings(); // load settings from input file
+    PetscErrorCode loadFieldsFromFiles();
+    PetscErrorCode checkInput(); // check input from file
+    PetscErrorCode setMaterialParameters();
+
+  public:
+    const char          *_file;
+    std::string          _delim;
+    std::string          _inputDir; // directory to load fields from
+    const Vec           *_y,*_z;
+    Vec                  _A,_n,_QR,_m;
+    Vec                  _invEffVisc; // 1 / (effective viscosity)
+
+    DiffusionCreep(const Vec y, const Vec z, const char *file);
+    ~DiffusionCreep();
+    PetscErrorCode computeInvEffVisc(const Vec& T,const Vec& sdev,const Vec& d);
+};
+
+
 class PowerLaw
 {
   private:
@@ -45,6 +133,11 @@ class PowerLaw
     std::vector<double>  _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     Vec                  _A,_n,_QR,_T;
     Vec                  _effVisc;
+
+    // pseudoplasticity
+    std::vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
+    Vec                  _yieldStress; // (MPa)
+    Vec                  _effViscP; // (GPa) eff. viscosity from plasticity
     PetscScalar          _effViscCap; // imposed upper limit on effective viscosity
 
     // linear system data
@@ -83,6 +176,7 @@ class PowerLaw
     Vec          _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec          _gxy,_dgxy; // viscoelastic strain and strain rate
     Vec          _gxz,_dgxz; // viscoelastic strain and strain rate
+    Vec          _gdev,_dgdev; // deviatoric strain and strain rate
     Vec          _gTxy,_gTxz; // total strain
     std::string  _bcRType,_bcTType,_bcLType,_bcBType; // options: Neumann, Dirichlet
     Vec          _bcT,_bcR,_bcB,_bcL;
