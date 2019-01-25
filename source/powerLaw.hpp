@@ -66,9 +66,9 @@ class DislocationCreep
     Vec                  _A,_n,_QR;
     Vec                  _invEffVisc; // 1 / (effective viscosity)
 
-    DislocationCreep(const Vec y, const Vec z, const char *file);
+    DislocationCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
     ~DislocationCreep();
-    PetscErrorCode computeInvEffVisc(const Vec& T,const Vec& sdev);
+    PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
 };
 
 // computes effective viscosity for diffusion creep
@@ -95,9 +95,9 @@ class DiffusionCreep
     Vec                  _A,_n,_QR,_m;
     Vec                  _invEffVisc; // 1 / (effective viscosity)
 
-    DiffusionCreep(const Vec y, const Vec z, const char *file);
+    DiffusionCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
     ~DiffusionCreep();
-    PetscErrorCode computeInvEffVisc(const Vec& T,const Vec& sdev,const Vec& d);
+    PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
 };
 
 

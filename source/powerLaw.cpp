@@ -179,8 +179,392 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 //======================================================================
 // dislocation creep class
 
+DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file, const std::string delim)
+: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+{
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::DislocationCreep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  loadSettings();
+  checkInput();
+  setMaterialParameters();
+  loadFieldsFromFiles();
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+DislocationCreep::~DislocationCreep()
+{
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::~DislocationCreep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecDestroy(&_A);
+  VecDestroy(&_n);
+  VecDestroy(&_QR);
+  VecDestroy(&_invEffVisc);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+// loads settings from the input text file
+PetscErrorCode DislocationCreep::loadSettings()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "DislocationCreep::loadSettings()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( _file );
+  string line, var, rhs, rhsFull;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
+
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
+
+    if (var.compare("inputDir")==0) { _inputDir = rhs; }
+    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DislocationCreep::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::checkInput";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+    assert(_AVals.size() >= 2);
+    assert(_BVals.size() >= 2);
+    assert(_nVals.size() >= 2);
+    assert(_AVals.size() == _ADepths.size() );
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_nVals.size() == _nDepths.size() );
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DislocationCreep::setMaterialParameters()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::setMaterialParameters";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths);
+  VecDuplicate(*_y,&_QR); setVec(_QR,*_z,_BVals,_BDepths);
+  VecDuplicate(*_y,&_n);  setVec(_n,*_z,_nVals,_nDepths);
+
+  VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DislocationCreep::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::loadFieldsFromFiles()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"momBal_invEffVisc"); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute 1 / (effective viscosity)
+PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DislocationCreep::computeInvEffVisc";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscScalar const *s,*A,*B,*n,*T=0;
+  PetscScalar *invEffVisc=0;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
+  VecGetArrayRead(sdev,&s);
+  VecGetArrayRead(_A,&A);
+  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_n,&n);
+  VecGetArrayRead(Temp,&T);
+  VecGetArray(_invEffVisc,&invEffVisc);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]);
+    Jj++;
+  }
+  VecRestoreArrayRead(sdev,&s);
+  VecRestoreArrayRead(_A,&A);
+  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_n,&n);
+  VecRestoreArrayRead(Temp,&T);
+  VecRestoreArray(_invEffVisc,&invEffVisc);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
 //======================================================================
 // diffusion creep class
+
+
+DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, const std::string delim)
+: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+{
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::DiffusionCreep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  loadSettings();
+  checkInput();
+  setMaterialParameters();
+  loadFieldsFromFiles();
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+DiffusionCreep::~DiffusionCreep()
+{
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::~DiffusionCreep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecDestroy(&_A);
+  VecDestroy(&_n);
+  VecDestroy(&_QR);
+  VecDestroy(&_m);
+  VecDestroy(&_invEffVisc);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+}
+
+// loads settings from the input text file
+PetscErrorCode DiffusionCreep::loadSettings()
+{
+  PetscErrorCode ierr = 0;
+#if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::loadSettings()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  PetscMPIInt rank,size;
+  MPI_Comm_size(PETSC_COMM_WORLD,&size);
+  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+
+  ifstream infile( _file );
+  string line, var, rhs, rhsFull;
+  size_t pos = 0;
+  while (getline(infile, line))
+  {
+    istringstream iss(line);
+    pos = line.find(_delim); // find position of the delimiter
+    var = line.substr(0,pos);
+    rhs = "";
+    if (line.length() > (pos + _delim.length())) {
+      rhs = line.substr(pos+_delim.length(),line.npos);
+    }
+    rhsFull = rhs; // everything after _delim
+
+    // interpret everything after the appearance of a space on the line as a comment
+    pos = rhs.find(" ");
+    rhs = rhs.substr(0,pos);
+
+    if (var.compare("inputDir")==0) { _inputDir = rhs; }
+    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DiffusionCreep::checkInput()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::checkInput";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+    assert(_AVals.size() >= 2);
+    assert(_BVals.size() >= 2);
+    assert(_nVals.size() >= 2);
+    assert(_AVals.size() == _ADepths.size() );
+    assert(_BVals.size() == _BDepths.size() );
+    assert(_nVals.size() == _nDepths.size() );
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DiffusionCreep::setMaterialParameters()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::setMaterialParameters";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths);
+  VecDuplicate(*_y,&_QR); setVec(_QR,*_z,_BVals,_BDepths);
+  VecDuplicate(*_y,&_n);  setVec(_n,*_z,_nVals,_nDepths);
+
+  VecDuplicate(*_y,&_invEffVisc); VecSet(_invEffVisc,1.0);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::loadFieldsFromFiles()";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = loadVecFromInputFile(_A,_inputDir,"momBal_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"momBal_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"momBal_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"momBal_invEffVisc"); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// compute 1 / (effective viscosity)
+PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "DiffusionCreep::computeInvEffVisc";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscScalar const *s,*A,*B,*n,*T,*d,*m;
+  PetscScalar *invEffVisc;
+  PetscInt Ii,Istart,Iend;
+  VecGetOwnershipRange(_invEffVisc,&Istart,&Iend);
+  VecGetArrayRead(sdev,&s);
+  VecGetArrayRead(grainSize,&d);
+  VecGetArrayRead(_A,&A);
+  VecGetArrayRead(_QR,&B);
+  VecGetArrayRead(_n,&n);
+  VecGetArrayRead(_m,&m);
+  VecGetArrayRead(Temp,&T);
+  VecGetArray(_invEffVisc,&invEffVisc);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    invEffVisc[Jj] = 1e3 * A[Jj] * pow(s[Jj],n[Jj]-1.0) * exp(-B[Jj]/T[Jj]) * pow(d[Jj],-m[Jj]);
+    Jj++;
+  }
+  VecRestoreArrayRead(sdev,&s);
+  VecRestoreArrayRead(grainSize,&d);
+  VecRestoreArrayRead(_A,&A);
+  VecRestoreArrayRead(_QR,&B);
+  VecRestoreArrayRead(_n,&n);
+  VecRestoreArrayRead(_m,&m);
+  VecRestoreArrayRead(Temp,&T);
+  VecRestoreArray(_invEffVisc,&invEffVisc);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 
 //======================================================================
