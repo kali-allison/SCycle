@@ -191,24 +191,24 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   if (_loadICs) { assert(_guessSteadyStateICs == 0); }
 
   assert(_thermalCoupling.compare("coupled")==0 ||
-      _thermalCoupling.compare("uncoupled")==0 ||
-      _thermalCoupling.compare("no")==0 );
+    _thermalCoupling.compare("uncoupled")==0 ||
+    _thermalCoupling.compare("no")==0 );
 
   assert(_hydraulicCoupling.compare("coupled")==0 ||
-      _hydraulicCoupling.compare("uncoupled")==0 ||
-      _hydraulicCoupling.compare("no")==0 );
+    _hydraulicCoupling.compare("uncoupled")==0 ||
+    _hydraulicCoupling.compare("no")==0 );
 
   assert(_forcingType.compare("iceStream")==0 || _forcingType.compare("no")==0 );
 
   assert(_timeIntegrator.compare("FEuler")==0 ||
-      _timeIntegrator.compare("RK32")==0 ||
-      _timeIntegrator.compare("RK43")==0 ||
-      _timeIntegrator.compare("RK32_WBE")==0 ||
+    _timeIntegrator.compare("RK32")==0 ||
+    _timeIntegrator.compare("RK43")==0 ||
+    _timeIntegrator.compare("RK32_WBE")==0 ||
     _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
-         _timeControlType.compare("PI")==0 ||
-         _timeControlType.compare("PID")==0 );
+    _timeControlType.compare("PI")==0 ||
+    _timeControlType.compare("PID")==0 );
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
   assert(_maxStepCount >= 0);

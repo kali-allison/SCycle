@@ -434,26 +434,6 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   delete _sbp;
   KSPDestroy(&_ksp);
 
-
-  //~ if (_sbpType.compare("mc")==0) {
-    //~ _sbp = new SbpOps_c(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  //~ }
-  //~ else if (_sbpType.compare("mfc")==0) {
-    //~ _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-  //~ }
-  //~ else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    //~ _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
-    //~ if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    //~ else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    //~ else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
-  //~ }
-  //~ else {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    //~ assert(0); // automatically fail
-  //~ }
-  //~ _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
-  //~ _sbp->setMultiplyByH(1);
-  //~ _sbp->computeMatrices(); // actually create the matrices
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
   }
@@ -471,7 +451,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   _sbp->setBCTypes(_bcRType,_bcTType,_bcLType,_bcBType);
   _sbp->setMultiplyByH(1);
   _sbp->setLaplaceType("yz");
-  _sbp->setDeleteIntermediateFields(1);
+  _sbp->setDeleteIntermediateFields(0);
   _sbp->computeMatrices(); // actually create the matrices
 
 
@@ -669,9 +649,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     ierr = MatMatMatMult(yq,zr,H,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxzrxH); CHKERRQ(ierr);
-    //~ ierr = MatMatMult(yqxzrxH,Hzinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
     ierr = MatMatMult(yq,Hy,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&yqxHy); CHKERRQ(ierr);
-    //~ ierr = MatMatMult(yqxzrxH,Hyinv,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
     ierr = MatMatMult(zr,Hz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&zrxHz); CHKERRQ(ierr);
   }
   else {
@@ -1420,23 +1398,24 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
 
   // set up SBP operators
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    _sbp_eta = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
-    if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
+    _sbp_eta = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_effVisc);
+    if (_Ny > 1 && _Nz > 1) { _sbp_eta->setGrid(_y,_z); }
+    else if (_Ny == 1 && _Nz > 1) { _sbp_eta->setGrid(NULL,_z); }
+    else if (_Ny > 1 && _Nz == 1) { _sbp_eta->setGrid(_y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
     assert(0); // automatically fail
   }
-  _sbp->setCompatibilityType(_D->_sbpCompatibilityType);
+  _sbp_eta->setCompatibilityType(_D->_sbpCompatibilityType);
   _sbp_eta->setBCTypes(bcRType,bcTType,bcLType,bcBType);
-  _sbp->setMultiplyByH(1);
-  _sbp->setLaplaceType("yz");
-  _sbp->computeMatrices(); // actually create the matrices
+  _sbp_eta->setMultiplyByH(1);
+  _sbp_eta->setLaplaceType("yz");
+  _sbp_eta->setDeleteIntermediateFields(0);
+  _sbp_eta->computeMatrices(); // actually create the matrices
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

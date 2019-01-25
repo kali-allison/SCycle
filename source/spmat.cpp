@@ -1,5 +1,7 @@
 #include "spmat.hpp"
 
+using namespace std;
+
 // constructor
 Spmat::Spmat(size_t rowSize, size_t colSize)
 :_rowSize(rowSize),_colSize(colSize)

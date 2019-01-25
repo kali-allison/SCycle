@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <petscts.h>
 #include <petscdmda.h>
+#include <string>
 
 /*
  * Small class for sparse matrices, supporting a very limited set of

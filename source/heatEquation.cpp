@@ -582,13 +582,13 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
     //~ assert(0); // automatically fail
   //~ }
     if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_k);
+    sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz_lab,_Ly,_Lz,k);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_k);
-    if (_Ny > 1 && _Nz > 1) { sbp->setGrid(_y,_z); }
-    else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,_z); }
-    else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(_y,NULL); }
+    sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz_lab,_Ly,_Lz,k);
+    if (_Ny > 1 && _Nz_lab > 1) { sbp->setGrid(&y,&z); }
+    else if (_Ny == 1 && _Nz_lab > 1) { sbp->setGrid(NULL,&z); }
+    else if (_Ny > 1 && _Nz_lab == 1) { sbp->setGrid(&y,NULL); }
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
