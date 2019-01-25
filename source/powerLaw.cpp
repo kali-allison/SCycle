@@ -810,10 +810,7 @@ PetscErrorCode PowerLaw::allocateFields()
   #endif
 
   // boundary conditions
-  VecCreate(PETSC_COMM_WORLD,&_bcL);
-  VecSetSizes(_bcL,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_bcL);
-  PetscObjectSetName((PetscObject) _bcL, "_bcL");
+  VecDuplicate(_y0,&_bcL); PetscObjectSetName((PetscObject) _bcL, "_bcL");
   VecSet(_bcL,0.0);
 
   VecDuplicate(_bcL,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
@@ -821,11 +818,7 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
   VecSet(_bcR,0.);
 
-
-  VecCreate(PETSC_COMM_WORLD,&_bcT);
-  VecSetSizes(_bcT,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_bcT);
-  PetscObjectSetName((PetscObject) _bcT, "_bcT");
+  VecDuplicate(_z0,&_bcT); PetscObjectSetName((PetscObject) _bcT, "_bcT");
   VecSet(_bcT,0.0);
 
   VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "_bcB");
