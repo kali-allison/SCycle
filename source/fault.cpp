@@ -712,6 +712,25 @@ PetscErrorCode Fault_qd::updateFields(const PetscScalar time,const map<string,Ve
 
 
 
+// tauQS = tau + eta_rad*V
+PetscErrorCode Fault_qd::computeTauQS(const Vec& tau, const Vec& slipVel)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "Fault_qd::computeTauQS";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  VecCopy(_slipVel,_tauQSP); // V -> tauQS
+  VecPointwiseMult(_tauQSP,_eta_rad,_tauQSP); // tauQS = V * eta_rad
+  VecAYPX(_tauQSP,1.0,_tauP); // tauQS = tau + V*eta_rad
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 // assumes right-lateral fault
 PetscErrorCode Fault_qd::computeVel()
 {

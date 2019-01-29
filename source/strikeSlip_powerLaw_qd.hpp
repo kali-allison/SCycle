@@ -23,6 +23,7 @@
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "powerLaw.hpp"
+#include "grainSizeEvolution.hpp"
 
 
 
@@ -53,7 +54,8 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     std::string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
-    std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    std::string          _thermalCoupling; // thermomechanical coupling
+    std::string          _grainSizeEvCoupling; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
@@ -103,6 +105,7 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     PowerLaw               *_material; // power-law viscoelastic off-fault material properties
     HeatEquation           *_he;
     PressureEq             *_p;
+    GrainSizeEvolution     *_grainDist;
 
 
     StrikeSlip_PowerLaw_qd(Domain&D);
@@ -121,9 +124,9 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     //~ std::map <string,PetscViewer>  _viewers;
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
     std::map <string,Vec>                             _varSS; // holds variables for steady state iteration
-    PetscScalar                                       _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
+    PetscScalar                                       _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
     PetscScalar                                       _gss_t; // guess steady state strain rate
-    PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
+    PetscInt                 _maxSSIts_effVisc,_maxSSIts_tot,_maxSSIts_timesteps; // max iterations allowed
     PetscScalar              _atolSS_effVisc;
 
     PetscErrorCode writeSS(const int Ii, const std::string outputDir);
@@ -131,9 +134,12 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     PetscErrorCode guessTauSS(map<string,Vec>& varSS);
     PetscErrorCode solveSSb();
     PetscErrorCode integrateSS();
-    PetscErrorCode solveSS();
+    PetscErrorCode solveSS(const PetscInt Jj, const std::string baseOutDir);
     PetscErrorCode setSSBCs();
-    PetscErrorCode solveSSViscoelasticProblem();
+    PetscErrorCode solveSSViscoelasticProblem(const PetscInt Jj, const std::string baseOutDir); // iterate for effective viscosity
+    PetscErrorCode solveSStau(const PetscInt Jj, const std::string outputDir); // brute force for steady-state shear stress on fault
+    PetscErrorCode solveSSHeatEquation(const PetscInt Jj); // brute force for steady-state temperature
+    PetscErrorCode solveSSGrainSize(const PetscInt Jj); // solve for steady-state grain size distribution
 
 
     // time stepping functions

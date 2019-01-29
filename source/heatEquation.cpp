@@ -148,7 +148,6 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-
   ifstream infile( file );
   string line, var, rhs, rhsFull;
   size_t pos = 0;
@@ -187,7 +186,8 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
 
     else if (var.compare("Nz_lab")==0) { _Nz_lab = atoi( rhs.c_str() ); }
     else if (var.compare("TVals")==0) { // TVals = [T0 T_lab TN] || [T0 TN]
-      loadVectorFromInputFile(rhsFull,_TVals); }
+      loadVectorFromInputFile(rhsFull,_TVals);
+    }
     else if (var.compare("TDepths")==0) {
       loadVectorFromInputFile(rhsFull,_TDepths);
       assert(_TDepths.size() >= 2 && _TDepths.size() <= 4);
@@ -479,22 +479,24 @@ PetscErrorCode HeatEquation::constructMapV()
   else { VecSet(_w,0.); }
   VecMax(_w,NULL,&_wMax);
 
-  PetscScalar const *y,*w;
-  PetscScalar *g;
-  VecGetOwnershipRange(_Gw,&Istart,&Iend);
-  VecGetArrayRead(*_y,&y);
-  VecGetArrayRead(_w,&w);
-  VecGetArray(_Gw,&g);
-  Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
-    g[Jj] = exp(-y[Jj]*y[Jj] / (2.*w[Jj]*w[Jj])) / sqrt(2. * M_PI) / w[Jj];
-    assert(!isnan(g[Jj]));
-    assert(!isinf(g[Jj]));
-    Jj++;
+  if (_wVals.size() > 0 ) {
+    PetscScalar const *y,*w;
+    PetscScalar *g;
+    VecGetOwnershipRange(_Gw,&Istart,&Iend);
+    VecGetArrayRead(*_y,&y);
+    VecGetArrayRead(_w,&w);
+    VecGetArray(_Gw,&g);
+    Jj = 0;
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      g[Jj] = exp(-y[Jj]*y[Jj] / (2.*w[Jj]*w[Jj])) / sqrt(2. * M_PI) / w[Jj];
+      assert(!isnan(g[Jj]));
+      assert(!isinf(g[Jj]));
+      Jj++;
+    }
+    VecRestoreArrayRead(*_y,&y);
+    VecRestoreArrayRead(_w,&w);
+    VecRestoreArray(_Gw,&g);
   }
-  VecRestoreArrayRead(*_y,&y);
-  VecRestoreArrayRead(_w,&w);
-  VecRestoreArray(_Gw,&g);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

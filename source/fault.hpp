@@ -155,6 +155,7 @@ class Fault_qd: public Fault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
+    PetscErrorCode computeTauQS(const Vec& tau, const Vec& slipVel);
 
     PetscErrorCode writeContext(const std::string outputDir);
 };

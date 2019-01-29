@@ -12,7 +12,6 @@ isFault = true
 geometry = symmetric
 
 # specify what problem to simulate
-problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = switching
 guessSteadyStateICs = 1 # estimate steady-state initial conditions

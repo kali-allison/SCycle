@@ -19,7 +19,6 @@ bCoordTrans = 7 # controls grid stretching perpendicular to the fault: larger b 
 inputDir = examples/ex3_
 
 # specify what problem to simulate
-#bulkDeformationType = powerLaw # off-fault constitutive law
 bulkDeformationType = linearElastic # off-fault constitutive law
 momentumBalanceType = quasidynamic_and_dynamic # form of the momentum balance equation
 guessSteadyStateICs = 1 # use estimate of steady-state as initial condition
@@ -47,14 +46,6 @@ muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3) rock density
 rhoDepths = [0 60] # (km)
-
-# power law properties: wet feldspar
-AVals = [1585 1585]
-ADepths = [0 100]
-BVals = [4.157e4 4.157e4]
-BDepths = [0 100]
-nVals = [3 3]
-nDepths = [0 100]
 
 #=======================================================================
 # settings for time integration

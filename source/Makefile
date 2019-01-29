@@ -8,10 +8,10 @@ CLINKER		      = openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
- linearElastic.o powerLaw.o heatEquation.o \
+ linearElastic.o powerLaw.o heatEquation.o grainSizeEvolution.o \
  spmat.o sbpOps_m_constGrid.o sbpOps_m_varGrid.o \
  odeSolverImex.o odeSolver_WaveEq.o odeSolver_WaveImex.o pressureEq.o \
- strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o powerLaw.o \
+ strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o \
  strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
 
 
@@ -46,6 +46,8 @@ domain.o: domain.cpp domain.hpp genFuncs.hpp
 fault.o: fault.cpp fault.hpp genFuncs.hpp domain.hpp \
  rootFinderContext.hpp rootFinder.hpp
 genFuncs.o: genFuncs.cpp genFuncs.hpp
+grainSizeEvolution.o: grainSizeEvolution.cpp grainSizeEvolution.hpp \
+ genFuncs.hpp domain.hpp heatEquation.hpp
 heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \

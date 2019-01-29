@@ -39,7 +39,9 @@ class Pseudoplasticity
 
     Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const std::string delim);
     ~Pseudoplasticity();
+    PetscErrorCode guessInvEffVisc(const double dg);
     PetscErrorCode computeInvEffVisc(const Vec& dgdev);
+    PetscErrorCode writeContext(const std::string outputDir);
 };
 
 // computes effective viscosity for dislocation creep
@@ -68,7 +70,9 @@ class DislocationCreep
 
     DislocationCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
     ~DislocationCreep();
+    PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
     PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
+    PetscErrorCode writeContext(const std::string outputDir);
 };
 
 // computes effective viscosity for diffusion creep
@@ -97,7 +101,9 @@ class DiffusionCreep
 
     DiffusionCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
     ~DiffusionCreep();
+    PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
     PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
+    PetscErrorCode writeContext(const std::string outputDir);
 };
 
 
@@ -121,6 +127,7 @@ class PowerLaw
     Vec                 *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if starting from a previous simulation
+    std::string          _wDiffCreep, _wDislCreep,_wPlasticity;
     PetscInt             _stepCount;
 
     // material properties
@@ -128,16 +135,16 @@ class PowerLaw
     std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
 
+    // deformation mechanisms
+    Pseudoplasticity   *_plastic;
+    DislocationCreep   *_disl;
+    DiffusionCreep     *_diff;
+
     std::string          _viscosityType; // options: power-law, linearMaxwell
     std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
     std::vector<double>  _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     Vec                  _A,_n,_QR,_T;
     Vec                  _effVisc;
-
-    // pseudoplasticity
-    std::vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
-    Vec                  _yieldStress; // (MPa)
-    Vec                  _effViscP; // (GPa) eff. viscosity from plasticity
     PetscScalar          _effViscCap; // imposed upper limit on effective viscosity
 
     // linear system data
@@ -176,7 +183,7 @@ class PowerLaw
     Vec          _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec          _gxy,_dgxy; // viscoelastic strain and strain rate
     Vec          _gxz,_dgxz; // viscoelastic strain and strain rate
-    Vec          _gdev,_dgdev; // deviatoric strain and strain rate
+    Vec          _gVdev,_dgVdev; // deviatoric strain and strain rate
     Vec          _gTxy,_gTxz; // total strain
     std::string  _bcRType,_bcTType,_bcLType,_bcBType; // options: Neumann, Dirichlet
     Vec          _bcT,_bcR,_bcB,_bcL;
@@ -217,6 +224,7 @@ class PowerLaw
     PetscErrorCode computeTotalStrains();
     PetscErrorCode computeStresses();
     PetscErrorCode computeSDev();
+    PetscErrorCode computeGVDev(); // deviatoric strain
     PetscErrorCode computeViscosity(const PetscScalar viscCap);
     PetscErrorCode computeU();
     PetscErrorCode setRHS();

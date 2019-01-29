@@ -1,7 +1,9 @@
 # Example input file for a 1D linear elastic simulation, using the quasi-dynamic
 # approximation, demonstrating flash heating.
 
-# set up the computational domain
+#======================================================================
+# define the domain and problem type
+
 Ny = 201 # points in y-direction
 Nz = 1 # points in z-direction
 Ly = 30 # (km) horizontal domain size
@@ -9,7 +11,6 @@ Lz = 30 # (km) vertical domain size
 vL = 1e-9
 
 # specify what problem to simulate
-problemType = strikeSlip
 bulkDeformationType = linearElastic
 momentumBalanceType = quasidynamic
 guessSteadyStateICs = 1 # estimate steady-state initial conditions

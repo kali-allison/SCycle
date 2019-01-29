@@ -1,17 +1,21 @@
+
 # Example input file for a 2D steady-state thermomechanical power-law
 # viscoelastic simulation.
 # Demonstrates how to use the fixed-point iteration method to estimate
 # steady-state conditions, including the steady state heat equation.
 # Note that there are no earthquake cycles in this simulation.
 
+#======================================================================
+# define the domain and problem type
+
 # set up the computational domain
-Ny = 201 # points in y-direction
-Nz = 202 # points in z-direction
-Ly = 60 # (km) horizontal domain size
-Lz = 30 # (km) vertical domain size
+Ny = 301 # points in y-direction
+Nz = 351 # points in z-direction
+Ly = 500 # (km) horizontal domain size
+Lz = 500 # (km) vertical domain size
+bCoordTrans = 13.5
 
 # specify what problem to simulate
-problemType = strikeSlip
 bulkDeformationType = powerLaw
 momentumBalanceType = quasidynamic
 
@@ -21,8 +25,7 @@ guessSteadyStateICs = 1
 #=======================================================================
 # rate-and-state parameters
 
-# state variable evolution law
-stateLaw = agingLaw
+stateLaw = agingLaw # state variable evolution law
 v0 = 1e-9
 
 DcVals = [1 1] # (m)
@@ -51,13 +54,13 @@ muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3)
 rhoDepths = [0 60] # (km)
 
-# power law properties: quartz-diorite
-AVals = [1.3e-3 1.3e-3]
-ADepths = [0 60]
-BVals = [2.6341e+04 2.6341e+04]
-BDepths = [0 60]
-nVals = [2.4 2.4]
-nDepths = [0 60]
+# power law properties: wet feldspar
+AVals = [1585 1585]
+ADepths = [0 100]
+BVals = [4.157e4 4.157e4]
+BDepths = [0 100]
+nVals = [3 3]
+nDepths = [0 100]
 
 maxEffVisc = 1e18 # GPa s
 
@@ -72,6 +75,13 @@ cDepths = [0 60]
 
 TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
 TDepths = [0 50]
+
+Nz_lab = 251
+TVals = [2.83150000e+02 1.48815000e+03 1.48815725e+03 1.62315000e+03]
+TDepths = [0.00 5.00000000e+01 5.00241791e+01 5.00000000e+02]
+
+wVals = [10 10]
+wDepths = [0 500]
 
 thermalCoupling = coupled
 heatEquationType = transient
@@ -98,7 +108,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 
 
 # directory for output
-outputDir = data/ex2_
+outputDir = data/ex4_
 
 
 
