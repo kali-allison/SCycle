@@ -38,7 +38,7 @@ class LinearElastic
     PetscInt             _stepCount;
 
     // off-fault material fields
-    Vec                  _muVec, _rhoVec, _cs;
+    Vec                  _mu, _rho, _cs;
     std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
     Vec                  _bcRShift,_surfDisp;
     Vec                  _rhs,_u,_sxy,_sxz,_sdev;

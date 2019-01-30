@@ -120,52 +120,58 @@ class PowerLaw
     const char          *_file;
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
-    std::string          _outputDir;  // output data
+    std::string          _outputDir;  // directory to output data into
 
     const PetscInt       _order,_Ny,_Nz;
-    PetscScalar          _Ly,_Lz,_dy,_dz;
+    PetscScalar          _Ly,_Lz;
     Vec                 *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
     const bool           _loadICs; // true if starting from a previous simulation
-    std::string          _wDiffCreep, _wDislCreep,_wPlasticity;
-    PetscInt             _stepCount;
+    std::string          _wDiffCreep, _wDislCreep,_wPlasticity,_wLinearMaxwell;
 
-    // material properties
-    Vec                  _muVec, _rhoVec, _cs;
-    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
-    Vec                  _bcRShift,_surfDisp;
 
     // deformation mechanisms
-    Pseudoplasticity   *_plastic;
-    DislocationCreep   *_disl;
-    DiffusionCreep     *_diff;
+    Pseudoplasticity     *_plastic;
+    DislocationCreep     *_disl;
+    DiffusionCreep       *_diff;
 
-    std::string          _viscosityType; // options: power-law, linearMaxwell
-    std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
-    std::vector<double>  _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
-    Vec                  _A,_n,_QR,_T;
-    Vec                  _effVisc;
-    PetscScalar          _effViscCap; // imposed upper limit on effective viscosity
+    // material properties
+    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
+    Vec                   _mu, _rho, _cs,_effVisc;
+    Vec                   _T,*_grainSize;
+    std::vector<double>   _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
+    PetscScalar           _effViscCap; // imposed upper limit on effective viscosity
+
+    // displacement, strains, and strain rates
+    Vec                   _u,_surfDisp;
+    Vec                   _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
+    Vec                   _gTxy,_gxy,_dgxy; // total strain, viscous strain, and viscoeus strain rate
+    Vec                   _gTxz,_gxz,_dgxz; // total strain, viscous strain, and viscoeus strain rate
+    Vec                   _gVdev,_dgVdev; // deviatoric strain and strain rate
 
     // linear system data
-    std::string          _linSolver;
-    KSP                  _ksp;
-    PC                   _pc;
-    PetscScalar          _kspTol;
-    SbpOps              *_sbp;
-    std::string          _sbpType;
-    Vec                  _rhs;
-    Mat                  _B,_C; // composite matrices to make momentum balance simpler
-    PetscErrorCode       initializeMomBalMats(); // computes B and C
+    std::string           _linSolver;
+    std::string           _sbpType,_bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
+    Vec                   _rhs,_bcT,_bcR,_bcB,_bcL,_bcRShift;
+    KSP                   _ksp;
+    PC                    _pc;
+    PetscScalar           _kspTol;
+    SbpOps               *_sbp;
+    Mat                   _B,_C; // composite matrices to make momentum balance simpler
+    PetscErrorCode        initializeMomBalMats(); // computes B and C
 
     // for steady-state computations
-    SbpOps          *_sbp_eta;
-    KSP              _ksp_eta;
-    PC               _pc_eta;
-    PetscScalar      _ssEffViscScale; // imposed upper limit on effective viscosity for steady state computation
-    PetscErrorCode    initializeSSMatrices(); // compute Bss and Css
+    SbpOps               *_sbp_eta;
+    KSP                   _ksp_eta;
+    PC                    _pc_eta;
+    PetscErrorCode        initializeSSMatrices(); // compute Bss and Css
 
-    // viewers
+    // runtime data
+    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
+    PetscInt     _linSolveCount;
+
+    // viewers and functions for file I/O
+    PetscInt         _stepCount;
     PetscViewer      _timeV1D,_timeV2D;
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
@@ -173,20 +179,13 @@ class PowerLaw
     // 3rd string = full file path name for output
     //~ std::map <string,PetscViewer>  _viewers;
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode view(const double totRunTime);
 
-    // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
-    PetscInt     _linSolveCount;
 
-
-    Vec          _u;
-    Vec          _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
-    Vec          _gxy,_dgxy; // viscoelastic strain and strain rate
-    Vec          _gxz,_dgxz; // viscoelastic strain and strain rate
-    Vec          _gVdev,_dgVdev; // deviatoric strain and strain rate
-    Vec          _gTxy,_gTxz; // total strain
-    std::string  _bcRType,_bcTType,_bcLType,_bcBType; // options: Neumann, Dirichlet
-    Vec          _bcT,_bcR,_bcB,_bcL;
 
     PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     ~PowerLaw();
@@ -196,7 +195,6 @@ class PowerLaw
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode allocateFields(); // allocate space for member fields
     PetscErrorCode setMaterialParameters();
-    PetscErrorCode loadEffViscFromFiles();
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
     PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
@@ -232,11 +230,7 @@ class PowerLaw
     PetscErrorCode setSurfDisp();
     PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
 
-    PetscErrorCode writeDomain(const std::string outputDir);
-    PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode view(const double totRunTime);
+
 
 
 

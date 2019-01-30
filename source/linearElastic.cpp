@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
   _stepCount(0),
-  _muVec(NULL),_rhoVec(NULL),_cs(NULL),
+  _mu(NULL),_rho(NULL),_cs(NULL),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
@@ -64,10 +64,10 @@ LinearElastic::~LinearElastic()
   VecDestroy(&_bcRShift);
 
   // body fields
-  VecDestroy(&_rhoVec);
+  VecDestroy(&_rho);
   VecDestroy(&_cs);
-  VecDestroy(&_muVec);
-  VecDestroy(&_rhoVec);
+  VecDestroy(&_mu);
+  VecDestroy(&_rho);
   VecDestroy(&_cs);
   VecDestroy(&_rhs);
   VecDestroy(&_u);
@@ -305,8 +305,8 @@ PetscErrorCode LinearElastic::allocateFields()
 
   // other fieds
   VecDuplicate(*_z,&_rhs); VecSet(_rhs,0.0);
-  VecDuplicate(*_z,&_muVec);
-  VecDuplicate(*_z,&_rhoVec);
+  VecDuplicate(*_z,&_mu);
+  VecDuplicate(*_z,&_rho);
   VecDuplicate(*_z,&_cs);
   VecDuplicate(_rhs,&_u); VecSet(_u,0.0);
   VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
@@ -332,14 +332,14 @@ PetscErrorCode LinearElastic::setMaterialParameters()
     CHKERRQ(ierr);
   #endif
 
-  ierr = setVec(_muVec,*_y,_muVals,_muDepths);CHKERRQ(ierr);
-  ierr = setVec(_rhoVec,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
-  VecPointwiseDivide(_cs, _muVec, _rhoVec);
+  ierr = setVec(_mu,*_y,_muVals,_muDepths);CHKERRQ(ierr);
+  ierr = setVec(_rho,*_z,_rhoVals,_rhoDepths);CHKERRQ(ierr);
+  VecPointwiseDivide(_cs, _mu, _rho);
   VecSqrtAbs(_cs);
 
   if (_isMMS) {
-    if (_Nz == 1) { mapToVec(_muVec,zzmms_mu1D,*_y); }
-    else { mapToVec(_muVec,zzmms_mu,*_y,*_z); }
+    if (_Nz == 1) { mapToVec(_mu,zzmms_mu1D,*_y); }
+    else { mapToVec(_mu,zzmms_mu,*_y,*_z); }
   }
 
   #if VERBOSE > 1
@@ -373,7 +373,7 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
 
   // load shear modulus
-  ierr = loadVecFromInputFile(_muVec,_inputDir,"mu"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -395,10 +395,10 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   KSPDestroy(&_ksp);
 
   if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
-    _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz,_Ly,_Lz,_mu);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_muVec);
+    _sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz,_Ly,_Lz,_mu);
     if (_Ny > 1 && _Nz > 1) { _sbp->setGrid(_y,_z); }
     else if (_Ny == 1 && _Nz > 1) { _sbp->setGrid(NULL,_z); }
     else if (_Ny > 1 && _Nz == 1) { _sbp->setGrid(_y,NULL); }
@@ -572,7 +572,7 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
 
-  ierr = writeVec(_muVec,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

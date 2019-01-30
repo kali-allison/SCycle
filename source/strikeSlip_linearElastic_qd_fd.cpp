@@ -1198,7 +1198,7 @@ double startPropagation = MPI_Wtime();
   ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_material->_rhoVec, &rho);
+  ierr = VecGetArrayRead(_material->_rho, &rho);
 
   ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
@@ -1215,7 +1215,7 @@ double startPropagation = MPI_Wtime();
   ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_material->_rhoVec, &rho);
+  ierr = VecRestoreArrayRead(_material->_rho, &rho);
 
   VecDestroy(&D2u);
 

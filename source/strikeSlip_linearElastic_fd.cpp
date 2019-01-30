@@ -43,8 +43,8 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _fault = new Fault_fd(D, D._scatters["body2L"],_faultTypeScale); // fault
   _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
   _cs = _material->_cs;
-  _rhoVec = _material->_rhoVec;
-  _muVec = _material->_muVec;
+  _rho = _material->_rho;
+  _mu = _material->_mu;
   computePenaltyVectors();
 
   computeTimeStep(); // compute time step
@@ -484,7 +484,7 @@ double startPropagation = MPI_Wtime();
   ierr = VecGetArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecGetArrayRead(_ay, &ay);
   ierr = VecGetArrayRead(D2u, &d2u);
-  ierr = VecGetArrayRead(_rhoVec, &rho);
+  ierr = VecGetArrayRead(_rho, &rho);
 
   ierr = VecGetOwnershipRange(varNext["u"],&Istart,&Iend);CHKERRQ(ierr);
   PetscInt       Jj = 0;
@@ -501,7 +501,7 @@ double startPropagation = MPI_Wtime();
   ierr = VecRestoreArrayRead(varPrev.find("u")->second, &uPrev);
   ierr = VecRestoreArrayRead(_ay, &ay);
   ierr = VecRestoreArrayRead(D2u, &d2u);
-  ierr = VecRestoreArrayRead(_rhoVec, &rho);
+  ierr = VecRestoreArrayRead(_rho, &rho);
 
   VecDestroy(&D2u);
 
