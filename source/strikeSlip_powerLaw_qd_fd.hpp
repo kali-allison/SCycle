@@ -146,16 +146,6 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
     PetscScalar              _atolSS_effVisc;
 
-    // functions for the fixed point iteration method for the steady-state problem
-    PetscErrorCode writeSS(const int Ii, const std::string outputDir);
-    PetscErrorCode guessTauSS(map<string,Vec>& varSS);
-    PetscErrorCode computeSSEffVisc();
-    PetscErrorCode integrateSS();
-    PetscErrorCode solveSS();
-    PetscErrorCode solveSSb();
-    PetscErrorCode setSSBCs();
-    PetscErrorCode solveSSViscoelasticProblem();
-
 
     // time integration functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name

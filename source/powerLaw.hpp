@@ -136,18 +136,18 @@ class PowerLaw
     DiffusionCreep       *_diff;
 
     // material properties
-    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths;
+    std::vector<double>   _muVals,_muDepths,_rhoVals,_rhoDepths,_TVals,_TDepths,_grainSizeVals,_grainSizeDepths;
     Vec                   _mu, _rho, _cs,_effVisc;
-    Vec                   _T,*_grainSize;
+    Vec                   _T,_grainSize;
     std::vector<double>   _effViscVals_lm,_effViscDepths_lm; // linear Maxwell effective viscosity values
     PetscScalar           _effViscCap; // imposed upper limit on effective viscosity
 
     // displacement, strains, and strain rates
     Vec                   _u,_surfDisp;
     Vec                   _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
-    Vec                   _gTxy,_gxy,_dgxy; // total strain, viscous strain, and viscoeus strain rate
-    Vec                   _gTxz,_gxz,_dgxz; // total strain, viscous strain, and viscoeus strain rate
-    Vec                   _gVdev,_dgVdev; // deviatoric strain and strain rate
+    Vec                   _gTxy,_gVxy,_dgVxy; // total strain, viscous strain, and viscoeus strain rate
+    Vec                   _gTxz,_gVxz,_dgVxz; // total strain, viscous strain, and viscoeus strain rate
+    Vec                   _dgVdev,_dgVdev_disl; // deviatoric strain and strain rate
 
     // linear system data
     std::string           _linSolver;
@@ -187,7 +187,7 @@ class PowerLaw
 
 
 
-    PowerLaw(Domain& D,HeatEquation& he,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
+    PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     ~PowerLaw();
 
     // initialize and set data
@@ -204,9 +204,7 @@ class PowerLaw
     // for steady state computations
     PetscErrorCode updateSSa(map<string,Vec>& varSS);
     PetscErrorCode updateSSb(map<string,Vec>& varSS,const PetscScalar time);
-    PetscErrorCode initiateVarSS(map<string,Vec>& varSS);
     PetscErrorCode guessSteadyStateEffVisc(const PetscScalar ess_t); // inititialize effective viscosity
-    PetscErrorCode getTauVisc(Vec& tauVisc, const PetscScalar ess_t); // compute initial tauVisc
     PetscErrorCode setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     PetscErrorCode initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
 
@@ -215,6 +213,7 @@ class PowerLaw
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode updateTemperature(const Vec& T);
+    PetscErrorCode updateGrainSize(const Vec& grainSize);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
     PetscErrorCode computeViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
     PetscErrorCode computeViscStrainRates(const PetscScalar time,const Vec& gVxy,const Vec& gVxz,Vec& gVxy_t,Vec& gVxz_t);
@@ -222,7 +221,7 @@ class PowerLaw
     PetscErrorCode computeTotalStrains();
     PetscErrorCode computeStresses();
     PetscErrorCode computeSDev();
-    PetscErrorCode computeGVDev(); // deviatoric strain
+    PetscErrorCode computeDevViscStrainRates(); // deviatoric strains and strain rates
     PetscErrorCode computeViscosity(const PetscScalar viscCap);
     PetscErrorCode computeU();
     PetscErrorCode setRHS();

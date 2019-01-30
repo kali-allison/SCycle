@@ -106,7 +106,7 @@ class Fault
     // load settings from input file
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode loadFieldsFromFiles(std::string inputDir);
+    PetscErrorCode loadFieldsFromFiles();
     PetscErrorCode setFields(Domain&D);
     PetscErrorCode setThermalFields(const Vec& T, const Vec& k, const Vec& c);
     PetscErrorCode updateTemperature(const Vec& T);
@@ -118,7 +118,7 @@ class Fault
     PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 
     // for steady state computations
-    PetscErrorCode computeTauRS(Vec& tauRS, const PetscScalar vL);
+    PetscErrorCode guessSS(const PetscScalar vL);
     PetscErrorCode computePsiSS(const PetscScalar vL);
 
     // IO
@@ -155,7 +155,6 @@ class Fault_qd: public Fault
 
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
-    PetscErrorCode computeTauQS(const Vec& tau, const Vec& slipVel);
 
     PetscErrorCode writeContext(const std::string outputDir);
 };

@@ -444,11 +444,11 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
   if (fileExists) {
     PetscPrintf(PETSC_COMM_WORLD,"Note: Loading Vec from file: %s\n",vecSourceFile.c_str());
     PetscViewer inv;
-    ierr = PetscViewerCreate(PETSC_COMM_WORLD,&inv);CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,vecSourceFile.c_str(),FILE_MODE_READ,&inv);CHKERRQ(ierr);
     ierr = PetscViewerPushFormat(inv,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
-
     ierr = VecLoad(out,inv);CHKERRQ(ierr);
+    PetscViewerPopFormat(inv);
+    PetscViewerDestroy(&inv);
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"Warning: File not found: %s\n",vecSourceFile.c_str());

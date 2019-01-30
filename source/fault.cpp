@@ -111,26 +111,27 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
 
 // parse input file and load values into data members
-PetscErrorCode Fault::loadFieldsFromFiles(std::string inputDir)
+PetscErrorCode Fault::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
 #endif
 
-  ierr = loadVecFromInputFile(_sNEff,inputDir,"sNEff"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_psi,inputDir,"psi"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_slip,inputDir,"slip"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_sNEff,_D->_inputDir,"sNEff"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_psi,_D->_inputDir,"psi"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
 
   // load shear stress: pre-stress, quasistatic, and full
-  ierr = loadVecFromInputFile(_tauQSP,inputDir,"tauQS"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_prestress,inputDir,"prestress"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_prestress,_D->_inputDir,"prestress"); CHKERRQ(ierr);
   VecAXPY(_tauQSP,1.0,_prestress);
   VecCopy(_tauQSP,_tauP);
 
   // rate and state parameters
-  ierr = loadVecFromInputFile(_a,inputDir,"a"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_b,inputDir,"b"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_a,_D->_inputDir,"a"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_b,_D->_inputDir,"b"); CHKERRQ(ierr);
 
 #if VERBOSE > 1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
@@ -546,24 +547,30 @@ Fault::~Fault()
   #endif
 }
 
-PetscErrorCode Fault::computeTauRS(Vec& tauRS, const PetscScalar vL)
+
+// estimate steady-state based on velocity vL
+PetscErrorCode Fault::guessSS(const PetscScalar vL)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 2
-    std::string funcName = "Fault::computeTauRS";
+    std::string funcName = "Fault::guessSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_stateVals.size() == 0) { computePsiSS(vL); }
+  // set slip velocity
   VecSet(_slipVel,vL);
+  ierr = loadVecFromInputFile(_slipVel,_D->_inputDir,"slipVel"); CHKERRQ(ierr);
 
-  if (tauRS == NULL) { VecDuplicate(_slipVel,&tauRS); }
+  // set state variable
+  if (_stateVals.size() == 0) { computePsiSS(vL); }
+  ierr = loadVecFromInputFile(_psi,_D->_inputDir,"psi"); CHKERRQ(ierr);
 
+  // shear stress
   PetscInt       Istart,Iend;
   PetscScalar   *tauRSV;
   PetscScalar const *sN,*a,*psi;
-  VecGetOwnershipRange(tauRS,&Istart,&Iend);
-  VecGetArray(tauRS,&tauRSV);
+  VecGetOwnershipRange(_tauP,&Istart,&Iend);
+  VecGetArray(_tauP,&tauRSV);
   VecGetArrayRead(_sNEff,&sN);
   VecGetArrayRead(_psi,&psi);
   VecGetArrayRead(_a,&a);
@@ -572,15 +579,13 @@ PetscErrorCode Fault::computeTauRS(Vec& tauRS, const PetscScalar vL)
     tauRSV[Jj] = sN[Jj]*a[Jj]*asinh( (double) 0.5*vL*exp(psi[Jj]/a[Jj])/_v0 );
     Jj++;
   }
-  VecRestoreArray(tauRS,&tauRSV);
+  VecRestoreArray(_tauP,&tauRSV);
   VecRestoreArrayRead(_sNEff,&sN);
   VecRestoreArrayRead(_psi,&psi);
   VecRestoreArrayRead(_a,&a);
+  ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
 
-  VecCopy(tauRS,_tauQSP);
-  VecCopy(tauRS,_tauP);
-
-
+  VecCopy(_tauP,_tauQSP);
 
   #if VERBOSE > 3
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -634,7 +639,7 @@ Fault_qd::Fault_qd(Domain&D,VecScatter& scatter2fault, const int& faultTypeScale
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,1.0/_faultTypeScale);
 
-  loadFieldsFromFiles(D._inputDir);
+  loadFieldsFromFiles();
   loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
 
   #if VERBOSE > 1
@@ -681,8 +686,8 @@ PetscErrorCode Fault_qd::initiateIntegrand(const PetscScalar time,map<string,Vec
   #endif
 
   // put variables to be integrated explicitly into varEx
-  Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi);
-  varEx["psi"] = varPsi;
+  if (varEx.find("psi") != varEx.end() ) { VecCopy(_psi,varEx["psi"]); }
+  else { Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi); varEx["psi"] = varPsi; }
 
   // slip is added by the momentum balance equation
 
@@ -710,26 +715,6 @@ PetscErrorCode Fault_qd::updateFields(const PetscScalar time,const map<string,Ve
   return ierr;
 }
 
-
-
-// tauQS = tau + eta_rad*V
-PetscErrorCode Fault_qd::computeTauQS(const Vec& tau, const Vec& slipVel)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Fault_qd::computeTauQS";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  VecCopy(_slipVel,_tauQSP); // V -> tauQS
-  VecPointwiseMult(_tauQSP,_eta_rad,_tauQSP); // tauQS = V * eta_rad
-  VecAYPX(_tauQSP,1.0,_tauP); // tauQS = tau + V*eta_rad
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 // assumes right-lateral fault
 PetscErrorCode Fault_qd::computeVel()
@@ -985,7 +970,7 @@ _u(NULL), _uPrev(NULL), _d2u(NULL),_alphay(NULL),
   VecDuplicate(_tauP,&_alphay);  PetscObjectSetName((PetscObject) _alphay, "alphay");VecSet(_alphay, 17.0/48.0 / (_N-1));
 
 
-  loadFieldsFromFiles(D._inputDir);
+  loadFieldsFromFiles();
   loadVecFromInputFile(_tau0,D._inputDir,"tau0");
 
   #if VERBOSE > 1

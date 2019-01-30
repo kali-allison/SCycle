@@ -47,22 +47,21 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
 
     // IO information
     std::string          _delim; // format is: var delim value (without the white space)
+    std::string          _inputDir; // input data
+    std::string          _outputDir; // output data
 
     // problem properties
+    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
     const bool           _isMMS; // true if running mms test
-    std::string          _outputDir; // output data
-    std::string          _inputDir; // input data
-    const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar          _vL;
     std::string          _thermalCoupling; // thermomechanical coupling
     std::string          _grainSizeEvCoupling; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
     std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
     std::string          _stateLaw;
-    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
     std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
+    std::string          _wLinearMaxwell; // if linear Maxwell, do not create a heat equation data member
+
+    PetscScalar          _vL;
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
-    std::string          _viscosityType; // options: power-law, linearMaxwell
-    // if linear Maxwell, do not create a heat equation data member
 
     // time stepping data
     std::map <string,Vec>  _varEx; // holds variables for explicit integration in time

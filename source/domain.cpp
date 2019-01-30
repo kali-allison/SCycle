@@ -21,10 +21,6 @@ Domain::Domain(const char *file)
 
   loadData(_file);
 
-  //~ _dy = _Ly/(_Ny-1.0);
-  //~ if (_Nz > 1) { _dz = _Lz/(_Nz-1.0); }
-  //~ else (_dz = 1);
-
   if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
   else (_dq = 1);
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
@@ -314,12 +310,6 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
 
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-
-  //~ // output shear modulus
-  //~ str =  _outputDir + "muPlus";
-  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-  //~ ierr = VecView(_muVecP,viewer);CHKERRQ(ierr);
-  //~ ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output q
   str =  _outputDir + "q";

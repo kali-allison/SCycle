@@ -1237,43 +1237,35 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // compute steady state stress on fault
-  Vec tauSS = NULL;
-  _fault_qd->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
+  // estimate steady-state conditions for fault, material based on strain rate
+  _fault_qd->guessSS(_vL); // sets: slipVel, psi, tau
+  ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "psi", _fault_qd->_psi, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
-  if (_inputDir.compare("unspecified") != 0) {
-    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
-  }
-  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
+  ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
-  VecCopy(tauSS,_material->_bcL);
+  VecCopy(_fault_qd->_tauP,_material->_bcL);
   _material->setRHS();
   _material->computeU();
   _material->computeStresses();
 
 
   // update fault to contain correct stresses
-  Vec sxy,sxz,sdev;
-  ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
-  ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // update boundary conditions, stresses
   solveSSb();
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
-  VecDestroy(&tauSS);
-
   // steady state temperature
   if (_thermalCoupling.compare("no")!=0) {
     ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
-    _material->getStresses(sxy,sxz,sdev);
-    Vec T; VecDuplicate(sxy,&T);
+    Vec T; VecDuplicate(_material->_sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,NULL,T);
-    VecCopy(T,_he->_Tamb);
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
 

@@ -786,23 +786,16 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // compute steady state stress on fault
-  Vec tauSS = NULL;
-  _fault->computeTauRS(tauSS,_vL); // rate and state tauSS assuming velocity is vL
-
-
-  if (_inputDir.compare("unspecified") != 0) {
-    ierr = loadVecFromInputFile(tauSS,_inputDir,"tauSS"); CHKERRQ(ierr);
-  }
-  ierr = io_initiateWriteAppend(_viewers, "tau", tauSS, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  // estimate steady-state conditions for fault, material based on strain rate
+  _fault->guessSS(_vL); // sets: slipVel, psi, tau
+  ierr = io_initiateWriteAppend(_viewers, "tau", _fault->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  ierr = io_initiateWriteAppend(_viewers, "psi", _fault->_psi, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
-  VecCopy(tauSS,_material->_bcL);
+  VecCopy(_fault->_tauP,_material->_bcL);
   _material->setRHS();
   _material->computeU();
   _material->computeStresses();
-
-
 
   // update fault to contain correct stresses
   Vec sxy,sxz,sdev;
@@ -819,8 +812,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   // update boundary conditions, stresses
   solveSSb();
   _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
-
-  VecDestroy(&tauSS);
 
   // steady state temperature
   if (_thermalCoupling.compare("no")!=0) {
