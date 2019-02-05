@@ -1168,7 +1168,7 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
     ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
@@ -1177,7 +1177,7 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
     ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
@@ -1235,7 +1235,7 @@ PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
     //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     //~ ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
     //~ ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    //~ ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   //~ }
   //~ else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
@@ -1244,7 +1244,7 @@ PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
     ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   //~ }
   //~ else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
     //~ ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);

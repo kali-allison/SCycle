@@ -717,8 +717,8 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
@@ -727,8 +727,8 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspSS,KSPCG); CHKERRQ(ierr);
@@ -791,8 +791,8 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc);                                    CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCLU);                                         CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);             CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(_pc);                          CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(_pc,MATSOLVERMUMPS);             CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(_pc);                          CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
@@ -802,8 +802,8 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc);                                    CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCCHOLESKY);                                   CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);             CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(_pc);                          CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(_pc,MATSOLVERMUMPS);             CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(_pc);                          CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
