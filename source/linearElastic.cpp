@@ -234,8 +234,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
@@ -244,8 +244,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
