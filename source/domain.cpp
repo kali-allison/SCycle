@@ -411,7 +411,7 @@ PetscErrorCode Domain::write()
 }
 
 
-// set fields
+// construct coordinate transform, setting vectors q, r, y, z
 PetscErrorCode Domain::setFields()
 {
   PetscErrorCode ierr = 0;
@@ -475,7 +475,6 @@ PetscErrorCode Domain::setFields()
   loadVecFromInputFile(_y,_inputDir,"y");
   loadVecFromInputFile(_z,_inputDir,"z");
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -484,7 +483,8 @@ PetscErrorCode Domain::setFields()
 }
 
 
-// scatters a body field into 1D vector
+// scatters values from one vector to another
+// used to get slip on the fault from the displacement vector, i.e., slip = u(1:Nz); shear stress on the fault from the stress vector sxy; surface displacement; surface heat flux
 PetscErrorCode Domain::setScatters()
 {
   PetscErrorCode ierr = 0;
@@ -511,14 +511,17 @@ PetscErrorCode Domain::setScatters()
     IS is;  // index set
     PetscMalloc1(_Nz,&indices);
 
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+    // we want to scatter from index 0 to _Nz - 1, i.e. take the first _Nz components of the vector to scatter from
+    for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
       indices[Ii] = Ii;
     }
 
     // creates data structure for an index set containing a list of integers
     ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
-    // creates vector scatter context
+
+    // creates vector scatter context, scatters values from _y (at indices is) to _y0 (at indices is)
     ierr = VecScatterCreate(_y, is, _y0, is, &_scatters["body2L"]); CHKERRQ(ierr);
+
     // free memory
     PetscFree(indices);
     ISDestroy(&is);
@@ -529,7 +532,9 @@ PetscErrorCode Domain::setScatters()
     PetscInt *fi;
     IS isf;
     PetscMalloc1(_Nz,&fi);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+
+    // we want to scatter from index _Ny*_Nz - _Nz to _Ny*_Nz - 1, i.e. the last _Nz entries of the vector to scatter from
+    for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
       fi[Ii] = Ii + (_Ny*_Nz-_Nz);
     }
     ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf);
@@ -538,7 +543,7 @@ PetscErrorCode Domain::setScatters()
     PetscInt *ti;
     IS ist;
     PetscMalloc1(_Nz,&ti);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+    for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
       ti[Ii] = Ii;
     }
     ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist);
@@ -554,13 +559,20 @@ PetscErrorCode Domain::setScatters()
   { // set up scatter context to take values for z = 0 from body field and put them on a Vec of size Ny
     // indices to scatter from
     IS isf;
-    // creates a data structure for an index set with a list of evenly spaced integers
+    /* creates a data structure for an index set with a list of evenly spaced integers
+     * locally owned portion of index set has length _Ny
+     * first element of locally owned index set is 0
+     * change to the next index is _Nz (the stride)
+     * takes indices [0, _Nz, 2*_Nz, ..., (_Ny-1)*_Nz]
+    */
     ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
 
     // indices to scatter to
     PetscInt *ti;
     IS ist;
     PetscMalloc1(_Ny,&ti);
+
+    // length _Ny
     for (PetscInt Ii=0; Ii<_Ny; Ii++) {
       ti[Ii] = Ii;
     }
@@ -576,13 +588,14 @@ PetscErrorCode Domain::setScatters()
   { // set up scatter context to take values for z = Lz from body field and put them on a Vec of size Ny
     // indices to scatter from
     IS isf;
-    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &isf);
+    // takes indices [_Nz - 1, 2*_Nz - 1, ..., _Ny*_Nz - 1]
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz - 1, _Nz, &isf);
 
     // indices to scatter to
     PetscInt *ti;
     IS ist;
     PetscMalloc1(_Ny,&ti);
-    for (PetscInt Ii=0; Ii<_Ny; Ii++) {
+    for (PetscInt Ii = 0; Ii<_Ny; Ii++) {
       ti[Ii] = Ii;
     }
     ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
@@ -594,61 +607,79 @@ PetscErrorCode Domain::setScatters()
     ISDestroy(&ist);
   }
 
-  // create example vector for testing purposes
-  //~ Vec body; VecDuplicate(_y,&body);
-  //~ PetscInt       Istart,Iend;
-  //~ PetscScalar   *bodyA;
-  //~ VecGetOwnershipRange(body,&Istart,&Iend);
-  //~ VecGetArray(body,&bodyA);
-  //~ PetscInt Jj = 0;
-  //~ for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
-    //~ PetscInt Iy = Ii/_Nz;
-    //~ PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
-    //~ bodyA[Jj] = 10.*Iy + Iz;
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
-    //~ Jj++;
-  //~ }
-  //~ VecRestoreArray(body,&bodyA);
-
-
-  // test various mappings
-
-  // y = 0: mapping to L
-  //~ Vec out; VecDuplicate(_y0,&out);
-  //~ VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~ // y = Ly: mapping to R
-  //~ Vec out; VecDuplicate(_y0,&out); VecSet(out,-1.);
-  //~ VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~ // z=0: mapping to T
-  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
-  //~ VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~ // z=Lz: mapping to B
-  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
-  //~ VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  //~ VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-
-  // z=Lz: mapping from B to body
-  //~ Vec out; VecDuplicate(_z0,&out); VecSet(out,-1.);
-  //~ VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-  //~ VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-  //~ VecView(body,PETSC_VIEWER_STDOUT_WORLD);
-
-  //~ VecDestroy(&body);
-  //~ assert(0);
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
   return ierr;
 }
+
+// // create example vector for testing purposes
+// PestcErrorCode Domain::testScatters() {
+//   Vec body;
+//   VecDuplicate(_y,&body);
+//   PetscInt      Istart,Iend,Jj = 0;
+//   PetscScalar   *bodyA;
+//   PetscErrorCode ierr = 0;
+//   VecGetOwnershipRange(body,&Istart,&Iend);
+//   VecGetArray(body,&bodyA);
+
+//   for (PetscInt Ii = Istart; Ii<Iend; Ii++) {
+//     PetscInt Iy = Ii/_Nz;
+//     PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
+//     bodyA[Jj] = 10.*Iy + Iz;
+//     PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
+//     Jj++;
+//   }
+//   VecRestoreArray(body,&bodyA);
+
+//   // test various mappings
+//   // y = 0: mapping to L
+//   Vec out;
+//   VecDuplicate(_y0,&out);
+//   VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+//   VecDestroy(&out);
+
+//   // y = Ly: mapping to R
+//   Vec out;
+//   VecDuplicate(_y0,&out); VecSet(out,-1.);
+//   VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+//   VecDestroy(&out);
+
+//   // z=0: mapping to T
+//   Vec out;
+//   VecDuplicate(_z0,&out); VecSet(out,-1.);
+//   VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+//   VecDestroy(&out);
+
+//   // z=Lz: mapping to B
+//   Vec out;
+//   VecDuplicate(_z0,&out);
+//   VecSet(out,-1.);
+//   VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+//   VecDestroy(&out);
+
+//   // z=Lz: mapping from B to body
+//   Vec out;
+//   VecDuplicate(_z0,&out);
+//   VecSet(out,-1.);
+//   VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+//   VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+//   VecView(body,PETSC_VIEWER_STDOUT_WORLD);
+
+//   VecDestroy(&out);
+//   VecDestroy(&body);
+//   assert(0);
+
+//   return ierr;
+// }
+

@@ -84,8 +84,9 @@ class Domain
     // fuctions defined within the class in cpp file
     PetscErrorCode loadData(const char *file); // load settings from input file
     PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode setFields();
-    PetscErrorCode setScatters();
+    PetscErrorCode setFields();  // set coordinate transforms
+    // scatters indices of result vector to new vectors (e.g. displacement -> slip)
+    PetscErrorCode setScatters();  
 };
 
 #endif
