@@ -45,7 +45,12 @@ class Domain
     std::string    _inputDir; // directory to load input files from
 
     // domain properties
+    // order = order of accuracy for spatial derivatives
+    // Ny = # points in y direction
+    // Nz = # points in z direction
     PetscInt     _order,_Ny,_Nz;
+    // Ly = domain size in y direction (km)
+    // Lz = domain size in z direction (km)
     PetscScalar  _Ly,_Lz;
     std::string  _yInputDir; // directory to load y from
     std::string  _zInputDir; // directory to load z from
@@ -53,7 +58,7 @@ class Domain
 
     // coordinate system
     Vec   _q,_r,_y,_z; // q(y), r(z)
-    PetscScalar _dq,_dr;
+    PetscScalar _dq,_dr;  // spacing in q and r
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
     // scatters to take values from body field(s) to 1D fields
@@ -62,9 +67,9 @@ class Domain
     Vec _y0; // y = 0 vector, size Nz
     Vec _z0; // z = 0 vector, size Ny
 
-    Domain(const char * file);
-    Domain(const char *file,PetscInt Ny, PetscInt Nz);
-    ~Domain();
+    Domain(const char * file);  // constructor 1
+    Domain(const char *file,PetscInt Ny, PetscInt Nz);  // constructor 2
+    ~Domain(); // destructor
 
 
     PetscErrorCode view(PetscMPIInt rank);
@@ -76,6 +81,7 @@ class Domain
     Domain(const Domain &that);
     Domain& operator=(const Domain &rhs);
 
+    // fuctions defined within the class in cpp file
     PetscErrorCode loadData(const char *file); // load settings from input file
     PetscErrorCode checkInput(); // check input from file
     PetscErrorCode setFields();

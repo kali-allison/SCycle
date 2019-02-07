@@ -4,6 +4,8 @@
 
 using namespace std;
 
+// member function definitions including constructor
+// first type of constructor with 1 parameter
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
@@ -19,22 +21,37 @@ Domain::Domain(const char *file)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
 
+  // load data from file
   loadData(_file);
 
-  if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
-  else (_dq = 1);
-  if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
-  else (_dr = 1);
+  // check domain size and set grid spacing in y direction
+  if (_Ny > 1) {
+    _dq = 1.0 / (_Ny - 1.0);
+  }
+  else {
+    _dq = 1;
+  }
+
+  // set grid spacing in z-direction
+  if (_Nz > 1) {
+    _dr = 1.0 / (_Nz - 1.0);
+  }
+  else {
+    _dr = 1;
+  }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  for (int Ii=0;Ii<size;Ii++) { view(Ii); }
+  for (int Ii = 0; Ii < size; Ii++) {
+    view(Ii);
+  }
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
+
   setFields();
 
   setScatters();
@@ -45,7 +62,7 @@ Domain::Domain(const char *file)
 
 }
 
-
+// second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 : _file(file),_delim(" = "),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
@@ -66,21 +83,34 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _Ny = Ny;
   _Nz = Nz;
 
-  if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
-  else (_dq = 1);
-  if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
-  else (_dr = 1);
+  if (_Ny > 1) {
+    _dq = 1.0/(_Ny-1.0);
+  }
+  else {
+    _dq = 1;
+  }
+  
+  if (_Nz > 1) {
+    _dr = 1.0/(_Nz-1.0);
+  }
+  else {
+    _dr = 1;
+  }
 
 #if VERBOSE > 2 // each processor prints loaded values to screen
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  for (int Ii=0;Ii<size;Ii++) { view(Ii); }
+  for (int Ii=0;Ii<size;Ii++) {
+    view(Ii);
+  }
 #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
+  
   setFields();
+  
   setScatters();
 
   #if VERBOSE > 1
@@ -90,7 +120,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
 }
 
 
-
+// destructor
 Domain::~Domain()
 {
   #if VERBOSE > 1
@@ -98,16 +128,17 @@ Domain::~Domain()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
 
+  // free memory
   VecDestroy(&_q);
   VecDestroy(&_r);
   VecDestroy(&_y);
   VecDestroy(&_z);
-
   VecDestroy(&_y0);
   VecDestroy(&_z0);
 
+  // set map iterator, free memory from VecScatter
   map<string,VecScatter>::iterator it;
-  for (it = _scatters.begin(); it!=_scatters.end(); it++ ) {
+  for (it = _scatters.begin(); it != _scatters.end(); it++ ) {
     VecScatterDestroy(&it->second);
   }
 
@@ -117,21 +148,26 @@ Domain::~Domain()
 }
 
 
-
+// define loadData function, takes 1 parameter - the filename
 PetscErrorCode Domain::loadData(const char *file)
 {
   PetscErrorCode ierr = 0;
+  PetscMPIInt rank,size;
+
   #if VERBOSE > 1
     std::string funcName = "Domain::loadData";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  PetscMPIInt rank,size;
+
+  // determines size of the group associated with a communicator
+  // determines rank of the calling processes in the communicator
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  ifstream infile( file );
-  string line,var,rhs,rhsFull;
+  // read file inputs
+  ifstream infile(file);
+  string line, var, rhs, rhsFull;
   size_t pos = 0;
   while (getline(infile, line))
   {
@@ -148,31 +184,64 @@ PetscErrorCode Domain::loadData(const char *file)
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-
-    if (var.compare("order")==0) { _order = atoi( rhs.c_str() ); }
-    else if (var.compare("Ny")==0 && _Ny < 0) { _Ny = atoi( rhs.c_str() ); }
-    else if (var.compare("Nz")==0 && _Nz < 0) { _Nz = atoi( rhs.c_str() ); }
-    else if (var.compare("Ly")==0) { _Ly = atof( rhs.c_str() ); }
-    else if (var.compare("Lz")==0) { _Lz = atof( rhs.c_str() ); }
-
-    else if (var.compare("isMMS")==0) {
+    // set variables, convert string to ints/floats
+    if (var.compare("order") == 0) {
+      _order = atoi(rhs.c_str());
+    }
+    else if (var.compare("Ny") == 0 && _Ny < 0) {
+      _Ny = atoi(rhs.c_str());
+    }
+    else if (var.compare("Nz") == 0 && _Nz < 0) {
+      _Nz = atoi(rhs.c_str());
+    }
+    else if (var.compare("Ly") == 0) {
+      _Ly = atof(rhs.c_str());
+    }
+    else if (var.compare("Lz") == 0) {
+      _Lz = atof(rhs.c_str());
+    }
+    else if (var.compare("isMMS") == 0) {
       _isMMS = 0;
       std::string temp = rhs;
-      if (temp.compare("yes")==0 || temp.compare("y")==0) { _isMMS = 1; }
+      if (temp.compare("yes") == 0 || temp.compare("y") == 0) {
+	_isMMS = 1;
+      }
     }
-
-    else if (var.compare("sbpType")==0) { _sbpType = rhs; }
-    else if (var.compare("operatorTYpe")==0) { _operatorType = rhs; }
-    else if (var.compare("sbpCompatibilityType")==0) { _sbpCompatibilityType = rhs; }
-    else if (var.compare("gridSpacingType")==0) { _gridSpacingType = rhs; }
-    else if (var.compare("bulkDeformationType")==0) { _bulkDeformationType = rhs; }
-    else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
-    else if (var.compare("loadICs")==0) { _loadICs = (int)atof(rhs.c_str() ); }
-    else if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( rhs.c_str() ); }
-    else if (var.compare("outputDir")==0) { _outputDir =  rhs; }
-    else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
+    else if (var.compare("sbpType")==0) {
+      _sbpType = rhs;
+    }
+    else if (var.compare("operatorTYpe")==0) {
+      _operatorType = rhs;
+    }
+    else if (var.compare("sbpCompatibilityType")==0) {
+      _sbpCompatibilityType = rhs;
+    }
+    else if (var.compare("gridSpacingType")==0) {
+      _gridSpacingType = rhs;
+    }
+    else if (var.compare("bulkDeformationType")==0) {
+      _bulkDeformationType = rhs;
+    }
+    else if (var.compare("momentumBalanceType")==0) {
+      _momentumBalanceType = rhs;
+    }
+    else if (var.compare("loadICs")==0) {
+      _loadICs = (int)atof(rhs.c_str());
+    }
+    else if (var.compare("inputDir")==0) {
+      _inputDir = rhs;
+    }
+    else if (var.compare("bCoordTrans")==0) {
+      _bCoordTrans = atof( rhs.c_str() );
+    }
+    else if (var.compare("outputDir")==0) {
+      _outputDir =  rhs;
+    }
+    else if (var.compare("vL")==0) {
+      _vL = atof( rhs.c_str() );
+    }
   }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -187,12 +256,15 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
   PetscErrorCode ierr = 0;
   PetscMPIInt localRank;
   MPI_Comm_rank(PETSC_COMM_WORLD,&localRank);
+
   if (localRank==rank) {
-  #if VERBOSE > 1
-    std::string funcName = "Domain::view";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
+    #if VERBOSE > 1
+      std::string funcName = "Domain::view";
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+      CHKERRQ(ierr);
+    #endif
+
+    // start printing all the inputs
     PetscPrintf(PETSC_COMM_SELF,"\n\nrank=%i in Domain::view\n",rank);
     ierr = PetscPrintf(PETSC_COMM_SELF,"order = %i\n",_order);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ny = %i\n",_Ny);CHKERRQ(ierr);
@@ -200,7 +272,6 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ly = %e\n",_Ly);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Lz = %e\n",_Lz);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
-
     ierr = PetscPrintf(PETSC_COMM_SELF,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"momBalType = %s\n",_momentumBalanceType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
@@ -208,14 +279,13 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     ierr = PetscPrintf(PETSC_COMM_SELF,"operatorType = %s\n",_operatorType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"sbpCompatibilityType = %s\n",_sbpCompatibilityType.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"gridSpacingType = %s\n",_gridSpacingType.c_str());CHKERRQ(ierr);
-
     ierr = PetscPrintf(PETSC_COMM_SELF,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"\n");CHKERRQ(ierr);
 
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-    CHKERRQ(ierr);
-  #endif
+    #if VERBOSE > 1
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+      CHKERRQ(ierr);
+    #endif
   }
   return ierr;
 }
@@ -231,26 +301,28 @@ PetscErrorCode Domain::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  assert(_bulkDeformationType.compare("linearElastic")==0 ||
-    _bulkDeformationType.compare("powerLaw")==0 );
+  assert(_bulkDeformationType.compare("linearElastic") == 0 ||
+    _bulkDeformationType.compare("powerLaw") == 0);
 
-  assert(_sbpCompatibilityType.compare("fullyCompatible")==0 ||
-    _sbpCompatibilityType.compare("compatible")==0 );
+  assert(_sbpCompatibilityType.compare("fullyCompatible") == 0 ||
+    _sbpCompatibilityType.compare("compatible") == 0);
 
-  if (_bCoordTrans > 0.0) { _gridSpacingType = "variableGridSpacing"; }
+  if (_bCoordTrans > 0.0) {
+    _gridSpacingType = "variableGridSpacing";
+  }
 
-  assert(_gridSpacingType.compare("variableGridSpacing")==0 ||
-    _gridSpacingType.compare("constantGridSpacing")==0 );
+  assert(_gridSpacingType.compare("variableGridSpacing") == 0 ||
+     _gridSpacingType.compare("constantGridSpacing") == 0);
 
-  assert(_momentumBalanceType.compare("quasidynamic")==0 ||
-    _momentumBalanceType.compare("dynamic")==0 ||
-    _momentumBalanceType.compare("quasidynamic_and_dynamic")==0 ||
-    _momentumBalanceType.compare("steadyStateIts")==0);
+  assert(_momentumBalanceType.compare("quasidynamic") == 0 ||
+    _momentumBalanceType.compare("dynamic") == 0 ||
+    _momentumBalanceType.compare("quasidynamic_and_dynamic") == 0 ||
+    _momentumBalanceType.compare("steadyStateIts") == 0);
 
-  assert( _order==2 || _order==4 );
-  assert( _Ly > 0 && _Lz > 0);
-  assert( _dq > 0 && !isnan(_dq) );
-  assert( _dr > 0 && !isnan(_dr) );
+  assert(_order == 2 || _order == 4);
+  assert(_Ly > 0 && _Lz > 0);
+  assert(_dq > 0 && !isnan(_dq));
+  assert(_dr > 0 && !isnan(_dr));
 
 
   #if VERBOSE > 1
@@ -259,7 +331,6 @@ PetscErrorCode Domain::checkInput()
   #endif
   return ierr;
 }
-
 
 
 
@@ -278,6 +349,7 @@ PetscErrorCode Domain::write()
   std::string str = _outputDir + "domain.txt";
   PetscViewer    viewer;
 
+  // write into file using PetscViewer
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -290,25 +362,21 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"Ly = %g # (km)\n",_Ly);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"Lz = %g # (km)\n",_Lz);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
   ierr = PetscViewerASCIIPrintf(viewer,"isMMS = %i\n",_isMMS);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"momBalType = %s\n",_momentumBalanceType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"bulkDeformationType = %s\n",_bulkDeformationType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"sbpType = %s\n",_sbpType.c_str());CHKERRQ(ierr);
 
-
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"bCoordTrans = %.15e\n",_bCoordTrans);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
-
   ierr = PetscViewerASCIIPrintf(viewer,"outputDir = %s\n",_outputDir.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
-
+  // get number of processors
   PetscMPIInt size;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   ierr = PetscViewerASCIIPrintf(viewer,"numProcessors = %i\n",size);CHKERRQ(ierr);
-
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
   // output q
@@ -343,9 +411,7 @@ PetscErrorCode Domain::write()
 }
 
 
-
-
-
+// set fields
 PetscErrorCode Domain::setFields()
 {
   PetscErrorCode ierr = 0;
@@ -355,47 +421,55 @@ PetscErrorCode Domain::setFields()
     CHKERRQ(ierr);
   #endif
 
+  // generate vector _y with size _Ny*_Nz
   ierr = VecCreate(PETSC_COMM_WORLD,&_y); CHKERRQ(ierr);
   ierr = VecSetSizes(_y,PETSC_DECIDE,_Ny*_Nz); CHKERRQ(ierr);
   ierr = VecSetFromOptions(_y); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _y, "y"); CHKERRQ(ierr);
 
+  // duplicate _y into _z, _q, _r
   VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
   VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
   VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
 
   // construct coordinate transform
-  PetscInt Ii,Istart,Iend;
-  ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt Ii,Istart,Iend,Jj = 0;
   PetscScalar *y,*z,*q,*r;
+  ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
+
+  // return pointers to local data arrays (the processor's portion of vector data)
   VecGetArray(_y,&y);
   VecGetArray(_z,&z);
   VecGetArray(_q,&q);
   VecGetArray(_r,&r);
-  PetscInt Jj = 0;
-  for (Ii=Istart;Ii<Iend;Ii++) {
+
+  // set vector entries for q, r (coordinate transform) and y, z (no transform)
+  for (Ii=Istart; Ii<Iend; Ii++) {
     q[Jj] = _dq*(Ii/_Nz);
     r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
-    if (_sbpType.compare("mfc_coordTrans") ) { // no coordinate transform
+
+    // matrix-based, fully compatible, allows curvilinear coordinate transformation
+    if (_sbpType.compare("mfc_coordTrans") ) {
       y[Jj] = (_dq*_Ly)*(Ii/_Nz);
       z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
     }
     else {
+      // hardcoded transformation (not available for z)
+      if (_bCoordTrans > 0) {
+	y[Jj] = _Ly * sinh(_bCoordTrans * q[Jj]) / sinh(_bCoordTrans);
+      }
       // no transformation
       y[Jj] = q[Jj]*_Ly;
       z[Jj] = r[Jj]*_Lz;
-
-      // hardcoded transformation (not available for z)
-      if (_bCoordTrans > 0) { y[Jj] = _Ly * sinh(_bCoordTrans*q[Jj])/sinh(_bCoordTrans); }
     }
-
     Jj++;
   }
+
+  // restore arrays
   VecRestoreArray(_y,&y);
   VecRestoreArray(_z,&z);
   VecRestoreArray(_q,&q);
   VecRestoreArray(_r,&r);
-
 
   // load y and z instead
   loadVecFromInputFile(_y,_inputDir,"y");
@@ -409,6 +483,8 @@ PetscErrorCode Domain::setFields()
   return ierr;
 }
 
+
+// scatters a body field into 1D vector
 PetscErrorCode Domain::setScatters()
 {
   PetscErrorCode ierr = 0;
@@ -418,63 +494,104 @@ PetscErrorCode Domain::setScatters()
     CHKERRQ(ierr);
   #endif
 
-  // some example 1D vectors
-  VecCreate(PETSC_COMM_WORLD,&_y0); VecSetSizes(_y0,PETSC_DECIDE,_Nz); VecSetFromOptions(_y0); VecSet(_y0,0.0);
-  VecCreate(PETSC_COMM_WORLD,&_z0); VecSetSizes(_z0,PETSC_DECIDE,_Ny); VecSetFromOptions(_z0); VecSet(_z0,0.0);
+  // set _y0 to be zero vector with length _Nz
+  VecCreate(PETSC_COMM_WORLD,&_y0);
+  VecSetSizes(_y0,PETSC_DECIDE,_Nz);
+  VecSetFromOptions(_y0);
+  VecSet(_y0,0.0);  
 
+  // set _z0 to be zero vector with length _Ny
+  VecCreate(PETSC_COMM_WORLD,&_z0);
+  VecSetSizes(_z0,PETSC_DECIDE,_Ny);
+  VecSetFromOptions(_z0);
+  VecSet(_z0,0.0);
 
-  { // set up scatter context to take values for y=0 from body field and put them on a Vec of size Nz
-    PetscInt *indices; PetscMalloc1(_Nz,&indices);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) { indices[Ii] = Ii; }
-    IS is;
+  { // set up scatter context to take values for y = 0 from body field and put them on a Vec of size Nz
+    PetscInt *indices;
+    IS is;  // index set
+    PetscMalloc1(_Nz,&indices);
+
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+      indices[Ii] = Ii;
+    }
+
+    // creates data structure for an index set containing a list of integers
     ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
+    // creates vector scatter context
     ierr = VecScatterCreate(_y, is, _y0, is, &_scatters["body2L"]); CHKERRQ(ierr);
+    // free memory
     PetscFree(indices);
     ISDestroy(&is);
   }
 
-  { // set up scatter context to take values for y=Ly from body field and put them on a Vec of size Nz
+  { // set up scatter context to take values for y = Ly from body field and put them on a Vec of size Nz
     // indices to scatter from
-    PetscInt *fi; PetscMalloc1(_Nz,&fi);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) { fi[Ii] = Ii + (_Ny*_Nz-_Nz); }
-    IS isf; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf);
+    PetscInt *fi;
+    IS isf;
+    PetscMalloc1(_Nz,&fi);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+      fi[Ii] = Ii + (_Ny*_Nz-_Nz);
+    }
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf);
 
     // indices to scatter to
-    PetscInt *ti; PetscMalloc1(_Nz,&ti);
-    for (PetscInt Ii=0; Ii<_Nz; Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist);
-
+    PetscInt *ti;
+    IS ist;
+    PetscMalloc1(_Nz,&ti);
+    for (PetscInt Ii=0; Ii<_Nz; Ii++) {
+      ti[Ii] = Ii;
+    }
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist);
     ierr = VecScatterCreate(_y, isf, _y0, ist, &_scatters["body2R"]); CHKERRQ(ierr);
-    PetscFree(fi); PetscFree(ti);
-    ISDestroy(&isf); ISDestroy(&ist);
+
+    // free memory
+    PetscFree(fi);
+    PetscFree(ti);
+    ISDestroy(&isf);
+    ISDestroy(&ist);
   }
 
-  { // set up scatter context to take values for z=0 from body field and put them on a Vec of size Ny
+  { // set up scatter context to take values for z = 0 from body field and put them on a Vec of size Ny
     // indices to scatter from
-    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
+    IS isf;
+    // creates a data structure for an index set with a list of evenly spaced integers
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
 
     // indices to scatter to
-    PetscInt *ti; PetscMalloc1(_Ny,&ti);
-    for (PetscInt Ii=0; Ii<_Ny; Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
-
+    PetscInt *ti;
+    IS ist;
+    PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) {
+      ti[Ii] = Ii;
+    }
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
     ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2T"]); CHKERRQ(ierr);
+
+    // free memory
     PetscFree(ti);
-    ISDestroy(&isf); ISDestroy(&ist);
+    ISDestroy(&isf);
+    ISDestroy(&ist);
   }
 
-  { // set up scatter context to take values for z=Lz from body field and put them on a Vec of size Ny
+  { // set up scatter context to take values for z = Lz from body field and put them on a Vec of size Ny
     // indices to scatter from
-    IS isf; ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &isf);
+    IS isf;
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz-1, _Nz, &isf);
 
     // indices to scatter to
-    PetscInt *ti; PetscMalloc1(_Ny,&ti);
-    for (PetscInt Ii=0; Ii<_Ny; Ii++) { ti[Ii] = Ii; }
-    IS ist; ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
-
+    PetscInt *ti;
+    IS ist;
+    PetscMalloc1(_Ny,&ti);
+    for (PetscInt Ii=0; Ii<_Ny; Ii++) {
+      ti[Ii] = Ii;
+    }
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
     ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2B"]); CHKERRQ(ierr);
+
+    // free memory
     PetscFree(ti);
-    ISDestroy(&isf); ISDestroy(&ist);
+    ISDestroy(&isf);
+    ISDestroy(&ist);
   }
 
   // create example vector for testing purposes
@@ -533,5 +650,5 @@ PetscErrorCode Domain::setScatters()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-return ierr;
+  return ierr;
 }
