@@ -5,6 +5,7 @@
 using namespace std;
 
 
+// construct class object
 LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
 : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
@@ -28,6 +29,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // load and set parameters
   loadSettings(D._file);
   checkInput();
   allocateFields();
@@ -49,6 +51,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
 }
 
 
+// destructor
 LinearElastic::~LinearElastic()
 {
   #if VERBOSE > 1
@@ -77,13 +80,15 @@ LinearElastic::~LinearElastic()
 
   KSPDestroy(&_ksp);
 
-  delete _sbp; _sbp = NULL;
+  _sbp = NULL;
+  delete _sbp;
 
   // destroy viewers
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_timeV2D);
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first].first);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it !=_viewers.end(); it++) {
+    // destroy PetscViewer iteratively
+    PetscViewerDestroy(&_viewers[it->second].first);
   }
 
   #if VERBOSE > 1
@@ -96,15 +101,15 @@ LinearElastic::~LinearElastic()
 PetscErrorCode LinearElastic::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
+  #if VERBOSE > 1
     std::string funcName = "LinearElastic::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+  
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
 
   ifstream infile( file );
   string line, var, rhs, rhsFull;
@@ -125,26 +130,42 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     rhs = rhs.substr(0,pos);
 
 
-    if (var.compare("linSolver")==0) { _linSolver = rhs; }
-    else if (var.compare("kspTol")==0) { _kspTol = atof( (rhs).c_str() ); }
-
-    else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
-    else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
-    else if (var.compare("rhoVals")==0) { loadVectorFromInputFile(rhsFull,_rhoVals); }
-    else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
+    if (var.compare("linSolver")==0) {
+      _linSolver = rhs;
+    }
+    else if (var.compare("kspTol")==0) {
+      _kspTol = atof( (rhs).c_str() );
+    }
+    else if (var.compare("muVals")==0) {
+      loadVectorFromInputFile(rhsFull,_muVals);
+    }
+    else if (var.compare("muDepths")==0) {
+      loadVectorFromInputFile(rhsFull,_muDepths);
+    }
+    else if (var.compare("rhoVals")==0) {
+      loadVectorFromInputFile(rhsFull,_rhoVals);
+    }
+    else if (var.compare("rhoDepths")==0) {
+      loadVectorFromInputFile(rhsFull,_rhoDepths);
+    }
 
     // switches for computing extra stresses
-    else if (var.compare("momBal_computeSxz")==0) { _computeSxz = atof( rhs.c_str() ); }
-    else if (var.compare("momBal_computeSdev")==0) { _computeSdev = atof( rhs.c_str() ); }
-
+    else if (var.compare("momBal_computeSxz")==0) {
+      _computeSxz = atof( rhs.c_str() );
+    }
+    else if (var.compare("momBal_computeSdev")==0) {
+      _computeSdev = atof( rhs.c_str() );
+    }
   }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
   return ierr;
 }
+
 
 // Check that required fields have been set by the input file
 PetscErrorCode LinearElastic::checkInput()
@@ -165,17 +186,20 @@ PetscErrorCode LinearElastic::checkInput()
     assert(_kspTol >= 1e-14);
   }
 
-  assert(_muVals.size() == _muDepths.size() );
-  assert(_muVals.size() != 0 );
-  assert(_rhoVals.size() == _rhoDepths.size() );
-  assert(_rhoVals.size() != 0 );
+  assert(_muVals.size() == _muDepths.size());
+  assert(_muVals.size() != 0);
+  assert(_rhoVals.size() == _rhoDepths.size());
+  assert(_rhoVals.size() != 0);
 
-  if (_computeSdev == 1) { _computeSxz = 1; }
+  if (_computeSdev == 1) {
+    _computeSxz = 1;
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+  
   return ierr;
 }
 
@@ -192,7 +216,7 @@ PetscErrorCode LinearElastic::checkInput()
  * direct LU                 MUMPS                MUMPSLU
  * direct Cholesky           MUMPS                MUMPSCHOLESKY
  *
- * A list of options for each algorithm that can be set can be optained
+ * A list of options for each algorithm that can be set can be obtained
  * by running the code with the argument main <input file> -help and
  * searching through the output for "Preconditioner (PC) options" and
  * "Krylov Method (KSP) options".
@@ -203,6 +227,7 @@ PetscErrorCode LinearElastic::checkInput()
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
+
 PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
@@ -211,52 +236,60 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // create KSP
   ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
 
-  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
+  // algebraic multigrid from HYPRE
+  if (_linSolver.compare("AMG")==0) { 
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr); // necessary for solving steady state power law
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+    ierr = KSPSetType(ksp,KSPRICHARDSON); CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+    // necessary for solving steady state power law
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr); 
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-
+    ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
     //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
-  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    // use direct LU from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct LU from MUMPS
+  else if (_linSolver.compare("MUMPSLU")==0) { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    // use direct LL^T (Cholesky factorization) from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct Cholesky (RR^T) from MUMPS
+  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("CG")==0) { // conjugate gradient
-    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+
+  // conjugate gradient
+  else if (_linSolver.compare("CG")==0) {
+    ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
+
+  // undefined linear solver
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
@@ -272,6 +305,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
   return ierr;
 }
 

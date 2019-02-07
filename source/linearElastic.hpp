@@ -24,7 +24,6 @@ class LinearElastic
     LinearElastic& operator=(const LinearElastic &rhs);
 
   public:
-
     // domain properties
     Domain              *_D; // shallow copy of domain
     std::string          _delim; // format is: var delim value (without the white space)
@@ -91,13 +90,14 @@ class LinearElastic
     PetscErrorCode computeU();
     PetscErrorCode changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype);
 
-
     // IO commands
     PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); // write out 1D fields
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); // write out 2D fields
+    // write out 1D fields
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); 
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    // write out 2D fields
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); 
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // MMS functions
@@ -149,6 +149,5 @@ class LinearElastic
     static double zzmms_sigmaxy1D(const double y,const double t);
     static double zzmms_uSource1D(const double y,const double t);
 };
-
 
 #endif
