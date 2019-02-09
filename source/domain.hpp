@@ -71,7 +71,6 @@ class Domain
     Domain(const char *file,PetscInt Ny, PetscInt Nz);  // constructor 2
     ~Domain(); // destructor
 
-
     PetscErrorCode view(PetscMPIInt rank);
     PetscErrorCode write();
 
@@ -87,6 +86,7 @@ class Domain
     PetscErrorCode setFields();  // set coordinate transforms
     // scatters indices of result vector to new vectors (e.g. displacement -> slip)
     PetscErrorCode setScatters();  
+    PestcErrorCode testScatters();
 };
 
 #endif

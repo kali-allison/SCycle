@@ -40,20 +40,18 @@ Domain::Domain(const char *file)
     _dr = 1;
   }
 
-#if VERBOSE > 2 // each processor prints loaded values to screen
-  PetscMPIInt rank,size;
-  MPI_Comm_size(PETSC_COMM_WORLD,&size);
-  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+  #if VERBOSE > 2 // each processor prints loaded values to screen
+    PetscMPIInt rank,size;
+    MPI_Comm_size(PETSC_COMM_WORLD,&size);
+    MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  for (int Ii = 0; Ii < size; Ii++) {
-    view(Ii);
-  }
-#endif
+    for (int Ii = 0; Ii < size; Ii++) {
+      view(Ii);
+    }
+  #endif
 
   checkInput(); // perform some basic value checking to prevent NaNs
-
   setFields();
-
   setScatters();
 
   #if VERBOSE > 1
@@ -61,6 +59,7 @@ Domain::Domain(const char *file)
   #endif
 
 }
+
 
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
@@ -97,20 +96,18 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
     _dr = 1;
   }
 
-#if VERBOSE > 2 // each processor prints loaded values to screen
-  PetscMPIInt rank,size;
-  MPI_Comm_size(PETSC_COMM_WORLD,&size);
-  MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+  #if VERBOSE > 2 // each processor prints loaded values to screen
+    PetscMPIInt rank,size;
+    MPI_Comm_size(PETSC_COMM_WORLD,&size);
+    MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
-  for (int Ii=0;Ii<size;Ii++) {
-    view(Ii);
-  }
-#endif
+    for (int Ii = 0; Ii < size; Ii++) {
+      view(Ii);
+    }
+  #endif
 
-  checkInput(); // perform some basic value checking to prevent NaNs
-  
+  checkInput(); // perform some basic value checking to prevent NaNs  
   setFields();
-  
   setScatters();
 
   #if VERBOSE > 1
@@ -161,8 +158,8 @@ PetscErrorCode Domain::loadData(const char *file)
   #endif
 
   // determines size of the group associated with a communicator
+  MPI_Comm_size(PETSC_COMM_WORLD,&size); 
   // determines rank of the calling processes in the communicator
-  MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
   // read file inputs
@@ -324,7 +321,6 @@ PetscErrorCode Domain::checkInput()
   assert(_dq > 0 && !isnan(_dq));
   assert(_dr > 0 && !isnan(_dr));
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -333,8 +329,8 @@ PetscErrorCode Domain::checkInput()
 }
 
 
-
 // Save all scalar fields to text file named domain.txt in output directory.
+// Also writes out coordinate systems q, r, y, z into respective files in output directory
 // Note that only the rank 0 processor's values will be saved.
 PetscErrorCode Domain::write()
 {
@@ -615,71 +611,72 @@ PetscErrorCode Domain::setScatters()
   return ierr;
 }
 
-// // create example vector for testing purposes
-// PestcErrorCode Domain::testScatters() {
-//   Vec body;
-//   VecDuplicate(_y,&body);
-//   PetscInt      Istart,Iend,Jj = 0;
-//   PetscScalar   *bodyA;
-//   PetscErrorCode ierr = 0;
-//   VecGetOwnershipRange(body,&Istart,&Iend);
-//   VecGetArray(body,&bodyA);
 
-//   for (PetscInt Ii = Istart; Ii<Iend; Ii++) {
-//     PetscInt Iy = Ii/_Nz;
-//     PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
-//     bodyA[Jj] = 10.*Iy + Iz;
-//     PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
-//     Jj++;
-//   }
-//   VecRestoreArray(body,&bodyA);
+// create example vector for testing purposes
+PestcErrorCode Domain::testScatters() {
+  Vec body;
+  VecDuplicate(_y,&body);
+  PetscInt      Istart,Iend,Jj = 0;
+  PetscScalar   *bodyA;
+  PetscErrorCode ierr = 0;
+  VecGetOwnershipRange(body,&Istart,&Iend);
+  VecGetArray(body,&bodyA);
 
-//   // test various mappings
-//   // y = 0: mapping to L
-//   Vec out;
-//   VecDuplicate(_y0,&out);
-//   VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-//   VecDestroy(&out);
+  for (PetscInt Ii = Istart; Ii<Iend; Ii++) {
+    PetscInt Iy = Ii/_Nz;
+    PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
+    bodyA[Jj] = 10.*Iy + Iz;
+    PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
+    Jj++;
+  }
+  VecRestoreArray(body,&bodyA);
 
-//   // y = Ly: mapping to R
-//   Vec out;
-//   VecDuplicate(_y0,&out); VecSet(out,-1.);
-//   VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-//   VecDestroy(&out);
+  // test various mappings
+  // y = 0: mapping to L
+  Vec out;
+  VecDuplicate(_y0,&out);
+  VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  VecDestroy(&out);
 
-//   // z=0: mapping to T
-//   Vec out;
-//   VecDuplicate(_z0,&out); VecSet(out,-1.);
-//   VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-//   VecDestroy(&out);
+  // y = Ly: mapping to R
+  Vec out;
+  VecDuplicate(_y0,&out); VecSet(out,-1.);
+  VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  VecDestroy(&out);
 
-//   // z=Lz: mapping to B
-//   Vec out;
-//   VecDuplicate(_z0,&out);
-//   VecSet(out,-1.);
-//   VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-//   VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-//   VecDestroy(&out);
+  // z=0: mapping to T
+  Vec out;
+  VecDuplicate(_z0,&out); VecSet(out,-1.);
+  VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  VecDestroy(&out);
 
-//   // z=Lz: mapping from B to body
-//   Vec out;
-//   VecDuplicate(_z0,&out);
-//   VecSet(out,-1.);
-//   VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-//   VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-//   VecView(body,PETSC_VIEWER_STDOUT_WORLD);
+  // z=Lz: mapping to B
+  Vec out;
+  VecDuplicate(_z0,&out);
+  VecSet(out,-1.);
+  VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
+  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  VecDestroy(&out);
 
-//   VecDestroy(&out);
-//   VecDestroy(&body);
-//   assert(0);
+  // z=Lz: mapping from B to body
+  Vec out;
+  VecDuplicate(_z0,&out);
+  VecSet(out,-1.);
+  VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+  VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
+  VecView(body,PETSC_VIEWER_STDOUT_WORLD);
 
-//   return ierr;
-// }
+  VecDestroy(&out);
+  VecDestroy(&body);
+  assert(0);
+
+  return ierr;
+}
 
