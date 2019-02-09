@@ -47,8 +47,8 @@
  * Once the odeSolver context is set, call integrate() to perform
  * the integration.
  *
- * y(t=final time) is stored in the initial conditions array.  Summary output
- * information is provided by viewSolver.  Users can obtain information at
+ * y(t = final_time) is stored in the initial conditions array. Summary output
+ * information is provided by viewSolver. Users can obtain information at
  * each time step within a user-defined monitor function.
  *
  */
@@ -84,11 +84,8 @@ class OdeSolver
     virtual PetscErrorCode integrate(IntegratorContextEx *obj) {return 1;};
 };
 
-//~ PetscErrorCode newtempRhsFunc(const PetscReal time,const int lenVar,Vec *var,Vec *dvar,void *userContext);
-//~ PetscErrorCode newtempTimeMonitor(const PetscReal time, const PetscInt stepCount,
-                               //~ const Vec *var, const int lenVar, void*userContext);
 
-
+// FEuler is a derived class from OdeSolver
 class FEuler : public OdeSolver
 {
   public:
@@ -106,6 +103,7 @@ class FEuler : public OdeSolver
 };
 
 
+// Runge-kutta time-stepping, 3rd-order
 // Based on algorithm from Hairer et al.
 class RK32 : public OdeSolver
 {
@@ -126,11 +124,11 @@ class RK32 : public OdeSolver
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 
-  //~ public:
-
+    // constructor and destructor
     RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32();
 
+    // member functions of this class
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
@@ -138,13 +136,13 @@ class RK32 : public OdeSolver
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
-
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 
 // Based on "ARK4(3)6L[2]SA-ERK" algorithm from Kennedy and Carpenter (2003):
 // "Additive Runge-Kutta schemes for convection-diffusion-reaction equations"
+// Runge-Kutta time-stepping, 4th order
 // Note: Has matching IMEX equivalent
 class RK43 : public OdeSolver
 {
@@ -165,11 +163,11 @@ class RK43 : public OdeSolver
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 
-  //~ public:
-
+    // constructor and destructor
     RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK43();
 
+    // various member functions
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& var);
@@ -177,7 +175,6 @@ class RK43 : public OdeSolver
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
-
     PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 

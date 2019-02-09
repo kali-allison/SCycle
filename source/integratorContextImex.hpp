@@ -22,13 +22,14 @@ class IntegratorContextImex
     virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
 
     // for time step including implicitly integrated variables
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0;
+    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0;
 
     // for output and monitoring as time integration progresses
     // this function is not required
-    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT,
-      const PetscInt stepCount,int& stopIntegration){return 1;};
+    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT, const PetscInt stepCount,int& stopIntegration){
+      return 1;
+    };
+
 };
 
 #include "odeSolver.hpp"

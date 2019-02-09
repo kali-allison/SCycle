@@ -69,34 +69,37 @@ class OdeSolverImex
     string                  _controlType;
     string                  _normType;
 
-  public:
-
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol,_rtol; // absolute and relative tolerances
     PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
+    // constructor and destructor
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolverImex() {};
 
-    virtual PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT) = 0;
+    // member functions
     PetscErrorCode setInitialStepCount(const PetscReal stepCount);
-    virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
     PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
 
+  // virtual member functions are declared in base class and redefined in derived class
+    virtual PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT) = 0;
+    virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
     virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
     virtual PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds, vector<double> scale) = 0;
+
     virtual PetscErrorCode view() = 0;
     virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
-
     virtual PetscReal computeStepSize(const PetscReal totErr) = 0;
     virtual PetscReal computeError() = 0;
 };
 
+
 // Explicit RK32 scheme from Hairer et al., with added Backward Euler implicit scheme once per time step
+// derived class from OdeSolverImex
 class RK32_WBE : public OdeSolverImex
 {
   public:
@@ -110,13 +113,13 @@ class RK32_WBE : public OdeSolverImex
     std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
     std::map<string,Vec> _vardTIm;
 
-
+    // constructor and destructor
     RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK32_WBE();
 
+    // member functions
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
-
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
@@ -124,7 +127,6 @@ class RK32_WBE : public OdeSolverImex
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
-
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 };
@@ -135,6 +137,7 @@ class RK32_WBE : public OdeSolverImex
 // Based on "ARK4(3)6L[2]SA-ERK" algorithm from Kennedy and Carpenter (2003):
 // "Additive Runge-Kutta schemes for convection-diffusion-reaction equations"
 // Note: Has matching IMEX equivalent
+// derived class from OdeSolverImex
 class RK43_WBE : public OdeSolverImex
 {
   public:
@@ -151,13 +154,13 @@ class RK43_WBE : public OdeSolverImex
     // intermediate value for implict variable
     std::map<string,Vec> _vardTIm;
 
-
+    // constructor and destructor
     RK43_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     ~RK43_WBE();
 
+  // member functions
     PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
     PetscErrorCode setStepSize(const PetscReal deltaT);
-
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
     PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
@@ -165,7 +168,6 @@ class RK43_WBE : public OdeSolverImex
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContextImex *obj);
-
     PetscReal computeStepSize(const PetscReal totErr);
     PetscReal computeError();
 };

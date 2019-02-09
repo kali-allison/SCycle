@@ -25,7 +25,6 @@
 #include "linearElastic.hpp"
 
 
-
 /*
  * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
  *  with linear elastic material properties.
@@ -33,6 +32,7 @@
  */
 
 
+// StrikeSlip_LinearElastic_qd is a derived class from IntegratorContextEx and IntegratorContextImex
 class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
 {
 private:
@@ -65,7 +65,7 @@ private:
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
-    int                    _stepCount;
+    int                    _stepCount; // number of time steps at which results are written out
     PetscScalar            _timeStepTol;
     PetscScalar            _initDeltaT;
     std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
@@ -92,7 +92,6 @@ private:
     // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
-
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
@@ -112,14 +111,13 @@ private:
     HeatEquation               *_he;
     PressureEq                 *_p;
 
-
+    // constructor and destructor
     StrikeSlip_LinearElastic_qd(Domain&D);
     ~StrikeSlip_LinearElastic_qd();
 
     // estimating steady state conditions
     PetscErrorCode solveSS();
     PetscErrorCode solveSSb();
-
 
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
@@ -130,23 +128,18 @@ private:
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
-
+    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
 
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
       const PetscInt stepCount, int& stopIntegration);
-
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
-
 };
-
 
 #endif
