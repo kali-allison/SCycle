@@ -92,14 +92,15 @@ private:
     // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
+    // for mapping from body fields to the fault
+    VecScatter* _body2fault;
+
+    // private member functions
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
     PetscErrorCode parseBCs(); // parse boundary conditions
     PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
     PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
-
-    // for mapping from body fields to the fault
-    VecScatter* _body2fault;
 
   public:
 
