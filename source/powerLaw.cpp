@@ -1167,7 +1167,7 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
@@ -1176,7 +1176,7 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
@@ -1234,7 +1234,7 @@ PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
     //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
     //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     //~ ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    //~ ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     //~ ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   //~ }
   //~ else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
@@ -1243,7 +1243,7 @@ PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
     ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
   //~ }
   //~ else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient

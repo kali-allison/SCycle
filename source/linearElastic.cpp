@@ -88,7 +88,7 @@ LinearElastic::~LinearElastic()
   PetscViewerDestroy(&_timeV2D);
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it !=_viewers.end(); it++) {
     // destroy PetscViewer iteratively
-    PetscViewerDestroy(&_viewers[it->second].first);
+    PetscViewerDestroy(&_viewers[it->first].first);
   }
 
   #if VERBOSE > 1

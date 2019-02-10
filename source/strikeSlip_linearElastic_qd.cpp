@@ -274,14 +274,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
     VecScale(dy,1.0/(_D->_Ny-1));
     MatGetDiagonal(zr, dz);
     VecScale(dz,1.0/(_D->_Nz-1));
-    
-    // free memory
-    MatDestroy(&J);
-    MatDestroy(&Jinv);
-    MatDestroy(&qy);
-    MatDestroy(&rz);
-    MatDestroy(&yq);
-    MatDestroy(&zr);
   }
   else {
     VecSet(dy,_D->_Ly/(_D->_Ny-1.0));
@@ -415,10 +407,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
   }
-
-  // free memory
-  MatDestroy(&A);
-  VecDestroy(&slip);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -758,11 +746,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     _p->d_dt(time,varEx,dvarEx);
   }
 
-  // free memory
-  VecDestroy(&sxy);
-  VecDestroy(&sxz);
-  VecDestroy(&sdev);
-
   return ierr;
 }
 
@@ -828,19 +811,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     Vec Told = varImo.find("Temp")->second;
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
     ierr = _he->be(time,V,tau,NULL,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
-
-    // free memory
-    VecDestroy(&V);
-    VecDestroy(&tau);
-    VecDestroy(&gVxy_t);
-    VecDestroy(&gVxz_t);
-    VecDestroy(&Told);
   }
-
-  // free memory
-  VecDestroy(&sxy);
-  VecDestroy(&sxz);
-  VecDestroy(&sdev);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -924,11 +895,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     // free memory
     VecDestroy(&T);
   }
-
-  // free memory
-  VecDestroy(&sxy);
-  VecDestroy(&sxz);
-  VecDestroy(&sdev);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1074,13 +1040,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
     ierr = MatMult(H,temp1,_forcingTerm); CHKERRQ(ierr);
     // free memory
     VecDestroy(&temp1);
-    MatDestroy(&J);
-    MatDestroy(&Jinv);
-    MatDestroy(&qy);
-    MatDestroy(&rz);
-    MatDestroy(&yq);
-    MatDestroy(&zr);
-    MatDestroy(&H);
   }
 
   // multiply forcing term by H if grid is regular
@@ -1093,7 +1052,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
     VecCopy(temp1,_forcingTerm);
     // free memory
     VecDestroy(&temp1);
-    MatDestroy(&H);
   }
 
   #if VERBOSE > 1

@@ -86,7 +86,7 @@ class Domain
     PetscErrorCode setFields();  // set coordinate transforms
     // scatters indices of result vector to new vectors (e.g. displacement -> slip)
     PetscErrorCode setScatters();  
-    PestcErrorCode testScatters();
+    PetscErrorCode testScatters();
 };
 
 #endif
