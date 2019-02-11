@@ -39,9 +39,9 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   setUpSBPContext(); // set up matrix operators
   _matrixTime += MPI_Wtime() - startMatrix;
 
-  //~ if (_inputDir.compare("unspecified") != 0) {
+  if (_inputDir.compare("unspecified") != 0) {
     loadFieldsFromFiles(); // load from previous simulation
-  //~ }
+  }
 
   setSurfDisp();
 
@@ -80,8 +80,8 @@ LinearElastic::~LinearElastic()
 
   KSPDestroy(&_ksp);
 
-  _sbp = NULL;
   delete _sbp;
+  _sbp = NULL;
 
   // destroy viewers
   PetscViewerDestroy(&_timeV1D);
@@ -499,7 +499,7 @@ PetscErrorCode LinearElastic::setUpSBPContext()
 }
 
 
-// solve momentum balance equation for u
+// solve momentum balance equation for displacement vector u
 PetscErrorCode LinearElastic::computeU()
 {
   PetscErrorCode ierr = 0;
@@ -516,8 +516,8 @@ PetscErrorCode LinearElastic::computeU()
 
   ierr = setSurfDisp();
 
-  // force solution to be accurate to debug MMS test
-  //~ ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
+  // // force solution to be accurate to debug MMS test
+  // ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -556,6 +556,7 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+    // destroy current KSP context to reset
   KSPDestroy(&_ksp);
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
 
@@ -671,7 +672,7 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 }
 
 
-// 
+// writes out fields of length Ny or Nz at each time step
 PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
@@ -684,10 +685,8 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
   if (_timeV1D==NULL) {
     ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
-
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
@@ -713,7 +712,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 }
 
 
-//
+// writes out fields of length Ny*Nz. These take up much more hard drive space, and more runtime to output, so are separate from the 1D fields
 PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
@@ -898,7 +897,6 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
 	v = zzmms_mu(y,z) * zzmms_uA_y(y,z,time);
       }
       ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
-      //~ PetscPrintf(PETSC_COMM_WORLD,"Ly = %f, y = %f, z = %f, bcR = %f\n",_Ly,y,z,v);
     }
   }
 
@@ -946,13 +944,13 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyEnd(_bcT);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcB);CHKERRQ(ierr);
 
-  //~ writeVec(_bcL,_outputDir+"mms_bcL");
-  //~ writeVec(_bcR,_outputDir+"mms_bcR");
-  //~ writeVec(_bcT,_outputDir+"mms_bcT");
-  //~ writeVec(_bcB,_outputDir+"mms_bcB");
+  // writeVec(_bcL,_outputDir+"mms_bcL");
+  // writeVec(_bcR,_outputDir+"mms_bcR");
+  // writeVec(_bcT,_outputDir+"mms_bcT");
+  // writeVec(_bcB,_outputDir+"mms_bcB");
 
   #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
 
   return ierr;
@@ -985,9 +983,11 @@ PetscErrorCode LinearElastic::addRHS_MMSSource(const PetscScalar time,Vec& rhs)
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
   }
-  VecDestroy(&source);
 
   ierr = VecAXPY(_rhs,1.0,Hxsource); CHKERRQ(ierr); // rhs = rhs + H*source
+
+  // free memory
+  VecDestroy(&source);
   VecDestroy(&Hxsource);
 
   #if VERBOSE > 1
@@ -1026,14 +1026,12 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     multMatsVec(yq,zr,Hxsource);
   }
-  VecDestroy(&source);
 
   // set rhs, including body source term
   VecSet(_bcRShift,0.0);
   ierr = setMMSBoundaryConditions(time); CHKERRQ(ierr);
   ierr = _sbp->setRhs(_rhs,_bcL,_bcR,_bcT,_bcB); CHKERRQ(ierr);
   ierr = VecAXPY(_rhs,1.0,Hxsource); CHKERRQ(ierr); // rhs = rhs + H*source
-  VecDestroy(&Hxsource);
 
   // solve for displacement
   double startTime = MPI_Wtime();
@@ -1044,6 +1042,10 @@ PetscErrorCode LinearElastic::setMMSInitialConditions(const PetscScalar time)
 
   // solve for shear stress
   _sbp->muxDy(_u,_sxy);
+
+  // free memory
+  VecDestroy(&source);
+  VecDestroy(&Hxsource);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
@@ -1088,6 +1090,10 @@ PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)
 
   PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
+
+  // free memory
+  VecDestroy(&uA);
+  VecDestroy(&sigmaxyA);
 
   return ierr;
 }
@@ -1142,10 +1148,6 @@ double LinearElastic::zzmms_uA_z(const double y,const double z,const double t) {
 double LinearElastic::zzmms_uA_zz(const double y,const double z,const double t) {
   return zzmms_f_zz(y,z)*zzmms_g(t);
 }
-
-//~ double LinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
-  //~ return zzmms_f(y,z)*((-1.0/60)*exp(-t/60.0) - (-1.0/3e7)*exp(-t/3e7) +   (-1.0/3e9)*exp(-t/3e9));
-//~ }
 
 double LinearElastic::zzmms_uA_t(const double y,const double z,const double t) {
   return zzmms_f(y,z)*zzmms_g_t(t);

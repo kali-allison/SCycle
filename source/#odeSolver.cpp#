@@ -102,22 +102,7 @@ FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string con
 {}
 
 
-//destructor, free memory
-FEuler::~FEuler() {
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::destructor in odeSolver.cpp.\n");
-  #endif
-
-  // destruct temporary container
-  destroyVector(_dvar);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending FEuler::destructor in odeSolver.cpp.\n");
-  #endif
-}
-
-
-// print out information about method
+// print out information about method: time interval, stepCount, final time, runtime
 PetscErrorCode FEuler::view()
 {
   #if VERBOSE > 1
@@ -156,11 +141,11 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
   _var = var; // shallow copy
 
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++) {
-    Vec dvar;
-    ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
-    ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
+    Vec temp;
+    ierr = VecDuplicate(_var[it->first],&temp); CHKERRQ(ierr);
+    ierr = VecSet(temp,0.0); CHKERRQ(ierr);
     // initialize _dvar to be a zero vector
-    _dvar[it->first] = dvar;
+    _dvar[it->first] = temp;
   }
 
   _runTime += MPI_Wtime() - startTime;

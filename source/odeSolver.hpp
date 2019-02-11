@@ -90,7 +90,7 @@ class FEuler : public OdeSolver
 {
   public:
     FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~FEuler() {};
+    ~FEuler();
     PetscErrorCode view();
 
     PetscErrorCode setTolerance(const PetscReal tol){return 0;};
