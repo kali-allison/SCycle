@@ -1533,7 +1533,6 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, m
   ierr = VecRestoreArrayRead(_Phi, &Phi);
   ierr = VecRestoreArrayRead(_alphay, &alphay);
 
-
   // update state variable
   computeStateEvolution(varNext["psi"], var.find("psi")->second, varPrev.find("psi")->second);
   VecCopy(varNext["psi"],_psi);

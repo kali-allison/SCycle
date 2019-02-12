@@ -210,6 +210,7 @@ struct ComputeVel_qd : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
@@ -230,6 +231,7 @@ struct ComputeVel_fd : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
@@ -251,6 +253,7 @@ struct ComputeAging_fd : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
+
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
@@ -319,6 +322,7 @@ PetscErrorCode slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,c
 
 // state evolution law: slip law, state variable: theta
 PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, const PetscScalar& Dc);
+
 PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
 
