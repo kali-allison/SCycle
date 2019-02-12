@@ -4,6 +4,8 @@
 #include <petscksp.h>
 #include <vector>
 
+#include "rootFinder.hpp"
+
 /*
  * This abstract class defines an interface for RootFinder. Classes
  * that will use RootFinder routines must implement the virtual function.
@@ -25,7 +27,6 @@ class RootFinderContext
     virtual PetscErrorCode getResid(const PetscInt,const PetscScalar,PetscScalar*,PetscScalar*) = 0;
 };
 
-#include "rootFinder.hpp"
 
 #endif
 

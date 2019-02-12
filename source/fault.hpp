@@ -1,14 +1,15 @@
 #ifndef FAULT_HPP_INCLUDED
 #define FAULT_HPP_INCLUDED
 
-#include <petscksp.h>
-#include <cmath>
 #include <assert.h>
-#include <vector>
 #include <cmath>
-#include "genFuncs.hpp"
+#include <petscksp.h>
+#include <vector>
+
 #include "domain.hpp"
+#include "genFuncs.hpp"
 #include "rootFinderContext.hpp"
+#include "rootFinder.hpp"
 
 class RootFinder;
 
@@ -73,11 +74,11 @@ class Fault
     Vec                   _sNEff; // effective normal stress
     Vec                   _sN; // total normal stress
 
-
     // flash heating parameters
     std::vector<double>   _TwVals,_TwDepths;
     PetscScalar           _fw,_Vw_const,_tau_c,_D_fh;
     Vec                   _T,_k,_c,_Vw,_Tw;
+
     // tolerances for linear and nonlinear (for vel) solve
     PetscScalar           _rootTol;
     PetscInt              _rootIts,_maxNumIts; // total number of iterations
@@ -111,11 +112,12 @@ class Fault
     PetscErrorCode setThermalFields(const Vec& T, const Vec& k, const Vec& c);
     PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths,
-      const PetscScalar maxVal);
+    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const PetscScalar maxVal);
 
-    PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
-    PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
+    // update effective normal stress to reflect new pore pressure
+    PetscErrorCode setSNEff(const Vec& p);
+    // update effective normal stress to reflect new pore pressure
+    PetscErrorCode setSN(const Vec& p);
 
     // for steady state computations
     PetscErrorCode guessSS(const PetscScalar vL);
@@ -129,18 +131,15 @@ class Fault
 };
 
 
-
 // quasi-dynamic implementation of one-sided fault
 class Fault_qd: public Fault
 {
   private:
-
     // disable default copy constructor and assignment operator
     Fault_qd(const Fault_qd & that);
     Fault_qd& operator=( const Fault_qd& rhs);
 
   public:
-
     Vec _eta_rad; // radiation damping term
 
     Fault_qd(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
@@ -152,21 +151,16 @@ class Fault_qd: public Fault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
-
     PetscErrorCode writeContext(const std::string outputDir);
 };
-
-
 
 
 // fully dynamic implementation of one-sided fault
 class Fault_fd: public Fault
 {
   private:
-
     // disable default copy constructor and assignment operator
     Fault_fd(const Fault_fd & that);
     Fault_fd& operator=( const Fault_fd& rhs);
@@ -189,15 +183,12 @@ class Fault_fd: public Fault
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT,
-      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
-
+    PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
     PetscErrorCode setPhi(const PetscScalar _deltaT);
     PetscErrorCode updatePrestress(const PetscScalar currT);
-
 };
 
 
@@ -213,7 +204,6 @@ struct ComputeVel_qd : public RootFinderContext
 
   // constructor and destructor
   ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& vL,const PetscScalar *locked,const PetscScalar *Co);
-  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
@@ -222,6 +212,7 @@ struct ComputeVel_qd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
+
 
 // computing the slip velocity for the dynamic problem
 struct ComputeVel_fd : public RootFinderContext
@@ -233,8 +224,7 @@ struct ComputeVel_fd : public RootFinderContext
 
   // constructor and destructor
   ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* fricPen,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
-  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
-
+ 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
 
@@ -242,6 +232,7 @@ struct ComputeVel_fd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
+
 
 // computing the aging law for the dynamic problem
 struct ComputeAging_fd : public RootFinderContext
@@ -253,10 +244,7 @@ struct ComputeAging_fd : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b,
-    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
-    const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
-  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
+  ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
@@ -265,6 +253,7 @@ struct ComputeAging_fd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
+
 
 // computing the slipLaw for the dynamic problem
 struct ComputeSlipLaw_fd : public RootFinderContext
@@ -276,10 +265,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0;
 
   // constructor and destructor
-  ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,const PetscScalar* b,
-    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev,const PetscScalar* slipVel,
-    const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
-  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
+  ComputeSlipLaw_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a,const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev,const PetscScalar* slipVel, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
@@ -288,6 +274,7 @@ struct ComputeSlipLaw_fd : public RootFinderContext
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
+
 
 // computing the flashHeating for the dynamic problem
 struct ComputeFlashHeating_fd : public RootFinderContext
@@ -299,10 +286,7 @@ struct ComputeFlashHeating_fd : public RootFinderContext
   const PetscScalar   _v0, _deltaT, _f0, _fw;
 
   // constructor and destructor
-  ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
-    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
-    const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw);
-  //~ ~ComputeVel_qd(); // use default destructor, as this class consists entirely of shallow copies
+  ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw);
 
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeLaw(const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
@@ -317,15 +301,21 @@ struct ComputeFlashHeating_fd : public RootFinderContext
 
 // state evolution law: aging law, state variable: psi
 PetscScalar agingLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
+
 PetscErrorCode agingLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel, const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc);
+
 
 // state evolution law: aging law, state variable: theta
 PetscScalar agingLaw_theta(const PetscScalar& theta, const PetscScalar& slipVel, const PetscScalar& Dc);
+
 PetscErrorCode agingLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
+
 
 // state evolution law: slip law, state variable: psi
 PetscScalar slipLaw_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0, const PetscScalar& Dc);
+
 PetscErrorCode slipLaw_psi_Vec(Vec& dstate, const Vec& psi, const Vec& slipVel,const Vec& a, const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const Vec& Dc);
+
 
 // state evolution law: slip law, state variable: theta
 PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, const PetscScalar& Dc);
@@ -335,11 +325,11 @@ PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipV
 // flash heating: compute Vs
 PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c);
 
+
 // flash heating: slip law, state variable: psi
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0);
 
 PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0);
-
 
 
 // frictional strength, regularized form, for state variable psi
@@ -347,6 +337,5 @@ PetscErrorCode strength_psi_Vec(Vec& strength, const Vec& psi, const Vec& slipVe
 
 PetscScalar strength_psi(const PetscScalar& sN, const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& a, const PetscScalar& v0);
 
-#include "rootFinder.hpp"
 
 #endif
