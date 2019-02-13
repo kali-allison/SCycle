@@ -4,7 +4,6 @@
 #include <petscksp.h>
 #include <vector>
 #include "genFuncs.hpp"
-#include "odeSolver.hpp"
 
 /*
  * This abstract class defines an interface for OdeSolver for IMEX methods. Classes
@@ -30,5 +29,7 @@ class IntegratorContextImex
     virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT, const PetscInt stepCount,int& stopIntegration){return 1;};
 
 };
+
+#include "odeSolver.hpp"
 
 #endif
