@@ -65,7 +65,8 @@ private:
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
     PetscInt               _interval; // interval to output checkpoint files
-    PetscInt               _startckpt; // starting time step for checkpoint
+    PetscInt               _ckpt; // enable/disable checkpoint
+    PetscInt               _ckptNumber; // the number of checkpoint we have reached
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
     int                    _stepCount; // number of time steps at which results are written out
     PetscScalar            _timeStepTol;
@@ -140,6 +141,8 @@ private:
       const PetscInt stepCount, int& stopIntegration);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode saveCheckpoint(const PetscInt start, const PetscInt interval, const std::string outputDir);
+    PetscErrorCode deleteCheckpoint(const PetscInt start, const PetscInt interval, const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();

@@ -4,7 +4,6 @@
 
 using namespace std;
 
-
 StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
@@ -13,8 +12,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8), _startckpt(0), _interval(500),
-  _initTime(0),_currTime(0),_maxTime(1e15),
+  _stride1D(1),_stride2D(1),_maxStepCount(1e8), _ckpt(0), _ckptNumber(0),
+  _interval(500),_initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
@@ -31,7 +30,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
   parseBCs();
-
+v
   // heat equation
   if (_thermalCoupling.compare("no") != 0) {
     _he = new HeatEquation(D);
@@ -93,7 +92,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   }
 
   {  // destroy viewers for steady state iteration
-    map<string,std::pair<PetscViewer,string> >::iterator it;
+    map<string,pair<PetscViewer,string>>::iterator it;
     for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
       PetscViewerDestroy(& (_viewers[it->first].first) );
     }
@@ -122,11 +121,13 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
 PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
+
+  #if VERBOSE > 1
     std::string funcName = "HeatEquation::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
@@ -134,8 +135,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
   ifstream infile( file );
   string line, var, rhs, rhsFull;
   size_t pos = 0;
-  while (getline(infile, line))
-  {
+  
+  while (getline(infile, line)) {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
@@ -168,6 +169,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("timeStepTol")==0) { _timeStepTol = atof( rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
+    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval")==0) { _interval = atoi(rhs.c_str()); }
     else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
@@ -233,7 +235,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   assert(_timeStepTol >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-  assert (_startckpt >= 0);
+  assert(_ckpt >= 0);
   assert(_interval > 0);
   
   // check boundary condition types for momentum balance equation
@@ -444,20 +446,28 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+
     // check if there is hydraulic coupling and write result
     if (_hydraulicCoupling.compare("no")!=0) {
       ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
     }
+
     // check if there is thermal coupling and write result
     if (_thermalCoupling.compare("no")!=0) {
       ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     }
   }
 
-  // write solution to file (2D)
-  if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
+  /* write solution to file (2D) when _currTime == _maxTime (simulation ends),
+   * or if _stride2D > 0 and stepCount is an integer multiple of _stride2D */
+
+  /* TODO: inspect the writeStep functions called by each object and change
+   * the output file names depending on the checkpoint reached */
+  
+  if (_currTime == _maxTime || (_stride2D > 0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+
     // check if there is thermal coupling and write result
     if (_thermalCoupling.compare("no")!=0) {
       ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
