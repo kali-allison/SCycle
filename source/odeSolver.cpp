@@ -3,9 +3,9 @@
 using namespace std;
 
 // constructor for OdeSolver
-OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
-  _maxNumSteps(maxNumSteps),_stepCount(0),
+  _maxNumSteps(maxNumSteps),_stepCount(0),_intervalSteps(interval),
   _runTime(0),
   _controlType(controlType),_normType("L2_absolute")
 {
@@ -31,7 +31,7 @@ PetscErrorCode OdeSolver::setInitialStepCount(const PetscReal stepCount) {
 
 
 // set initial, current, final time and calculates runtime since a point in time
-PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT, const PetscReal finalT)
+vvvPetscErrorCode OdeSolver::setTimeRange(const PetscReal initT, const PetscReal finalT)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setTimeRange in odeSolver.cpp.\n");
@@ -72,7 +72,7 @@ PetscErrorCode OdeSolver::setStepSize(const PetscReal deltaT)
 
 
 // set the type of norm to be calculated, calculates runtime since startTime
-PetscErrorCode OdeSolver::setToleranceType(const std::string normType)
+PetscErrorCode OdeSolver::setToleranceType(const string normType)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setToleranceType in odeSolver.cpp.\n");
@@ -97,8 +97,8 @@ PetscErrorCode OdeSolver::setToleranceType(const std::string normType)
 //================= FEuler child class functions =======================
 
 // constructor, initializes same object as OdeSolver
-FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolver(maxNumSteps,finalT,deltaT,controlType)
+FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType,interval)
 {}
 
 
@@ -155,6 +155,7 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
   PetscErrorCode ierr = 0;
   _var = var; // shallow copy
 
+  // TODO: check if we need to initialize the vector to value from previous checkpoint
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++) {
     Vec dvar;
     ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
@@ -184,9 +185,12 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
   double startTime = MPI_Wtime();
   int stopIntegration = 0;
 
-  if (_finalT==_initT) {
+  /* TODO: if checkpoint is enabled, set both _initT and _currT to time at the end of the previous checkpoint */
+
+  if (_finalT == _initT) {
     return ierr;
   }
+
   // set _deltaT
   else if (_deltaT == 0) {
     _deltaT = (_finalT-_initT)/_maxNumSteps;
@@ -194,11 +198,13 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+
   // call timeMonitor and write out the first step
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
   // call d_dt on object iteratively in the time loop
-  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+  // TODO: change condition to _stepCount < _intervalSteps
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -229,8 +235,8 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 //================= RK32 child class functions =========================
 
 // constructor, initializes OdeSolver object and more parameters
-RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolver(maxNumSteps,finalT,deltaT,controlType),
+RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType, interval),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),_kappa(0.9),_ord(3.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -312,7 +318,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
 
 
 // set initial condition on _var and _dvar
-PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
+PetscErrorCode RK32::setInitialConds(map<string,Vec>& var)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
@@ -322,6 +328,8 @@ PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
   PetscErrorCode ierr = 0;
   _var = var; // shallow copy
 
+  /* TODO: check if we need to initialize these vectors to the end values of previous checkpoint */
+  
   // initialize RK vectors to zero
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
     Vec dvar;
@@ -371,13 +379,14 @@ PetscErrorCode RK32::setInitialConds(std::map<string,Vec>& var)
 
 
 // set value of _errInds
-PetscErrorCode RK32::setErrInds(std::vector<string>& errInds) {
-  _errInds = errInds; return 0;
+PetscErrorCode RK32::setErrInds(vector<string>& errInds) {
+  _errInds = errInds;
+  return 0;
 }
 
 
 // set value of _errInds and _scale
-PetscErrorCode RK32::setErrInds(std::vector<string>& errInds, std::vector<double> scale)
+PetscErrorCode RK32::setErrInds(vector<string>& errInds, vector<double> scale)
 {
   _errInds = errInds;
   _scale = scale;
@@ -475,8 +484,8 @@ PetscReal RK32::computeError()
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
   // tolerance: the absolute tolerance
   if (_normType.compare("L2_absolute")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -495,8 +504,8 @@ PetscReal RK32::computeError()
   // and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -539,8 +548,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   }
 
   // check that errInds is valid
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    std::string key = _errInds[i];
+  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    string key = _errInds[i];
     if (_var.find(key) == _var.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
@@ -549,12 +558,14 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
   assert(_scale.size() == _errInds.size());
 
+  /* TODO: add condition that if checkpoint enabled, reset both _initT and _currT to time at the end of previous checkpoint */
+  
   if (_finalT==_initT) {
     return ierr;
   }
@@ -571,6 +582,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
   // perform time stepping routine and calling d_dt
+  // TODO: change condition to _stepCount < _intervalSteps
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
     attemptCount = 0;
@@ -672,8 +684,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 //======================================================================
 
 // constructor, initializes same object as RK32
-RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
-: OdeSolver(maxNumSteps,finalT,deltaT,controlType),
+RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType, interval),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),_kappa(0.9),_ord(4.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -760,7 +772,7 @@ PetscErrorCode RK43::setTolerance(const PetscReal tol)
 
 
 // set initial conditions on _var, _dvar, and intermediate vectors used in RK43
-PetscErrorCode RK43::setInitialConds(std::map<string,Vec>& var)
+PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::setInitialConds in odeSolver.cpp.\n");
@@ -770,6 +782,8 @@ PetscErrorCode RK43::setInitialConds(std::map<string,Vec>& var)
   PetscErrorCode ierr = 0;
   _var = var;
 
+  // TODO: check if we need to initialize these vectors to result from previous checkpoint
+  
   // initialize _dvar and various RK43 intermediate vectors to zero
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
     Vec dvar;
@@ -860,14 +874,14 @@ PetscErrorCode RK43::setInitialConds(std::map<string,Vec>& var)
 
 
 // set error indices
-PetscErrorCode RK43::setErrInds(std::vector<string>& errInds) {
+PetscErrorCode RK43::setErrInds(vector<string>& errInds) {
   _errInds = errInds;
   return 0;
 }
 
 
 // set error indices and scale
-PetscErrorCode RK43::setErrInds(std::vector<string>& errInds, std::vector<double> scale)
+PetscErrorCode RK43::setErrInds(vector<string>& errInds, vector<double> scale)
 {
   _errInds = errInds;
   _scale = scale;
@@ -965,8 +979,8 @@ PetscReal RK43::computeError()
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
   // tolerance: the absolute tolerance
   if (_normType.compare("L2_absolute")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -985,8 +999,8 @@ PetscReal RK43::computeError()
   // and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -1073,8 +1087,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   }
 
   // check that errInds is valid
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    std::string key = _errInds[i];
+  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    string key = _errInds[i];
     if (_var.find(key) == _var.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
@@ -1083,17 +1097,19 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
   assert(_scale.size() == _errInds.size());
 
-  if (_finalT==_initT) {
+  /* TODO: if checkpoint is enabled, change both _initT and _currT to the time at the end of previous checkpoint */
+  
+  if (_finalT == _initT) {
     return ierr;
   }
-  if (_deltaT==0) {
-    _deltaT = (_finalT-_initT)/_maxNumSteps;
+  if (_deltaT == 0) {
+    _deltaT = (_finalT - _initT) / _maxNumSteps;
   }
   if (_maxNumSteps == 0) {
     return ierr;
@@ -1105,6 +1121,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
 
   // perform time stepping
+  // TODO: change condition to _stepCount < _intervalSteps
   while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
     attemptCount = 0;

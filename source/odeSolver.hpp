@@ -58,6 +58,7 @@ class OdeSolver
   public:
 
     PetscReal               _initT,_finalT,_currT,_deltaT;
+    PetscInt                _intervalSteps; // time step intervals for checkpoint
     PetscInt                _maxNumSteps,_stepCount;
     std::map<string,Vec>    _var,_dvar; // integration variable and rate
     std::vector<string>     _errInds; // which keys of _var to use for error control

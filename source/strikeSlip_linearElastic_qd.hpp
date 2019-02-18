@@ -64,6 +64,8 @@ private:
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
+    PetscInt               _interval; // interval to output checkpoint files
+    PetscInt               _startckpt; // starting time step for checkpoint
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
     int                    _stepCount; // number of time steps at which results are written out
     PetscScalar            _timeStepTol;

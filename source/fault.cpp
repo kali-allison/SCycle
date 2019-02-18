@@ -313,21 +313,23 @@ PetscErrorCode Fault::setFields(Domain& D)
     ierr = setVec(_cohesion,_z,_cohesionVals,_cohesionDepths); CHKERRQ(ierr);
   }
 
-  double scatterStart = MPI_Wtime();
-  Vec temp;
-  VecDuplicate(_D->_y,&temp);
-  ierr = setVec(temp,_D->_z,_rhoVals,_rhoDepths); CHKERRQ(ierr);
-  VecScatterBegin(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+  {
+    double scatterStart = MPI_Wtime();
+    Vec temp;
+    VecDuplicate(_D->_y,&temp);
+    ierr = setVec(temp,_D->_z,_rhoVals,_rhoDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _rho, INSERT_VALUES, SCATTER_FORWARD);
 
-  ierr = setVec(temp,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
-  VecScatterBegin(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+    ierr = setVec(temp,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
+    VecScatterBegin(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
+    VecScatterEnd(*_body2fault, temp, _mu, INSERT_VALUES, SCATTER_FORWARD);
 
-  _scatterTime += MPI_Wtime() - scatterStart;
-  // free memory
-  VecDestroy(&temp);
-
+    _scatterTime += MPI_Wtime() - scatterStart;
+    // free memory
+    VecDestroy(&temp);
+  }
+  
   if (_stateVals.size() > 0) {
     ierr = setVec(_psi,_z,_stateVals,_stateDepths); CHKERRQ(ierr);
   }
