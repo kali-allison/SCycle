@@ -519,6 +519,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // TODO: change this to depend on checkpointing
   // _timeV1D is a PetscViewer
   if (_timeV1D==NULL) {
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);

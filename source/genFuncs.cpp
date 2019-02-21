@@ -967,6 +967,7 @@ PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, co
 
 
 // loading value from checkpoint files, each checkpoint file should only have one value (for time and ckptNumber)
+// TODO: check behavior for integer (ckptNumber)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -997,7 +998,8 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
-// write value into checkpoint file (for time and ckptNumber)
+// write value into checkpoint file (for currT, which is a scalar)
+// TODO: check behavior for _ckptNumber, which is an integer
 PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

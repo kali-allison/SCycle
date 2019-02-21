@@ -111,6 +111,9 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 
+  // load checkpoint number
+  loadValueFromCheckpoint(_outputDir, "_ckptNumber", _ckptNumber);
+  
   ifstream infile( file );
   string line, var, rhs, rhsFull;
   size_t pos = 0;
@@ -159,9 +162,14 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("momBal_computeSdev")==0) {
       _computeSdev = atof(rhs.c_str());
     }
+    
     // check if checkpoint is enabled
     else if (var.compare("ckpt") == 0) {
       _ckpt = atoi(rhs.c_str());
+    }
+    // load checkpoint interval
+    else if (var.compare("interval") == 0) {
+      _interval = atoi(rhs.c_str());
     }
   }
 
@@ -197,7 +205,9 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_muVals.size() != 0);
   assert(_rhoVals.size() == _rhoDepths.size());
   assert(_rhoVals.size() != 0);
+  assert(_ckptNumber >= 0);
   assert(_ckpt >= 0);
+  assert(interval >= 0);
 
   if (_computeSdev == 1) {
     _computeSxz = 1;
@@ -260,7 +270,6 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
 
   // direct LU from MUMPS
@@ -431,14 +440,14 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_ckpt > 0) {
-    ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcR"); CHKERRQ(ierr);
+  if (_ckptNumber > 0) {
+    ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcR, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
   }
   else {
     // load left boundary condition bcL
     ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
-
     // load right boundary condition bcR
     ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
     VecSet(_bcR,0.0);
@@ -631,12 +640,8 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);
 
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);
-
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  //~ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
 
@@ -652,29 +657,32 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // write out scalar info in output directory text file
-  std::string str = outputDir + "momBal_context.txt";
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
+  // only write it once when we are doing the first checkpoint, since they are time-independent variables
+  if (_ckptNumber == 0) {
+    // write out scalar info in output directory text file
+    std::string str = outputDir + "momBal_context.txt";
+    PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+    PetscViewerSetType(viewer, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+    PetscViewerFileSetName(viewer, str.c_str());
 
-  // linear solve settings
-  ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
+    // linear solve settings
+    ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
-  // boundary conditions
-  ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcT_type = %s\n",_bcTType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcL_type = %s\n",_bcLType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcB_type = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+    // boundary conditions
+    ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcT_type = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcL_type = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcB_type = %s\n",_bcBType.c_str());CHKERRQ(ierr);
 
-  // free viewer memory
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+    // free viewer memory
+    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-  // write vector _mu into file in output directory
-  ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
-
+    // write vector _mu into file in output directory
+    ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  }
+    
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -694,17 +702,42 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
-  if (_timeV1D==NULL) {
-    // ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+  // set up for the first time, when these files and viewers don't exist yet
+  if (stepCount == 0 && _ckptNumber == 0) {
+    // set up viewer for time
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
+    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV1D, FILE_MODE_WRITE);
+    PetscViewerFileSetName(_timeV1D, (outputDir+"time.txt").c_str());
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+
+    // set up viewers for vector files
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
   }
-  else {
+
+  // we are restarting the simulation from previous checkpoints
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    // set up viewer for time file, directly append
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
+    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV1D, FILE_MODE_APPEND);
+    PetscViewerFileSetName(_timeV1D, (outputDir+"time.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+
+    // set up viewers for vector files, directly append
+    ierr = initiate_appendVecToOutput(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
+  }
+
+  // regular appending data to the files
+  else if (stepCount <= _interval) {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
@@ -713,6 +746,13 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
   }
 
+  // write last time step results for _bcL, _bcR and time into checkpoint files
+  else if (stepCount == _interval) {
+    ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
+    ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
+    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
+  }
+  
   _writeTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
@@ -733,27 +773,56 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
   #endif
   double startTime = MPI_Wtime();
 
-  if (_timeV2D == NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time); CHKERRQ(ierr);
+  // initialize only once and write into file, at the beginning of the first checkpoint
+  if (stepCount == 0 && _ckptNumber == 0) {
+    // set up viewer for time
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
+    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV2D, FILE_MODE_WRITE);
+    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+
+    // initiate viewers for vector files
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
-
     // if need to compute sigma_xz, also write out sxz into file
     if (_computeSxz) {
       ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
     }
   }
+
+  // append to previous data files if we had checkpoints before
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    // set up viewer for time file, directly append
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
+    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV2D, FILE_MODE_APPEND);
+    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+
+    // set up viewers for vector files, directly append
+    ierr = initiate_appendVecToOutput(_viewers, "u", _surfDisp, outputDir + "u"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "sxy", _surfDisp, outputDir + "sxy"); CHKERRQ(ierr);
+    // if need to compute sigma_xz
+    if (_computeSxz) {
+      ierr = initiate_appendVecToOutput(_viewers, "sxz", _surfDisp, outputDir + "sxz"); CHKERRQ(ierr);
+    }
+  }
   
-  else {
+  // regular appending values/vectors
+  else if (stepCount <= _interval) {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time); CHKERRQ(ierr);
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
-
     // if need to compute sigma_xz
     if (_computeSxz) {
       ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
     }
+  }
+
+  // no _bcL or _bcR to write for 2D, just the current time at the last step
+  else if (stepCount == _interval) {
+    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
