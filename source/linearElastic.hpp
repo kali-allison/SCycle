@@ -63,6 +63,9 @@ class LinearElastic
     double       _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _matrixTime;
     PetscInt     _linSolveCount;
 
+    // checkpoint data
+    PetscInt _ckpt, _ckptNumber, _interval;
+  
     // boundary conditions
     string               _bcRType,_bcTType,_bcLType,_bcBType; // options: Dirichlet, Neumann
     Vec                  _bcR,_bcT,_bcL,_bcB;

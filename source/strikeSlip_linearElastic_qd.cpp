@@ -127,10 +127,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-
+    
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+
+  // load checkpoint number
+  loadValueFromCheckpoint(_outputDir, "_ckptNumber", _ckptNumber);
 
   ifstream infile( file );
   string line, var, rhs, rhsFull;
@@ -159,24 +162,42 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
+    else if (var.compare("stride1D")==0){ _stride1D = atoi(rhs.c_str()); }
+    else if (var.compare("stride2D")==0){ _stride2D = atoi(rhs.c_str()); }
+    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
+    else if (var.compare("interval")==0) { _interval = atoi(rhs.c_str()); }
+
+    /* if checkpoint number > 0 (i.e. there has been a checkpoint before), then set _maxStepCount to _interval */
+    else if (var.compare("maxStepCount")==0) {
+      if (_ckptNumber > 0) {
+	_maxStepCount = _interval;
+      }
+      else {
+	_maxStepCount = atoi(rhs.c_str());
+      }
+    }
+    // if checkpoint number > 0, load _initTime from checkpoint file
+    else if (var.compare("initTime")==0) {
+      if (_ckptNumber > 0) {
+	loadValueFromCheckpoint(_outputDir, "_currTime", _initTime);
+      }
+      else {
+	_initTime = atof( rhs.c_str() );
+      }
+    }
+    
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("timeStepTol")==0) { _timeStepTol = atof( rhs.c_str() ); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
-    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
-    else if (var.compare("interval")==0) { _interval = atoi(rhs.c_str()); }
     else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
     else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
 
-    // boundary conditions for momentum balance equation
+    // boundary condition types for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
     else if (var.compare("momBal_bcL_qd")==0) { _bcLType = rhs.c_str(); }
@@ -229,14 +250,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _initDeltaT = _minDeltaT;
   }
 
+  assert(_ckpt >= 0);
+  assert(_interval > 0);
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
   assert(_timeStepTol >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-  assert(_ckpt >= 0);
-  assert(_interval > 0);
   
   // check boundary condition types for momentum balance equation
   assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("remoteLoading")==0);

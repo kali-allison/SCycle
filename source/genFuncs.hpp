@@ -136,4 +136,14 @@ PetscErrorCode repVec(Vec& out, const Vec& in, const PetscInt n);
 PetscErrorCode sepVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend);
 PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, const PetscInt gIend);
 
+
+// checkpoint functions
+PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value);
+
+PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value);
+
+PetscErrorCode initiate_appendVecToOutput(map<string, paid<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string dir);
+
+PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key,const Vec& vec, const string dir);
+
 #endif

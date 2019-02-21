@@ -3,7 +3,7 @@
 using namespace std;
 
 // constructor for OdeSolver
-OdeSolver::OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
+OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),_intervalSteps(interval),
   _runTime(0),
@@ -31,7 +31,7 @@ PetscErrorCode OdeSolver::setInitialStepCount(const PetscReal stepCount) {
 
 
 // set initial, current, final time and calculates runtime since a point in time
-vvvPetscErrorCode OdeSolver::setTimeRange(const PetscReal initT, const PetscReal finalT)
+PetscErrorCode OdeSolver::setTimeRange(const PetscReal initT, const PetscReal finalT)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver::setTimeRange in odeSolver.cpp.\n");
@@ -155,7 +155,6 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
   PetscErrorCode ierr = 0;
   _var = var; // shallow copy
 
-  // TODO: check if we need to initialize the vector to value from previous checkpoint
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++) {
     Vec dvar;
     ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);

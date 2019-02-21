@@ -93,6 +93,10 @@ class Fault
     // runtime data
     double               _computeVelTime,_stateLawTime, _scatterTime;
 
+
+    // checkpoint data
+    PetscInt _ckpt, _ckptNumber, _interval;
+  
     // for mapping from body fields to the fault
     VecScatter* _body2fault;
 
@@ -179,7 +183,8 @@ class Fault_fd: public Fault
     ~Fault_fd();
 
     PetscErrorCode loadSettings(const char *file);
-
+    PetscErrorCode setFields();
+  
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);

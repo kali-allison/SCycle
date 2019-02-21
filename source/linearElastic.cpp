@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _stepCount(0),
+  _stepCount(0), _ckpt(0), _ckptNumber(0), _interval(500),
   _mu(NULL),_rho(NULL),_cs(NULL),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
@@ -159,6 +159,10 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("momBal_computeSdev")==0) {
       _computeSdev = atof(rhs.c_str());
     }
+    // check if checkpoint is enabled
+    else if (var.compare("ckpt") == 0) {
+      _ckpt = atoi(rhs.c_str());
+    }
   }
 
   #if VERBOSE > 1
@@ -193,6 +197,7 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_muVals.size() != 0);
   assert(_rhoVals.size() == _rhoDepths.size());
   assert(_rhoVals.size() != 0);
+  assert(_ckpt >= 0);
 
   if (_computeSdev == 1) {
     _computeSxz = 1;
@@ -426,12 +431,18 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // load left boundary condition bcL
-  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
+  if (_ckpt > 0) {
+    ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcR"); CHKERRQ(ierr);
+  }
+  else {
+    // load left boundary condition bcL
+    ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
 
-  // load right boundary condition bcR
-  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
-  VecSet(_bcR,0.0);
+    // load right boundary condition bcR
+    ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
+    VecSet(_bcR,0.0);
+  }
 
   // load displacement vector u
   ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
@@ -684,7 +695,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   _stepCount = stepCount;
 
   if (_timeV1D==NULL) {
-    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
+    // ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
