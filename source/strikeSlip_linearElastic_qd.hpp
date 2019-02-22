@@ -64,9 +64,8 @@ private:
     std::string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // stride
     PetscInt               _maxStepCount; // largest number of time steps
-    PetscInt               _interval; // interval to output checkpoint files
-    PetscInt               _ckpt; // enable/disable checkpoint
-    PetscInt               _ckptNumber; // the number of checkpoint we have reached
+    // checkpoint parameters
+    PetscInt               _ckpt, _ckptNumber, _interval;
     PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
     int                    _stepCount; // number of time steps at which results are written out
     PetscScalar            _timeStepTol;
@@ -138,11 +137,9 @@ private:
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration);
+      const PetscInt stepCount);
     PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
     PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode saveCheckpoint(const PetscInt start, const PetscInt interval, const std::string outputDir);
-    PetscErrorCode deleteCheckpoint(const PetscInt start, const PetscInt interval, const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();

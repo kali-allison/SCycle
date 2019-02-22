@@ -67,6 +67,9 @@ class OdeSolver
     string                  _controlType;
     string                  _normType;
 
+    // checkpoint inputs
+    PetscInt                _ckpt, _ckptNumber, _interval;
+  
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 

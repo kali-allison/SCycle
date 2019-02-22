@@ -11,7 +11,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _stepCount(0), _ckpt(0), _ckptNumber(0), _interval(500),
+  _stepCount(0), _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
   _mu(NULL),_rho(NULL),_cs(NULL),
   _bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
@@ -171,6 +171,15 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("interval") == 0) {
       _interval = atoi(rhs.c_str());
     }
+
+    // if checkpoint is enabled, change _maxStepCount to _interval
+    else if (var.compare("maxStepCount") == 0) {
+      if (_ckpt > 0) {
+	_maxStepCount = _interval;
+      }
+      else {
+	_maxStepCount = atoi(rhs.c_str());
+      }
   }
 
   #if VERBOSE > 1
@@ -207,8 +216,9 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_rhoVals.size() != 0);
   assert(_ckptNumber >= 0);
   assert(_ckpt >= 0);
-  assert(interval >= 0);
-
+  assert(_interval >= 0);
+  assert(_maxStepCount > 0);
+  
   if (_computeSdev == 1) {
     _computeSxz = 1;
   }
@@ -442,7 +452,7 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
 
   if (_ckptNumber > 0) {
     ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_bcR, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
   }
   else {
@@ -737,7 +747,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
   }
 
   // regular appending data to the files
-  else if (stepCount <= _interval) {
+  else if (stepCount <= _maxStepCount) {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
@@ -746,10 +756,11 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
   }
 
-  // write last time step results for _bcL, _bcR and time into checkpoint files
-  else if (stepCount == _interval) {
+  // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
+  else if (_ckpt > 0 && stepCount == _interval) {
     ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
+    ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
     ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
   }
   

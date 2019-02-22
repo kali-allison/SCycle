@@ -3,10 +3,10 @@
 using namespace std;
 
 // constructor for OdeSolver
-OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
+OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
-  _maxNumSteps(maxNumSteps),_stepCount(0),_intervalSteps(interval),
-  _runTime(0),
+  _maxNumSteps(maxNumSteps),_stepCount(0),_runTime(0),
+  _ckpt(0),_ckptNumber(0),_interval(500),
   _controlType(controlType),_normType("L2_absolute")
 {
   #if VERBOSE > 1
@@ -97,8 +97,8 @@ PetscErrorCode OdeSolver::setToleranceType(const string normType)
 //================= FEuler child class functions =======================
 
 // constructor, initializes same object as OdeSolver
-FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
-  : OdeSolver(maxNumSteps,finalT,deltaT,controlType,interval)
+FEuler::FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType)
 {}
 
 
@@ -182,9 +182,6 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 
   PetscErrorCode ierr = 0;
   double startTime = MPI_Wtime();
-  int stopIntegration = 0;
-
-  /* TODO: if checkpoint is enabled, set both _initT and _currT to time at the end of the previous checkpoint */
 
   if (_finalT == _initT) {
     return ierr;
@@ -199,11 +196,11 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
   // call timeMonitor and write out the first step
-  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // call d_dt on object iteratively in the time loop
-  // TODO: change condition to _stepCount < _intervalSteps
-  while (_stepCount < _maxNumSteps && _currT < _finalT) {
+  // _maxNumSteps is already set to _maxStepCount from strikeSlip_linearElastic_qd
+  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -216,9 +213,10 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
     if (_currT > _finalT) {
       _currT = _finalT;
     }
-
     _stepCount++;
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+
+    // crucial function! Everything is written to file by timeMonitor
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -234,8 +232,8 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 //================= RK32 child class functions =========================
 
 // constructor, initializes OdeSolver object and more parameters
-RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
-  : OdeSolver(maxNumSteps,finalT,deltaT,controlType, interval),
+RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),_kappa(0.9),_ord(3.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -499,8 +497,7 @@ PetscReal RK32::computeError()
   }
 
   // if using relative error for control
-  // error: the absolute L2 error, scaled by the L2 norm of the solution
-  // and a user-inputted scale factor
+  // error: the absolute L2 error, scaled by the L2 norm of the solution and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
     for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
@@ -537,7 +534,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   PetscErrorCode ierr=0;
   PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
-  int            stopIntegration = 0;
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
@@ -563,9 +559,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   }
   assert(_scale.size() == _errInds.size());
 
-  /* TODO: add condition that if checkpoint enabled, reset both _initT and _currT to time at the end of previous checkpoint */
-  
-  if (_finalT==_initT) {
+  if (_finalT == _initT) {
     return ierr;
   }
   else if (_deltaT==0) {
@@ -578,24 +572,23 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // perform time stepping routine and calling d_dt
-  // TODO: change condition to _stepCount < _intervalSteps
-  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
     _stepCount++;
     attemptCount = 0;
 
-    while (attemptCount < 100) { // repeat until time step is acceptable
+    // repeat until time step is acceptable
+    while (attemptCount < 100) {
       attemptCount++;
-
       if (attemptCount >= 100) {
 	PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n");
       }
       ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
 
       if (_currT+_deltaT > _finalT) {
-	_deltaT=_finalT-_currT;
+	_deltaT = _finalT - _currT;
       }
 
       // set intermediate RK vectors to zero
@@ -635,13 +628,11 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       if (_totErr <= _atol) {
 	break;
       }
-
       // calculate _deltaT
       _deltaT = computeStepSize(_totErr);
       if (_minDeltaT == _deltaT) {
 	break;
       }
-
       _numRejectedSteps++;
     }
 
@@ -658,14 +649,9 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       _deltaT = computeStepSize(_totErr);
     }
     // record error for use when estimating time step
+    // TODO: save _errA into checkpoint file for final time step
     _errA.push_front(_totErr);
-
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-
-    if (stopIntegration > 0) {
-      PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n");
-      break;
-    }
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -683,8 +669,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 //======================================================================
 
 // constructor, initializes same object as RK32
-RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType, PetscInt interval)
-  : OdeSolver(maxNumSteps,finalT,deltaT,controlType, interval),
+RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
+  : OdeSolver(maxNumSteps,finalT,deltaT,controlType),
   _minDeltaT(0),_maxDeltaT(finalT),
   _atol(1e-9),_kappa(0.9),_ord(4.0),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
@@ -781,19 +767,12 @@ PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
   PetscErrorCode ierr = 0;
   _var = var;
 
-  // TODO: check if we need to initialize these vectors to result from previous checkpoint
-  
   // initialize _dvar and various RK43 intermediate vectors to zero
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
     Vec dvar;
     ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
     ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
     _dvar[it->first] = dvar;
-
-    //~ Vec f1;
-    //~ ierr = VecDuplicate(_var[it->first],&f1); CHKERRQ(ierr);
-    //~ ierr = VecSet(f1,0.0); CHKERRQ(ierr);
-    //~ _f1[it->first] = f1;
 
     Vec f2;
     ierr = VecDuplicate(_var[it->first],&f2); CHKERRQ(ierr);
@@ -819,12 +798,6 @@ PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
     ierr = VecDuplicate(_var[it->first],&f6); CHKERRQ(ierr);
     ierr = VecSet(f6,0.0); CHKERRQ(ierr);
     _f6[it->first] = f6;
-
-
-    //~ Vec k1;
-    //~ ierr = VecDuplicate(_var[it->first],&k1); CHKERRQ(ierr);
-    //~ ierr = VecSet(k1,0.0); CHKERRQ(ierr);
-    //~ _k1[it->first] = k1;
 
     Vec k2;
     ierr = VecDuplicate(_var[it->first],&k2); CHKERRQ(ierr);
@@ -922,12 +895,12 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
+
   //if using proportional-integral-derivative feedback (PID)
   else if (_controlType.compare("PID") == 0) {
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-
     if (_stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
@@ -994,8 +967,7 @@ PetscReal RK43::computeError()
   }
 
   // if using relative error for control
-  // error: the absolute L2 error, scaled by the L2 norm of the solution
-  // and a user-inputted scale factor
+  // error: the absolute L2 error, scaled by the L2 norm of the solution and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
     for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
@@ -1032,7 +1004,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   PetscErrorCode ierr=0;
   PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
-  int            stopIntegration = 0;
 
   // coefficients
   //~ PetscScalar c1 = 0.;
@@ -1077,7 +1048,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   PetscScalar a64 = 3354512671639./8306763924573.;
   PetscScalar a65 = 4040./17871.;
 
-
   // build default errInds
   if (_errInds.size()==0) {
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1102,8 +1072,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   }
   assert(_scale.size() == _errInds.size());
 
-  /* TODO: if checkpoint is enabled, change both _initT and _currT to the time at the end of previous checkpoint */
-  
   if (_finalT == _initT) {
     return ierr;
   }
@@ -1117,15 +1085,14 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
-  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // perform time stepping
-  // TODO: change condition to _stepCount < _intervalSteps
-  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
     _stepCount++;
     attemptCount = 0;
 
-    while (attemptCount < 100) { // repeat until time step is acceptable
+    while (attemptCount < 100) {
       attemptCount++;
       if (attemptCount >= 100) {
 	PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n");
@@ -1199,13 +1166,11 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       // 3rd and 4th order updates
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_y3[it->first],hb1*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_y3[it->first],hb2*_deltaT,_f2[it->first]); CHKERRQ(ierr); // hb2 = 0
         ierr = VecAXPY(_y3[it->first],hb3*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb4*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb5*_deltaT,_f5[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb6*_deltaT,_f6[it->first]); CHKERRQ(ierr);
         ierr = VecWAXPY(_y4[it->first],b1*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
-        //~ ierr = VecAXPY(_y4[it->first],b2*_deltaT,_f2[it->first]); CHKERRQ(ierr); // b2 = 0
         ierr = VecAXPY(_y4[it->first],b3*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y4[it->first],b4*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y4[it->first],b5*_deltaT,_f5[it->first]); CHKERRQ(ierr);
@@ -1218,14 +1183,12 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       if (_totErr<_atol) {
 	break;
       }
-
       // calculate time step
       _deltaT = computeStepSize(_totErr);
       // accept step
       if (_minDeltaT == _deltaT) {
 	break;
       }
-
       _numRejectedSteps++;
     }
 
@@ -1236,16 +1199,16 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-    if (stopIntegration > 0) {
-      PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n");
-      break;
-    }
+
+    // write into output files
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
     if (_totErr!=0.0) {
       _deltaT = computeStepSize(_totErr);
     }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    // record error for use when estimating time step
+    // TODO: also output _errA into checkpoint file
+    _errA.push_front(_totErr);
   }
 
   _runTime += MPI_Wtime() - startTime;

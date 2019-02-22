@@ -13,7 +13,7 @@ Fault::Fault(Domain &D,VecScatter& scatter2fault, const int& faultTypeScale)
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
   _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
-  _ckpt(0), _ckptNumber(0), _interval(500),
+  _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
   _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
   _body2fault(&scatter2fault)
 {
@@ -91,7 +91,17 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval") == 0) { _interval = atoi(rhs.c_str()); }
 
-    // friction parameters
+    // if checkpoint is enabled, change _maxStepCount to _interval
+    else if (var.compare("maxStepCount") == 0) {
+      if (_ckpt > 0) {
+	_maxStepCount = _interval;
+      }
+      else {
+	_maxStepCount = atoi(rhs.c_str());
+      }
+    }
+    
+      // friction parameters
     else if (var.compare("f0")==0) { _f0 = atof( rhs.c_str() ); }
     else if (var.compare("v0")==0) { _v0 = atof( rhs.c_str() ); }
 
@@ -190,6 +200,7 @@ PetscErrorCode Fault::checkInput()
   assert(_ckpt >= 0);
   assert(_ckptNumber >= 0);
   assert(_interval >= 0);
+  assert(_maxStepCoybt > 0);
   
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
@@ -597,7 +608,6 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sNEff", _sNEff, outputDir + "sNEff"); CHKERRQ(ierr);
 
-    // if we have flash heating enabled
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
       ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
@@ -617,7 +627,6 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     ierr = initiate_appendVecToOutput(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "sNEff", _sNEff, outputDir + "sNEff"); CHKERRQ(ierr);
 
-    // if we have flash heating enabled
     if (_stateLaw.compare("flashHeating") == 0) {
       ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
       ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
@@ -625,7 +634,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
   }
 
   // regular appending data to the end of original data file
-  else if (stepCount <= _interval) {
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
@@ -641,7 +650,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
   }
   
   // when we reach the max number of time steps specified by the checkpoint, we write a checkpoint file only for the very last time step
-  else if (stepCount == _interval) {
+  else if (_ckpt > 0 && stepCount == _interval) {
     ierr = io_initiateWrite(_viewers, "slip_ckpt", _slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "slipVel_ckpt", _slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "tauP_ckpt", _tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
