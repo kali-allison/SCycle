@@ -52,7 +52,6 @@ class LinearElastic
     std::string          _sbpType;
 
     // viewers
-    PetscViewer      _timeV1D,_timeV2D;
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
     // 3rd string = full file path name for output

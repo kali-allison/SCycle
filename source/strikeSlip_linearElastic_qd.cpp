@@ -505,15 +505,45 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV1D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
+  // first time creating files to write time and dt
+  if (stepCount == 0 && _ckptNumber == 0) {
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
+    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV1D, FILE_MODE_WRITE);
+    PetscViewerFileSetName(_timeV1D, (outputDir+"time1D.txt").c_str());
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
+
+    PetscViewerCreate(PETSC_COMM_WORLD, &_dtimeV1D);
+    PetscViewerSetType(_dtimeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_dtimeV1D, FILE_MODE_WRITE);
+    PetscViewerFileSetName(_dtimeV1D, (outputDir+"dt1D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+  // already checkpointed before, so append to these files
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
+    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV1D, FILE_MODE_APPEND);
+    PetscViewerFileSetName(_timeV1D, (outputDir+"time1D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+
+    PetscViewerCreate(PETSC_COMM_WORLD, &_dtimeV1D);
+    PetscViewerSetType(_dtimeV1D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_dtimeV1D, FILE_MODE_APPEND);
+    PetscViewerFileSetName(_dtimeV1D, (outputDir+"dt1D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+  // regular appending to output files
+  else if (stepCount <= _maxStepCount) {
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+
+  // write last time step's time to checkpoint file
+  else if (_ckpt > 0 && stepCount == _maxStepCount) {
+    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -533,14 +563,34 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-  }
-  else {
+  // first time creating files to write time
+  if (stepCount == 0 && _ckptNumber == 0) {
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
+    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV2D, FILE_MODE_WRITE);
+    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
   }
 
+  // already checkpointed before, so append to these files
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
+    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(_timeV2D, FILE_MODE_APPEND);
+    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+  // regular appending to output files
+  else if (stepCount <= _maxStepCount) {
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+  }
+
+  // write last time step's time to checkpoint file
+  else if (_ckpt > 0 && stepCount == _maxStepCount) {
+    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
+  }
+  
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

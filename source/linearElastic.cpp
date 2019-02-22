@@ -18,7 +18,6 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
   _kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
-  _timeV1D(NULL),_timeV2D(NULL),
   _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _matrixTime(0), _linSolveCount(0),
   _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
@@ -83,9 +82,6 @@ LinearElastic::~LinearElastic()
   delete _sbp;
   _sbp = NULL;
 
-  // destroy viewers
-  PetscViewerDestroy(&_timeV1D);
-  PetscViewerDestroy(&_timeV2D);
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it !=_viewers.end(); it++) {
     // destroy PetscViewer iteratively
     PetscViewerDestroy(&_viewers[it->first].first);
@@ -714,14 +710,6 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
   // set up for the first time, when these files and viewers don't exist yet
   if (stepCount == 0 && _ckptNumber == 0) {
-    // set up viewer for time
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
-    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV1D, FILE_MODE_WRITE);
-    PetscViewerFileSetName(_timeV1D, (outputDir+"time.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
-    // set up viewers for vector files
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
@@ -729,16 +717,8 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
   }
 
-  // we are restarting the simulation from previous checkpoints
+  // we are restarting the simulation from previous checkpoints, directly append
   else if (stepCount == 0 && _ckptNumber > 0) {
-    // set up viewer for time file, directly append
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
-    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV1D, FILE_MODE_APPEND);
-    PetscViewerFileSetName(_timeV1D, (outputDir+"time.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
-    // set up viewers for vector files, directly append
     ierr = initiate_appendVecToOutput(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
@@ -748,7 +728,6 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
   // regular appending data to the files
   else if (stepCount <= _maxStepCount) {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
@@ -761,7 +740,6 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
     ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
-    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
   }
   
   _writeTime += MPI_Wtime() - startTime;
@@ -786,14 +764,6 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
   // initialize only once and write into file, at the beginning of the first checkpoint
   if (stepCount == 0 && _ckptNumber == 0) {
-    // set up viewer for time
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
-    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV2D, FILE_MODE_WRITE);
-    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-
-    // initiate viewers for vector files
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
     // if need to compute sigma_xz, also write out sxz into file
@@ -804,14 +774,6 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
 
   // append to previous data files if we had checkpoints before
   else if (stepCount == 0 && _ckptNumber > 0) {
-    // set up viewer for time file, directly append
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
-    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV2D, FILE_MODE_APPEND);
-    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-
-    // set up viewers for vector files, directly append
     ierr = initiate_appendVecToOutput(_viewers, "u", _surfDisp, outputDir + "u"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "sxy", _surfDisp, outputDir + "sxy"); CHKERRQ(ierr);
     // if need to compute sigma_xz
@@ -822,18 +784,12 @@ PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscS
   
   // regular appending values/vectors
   else if (stepCount <= _interval) {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time); CHKERRQ(ierr);
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     // if need to compute sigma_xz
     if (_computeSxz) {
       ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
     }
-  }
-
-  // no _bcL or _bcR to write for 2D, just the current time at the last step
-  else if (stepCount == _interval) {
-    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
