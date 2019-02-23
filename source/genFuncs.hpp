@@ -146,4 +146,8 @@ PetscErrorCode initiate_appendVecToOutput(map<string, paid<PetscViewer, string>>
 
 PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key,const Vec& vec, const string dir);
 
+PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var);
+
+PetscErrorCode appendASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var);
+
 #endif

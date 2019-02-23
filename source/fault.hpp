@@ -130,8 +130,8 @@ class Fault
     // IO
     PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext(const std::string outputDir);
-    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+    PetscErrorCode writeStep(const PetscInt stepCount);
+    PetscErrorCode virtual writeStep(const PetscInt stepCount, const std::string outputDir);
 };
 
 

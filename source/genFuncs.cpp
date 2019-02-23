@@ -1058,3 +1058,30 @@ PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, con
 
   return ierr;
 }
+
+
+// write a new ASCII file to 15 decimal places (for time and dt)
+PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
+  PetscErrorCode ierr = 0;
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
+  
+  return ierr;
+}
+
+
+// append to existing ASCII file (for time and dt)
+PetscErrorCode appendASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
+  PetscErrorCode ierr = 0;
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
+  
+  return ierr;
+}
+

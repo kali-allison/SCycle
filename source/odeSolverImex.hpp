@@ -68,7 +68,8 @@ class OdeSolverImex
     double                  _runTime;
     string                  _controlType;
     string                  _normType;
-
+    string                  _outputDir;
+  
     PetscReal   _minDeltaT,_maxDeltaT;
     PetscReal   _atol,_rtol; // absolute and relative tolerances
     PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
@@ -87,7 +88,7 @@ class OdeSolverImex
     virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
     virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
     virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm) = 0;
+    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm, const std::string outputDir) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
     virtual PetscErrorCode setErrInds(std::vector<string>& errInds, vector<double> scale) = 0;
 
@@ -122,7 +123,7 @@ class RK32_WBE : public OdeSolverImex
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm, const std::string outputDir);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();
@@ -143,9 +144,11 @@ class RK43_WBE : public OdeSolverImex
   public:
 
     // for P or PID error control
-    PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
+    // safety factor in step size determinance, order of accuracy of method
+    PetscReal   _kappa,_ord;
     boost::circular_buffer<double> _errA;
-    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
+    // error between 3rd order solution and embedded 2nd order solution
+    PetscReal   _totErr;
 
     // intermediate values for time stepping for the explicit variable
     std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
@@ -163,7 +166,7 @@ class RK43_WBE : public OdeSolverImex
     PetscErrorCode setStepSize(const PetscReal deltaT);
     PetscErrorCode setTolerance(const PetscReal tol);
     PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm);
+    PetscErrorCode setInitialConds(std::map<string,Vec>& varEx, std::map<string,Vec>& varIm, const std::string outputDir);
     PetscErrorCode setErrInds(std::vector<string>& errInds);
     PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
     PetscErrorCode view();

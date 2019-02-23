@@ -79,7 +79,7 @@ private:
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
     // viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
+    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
 
     // forcing term for ice stream problem
     Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -136,10 +136,9 @@ private:
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode timeMonitor(const PetscScalar time, const PetscScalar deltaT, const PetscInt stepCount);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();

@@ -611,19 +611,6 @@ PetscErrorCode LinearElastic::setSurfDisp()
   VecScatterBegin(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
 
-  //~ PetscInt    Ii,Istart,Iend,y;
-  //~ PetscScalar u;
-  //~ ierr = VecGetOwnershipRange(_u,&Istart,&Iend);
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ y = Ii / _Nz;
-    //~ if (Ii % _Nz == 0) {
-      //~ ierr = VecGetValues(_u,1,&Ii,&u);CHKERRQ(ierr);
-      //~ ierr = VecSetValue(_surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
-    //~ }
-  //~ }
-  //~ ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -698,7 +685,7 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 
 
 // writes out fields of length Ny or Nz at each time step
-PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -753,7 +740,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
 
 // writes out fields of length Ny*Nz. These take up much more hard drive space, and more runtime to output, so are separate from the 1D fields
-PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

@@ -17,7 +17,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
+  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
+  _forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
@@ -31,7 +32,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   checkInput();
   parseBCs();
 v
-  // heat equation
+vv  // heat equation
   if (_thermalCoupling.compare("no") != 0) {
     _he = new HeatEquation(D);
   }
@@ -101,6 +102,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
+  PetscViewerDestroy(&_dtimeV2D);
 
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;
@@ -461,22 +463,24 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
   /* write solution to file (1D) when _currTime == _maxTime (simulation ends),
    * or if _stride1D > 0 and stepCount is an integer multiple of _stride1D */
   if (_currTime == _maxTime || (_stride1D > 0 && stepCount % _stride1D == 0)) {
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = writeStep1D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) {
-      ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+      ierr = _p->writeStep(_stepCount,_currTime,_outputDir); CHKERRQ(ierr);
     }
     if (_thermalCoupling.compare("no")!=0) {
-      ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
+      ierr =  _he->writeStep1D(_stepCount,_currTime,_outputDir); CHKERRQ(ierr);
     }
   }
 
   /* write solution to file (2D) when _currTime == _maxTime (simulation ends),
    * or if _stride2D > 0 and stepCount is an integer multiple of _stride2D */
   if (_currTime == _maxTime || (_stride2D > 0 && stepCount % _stride2D == 0)) {
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = writeStep2D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) {
-      ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+      ierr =  _he->writeStep2D(_stepCount, _currTime,_outputDir); CHKERRQ(ierr);
     }
   }
 
@@ -496,7 +500,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
 
 // TODO: this is already done in linearElastic.cpp for time, but not yet for _deltaT, do we need to also output _deltaT?
 // write out time and _deltaT at each time step
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -507,43 +511,26 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
 
   // first time creating files to write time and dt
   if (stepCount == 0 && _ckptNumber == 0) {
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
-    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV1D, FILE_MODE_WRITE);
-    PetscViewerFileSetName(_timeV1D, (outputDir+"time1D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
-    PetscViewerCreate(PETSC_COMM_WORLD, &_dtimeV1D);
-    PetscViewerSetType(_dtimeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_dtimeV1D, FILE_MODE_WRITE);
-    PetscViewerFileSetName(_dtimeV1D, (outputDir+"dt1D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",time);CHKERRQ(ierr);
+    writeASCII(outputDir, "time1D.txt", _timeV1D, time);
+    writeASCII(outputDir, "dt1D.txt", _dtimeV1D, deltaT);
   }
 
   // already checkpointed before, so append to these files
   else if (stepCount == 0 && _ckptNumber > 0) {
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV1D);
-    PetscViewerSetType(_timeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV1D, FILE_MODE_APPEND);
-    PetscViewerFileSetName(_timeV1D, (outputDir+"time1D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
-    PetscViewerCreate(PETSC_COMM_WORLD, &_dtimeV1D);
-    PetscViewerSetType(_dtimeV1D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_dtimeV1D, FILE_MODE_APPEND);
-    PetscViewerFileSetName(_dtimeV1D, (outputDir+"dt1D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",time);CHKERRQ(ierr);
+    appendASCII(outputDir, "time1D.txt", _timeV1D, time);
+    appendASCII(outputDir, "dt1D.txt", _dtimeV1D, deltaT);
   }
 
   // regular appending to output files
   else if (stepCount <= _maxStepCount) {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", deltaT);CHKERRQ(ierr);
   }
 
-  // write last time step's time to checkpoint file
+  // write last time step's time and dt to checkpoint file
   else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
+    ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT);CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -555,7 +542,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
 
 // TODO: this is already done in linearElastic, no need to do it again
 // write out time at each time step
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -565,30 +552,27 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount
 
   // first time creating files to write time
   if (stepCount == 0 && _ckptNumber == 0) {
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
-    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV2D, FILE_MODE_WRITE);
-    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+    writeASCII(outputDir, "time2D.txt", _timeV2D, time);
+    writeASCII(outputDir, "dt2D.txt", _dtimeV2D, deltaT);
   }
 
   // already checkpointed before, so append to these files
   else if (stepCount == 0 && _ckptNumber > 0) {
-    PetscViewerCreate(PETSC_COMM_WORLD, &_timeV2D);
-    PetscViewerSetType(_timeV2D, PETSCVIEWERASCII);
-    PetscViewerFileSetMode(_timeV2D, FILE_MODE_APPEND);
-    PetscViewerFileSetName(_timeV2D, (outputDir+"time2D.txt").c_str());
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+    appendASCII(outputDir, "time2D.txt", _timeV2D, time);
+    appendASCII(outputDir, "dt2D.txt", _dtimeV2D, deltaT);
   }
 
   // regular appending to output files
   else if (stepCount <= _maxStepCount) {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", deltaT); CHKERRQ(ierr);
   }
 
   // write last time step's time to checkpoint file
   else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
+    ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT); CHKERRQ(ierr);
+    
   }
   
   #if VERBOSE > 1
@@ -757,7 +741,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
     // performs integration according to odeSolver class
@@ -770,7 +754,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
     // performs integration according to odeSolver class
@@ -1075,36 +1059,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   }
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
-
-  // // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  // Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  // VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
-  // VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
-  // _fault->computeTauRS(tauSS,_vL);
-  // VecAXPY(tauSS,1.0,radDamp);
-  // VecScale(tauSS,-1./_D->_Ly);
-
-  // VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  // MatMult(MapV,tauSS,_forcingTerm);
-
-  // // free memory
-  // MatDestroy(&MapV);
-  // VecDestroy(&tauSS);
-  // VecDestroy(&radDamp);
-
-  // // compute forcing term for momentum balance equation
-  // forcing = - tau_ss / Ly
-  // Vec tauSS = NULL;
-  // _fault->computeTauRS(tauSS,_vL);
-  // VecScale(tauSS,-1./_D->_Ly);
-
-  // VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  // MatMult(MapV,tauSS,_forcingTerm);
-
-  // // free memory
-  // MatDestroy(&MapV);
-  // VecDestroy(&tauSS);
 
   // compute forcing term using scalar input
   VecDuplicate(_material->_u,&_forcingTerm);

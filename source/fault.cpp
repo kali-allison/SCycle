@@ -589,7 +589,7 @@ PetscErrorCode Fault::writeContext(const std::string outputDir)
 
 
 // writes out vector fields at each time step (specified by user using stepCount)
-PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+PetscErrorCode Fault::writeStep(const PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -667,7 +667,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
 }
 
 // same as above, uses _outputDir, to check if correct output directory is specified
-PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode Fault::writeStep(const PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -675,7 +675,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const PetscScalar time
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  writeStep(stepCount,time,_outputDir);
+  writeStep(stepCount, _outputDir);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

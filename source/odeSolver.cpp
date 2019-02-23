@@ -6,8 +6,8 @@ using namespace std;
 OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),_runTime(0),
-  _ckpt(0),_ckptNumber(0),_interval(500),
-  _controlType(controlType),_normType("L2_absolute")
+  _outputDir(" "),
+  _Controltype(controlType),_normType("L2_absolute")
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -145,7 +145,7 @@ PetscErrorCode FEuler::view()
 
 
 // set initial condition on _var and _dvar, computes runtime for this step
-PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
+PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var, const string outputDir)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -153,6 +153,7 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
+  _outputDir = outputDir;
   _var = var; // shallow copy
 
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++) {
@@ -245,6 +246,7 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 
   double startTime = MPI_Wtime();
 
+  // _errA is a boost circular buffer, the resize makes it hold 2 doubles
   _errA.resize(2);
   _errA.push_front(0);
   _errA.push_front(0);
@@ -315,7 +317,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
 
 
 // set initial condition on _var and _dvar
-PetscErrorCode RK32::setInitialConds(map<string,Vec>& var)
+PetscErrorCode RK32::setInitialConds(map<string,Vec>& var, const string outputDir)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
@@ -323,9 +325,8 @@ PetscErrorCode RK32::setInitialConds(map<string,Vec>& var)
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
+  _outputDir = outputDir;
   _var = var; // shallow copy
-
-  /* TODO: check if we need to initialize these vectors to the end values of previous checkpoint */
   
   // initialize RK vectors to zero
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
@@ -423,14 +424,17 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   // if using integral feedback controller (I)
   if (_controlType.compare("P") == 0) {
     PetscReal alpha = 1./(1.+_ord);
+    // TODO: if restart from checkpoint, load checkpoint value of totErr to compute stepRatio
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
-  //if using proportional-integral-derivative feedback (PID)
+  // if using proportional-integral-derivative feedback (PID)
   else if (_controlType.compare("PID") == 0) {
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
+    // TODO: if restart from checkpoint, load checkpoint value of totErr to compute stepRatio
+    
     if (_stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
@@ -649,8 +653,17 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       _deltaT = computeStepSize(_totErr);
     }
     // record error for use when estimating time step
-    // TODO: save _errA into checkpoint file for final time step
+    // push_front inserts a new element at the beginning of the circular buffer
     _errA.push_front(_totErr);
+    
+    // save _totErr into checkpoint file for final time step
+    if (_stepCount == _maxNumSteps) {
+      PetscViewer viewer;
+      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
+      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
+      PetscViewerDestroy(&viewer);
+    }
+      
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   }
 
@@ -757,7 +770,7 @@ PetscErrorCode RK43::setTolerance(const PetscReal tol)
 
 
 // set initial conditions on _var, _dvar, and intermediate vectors used in RK43
-PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
+PetscErrorCode RK43::setInitialConds(map<string,Vec>& var, const string outputDir)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::setInitialConds in odeSolver.cpp.\n");
@@ -765,6 +778,7 @@ PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
+  _outputDir = outputDir;
   _var = var;
 
   // initialize _dvar and various RK43 intermediate vectors to zero
@@ -1206,9 +1220,15 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     if (_totErr!=0.0) {
       _deltaT = computeStepSize(_totErr);
     }
-    // record error for use when estimating time step
-    // TODO: also output _errA into checkpoint file
+
     _errA.push_front(_totErr);
+    // save _totErr into checkpoint file for final time step
+    if (_stepCount == _maxNumSteps) {
+      PetscViewer viewer;
+      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
+      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
+      PetscViewerDestroy(&viewer);
+    }
   }
 
   _runTime += MPI_Wtime() - startTime;

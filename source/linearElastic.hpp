@@ -96,11 +96,9 @@ class LinearElastic
     PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeContext(const std::string outputDir);
     // write out 1D fields
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time); 
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(const PetscInt stepCount, const std::string outputDir);
     // write out 2D fields
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time); 
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(const PetscInt stepCount, const std::string outputDir);
 
     // MMS functions
     PetscErrorCode setMMSInitialConditions(const double time);
