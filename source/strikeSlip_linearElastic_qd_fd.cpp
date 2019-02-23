@@ -931,7 +931,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm);
+    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -943,7 +943,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx);
+    quadEx->setInitialConds(_varQSEx,_outputDir);
     quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
@@ -961,7 +961,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
 
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1460,7 +1460,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     quadImex->setTimeRange(_currTime,_maxTime);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm);
+    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -1477,7 +1477,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadEx->setTimeRange(_currTime,_maxTime);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx);
+    quadEx->setInitialConds(_varQSEx,_outputDir);
     quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
@@ -1803,7 +1803,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,const PetscInt stepCount,int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount,int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1819,16 +1819,16 @@ double startTime = MPI_Wtime();
 
   if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-    else { ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
+    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
+    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
+    else { ierr = _fault_qd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
   if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 

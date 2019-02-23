@@ -965,15 +965,11 @@ PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, co
   return ierr;
 }
 
+//============================ Checkpoint Functions ===============================
 
 // loading value from checkpoint files, each checkpoint file should only have one value (for time and ckptNumber)
-// TODO: check behavior for integer (ckptNumber)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-  ierr = PetscPrinf(PETSC_COMM_WORLD, "Starting loadValueFromCheckpoint in genFuncs.cpp.\n"); CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Attempting to load %s%s\n", outputDir.c_str(), filename.c_str()); CHKERRQ(ierr);
-  #endif
 
   string checkpointFile = outputDir + filename;
   bool fileExists = doesFileExist(checkpointFile);
@@ -990,25 +986,38 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
     PetscPrintf(PETSC_COMM_WORLD, "Warning: %s not found, setting to default value.\n", checkpointFile.c_str());
   }
 
-  #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending loadValueFromCheckpoint in %s.\n", filename.c_str()); CHKERRQ(ierr);
-  #endif
+  return ierr;
+}
+
+
+// for integers
+PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscInt &value) {
+  PetscErrorCode ierr = 0;
+
+  string checkpointFile = outputDir + filename;
+  bool fileExists = doesFileExist(checkpointFile);
+  if (fileExists) {
+    PetscPrintf(PETSC_COMM_WORLD, "Loading %s\n", filename.c_str());
+    PetscViewer viewer;
+    int fd;
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_READ, &viewer);
+    PetscViewerBinaryGetDescriptor(viewer, &fd);
+    PetscBinaryRead(fd, &value, 1, PETSC_INT);
+    PetscViewerDestroy(&viewer);
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD, "Warning: %s not found, setting to default value.\n", checkpointFile.c_str());
+  }
 
   return ierr;
 }
 
 
 // write value into checkpoint file (for currT, which is a scalar)
-// TODO: check behavior for _ckptNumber, which is an integer
 PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-  ierr = PetscPrinf(PETSC_COMM_WORLD, "Starting writeValueToCheckpoint in genFuncs.cpp.\n"); CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Attempting to load %s%s\n", outputDir.c_str(), filename.c_str()); CHKERRQ(ierr);
-  #endif
 
   string checkpointFile = outputDir + filename;
-  PetscPrintf(PETSC_COMM_WORLD, "Writing into %s\n", filename.c_str());
   PetscViewer viewer;
   int fd;
   PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer);
@@ -1016,15 +1025,27 @@ PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filen
   PetscBinaryWrite(fd, &value, 1, PETSC_SCALAR, PETSC_FALSE);
   PetscViewerDestroy(&viewer);
 
-  #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending loadValueFromCheckpoint in %s.\n", filename.c_str()); CHKERRQ(ierr);
-  #endif
+  return ierr;
+}
+
+// for integer values
+PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscInt &value) {
+  PetscErrorCode ierr = 0;
+
+  string checkpointFile = outputDir + filename;
+  PetscViewer viewer;
+  int fd;
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer);
+  PetscViewerBinaryGetDescriptor(viewer, &fd);
+  PetscBinaryWrite(fd, &value, 1, PETSC_INT, PETSC_FALSE);
+  PetscViewerDestroy(&viewer);
 
   return ierr;
 }
 
+
 // append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
-PetscErrorCode initiate_appendVecToOutput(map<string, paid<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string dir) {
+PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string dir) {
   PetscErrorCode ierr = 0;
 
   // initiate viewer
@@ -1036,14 +1057,14 @@ PetscErrorCode initiate_appendVecToOutput(map<string, paid<PetscViewer, string>>
   ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
 
   // change viewer to append mode
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
   
   return ierr;
 }
 
 
 // simply initiate viewer and write one vector, without appending
-PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key,const Vec& vec, const string dir) {
+PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key, const Vec& vec, const string dir) {
   PetscErrorCode ierr = 0;
 
   // initiate viewer

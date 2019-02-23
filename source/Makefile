@@ -4,7 +4,7 @@ DEBUG_MODULES   = -DVERBOSE=1
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS) -std=c++11 -g -O0
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
-CLINKER		      = openmpicc
+CLINKER		= openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
@@ -17,7 +17,6 @@ OBJECTS := domain.o fault.o genFuncs.o\
 PETSC_DIR=/home/yyy910805/petsc
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
-
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}

@@ -23,7 +23,7 @@ class IntegratorContextEx
 
     // for output and monitoring as time integration progresses
     // this function is not required
-    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT, const PetscInt stepCount,int& stopIntegration){return 1;};
+    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT, const PetscInt stepCount){return 1;};
 };
 
 #include "odeSolver.hpp"

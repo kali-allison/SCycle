@@ -113,11 +113,10 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration);
+    PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
 
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
 
 
 };

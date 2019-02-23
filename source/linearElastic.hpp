@@ -63,7 +63,7 @@ class LinearElastic
     PetscInt     _linSolveCount;
 
     // checkpoint data
-    PetscInt _ckpt, _ckptNumber, _interval;
+    PetscInt _ckpt, _ckptNumber, _interval, _maxStepCount;
   
     // boundary conditions
     string               _bcRType,_bcTType,_bcLType,_bcBType; // options: Dirichlet, Neumann
@@ -96,9 +96,9 @@ class LinearElastic
     PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeContext(const std::string outputDir);
     // write out 1D fields
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, const std::string outputDir);
     // write out 2D fields
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const std::string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, const std::string outputDir);
 
     // MMS functions
     PetscErrorCode setMMSInitialConditions(const double time);

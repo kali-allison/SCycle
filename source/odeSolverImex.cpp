@@ -31,7 +31,7 @@ PetscErrorCode OdeSolverImex::setInitialStepCount(const PetscReal stepCount)
 
 PetscErrorCode OdeSolverImex::setToleranceType(const std::string normType)
 {
-v#if VERBOSE > 1
+#if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setToleranceType in odeSolver.cpp.\n");
 #endif
   double startTime = MPI_Wtime();

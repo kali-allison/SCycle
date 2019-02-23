@@ -7,7 +7,7 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,str
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),_runTime(0),
   _outputDir(" "),
-  _Controltype(controlType),_normType("L2_absolute")
+  _controlType(controlType),_normType("L2_absolute")
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -479,6 +479,7 @@ PetscReal RK32::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
+  // TODO: check if we load the _totErr here
   PetscReal      err,_totErr=0.0;
 
   // if using absolute error for control

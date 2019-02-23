@@ -5,7 +5,7 @@
 using namespace std;
 
 
-Fault::Fault(Domain &D,VecScatter& scatter2fault, const int& faultTypeScale)
+Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
 : _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
   _N(D._Nz),_L(D._Lz),
@@ -200,7 +200,7 @@ PetscErrorCode Fault::checkInput()
   assert(_ckpt >= 0);
   assert(_ckptNumber >= 0);
   assert(_interval >= 0);
-  assert(_maxStepCoybt > 0);
+  assert(_maxStepCount > 0);
   
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
@@ -589,7 +589,7 @@ PetscErrorCode Fault::writeContext(const std::string outputDir)
 
 
 // writes out vector fields at each time step (specified by user using stepCount)
-PetscErrorCode Fault::writeStep(const PetscInt stepCount, const std::string outputDir)
+PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -650,7 +650,7 @@ PetscErrorCode Fault::writeStep(const PetscInt stepCount, const std::string outp
   }
   
   // when we reach the max number of time steps specified by the checkpoint, we write a checkpoint file only for the very last time step
-  else if (_ckpt > 0 && stepCount == _interval) {
+  else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = io_initiateWrite(_viewers, "slip_ckpt", _slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "slipVel_ckpt", _slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "tauP_ckpt", _tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
@@ -1257,7 +1257,7 @@ PetscErrorCode Fault_fd::loadSettings(const char *file)
 
 // allocate memory for fields
 PetscErrorCode Fault_fd::setFields() {
-  PetscErrorCode ierr = 0
+  PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
     string funcName = "Fault_fd::setFields";

@@ -31,8 +31,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
   parseBCs();
-v
-vv  // heat equation
+
+  // heat equation
   if (_thermalCoupling.compare("no") != 0) {
     _he = new HeatEquation(D);
   }
@@ -446,7 +446,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
 
 // monitoring function for ode solvers
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT, const PetscInt stepCount)
+PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
 
@@ -498,9 +498,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
 }
 
 
-// TODO: this is already done in linearElastic.cpp for time, but not yet for _deltaT, do we need to also output _deltaT?
 // write out time and _deltaT at each time step
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir)
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -542,7 +541,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
 
 // TODO: this is already done in linearElastic, no need to do it again
 // write out time at each time step
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time, const PetscScalar deltaT, const std::string outputDir)
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

@@ -340,8 +340,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 
 
 // monitoring function for ode solvers
-PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
@@ -358,15 +357,15 @@ double startTime = MPI_Wtime();
 
   if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
   if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount, _outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
@@ -399,7 +398,7 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -424,11 +423,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, con
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::writeStep1D";
+    std::string funcName = "StrikeSlip_PowerLaw_qd::writeStep2D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -585,7 +584,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
@@ -596,7 +595,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -966,20 +965,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
   ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-  ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
+  ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
   ierr = _quadEx->setErrInds(_timeIntInds);
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   delete _quadEx; _quadEx = NULL;
 
-
-  // clean up memory from this run
-  //~ map<string,Vec>::iterator it;
-  //~ for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-    //~ VecDestroy(&it->second);
-  //~ }
   // viewers
-  PetscViewerDestroy(&_material->_timeV1D);
-  PetscViewerDestroy(&_material->_timeV2D);
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers.begin(); it!=_material->_viewers.end(); it++ ) {
     PetscViewerDestroy(&_material->_viewers[it->first].first);
   }

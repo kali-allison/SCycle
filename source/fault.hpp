@@ -95,7 +95,7 @@ class Fault
 
 
     // checkpoint data
-    PetscInt _ckpt, _ckptNumber, _interval;
+    PetscInt _ckpt, _ckptNumber, _interval, _maxStepCount;
   
     // for mapping from body fields to the fault
     VecScatter* _body2fault;
@@ -130,8 +130,8 @@ class Fault
     // IO
     PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext(const std::string outputDir);
-    PetscErrorCode writeStep(const PetscInt stepCount);
-    PetscErrorCode virtual writeStep(const PetscInt stepCount, const std::string outputDir);
+    PetscErrorCode writeStep(PetscInt stepCount);
+    PetscErrorCode virtual writeStep(PetscInt stepCount, const std::string outputDir);
 };
 
 

@@ -176,6 +176,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
       else {
 	_maxStepCount = atoi(rhs.c_str());
       }
+    }
   }
 
   #if VERBOSE > 1
@@ -685,7 +686,7 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 
 
 // writes out fields of length Ny or Nz at each time step
-PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -740,7 +741,7 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const std::s
 
 
 // writes out fields of length Ny*Nz. These take up much more hard drive space, and more runtime to output, so are separate from the 1D fields
-PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1276,5 +1277,6 @@ double LinearElastic::zzmms_uSource1D(const double y,const double t) {
   PetscScalar u_y = zzmms_uA_y1D(y,t);
   PetscScalar u_yy = zzmms_uA_yy1D(y,t);
   PetscScalar u_zz = zzmms_uA_zz1D(y,t);
+
   return mu*(u_yy + u_zz) + mu_y*u_y;
 }

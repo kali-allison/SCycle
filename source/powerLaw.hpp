@@ -172,7 +172,6 @@ class PowerLaw
 
     // viewers and functions for file I/O
     PetscInt         _stepCount;
-    PetscViewer      _timeV1D,_timeV2D;
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
@@ -181,12 +180,11 @@ class PowerLaw
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, std::string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, std::string outputDir);
     PetscErrorCode view(const double totRunTime);
 
-
-
+  // constructor and destructor
     PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     ~PowerLaw();
 

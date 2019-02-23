@@ -223,8 +223,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -239,16 +238,17 @@ double startTime = MPI_Wtime();
 
   if (_currTime == _maxTime || ( _stride1D > 0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount,_outputDir); CHKERRQ(ierr);
   }
 
   if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
   }
 
-_writeTime += MPI_Wtime() - startTime;
+  _writeTime += MPI_Wtime() - startTime;
+  
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
@@ -259,7 +259,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -284,7 +284,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount
   return ierr;
 }
 
-PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

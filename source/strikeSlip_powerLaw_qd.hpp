@@ -157,10 +157,9 @@ class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorConte
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
+    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, const std::string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();
