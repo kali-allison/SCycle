@@ -16,7 +16,7 @@ Domain::Domain(const char *file)
   _isMMS(0),_loadICs(0), _inputDir("unspecified_"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(-1)
 {
   #if VERBOSE > 1
@@ -470,7 +470,7 @@ PetscErrorCode Domain::setFields()
   VecRestoreArray(_q,&q);
   VecRestoreArray(_r,&r);
 
-  // load y and z instead
+  // load y and z instead, if provided in input file
   loadVecFromInputFile(_y,_inputDir,"y");
   loadVecFromInputFile(_z,_inputDir,"z");
 

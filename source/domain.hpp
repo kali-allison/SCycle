@@ -57,16 +57,14 @@ class Domain
     PetscScalar  _vL; // loading velocity
 
     // coordinate system
-    Vec   _q,_r,_y,_z; // q(y), r(z)
+    Vec   _q,_r,_y,_z,_y0,_z0; // q(y), r(z)
     PetscScalar _dq,_dr;  // spacing in q and r
     PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
     // scatters to take values from body field(s) to 1D fields
     // naming convention for key (string): body2<boundary>, example: "body2L>"
     std::map <string, VecScatter>  _scatters;
-    Vec _y0; // y = 0 vector, size Nz
-    Vec _z0; // z = 0 vector, size Ny
-
+  
     Domain(const char * file);  // constructor 1
     Domain(const char *file,PetscInt Ny, PetscInt Nz);  // constructor 2
     ~Domain(); // destructor
