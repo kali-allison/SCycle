@@ -6,8 +6,8 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _runTime(0),_controlType(controlType),_normType("L2_absolute"),
-  _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9), _outputDir(" "),
+  _outputDir(" "),_minDeltaT(0),_maxDeltaT(finalT),
+  _atol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
@@ -631,11 +631,6 @@ PetscErrorCode RK43_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<st
     ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
     _dvar[it->first] = dvar;
 
-    //~ Vec f1;
-    //~ ierr = VecDuplicate(_varEx[it->first],&f1); CHKERRQ(ierr);
-    //~ ierr = VecSet(f1,0.0); CHKERRQ(ierr);
-    //~ _f1[it->first] = f1;
-
     Vec f2;
     ierr = VecDuplicate(_varEx[it->first],&f2); CHKERRQ(ierr);
     ierr = VecSet(f2,0.0); CHKERRQ(ierr);
@@ -660,12 +655,6 @@ PetscErrorCode RK43_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<st
     ierr = VecDuplicate(_varEx[it->first],&f6); CHKERRQ(ierr);
     ierr = VecSet(f6,0.0); CHKERRQ(ierr);
     _f6[it->first] = f6;
-
-
-    //~ Vec k1;
-    //~ ierr = VecDuplicate(_varEx[it->first],&k1); CHKERRQ(ierr);
-    //~ ierr = VecSet(k1,0.0); CHKERRQ(ierr);
-    //~ _k1[it->first] = k1;
 
     Vec k2;
     ierr = VecDuplicate(_varEx[it->first],&k2); CHKERRQ(ierr);

@@ -17,6 +17,11 @@
 
 class PressureEq
 {
+public:
+  Domain *_D; // shallow copy of domain
+  Vec _p = NULL;     // pressure
+  std::string _permSlipDependent, _permPressureDependent;
+
 private:
   const char *_file;      // input file
   std::string _delim;     // format is: var delim value (without the white space)
@@ -66,6 +71,7 @@ private:
   Vec                 _sN; // total normal stress
 
   VecScatter _scatters;
+
   // run time monitoring
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
@@ -92,12 +98,8 @@ private:
   PetscErrorCode setupKSP(const Mat &A);
   PetscErrorCode updatePermPressureDependent();
 
+
 public:
-  Domain *_D; // shallow copy of domain
-  Vec _p = NULL;     // pressure
-
-  std::string _permSlipDependent, _permPressureDependent;
-
   PressureEq(Domain &D);
   ~PressureEq();
 

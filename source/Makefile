@@ -1,9 +1,10 @@
 all: main
 
 DEBUG_MODULES   = -DVERBOSE=1
-CFLAGS          = $(DEBUG_MODULES)
-CPPFLAGS        = $(CFLAGS) -std=c++11 -g -O0
+CFLAGS          = $(DEBUG_MODULES) -fsanitize=undefined -fsanitize=address
+CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -fsanitize=undefined -fsanitize=address -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
+LDFLAGS         = -fsanitize=undefined -fsanitize=address
 CLINKER		= openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
@@ -14,9 +15,11 @@ OBJECTS := domain.o fault.o genFuncs.o\
  strikeSlip_linearElastic_qd.o strikeSlip_powerLaw_qd.o \
  strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
 
-PETSC_DIR=/home/yyy910805/petsc
+
+PETSC_DIR = /home/yyy910805/petsc
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
+
 
 main:  main.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
@@ -24,10 +27,6 @@ main:  main.o $(OBJECTS)
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-
-helloWorld: helloWorld.o
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm helloWorld.o
 
 #.PHONY : clean
 clean::
@@ -51,7 +50,6 @@ heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp
-helloWorld.o: helloWorld.cpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp genFuncs.hpp \
  domain.hpp sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp \
  sbpOps_m_varGrid.hpp

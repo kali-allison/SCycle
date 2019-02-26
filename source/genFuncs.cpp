@@ -967,7 +967,7 @@ PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, co
 
 //============================ Checkpoint Functions ===============================
 
-// loading value from checkpoint files, each checkpoint file should only have one value (for time and ckptNumber)
+// loading value from checkpoint files, each checkpoint file should only have one value (for scalar values: time and error)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
 
@@ -1013,7 +1013,7 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
-// write value into checkpoint file (for currT, which is a scalar)
+// write value into checkpoint file (for scalar values: time and error)
 PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
 
@@ -1050,7 +1050,7 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
 
   // initiate viewer
   PetscViewer vw;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vw);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vw); CHKERRQ(ierr);
   vwL[key].first = vw;
   vwL[key].second = dir;
   ierr = VecView(vec, vw); CHKERRQ(ierr);
@@ -1069,7 +1069,7 @@ PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, con
 
   // initiate viewer
   PetscViewer vw;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_WRITE,&vw);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_WRITE,&vw); CHKERRQ(ierr);
   vwL[key].first = vw;
   vwL[key].second = dir;
 
@@ -1105,4 +1105,3 @@ PetscErrorCode appendASCII(const string outputDir, const string filename, PetscV
   
   return ierr;
 }
-

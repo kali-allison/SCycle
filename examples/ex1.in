@@ -56,7 +56,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 #======================================================================
 
 # settings for checkpoints
-ckpt = 1 # enable checkpointing if 1, disable if 0
+ckpt = 0 # enable checkpointing if 1, disable if 0
 interval = 10 # time step interval at which to write checkpoint files
 
 #======================================================================

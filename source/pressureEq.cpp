@@ -5,15 +5,18 @@
 using namespace std;
 
 PressureEq::PressureEq(Domain &D)
-: _D(&D), _file(D._file), _delim(D._delim), _outputDir(D._outputDir), _inputDir(D._inputDir), _isMMS(D._isMMS),
-  _hydraulicTimeIntType("explicit"), _permSlipDependent("no"), _permPressureDependent("no"), _bcB_type("Q"),
-  _guessSteadyStateICs(1), _initTime(0.0), _initDeltaT(1e-3),
-  _order(D._order), _N(D._Nz), _L(D._Lz), _h(D._dr), _z(NULL), _bcB_ratio(1.0),
+: _D(&D), _p(NULL), _permSlipDependent("no"), _permPressureDependent("no"),
+  _file(D._file), _delim(D._delim),
+  _outputDir(D._outputDir), _inputDir(D._inputDir), _isMMS(D._isMMS),
+  _hydraulicTimeIntType("explicit"),_guessSteadyStateICs(1),
+  _initTime(0.0), _initDeltaT(1e-3),
+  _order(D._order), _N(D._Nz), _L(D._Lz), _h(D._dr), _z(NULL),
   _n_p(NULL), _beta_p(NULL), _k_p(NULL), _eta_p(NULL), _rho_f(NULL), _g(9.8),
+  _bcB_ratio(1.0), _bcB_type("Q"),
   _maxBeIteration(1), _minBeDifference(0.01),
-  _linSolver("AMG"), _ksp(NULL), _kspTol(1e-10), _sbp(NULL), _sbpType(D._sbpType), _linSolveCount(0),
-  _writeTime(0), _linSolveTime(0), _ptTime(0), _startTime(0), _miscTime(0), _invTime(0),
-  _p(NULL)
+  _linSolver("AMG"), _ksp(NULL), _kspTol(1e-10), _sbp(NULL), _sbpType(D._sbpType),
+  _linSolveCount(0),
+  _writeTime(0), _linSolveTime(0), _ptTime(0), _startTime(0), _miscTime(0), _invTime(0)
 {
   #if VERBOSE > 1
     std::string funcName = "PressureEq::PressureEq";

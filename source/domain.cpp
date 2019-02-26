@@ -8,8 +8,11 @@ using namespace std;
 // first type of constructor with 1 parameter
 Domain::Domain(const char *file)
 : _file(file),_delim(" = "),_outputDir("data/"),
-  _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
-  _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),_gridSpacingType("variableGridSpacing"),
+  _bulkDeformationType("linearElastic"),
+  _momentumBalanceType("quasidynamic"),
+  _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
+  _sbpCompatibilityType("fullyCompatible"),
+  _gridSpacingType("variableGridSpacing"),
   _isMMS(0),_loadICs(0), _inputDir("unspecified_"),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),

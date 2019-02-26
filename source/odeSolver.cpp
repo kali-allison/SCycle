@@ -6,8 +6,7 @@ using namespace std;
 OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType)
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),_runTime(0),
-  _outputDir(" "),
-  _controlType(controlType),_normType("L2_absolute")
+  _controlType(controlType),_normType("L2_absolute"), _outputDir(" ")
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -580,7 +579,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // perform time stepping routine and calling d_dt
-  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
     attemptCount = 0;
 
@@ -659,10 +658,11 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     
     // save _totErr into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
-      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
-      PetscViewerDestroy(&viewer);
+      PetscViewer viewer1, viewer2;
+      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      PetscViewerDestroy(&viewer1);
+      PetscViewerDestroy(&viewer2);
     }
       
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
@@ -1103,7 +1103,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // perform time stepping
-  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
     attemptCount = 0;
 

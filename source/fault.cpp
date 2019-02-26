@@ -13,8 +13,8 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
   _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
-  _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
   _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
+  _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
   _body2fault(&scatter2fault)
 {
   #if VERBOSE > 1
@@ -1947,9 +1947,7 @@ PetscErrorCode ComputeSlipLaw_fd::getResid(const PetscInt Jj,const PetscScalar s
 // ================================================
 
 
-ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b,
-    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
-    const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw)
+ComputeFlashHeating_fd::ComputeFlashHeating_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* a, const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar* Vw,const PetscScalar v0, const PetscScalar deltaT,const PetscScalar f0, const PetscScalar fw)
 : _Dc(Dc),_a(a),_b(b),_slipVel(slipVel),
   _Vw(Vw),_psi(psi),_psiPrev(psiPrev),_psiNext(psiNext),
   _N(N), _v0(v0), _deltaT(deltaT), _f0(f0), _fw(fw)
@@ -2007,7 +2005,7 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
 
 // Compute residual for equation to find slip velocity.
 // This form is for root finding algorithms that don't require a Jacobian such as the bisection method.
-PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out)
+PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj, const PetscScalar state, PetscScalar* out)
 {
   PetscErrorCode ierr = 0;
 
@@ -2020,7 +2018,7 @@ PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscSca
   return ierr;
 }
 
-PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscScalar state,PetscScalar* out, PetscScalar *J)
+PetscErrorCode ComputeFlashHeating_fd::getResid(const PetscInt Jj,const PetscScalar state, PetscScalar* out, PetscScalar *J)
 {
   PetscErrorCode ierr = 0;
 
@@ -2221,6 +2219,7 @@ PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const 
   PetscScalar Vw = (M_PI*ath/D) * pow(rc*(Tw-T)/tau_c,2.);
   return Vw;
 }
+
 // flash heating state evolution law
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0)
 {
