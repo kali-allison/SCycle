@@ -382,11 +382,9 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-  //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-    //~ PetscScalar maxVel; VecMax(dvarEx.find("slip")->second,NULL,&maxVel);
-    //~ PetscScalar maxVel; VecMax(_fault->_slipVel,NULL,&maxVel);
-    //~ if (maxVel < 1.2e-9 && time > 1e11) { stopIntegration = 1; }
-    if (time >= 1e11) { stopIntegration = 1; }
+    //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
+    //~ if (time >= 1e11) { stopIntegration = 1; } // converges for all tested variations
+    if (time >= 5e10) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -1031,12 +1029,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     _material->updateSSa(_varSS); // compute v, viscous strain rates
 
     // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
-    VecScale(_varSS["effVisc"],_fss_EffVisc);
-    VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
+    //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
+    //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
 
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
-    //~ MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
-    //~ VecCopy(temp,_varSS["effVisc"]);
+    MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
+    VecCopy(temp,_varSS["effVisc"]);
 
     // write out results for current iteration
     ierr = VecView(_varSS["effVisc"],vw["effViscTot"].first); CHKERRQ(ierr);

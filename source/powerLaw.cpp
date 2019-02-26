@@ -753,7 +753,7 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_loadICs(D._loadICs),_wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("yes"),_wLinearMaxwell("no"),
+  _isMMS(D._isMMS),_loadICs(D._loadICs),_wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("no"),_wLinearMaxwell("no"),
   _plastic(NULL),_disl(NULL),_diff(NULL),
   _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e30),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
@@ -781,7 +781,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   if (_wDislCreep.compare("yes")==0) { _disl = new DislocationCreep(*_y,*_z,_file,_delim); }
   if (_wDiffCreep.compare("yes")==0) { _diff = new DiffusionCreep(*_y,*_z,_file,_delim); }
 
-  //~ // set up matrix operators and KSP environment
+  // set up matrix operators and KSP environment
   setUpSBPContext(D); // set up matrix operators
   initializeMomBalMats();
 
@@ -1017,7 +1017,16 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   }
 
   if (_wLinearMaxwell.compare("yes")==0) {
+    Vec invEffViscMax = NULL;
+    VecDuplicate(*_z,invEffViscMax);
+    VecSet(invEffViscMax,1.0/_effViscCap);
+
     setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
+    VecReciprocal(_effVisc);
+
+    VecAXPY(_effVisc,1.0,invEffViscMax);
+    VecReciprocal(_effVisc);
+    VecDestroy(&invEffViscMax);
   }
   else {
     ierr = setVec(_T,*_z,_TVals,_TDepths);                              CHKERRQ(ierr);
@@ -1717,7 +1726,7 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
     CHKERRQ(ierr);
   #endif
 
-  if (_wLinearMaxwell.compare("linearMaxwell")==0) {
+  if (_wLinearMaxwell.compare("yes")==0) {
     return ierr;
   }
 
@@ -2055,7 +2064,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   //~ if (_wDiffCreep.compare("yes")==0) { VecAXPY(_effVisc,_diff->_invEffVisc); }
   VecReciprocal(_effVisc);
 
-  ierr = loadVecFromInputFile(_effVisc,_inputDir,"effVisc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
   if (_wPlasticity.compare("yes")==0) {
     ierr = loadVecFromInputFile(_plastic->_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
   }
@@ -2302,9 +2311,6 @@ PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
   if (_wDislCreep.compare("yes")==0) {_disl->writeContext(outputDir); }
   if (_wDiffCreep.compare("yes")==0) {_diff->writeContext(outputDir); }
 
-  //~ ierr = writeVec(_A,outputDir + "momBal_A"); CHKERRQ(ierr);
-  //~ ierr = writeVec(_QR,outputDir + "momBal_QR"); CHKERRQ(ierr);
-  //~ ierr = writeVec(_n,outputDir + "momBal_n"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -76,15 +76,17 @@ int computeGreensFunction(const char * inputFile)
 
   Domain d(inputFile);
   d.write();
-  //~ _sbp = new SbpOps_fc_coordTrans(d,d._muVecP,"Neumann","Dirichlet","Neumann","Dirichlet","yz");
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
-  //~ std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype
-  //~ StrikeSlip_LinearElastic_qd le(d);
 
   // set up boundaries
   VecSet(le._bcT,0.0);
   VecSet(le._bcB,0.0);
   VecSet(le._bcR,0.0);
+
+  // set up KSP
+  Mat A;
+  le._sbp->getA(A);
+  le.setupKSP(le._sbp,le._ksp,le._pc,A);
 
   // prepare matrix to hold greens function
   Mat G;
@@ -101,6 +103,7 @@ int computeGreensFunction(const char * inputFile)
   PetscInt Istart,Iend;
   VecGetOwnershipRange(le._bcL,&Istart,&Iend);
   for(PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",Ii);
     VecSet(le._bcL,0.0);
     VecSetValue(le._bcL,Ii,v,INSERT_VALUES);
 
@@ -110,7 +113,6 @@ int computeGreensFunction(const char * inputFile)
     ierr = le.setSurfDisp();
 
     // assign values to G
-    //~ _surfDisp
     VecGetArray(le._surfDisp,&si);
     for(PetscInt ind=0;ind<d._Ny;ind++) { rows[ind]=ind; }
     for(PetscInt ind=0;ind<d._Ny;ind++) { cols[ind]=Ii; }
@@ -127,7 +129,7 @@ int computeGreensFunction(const char * inputFile)
   writeMat(G,str.c_str());
 
 
-
+/*
   // output testing stuff
   VecSet(le._bcL,0.0);
   VecSet(le._bcR,5.0);
@@ -147,6 +149,7 @@ int computeGreensFunction(const char * inputFile)
 
   str =  d._outputDir + "surfDisp";
   writeVec(le._surfDisp,str.c_str());
+  */
 
 
   MatDestroy(&G);
@@ -237,6 +240,7 @@ int main(int argc,char **args)
     Domain d(inputFile);
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
+    //~ computeGreensFunction(inputFile);
   }
 
   //~ runTests(inputFile);
