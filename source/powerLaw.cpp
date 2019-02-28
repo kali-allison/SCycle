@@ -289,12 +289,12 @@ PetscErrorCode DislocationCreep::loadSettings()
     rhs = rhs.substr(0,pos);
 
     if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("disl_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("disl_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
 
   }
 
@@ -546,14 +546,14 @@ PetscErrorCode DiffusionCreep::loadSettings()
     rhs = rhs.substr(0,pos);
 
     if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
-    else if (var.compare("mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
-    else if (var.compare("mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
+    else if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("diff_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("diff_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
+    else if (var.compare("diff_mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
 
   }
 
@@ -883,7 +883,6 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     else if (var.compare("rhoDepths")==0) { loadVectorFromInputFile(rhsFull,_rhoDepths); }
 
     // deformation style
-    else if (var.compare("viscosityType")==0) { _wLinearMaxwell = rhs.c_str(); }
     else if (var.compare("wPlasticity")==0) { _wPlasticity = rhs.c_str(); }
     else if (var.compare("wDiffCreep")==0) { _wDiffCreep = rhs.c_str(); }
     else if (var.compare("wDislCreep")==0) { _wDislCreep = rhs.c_str(); }
@@ -1017,16 +1016,19 @@ PetscErrorCode PowerLaw::setMaterialParameters()
   }
 
   if (_wLinearMaxwell.compare("yes")==0) {
-    Vec invEffViscMax = NULL;
-    VecDuplicate(*_z,invEffViscMax);
-    VecSet(invEffViscMax,1.0/_effViscCap);
-
     setVec(_effVisc,*_z,_effViscVals_lm,_effViscDepths_lm);
-    VecReciprocal(_effVisc);
 
-    VecAXPY(_effVisc,1.0,invEffViscMax);
-    VecReciprocal(_effVisc);
-    VecDestroy(&invEffViscMax);
+    PetscScalar *v;
+    PetscInt Ii,Istart,Iend;
+    VecGetOwnershipRange(_effVisc,&Istart,&Iend);
+    VecGetArray(_effVisc,&v);
+    PetscInt Jj = 0;
+    for (Ii=Istart;Ii<Iend;Ii++) {
+      v[Jj] = pow(10.0,v[Jj]);
+      Jj++;
+    }
+    VecRestoreArray(_effVisc,&v);
+
   }
   else {
     ierr = setVec(_T,*_z,_TVals,_TDepths);                              CHKERRQ(ierr);
@@ -2052,6 +2054,11 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  if (_wLinearMaxwell.compare("yes")==0) {
+    return ierr;
+  }
+
+
   // estimate 1 / (effective viscosity) based on strain rate
   if (_wPlasticity.compare("yes")==0) { _plastic->guessInvEffVisc(strainRate); }
   if (_wDislCreep.compare("yes")==0) { _disl->guessInvEffVisc(_T,strainRate); }
@@ -2272,7 +2279,6 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
-  ierr = PetscViewerASCIIPrintf(viewer,"viscosityType = %s\n",_wLinearMaxwell.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"wPlasticity = %s\n",_wPlasticity.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"wDiffCreep = %s\n",_wDiffCreep.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"wDislCreep = %s\n",_wDislCreep.c_str());CHKERRQ(ierr);
@@ -2335,16 +2341,12 @@ PetscErrorCode PowerLaw::writeStep1D(const PetscInt stepCount, const PetscScalar
   if (stepCount == 0) {
     //~ ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
 
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
@@ -2371,9 +2373,6 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
   double startTime = MPI_Wtime();
 
   if (stepCount == 0) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
@@ -2384,7 +2383,6 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     ierr = io_initiateWriteAppend(_viewers, "effVisc", _effVisc, outputDir + "effVisc"); CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     ierr = VecView(_gTxy,_viewers["gTxy"].first); CHKERRQ(ierr);

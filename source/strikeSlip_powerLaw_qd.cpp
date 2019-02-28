@@ -826,7 +826,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   while (Jj < _maxSSIts_tot) {
     PetscPrintf(PETSC_COMM_WORLD,"Jj = %i\n",Jj);
 
-    //~ // brute force time integrate for steady-state shear stress the fault
+    // brute force time integrate for steady-state shear stress the fault
     solveSStau(Jj,baseOutDir);
 
     //~ // iterate to find effective viscosity etc
@@ -1012,6 +1012,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   if (_material->_wDislCreep.compare("yes")==0) {
     io_initiateWriteAppend(vw, "invEffViscDisl", _material->_disl->_invEffVisc, outputDir + "SS_momBal_invEffViscDisl");
   }
+
+
 
 
   // set up rhs vector containing boundary condition data

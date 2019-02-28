@@ -1,3 +1,4 @@
+
 #include <petscts.h>
 #include <petscviewerhdf5.h>
 #include <string>
@@ -240,7 +241,7 @@ int main(int argc,char **args)
     Domain d(inputFile);
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
-    //~ computeGreensFunction(inputFile);
+    //computeGreensFunction(inputFile);
   }
 
   //~ runTests(inputFile);
