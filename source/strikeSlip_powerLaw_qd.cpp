@@ -53,7 +53,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   // grain size distribution
   if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist = new GrainSizeEvolution(D); }
-  if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_g, _material->_grainSize); }
+  if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_d, _material->_grainSize); }
 
   // body forcing term for ice stream
   _forcingTerm = NULL; _forcingTermPlain = NULL;
@@ -155,7 +155,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("gss_t")==0) { _gss_t = atof( rhs.c_str() ); }
     else if (var.compare("maxSSIts_effVisc")==0) { _maxSSIts_effVisc = atoi( rhs.c_str() ); }
     else if (var.compare("maxSSIts_tot")==0) { _maxSSIts_tot = atoi( rhs.c_str() ); }
-    else if (var.compare("maxSSIts_timesteps")==0) { _maxSSIts_timesteps = (int) atof( rhs.c_str() ); }
+    else if (var.compare("maxSSIts_timesteps")==0) { _maxSSIts_timesteps = (int) atoi( rhs.c_str() ); }
     else if (var.compare("atolSS_effVisc")==0) { _atolSS_effVisc = atof( rhs.c_str() ); }
 
     // time integration properties
@@ -368,6 +368,7 @@ double startTime = MPI_Wtime();
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
+    if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
   //~ if (stepCount % 50 == 0) {
@@ -1139,7 +1140,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
 
   // ensure grain size is stored in varSS
   if (_varSS.find("grainSize") == _varSS.end() ) {
-    _varSS["grainSize"] = _grainDist->_g;
+    _varSS["grainSize"] = _grainDist->_d;
   }
 
   // save previous grain size for damping
@@ -1206,7 +1207,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
 
     // grain size evolution
     if (_grainSizeEvCoupling.compare("no")!=0) {
-      ierr = io_initiateWriteAppend(_viewers, "SS_grainSize_g", _grainDist->_g, outputDir + "SS_grainSize_g"); CHKERRQ(ierr);
+      ierr = io_initiateWriteAppend(_viewers, "SS_grainSizeEv_d", _grainDist->_d, outputDir + "SS_grainSizeEv_d"); CHKERRQ(ierr);
     }
 
     // rheology
@@ -1246,7 +1247,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     }
 
     if (_grainSizeEvCoupling.compare("no")!=0) {
-      ierr = VecView(_grainDist->_g,_viewers["SS_grainSize_g"].first); CHKERRQ(ierr);
+      ierr = VecView(_grainDist->_d,_viewers["SS_grainSizeEv_d"].first); CHKERRQ(ierr);
     }
 
     ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);

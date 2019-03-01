@@ -601,7 +601,7 @@ PetscErrorCode DiffusionCreep::setMaterialParameters()
   VecDuplicate(*_y,&_A);  setVec(_A,*_z,_AVals,_ADepths);
   VecDuplicate(_A,&_QR); setVec(_QR,*_z,_BVals,_BDepths);
   VecDuplicate(_A,&_n);  setVec(_n,*_z,_nVals,_nDepths);
-  VecDuplicate(_A,&_m);  setVec(_m,*_z,_nVals,_nDepths);
+  VecDuplicate(_A,&_m);  setVec(_m,*_z,_mVals,_mDepths);
 
   VecDuplicate(_A,&_invEffVisc); VecSet(_invEffVisc,1.0);
 
@@ -1963,7 +1963,7 @@ PetscErrorCode PowerLaw::computeDevViscStrainRates()
     VecRestoreArray(_dgVdev,&dgVdev);
   }
 
-  // compute 2nd invariant in viscou strain rate, the deviatoric strain rate
+  // compute 2nd invariant in viscous strain rate, the deviatoric strain rate
   if (_wDislCreep.compare("yes")==0) {
     PetscScalar const *invVisc_disl,*sxy,*sxz;
     PetscScalar *dgVdev;

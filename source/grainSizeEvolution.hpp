@@ -7,7 +7,6 @@
 #include <vector>
 #include "genFuncs.hpp"
 #include "domain.hpp"
-#include "heatEquation.hpp"
 
 /*
  * Class to explore grain size evolution. Currently uses the grain evolution law
@@ -36,11 +35,13 @@ class GrainSizeEvolution
     // material properties
     Vec                   _A,_QR,_p; // static grain growth parameters
     Vec                   _f; // fraction of mechanical work done by dislocation creep that reduces grain size
-    std::vector<double>   _AVals,_ADepths,_QRVals,_QRDepths,_pVals,_pDepths,_fVals,_fDepths;
-    std::vector<double>   _gVals,_gDepths; // for initialization
+    Vec                   _gamma; // (GJ/m^2) specific surface energy
+    PetscScalar           _c; // geometric constant
+    std::vector<double>   _AVals,_ADepths,_QRVals,_QRDepths,_pVals,_pDepths,_fVals,_fDepths,_gammaVals,_gammaDepths;
+    std::vector<double>   _dVals,_dDepths; // for initialization
 
-    Vec          _g; // grain size
-    Vec          _dg; // rate of grain size evolution
+    Vec          _d; // grain size
+    Vec          _d_t; // rate of grain size evolution
 
 
     // viewers
@@ -71,7 +72,7 @@ class GrainSizeEvolution
     // methods for explicit time stepping
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(Vec& grainSize_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
+    PetscErrorCode d_dt(Vec& grainSizeEv_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
 
     // file I/O
     PetscErrorCode writeDomain(const std::string outputDir);

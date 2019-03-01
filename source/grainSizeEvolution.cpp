@@ -10,7 +10,7 @@ GrainSizeEvolution::GrainSizeEvolution(Domain& D)
 : _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
-  _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_g(NULL),_dg(NULL)
+  _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_d(NULL),_d_t(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "GrainSizeEvolution::GrainSizeEvolution";
@@ -40,6 +40,7 @@ GrainSizeEvolution::~GrainSizeEvolution()
   VecDestroy(&_QR);
   VecDestroy(&_p);
   VecDestroy(&_f);
+  VecDestroy(&_gamma);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -81,20 +82,26 @@ PetscErrorCode GrainSizeEvolution::loadSettings(const char *file)
     rhs = rhs.substr(0,pos);
 
     // static grain growth parameters
-    if (var.compare("grainSize_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("grainSize_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("grainSize_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
-    else if (var.compare("grainSize_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
-    else if (var.compare("grainSize_pVals")==0) { loadVectorFromInputFile(rhsFull,_pVals); }
-    else if (var.compare("grainSize_pDepths")==0) { loadVectorFromInputFile(rhsFull,_pDepths); }
+    if (var.compare("grainSizeEv_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("grainSizeEv_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("grainSizeEv_QRVals")==0) { loadVectorFromInputFile(rhsFull,_QRVals); }
+    else if (var.compare("grainSizeEv_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_QRDepths); }
+    else if (var.compare("grainSizeEv_pVals")==0) { loadVectorFromInputFile(rhsFull,_pVals); }
+    else if (var.compare("grainSizeEv_pDepths")==0) { loadVectorFromInputFile(rhsFull,_pDepths); }
+
+    // (GJ/m^2) specific surface energy
+    else if (var.compare("grainSizeEv_gammaVals")==0) { loadVectorFromInputFile(rhsFull,_gammaVals); }
+    else if (var.compare("grainSizeEv_gammaDepths")==0) { loadVectorFromInputFile(rhsFull,_gammaDepths); }
+
+    else if (var.compare("grainSizeEv_c")==0) { _c = atof( rhs.c_str() ); }
 
     // partitioning of mechanical work parameter
-    else if (var.compare("grainSize_fVals")==0) { loadVectorFromInputFile(rhsFull,_fVals); }
-    else if (var.compare("grainSize_fDepths")==0) { loadVectorFromInputFile(rhsFull,_fDepths); }
+    else if (var.compare("grainSizeEv_fVals")==0) { loadVectorFromInputFile(rhsFull,_fVals); }
+    else if (var.compare("grainSizeEv_fDepths")==0) { loadVectorFromInputFile(rhsFull,_fDepths); }
 
     // initial values for grain size
-    else if (var.compare("grainSize_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_gVals); }
-    else if (var.compare("grainSize_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_gDepths); }
+    else if (var.compare("grainSizeEv_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_dVals); }
+    else if (var.compare("grainSizeEv_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_dDepths); }
 
   }
 
@@ -116,13 +123,25 @@ PetscErrorCode GrainSizeEvolution::checkInput()
   #endif
 
     assert(_AVals.size() >= 2);
-    assert(_QRVals.size() >= 2);
-    assert(_pVals.size() >= 2);
-    assert(_fVals.size() >= 2);
     assert(_AVals.size() == _ADepths.size() );
+
+    assert(_QRVals.size() >= 2);
     assert(_QRVals.size() == _QRDepths.size() );
+
+    assert(_pVals.size() >= 2);
     assert(_pVals.size() == _pDepths.size() );
-    assert(_gVals.size() == _gDepths.size() );
+
+    assert(_fVals.size() >= 2);
+    assert(_fVals.size() == _fDepths.size() );
+
+    assert(_gammaVals.size() >= 2);
+    assert(_gammaVals.size() == _gammaDepths.size() );
+
+    assert(_dVals.size() >= 2);
+    assert(_dVals.size() == _dDepths.size() );
+
+    assert(_c > 0);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -144,8 +163,9 @@ PetscErrorCode GrainSizeEvolution::allocateFields()
   VecDuplicate(_A,&_QR); VecSet(_QR,0.0);
   VecDuplicate(_A,&_p); VecSet(_p,0.0);
   VecDuplicate(_A,&_f); VecSet(_f,0.0);
-  VecDuplicate(_A,&_g); VecSet(_g,0.0);
-  VecDuplicate(_A,&_dg); VecSet(_dg,0.0);
+  VecDuplicate(_A,&_gamma); VecSet(_gamma,0.0);
+  VecDuplicate(_A,&_d); VecSet(_d,0.0);
+  VecDuplicate(_A,&_d_t); VecSet(_d_t,0.0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -164,12 +184,13 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
   #endif
 
   // set each field using it's vals and depths std::vectors
-  ierr = setVec(_A,*_z,_AVals,_ADepths);        CHKERRQ(ierr);
-  ierr = setVec(_QR,*_z,_QRVals,_QRDepths);     CHKERRQ(ierr);
-  ierr = setVec(_p,*_z,_pVals,_pDepths);        CHKERRQ(ierr);
-  ierr = setVec(_f,*_z,_fVals,_fDepths);        CHKERRQ(ierr);
-  ierr = setVec(_g,*_z,_gVals,_gDepths);        CHKERRQ(ierr);
-  VecSet(_dg,0.);
+  ierr = setVec(_A,*_z,_AVals,_ADepths);                                CHKERRQ(ierr);
+  ierr = setVec(_QR,*_z,_QRVals,_QRDepths);                             CHKERRQ(ierr);
+  ierr = setVec(_p,*_z,_pVals,_pDepths);                                CHKERRQ(ierr);
+  ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
+  ierr = setVec(_gamma,*_z,_gammaVals,_gammaDepths);                    CHKERRQ(ierr);
+  ierr = setVec(_d,*_z,_dVals,_dDepths);                                CHKERRQ(ierr);
+  VecSet(_d_t,0.);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -188,12 +209,13 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_A,_inputDir,"grainSize_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"grainSize_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_p,_inputDir,"grainSize_p"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_f,_inputDir,"grainSize_f"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_g,_inputDir,"grainSize_g"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_dg,_inputDir,"grainSize_dg"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"grainSizeEv_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"grainSizeEv_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_p,_inputDir,"grainSizeEv_p"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_f,_inputDir,"grainSizeEv_f"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_gamma,_inputDir,"grainSizeEv_gamma"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -217,8 +239,8 @@ PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<
 
 
   // add deep copies of viscous strains to integrated variables, stored in _var
-  if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_g,varEx["grainSize"]); }
-  else { Vec var; VecDuplicate(_g,&var); VecCopy(_g,var); varEx["grainSize"] = var; }
+  if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_d,varEx["grainSize"]); }
+  else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varEx["grainSize"] = var; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -235,7 +257,7 @@ PetscErrorCode GrainSizeEvolution::updateFields(const PetscScalar time,const map
   #endif
 
   // if integrating viscous strains in time
-  VecCopy(varEx.find("grainSize_g")->second,_g);
+  VecCopy(varEx.find("grainSizeEv_d")->second,_d);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -243,7 +265,7 @@ PetscErrorCode GrainSizeEvolution::updateFields(const PetscScalar time,const map
   return ierr;
 }
 
-PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSize_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
+PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -251,11 +273,13 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSize_t,const Vec& grainSize,co
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  VecCopy(grainSize,_d);
+
 
   const PetscScalar *A,*B,*p,*T,*f,*s,*dgdev,*g;
   PetscScalar *dg;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_g,&Istart,&Iend);
+  VecGetOwnershipRange(_d,&Istart,&Iend);
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&B);
   VecGetArrayRead(_p,&p);
@@ -264,7 +288,7 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSize_t,const Vec& grainSize,co
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(dgdev_disl,&dgdev);
   VecGetArrayRead(grainSize,&g);
-  VecGetArray(_dg,&dg);
+  VecGetArray(_d_t,&dg);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(g[Jj], 1.0-p[Jj]); // static grain growth rate
@@ -280,9 +304,9 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSize_t,const Vec& grainSize,co
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(dgdev_disl,&dgdev);
   VecRestoreArrayRead(grainSize,&g);
-  VecRestoreArray(_dg,&dg);
+  VecRestoreArray(_d_t,&dg);
 
-  VecCopy(_dg,grainSize_t);
+  VecCopy(_d_t,grainSizeEv_t);
 
 
   #if VERBOSE > 1
@@ -308,23 +332,25 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
   #endif
 
 
-  const PetscScalar *A,*B,*p,*T,*f,*s,*dgdev;
-  PetscScalar *g;
+  const PetscScalar *A,*B,*p,*T,*f,*g,*s,*dgdev;
+  PetscScalar *d;
   PetscInt Ii,Istart,Iend;
-  VecGetOwnershipRange(_g,&Istart,&Iend);
+  VecGetOwnershipRange(_d,&Istart,&Iend);
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&B);
   VecGetArrayRead(_p,&p);
   VecGetArrayRead(Temp,&T);
   VecGetArrayRead(_f,&f);
+  VecGetArrayRead(_gamma,&g);
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(dgdev_disl,&dgdev);
-  VecGetArray(_g,&g);
+  VecGetArray(_d,&d);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar temp = A[Jj]*exp(-B[Jj]/T[Jj]) / (p[Jj]*f[Jj]*s[Jj]*dgdev[Jj]*1e3);
+    PetscScalar cc = f[Jj] / (g[Jj] *_c);
+    PetscScalar temp = A[Jj]*exp(-B[Jj]/T[Jj]) / (p[Jj]*cc*s[Jj]*dgdev[Jj]);
     PetscScalar n = 1.0 / (1.0 + p[Jj]);
-    g[Jj] = pow(temp, n);
+    d[Jj] = pow(temp, n);
     Jj++;
   }
   VecRestoreArrayRead(_A,&A);
@@ -332,9 +358,10 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
   VecRestoreArrayRead(_p,&p);
   VecRestoreArrayRead(Temp,&T);
   VecRestoreArrayRead(_f,&f);
+  VecRestoreArrayRead(_gamma,&g);
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(dgdev_disl,&dgdev);
-  VecRestoreArray(_g,&g);
+  VecRestoreArray(_d,&d);
 
 
   #if VERBOSE > 1
@@ -355,7 +382,7 @@ PetscErrorCode GrainSizeEvolution::initiateVarSS(map<string,Vec>& varSS)
     CHKERRQ(ierr);
   #endif
 
-  varSS["grainSize_g"] = _g;
+  varSS["grainSizeEv_d"] = _d;
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -380,10 +407,11 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
   #endif
 
 
-  ierr = writeVec(_A,outputDir + "grainSize_A"); CHKERRQ(ierr);
-  ierr = writeVec(_QR,outputDir + "grainSize_QR"); CHKERRQ(ierr);
-  ierr = writeVec(_p,outputDir + "grainSize_p"); CHKERRQ(ierr);
-  ierr = writeVec(_f,outputDir + "grainSize_f"); CHKERRQ(ierr);
+  ierr = writeVec(_A,outputDir + "grainSizeEv_A");                        CHKERRQ(ierr);
+  ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                      CHKERRQ(ierr);
+  ierr = writeVec(_p,outputDir + "grainSizeEv_p");                        CHKERRQ(ierr);
+  ierr = writeVec(_f,outputDir + "grainSizeEv_f");                        CHKERRQ(ierr);
+  ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");                CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -405,12 +433,12 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
   //~ double startTime = MPI_Wtime();
 
   if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "grainSize_g", _g, outputDir + "grainSize_g"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "grainSize_dg", _dg, outputDir + "grainSize_dg"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d", _d, outputDir + "grainSizeEv_d"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d_t", _d_t, outputDir + "grainSizeEv_d_t"); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_g,_viewers["grainSize_g"].first); CHKERRQ(ierr);
-    ierr = VecView(_dg,_viewers["grainSize_dg"].first); CHKERRQ(ierr);
+    ierr = VecView(_d,_viewers["grainSizeEv_d"].first); CHKERRQ(ierr);
+    ierr = VecView(_d_t,_viewers["grainSizeEv_d_t"].first); CHKERRQ(ierr);
   }
 
   //~ _writeTime += MPI_Wtime() - startTime;
