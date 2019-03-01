@@ -34,6 +34,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   if (_ckpt > 0) {
     _maxStepCount = _interval;
   }
+  loadValueFromCheckpoint(_outputDir, "ckptNumber_ckpt", _ckptNumber);
   checkInput();
   allocateFields();
   setMaterialParameters();

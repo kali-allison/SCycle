@@ -68,7 +68,10 @@ class OdeSolver
 
     // checkpoint input
     std::string             _outputDir;
-  
+
+    // for PID error control
+    boost::circular_buffer<double> _errA;
+
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 
@@ -117,7 +120,7 @@ class RK32 : public OdeSolver
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
     // for PID error control
-  boost::circular_buffer<double> _errA;
+    boost::circular_buffer<double> _errA;
     PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
     std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;

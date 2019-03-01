@@ -250,6 +250,7 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
   _errA.push_front(0);
   _errA.push_front(0);
 
+  
   _runTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
@@ -432,18 +433,8 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    // if restart, load checkpoint value of _errA to compute stepRatio
-    if (_initT != 0 && _stepCount == 0) {
-      PetscScalar temp1, temp2;
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
-      _errA.push_back(temp1);
-      _errA.push_back(temp2);
-      stepRatio = _kappa * pow(_totTol/totErr,alpha)
-                         * pow(_errA[0]/_totTol,beta)
-                         * pow(_totTol/_errA[1],gamma);
-    }
-    else if (_initT == 0 && _stepCount < 3) {
+    // only do this when we're at the first simulation with no history of _errA
+    if (_initT == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -488,7 +479,7 @@ PetscReal RK32::computeError()
 
   PetscErrorCode ierr = 0;
   PetscScalar err, _totErr;
-  // TODO: check if we load the _totErr here
+  // load _totErr if restarting from checkpoint
   if (_initT != 0 && _stepCount == 0) {
     loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
   }
@@ -548,7 +539,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
   double         startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  PetscScalar _totErr = 0;
+  PetscScalar    _totErr = 0;
   PetscInt       attemptCount = 0;
 
   // build default errInds if it hasn't been defined already
@@ -671,8 +662,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     // save _totErr into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
     }
@@ -927,16 +918,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-    if (_initT != 0 && _stepCount == 0) {
-      PetscScalar temp1, temp2;
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
-      _errA.push_back(temp1);
-      _errA.push_back(temp2);
-      stepRatio = _kappa * pow(_totTol/totErr,alpha)
-                         * pow(_errA[0]/_totTol,beta)
-                         * pow(_totTol/_errA[1],gamma);
-    }
+    // do this when we have no history of _errA in the first simulation
     if (_initT == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
@@ -948,7 +930,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
-    assert(0 > 1); // automatically fail, because I can't figure out how to use exit commands properly
+    assert(0 > 1);
   }
 
   PetscReal deltaT = stepRatio*_deltaT;
@@ -1247,8 +1229,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     // save _totErr into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
     }

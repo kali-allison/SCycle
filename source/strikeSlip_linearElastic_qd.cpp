@@ -6,8 +6,7 @@ using namespace std;
 
 StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
+  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs), _vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
@@ -16,7 +15,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   _interval(500),_initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_totalRunTime(0),
   _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
@@ -29,13 +29,19 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   #endif
 
   loadSettings(D._file);
+  
   // if checkpoint is enabled, then set _maxStepCount to _interval
   if (_ckpt > 0) {
     _maxStepCount = _interval;
   }
-    /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
+
+  // load the latest checkpoint number  
+  loadValueFromCheckpoint(_outputDir, "ckptNumber_ckpt", _ckptNumber);
+
+  /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
   if (_ckptNumber > 0) {
     loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
+    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _initDeltaT);
   }
 
   checkInput();
@@ -446,12 +452,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
   
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
-  if (_ckptNumber > 0 && _stepCount == 0) {
-    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
-  }
-  else {
-    _deltaT = deltaT;
-  }
+  _deltaT = deltaT;
   _currTime = time;
 
   /* write solution to file (1D) when _currTime == _maxTime (simulation ends),
@@ -524,6 +525,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, Pets
   else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
     ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT);CHKERRQ(ierr);
+    _ckptNumber++;
+    ierr = writeValueToCheckpoint(outputDir, "ckptNumber_ckpt", _ckptNumber); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -709,7 +712,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 
   initiateIntegrand(); // put initial conditions into var for integration
   _stepCount = 0;
-
+  // load initial deltaT from checkpoint file
+  if (_ckptNumber > 0) {
+    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _initDeltaT);
+  }
   // initialize time integrator
   if (_timeIntegrator.compare("FEuler")==0) {
     _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
@@ -753,6 +759,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
+    // load _errA from checkpoint files
+    if (_ckptNumber > 0) {
+      PetscScalar prevErr, currErr;
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
+      _quadEx->_errA.push_front(prevErr);
+      _quadEx->_errA.push_front(currErr);
+    }
     // performs integration according to odeSolver class
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }

@@ -75,6 +75,9 @@ class OdeSolverImex
     PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
+    // for PID error control
+    boost::circular_buffer<double> _errA;
+
     // constructor and destructor
     OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolverImex() {};
