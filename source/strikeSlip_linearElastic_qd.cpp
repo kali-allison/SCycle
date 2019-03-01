@@ -746,6 +746,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
+    // load _errA if restarting
+    if (_ckptNumber > 0) {
+      PetscScalar prevErr, currErr;
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
+      _quadImex->_errA.push_front(prevErr);
+      _quadImex->_errA.push_front(currErr);
+    }
     // performs integration according to odeSolver class
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
