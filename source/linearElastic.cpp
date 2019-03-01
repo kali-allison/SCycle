@@ -31,6 +31,9 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
 
   // load and set parameters
   loadSettings(D._file);
+  if (_ckpt > 0) {
+    _maxStepCount = _interval;
+  }
   checkInput();
   allocateFields();
   setMaterialParameters();
@@ -162,21 +165,16 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     
     // check if checkpoint is enabled
     else if (var.compare("ckpt") == 0) {
-      _ckpt = atoi(rhs.c_str());
+      _ckpt = (int)atof(rhs.c_str());
     }
     // load checkpoint interval
     else if (var.compare("interval") == 0) {
-      _interval = atoi(rhs.c_str());
+      _interval = (int)atof(rhs.c_str());
     }
 
     // if checkpoint is enabled, change _maxStepCount to _interval
     else if (var.compare("maxStepCount") == 0) {
-      if (_ckpt > 0) {
-	_maxStepCount = _interval;
-      }
-      else {
-	_maxStepCount = atoi(rhs.c_str());
-      }
+      _maxStepCount = (int)atof(rhs.c_str());
     }
   }
 
@@ -725,7 +723,7 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
   }
 
   // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
-  else if (_ckpt > 0 && stepCount == _interval) {
+  else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
     ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
@@ -772,7 +770,7 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const std::string 
   }
   
   // regular appending values/vectors
-  else if (stepCount <= _interval) {
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     // if need to compute sigma_xz

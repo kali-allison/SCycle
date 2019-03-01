@@ -423,18 +423,27 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   // if using integral feedback controller (I)
   if (_controlType.compare("P") == 0) {
     PetscReal alpha = 1./(1.+_ord);
-    // TODO: if restart from checkpoint, load checkpoint value of totErr to compute stepRatio
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
+  
   // if using proportional-integral-derivative feedback (PID)
   else if (_controlType.compare("PID") == 0) {
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
 
-    // TODO: if restart from checkpoint, load checkpoint value of totErr to compute stepRatio
-    
-    if (_stepCount < 3) {
+    // if restart, load checkpoint value of _errA to compute stepRatio
+    if (_initT != 0 && _stepCount == 0) {
+      PetscScalar temp1, temp2;
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
+      _errA.push_back(temp1);
+      _errA.push_back(temp2);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
+    }
+    else if (_initT == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -452,7 +461,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   PetscReal deltaT = stepRatio*_deltaT;
   // respect bounds on min and max possible step size
   deltaT = min(_deltaT*5.0,deltaT); // cap growth rate of step size
-  deltaT=min(_maxDeltaT,deltaT); // absolute max
+  deltaT = min(_maxDeltaT,deltaT); // absolute max
   deltaT = max(_minDeltaT,deltaT);
 
   if (_minDeltaT == deltaT) {
@@ -478,9 +487,12 @@ PetscReal RK32::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
+  PetscScalar err, _totErr;
   // TODO: check if we load the _totErr here
-  PetscReal      err,_totErr=0.0;
-
+  if (_initT != 0 && _stepCount == 0) {
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
+  }
+  
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
   // tolerance: the absolute tolerance
@@ -535,8 +547,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   #endif
 
   double         startTime = MPI_Wtime();
-  PetscErrorCode ierr=0;
-  PetscReal      _totErr=0.0;
+  PetscErrorCode ierr = 0;
+  PetscScalar _totErr = 0;
   PetscInt       attemptCount = 0;
 
   // build default errInds if it hasn't been defined already
@@ -755,7 +767,6 @@ PetscErrorCode RK43::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times min step size enforced: %i\n",_numMinSteps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times max step size enforced: %i\n",_numMaxSteps);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time: %g\n",_runTime);CHKERRQ(ierr);
-
   return 0;
 }
 
@@ -916,7 +927,17 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-    if (_stepCount < 4) {
+    if (_initT != 0 && _stepCount == 0) {
+      PetscScalar temp1, temp2;
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
+      _errA.push_back(temp1);
+      _errA.push_back(temp2);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
+    }
+    if (_initT == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -927,7 +948,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
   }
   else {
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
-    assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
+    assert(0 > 1); // automatically fail, because I can't figure out how to use exit commands properly
   }
 
   PetscReal deltaT = stepRatio*_deltaT;
@@ -960,7 +981,10 @@ PetscReal RK43::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
-  PetscReal      err,_totErr=0.0;
+  PetscScalar err,_totErr;
+  if (_initT != 0 && _stepCount == 0) {
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
+  }
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -1016,12 +1040,11 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   #endif
 
   double startTime = MPI_Wtime();
-  PetscErrorCode ierr=0;
-  PetscReal      _totErr=0.0;
+  PetscErrorCode ierr = 0;
+  PetscScalar _totErr = 0;
   PetscInt       attemptCount = 0;
 
   // coefficients
-  //~ PetscScalar c1 = 0.;
   PetscScalar c2 = 1./2.;
   PetscScalar c3 = 83./250.;
   PetscScalar c4 = 31./50.;
@@ -1029,7 +1052,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   PetscScalar c6 = 1.;
 
   PetscScalar b1 = 82889./524892.;
-  //~ PetscScalar b2 = 0.;
   PetscScalar b3 = 15625./83664.;
   PetscScalar b4 = 69875./102672.;
   PetscScalar b5 = -2260./8211.;
@@ -1037,7 +1059,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
 
 
   PetscScalar hb1 = 4586570599./29645900160.;
-  //~ PetscScalar hb2 = 0.;
   PetscScalar hb3 = 178811875./945068544.;
   PetscScalar hb4 = 814220225./1159782912.;
   PetscScalar hb5 = -3700637./11593932.;
@@ -1225,10 +1246,11 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     _errA.push_front(_totErr);
     // save _totErr into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
-      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
-      PetscViewerDestroy(&viewer);
+      PetscViewer viewer1, viewer2;
+      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      PetscViewerDestroy(&viewer1);
+      PetscViewerDestroy(&viewer2);
     }
   }
 

@@ -272,8 +272,17 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-
-    if (_stepCount < 3) {
+    if (_initT != 0 && _stepCount == 0) {
+      PetscScalar temp1, temp2;
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
+      _errA.push_back(temp1);
+      _errA.push_back(temp2);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
+    }
+    else if (_initT == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -308,7 +317,11 @@ PetscReal RK32_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,_totErr=0.0;
+  PetscScalar err;
+  PetscScalar _totErr;
+  if (_initT != 0 && _stepCount == 0) {
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
+  }
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -401,7 +414,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
   ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
-  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
     attemptCount = 0;
     while (attemptCount < 100) {
@@ -480,10 +493,11 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     _errA.push_front(_totErr);
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
-      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
-      PetscViewerDestroy(&viewer);
+      PetscViewer viewer1, viewer2;
+      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      PetscViewerDestroy(&viewer1);
+      PetscViewerDestroy(&viewer2);
     }
     
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
@@ -766,8 +780,17 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-
-    if (_stepCount < 4) {
+    if (_initT != 0 && _stepCount == 0) {
+      PetscScalar temp1, temp2;
+      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
+      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
+      _errA.push_back(temp1);
+      _errA.push_back(temp2);
+      stepRatio = _kappa * pow(_totTol/totErr,alpha)
+                         * pow(_errA[0]/_totTol,beta)
+                         * pow(_totTol/_errA[1],gamma);
+    }
+    else if (_initT == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -801,7 +824,12 @@ PetscReal RK43_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscReal      err,_totErr=0.0;
+  PetscScalar err;
+  PetscScalar _totErr;
+  if (_initT != 0 && _stepCount == 0) {
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
+  }
+
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -941,7 +969,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   _f1 = _dvar;
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
-  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
     attemptCount = 0;
     // repeat until time step is acceptable
@@ -1057,10 +1085,11 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     _errA.push_front(_totErr);
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "error_ckpt", viewer, _errA[0]);
-      ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", _errA[1]); CHKERRQ(ierr);
-      PetscViewerDestroy(&viewer);
+      PetscViewer viewer1, viewer2;
+      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      PetscViewerDestroy(&viewer1);
+      PetscViewerDestroy(&viewer2);
     }
   }
 

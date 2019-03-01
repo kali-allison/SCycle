@@ -47,7 +47,7 @@ rhoDepths = [0 60] # (km)
 
 stride1D = 5 # number of time steps between output of 1D fields
 stride2D = 10 # number of time steps between output of 2D fields
-maxStepCount = 1e4 # maximum number of time steps
+maxStepCount = 20 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 2e11 # (s) final time
 maxDeltaT = 1e12 # (s) size of maximum time step
@@ -56,7 +56,7 @@ timeIntInds = [psi slip] # variables to use to compute time step
 #======================================================================
 
 # settings for checkpoints
-ckpt = 0 # enable checkpointing if 1, disable if 0
+ckpt = 1 # enable checkpointing if 1, disable if 0
 interval = 10 # time step interval at which to write checkpoint files
 
 #======================================================================

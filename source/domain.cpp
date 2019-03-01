@@ -72,7 +72,7 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _vL(1e-9),
-  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_dq(-1),_dr(-1),
+  _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
   _bCoordTrans(-1)
 {
   #if VERBOSE > 1
@@ -143,7 +143,7 @@ Domain::~Domain()
   }
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 }
 
@@ -265,7 +265,7 @@ PetscErrorCode Domain::view(PetscMPIInt rank)
     #endif
 
     // start printing all the inputs
-    PetscPrintf(PETSC_COMM_SELF,"\n\nrank=%i in Domain::view\n",rank);
+    ierr = PetscPrintf(PETSC_COMM_SELF,"\n\nrank=%i in Domain::view\n",rank); CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"order = %i\n",_order);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Ny = %i\n",_Ny);CHKERRQ(ierr);
     ierr = PetscPrintf(PETSC_COMM_SELF,"Nz = %i\n",_Nz);CHKERRQ(ierr);
@@ -349,10 +349,10 @@ PetscErrorCode Domain::write()
   PetscViewer    viewer;
 
   // write into file using PetscViewer
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, str.c_str()); CHKERRQ(ierr);
 
   // domain properties
   ierr = PetscViewerASCIIPrintf(viewer,"order = %i\n",_order);CHKERRQ(ierr);
@@ -427,9 +427,12 @@ PetscErrorCode Domain::setFields()
   ierr = PetscObjectSetName((PetscObject) _y, "y"); CHKERRQ(ierr);
 
   // duplicate _y into _z, _q, _r
-  VecDuplicate(_y,&_z); PetscObjectSetName((PetscObject) _z, "z");
-  VecDuplicate(_y,&_q); PetscObjectSetName((PetscObject) _q, "q");
-  VecDuplicate(_y,&_r); PetscObjectSetName((PetscObject) _r, "r");
+  ierr = VecDuplicate(_y,&_z); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _z, "z"); CHKERRQ(ierr);
+  ierr = VecDuplicate(_y,&_q); CHKERRQ(ierr);
+  PetscObjectSetName((PetscObject) _q, "q"); CHKERRQ(ierr);
+  VecDuplicate(_y,&_r); CHKERRQ(ierr);
+  PetscObjectSetName((PetscObject) _r, "r"); CHKERRQ(ierr);
 
   // construct coordinate transform
   PetscInt Ii,Istart,Iend,Jj = 0;
@@ -437,10 +440,10 @@ PetscErrorCode Domain::setFields()
   ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
 
   // return pointers to local data arrays (the processor's portion of vector data)
-  VecGetArray(_y,&y);
-  VecGetArray(_z,&z);
-  VecGetArray(_q,&q);
-  VecGetArray(_r,&r);
+  ierr = VecGetArray(_y,&y); CHKERRQ(ierr);
+  ierr = VecGetArray(_z,&z); CHKERRQ(ierr);
+  ierr = VecGetArray(_q,&q); CHKERRQ(ierr);
+  ierr = VecGetArray(_r,&r); CHKERRQ(ierr);
 
   // set vector entries for q, r (coordinate transform) and y, z (no transform)
   for (Ii=Istart; Ii<Iend; Ii++) {
@@ -465,10 +468,10 @@ PetscErrorCode Domain::setFields()
   }
 
   // restore arrays
-  VecRestoreArray(_y,&y);
-  VecRestoreArray(_z,&z);
-  VecRestoreArray(_q,&q);
-  VecRestoreArray(_r,&r);
+  ierr = VecRestoreArray(_y,&y); CHKERRQ(ierr);
+  ierr = VecRestoreArray(_z,&z); CHKERRQ(ierr);
+  ierr = VecRestoreArray(_q,&q); CHKERRQ(ierr);
+  ierr = VecRestoreArray(_r,&r); CHKERRQ(ierr);
 
   // load y and z instead, if provided in input file
   loadVecFromInputFile(_y,_inputDir,"y");
@@ -494,21 +497,21 @@ PetscErrorCode Domain::setScatters()
   #endif
 
   // set _y0 to be zero vector with length _Nz
-  VecCreate(PETSC_COMM_WORLD,&_y0);
-  VecSetSizes(_y0,PETSC_DECIDE,_Nz);
-  VecSetFromOptions(_y0);
-  VecSet(_y0,0.0);  
+  ierr = VecCreate(PETSC_COMM_WORLD,&_y0); CHKERRQ(ierr);
+  ierr = VecSetSizes(_y0,PETSC_DECIDE,_Nz); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_y0); CHKERRQ(ierr);
+  ierr = VecSet(_y0,0.0); CHKERRQ(ierr);
 
   // set _z0 to be zero vector with length _Ny
-  VecCreate(PETSC_COMM_WORLD,&_z0);
-  VecSetSizes(_z0,PETSC_DECIDE,_Ny);
-  VecSetFromOptions(_z0);
-  VecSet(_z0,0.0);
+  ierr = VecCreate(PETSC_COMM_WORLD,&_z0); CHKERRQ(ierr);
+  ierr = VecSetSizes(_z0,PETSC_DECIDE,_Ny); CHKERRQ(ierr);
+  ierr = VecSetFromOptions(_z0); CHKERRQ(ierr);
+  ierr = VecSet(_z0,0.0); CHKERRQ(ierr);
 
   { // set up scatter context to take values for y = 0 from body field and put them on a Vec of size Nz
     PetscInt *indices;
     IS is;  // index set
-    PetscMalloc1(_Nz,&indices);
+    ierr = PetscMalloc1(_Nz,&indices); CHKERRQ(ierr);
 
     // we want to scatter from index 0 to _Nz - 1, i.e. take the first _Nz components of the vector to scatter from
     for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
@@ -516,43 +519,43 @@ PetscErrorCode Domain::setScatters()
     }
 
     // creates data structure for an index set containing a list of integers
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, indices, PETSC_COPY_VALUES, &is); CHKERRQ(ierr);
 
     // creates vector scatter context, scatters values from _y (at indices is) to _y0 (at indices is)
     ierr = VecScatterCreate(_y, is, _y0, is, &_scatters["body2L"]); CHKERRQ(ierr);
 
     // free memory
-    PetscFree(indices);
-    ISDestroy(&is);
+    ierr = PetscFree(indices); CHKERRQ(ierr);
+    ierr = ISDestroy(&is); CHKERRQ(ierr);
   }
 
   { // set up scatter context to take values for y = Ly from body field and put them on a Vec of size Nz
     // indices to scatter from
     PetscInt *fi;
     IS isf;
-    PetscMalloc1(_Nz,&fi);
+    ierr = PetscMalloc1(_Nz,&fi); CHKERRQ(ierr);
 
     // we want to scatter from index _Ny*_Nz - _Nz to _Ny*_Nz - 1, i.e. the last _Nz entries of the vector to scatter from
     for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
       fi[Ii] = Ii + (_Ny*_Nz-_Nz);
     }
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, fi, PETSC_COPY_VALUES, &isf); CHKERRQ(ierr);
 
     // indices to scatter to
     PetscInt *ti;
     IS ist;
-    PetscMalloc1(_Nz,&ti);
+    ierr = PetscMalloc1(_Nz,&ti); CHKERRQ(ierr);
     for (PetscInt Ii = 0; Ii<_Nz; Ii++) {
       ti[Ii] = Ii;
     }
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
     ierr = VecScatterCreate(_y, isf, _y0, ist, &_scatters["body2R"]); CHKERRQ(ierr);
 
     // free memory
-    PetscFree(fi);
-    PetscFree(ti);
-    ISDestroy(&isf);
-    ISDestroy(&ist);
+    ierr = PetscFree(fi); CHKERRQ(ierr);
+    ierr = PetscFree(ti); CHKERRQ(ierr);
+    ierr = ISDestroy(&isf); CHKERRQ(ierr);
+    ierr = ISDestroy(&ist); CHKERRQ(ierr);
   }
 
   { // set up scatter context to take values for z = 0 from body field and put them on a Vec of size Ny
@@ -564,46 +567,46 @@ PetscErrorCode Domain::setScatters()
      * change to the next index is _Nz (the stride)
      * takes indices [0, _Nz, 2*_Nz, ..., (_Ny-1)*_Nz]
     */
-    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf);
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf); CHKERRQ(ierr);
 
     // indices to scatter to
     PetscInt *ti;
     IS ist;
-    PetscMalloc1(_Ny,&ti);
+    ierr = PetscMalloc1(_Ny,&ti); CHKERRQ(ierr);
 
     // length _Ny
     for (PetscInt Ii=0; Ii<_Ny; Ii++) {
       ti[Ii] = Ii;
     }
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
     ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2T"]); CHKERRQ(ierr);
 
     // free memory
-    PetscFree(ti);
-    ISDestroy(&isf);
-    ISDestroy(&ist);
+    ierr = PetscFree(ti); CHKERRQ(ierr);
+    ierr = ISDestroy(&isf); CHKERRQ(ierr);
+    ierr = ISDestroy(&ist); CHKERRQ(ierr);
   }
 
   { // set up scatter context to take values for z = Lz from body field and put them on a Vec of size Ny
     // indices to scatter from
     IS isf;
     // takes indices [_Nz - 1, 2*_Nz - 1, ..., _Ny*_Nz - 1]
-    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz - 1, _Nz, &isf);
+    ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, _Nz - 1, _Nz, &isf); CHKERRQ(ierr);
 
     // indices to scatter to
     PetscInt *ti;
     IS ist;
-    PetscMalloc1(_Ny,&ti);
+    ierr = PetscMalloc1(_Ny,&ti); CHKERRQ(ierr);
     for (PetscInt Ii = 0; Ii<_Ny; Ii++) {
       ti[Ii] = Ii;
     }
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist);
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
     ierr = VecScatterCreate(_y, isf, _z0, ist, &_scatters["body2B"]); CHKERRQ(ierr);
 
     // free memory
-    PetscFree(ti);
-    ISDestroy(&isf);
-    ISDestroy(&ist);
+    ierr = PetscFree(ti); CHKERRQ(ierr);
+    ierr = ISDestroy(&isf); CHKERRQ(ierr);
+    ierr = ISDestroy(&ist); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -617,63 +620,57 @@ PetscErrorCode Domain::setScatters()
 
 // create example vector for testing purposes
 PetscErrorCode Domain::testScatters() {
+  PetscErrorCode ierr = 0;
+
   Vec body;
-  VecDuplicate(_y,&body);
+  ierr = VecDuplicate(_y,&body); CHKERRQ(ierr);
   PetscInt      Istart,Iend,Jj = 0;
   PetscScalar   *bodyA;
-  PetscErrorCode ierr = 0;
-  VecGetOwnershipRange(body,&Istart,&Iend);
-  VecGetArray(body,&bodyA);
+  ierr = VecGetOwnershipRange(body,&Istart,&Iend); CHKERRQ(ierr);
+  ierr = VecGetArray(body,&bodyA); CHKERRQ(ierr);
 
   for (PetscInt Ii = Istart; Ii<Iend; Ii++) {
     PetscInt Iy = Ii/_Nz;
     PetscInt Iz = (Ii-_Nz*(Ii/_Nz));
     bodyA[Jj] = 10.*Iy + Iz;
-    PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %i %g\n",Iy,Iz,bodyA[Jj]); CHKERRQ(ierr);
     Jj++;
   }
-  VecRestoreArray(body,&bodyA);
+  ierr = VecRestoreArray(body,&bodyA); CHKERRQ(ierr);
 
   // test various mappings
   // y = 0: mapping to L
   Vec out;
-  VecDuplicate(_y0,&out);
-  VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
-
+  ierr = VecDuplicate(_y0,&out); CHKERRQ(ierr);
+  ierr = VecScatterBegin(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["body2L"], body, out, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecDestroy(&out); CHKERRQ(ierr);
+  
   // y = Ly: mapping to R
-  VecDuplicate(_y0,&out);
-  VecSet(out,-1.);
-  VecScatterBegin(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2R"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  Vec out1;
+  ierr = VecDuplicate(_y0,&out1); CHKERRQ(ierr);
+  ierr = VecSet(out1,-1.); CHKERRQ(ierr);
+  ierr = VecScatterBegin(_scatters["body2R"], body, out1, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["body2R"], body, out1, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecDestroy(&out1); CHKERRQ(ierr);
 
   // z=0: mapping to T
-  VecDuplicate(_z0,&out);
-  VecSet(out,-1.);
-  VecScatterBegin(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2T"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  Vec out2;
+  ierr = VecDuplicate(_z0,&out2); CHKERRQ(ierr);
+  ierr = VecSet(out2,-1.); CHKERRQ(ierr);
+  ierr = VecScatterBegin(_scatters["body2T"], body, out2, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["body2T"], body, out2, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // z=Lz: mapping to B
-  VecDuplicate(_z0,&out);
-  VecSet(out,-1.);
-  VecScatterBegin(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecScatterEnd(_scatters["body2B"], body, out, INSERT_VALUES, SCATTER_FORWARD);
-  VecView(out,PETSC_VIEWER_STDOUT_WORLD);
+  ierr = VecScatterBegin(_scatters["body2B"], body, out2, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["body2B"], body, out2, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // z=Lz: mapping from B to body
-  VecDuplicate(_z0,&out);
-  VecSet(out,-1.);
-  VecScatterBegin(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-  VecScatterEnd(_scatters["body2T"], out, body, INSERT_VALUES, SCATTER_REVERSE);
-  VecView(body,PETSC_VIEWER_STDOUT_WORLD);
+  ierr = VecScatterBegin(_scatters["body2T"], out2, body, INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
+  ierr = VecScatterEnd(_scatters["body2T"], out2, body, INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
 
-  VecDestroy(&out);
-  VecDestroy(&body);
-  assert(0);
+  ierr = VecDestroy(&out2); CHKERRQ(ierr);
+  ierr = VecDestroy(&body); CHKERRQ(ierr);
 
   return ierr;
 }
-

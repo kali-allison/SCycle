@@ -4,7 +4,7 @@
 
 using namespace std;
 
-StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
+StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
   _vL(1e-9),
@@ -17,7 +17,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
+  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
@@ -29,6 +29,15 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   #endif
 
   loadSettings(D._file);
+  // if checkpoint is enabled, then set _maxStepCount to _interval
+  if (_ckpt > 0) {
+    _maxStepCount = _interval;
+  }
+    /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
+  if (_ckptNumber > 0) {
+    loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
+  }
+
   checkInput();
   parseBCs();
 
@@ -102,7 +111,6 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
-  PetscViewerDestroy(&_dtimeV2D);
 
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;
@@ -164,31 +172,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
-    else if (var.compare("stride1D")==0){ _stride1D = atoi(rhs.c_str()); }
-    else if (var.compare("stride2D")==0){ _stride2D = atoi(rhs.c_str()); }
-    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
-    else if (var.compare("interval")==0) { _interval = atoi(rhs.c_str()); }
-
-    // if checkpoint is enabled, then set _maxStepCount to _interval
-    else if (var.compare("maxStepCount")==0) {
-      if (_ckpt > 0) {
-	_maxStepCount = _interval;
-      }
-      else {
-	_maxStepCount = atoi(rhs.c_str());
-      }
-    }
-
-    /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
-    else if (var.compare("initTime")==0) {
-      if (_ckptNumber > 0) {
-	loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
-      }
-      else {
-	_initTime = atof( rhs.c_str() );
-      }
-    }
-    
+    else if (var.compare("stride1D")==0){ _stride1D = (int)atof(rhs.c_str()); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof(rhs.c_str()); }
+    else if (var.compare("ckpt") == 0) { _ckpt = (int)atof(rhs.c_str()); }
+    else if (var.compare("interval")==0) { _interval = (int)atof(rhs.c_str()); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof(rhs.c_str()); }
+    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }    
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
@@ -457,7 +446,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
   
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
-  _deltaT = deltaT;
+  if (_ckptNumber > 0 && _stepCount == 0) {
+    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
+  }
+  else {
+    _deltaT = deltaT;
+  }
   _currTime = time;
 
   /* write solution to file (1D) when _currTime == _maxTime (simulation ends),
@@ -539,7 +533,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, Pets
 }
 
 
-// TODO: this is already done in linearElastic, no need to do it again
 // write out time at each time step
 PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir)
 {
@@ -552,26 +545,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, Pets
   // first time creating files to write time
   if (stepCount == 0 && _ckptNumber == 0) {
     writeASCII(outputDir, "time2D.txt", _timeV2D, time);
-    writeASCII(outputDir, "dt2D.txt", _dtimeV2D, deltaT);
   }
 
   // already checkpointed before, so append to these files
   else if (stepCount == 0 && _ckptNumber > 0) {
     appendASCII(outputDir, "time2D.txt", _timeV2D, time);
-    appendASCII(outputDir, "dt2D.txt", _dtimeV2D, deltaT);
   }
 
   // regular appending to output files
   else if (stepCount <= _maxStepCount) {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", deltaT); CHKERRQ(ierr);
   }
 
   // write last time step's time to checkpoint file
   else if (_ckpt > 0 && stepCount == _maxStepCount) {
     ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
-    ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT); CHKERRQ(ierr);
-    
   }
   
   #if VERBOSE > 1
@@ -614,7 +602,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time (s): %g\n",totRunTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",(_writeTime/_integrateTime)*100.);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   checkpoint enabled: %i\n",_ckpt);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   checkpoint number: %i\n",_ckptNumber);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %i\n",_interval);CHKERRQ(ierr);
 
+  
   // // output SBP matrices
   // ierr = _material->_sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
   return ierr;
@@ -669,7 +661,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcL = %s\n",_bcLType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"faultTypeScale = %g\n",_faultTypeScale);CHKERRQ(ierr);
-    
+
+  // checkpoint settings
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint enabled = %i\n",_ckpt);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint number = %i\n",_ckptNumber);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint interval = %i\n",_interval);CHKERRQ(ierr);
+  
   // free memory
   PetscViewerDestroy(&viewer);
 

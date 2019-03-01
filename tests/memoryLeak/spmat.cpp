@@ -144,6 +144,19 @@ Spmat kron(const Spmat& left,const Spmat& right)
 
   Spmat result(leftRowSize*rightRowSize,leftColSize*rightColSize);
 
+  // naive implementation loops over all possible entries ( very slow)
+  //~double val = 0.0;
+  //~size_t Ii,Jj;
+  //~for (Ii=0;Ii<leftRowSize*rightRowSize;Ii++)
+  //~{
+    //~for (Jj=0;Jj<leftColSize*rightColSize;Jj++)
+    //~{
+      //~val = left(Ii/rightRowSize,Jj/rightColSize);
+      //~val = val * right(Ii%rightRowSize,Jj%rightColSize);
+      //~if (val!=0) { result(Ii,Jj,val); }
+    //~}
+  //~}
+
   // iterate over only nnz entries
   Spmat::const_row_iter IiL,IiR;
   Spmat::const_col_iter JjL,JjR;
@@ -266,6 +279,7 @@ void kronConvert(const Spmat& left,const Spmat& right,Mat& mat,PetscInt diag,Pet
   MatSeqAIJSetPreallocation(mat,diag,d_nnz); // argument diag will be ignored
   MatSetUp(mat);
 
+
   // iterate over only nnz entries
   Spmat::const_row_iter IiL,IiR;
   Spmat::const_col_iter JjL,JjR;
@@ -321,6 +335,10 @@ PetscErrorCode ierr = 0;
 
   if (N == 1) {
     H.eye();
+    //~ Hinv.eye();
+    //~ D1.eye();
+    //~ D1int.eye();
+    //~ BS.eye();
     return ierr;
   }
 
@@ -382,6 +400,7 @@ switch ( order ) {
     case 4:
     {
       assert(N>8); // N must be >8 for 4th order SBP
+      //~if (N<8) { SETERRQ(PETSC_COMM_WORLD,1,"N too small, must be >8 for order 4 SBP."); }
 
       H.eye();
       H(0,0,17.0/48.0);
@@ -393,7 +412,6 @@ switch ( order ) {
       H(N-3,N-3,43.0/48.0);
       H(N-4,N-4,49.0/48.0);
       H.scale(1/scale);
-
       #if VERBOSE > 2
         ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nH:\n");CHKERRQ(ierr);
         H.printPetsc();
@@ -557,6 +575,10 @@ PetscErrorCode ierr = 0;
   assert(N > 8 || N == 1);
 
   if (N==1) {
+    //~ D3.eye();
+    //~ D4.eye();
+    //~ C3.eye();
+    //~ C4.eye();
     return ierr;
   }
 
@@ -585,6 +607,9 @@ PetscErrorCode ierr = 0;
   D3(N-3,N-6,-D3(2,5));
   D3(N-2,N-4,-1);D3(N-2,N-3,3);D3(N-2,N-2,-3);D3(N-2,N-1,1); // 2nd to last row
   D3(N-1,N-4,-1);D3(N-1,N-3,3);D3(N-1,N-2,-3);D3(N-1,N-1,1); // last row
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD3:\n");CHKERRQ(ierr);
+  //~D3.printPetsc();
+
 
   D4(0,0,1); D4(0,1,-4); D4(0,2,6); D4(0,3,-4); D4(0,4,1); // 1st row
   D4(1,0,1); D4(1,1,-4); D4(1,2,6); D4(1,3,-4); D4(1,4,1); // 1st row
@@ -598,6 +623,9 @@ PetscErrorCode ierr = 0;
   }
   D4(N-2,N-5,1); D4(N-2,N-4,-4); D4(N-2,N-3,6); D4(N-2,N-2,-4); D4(N-2,N-1,1); // 2nd to last row
   D4(N-1,N-5,1); D4(N-1,N-4,-4); D4(N-1,N-3,6); D4(N-1,N-2,-4); D4(N-1,N-1,1); // last row
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nD4:\n");CHKERRQ(ierr);
+  //~D4.printPetsc();
+
 
   C3.eye();
   C3(0,0,0);
@@ -609,6 +637,8 @@ PetscErrorCode ierr = 0;
   C3(N-3,N-3,C3(2,2));
   C3(N-2,N-2,0);
   C3(N-1,N-1,0);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC3:\n");CHKERRQ(ierr);
+  //~C3.printPetsc();
 
   C4.eye();
   C4(0,0,0);
@@ -619,6 +649,8 @@ PetscErrorCode ierr = 0;
   C4(N-3,N-3,C4(2,2));
   C4(N-2,N-2,0);
   C4(N-1,N-1,0);
+  //~ierr = PetscPrintf(PETSC_COMM_WORLD,"\n\nC4:\n");CHKERRQ(ierr);
+  //~C4.printPetsc();
 
 #if VERBOSE >1
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);

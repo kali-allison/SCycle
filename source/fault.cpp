@@ -23,6 +23,9 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   #endif
 
   loadSettings(_inputFile);
+  if (_ckpt > 0) {
+    _maxStepCount = _interval;
+  }
   checkInput();
   setFields(D);
 
@@ -88,17 +91,12 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("rootTol")==0) { _rootTol = atof( rhs.c_str() ); }
 
     // checkpoint enabling and interval
-    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
-    else if (var.compare("interval") == 0) { _interval = atoi(rhs.c_str()); }
+    else if (var.compare("ckpt") == 0) { _ckpt = (int)atof(rhs.c_str()); }
+    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
 
     // if checkpoint is enabled, change _maxStepCount to _interval
     else if (var.compare("maxStepCount") == 0) {
-      if (_ckpt > 0) {
-	_maxStepCount = _interval;
-      }
-      else {
-	_maxStepCount = atoi(rhs.c_str());
-      }
+      _maxStepCount = (int)atof(rhs.c_str());
     }
     
       // friction parameters
