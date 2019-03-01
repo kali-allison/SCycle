@@ -272,17 +272,8 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-    if (_initT != 0 && _stepCount == 0) {
-      PetscScalar temp1, temp2;
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
-      _errA.push_back(temp1);
-      _errA.push_back(temp2);
-      stepRatio = _kappa * pow(_totTol/totErr,alpha)
-                         * pow(_errA[0]/_totTol,beta)
-                         * pow(_totTol/_errA[1],gamma);
-    }
-    else if (_initT == 0 && _stepCount < 3) {
+    // only do this for the first simulation when _errA is empty
+    if (_initT == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -494,8 +485,8 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
     }
@@ -780,17 +771,8 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
-    if (_initT != 0 && _stepCount == 0) {
-      PetscScalar temp1, temp2;
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", temp1);
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", temp2);
-      _errA.push_back(temp1);
-      _errA.push_back(temp2);
-      stepRatio = _kappa * pow(_totTol/totErr,alpha)
-                         * pow(_errA[0]/_totTol,beta)
-                         * pow(_totTol/_errA[1],gamma);
-    }
-    else if (_initT == 0 && _stepCount < 4) {
+    // only do this for the first simulation when _errA is empty
+    if (_initT == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -1086,8 +1068,8 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "currErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "prevErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
     }
