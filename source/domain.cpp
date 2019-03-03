@@ -437,9 +437,9 @@ PetscErrorCode Domain::setFields()
   ierr = VecDuplicate(_y,&_z); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _z, "z"); CHKERRQ(ierr);
   ierr = VecDuplicate(_y,&_q); CHKERRQ(ierr);
-  PetscObjectSetName((PetscObject) _q, "q"); CHKERRQ(ierr);
-  VecDuplicate(_y,&_r); CHKERRQ(ierr);
-  PetscObjectSetName((PetscObject) _r, "r"); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _q, "q"); CHKERRQ(ierr);
+  ierr = VecDuplicate(_y,&_r); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _r, "r"); CHKERRQ(ierr);
 
   // construct coordinate transform
   PetscInt Ii,Istart,Iend,Jj = 0;

@@ -895,15 +895,16 @@ PetscErrorCode Fault_qd::computeVel()
   // initialize struct to solve for the slip velocity
   PetscScalar *slipVelA;
   const PetscScalar *etaA, *tauQSA, *sNA, *psiA, *aA,*bA,*lockedA,*Co;
-  VecGetArray(_slipVel,&slipVelA);
-  VecGetArrayRead(_eta_rad,&etaA);
-  VecGetArrayRead(_tauQSP,&tauQSA);
-  VecGetArrayRead(_sNEff,&sNA);
-  VecGetArrayRead(_psi,&psiA);
-  VecGetArrayRead(_a,&aA);
-  VecGetArrayRead(_b,&bA);
-  VecGetArrayRead(_locked,&lockedA);
-  VecGetArrayRead(_cohesion,&Co);
+  ierr = VecGetArray(_slipVel,&slipVelA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_eta_rad,&etaA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_tauQSP,&tauQSA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_sNEff,&sNA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_psi,&psiA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_a,&aA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_b,&bA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_locked,&lockedA); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(_cohesion,&Co); CHKERRQ(ierr);
+
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(_slipVel,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
@@ -912,15 +913,15 @@ PetscErrorCode Fault_qd::computeVel()
   ComputeVel_qd temp(N,etaA,tauQSA,sNA,psiA,aA,bA,_v0,_D->_vL,lockedA,Co);
   ierr = temp.computeVel(slipVelA, _rootTol, _rootIts, _maxNumIts); CHKERRQ(ierr);
 
-  VecRestoreArray(_slipVel,&slipVelA);
-  VecRestoreArrayRead(_eta_rad,&etaA);
-  VecRestoreArrayRead(_tauQSP,&tauQSA);
-  VecRestoreArrayRead(_sNEff,&sNA);
-  VecRestoreArrayRead(_psi,&psiA);
-  VecRestoreArrayRead(_a,&aA);
-  VecRestoreArrayRead(_b,&bA);
-  VecRestoreArrayRead(_locked,&lockedA);
-  VecRestoreArrayRead(_cohesion,&Co);
+  ierr = VecRestoreArray(_slipVel,&slipVelA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_eta_rad,&etaA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_tauQSP,&tauQSA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_sNEff,&sNA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_psi,&psiA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_a,&aA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_b,&bA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_locked,&lockedA); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(_cohesion,&Co); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1032,7 +1033,7 @@ ComputeVel_qd::ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const Pets
 
 
 // compute slip velocity for quasidynamic setting
-PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+PetscErrorCode ComputeVel_qd::computeVel(PetscScalar *slipVelA, const PetscScalar rootTol, PetscInt &rootIts, const PetscInt maxNumIts)
 {
   PetscErrorCode ierr = 0;
 
@@ -1042,7 +1043,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   #endif
 
   PetscScalar left, right, out;
-  for (PetscInt Jj = 0; Jj< _N; Jj++) {
+  for (PetscInt Jj = 0; Jj < _N; Jj++) {
     // hold slip velocity at 0
     if (_locked[Jj] > 0.5) {
       slipVelA[Jj] = 0.;
@@ -1080,7 +1081,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
 	PetscScalar x0 = slipVelA[Jj];
 	BracketedNewton rootFinder(maxNumIts,rootTol);
 	ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-	ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+	ierr = rootFinder.findRoot(this,Jj,x0,&out); CHKERRQ(ierr);
 	rootIts += rootFinder.getNumIts();
       }
       slipVelA[Jj] = out;
@@ -1126,11 +1127,14 @@ PetscErrorCode ComputeVel_qd::getResid(const PetscInt Jj,const PetscScalar vel,P
   *out = strength - stress;
   PetscScalar A = _a[Jj]*_sN[Jj];
   PetscScalar B = exp(_psi[Jj]/_a[Jj]) / (2.*_v0);
+
   // derivative with respect to slipVel
   *J = A*vel/sqrt(B*B*vel*vel + 1.) + _eta[Jj];
 
-  assert(!isnan(*out)); assert(!isinf(*out));
-  assert(!isnan(*J)); assert(!isinf(*J));
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  assert(!isnan(*J));
+  assert(!isinf(*J));
 
   return ierr;
 }
