@@ -13,8 +13,6 @@ PetscErrorCode TestRoots::getResid(const PetscInt ind,const PetscScalar val,Pets
 {
   PetscErrorCode ierr = 0;
 
-
-
   //~double temp = val-2;
   //~*out = temp*temp*temp;
 
@@ -22,15 +20,8 @@ PetscErrorCode TestRoots::getResid(const PetscInt ind,const PetscScalar val,Pets
   PetscScalar tauQS = 0.75*(3.000075e+01 - 9.999920e-06);
   *out = (PetscScalar) 0.015*50*asinh( (double) (val/2./1e-6)*exp(0.6/0.015) ) + 0.5*12*val - tauQS;
 
-
   return ierr;
 }
-
-
-
-
-
-
 
 
 //================= RootFinder member functions ========================
@@ -78,7 +69,6 @@ Bisect::~Bisect()
 };
 
 
-
 PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out)
 {
   return findRoot(obj,ind,out);
@@ -97,7 +87,6 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
 
   assert(!isnan(_fLeft)); assert(!isnan(_fRight));
   assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-
 
   if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
@@ -176,7 +165,6 @@ BracketedNewton::~BracketedNewton()
 };
 
 
-
 PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt ind,PetscScalar *out)
 {
   return findRoot(obj,ind,0.5*(_left+_right),out);
@@ -188,7 +176,6 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   PetscErrorCode ierr = 0;
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting BracketedNewton::findRoot in rootFinder.cpp\n");
-  // ierr = PetscPrintf(PETSC_COMM_WORLD,"..left = %e, right = %g,mid=%g Ii=%i\n",_left,_right,_mid,ind);CHKERRQ(ierr);
 #endif
 
   // check if initial input is the root
@@ -197,15 +184,26 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   assert(!isinf(x0)); assert(!isnan(x0));
   if (abs(_f) <= _atol) { *out = x0; return 0; }
 
-
   // check if endpoints are root
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
-  assert(!isnan(_fLeft)); assert(!isnan(_fRight));
-  assert(!isinf(_fLeft)); assert(!isinf(_fRight));
-  if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
-  else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
-  else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
+  assert(!isnan(_fLeft));
+  assert(!isnan(_fRight));
+  assert(!isinf(_fLeft));
+  assert(!isinf(_fRight));
+
+  if (sqrt(_fLeft*_fLeft) <= _atol) {
+    *out = _left;
+    return 0;
+  }
+  else if (sqrt(_fRight*_fRight) <= _atol) {
+    *out = _right;
+    return 0;
+  }
+  else if (sqrt(_fRight*_fRight) <= _atol) {
+    *out = _right;
+    return 0;
+  }
 
   // ensure that _fLeft < 0
   if (_fLeft > 0) {
@@ -218,7 +216,6 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   // proceed with iteration
   PetscInt numIts = 0;
   PetscScalar _x = x0;
-  // PetscScalar xMid = 0.5 * (_left + _right);
   PetscScalar dxOld = fabs(_right - _left);
   PetscScalar dx = dxOld;
   ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
@@ -226,9 +223,8 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
   while ( (numIts <= _maxNumIts) && (abs(_f) >= _atol) ) {
 
     // use bisection if Newton out of range or not converging quickly enough
-    if( ((_x-_right)*_fPrime-_f)*((_x-_left)*_fPrime-_f) > 0.0
-      || fabs(2.0*_f) > fabs(dxOld*_fPrime) )
-    {
+    if ( ((_x-_right)*_fPrime-_f)*((_x-_left)*_fPrime-_f) > 0.0
+	|| fabs(2.0*_f) > fabs(dxOld*_fPrime) ) {
       dxOld = dx;
       dx = 0.5*(_right - _left);
       _x = _left + dx;
@@ -239,6 +235,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
       dx = _f/_fPrime;
       _x -= dx;
     }
+    
     ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
 
     // update bounds

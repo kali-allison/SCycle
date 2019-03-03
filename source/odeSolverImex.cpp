@@ -29,7 +29,7 @@ PetscErrorCode OdeSolverImex::setInitialStepCount(const PetscReal stepCount)
   return 0;
 }
 
-PetscErrorCode OdeSolverImex::setToleranceType(const std::string normType)
+PetscErrorCode OdeSolverImex::setToleranceType(const string normType)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolverImex::setToleranceType in odeSolver.cpp.\n");
@@ -164,7 +164,7 @@ PetscErrorCode RK32_WBE::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm, const std::string outputDir)
+PetscErrorCode RK32_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm, const string outputDir)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::setInitialConds in odeSolverImex.cpp.\n");
@@ -228,9 +228,9 @@ PetscErrorCode RK32_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<st
   return ierr;
 }
 
-PetscErrorCode RK32_WBE::setErrInds(std::vector<string>& errInds) { _errInds = errInds; return 0; }
+PetscErrorCode RK32_WBE::setErrInds(vector<string>& errInds) { _errInds = errInds; return 0; }
 
-PetscErrorCode RK32_WBE::setErrInds(std::vector<string>& errInds, std::vector<double> scale)
+PetscErrorCode RK32_WBE::setErrInds(vector<string>& errInds, vector<double> scale)
 {
   _errInds = errInds;
   _scale = scale;
@@ -252,15 +252,15 @@ PetscErrorCode RK32_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
+PetscReal RK32_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeStepSize in odeSolverImex.cpp.\n");
 #endif
   PetscReal stepRatio;
 
+  // if using integral feedback controller (I)
   if (_controlType.compare("P") == 0) {
-    // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
@@ -271,7 +271,7 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
     PetscReal gamma = 0.1/_ord;
 
     // only do this for the first simulation when _errA is empty
-    if (_initT == 0 && _stepCount < 3) {
+    if (ckptNumber == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -309,15 +309,14 @@ PetscReal RK32_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscScalar err;
-  PetscScalar _totErr = 0;
+  PetscScalar err = 0, _totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
   // tolerance: the absolute tolerance
   if (_normType.compare("L2_absolute")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -336,8 +335,8 @@ PetscReal RK32_WBE::computeError()
   // and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -359,7 +358,7 @@ PetscReal RK32_WBE::computeError()
 }
 
 
-PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
+PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumber)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
@@ -378,8 +377,8 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
   }
 
   // check that errInds is valid
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    std::string key = _errInds[i];
+  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
@@ -388,7 +387,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
@@ -458,7 +457,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
       if (_totErr<_atol) {
 	break;
       }
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
       if (_minDeltaT == _deltaT) {
 	break;
       }
@@ -483,7 +482,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     }
 
     if (_totErr!=0.0) {
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
     }
     // record error for use when estimating time step
     _errA.push_front(_totErr);
@@ -625,7 +624,7 @@ PetscErrorCode RK43_WBE::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK43_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<string,Vec>& varIm, const std::string outputDir)
+PetscErrorCode RK43_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm, const string outputDir)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::setInitialConds in RK43_WBE.cpp.\n");
@@ -720,7 +719,7 @@ PetscErrorCode RK43_WBE::setInitialConds(std::map<string,Vec>& varEx,std::map<st
   return ierr;
 }
 
-PetscErrorCode RK43_WBE::setErrInds(std::vector<string>& errInds)
+PetscErrorCode RK43_WBE::setErrInds(vector<string>& errInds)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::setErrInds in odeSolverImex.cpp.\n");
@@ -732,7 +731,7 @@ PetscErrorCode RK43_WBE::setErrInds(std::vector<string>& errInds)
   return 0;
 }
 
-PetscErrorCode RK43_WBE::setErrInds(std::vector<string>& errInds, std::vector<double> scale)
+PetscErrorCode RK43_WBE::setErrInds(vector<string>& errInds, vector<double> scale)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::setErrInds in odeSolverImex.cpp.\n");
@@ -760,7 +759,7 @@ PetscErrorCode RK43_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
+PetscReal RK43_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeStepSize in odeSolverImex.cpp.\n");
@@ -778,7 +777,7 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
     // only do this for the first simulation when _errA is empty
-    if (_initT == 0 && _stepCount < 4) {
+    if (ckptNumber == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -816,15 +815,14 @@ PetscReal RK43_WBE::computeError()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
   PetscErrorCode ierr = 0;
-  PetscScalar err;
-  PetscScalar _totErr = 0;
+  PetscScalar err = 0, _totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
   // tolerance: the absolute tolerance
   if (_normType.compare("L2_absolute")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -843,8 +841,8 @@ PetscReal RK43_WBE::computeError()
   // and a user-inputted scale factor
   // tolerance: the relative tolerance
   if (_normType.compare("L2_relative")==0) {
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      std::string key = _errInds[i];
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
       Vec errVec;
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
@@ -865,7 +863,7 @@ PetscReal RK43_WBE::computeError()
 }
 
 
-PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
+PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumber)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::integrate in odeSolver.cpp.\n");
@@ -929,8 +927,8 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   }
 
   // check that errInds is valid
-  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    std::string key = _errInds[i];
+  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
     }
@@ -939,7 +937,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for (vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
@@ -1047,7 +1045,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       // calculate error
       _totErr = computeError();
       if (_totErr < _atol) { break; } // accept step
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
       if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
@@ -1070,7 +1068,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
     if (_totErr!=0.0) {
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
     }
     // record error for use when estimating time step
     _errA.push_front(_totErr);

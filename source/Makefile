@@ -1,6 +1,6 @@
 all: main
 
-DEBUG_MODULES   = -DVERBOSE=2
+DEBUG_MODULES   = -DVERBOSE=1
 CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude

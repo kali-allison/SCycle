@@ -174,7 +174,7 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var, const string output
 
 
 // perform explicit time stepping, calling d_dt method defined in strikeSlip_linearElastic_qd, which is a derived class from IntegratorContextEx
-PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
+PetscErrorCode FEuler::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::integrate in odeSolver.cpp.\n");
@@ -413,7 +413,7 @@ PetscErrorCode RK32::setTimeStepBounds(const PetscReal minDeltaT, const PetscRea
 
 
 // compute time step size
-PetscReal RK32::computeStepSize(const PetscReal totErr)
+PetscReal RK32::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::computeStepSize in odeSolver.cpp.\n");
@@ -434,7 +434,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
     PetscReal gamma = 0.1/_ord;
 
     // only do this when we're at the first simulation with no history of _errA
-    if (_initT == 0 && _stepCount < 3) {
+    if (ckptNumber == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -479,7 +479,7 @@ PetscReal RK32::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
-  PetscScalar err, _totErr = 0;
+  PetscScalar err = 0, _totErr = 0;
   
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -528,7 +528,7 @@ PetscReal RK32::computeError()
 
 
 // perform RK32 explicit time stepping
-PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
+PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
@@ -633,7 +633,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 	break;
       }
       // calculate _deltaT
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr,ckptNumber);
       if (_minDeltaT == _deltaT) {
 	break;
       }
@@ -650,7 +650,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     if (_totErr!=0.0) {
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
     }
     // record error for use when estimating time step
     // push_front inserts a new element at the beginning of the circular buffer
@@ -896,7 +896,7 @@ PetscErrorCode RK43::setTimeStepBounds(const PetscReal minDeltaT, const PetscRea
 
 
 // compute the time stepping size, depending on control type
-PetscReal RK43::computeStepSize(const PetscReal totErr)
+PetscReal RK43::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::computeStepSize in odeSolver.cpp.\n");
@@ -916,7 +916,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr)
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
     // do this when we have no history of _errA in the first simulation
-    if (_initT == 0 && _stepCount < 4) {
+    if (ckptNumber == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
     else {
@@ -960,7 +960,7 @@ PetscReal RK43::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
-  PetscScalar err,_totErr = 0;
+  PetscScalar err = 0, _totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -1009,7 +1009,7 @@ PetscReal RK43::computeError()
 
 
 // perform explicit RK4 time stepping, calling d_dt method
-PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
+PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::integrate in odeSolver.cpp.\n");
@@ -1196,7 +1196,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
 	break;
       }
       // calculate time step
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
       // accept step
       if (_minDeltaT == _deltaT) {
 	break;
@@ -1216,7 +1216,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
     if (_totErr!=0.0) {
-      _deltaT = computeStepSize(_totErr);
+      _deltaT = computeStepSize(_totErr, ckptNumber);
     }
 
     _errA.push_front(_totErr);

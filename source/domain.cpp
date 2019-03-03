@@ -1,6 +1,6 @@
 #include "domain.hpp"
 
-#define FILENAME "sbpOps_fc.cpp"
+#define FILENAME "domain.cpp"
 
 using namespace std;
 
@@ -140,7 +140,7 @@ Domain::~Domain()
 
   // set map iterator, free memory from VecScatter
   map<string,VecScatter>::iterator it;
-  for (it = _scatters.begin(); it != _scatters.end(); it++ ) {
+  for (it = _scatters.begin(); it != _scatters.end(); it++) {
     VecScatterDestroy(&it->second);
   }
 
@@ -557,7 +557,6 @@ PetscErrorCode Domain::setScatters()
   }
   ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Nz, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
   ierr = VecScatterCreate(_y, isf, _y0, ist, &_scatters["body2R"]); CHKERRQ(ierr);
-
   // free memory
   ierr = PetscFree(fi); CHKERRQ(ierr);
   ierr = PetscFree(ti); CHKERRQ(ierr);

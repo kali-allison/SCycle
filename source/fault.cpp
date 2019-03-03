@@ -480,7 +480,7 @@ PetscErrorCode Fault::setSNEff(const Vec& p)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    string funcName = "Fault_qd::setSNEff";
+    string funcName = "Fault::setSNEff";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
 
   #endif
@@ -941,12 +941,12 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
   #endif
 
   // add pre-stress to quasi-static shear stress
-  VecAXPY(_tauQSP,1.0,_prestress);
+  ierr = VecAXPY(_tauQSP,1.0,_prestress); CHKERRQ(ierr);
 
   // compute slip velocity
   double startTime = MPI_Wtime();
   ierr = computeVel(); CHKERRQ(ierr);
-  VecCopy(_slipVel,dvarEx["slip"]);
+  ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
   _computeVelTime += MPI_Wtime() - startTime;
 
   // compute rate of state variable
@@ -982,9 +982,9 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
   _stateLawTime += MPI_Wtime() - startTime;
 
   // set tauP = tauQS - eta_rad *slipVel
-  VecCopy(_slipVel,_tauP); // V -> tau
-  VecPointwiseMult(_tauP,_eta_rad,_tauP); // tau = V * eta_rad
-  VecAYPX(_tauP,-1.0,_tauQSP); // tau = tauQS - V*eta_rad
+  ierr = VecCopy(_slipVel,_tauP); CHKERRQ(ierr); // V -> tau
+  ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP); CHKERRQ(ierr); // tau = V * eta_rad
+  ierr = VecAYPX(_tauP,-1.0,_tauQSP); CHKERRQ(ierr); // tau = tauQS - V*eta_rad
 
   // compute frictional strength of fault based on slip velocity
   strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
@@ -1043,7 +1043,8 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar *slipVelA, const PetscScala
   #endif
 
   PetscScalar left, right, out;
-  for (PetscInt Jj = 0; Jj < _N; Jj++) {
+  PetscInt Jj;
+  for (Jj = 0; Jj < _N; Jj++) {
     // hold slip velocity at 0
     if (_locked[Jj] > 0.5) {
       slipVelA[Jj] = 0.;
@@ -1748,8 +1749,7 @@ PetscErrorCode ComputeVel_fd::getResid(const PetscInt Jj,const PetscScalar vel,P
 // ================================================
 
 
-ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b,
-    PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
+ComputeAging_fd::ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel,
     const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0)
 : _Dc(Dc),_b(b),_slipVel(slipVel),_psi(psi),_psiPrev(psiPrev),_psiNext(psiNext),
  _N(N), _v0(v0), _deltaT(deltaT), _f0(f0)

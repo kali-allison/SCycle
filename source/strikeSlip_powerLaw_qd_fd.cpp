@@ -12,7 +12,8 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
-  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
+  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),
+  _ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
   _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),_u0(NULL),
   _timeIntegrator("RK32"),_timeControlType("PID"),
@@ -20,8 +21,10 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),_forcingVal(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0),
+  _ckpt(0),_ckptNumber(0),_interval(500),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),_forcingVal(0),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
@@ -941,7 +944,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadImex->setToleranceType(_normType);
     _quadImex->setErrInds(_timeIntInds,_scale);
 
-    ierr = _quadImex->integrate(this); CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this, _ckptNumber); CHKERRQ(ierr);
 
     std::map<string,Vec> varOut = _quadImex->_varEx;
     for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
@@ -957,7 +960,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadEx->setInitialConds(_varQSEx,_outputDir);
     _quadEx->setErrInds(_timeIntInds,_scale);
 
-    ierr = _quadEx->integrate(this); CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this, _ckptNumber); CHKERRQ(ierr);
     std::map<string,Vec> varOut = _quadEx->_var;
     for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
       VecCopy(varOut[it->first],_varQSEx[it->first]);
@@ -1161,7 +1164,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
-    ierr = quadImex->integrate(this); CHKERRQ(ierr);
+    ierr = quadImex->integrate(this,_ckptNumber); CHKERRQ(ierr);
   }
   else {
     quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
@@ -1172,7 +1175,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadEx->setInitialConds(_varQSEx,_outputDir);
     quadEx->setErrInds(_timeIntInds,_scale);
 
-    ierr = quadEx->integrate(this); CHKERRQ(ierr);
+    ierr = quadEx->integrate(this,_ckptNumber); CHKERRQ(ierr);
   }
 
   delete quadEx;

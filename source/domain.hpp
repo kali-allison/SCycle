@@ -34,13 +34,13 @@ class Domain
     const char    *_file;
     std::string    _delim; // format is: var delim value (without the white space)
     std::string    _inputDir; // directory to load input files from
-    std::string    _outputDir; // directory for output
-    std::string    _bulkDeformationType; // options: linearElastic, powerLaw
-    std::string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-    std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
-    std::string    _operatorType; // matrix-based or matrix-free
-    std::string    _sbpCompatibilityType; // compatible or fullyCompatible
-    std::string    _gridSpacingType; // variableGridSpacing or constantGridSpacing
+    string    _outputDir; // directory for output
+    string    _bulkDeformationType; // options: linearElastic, powerLaw
+    string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+    string    _sbpType; // matrix or matrix-free, compatible or fully compatible
+    string    _operatorType; // matrix-based or matrix-free
+    string    _sbpCompatibilityType; // compatible or fullyCompatible
+    string    _gridSpacingType; // variableGridSpacing or constantGridSpacing
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
 
@@ -52,8 +52,8 @@ class Domain
     // Ly = domain size in y direction (km)
     // Lz = domain size in z direction (km)
     PetscScalar  _Ly,_Lz;
-    std::string  _yInputDir; // directory to load y from
-    std::string  _zInputDir; // directory to load z from
+    string  _yInputDir; // directory to load y from
+    string  _zInputDir; // directory to load z from
     PetscScalar  _vL; // loading velocity
 
     // coordinate system
@@ -63,7 +63,7 @@ class Domain
 
     // scatters to take values from body field(s) to 1D fields
     // naming convention for key (string): body2<boundary>, example: "body2L>"
-    std::map <string, VecScatter>  _scatters;
+    map<string, VecScatter> _scatters;
   
     Domain(const char * file);  // constructor 1
     Domain(const char *file,PetscInt Ny, PetscInt Nz);  // constructor 2

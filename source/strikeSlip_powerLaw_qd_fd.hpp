@@ -28,7 +28,7 @@
 #include "heatEquation.hpp"
 #include "powerLaw.hpp"
 
-
+using namespace std;
 
 /*
  * Mediator-level class for the simulation of earthquake cycles with power-law viscoelastic material properties.
@@ -50,18 +50,18 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     Vec      *_y,*_z;
 
     // IO information
-    std::string          _delim; // format is: var delim value (without the white space)
+    string          _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    std::string          _outputDir; // output data
-    std::string          _inputDir; // input data
+    string          _outputDir; // output data
+    string          _inputDir; // input data
     const bool           _loadICs; // true if starting from a previous simulation
     PetscScalar          _vL;
-    std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    std::string          _stateLaw;
+    string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    string          _stateLaw;
     int                  _guessSteadyStateICs; // 0 = no, 1 = yes
-    std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
+    string          _forcingType; // what body forcing term to include (i.e. iceStream)
     PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     PetscInt             _cycleCount,_maxNumCycles;
@@ -73,11 +73,11 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscScalar          _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_fd, _limit_stride_fd;
 
     // time stepping data
-    std::map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
-    std::map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
-    std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
+    map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
+    map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
+    map <string,Vec>  _varIm; // holds variables for implicit integration in time
     Vec                    _u0; // total displacement at start of fd
-    std::string            _timeIntegrator,_timeControlType;
+    string            _timeIntegrator,_timeControlType;
     PetscInt               _stride1D,_stride2D; // current stride
     PetscInt               _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
     PetscInt               _maxStepCount; // largest number of time steps
@@ -85,14 +85,17 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     int                    _stepCount;
     PetscScalar            _timeStepTol;
     PetscScalar            _initDeltaT;
-    std::vector<string>    _timeIntInds; // indices of variables to be used in time integration
-    std::vector<double>    _scale; // scale factor for entries in _timeIntInds
-    std::string            _normType;
+    vector<string>    _timeIntInds; // indices of variables to be used in time integration
+    vector<double>    _scale; // scale factor for entries in _timeIntInds
+    string            _normType;
 
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
+  // checkpoint settings
+  PetscInt _ckpt, _ckptNumber, _interval;
+  
     // viewers
     PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
 
@@ -138,9 +141,9 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
     // 3rd string = full file path name for output
-    //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
-    std::map <string,Vec>                             _varSS; // holds variables for steady state iteration
+    //~ map <string,PetscViewer>  _viewers;
+    map <string,pair<PetscViewer,string> >  _viewers;
+    map <string,Vec>                             _varSS; // holds variables for steady state iteration
     PetscScalar                                       _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
     PetscScalar                                       _gss_t; // guess steady state strain rate
     PetscInt                 _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
@@ -182,8 +185,8 @@ class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorCo
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
-    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const string outputDir);
 
 };
 

@@ -16,8 +16,10 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0),
+  _ckpt(0),_ckptNumber(0),_interval(500),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
   _fault(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
@@ -588,7 +590,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
-    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
   else {
     _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
@@ -598,7 +600,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
-    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
   _integrateTime += MPI_Wtime() - startTime;
@@ -967,7 +969,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
   ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
   ierr = _quadEx->setErrInds(_timeIntInds);
-  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+  ierr = _quadEx->integrate(this,_ckptNumber);CHKERRQ(ierr);
   delete _quadEx; _quadEx = NULL;
 
   // viewers

@@ -751,7 +751,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
       _quadImex->_errA.push_front(currErr);
     }
     // performs integration according to odeSolver class
-    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
   // explicit time stepping
@@ -772,7 +772,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
       _quadEx->_errA.push_front(currErr);
     }
     // performs integration according to odeSolver class
-    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
   // calculate time used in integration
