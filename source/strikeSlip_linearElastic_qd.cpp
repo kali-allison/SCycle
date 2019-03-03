@@ -520,10 +520,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, Pets
     ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", deltaT);CHKERRQ(ierr);
     // write last time step's time and dt to checkpoint file
     if (stepCount == _maxStepCount && _ckpt > 0) {
-      ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
-      ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT);CHKERRQ(ierr);
+      PetscViewer viewer1, viewer2, viewer3;
+      ierr = writeASCII(outputDir, "currT_ckpt", viewer1, time); CHKERRQ(ierr);
+      ierr = writeASCII(outputDir, "deltaT_ckpt", viewer2, deltaT);CHKERRQ(ierr);
       _ckptNumber++;
-      ierr = writeValueToCheckpoint(outputDir, "ckptNumber", _ckptNumber); CHKERRQ(ierr);
+      ierr = writeASCII(outputDir, "ckptNumber", viewer3, _ckptNumber); CHKERRQ(ierr);
+      PetscViewerDestroy(&viewer1);
+      PetscViewerDestroy(&viewer2);
+      PetscViewerDestroy(&viewer3);
     }
 
   }
@@ -559,7 +563,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, Pets
   else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
   }
-
   
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

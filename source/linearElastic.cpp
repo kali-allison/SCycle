@@ -718,9 +718,9 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
     // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
     if (stepCount == _maxStepCount && _ckpt > 0) {
-      ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
     }
   }
   

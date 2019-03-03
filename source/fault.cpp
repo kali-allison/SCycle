@@ -169,7 +169,7 @@ PetscErrorCode Fault::checkInput()
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::checkInput";
+    string funcName = "Fault::checkInput";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -220,7 +220,7 @@ PetscErrorCode Fault::setFields(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault::setFields";
+    string funcName = "Fault::setFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -388,7 +388,7 @@ PetscErrorCode Fault::setThermalFields(const Vec& T, const Vec& k, const Vec& c)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::setThermalFields";
+    string funcName = "Fault::setThermalFields";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
@@ -422,7 +422,7 @@ PetscErrorCode Fault::updateTemperature(const Vec& T)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::updateTemperature";
+    string funcName = "Fault::updateTemperature";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
@@ -449,7 +449,7 @@ PetscErrorCode Fault::setSN(const Vec& p)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::setSN";
+    string funcName = "Fault::setSN";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
   #endif
 
@@ -480,7 +480,7 @@ PetscErrorCode Fault::setSNEff(const Vec& p)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::setSNEff";
+    string funcName = "Fault_qd::setSNEff";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
 
   #endif
@@ -524,12 +524,12 @@ PetscErrorCode Fault::view(const double totRunTime)
 
 // write out parameter settings into "fault_context.txt" file in output directory
 // also output vector fields into their respective files in output directory
-PetscErrorCode Fault::writeContext(const std::string outputDir)
+PetscErrorCode Fault::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::writeContext";
+    string funcName = "Fault::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -537,7 +537,7 @@ PetscErrorCode Fault::writeContext(const std::string outputDir)
   if (_ckptNumber == 0) {
     PetscViewer    viewer;
     // write out scalar info
-    std::string str = outputDir + "fault_context.txt";
+    string str = outputDir + "fault_context.txt";
     PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
     PetscViewerSetType(viewer, PETSCVIEWERASCII);
     PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -581,16 +581,17 @@ PetscErrorCode Fault::writeContext(const std::string outputDir)
 
 
 // writes out vector fields at each time step (specified by user using stepCount)
-PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
+PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
 {
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault::writeStep";
+    string funcName = "Fault::writeStep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   // these files are initiated only for the first time step and when are checkpointing for the first time, since the files don't exist yet
+  // writing vectors into binary files
   if (stepCount == 0 && _ckptNumber == 0) {
     ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
@@ -610,6 +611,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
    * the simulation, and we are at step 0, then we need to initiate the viewers
    * again, but this time, we open in append mode directly so data from this
    * checkpoint will be appended to the end of the original data files */
+  // writing vectors into binary files
   else if (stepCount == 0 && _ckptNumber > 0) {
     ierr = initiate_appendVecToOutput(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
@@ -642,12 +644,12 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
 
     // when we reach the max number of time steps specified by the checkpoint, we write a checkpoint file only for the very last time step
     if (stepCount == _maxStepCount && _ckpt > 0) {
-      ierr = io_initiateWrite(_viewers, "slip_ckpt", _slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "slipVel_ckpt", _slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "tauP_ckpt", _tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "tauQSP_ckpt", _tauQSP, outputDir + "tauQSP_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "psi_ckpt", _psi, outputDir + "psi_ckpt"); CHKERRQ(ierr);
-      ierr = io_initiateWrite(_viewers, "sNEff_ckpt", _sNEff, outputDir + "sNEff_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_tauQSP, outputDir + "tauQSP_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_psi, outputDir + "psi_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_sNEff, outputDir + "sNEff_ckpt"); CHKERRQ(ierr);
     }
 
   }  
@@ -664,7 +666,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
 Fault::~Fault()
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault::~Fault";
+    string funcName = "Fault::~Fault";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -695,7 +697,7 @@ Fault::~Fault()
   VecDestroy(&_c);
   VecDestroy(&_T);
 
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+  for (map<string,pair<PetscViewer,string>>::iterator it = _viewers.begin(); it != _viewers.end(); it++) {
     PetscViewerDestroy(&_viewers[it->first].first);
   }
 
@@ -711,7 +713,7 @@ PetscErrorCode Fault::guessSS(const PetscScalar vL)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 2
-    std::string funcName = "Fault::guessSS";
+    string funcName = "Fault::guessSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -758,7 +760,7 @@ PetscErrorCode Fault::computePsiSS(const PetscScalar vL)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 2
-    std::string funcName = "Fault::computePsiSS";
+    string funcName = "Fault::computePsiSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -794,7 +796,7 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
 : Fault(D,scatter2fault,faultTypeScale)
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::Fault_qd";
+    string funcName = "Fault_qd::Fault_qd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -818,7 +820,7 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
 Fault_qd::~Fault_qd()
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::~Fault_qd";
+    string funcName = "Fault_qd::~Fault_qd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -835,7 +837,7 @@ PetscErrorCode Fault_qd::initiateIntegrand(const PetscScalar time, map<string,Ve
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::initiateIntegrand";
+    string funcName = "Fault_qd::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -864,7 +866,7 @@ PetscErrorCode Fault_qd::updateFields(const PetscScalar time,const map<string,Ve
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::updateFields()";
+    string funcName = "Fault_qd::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -886,7 +888,7 @@ PetscErrorCode Fault_qd::computeVel()
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::computeVel";
+    string funcName = "Fault_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -933,7 +935,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::d_dt";
+    string funcName = "Fault_qd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -995,11 +997,11 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
 
 
 // output vector fields into file, and calls writeContext function in Fault
-PetscErrorCode Fault_qd::writeContext(const std::string outputDir)
+PetscErrorCode Fault_qd::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_qd::writeContext";
+    string funcName = "Fault_qd::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1035,7 +1037,7 @@ PetscErrorCode ComputeVel_qd::computeVel(PetscScalar* slipVelA, const PetscScala
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd::computeVel";
+    string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1144,7 +1146,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   _timeMode("None")
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::Fault_fd";
+    string funcName = "Fault_fd::Fault_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1164,7 +1166,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
 Fault_fd::~Fault_fd()
 {
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::~Fault_fd";
+    string funcName = "Fault_fd::~Fault_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1188,7 +1190,7 @@ PetscErrorCode Fault_fd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::~loadSettings";
+    string funcName = "Fault_fd::~loadSettings";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1286,7 +1288,7 @@ PetscErrorCode Fault_fd::initiateIntegrand(const PetscScalar time,map<string,Vec
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::initiateIntegrand";
+    string funcName = "Fault_fd::initiateIntegrand";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1315,7 +1317,7 @@ PetscErrorCode Fault_fd::updateFields(const PetscScalar time,const map<string,Ve
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::updateFields()";
+    string funcName = "Fault_fd::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1336,7 +1338,7 @@ PetscErrorCode Fault_fd::computeVel()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::computeVel";
+    string funcName = "Fault_fd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1385,7 +1387,7 @@ PetscErrorCode Fault_fd::computeStateEvolution(Vec& psiNext, const Vec& psi, con
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::computeVel";
+    string funcName = "Fault_fd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1455,7 +1457,7 @@ PetscErrorCode Fault_fd::updatePrestress(const PetscScalar currT)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::updatePrestress";
+    string funcName = "Fault_fd::updatePrestress";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1506,7 +1508,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, m
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::d_dt";
+    string funcName = "Fault_fd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1594,7 +1596,7 @@ PetscErrorCode Fault_fd::setPhi(const PetscScalar deltaT)
   PetscErrorCode ierr = 0;
 
   #if VERBOSE > 1
-    std::string funcName = "Fault_fd::setPhi";
+    string funcName = "Fault_fd::setPhi";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1651,7 +1653,7 @@ PetscErrorCode ComputeVel_fd::computeVel(PetscScalar* slipVelA, const PetscScala
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd::computeVel";
+    string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1753,7 +1755,7 @@ PetscErrorCode ComputeAging_fd::computeLaw(const PetscScalar rootTol, PetscInt& 
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd::computeVel";
+    string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1843,7 +1845,7 @@ PetscErrorCode ComputeSlipLaw_fd::computeLaw(const PetscScalar rootTol, PetscInt
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd::computeVel";
+    string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1933,7 +1935,7 @@ PetscErrorCode ComputeFlashHeating_fd::computeLaw(const PetscScalar rootTol, Pet
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "ComputeVel_qd::computeVel";
+    string funcName = "ComputeVel_qd::computeVel";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 

@@ -1347,10 +1347,10 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
   MatDestroy(&zrxHz);
   MatDestroy(&yqxzrxH);
 
-  return ierr;
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  return ierr;
 }
 
 

@@ -1,23 +1,24 @@
 #include "genFuncs.hpp"
 
+using namespace std;
 
 // check if file exists
 bool doesFileExist(const string fileName)
 {
-    std::ifstream infile(fileName.c_str());
+    ifstream infile(fileName.c_str());
     return infile.good();
 };
 
 
 // clean up a C++ std library vector of PETSc Vecs
-void destroyVector(std::vector<Vec>& vec)
+void destroyVector(vector<Vec>& vec)
 {
-  for(std::vector<Vec>::size_type i = 0; i != vec.capacity(); i++) {
+  for(vector<Vec>::size_type i = 0; i != vec.capacity(); i++) {
     VecDestroy(&vec[i]);
   }
 }
 
-void destroyVector(std::map<string,Vec>& vec)
+void destroyVector(map<string,Vec>& vec)
 {
   for (map<string,Vec>::iterator it = vec.begin(); it!=vec.end(); it++ ) {
     VecDestroy(&vec[it->first]);
@@ -39,7 +40,6 @@ void printVec(Vec vec)
   PetscPrintf(PETSC_COMM_WORLD,"\n");
 }
 
-
 // Print out (vec1 - vec2) with 15 significant figures.
 void printVecsDiff(Vec vec1,Vec vec2)
 {
@@ -54,7 +54,6 @@ void printVecsDiff(Vec vec1,Vec vec2)
     PetscPrintf(PETSC_COMM_WORLD,"%.15e\n",v);
   }
 }
-
 
 // Print out (vec1 + vec2) with 15 significant figures.
 void printVecsSum(Vec vec1,Vec vec2)
@@ -71,82 +70,58 @@ void printVecsSum(Vec vec1,Vec vec2)
   }
 }
 
+// write a single vector to file in binary format
+PetscErrorCode writeVec(Vec vec, const string filename)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
+  ierr = VecView(vec,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
 
-// Write vec to the file loc in binary format.
-PetscErrorCode writeMat(Mat& mat,std::string str)
+// append a single vector to file in binary format
+PetscErrorCode writeVecAppend(Vec vec,const string filename)
+{
+  PetscErrorCode ierr = 0;
+  PetscViewer    viewer;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&viewer); CHKERRQ(ierr);
+  ierr = VecView(vec,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  return ierr;
+}
+
+// Write matrix to file in binary format
+PetscErrorCode writeMat(Mat mat, string filename)
 {
   PetscErrorCode ierr = 0;
   PetscViewer viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = MatView(mat,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   return ierr;
 }
-
-
-/* Write vec to the file loc in binary format.
- * Note that due to a memory problem in PETSc, looping over this many
- * times will result in an error. */
-PetscErrorCode writeVec(Vec vec,std::string str)
-{
-  return writeVec(vec,str.c_str());
-}
-PetscErrorCode writeVecAppend(Vec vec,std::string str)
-{
-  return writeVecAppend(vec,str.c_str());
-}
-
-PetscErrorCode writeVec(Vec vec,const char * loc)
-{
-  PetscErrorCode ierr = 0;
-  PetscViewer    viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-  ierr = VecView(vec,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  return ierr;
-}
-
-PetscErrorCode writeVecAppend(Vec vec,const char * loc)
-{
-  PetscErrorCode ierr = 0;
-  PetscViewer    viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_APPEND,&viewer); CHKERRQ(ierr);
-  ierr = VecView(vec,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  return ierr;
-}
-
-PetscErrorCode writeMat(Mat mat,const char * loc)
-{
-  PetscErrorCode ierr = 0;
-  PetscViewer    viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,loc,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-  ierr = MatView(mat,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-  return ierr;
-}
-
 
 // initiate PetscViewer
-PetscViewer initiateViewer(std::string str)
+PetscViewer initiateViewer(string filename)
 {
   PetscViewer vw;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_WRITE,&vw);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_WRITE,&vw);
   return vw;
 }
 
-
 // sappend PetscViewer(s)
-PetscErrorCode appendViewer(PetscViewer& vw,const std::string str)
+PetscErrorCode appendViewer(PetscViewer& vw,const string filename)
 {
   PetscErrorCode ierr = 0;
   ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,str.c_str(),FILE_MODE_APPEND,&vw);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&vw);
   CHKERRQ(ierr);
   return ierr;
 }
 
-PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir)
+PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const string dir)
 {
   PetscErrorCode ierr = 0;
   for (map<string,PetscViewer>::iterator it=vwL.begin(); it!=vwL.end(); it++ ) {
@@ -156,22 +131,23 @@ PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir)
   return ierr;
 }
 
-PetscErrorCode io_initiateWriteAppend(std::map <string,std::pair<PetscViewer,string> >& vwL, const std::string key,const Vec& vec, const std::string dir)
+// initiate viewer to write and append vectors
+PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
 {
   PetscErrorCode ierr = 0;
 
   // initiate viewer
   PetscViewer vw;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_WRITE,&vw); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_WRITE,&vw); CHKERRQ(ierr);
   vwL[key].first = vw;
-  vwL[key].second = dir;
+  vwL[key].second = filename;
 
   // write vec out
   ierr = VecView(vec,vw); CHKERRQ(ierr);
 
   // change viewer to append mode
   ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_APPEND,&vwL[key].first); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&vwL[key].first); CHKERRQ(ierr);
 
   return ierr;
 }
@@ -209,7 +185,6 @@ PetscErrorCode printf_DM_2d(const Vec gvec, const DM dm)
   return ierr;
 }
 
-
 // computes || vec1 - vec2||_mat (matrix norm of vec1 - vec2)
 double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2)
 {
@@ -227,7 +202,6 @@ double computeNormDiff_Mat(const Mat& mat,const Vec& vec1,const Vec& vec2)
   return err;
 }
 
-
 // computes || vec ||_mat
 double computeNorm_Mat(const Mat& mat,const Vec& vec)
 {
@@ -242,7 +216,6 @@ double computeNorm_Mat(const Mat& mat,const Vec& vec)
   VecDestroy(&Matxvec);
   return err;
 }
-
 
 // computes || vec1 - vec2 ||_2 / sqrt(length(vec1))
 double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
@@ -264,7 +237,6 @@ double computeNormDiff_2(const Vec& vec1,const Vec& vec2)
   return err;
 }
 
-
 // computes || vec1 - vec2 ||_2 / || vec1 ||_2
 double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2)
 {
@@ -285,7 +257,6 @@ double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2)
   return err;
 }
 
-
 // out = vecL' x A x vecR
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR)
 {
@@ -299,7 +270,6 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR)
 
   return out;
 }
-
 
 // out = vecL' x A x B x vecR
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& vecR)
@@ -320,7 +290,6 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Vec& ve
   return out;
 }
 
-
 // out = vecL' x A x B x C x vecR
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Vec& vecR)
 {
@@ -339,7 +308,6 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
   MatDestroy(&ABC);
   return out;
 }
-
 
 // out = vecL' x A x B x C x vecR
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C, const Mat& D, const Vec& vecR)
@@ -362,7 +330,6 @@ double multVecMatsVec(const Vec& vecL, const Mat& A, const Mat& B, const Mat& C,
   return out;
 }
 
-
 // out = A x B x vecR; assumes vecR is DIFFERENT from out
 PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR)
 {
@@ -375,7 +342,6 @@ PetscErrorCode multMatsVec(Vec& out, const Mat& A, const Mat& B, const Vec& vecR
   return ierr;
 }
 
-
 // out = A x B x vecR; assumes vecR is IDENTICAL to out
 PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
 {
@@ -387,7 +353,6 @@ PetscErrorCode multMatsVec(const Mat& A, const Mat& B, Vec& vecR)
   ierr = VecDestroy(&BvecR);
   return ierr;
 }
-
 
 // log10(out) = a*log10(vec1) + b*log10(vec2)
 // out may not be the same as vec1 or vec2
@@ -418,7 +383,6 @@ PetscErrorCode MyVecLog10AXPBY(Vec& out,const double a, const Vec& vec1, const d
 
   return 0;
 }
-
 
 // loads a PETSc Vec from a binary file
 // Note: memory for out MUST be allocated before calling this function
@@ -465,7 +429,6 @@ PetscErrorCode loadVecFromInputFile(Vec& out,const string inputDir, const string
   return ierr;
 }
 
-
 // loads a std library vector from a list in the input file
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
 {
@@ -496,7 +459,6 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<double>& vec)
   return ierr;
 }
 
-
 // load vector from input file
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
 {
@@ -509,7 +471,6 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
   string delim = " "; // delimiter between values in list (whitespace sensitive)
   string remstr; // holds remaining string as str is parsed through
   int val; // holds values
-
 
   // holds remainder as str is parsed through (with beginning and ending brackets removed)
   pos = str.find("]");
@@ -531,7 +492,7 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<int>& vec)
   return ierr;
 }
 
-
+// loads a vector of strings
 PetscErrorCode loadVectorFromInputFile(const string& str,vector<string>& vec)
 {
   PetscErrorCode ierr = 0;
@@ -564,7 +525,6 @@ PetscErrorCode loadVectorFromInputFile(const string& str,vector<string>& vec)
   return ierr;
 }
 
-
 // creates a string containing the contents of C++ std library vector
 string vector2str(const vector<double> vec)
 {
@@ -575,7 +535,6 @@ string vector2str(const vector<double> vec)
   string str = "[" + ss.str() + "]";
   return str;
 }
-
 
 // creates a string containing the contents of C++ std library vector
 string vector2str(const vector<int> vec)
@@ -588,7 +547,6 @@ string vector2str(const vector<int> vec)
   return str;
 }
 
-
 // creates a string containing the contents of C++ std library vector
 string vector2str(const vector<string> vec)
 {
@@ -599,7 +557,6 @@ string vector2str(const vector<string> vec)
   string str = "[" + ss.str() + "]";
   return str;
 }
-
 
 // prints an array to a single line in std out
 PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
@@ -612,11 +569,11 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
     CHKERRQ(ierr);
   #endif
 
-  std::cout << "[";
+  cout << "[";
   for(int i=0; i<len; i++) {
-    std::cout << arr[i] << ",";
+    cout << arr[i] << ",";
   }
-  std::cout << "]" << std::endl;
+  cout << "]" << endl;
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),fileName.c_str());
@@ -625,16 +582,13 @@ PetscErrorCode printArray(const PetscScalar * arr,const PetscScalar len)
   return ierr;
 }
 
-
 double MMS_test(const double y,const double z) {
   return y*10.0 + z;
 }
 
-
 double MMS_test(const double z) {
   return z;
 }
-
 
 // Fills vec with the linear interpolation between the pairs of points (vals,depths).
 PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<double>& depths)
@@ -682,9 +636,7 @@ PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<do
   return ierr;
 }
 
-
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const Vec& yV, const double t)
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const Vec& yV, const double t)
 {
   PetscErrorCode ierr = 0;
   PetscScalar const *y;
@@ -702,7 +654,6 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   VecRestoreArray(vec,&v);
   return ierr;
 }
-
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV)
 {
@@ -722,7 +673,6 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV)
   VecRestoreArray(vec,&v);
   return ierr;
 }
-
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   const Vec& yV,const Vec& zV, const double t)
@@ -746,7 +696,6 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   return ierr;
 }
 
-
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   const Vec& yV,const Vec& zV)
 {
@@ -769,10 +718,8 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   return ierr;
 }
 
-
 // Map a function that acts on scalars to a 2D DMDA Vec
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const int N, const double dy, const double dz,DM da)
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const int N, const double dy, const double dz,DM da)
 {
   // assumes vec has already been created and it's size has been allocated
   PetscErrorCode ierr = 0;
@@ -802,10 +749,8 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
   return ierr;
 }
 
-
 // Map a function that acts on scalars to a 1DD DMDA Vec
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
-  const int N, const double dz,DM da)
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double), const int N, const double dz,DM da)
 {
   // assumes vec has already been created and it's size has been allocated
   PetscErrorCode ierr = 0;
@@ -831,10 +776,8 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
   return ierr;
 }
 
-
 // Map a function that acts on scalars to a 2D DMDA Vec
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const int N, const double dy, const double dz,const double t,DM da)
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double), const int N, const double dy, const double dz,const double t,DM da)
 {
   // assumes vec has already been created and it's size has been allocated
   PetscErrorCode ierr = 0;
@@ -864,7 +807,6 @@ PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
   return ierr;
 }
 
-
 // Print out a vector with 15 significant figures.
 void printVec(const Vec vec,const DM da)
 {
@@ -890,7 +832,6 @@ void printVec(const Vec vec,const DM da)
   VecAssemblyBegin(vec);
   VecAssemblyEnd(vec);
 }
-
 
 // repmat for vecs (i.e. vec -> [vec vec])
 // Note: out must already be allocated onto processors
@@ -919,7 +860,6 @@ PetscErrorCode repVec(Vec& out, const Vec& in, const PetscInt n)
   return ierr;
 }
 
-
 // undoes repmat for vecs (i.e. [vec vec] -> vec)
 // Note: out must already be allocated onto processors
 // gIstart,gIend = global indices of in to store in out
@@ -943,7 +883,6 @@ PetscErrorCode sepVec(Vec& out, const Vec& in, const PetscInt gIstart, const Pet
   return ierr;
 }
 
-
 // maps vec to bigger vec (i.e. vec -> [0 0 0, vec, 0 0 0])
 // Note: out must already be allocated onto processors
 // Istart,Iend = global indices of out to put the values of in into
@@ -966,19 +905,20 @@ PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, co
 
 //============================ Checkpoint Functions ===============================
 
-// loading value from checkpoint files, each checkpoint file should only have one value (for scalar values: time and error)
+// loading value from ASCII checkpoint file, which should only have one value (for scalar values: time and error)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
-
   string checkpointFile = outputDir + filename;
   bool fileExists = doesFileExist(checkpointFile);
+
   if (fileExists) {
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Loading %s\n", filename.c_str()); CHKERRQ(ierr);
     PetscViewer viewer;
-    int fd;
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_READ, &viewer); CHKERRQ(ierr);
-    ierr = PetscViewerBinaryGetDescriptor(viewer, &fd); CHKERRQ(ierr);
-    ierr = PetscBinaryRead(fd, &value, 1, PETSC_SCALAR); CHKERRQ(ierr);
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+    ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+    ierr = PetscViewerFileSetMode(viewer, FILE_MODE_READ); CHKERRQ(ierr);
+    ierr = PetscViewerFileSetName(viewer, checkpointFile.c_str()); CHKERRQ(ierr);
+    ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_SCALAR); CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
   }
   else {
@@ -989,93 +929,45 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
-// for integers
+// loads value from ASCII file (for integers)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscInt &value) {
   PetscErrorCode ierr = 0;
-
   string checkpointFile = outputDir + filename;
   bool fileExists = doesFileExist(checkpointFile);
+
   if (fileExists) {
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Loading %s\n", filename.c_str()); CHKERRQ(ierr);
     PetscViewer viewer;
-    int fd;
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_READ, &viewer); CHKERRQ(ierr);
-    ierr = PetscViewerBinaryGetDescriptor(viewer, &fd); CHKERRQ(ierr);
-    ierr = PetscBinaryRead(fd, &value, 1, PETSC_INT); CHKERRQ(ierr);
+    ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+    ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+    ierr = PetscViewerFileSetMode(viewer, FILE_MODE_READ); CHKERRQ(ierr);
+    ierr = PetscViewerFileSetName(viewer, checkpointFile.c_str()); CHKERRQ(ierr);
+    ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_INT); CHKERRQ(ierr);
     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Warning: %s not found, setting to default value.\n", checkpointFile.c_str()); CHKERRQ(ierr);
   }
-
-  return ierr;
-}
-
-
-// write value into checkpoint file (for scalar values: time and error)
-PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
-  PetscErrorCode ierr = 0;
-
-  string checkpointFile = outputDir + filename;
-  PetscViewer viewer;
-  int fd;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerBinaryGetDescriptor(viewer, &fd); CHKERRQ(ierr);
-  ierr = PetscBinaryWrite(fd, &value, 1, PETSC_SCALAR, PETSC_FALSE); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-
-  return ierr;
-}
-
-// for integer values
-PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscInt &value) {
-  PetscErrorCode ierr = 0;
-
-  string checkpointFile = outputDir + filename;
-  PetscViewer viewer;
-  int fd;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerBinaryGetDescriptor(viewer, &fd); CHKERRQ(ierr);
-  ierr = PetscBinaryWrite(fd, &value, 1, PETSC_INT, PETSC_FALSE); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
   return ierr;
 }
 
 
 // append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
-PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string dir) {
+PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
   PetscErrorCode ierr = 0;
 
   // initiate viewer
   PetscViewer vw;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vw); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vw); CHKERRQ(ierr);
   vwL[key].first = vw;
-  vwL[key].second = dir;
+  vwL[key].second = filename;
   ierr = VecView(vec, vw); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
 
   // change viewer to append mode
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, dir.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
   
-  return ierr;
-}
-
-
-// simply initiate viewer and write one vector, without appending
-PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key, const Vec& vec, const string dir) {
-  PetscErrorCode ierr = 0;
-
-  // initiate viewer
-  PetscViewer vw;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,dir.c_str(),FILE_MODE_WRITE,&vw); CHKERRQ(ierr);
-  vwL[key].first = vw;
-  vwL[key].second = dir;
-
-  // write vec out
-  ierr = VecView(vec,vw); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
-
   return ierr;
 }
 
@@ -1092,8 +984,19 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscVi
   return ierr;
 }
 
+// write integer ASCII (for ckptNumber)
+PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscInt var) {
+  PetscErrorCode ierr = 0;
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, "%i\n", var);CHKERRQ(ierr);
+  
+  return ierr;
+}
 
-// append to existing ASCII file (for time and dt)
+// append to existing ASCII file (for scalars: time and dt)
 PetscErrorCode appendASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
   PetscErrorCode ierr = 0;
   ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);

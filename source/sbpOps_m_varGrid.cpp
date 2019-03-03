@@ -191,7 +191,7 @@ PetscErrorCode SbpOps_m_varGrid::changeBCTypes(std::string bcR, std::string bcT,
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::setBCTypes";
+    string funcName = "SbpOps_m_varGrid::changeBCTypes";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -593,7 +593,7 @@ PetscErrorCode SbpOps_m_varGrid::constructBC_Neumann(Mat& out,Mat& L,Mat& Hinv, 
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::constructBC_Neumann(Mat& out, Mat& Hinv, Mat& B, Mat& E, Mat& mu, Mat& D1)";
+    string funcName = "SbpOps_m_varGrid::constructBC_Neumann(Mat& out,Mat& L,Mat& Hinv, PetscScalar Bfact, Mat& E, Mat& mu, Mat& D1,MatReuse scall)";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -632,7 +632,7 @@ PetscErrorCode SbpOps_m_varGrid::constructBC_Neumann(Mat& out,Mat& L,Mat& Hinv, 
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::constructBC_Neumann(Mat& out, Mat& Hinv, Mat& B, Mat& E, Mat& mu, Mat& D1)";
+    string funcName = "SbpOps_m_varGrid::constructBC_Neumann(Mat& out, Mat& L, Mat& Hinv, PetscScalar Bfact, Mat& e, MatReuse scall)";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -768,7 +768,7 @@ PetscErrorCode SbpOps_m_varGrid::constructD2(const TempMats_m_varGrid& tempMats)
   PetscErrorCode  ierr = 0;
   double startTime = MPI_Wtime();
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::constructA";
+    string funcName = "SbpOps_m_varGrid::constructD2";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
     #if VERBOSE > 2
@@ -862,14 +862,13 @@ PetscErrorCode SbpOps_m_varGrid::constructA(const TempMats_m_varGrid& tempMats)
 }
 
 
-
 // update A based on new BCs
 PetscErrorCode SbpOps_m_varGrid::updateA_BCs()
 {
   PetscErrorCode  ierr = 0;
   double startTime = MPI_Wtime();
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::updateA_BCs";
+    string funcName = "SbpOps_m_varGrid::updateA_BCs()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -968,7 +967,7 @@ PetscErrorCode SbpOps_m_varGrid::updateBCMats()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "SbpOps_m_varGrid::constructBCMats";
+    string funcName = "SbpOps_m_varGrid::updateBCMats";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1123,14 +1122,12 @@ PetscErrorCode SbpOps_m_varGrid::getCoordTrans(Mat&J, Mat& Jinv,Mat& qy,Mat& rz,
 }
 
 
-
 // compute D2ymu using my class Spmat
 PetscErrorCode SbpOps_m_varGrid::constructDyymu(const TempMats_m_varGrid& tempMats, Mat &Dyymu)
 {
   PetscErrorCode  ierr = 0;
 #if VERBOSE >1
   string funcName = "SbpOps_m_varGrid::constructDyymu";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
@@ -1161,7 +1158,7 @@ PetscErrorCode SbpOps_m_varGrid::constructDyymu(const TempMats_m_varGrid& tempMa
     ierr = MatView(Dyymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   #endif
   #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -1172,8 +1169,7 @@ PetscErrorCode SbpOps_m_varGrid::constructDzzmu(const TempMats_m_varGrid& tempMa
   PetscErrorCode  ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::constructDzzmu";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Mat Rzmu,HinvxRzmu;
@@ -1197,10 +1193,8 @@ PetscErrorCode SbpOps_m_varGrid::constructDzzmu(const TempMats_m_varGrid& tempMa
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dzzmu,"/Users/kallison/eqcycle/data/mms_ops_p_Dzzmu");
-
   #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -1210,8 +1204,7 @@ PetscErrorCode SbpOps_m_varGrid::constructRzmu(const TempMats_m_varGrid& tempMat
   PetscErrorCode ierr = 0;
   #if VERBOSE >1
     string funcName = "SbpOps_m_varGrid::constructRzmu";
-    string fileName = "sbpOps_fc_coordTrans.cpp";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
   #endif
 
   Vec murzV = NULL;
@@ -1240,7 +1233,6 @@ switch ( _order ) {
         #endif
       }
 
-      // kron(Iy,D2z)
       Mat Iy_D2z;
       {
         kronConvert(tempMats._Iy,D2z,Iy_D2z,5,0);
@@ -1253,9 +1245,7 @@ switch ( _order ) {
         #endif
       }
 
-      // Rzmu = (Iy_D2z^T x Iy_C2z x mu x Iy_D2z)/4/dz^3;
       Mat temp;
-      //~ ierr = MatTransposeMatMult(Iy_D2z,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       Mat Iy_D2zT;
       MatTranspose(Iy_D2z,MAT_INITIAL_MATRIX,&Iy_D2zT);
       MatMatMult(Iy_D2zT,Iy_C2z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
@@ -1277,7 +1267,6 @@ switch ( _order ) {
       Spmat C3z(_Nz,_Nz);
       Spmat C4z(_Nz,_Nz);
       sbp_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z);
-      //~ if (_Nz > 1) { sbp_Spmat4(_Nz,1/_dz,D3z,D4z,C3z,C4z); }
 
       Mat mu3;
       {
@@ -1310,10 +1299,7 @@ switch ( _order ) {
       Mat Iy_D3z; kronConvert(tempMats._Iy,D3z,Iy_D3z,6,0);
       Mat Iy_C3z; kronConvert(tempMats._Iy,C3z,Iy_C3z,1,0);
 
-      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
-      //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
       Mat temp1,temp2;
-      //~ ierr = MatTransposeMatMult(Iy_D3z,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
       Mat Iy_D3zT;
       MatTranspose(Iy_D3z,MAT_INITIAL_MATRIX,&Iy_D3zT);
       MatMatMult(Iy_D3zT,Iy_C3z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
@@ -1325,14 +1311,10 @@ switch ( _order ) {
       MatDestroy(&Iy_C3z);
       MatDestroy(&mu3);
 
-
-      Mat Iy_D4z; kronConvert(tempMats._Iy,D4z,Iy_D4z,5,0);
-      Mat Iy_C4z; kronConvert(tempMats._Iy,C4z,Iy_C4z,1,0);
-
-
-      // Rzmu = (Iy_D3z^T x Iy_C3z x mu3 x Iy_D3z)/18/dy
-      //      + (Iy_D4z^T x Iy_C4z x mu x Iy_D4z)/144/dy
-      //~ ierr = MatTransposeMatMult(Iy_D4z,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);CHKERRQ(ierr);
+      Mat Iy_D4z;
+      kronConvert(tempMats._Iy,D4z,Iy_D4z,5,0);
+      Mat Iy_C4z;
+      kronConvert(tempMats._Iy,C4z,Iy_C4z,1,0);
       Mat Iy_D4zT;
       MatTranspose(Iy_D4z,MAT_INITIAL_MATRIX,&Iy_D4zT);
       MatMatMult(Iy_D4zT,Iy_C4z,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
@@ -1365,7 +1347,7 @@ switch ( _order ) {
 #endif
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1377,14 +1359,12 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
   PetscErrorCode ierr = 0;
 #if VERBOSE >1
   string funcName = "SbpOps_m_varGrid::constructRymu";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec muqyV = NULL;
   VecDuplicate(_muVec,&muqyV);
   MatMult(_qy,_muVec,muqyV);
-
 
   switch ( _order ) {
     case 2:
@@ -1393,8 +1373,6 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
       Spmat C2y(_Ny,_Ny);
       sbp_Spmat2(_Ny,1/_dy,D2y,C2y);
 
-
-      // kron(D2y,Iz)
       Mat D2y_Iz;
       {
         kronConvert(D2y,tempMats._Iz,D2y_Iz,5,0);
@@ -1407,7 +1385,6 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
         #endif
       }
 
-      // kron(C2y,Iz)
       Mat C2y_Iz;
       {
         kronConvert(C2y,tempMats._Iz,C2y_Iz,5,0);
@@ -1420,9 +1397,7 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
         #endif
       }
 
-      // Rymu = (D2y_Iz^T x C2y_Iz x mu*qy x D2y_Iz)/4/dy^3;
       Mat temp;
-      //~ ierr = MatTransposeMatMult(D2y_Iz,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);CHKERRQ(ierr);
       Mat D2y_IzT;
       MatTranspose(D2y_Iz,MAT_INITIAL_MATRIX,&D2y_IzT);
       MatMatMult(D2y_IzT,C2y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp);
@@ -1467,12 +1442,10 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
         MatScale(mu3,0.5);
       }
 
-      Mat D3y_Iz; kronConvert(D3y,tempMats._Iz,D3y_Iz,6,0);
-      Mat C3y_Iz; kronConvert(C3y,tempMats._Iz,C3y_Iz,1,0);
-
-
-      // Rymu = (D3y_Iz^T x C3y_Iz x mu3 x D3y_Iz)/18/dy
-      //      + (D4y_Iz^T x C4y_Iz x mu*qy x D4y_Iz)/144/dy
+      Mat D3y_Iz;
+      kronConvert(D3y,tempMats._Iz,D3y_Iz,6,0);
+      Mat C3y_Iz;
+      kronConvert(C3y,tempMats._Iz,C3y_Iz,1,0);
       Mat temp1,temp2;
       Mat D3y_IzT;
       MatTranspose(D3y_Iz,MAT_INITIAL_MATRIX,&D3y_IzT);
@@ -1485,10 +1458,10 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
       MatDestroy(&C3y_Iz);
       MatDestroy(&mu3);
 
-
-      Mat D4y_Iz; kronConvert(D4y,tempMats._Iz,D4y_Iz,5,0);
-      Mat C4y_Iz; kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
-
+      Mat D4y_Iz;
+      kronConvert(D4y,tempMats._Iz,D4y_Iz,5,0);
+      Mat C4y_Iz;
+      kronConvert(C4y,tempMats._Iz,C4y_Iz,1,0);
       Mat D4y_IzT;
       MatTranspose(D4y_Iz,MAT_INITIAL_MATRIX,&D4y_IzT);
       MatMatMult(D4y_IzT,C4y_Iz,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&temp1);
@@ -1520,12 +1493,10 @@ PetscErrorCode SbpOps_m_varGrid::constructRymu(const TempMats_m_varGrid& tempMat
   VecDestroy(&muqyV);
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
-
-
 
 
 //======================= I/O functions ================================
@@ -1537,8 +1508,7 @@ PetscErrorCode SbpOps_m_varGrid::loadOps(const std::string inputDir)
 
 #if VERBOSE >1
   string funcName = "loadOps";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   double startTime = MPI_Wtime();
@@ -1562,7 +1532,7 @@ PetscErrorCode SbpOps_m_varGrid::loadOps(const std::string inputDir)
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
     return ierr;
@@ -1575,8 +1545,7 @@ PetscErrorCode SbpOps_m_varGrid::writeOps(const std::string outputDir)
 
 #if VERBOSE > 1
   string funcName = "writeOps";
-  string fileName = "sbpOps_fc_coordTrans.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   double startTime = MPI_Wtime();
 
@@ -1617,13 +1586,11 @@ PetscErrorCode SbpOps_m_varGrid::writeOps(const std::string outputDir)
 
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   _runTime = MPI_Wtime() - startTime;
   return ierr;
 };
-
-
 
 
 // out = Dy * in
@@ -1632,14 +1599,13 @@ PetscErrorCode SbpOps_m_varGrid::Dy(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Dy";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_Dy_Iz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1650,8 +1616,7 @@ PetscErrorCode SbpOps_m_varGrid::muxDy(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::muxDy";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1662,7 +1627,7 @@ PetscErrorCode SbpOps_m_varGrid::muxDy(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1673,8 +1638,7 @@ PetscErrorCode SbpOps_m_varGrid::Dyxmu(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Dyxmu";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+   ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1685,7 +1649,7 @@ PetscErrorCode SbpOps_m_varGrid::Dyxmu(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1697,14 +1661,13 @@ PetscErrorCode SbpOps_m_varGrid::Dz(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Dz";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_Iy_Dz,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(), FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 };
@@ -1716,8 +1679,7 @@ PetscErrorCode SbpOps_m_varGrid::muxDz(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::muxDy";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1728,7 +1690,7 @@ PetscErrorCode SbpOps_m_varGrid::muxDz(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1739,8 +1701,7 @@ PetscErrorCode SbpOps_m_varGrid::Dzxmu(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Dzxmu";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp;
@@ -1751,7 +1712,7 @@ PetscErrorCode SbpOps_m_varGrid::Dzxmu(const Vec &in, Vec &out)
   VecDestroy(&temp);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1762,14 +1723,13 @@ PetscErrorCode SbpOps_m_varGrid::H(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::H";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_H,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1780,14 +1740,13 @@ PetscErrorCode SbpOps_m_varGrid::Hinv(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Hinv";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   ierr = MatMult(_Hinv,in,out); CHKERRQ(ierr);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1798,8 +1757,7 @@ PetscErrorCode SbpOps_m_varGrid::Hyinvxe0y(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::Hyinvxe0y";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp1;
@@ -1810,7 +1768,7 @@ PetscErrorCode SbpOps_m_varGrid::Hyinvxe0y(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1821,8 +1779,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxeNy(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::HyinvxeNy";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp1;
@@ -1833,7 +1790,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxeNy(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1844,8 +1801,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxE0y(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::HyinvxE0y";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp1;
@@ -1856,7 +1812,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxE0y(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1867,8 +1823,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxENy(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::HyinvxENy";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp1;
@@ -1879,7 +1834,7 @@ PetscErrorCode SbpOps_m_varGrid::HyinvxENy(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1890,8 +1845,7 @@ PetscErrorCode SbpOps_m_varGrid::HzinvxE0z(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::HzinvxE0z";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
 
   Vec temp1;
@@ -1902,7 +1856,7 @@ PetscErrorCode SbpOps_m_varGrid::HzinvxE0z(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1913,18 +1867,8 @@ PetscErrorCode SbpOps_m_varGrid::HzinvxENz(const Vec &in, Vec &out)
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
   string funcName = "SbpOps_m_varGrid::HzinvxENz";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
-
-  //~PetscInt ENzM,ENzN,HzinvM,HzinvN,vecN;
-  //~VecGetSize(in,&vecN);
-  //~MatGetSize(_Iy_ENz,&ENzM,&ENzN);
-  //~MatGetSize(_Iy_Hzinv,&HzinvM,&HzinvN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"vecN = %i\n",vecN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"ENzM = %i, ENzN = %i\n",ENzM,ENzN);
-  //~PetscPrintf(PETSC_COMM_WORLD,"HzinvM = %i, HzinvN = %i\n",HzinvM,HzinvN);
-  //~assert(0>1);
 
   Vec temp1;
   ierr = VecDuplicate(out,&temp1); CHKERRQ(ierr);
@@ -1934,11 +1878,10 @@ PetscErrorCode SbpOps_m_varGrid::HzinvxENz(const Vec &in, Vec &out)
   VecDestroy(&temp1);
 
 #if VERBOSE > 1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
 #endif
   return ierr;
 }
-
 
 
 
@@ -1952,8 +1895,7 @@ TempMats_m_varGrid::TempMats_m_varGrid(const PetscInt order,
 {
 #if VERBOSE > 1
   string funcName = "TempMats_m_varGrid::constructor";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
 #endif
 
   _Iy.eye(); // matrix size is set during colon initialization
@@ -1963,24 +1905,22 @@ TempMats_m_varGrid::TempMats_m_varGrid(const PetscInt order,
   sbp_Spmat(order,Nz,1./dz,_Hz,_Hzinv,_D1z,_D1zint,_BSz,type);
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
 #endif
 }
-
 
 
 TempMats_m_varGrid::~TempMats_m_varGrid()
 {
 #if VERBOSE > 1
   string funcName = "TempMats_m_varGrid::destructor";
-  string fileName = "SbpOps_m_varGrid.cpp";
-  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
 #endif
 
    // do nothing
 
 #if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),fileName.c_str());
+  PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
 #endif
 }
 

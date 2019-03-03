@@ -125,9 +125,9 @@ int computeGreensFunction(const char * inputFile)
   }
 
   // output greens function
-  std::string str;
-  str =  d._outputDir + "G";
-  writeMat(G,str.c_str());
+  std::string filename;
+  filename =  d._outputDir + "G";
+  writeMat(G, filename);
 
   // output testing stuff
   VecSet(le._bcL,0.0);
@@ -143,10 +143,10 @@ int computeGreensFunction(const char * inputFile)
   ierr = le.setSurfDisp();
 
   // write left boundary condition and surface displacement into file
-  str =  d._outputDir + "bcL";
-  writeVec(le._bcL,str.c_str());
-  str =  d._outputDir + "surfDisp";
-  writeVec(le._surfDisp,str.c_str());
+  filename =  d._outputDir + "bcL";
+  writeVec(le._bcL, filename);
+  filename =  d._outputDir + "surfDisp";
+  writeVec(le._surfDisp, filename);
 
   // free memory
   MatDestroy(&G);

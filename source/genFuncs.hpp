@@ -21,17 +21,17 @@
 
 using namespace std;
 
-typedef std::vector<Vec>::iterator it_vec;
-typedef std::vector<Vec>::const_iterator const_it_vec;
+typedef vector<Vec>::iterator it_vec;
+typedef vector<Vec>::const_iterator const_it_vec;
 
 // detect if file exists
 bool doesFileExist(const string fileName);
 
 // clean up a C++ std library vector of PETSc Vecs
-void destroyVector(std::vector<Vec>& vec);
+void destroyVector(vector<Vec>& vec);
 
 // clean up a C++ std library map of PETSc Vecs
-void destroyVector(std::map<string,Vec>& vec);
+void destroyVector(map<string,Vec>& vec);
 
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec);
@@ -46,30 +46,21 @@ void printVecsDiff(Vec vec1,Vec vec2);
 void printVecsSum(Vec vec1,Vec vec2);
 
 // Write vec to the file loc in binary format.
-PetscErrorCode writeMat(Mat& mat,std::string str);
+PetscErrorCode writeVec(Vec vec, const string filename);
 
 // Write vec to the file loc in binary format.
-PetscErrorCode writeVec(Vec vec,const char * loc);
-
-// Write vec to the file loc in binary format.
-PetscErrorCode writeVec(Vec vec,std::string str);
-
-// Write vec to the file loc in binary format.
-PetscErrorCode writeVecAppend(Vec vec,const char * loc);
-
-// Write vec to the file loc in binary format.
-PetscErrorCode writeVecAppend(Vec vec,std::string str);
+PetscErrorCode writeVecAppend(Vec vec, const string filename);
 
 // Write mat to the file loc in binary format.
-PetscErrorCode writeMat(Mat mat,const char * loc);
+PetscErrorCode writeMat(Mat mat, const string filename);
 
 // initiate a viewer for binary output
-PetscViewer initiateViewer(std::string str);
-PetscErrorCode appendViewer(PetscViewer& vw,const std::string str);
+PetscViewer initiateViewer(string filename);
+PetscErrorCode appendViewer(PetscViewer& vw, const string filename);
 
 // loop over all viewers in the map vwL and switch then all to append mode
-PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const std::string dir);
-PetscErrorCode io_initiateWriteAppend(std::map <string,std::pair<PetscViewer,string> >& vwL, const std::string key,const Vec& vec, const std::string dir);
+PetscErrorCode appendViewers(map<string,PetscViewer> &vwL, const string filename);
+PetscErrorCode io_initiateWriteAppend(map<string,pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename);
 
 /* Print all entries of 2D DMDA global vector out, including which
  * processor each entry lives on, and the corresponding subscripting indices
@@ -116,20 +107,14 @@ PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<do
 
 // map to vector
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double),const Vec& yV);
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const Vec& yV, const double t);
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const Vec& yV,const Vec& zV, const double t);
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const Vec& yV, const Vec& zV);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const Vec& yV, const double t);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double), const Vec& yV,const Vec& zV, const double t);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const Vec& yV, const Vec& zV);
 
 // map to vector for 1D da
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double),
-  const int N, const double dz,const DM da);
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double),
-  const int N, const double dy, const double dz,const DM da);
-PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double),
-  const int N, const double dy, const double dz,const double t,const DM da);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double), const int N, const double dz,const DM da);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const int N, const double dy, const double dz,const DM da);
+PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double,double), const int N, const double dy, const double dz,const double t,const DM da);
 
 // repmat for vecs (i.e. vec -> [vec vec]
 PetscErrorCode repVec(Vec& out, const Vec& in, const PetscInt n);
@@ -142,13 +127,7 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscInt &value);
 
-PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscScalar &value);
-
-PetscErrorCode writeValueToCheckpoint(const string outputDir, const string filename, PetscInt &value);
-
 PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string dir);
-
-PetscErrorCode io_initiateWrite(map <string, pair<PetscViewer,string>>& vwL, const string key, const Vec& vec, const string dir);
 
 PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var);
 
