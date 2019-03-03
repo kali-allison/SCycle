@@ -72,8 +72,6 @@ RK32_WBE::~RK32_WBE()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE destructor in odeSolverImex.cpp.\n");
 #endif
 
-  // because I don't allocate the contents of _varEx, I don't delete them in this class either
-
   // destruct temporary containers
   destroyVector(_dvar);
   destroyVector(_k1);
@@ -266,12 +264,12 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
+  //if using proportional-integral-derivative feedback (PID)
   else if (_controlType.compare("PID") == 0) {
-    //if using proportional-integral-derivative feedback (PID)
-
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
+
     // only do this for the first simulation when _errA is empty
     if (_initT == 0 && _stepCount < 3) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
@@ -296,11 +294,14 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
 
   if (_minDeltaT == deltaT) { _numMinSteps++; }
   else if (_maxDeltaT == deltaT) { _numMaxSteps++; }
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::computeStepSize in odeSolverImex.cpp.\n");
 #endif
+
   return deltaT;
 }
+
 
 PetscReal RK32_WBE::computeError()
 {
@@ -309,10 +310,7 @@ PetscReal RK32_WBE::computeError()
 #endif
   PetscErrorCode ierr = 0;
   PetscScalar err;
-  PetscScalar _totErr;
-  if (_initT != 0 && _stepCount == 0) {
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
-  }
+  PetscScalar _totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -320,12 +318,15 @@ PetscReal RK32_WBE::computeError()
   if (_normType.compare("L2_absolute")==0) {
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
-      Vec errVec; VecDuplicate(_y3[key],&errVec); VecSet(errVec,0.0);
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
       ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]); CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecDestroy(&errVec);
 
-      PetscInt N = 0; VecGetSize(_y3[key],&N);
+      PetscInt N = 0;
+      VecGetSize(_y3[key],&N);
       _totErr += err / (sqrt(N) * _scale[i]);
     }
   }
@@ -337,21 +338,23 @@ PetscReal RK32_WBE::computeError()
   if (_normType.compare("L2_relative")==0) {
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
-      Vec errVec; VecDuplicate(_y3[key],&errVec); VecSet(errVec,0.0);
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
       ierr = VecWAXPY(errVec,-1.0,_y3[key],_y2[key]); CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecDestroy(&errVec);
 
-      PetscReal s = 0; VecNorm(_y3[key],NORM_2,&s);
+      PetscReal s = 0;
+      VecNorm(_y3[key],NORM_2,&s);
       _totErr += err / (s * _scale[i]);
     }
   }
 
-
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
+
   return _totErr;
 }
 
@@ -419,8 +422,10 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
       }
 
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        VecSet(_k1[it->first],0.0); VecSet(_f1[it->first],0.0);
-        VecSet(_k2[it->first],0.0); VecSet(_f2[it->first],0.0);
+        VecSet(_k1[it->first],0.0);
+	VecSet(_f1[it->first],0.0);
+        VecSet(_k2[it->first],0.0);
+	VecSet(_f2[it->first],0.0);
         VecSet(_y2[it->first],0.0);
         VecSet(_y3[it->first],0.0);
       }
@@ -482,6 +487,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     }
     // record error for use when estimating time step
     _errA.push_front(_totErr);
+
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
@@ -531,7 +537,7 @@ RK43_WBE::~RK43_WBE()
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE destructor in odeSolverImex.cpp.\n");
 #endif
 
-  // destruct temporary containers
+  // free temporary containers
   destroyVector(_f1);
   destroyVector(_f2);
   destroyVector(_f3);
@@ -761,13 +767,13 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
 #endif
   PetscReal stepRatio;
 
+  // if using integral feedback controller (I)
   if (_controlType.compare("P") == 0) {
-    // if using integral feedback controller (I)
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
+  //if using proportional-integral-derivative feedback (PID)
   else if (_controlType.compare("PID") == 0) {
-    //if using proportional-integral-derivative feedback (PID)
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
@@ -785,6 +791,7 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
     PetscPrintf(PETSC_COMM_WORLD,"ERROR: timeControlType not understood\n");
     assert(0>1); // automatically fail, because I can't figure out how to use exit commands properly
   }
+
   PetscReal deltaT = stepRatio*_deltaT;
 
   // respect bounds on min and max possible step size
@@ -794,11 +801,14 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
 
   if (_minDeltaT == deltaT) { _numMinSteps++; }
   else if (_maxDeltaT == deltaT) { _numMaxSteps++; }
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeStepSize in odeSolverImex.cpp.\n");
 #endif
+
   return deltaT;
 }
+
 
 PetscReal RK43_WBE::computeError()
 {
@@ -807,11 +817,7 @@ PetscReal RK43_WBE::computeError()
 #endif
   PetscErrorCode ierr = 0;
   PetscScalar err;
-  PetscScalar _totErr;
-  if (_initT != 0 && _stepCount == 0) {
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
-  }
-
+  PetscScalar _totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -819,12 +825,15 @@ PetscReal RK43_WBE::computeError()
   if (_normType.compare("L2_absolute")==0) {
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
-      Vec errVec; VecDuplicate(_y3[key],&errVec); VecSet(errVec,0.0);
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecDestroy(&errVec);
 
-      PetscInt N = 0; VecGetSize(_y4[key],&N);
+      PetscInt N = 0;
+      VecGetSize(_y4[key],&N);
       _totErr += err / (sqrt(N) * _scale[i]);
     }
   }
@@ -836,24 +845,24 @@ PetscReal RK43_WBE::computeError()
   if (_normType.compare("L2_relative")==0) {
     for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       std::string key = _errInds[i];
-      Vec errVec; VecDuplicate(_y3[key],&errVec); VecSet(errVec,0.0);
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecDestroy(&errVec);
 
-      PetscReal s = 0; VecNorm(_y4[key],NORM_2,&s);
+      PetscReal s = 0;
+      VecNorm(_y4[key],NORM_2,&s);
       _totErr += err / (s * _scale[i]);
     }
   }
-
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::computeError in odeSolverImex.cpp.\n");
 #endif
   return _totErr;
 }
-
-
 
 
 PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
@@ -1065,6 +1074,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     }
     // record error for use when estimating time step
     _errA.push_front(_totErr);
+
     // put error into checkpoint file
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
@@ -1076,8 +1086,10 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   }
 
   _runTime += MPI_Wtime() - startTime;
+
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::integrate in odeSolver.cpp.\n");
 #endif
+
   return ierr;
 }

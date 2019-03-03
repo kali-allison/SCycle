@@ -7,13 +7,13 @@ using namespace std;
 // member function definitions including constructor
 // first type of constructor with 1 parameter
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_outputDir("data/"),
+: _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir(" "),
   _bulkDeformationType("linearElastic"),
   _momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
   _sbpCompatibilityType("fullyCompatible"),
   _gridSpacingType("variableGridSpacing"),
-  _isMMS(0),_loadICs(0), _inputDir("unspecified_"),
+  _isMMS(0),_loadICs(0),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
@@ -66,10 +66,12 @@ Domain::Domain(const char *file)
 
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_outputDir("data/"),
+: _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir(" "),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
-  _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),_gridSpacingType("variableGridSpacing"),
-  _isMMS(0),_loadICs(0),_inputDir("unspecified_"),
+  _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
+  _sbpCompatibilityType("fullyCompatible"),
+  _gridSpacingType("variableGridSpacing"),
+  _isMMS(0),_loadICs(0),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
   _vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
@@ -231,11 +233,11 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("inputDir")==0) {
       _inputDir = rhs;
     }
-    else if (var.compare("bCoordTrans")==0) {
-      _bCoordTrans = atof( rhs.c_str() );
-    }
     else if (var.compare("outputDir")==0) {
       _outputDir =  rhs;
+    }
+    else if (var.compare("bCoordTrans")==0) {
+      _bCoordTrans = atof( rhs.c_str() );
     }
     else if (var.compare("vL")==0) {
       _vL = atof( rhs.c_str() );

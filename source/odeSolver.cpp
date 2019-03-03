@@ -200,7 +200,9 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
 
   // call d_dt on object iteratively in the time loop
   // _maxNumSteps is already set to _maxStepCount from strikeSlip_linearElastic_qd
-  while (_stepCount <= _maxNumSteps && _currT <= _finalT) {
+  while (_stepCount < _maxNumSteps && _currT < _finalT) {
+    _stepCount++;
+
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -213,7 +215,6 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj)
     if (_currT > _finalT) {
       _currT = _finalT;
     }
-    _stepCount++;
 
     // crucial function! Everything is written to file by timeMonitor
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
@@ -249,7 +250,6 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
   _errA.resize(2);
   _errA.push_front(0);
   _errA.push_front(0);
-
   
   _runTime += MPI_Wtime() - startTime;
 
@@ -450,6 +450,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr)
   }
 
   PetscReal deltaT = stepRatio*_deltaT;
+
   // respect bounds on min and max possible step size
   deltaT = min(_deltaT*5.0,deltaT); // cap growth rate of step size
   deltaT = min(_maxDeltaT,deltaT); // absolute max
@@ -478,11 +479,7 @@ PetscReal RK32::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
-  PetscScalar err, _totErr;
-  // load _totErr if restarting from checkpoint
-  if (_initT != 0 && _stepCount == 0) {
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
-  }
+  PetscScalar err, _totErr = 0;
   
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -659,7 +656,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     // push_front inserts a new element at the beginning of the circular buffer
     _errA.push_front(_totErr);
     
-    // save _totErr into checkpoint file for final time step
+    // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
       writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
@@ -963,10 +960,7 @@ PetscReal RK43::computeError()
   #endif
 
   PetscErrorCode ierr = 0;
-  PetscScalar err,_totErr;
-  if (_initT != 0 && _stepCount == 0) {
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _totErr);
-  }
+  PetscScalar err,_totErr = 0;
 
   // if using absolute error for control
   // error: the absolute L2 error, weighted by N and a user-inputted scale factor
@@ -1226,7 +1220,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     }
 
     _errA.push_front(_totErr);
-    // save _totErr into checkpoint file for final time step
+    // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
       writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);

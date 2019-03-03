@@ -33,6 +33,7 @@ class Domain
 
     const char    *_file;
     std::string    _delim; // format is: var delim value (without the white space)
+    std::string    _inputDir; // directory to load input files from
     std::string    _outputDir; // directory for output
     std::string    _bulkDeformationType; // options: linearElastic, powerLaw
     std::string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
@@ -42,7 +43,6 @@ class Domain
     std::string    _gridSpacingType; // variableGridSpacing or constantGridSpacing
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
-    std::string    _inputDir; // directory to load input files from
 
     // domain properties
     // order = order of accuracy for spatial derivatives

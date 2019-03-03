@@ -33,19 +33,17 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   loadSettings(D._file);
   if (_ckpt > 0) {
     _maxStepCount = _interval;
+    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
   }
-  loadValueFromCheckpoint(_outputDir, "ckptNumber_ckpt", _ckptNumber);
   checkInput();
   allocateFields();
   setMaterialParameters();
-
+  
   double startMatrix = MPI_Wtime();
   setUpSBPContext(); // set up matrix operators
   _matrixTime += MPI_Wtime() - startMatrix;
 
-  if (_inputDir.compare("unspecified") != 0) {
-    loadFieldsFromFiles(); // load from previous simulation
-  }
+  loadFieldsFromFiles(); // load from previous simulation
 
   setSurfDisp();
 
@@ -111,9 +109,6 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
-  // load checkpoint number
-  loadValueFromCheckpoint(_outputDir, "_ckptNumber", _ckptNumber);
   
   ifstream infile( file );
   string line, var, rhs, rhsFull;
@@ -172,7 +167,6 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("interval") == 0) {
       _interval = (int)atof(rhs.c_str());
     }
-
     // if checkpoint is enabled, change _maxStepCount to _interval
     else if (var.compare("maxStepCount") == 0) {
       _maxStepCount = (int)atof(rhs.c_str());
@@ -213,7 +207,7 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_rhoVals.size() != 0);
   assert(_ckptNumber >= 0);
   assert(_ckpt >= 0);
-  assert(_interval >= 0);
+  assert(_interval > 0);
   assert(_maxStepCount > 0);
   
   if (_computeSdev == 1) {
@@ -447,6 +441,7 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // load fields from checkpoints
   if (_ckptNumber > 0) {
     ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
@@ -459,7 +454,7 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
     ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
     VecSet(_bcR,0.0);
   }
-
+  
   // load displacement vector u
   ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
 
@@ -715,19 +710,18 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
   }
 
   // regular appending data to the files
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
     ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
-  }
-
-  // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
-  else if (_ckpt > 0 && stepCount == _maxStepCount) {
-    ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+    // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      ierr = io_initiateWrite(_viewers, "bcL_ckpt", _bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "bcR_ckpt", _bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "bcRShift_ckpt", _bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+    }
   }
   
   _writeTime += MPI_Wtime() - startTime;
@@ -771,7 +765,7 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const std::string 
   }
   
   // regular appending values/vectors
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     // if need to compute sigma_xz

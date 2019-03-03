@@ -45,6 +45,7 @@ class Fault
     Domain           *_D; // shallow copy of domain
     const char       *_inputFile; // input file
     std::string       _delim; // format is: var delim value (without the white space)
+    std::string       _inputDir; // directory for input
     std::string       _outputDir; // directory for output
     std::string       _stateLaw; // state evolution law
     PetscScalar       _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
@@ -130,7 +131,6 @@ class Fault
     // IO
     PetscErrorCode virtual view(const double totRunTime);
     PetscErrorCode virtual writeContext(const std::string outputDir);
-    PetscErrorCode writeStep(PetscInt stepCount);
     PetscErrorCode virtual writeStep(PetscInt stepCount, const std::string outputDir);
 };
 

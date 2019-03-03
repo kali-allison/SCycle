@@ -71,7 +71,7 @@ class OdeSolver
 
     // for PID error control
     boost::circular_buffer<double> _errA;
-
+  
     OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
     virtual ~OdeSolver() {};
 
@@ -121,7 +121,8 @@ class RK32 : public OdeSolver
 
     // for PID error control
     boost::circular_buffer<double> _errA;
-    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
+    // error between 3rd order solution and embedded 2nd order solution
+    PetscReal   _totErr;
 
     std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
 
@@ -160,11 +161,12 @@ class RK43 : public OdeSolver
     PetscReal   _kappa,_ord;
     PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
+    // for PID error control
     boost::circular_buffer<double> _errA;
     // error between 3rd order solution and embedded 2nd order solution
     PetscReal   _totErr;
 
-    std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
+    std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y3,_y4;
     std::map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
 
     PetscReal computeStepSize(const PetscReal totErr);
@@ -185,4 +187,3 @@ class RK43 : public OdeSolver
 };
 
 #endif
-

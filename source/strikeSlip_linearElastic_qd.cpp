@@ -33,14 +33,13 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   // if checkpoint is enabled, then set _maxStepCount to _interval
   if (_ckpt > 0) {
     _maxStepCount = _interval;
+    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
   }
-
-  // load the latest checkpoint number  
-  loadValueFromCheckpoint(_outputDir, "ckptNumber_ckpt", _ckptNumber);
 
   /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
   if (_ckptNumber > 0) {
     loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
+    _currTime = _initTime;
     loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _initDeltaT);
   }
 
@@ -244,7 +243,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _timeControlType.compare("PI")==0 ||
     _timeControlType.compare("PID")==0 );
 
-  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {
+  if (_initDeltaT < _minDeltaT || _initDeltaT < 1e-14) {
     _initDeltaT = _minDeltaT;
   }
 
@@ -255,7 +254,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   assert(_maxTime >= 0 && _maxTime>=_initTime);
   assert(_timeStepTol >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
-  assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
+  assert(_initDeltaT > 0 && _initDeltaT >= _minDeltaT && _initDeltaT <= _maxDeltaT);
   
   // check boundary condition types for momentum balance equation
   assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("remoteLoading")==0);
@@ -516,18 +515,19 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, Pets
   }
 
   // regular appending to output files
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", deltaT);CHKERRQ(ierr);
+    // write last time step's time and dt to checkpoint file
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
+      ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT);CHKERRQ(ierr);
+      _ckptNumber++;
+      ierr = writeValueToCheckpoint(outputDir, "ckptNumber", _ckptNumber); CHKERRQ(ierr);
+    }
+
   }
 
-  // write last time step's time and dt to checkpoint file
-  else if (_ckpt > 0 && stepCount == _maxStepCount) {
-    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
-    ierr = writeValueToCheckpoint(outputDir, "deltaT_ckpt", deltaT);CHKERRQ(ierr);
-    _ckptNumber++;
-    ierr = writeValueToCheckpoint(outputDir, "ckptNumber_ckpt", _ckptNumber); CHKERRQ(ierr);
-  }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -556,14 +556,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, Pets
   }
 
   // regular appending to output files
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
   }
 
-  // write last time step's time to checkpoint file
-  else if (_ckpt > 0 && stepCount == _maxStepCount) {
-    ierr = writeValueToCheckpoint(outputDir, "currT_ckpt", time); CHKERRQ(ierr);
-  }
   
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -712,10 +708,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 
   initiateIntegrand(); // put initial conditions into var for integration
   _stepCount = 0;
-  // load initial deltaT from checkpoint file
-  if (_ckptNumber > 0) {
-    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _initDeltaT);
-  }
+
   // initialize time integrator
   if (_timeIntegrator.compare("FEuler")==0) {
     _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
@@ -746,8 +739,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
-    // load _errA if restarting
-    if (_ckptNumber > 0) {
+    // load _errA if restarting and uses Runge Kutta
+    if (_ckptNumber > 0 && _timeControlType == "PID") {
       PetscScalar prevErr, currErr;
       loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
       loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
@@ -768,7 +761,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
     // load _errA from checkpoint files
-    if (_ckptNumber > 0) {
+    if (_ckptNumber > 0 && _timeControlType == "PID") {
       PetscScalar prevErr, currErr;
       loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
       loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
@@ -931,7 +924,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveMomentumBalance(const PetscScal
 }
 
 
-// TODO: check if these need to be checkpointed
 // guess at the steady-state solution
 PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 {
@@ -991,7 +983,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 }
 
 
-// TODO: check if these need to be checkpointed
 // update the boundary conditions based on new steady state u
 PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
 {

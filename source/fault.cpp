@@ -6,10 +6,10 @@ using namespace std;
 
 
 Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
-: _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
+: _D(&D),_inputFile(D._file),_delim(D._delim),
+  _inputDir(D._inputDir),_outputDir(D._outputDir),
   _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
-  _N(D._Nz),_L(D._Lz),
-  _f0(0.6),_v0(1e-6),
+  _N(D._Nz),_L(D._Lz),_f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
   _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
@@ -25,6 +25,7 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   loadSettings(_inputFile);
   if (_ckpt > 0) {
     _maxStepCount = _interval;
+    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
   }
   checkInput();
   setFields(D);
@@ -46,9 +47,6 @@ PetscErrorCode Fault::loadSettings(const char *file)
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
-  // load checkpoint number
-  loadValueFromCheckpoint(_outputDir, "_ckptNumber", _ckptNumber);
   
   ifstream infile( file );
   string line, var, rhs, rhsFull;
@@ -88,18 +86,9 @@ PetscErrorCode Fault::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
 
     // tolerance for nonlinear solve
-    else if (var.compare("rootTol")==0) { _rootTol = atof( rhs.c_str() ); }
+    else if (var.compare("rootTol")==0) { _rootTol = atof( rhs.c_str() ); }    
 
-    // checkpoint enabling and interval
-    else if (var.compare("ckpt") == 0) { _ckpt = (int)atof(rhs.c_str()); }
-    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
-
-    // if checkpoint is enabled, change _maxStepCount to _interval
-    else if (var.compare("maxStepCount") == 0) {
-      _maxStepCount = (int)atof(rhs.c_str());
-    }
-    
-      // friction parameters
+    // friction parameters
     else if (var.compare("f0")==0) { _f0 = atof( rhs.c_str() ); }
     else if (var.compare("v0")==0) { _v0 = atof( rhs.c_str() ); }
 
@@ -115,6 +104,11 @@ PetscErrorCode Fault::loadSettings(const char *file)
     // for locking part of the fault
     else if (var.compare("lockedVals")==0) { loadVectorFromInputFile(rhsFull,_lockedVals); }
     else if (var.compare("lockedDepths")==0) { loadVectorFromInputFile(rhsFull,_lockedDepths); }
+
+    // checkpoint enabling and interval
+    else if (var.compare("ckpt") == 0) { _ckpt = (int)atof(rhs.c_str()); }
+    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
+    else if (var.compare("maxStepCount") == 0) { _maxStepCount = (int)atof(rhs.c_str()); }
 
   }
 
@@ -138,28 +132,28 @@ PetscErrorCode Fault::loadFieldsFromFiles()
   // load fields from checkpoint file if we are at later checkpoint simulations
   // these are the new initial conditions for these vectors
   if (_ckptNumber > 0) {
-    ierr = loadVecFromInputFile(_sNEff, _D->_outputDir, "sNEff_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_psi, _D->_outputDir, "psi_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_slip,_D->_outputDir, "slip_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauQSP, _D->_outputDir, "tauQS_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauP, _D->_outputDir, "tau_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_prestress, _D->_outputDir, "prestress_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_sNEff, _outputDir, "sNEff_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_psi, _outputDir, "psi_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_slip, _outputDir, "slip_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauQSP, _outputDir, "tauQS_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauP, _outputDir, "tau_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_prestress, _outputDir, "prestress_ckpt"); CHKERRQ(ierr);
   }
   else {
-    ierr = loadVecFromInputFile(_sNEff,_D->_inputDir,"sNEff"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_psi,_D->_inputDir,"psi"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_sNEff, _inputDir,"sNEff"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_psi, _inputDir,"psi"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_slip, _inputDir,"slip"); CHKERRQ(ierr);
     // load shear stress: pre-stress, quasistatic, and full
-    ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_prestress,_D->_inputDir,"prestress"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauQSP, _inputDir,"tauQS"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauP, _inputDir,"tau"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_prestress, _inputDir,"prestress"); CHKERRQ(ierr);
     VecAXPY(_tauQSP,1.0,_prestress);
     VecCopy(_tauQSP,_tauP);
   }  
 
   // rate and state parameters
-  ierr = loadVecFromInputFile(_a,_D->_inputDir,"a"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_b,_D->_inputDir,"b"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_a, _inputDir,"a"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_b, _inputDir,"b"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
@@ -197,7 +191,7 @@ PetscErrorCode Fault::checkInput()
   assert(_rootTol >= 1e-14);
   assert(_ckpt >= 0);
   assert(_ckptNumber >= 0);
-  assert(_interval >= 0);
+  assert(_interval > 0);
   assert(_maxStepCount > 0);
   
   assert(_stateLaw.compare("agingLaw")==0
@@ -632,7 +626,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
   }
 
   // regular appending data to the end of original data file
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
@@ -645,35 +639,18 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const std::string outputDir)
       ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
       ierr = VecView(_Vw,_viewers["Vw"].first); CHKERRQ(ierr);
     }
-  }
-  
-  // when we reach the max number of time steps specified by the checkpoint, we write a checkpoint file only for the very last time step
-  else if (_ckpt > 0 && stepCount == _maxStepCount) {
-    ierr = io_initiateWrite(_viewers, "slip_ckpt", _slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "slipVel_ckpt", _slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "tauP_ckpt", _tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "tauQSP_ckpt", _tauQSP, outputDir + "tauQSP_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "psi_ckpt", _psi, outputDir + "psi_ckpt"); CHKERRQ(ierr);
-    ierr = io_initiateWrite(_viewers, "sNEff_ckpt", _sNEff, outputDir + "sNEff_ckpt"); CHKERRQ(ierr);
-  }
 
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
+    // when we reach the max number of time steps specified by the checkpoint, we write a checkpoint file only for the very last time step
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      ierr = io_initiateWrite(_viewers, "slip_ckpt", _slip, outputDir + "slip_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "slipVel_ckpt", _slipVel, outputDir + "slipVel_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "tauP_ckpt", _tauP, outputDir + "tauP_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "tauQSP_ckpt", _tauQSP, outputDir + "tauQSP_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "psi_ckpt", _psi, outputDir + "psi_ckpt"); CHKERRQ(ierr);
+      ierr = io_initiateWrite(_viewers, "sNEff_ckpt", _sNEff, outputDir + "sNEff_ckpt"); CHKERRQ(ierr);
+    }
 
-  return ierr;
-}
-
-// same as above, uses _outputDir, to check if correct output directory is specified
-PetscErrorCode Fault::writeStep(const PetscInt stepCount)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "Fault::writeStep";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  writeStep(stepCount, _outputDir);
+  }  
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1171,6 +1148,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // load settings and fields specific to fully-dynamics case
   loadSettings(_inputFile);
   setFields();
   loadFieldsFromFiles();
