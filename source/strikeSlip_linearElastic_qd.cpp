@@ -47,26 +47,31 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   parseBCs();
 
   // heat equation
-  if (_thermalCoupling.compare("no") != 0) {
+  if (_thermalCoupling != "no") {
     _he = new HeatEquation(D);
   }
 
   // fault
+  //_scatters is a VecScatter object in domain.cpp
   _body2fault = &(D._scatters["body2L"]);
+
+  // create a new Fault_qd object; attempts to load values from input or checkpoint files
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale);
-  if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating") == 0) {
+
+  if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }
 
   // pressure diffusion equation
-  if (_hydraulicCoupling.compare("no") != 0) {
+  if (_hydraulicCoupling != "no") {
     _p = new PressureEq(D);
   }
-  else if (_hydraulicCoupling.compare("coupled")==0) {
+  else if (_hydraulicCoupling == "coupled") {
     _fault->setSNEff(_p->_p);
   }
 
   // initiate momentum balance equation
+  // creates a new LinearElastic object; attempts to load values from input or checkpoint files
   if (_guessSteadyStateICs) {
     _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
   }
@@ -422,12 +427,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   _fault->initiateIntegrand(_initTime,_varEx);
 
-  if (_thermalCoupling.compare("no")!=0 ) {
+  if (_thermalCoupling != "no") {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
      _fault->updateTemperature(_he->_T);
   }
 
-  if (_hydraulicCoupling.compare("no")!=0 ) {
+  if (_hydraulicCoupling != "no") {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
   }
 
@@ -713,19 +718,19 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   _stepCount = 0;
 
   // initialize time integrator
-  if (_timeIntegrator.compare("FEuler")==0) {
+  if (_timeIntegrator == "FEuler") {
     _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK32")==0) {
+  else if (_timeIntegrator == "RK32") {
     _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK43")==0) {
+  else if (_timeIntegrator == "RK43") {
     _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK32_WBE")==0) {
+  else if (_timeIntegrator == "RK32_WBE") {
     _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK43_WBE")==0) {
+  else if (_timeIntegrator == "RK43_WBE") {
     _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else {
@@ -734,7 +739,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   }
 
   // with backward Euler, implicit time stepping
-  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+  if (_timeIntegrator == "RK32_WBE" || _timeIntegrator == "RK43_WBE") {
     ierr = _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     ierr = _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);

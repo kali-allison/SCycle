@@ -202,7 +202,6 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   // _maxNumSteps is already set to _maxStepCount from strikeSlip_linearElastic_qd
   while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
-
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -235,9 +234,9 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 // constructor, initializes OdeSolver object and more parameters
 RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType)
   : OdeSolver(maxNumSteps,finalT,deltaT,controlType),
-  _minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),_kappa(0.9),_ord(3.0),
-  _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
+    _minDeltaT(0),_maxDeltaT(finalT),
+    _atol(1e-9),_kappa(0.9),_ord(3.0),
+    _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 
   #if VERBOSE > 1
@@ -538,7 +537,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   PetscErrorCode ierr = 0;
   PetscScalar    _totErr = 0;
   PetscInt       attemptCount = 0;
-
+  PetscViewer    _viewErr;
+  
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -629,19 +629,20 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 
       // calculate error
       _totErr = computeError();
+      
       if (_totErr <= _atol) {
 	break;
       }
       // calculate _deltaT
       _deltaT = computeStepSize(_totErr,ckptNumber);
-      if (_minDeltaT == _deltaT) {
+      if (_deltaT - _minDeltaT < 1e-8) {
 	break;
       }
       _numRejectedSteps++;
     }
 
     // accept 3rd order solution as update
-    _currT = _currT+_deltaT;
+    _currT = _currT + _deltaT;
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       VecSet(_var[it->first],0.0);
       ierr = VecCopy(_y3[it->first],_var[it->first]);CHKERRQ(ierr);
@@ -649,25 +650,33 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
-    if (_totErr!=0.0) {
+    if (_totErr > 0.0) {
       _deltaT = computeStepSize(_totErr, ckptNumber);
     }
     // record error for use when estimating time step
-    // push_front inserts a new element at the beginning of the circular buffer
+    // push_front:_errA[0] = currErr, _errA[1] = prevErr
     _errA.push_front(_totErr);
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
+
+    // view totErr in file
+    if (_stepCount == 1) {
+      writeASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
+    }
+    else if (_stepCount > 1) {
+      appendASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
+    }
     
     // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[1]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[0]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
-    }
-      
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
+    }      
   }
 
+  PetscViewerDestroy(&_viewErr);
   _runTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
@@ -1018,8 +1027,9 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
   PetscScalar _totErr = 0;
-  PetscInt       attemptCount = 0;
-
+  PetscInt attemptCount = 0;
+  PetscViewer _viewErr;
+  
   // coefficients
   PetscScalar c2 = 1./2.;
   PetscScalar c3 = 83./250.;
@@ -1110,8 +1120,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 	PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n");
       }
 
-      if (_currT+_deltaT>_finalT) {
-	_deltaT=_finalT-_currT;
+      if (_currT + _deltaT > _finalT) {
+	_deltaT = _finalT - _currT;
       }
 
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1191,45 +1201,56 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 
       // calculate error
       _totErr = computeError();
+
       // accept step
-      if (_totErr<_atol) {
+      if (_totErr < _atol) {
 	break;
       }
+      
       // calculate time step
       _deltaT = computeStepSize(_totErr, ckptNumber);
-      // accept step
-      if (_minDeltaT == _deltaT) {
+      if (_deltaT - _minDeltaT < 1e-8) {
 	break;
       }
       _numRejectedSteps++;
     }
 
     // accept 4th order solution as update
-    _currT = _currT+_deltaT;
+    _currT = _currT + _deltaT;
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       ierr = VecCopy(_y4[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
     }
-    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
     // write into output files
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
-    if (_totErr!=0.0) {
+    // _deltaT is computed again here
+    if (_totErr > 0) {
       _deltaT = computeStepSize(_totErr, ckptNumber);
     }
-
     _errA.push_front(_totErr);
+
+    // write out totErr
+    if (_stepCount == 1) {
+      writeASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
+    }
+    else if (_stepCount > 1) {
+      appendASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
+    }
+
     // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer1, viewer2;
-      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[0]);
-      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[1]);
+      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[1]);
+      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[0]);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
     }
   }
-
+  
+  PetscViewerDestroy(&_viewErr);
   _runTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1

@@ -239,6 +239,7 @@ int main(int argc,char **args)
     inputFile = "init.in";
   }
 
+{
   Domain d(inputFile);
   // run MMS test
   if (d._isMMS) {
@@ -248,7 +249,7 @@ int main(int argc,char **args)
   else {
     runEqCycle(d);
   }
-
+}
   PetscFinalize();
   return ierr;
 }
