@@ -150,11 +150,10 @@ public:
   PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
   // explicit time-stepping methods
-  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount);
 
   // methods for implicit/explicit time stepping
-  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-		      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount);
 
 
   // IO functions

@@ -24,6 +24,7 @@
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
 
+using namespace std;
 
 /*
  * Mediator-level class for the simulation of earthquake cycles on a vertical strike-slip fault
@@ -43,36 +44,36 @@ private:
     Domain *_D;
 
     // IO information
-    std::string       _delim; // format is: var delim value (without the white space)
+    string       _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    const bool           _isMMS; // true if running mms test
-    std::string          _outputDir; // output data
-    std::string          _inputDir; // input data
-    const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar          _vL;
-    std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    std::string          _stateLaw;
-    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
-    std::string          _forcingType; // what body forcing term to include (i.e. iceStream)
-    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+    const bool      _isMMS; // true if running mms test
+    string          _outputDir; // output data
+    string          _inputDir; // input data
+    const bool      _loadICs; // true if starting from a previous simulation
+    PetscScalar     _vL;
+    string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    string          _stateLaw;
+    int             _guessSteadyStateICs; // 0 = no, 1 = yes
+    string          _forcingType; // what body forcing term to include (i.e. iceStream)
+    PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // time stepping data
-    std::map <string,Vec>  _varEx; // holds variables for explicit integration in time
-    std::map <string,Vec>  _varIm; // holds variables for implicit integration in time
-    std::string            _timeIntegrator,_timeControlType;
-    PetscInt               _stride1D,_stride2D; // stride
-    PetscInt               _maxStepCount; // largest number of time steps
+    map <string,Vec>  _varEx; // holds variables for explicit integration in time
+    map <string,Vec>  _varIm; // holds variables for implicit integration in time
+    string            _timeIntegrator,_timeControlType;
+    PetscInt          _stride1D,_stride2D; // stride
+    PetscInt          _maxStepCount; // largest number of time steps
     // checkpoint parameters
-    PetscInt               _ckpt, _ckptNumber, _interval;
-    PetscScalar            _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
-    int                    _stepCount; // number of time steps at which results are written out
-    PetscScalar            _timeStepTol;
-    PetscScalar            _initDeltaT;
-    std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
-    std::vector<double>    _scale; // scale factor for entries in _timeIntInds
-    std::string            _normType;
+    PetscInt          _ckpt, _ckptNumber, _interval;
+    PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
+    int               _stepCount; // number of time steps at which results are written out
+    PetscScalar       _timeStepTol;
+    PetscScalar       _initDeltaT;
+    vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    vector<double>    _scale; // scale factor for entries in _timeIntInds
+    string            _normType;
 
 
     // runtime data
@@ -92,7 +93,7 @@ private:
     string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
     // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    map <string,pair<PetscViewer,string> >  _viewers;
 
     // for mapping from body fields to the fault
     VecScatter* _body2fault;
@@ -128,17 +129,17 @@ private:
     PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount);
 
     // methods for implicit/explicit time stepping
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount);
 
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount);
-    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir);
-    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
 
     // debugging and MMS tests
     PetscErrorCode measureMMSError();

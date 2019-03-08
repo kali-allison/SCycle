@@ -19,10 +19,10 @@ class IntegratorContextImex
     virtual PetscErrorCode integrate() = 0;
 
     // for intermediate time steps for explicitly integrated variables
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx) = 0;
+  virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount) = 0;
 
     // for time step including implicitly integrated variables
-    virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt) = 0;
+  virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount) = 0;
 
     // for output and monitoring as time integration progresses
     // this function is not required

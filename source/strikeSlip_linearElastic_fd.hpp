@@ -21,7 +21,7 @@
 #include "heatEquation.hpp"
 #include "linearElastic.hpp"
 
-
+using namespace std;
 
 /*
  * Mediator-level class for the simulation of earthquake a single fully
@@ -39,48 +39,48 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
 
     Domain *_D;
     // IO information
-    std::string       _delim; // format is: var delim value (without the white space)
+    string       _delim; // format is: var delim value (without the white space)
 
     // problem properties
-    const bool           _isMMS; // true if running mms test
+    const bool      _isMMS; // true if running mms test
 
-    const PetscInt       _order,_Ny,_Nz;
-    PetscScalar          _Ly,_Lz;
-    PetscScalar          _deltaT, _CFL;
-    Vec                 *_y,*_z; // to handle variable grid spacing
+    const PetscInt  _order,_Ny,_Nz;
+    PetscScalar     _Ly,_Lz;
+    PetscScalar     _deltaT, _CFL;
+    Vec            *_y,*_z; // to handle variable grid spacing
 
-    Vec                  _mu, _rho, _cs, _ay;
-    Vec                  _alphay;
-    std::string          _outputDir; // output data
-    const bool           _loadICs; // true if starting from a previous simulation
-    PetscScalar          _vL;
-    std::string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    std::string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    std::string          _initialConditions, _inputDir;
-    int                  _guessSteadyStateICs; // 0 = no, 1 = yes
-    PetscScalar          _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+    Vec             _mu, _rho, _cs, _ay;
+    Vec             _alphay;
+    string          _outputDir; // output data
+    const bool      _loadICs; // true if starting from a previous simulation
+    PetscScalar     _vL;
+    string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+    string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+    string          _initialConditions, _inputDir;
+    int             _guessSteadyStateICs; // 0 = no, 1 = yes
+    PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // time stepping data
-    std::map <string,Vec>  _var,_varPrev; // holds variables for time step: n (current), n-1
-    std::string            _timeIntegrator,_timeControlType;
-    PetscInt               _maxStepCount; // largest number of time steps
-    PetscInt               _stride1D,_stride2D; // stride
-    PetscScalar            _initTime,_currTime,_maxTime;
-    int                    _stepCount;
-    PetscScalar            _atol;
-    PetscScalar            _yCenterU, _zCenterU, _yStdU, _zStdU, _ampU;
-    std::vector<string>    _timeIntInds;// keys of variables to be used in time integration
+    map <string,Vec>  _var,_varPrev; // holds variables for time step: n (current), n-1
+    string            _timeIntegrator,_timeControlType;
+    PetscInt          _maxStepCount; // largest number of time steps
+    PetscInt          _stride1D,_stride2D; // stride
+    PetscScalar       _initTime,_currTime,_maxTime;
+    int               _stepCount;
+    PetscScalar       _atol;
+    PetscScalar       _yCenterU, _zCenterU, _yStdU, _zStdU, _ampU;
+    vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
     //viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
+    PetscViewer  _timeV1D,_dtimeV1D,_timeV2D;
 
     // runtime data
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
 
     // boundary conditions
     // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
-    string              _bcRType,_bcTType,_bcLType,_bcBType;
-    string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
+    string       _bcRType,_bcTType,_bcLType,_bcBType;
+    string       _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
     PetscErrorCode loadSettings(const char *file);
     PetscErrorCode checkInput();
@@ -92,9 +92,9 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
 
   public:
 
-    OdeSolver_WaveEq          *_quadWaveEx;
-    Fault_fd                   *_fault;
-    LinearElastic              *_material; // linear elastic off-fault material properties
+    OdeSolver_WaveEq      *_quadWaveEx;
+    Fault_fd              *_fault;
+    LinearElastic         *_material; // linear elastic off-fault material properties
 
 
     strikeSlip_linearElastic_fd(Domain&D);
@@ -103,20 +103,18 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     // time stepping functions
     PetscErrorCode integrate(); // will call OdeSolver method by same name
     PetscErrorCode initiateIntegrand();
-    PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
+    PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount);
 
     // IO functions
     PetscErrorCode view();
     PetscErrorCode writeContext();
     PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
 
-    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const string outputDir);
+    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const string outputDir);
 
 
 };

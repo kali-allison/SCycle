@@ -34,7 +34,7 @@ using namespace std;
  *   - frictional shear heating (either from a plane or a finite width shear zone)
  *   - radioactive decay
  */
-v
+
 class HeatEquation
 {
 private:
@@ -163,7 +163,7 @@ public:
   PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
 
   PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
-  PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt);
+  PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt, PetscInt stepCount);
 
   
   // IO commands

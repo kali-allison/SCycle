@@ -3,7 +3,7 @@
 % with linear elastic off-fault material.
 
 % define directory for output (can be relative or absolute path)
-sourceDir = '../data/ex1_';
+sourceDir = '~/scycle/data/ex1';
 
 % load context information, such as size of domain, number of points, etc
 d = loadContext(sourceDir);
@@ -37,7 +37,3 @@ semilogx(d.slipVel(1),d.tau(1),'g*') % indicate initial condition
 semilogx(d.slipVel(end),d.tau(end),'r*') % indicate final condition
 xlabel('integrated slip velocity (m/s km)'),ylabel('integrated shear stress (MPa km)')
 legend('simulation','initial condition','final condition','Location','Northwest')
-
-
-
-

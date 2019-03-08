@@ -404,7 +404,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   }
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_varEx,_dvar,_stepCount);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   while (_stepCount < _maxNumSteps && _currT < _finalT) {
@@ -433,14 +433,14 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1,_stepCount);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],-_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_k2[it->first],2*_deltaT,_f1[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_k2,_f2);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_k2,_f2,_stepCount);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -474,7 +474,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
     }
 
     // update rates for explicit variables, and compute updated state for implicit variables
-    ierr = obj->d_dt(_currT,_varEx,_dvar,_vardTIm,_varIm,_deltaT);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_varEx,_dvar,_vardTIm,_varIm,_deltaT,_stepCount);CHKERRQ(ierr);
 
     // accept updated state for implicit variables
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
@@ -954,7 +954,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   }
 
   // set initial condition and write first step
-  ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_varEx,_dvar,_stepCount);CHKERRQ(ierr);
   _f1 = _dvar;
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
@@ -992,14 +992,14 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],a21*_deltaT,_f1[it->first],_varEx[it->first]); CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2);CHKERRQ(ierr); // compute f2
+      ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2,_stepCount);CHKERRQ(ierr); // compute f2
 
       // stage 3: compute k3
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_k3[it->first],a31*_deltaT,_f1[it->first],_varEx[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_k3[it->first],a32*_deltaT,_f2[it->first]); CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3);CHKERRQ(ierr); // compute f3
+      ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3,_stepCount);CHKERRQ(ierr); // compute f3
 
       // stage 4
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -1007,7 +1007,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
         ierr =  VecAXPY(_k4[it->first],a42*_deltaT,_f2[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k4[it->first],a43*_deltaT,_f3[it->first]); CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+c4*_deltaT,_k4,_f4);CHKERRQ(ierr); // compute f4
+      ierr = obj->d_dt(_currT+c4*_deltaT,_k4,_f4,_stepCount);CHKERRQ(ierr); // compute f4
 
       // stage 5
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -1016,7 +1016,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
         ierr =  VecAXPY(_k5[it->first],a53*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k5[it->first],a54*_deltaT,_f4[it->first]); CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+c5*_deltaT,_k5,_f5);CHKERRQ(ierr); // compute f5
+      ierr = obj->d_dt(_currT+c5*_deltaT,_k5,_f5,_stepCount);CHKERRQ(ierr); // compute f5
 
       // stage 6
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -1026,7 +1026,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
         ierr =  VecAXPY(_k6[it->first],a64*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k6[it->first],a65*_deltaT,_f5[it->first]); CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+c6*_deltaT,_k6,_f6);CHKERRQ(ierr); // compute f6
+      ierr = obj->d_dt(_currT+c6*_deltaT,_k6,_f6,_stepCount);CHKERRQ(ierr); // compute f6
 
       // 3rd and 4th order updates
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
@@ -1058,7 +1058,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
       VecSet(_dvar[it->first],0.0);
     }
     // update rates for explicit variables, and compute updated state for implicit variables
-    ierr = obj->d_dt(_currT,_varEx,_dvar,_vardTIm,_varIm,_deltaT);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_varEx,_dvar,_vardTIm,_varIm,_deltaT,_stepCount);CHKERRQ(ierr);
 
     // accept updated state for implicit variables
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {

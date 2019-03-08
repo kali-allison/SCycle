@@ -169,7 +169,7 @@ PetscErrorCode OdeSolver_WaveEq_Imex::integrate(IntegratorContext_WaveEq_Imex *o
     _currT = _currT + _deltaT;
     if (_currT>_finalT) { _currT = _finalT; }
     _stepCount++;
-    ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev,_varIm, _varImPrev); CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_deltaT,_varNext,_var,_varPrev,_varIm, _varImPrev, _stepCount); CHKERRQ(ierr);
 
     // accept time step and update explicitly integrated variables
     for (map<string,Vec>::iterator it = _var.begin(); it != _var.end(); it++ ) {

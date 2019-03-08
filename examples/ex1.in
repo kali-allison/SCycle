@@ -17,6 +17,8 @@ bCoordTrans = 5 # controls grid stretching perpendicular to the fault. larger b 
 bulkDeformationType = linearElastic # off-fault constitutive law
 momentumBalanceType = quasidynamic # form of the momentum balance equation
 guessSteadyStateICs = 1 # estimate steady-state initial conditions
+timeControlType = P   # for error control
+timeIntegrator = RK43  # type of time stepping
 
 #======================================================================
 # rate-and-state parameters
@@ -53,6 +55,7 @@ maxTime = 2e11 # (s) final time
 maxDeltaT = 1e12 # (s) size of maximum time step
 timeStepTol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
+
 #======================================================================
 
 # settings for checkpoints

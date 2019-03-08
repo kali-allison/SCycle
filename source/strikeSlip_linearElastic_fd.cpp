@@ -404,8 +404,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT,
-  map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -417,7 +416,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
   if (_initialConditions.compare("tau")==0) { _fault->updatePrestress(time); }
-  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev); CHKERRQ(ierr);
+  ierr = _fault->d_dt(time,_deltaT,varNext,var,varPrev,stepCount); CHKERRQ(ierr);
 
   // update body u from fault u
   ierr = VecScatterBegin(*_body2fault, _fault->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);

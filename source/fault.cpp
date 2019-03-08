@@ -135,17 +135,18 @@ PetscErrorCode Fault::loadFieldsFromFiles()
     ierr = loadVecFromInputFile(_sNEff, _outputDir, "sNEff_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_psi, _outputDir, "psi_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_slip, _outputDir, "slip_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauQSP, _outputDir, "tauQS_ckpt"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauP, _outputDir, "tau_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauQSP, _outputDir, "tauQSP_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauP, _outputDir, "tauP_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_prestress, _outputDir, "prestress_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_slipVel, _outputDir, "slipVel_ckpt"); CHKERRQ(ierr);
   }
   else {
     ierr = loadVecFromInputFile(_sNEff, _inputDir,"sNEff"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_psi, _inputDir,"psi"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_slip, _inputDir,"slip"); CHKERRQ(ierr);
     // load shear stress: pre-stress, quasistatic, and full
-    ierr = loadVecFromInputFile(_tauQSP, _inputDir,"tauQS"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauP, _inputDir,"tau"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauQSP, _inputDir,"tauQSP"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_tauP, _inputDir,"tauP"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_prestress, _inputDir,"prestress"); CHKERRQ(ierr);
     VecAXPY(_tauQSP,1.0,_prestress);
     VecCopy(_tauQSP,_tauP);
@@ -650,8 +651,8 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
       ierr = writeVec(_tauQSP, outputDir + "tauQSP_ckpt"); CHKERRQ(ierr);
       ierr = writeVec(_psi, outputDir + "psi_ckpt"); CHKERRQ(ierr);
       ierr = writeVec(_sNEff, outputDir + "sNEff_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_prestress, outputDir + "prestress_ckpt"); CHKERRQ(ierr);
     }
-
   }  
 
   #if VERBOSE > 1
@@ -852,7 +853,7 @@ PetscErrorCode Fault_qd::initiateIntegrand(const PetscScalar time, map<string,Ve
     varEx["psi"] = varPsi;
   }
 
-  // slip is added by the momentum balance equation, thus not initialized here
+  // slip is initialized in the strikeSlip class's initiateIntegrand function, thus not initialized here
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -932,7 +933,7 @@ PetscErrorCode Fault_qd::computeVel()
 
 
 // time stepping
-PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& varEx, map<string,Vec>& dvarEx)
+PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& varEx, map<string,Vec>& dvarEx, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -940,15 +941,23 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // add pre-stress to quasi-static shear stress
-  ierr = VecAXPY(_tauQSP,1.0,_prestress); CHKERRQ(ierr);
-
-  // compute slip velocity
+  if (_ckptNumber == 0) {
+    // add pre-stress to quasi-static shear stress for starting simulation only
+    ierr = VecAXPY(_tauQSP,1.0,_prestress); CHKERRQ(ierr);
+  }
   double startTime = MPI_Wtime();
-  ierr = computeVel(); CHKERRQ(ierr);
-  ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
-  _computeVelTime += MPI_Wtime() - startTime;
-
+  
+  // compute slip velocity
+  if (_ckptNumber > 0 && stepCount == 0) {
+    // don't compute slip velocity since we have already loaded from checkpoint
+    ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
+  }
+  else {
+    ierr = computeVel(); CHKERRQ(ierr);
+    ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
+    _computeVelTime += MPI_Wtime() - startTime;
+  }
+  
   // compute rate of state variable
   Vec dstate = dvarEx.find("psi")->second;
   startTime = MPI_Wtime();
@@ -982,10 +991,15 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
   _stateLawTime += MPI_Wtime() - startTime;
 
   // set tauP = tauQS - eta_rad *slipVel
-  ierr = VecCopy(_slipVel,_tauP); CHKERRQ(ierr); // V -> tau
-  ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP); CHKERRQ(ierr); // tau = V * eta_rad
-  ierr = VecAYPX(_tauP,-1.0,_tauQSP); CHKERRQ(ierr); // tau = tauQS - V*eta_rad
-
+  if (stepCount == 0 && _ckptNumber > 0) {
+    // don't do anything since we have already loaded them from checkpoint
+  }
+  else {
+    ierr = VecCopy(_slipVel,_tauP); CHKERRQ(ierr); // V -> tau
+    ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP); CHKERRQ(ierr); // tau = V * eta_rad
+    ierr = VecAYPX(_tauP,-1.0,_tauQSP); CHKERRQ(ierr); // tau = tauQS - V*eta_rad
+  }
+  
   // compute frictional strength of fault based on slip velocity
   strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
 
@@ -1508,7 +1522,7 @@ PetscErrorCode Fault_fd::updatePrestress(const PetscScalar currT)
 
 
 // calculate slip velocity by calling computeVel(), and performs explicit time stepping, updating fields with the new time step
-PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext,const map<string,Vec>& var,const map<string,Vec>& varPrev)
+PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext,const map<string,Vec>& var,const map<string,Vec>& varPrev, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
 

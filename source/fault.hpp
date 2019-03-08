@@ -13,6 +13,8 @@
 
 class RootFinder;
 
+using namespace std;
+
 /*
  * Class containing the implementation of rate-and-state friction. The fault
  * is a line of length N.
@@ -42,13 +44,13 @@ class Fault
     Fault& operator=( const Fault& rhs);
 
   public:
-    Domain           *_D; // shallow copy of domain
-    const char       *_inputFile; // input file
-    std::string       _delim; // format is: var delim value (without the white space)
-    std::string       _inputDir; // directory for input
-    std::string       _outputDir; // directory for output
-    std::string       _stateLaw; // state evolution law
-    PetscScalar       _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+    Domain      *_D; // shallow copy of domain
+    const char  *_inputFile; // input file
+    string       _delim; // format is: var delim value (without the white space)
+    string       _inputDir; // directory for input
+    string       _outputDir; // directory for output
+    string       _stateLaw; // state evolution law
+    PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
     // domain properties
     const PetscInt     _N;  //number of nodes on fault
@@ -60,39 +62,39 @@ class Fault
     Vec          _psi; // state variable
 
     // for locking the fault
-    std::vector<double>   _lockedVals,_lockedDepths;
-    Vec                   _locked;
+    vector<double>   _lockedVals,_lockedDepths;
+    Vec              _locked;
 
     // rate-and-state parameters
-    PetscScalar           _f0,_v0;
-    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
-    Vec                   _a,_b,_Dc;
-    std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
-    Vec                   _cohesion,_mu,_rho;
-    std::vector<double>   _sigmaNVals,_sigmaNDepths;
-    std::vector<double>   _stateVals,_stateDepths; // initial conditions for state variable
-    PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
-    Vec                   _sNEff; // effective normal stress
-    Vec                   _sN; // total normal stress
+    PetscScalar      _f0,_v0;
+    vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
+    Vec              _a,_b,_Dc;
+    vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
+    Vec              _cohesion,_mu,_rho;
+    vector<double>   _sigmaNVals,_sigmaNDepths;
+    vector<double>   _stateVals,_stateDepths; // initial conditions for state variable
+    PetscScalar      _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
+    Vec              _sNEff; // effective normal stress
+    Vec              _sN; // total normal stress
 
     // flash heating parameters
-    std::vector<double>   _TwVals,_TwDepths;
-    PetscScalar           _fw,_Vw_const,_tau_c,_D_fh;
-    Vec                   _T,_k,_c,_Vw,_Tw;
+    vector<double>   _TwVals,_TwDepths;
+    PetscScalar      _fw,_Vw_const,_tau_c,_D_fh;
+    Vec              _T,_k,_c,_Vw,_Tw;
 
     // tolerances for linear and nonlinear (for vel) solve
-    PetscScalar           _rootTol;
-    PetscInt              _rootIts,_maxNumIts; // total number of iterations
+    PetscScalar      _rootTol;
+    PetscInt         _rootIts,_maxNumIts; // total number of iterations
 
     // viewers:
     // 1st string = key naming relevant field, e.g. "slip"
     // 2nd PetscViewer = PetscViewer object for file IO
     // 3rd string = full file path name for output
-    //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    //~ map <string,PetscViewer>  _viewers;
+    map <string,pair<PetscViewer,string> >  _viewers;
 
     // runtime data
-    double               _computeVelTime,_stateLawTime, _scatterTime;
+    double          _computeVelTime,_stateLawTime, _scatterTime;
 
 
     // checkpoint data
@@ -102,9 +104,8 @@ class Fault
     VecScatter* _body2fault;
 
     // iterators for _var
-    typedef std::vector<Vec>::iterator it_vec;
-    typedef std::vector<Vec>::const_iterator const_it_vec;
-
+    typedef vector<Vec>::iterator it_vec;
+    typedef vector<Vec>::const_iterator const_it_vec;
 
     Fault(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
     virtual ~Fault();
@@ -130,8 +131,8 @@ class Fault
 
     // IO
     PetscErrorCode virtual view(const double totRunTime);
-    PetscErrorCode virtual writeContext(const std::string outputDir);
-    PetscErrorCode virtual writeStep(PetscInt stepCount, const std::string outputDir);
+    PetscErrorCode virtual writeContext(const string outputDir);
+    PetscErrorCode virtual writeStep(PetscInt stepCount, const string outputDir);
 };
 
 
@@ -154,10 +155,10 @@ class Fault_qd: public Fault
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
-    PetscErrorCode writeContext(const std::string outputDir);
+    PetscErrorCode writeContext(const string outputDir);
 };
 
 
@@ -170,14 +171,14 @@ class Fault_fd: public Fault
     Fault_fd& operator=( const Fault_fd& rhs);
 
   public:
-    Vec                 _Phi, _an, _fricPen;
-    Vec                 _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
-    PetscScalar         _deltaT;
-    Vec                 _alphay;
-    Vec                 _tau0; // dU0/dy (stress at end of qd period)
+    Vec            _Phi, _an, _fricPen;
+    Vec            _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
+    PetscScalar    _deltaT;
+    Vec            _alphay;
+    Vec            _tau0; // dU0/dy (stress at end of qd period)
 
-    PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
-    std::string         _timeMode;
+    PetscScalar    _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+    string         _timeMode;
 
     Fault_fd(Domain&, VecScatter& scatter2fault, const int& faultTypeScale);
     ~Fault_fd();
@@ -188,7 +189,7 @@ class Fault_fd: public Fault
     // for interaction with mediator
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
+  PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount);
     PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);

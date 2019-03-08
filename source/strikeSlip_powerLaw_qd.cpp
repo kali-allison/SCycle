@@ -612,7 +612,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
+PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
 
@@ -642,12 +642,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // 2. compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->d_dt(time,varEx,dvarEx);
+    _p->d_dt(time,varEx,dvarEx,stepCount);
   }
 
-  if ( varEx.find("grainSize") != varEx.end() ) {
-    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  }
+  // if ( varEx.find("grainSize") != varEx.end() ) {
+  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  // }
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -657,7 +657,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   // rates for fault
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
-    ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+    ierr = _fault->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
   }
   else {
     VecSet(dvarEx["psi"],0.);
@@ -670,8 +670,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
+PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -717,12 +716,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
 
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt,stepCount);
   }
 
-  if ( varEx.find("grainSize") != varEx.end() ) {
-    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  }
+  // if ( varEx.find("grainSize") != varEx.end() ) {
+  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  // }
 
 
   // update fields on fault from other classes
@@ -731,7 +730,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   // rates for fault
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
-    ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+    ierr = _fault->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
   }
   else {
     VecSet(dvarEx["psi"],0.);

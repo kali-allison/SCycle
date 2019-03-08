@@ -14,13 +14,13 @@ HeatEquation::HeatEquation(Domain& D)
   _sbpType(D._sbpType),_sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
   _linSolver("CG"),_kspTol(1e-11),
-  _kspSS(NULL),_kspTrans(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
+  _kspSS(NULL),_kspTrans(NULL),_pc(NULL),
+  _I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
   _linSolveTime(0),_factorTime(0),_beTime(0),_writeTime(0),_miscTime(0),
-  _linSolveCount(0),
+  _linSolveCount(0),_ckpt(0),_ckptNumber(0),
   _Tamb(NULL),_dT(NULL),_T(NULL),
-  _k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Qfric(NULL),_Qvisc(NULL),_Q(NULL),
-  _ckpt(0),_ckptNumber(0)
+  _k(NULL),_rho(NULL),_c(NULL),_Qrad(NULL),_Qfric(NULL),_Qvisc(NULL),_Q(NULL)
 {
   #if VERBOSE > 1
     string funcName = "HeatEquation::HeatEquation";
@@ -294,14 +294,14 @@ PetscErrorCode ierr = 0;
   // create scatter from body field to top boundary
   // indices to scatter from
   IS isf;
-  ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf); CHKERR(ierr);
+  ierr = ISCreateStride(PETSC_COMM_WORLD, _Ny, 0, _Nz, &isf); CHKERRQ(ierr);
 
   // indices to scatter to
   PetscInt *ti;
-  ierr = PetscMalloc1(_Ny,&ti); CHKERR(ierr);
+  ierr = PetscMalloc1(_Ny,&ti); CHKERRQ(ierr);
   for (PetscInt Ii=0; Ii<(_Ny); Ii++) { ti[Ii] = Ii; }
   IS ist;
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist); CHKERR(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
   PetscFree(ti);
 
   // create scatter
@@ -423,7 +423,7 @@ PetscErrorCode HeatEquation::constructScatters(Vec& T, Vec& T_l)
   // create scatter from 2D full domain to 2D lithosphere only
   // indices to scatter from
   PetscInt *fi;
-  ierr = PetscMalloc1(_Ny*_Nz_lab,&fi); CHKERR(ierr);
+  ierr = PetscMalloc1(_Ny*_Nz_lab,&fi); CHKERRQ(ierr);
   PetscInt count = 0;
 
   for (PetscInt Ii=0; Ii<_Ny; Ii++) {
@@ -434,18 +434,18 @@ PetscErrorCode HeatEquation::constructScatters(Vec& T, Vec& T_l)
   }
 
   IS isf;
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, fi, PETSC_COPY_VALUES, &isf); CHKERR(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, fi, PETSC_COPY_VALUES, &isf); CHKERRQ(ierr);
   PetscFree(fi);
 
   // indices to scatter to
   PetscInt *ti;
-  ierr = PetscMalloc1(_Ny*_Nz_lab,&ti); CHKERR(ierr);
+  ierr = PetscMalloc1(_Ny*_Nz_lab,&ti); CHKERRQ(ierr);
   for (PetscInt Ii=0; Ii<(_Ny*_Nz_lab); Ii++) {
     ti[Ii] = Ii;
   }
   
   IS ist;
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist); CHKERR(ierr);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
   PetscFree(ti);
 
   // create scatter
@@ -647,7 +647,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   VecScatterEnd(_scatters["bodyFull2bodyLith"], Tamb_l,_Tamb, INSERT_VALUES, SCATTER_REVERSE);
 
   KSPDestroy(&_kspSS); _kspSS = NULL;
-  delete sbp; sbp = NULL:
+  delete sbp; sbp = NULL;
   VecDestroy(&y);
   VecDestroy(&z);
   VecDestroy(&k);
@@ -981,7 +981,7 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
 
 // for thermomechanical coupling with explicit time stepping
 // Note: This actually returns d/dt (T - Tamb), where Tamb is the 1D steady-state geotherm
-PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt)
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

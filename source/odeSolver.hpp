@@ -72,6 +72,7 @@ public:
 
   // for PID error control
   boost::circular_buffer<double> _errA;
+  map<string,Vec> _y2,_y3,_y4;
   
   OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
   virtual ~OdeSolver() {};
