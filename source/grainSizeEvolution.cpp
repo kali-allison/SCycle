@@ -7,7 +7,7 @@
 // power-law rheology class
 
 GrainSizeEvolution::GrainSizeEvolution(Domain& D)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_timeIntegrationType("implicit"),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_d(NULL),_d_t(NULL)
@@ -103,6 +103,8 @@ PetscErrorCode GrainSizeEvolution::loadSettings(const char *file)
     else if (var.compare("grainSizeEv_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_dVals); }
     else if (var.compare("grainSizeEv_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_dDepths); }
 
+    if (var.compare("grainSizeEv_timeIntegrationType")==0) { _timeIntegrationType = rhs.c_str(); }
+
   }
 
   #if VERBOSE > 1
@@ -141,6 +143,9 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_dVals.size() == _dDepths.size() );
 
     assert(_c > 0);
+
+    assert(_timeIntegrationType.compare("explicit")==0 ||
+      _timeIntegrationType.compare("implicit")==0 );
 
 
   #if VERBOSE > 1
@@ -229,7 +234,7 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
 
 
 
-PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)
+PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -237,10 +242,15 @@ PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
   // add deep copies of viscous strains to integrated variables, stored in _var
-  if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_d,varEx["grainSize"]); }
-  else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varEx["grainSize"] = var; }
+  if ( _timeIntegrationType.compare("explicit")==0) {
+    if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_d,varEx["grainSize"]); }
+    else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varEx["grainSize"] = var; }
+  }
+  else if ( _timeIntegrationType.compare("implicit")==0) {
+    if (varIm.find("grainSize") != varIm.end() ) { VecCopy(_d,varIm["grainSize"]); }
+    else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varIm["grainSize"] = var; }
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -256,8 +266,7 @@ PetscErrorCode GrainSizeEvolution::updateFields(const PetscScalar time,const map
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // if integrating viscous strains in time
-  VecCopy(varEx.find("grainSizeEv_d")->second,_d);
+  VecCopy(varEx.find("grainSize")->second,_d);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -276,8 +285,8 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
   VecCopy(grainSize,_d);
 
 
-  const PetscScalar *A,*B,*p,*T,*f,*s,*dgdev,*g;
-  PetscScalar *dg;
+  const PetscScalar *A,*B,*p,*T,*f,*g,*s,*dgdev,*d;
+  PetscScalar *d_t;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_d,&Istart,&Iend);
   VecGetArrayRead(_A,&A);
@@ -285,15 +294,20 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
   VecGetArrayRead(_p,&p);
   VecGetArrayRead(Temp,&T);
   VecGetArrayRead(_f,&f);
+  VecGetArrayRead(_gamma,&g);
   VecGetArrayRead(sdev,&s);
   VecGetArrayRead(dgdev_disl,&dgdev);
-  VecGetArrayRead(grainSize,&g);
-  VecGetArray(_d_t,&dg);
+  VecGetArrayRead(grainSize,&d);
+  VecGetArray(_d_t,&d_t);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(g[Jj], 1.0-p[Jj]); // static grain growth rate
-    PetscScalar red = - f[Jj] * g[Jj]*g[Jj] * s[Jj]*dgdev[Jj]; // size reduction from disl. creep
-    dg[Jj] = growth + red;
+    PetscScalar cc = f[Jj] / (g[Jj] *_c);
+    PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]); // static grain growth rate
+    PetscScalar red = - cc * d[Jj]*d[Jj] * s[Jj]*dgdev[Jj]; // grain size reduction from disl. creep
+    d_t[Jj] = growth + red;
+
+    //~ if (abs(d_t[Jj]) < 1e-14) { d_t[Jj] = 0.; }
+
     Jj++;
   }
   VecRestoreArrayRead(_A,&A);
@@ -301,16 +315,72 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
   VecRestoreArrayRead(_p,&p);
   VecRestoreArrayRead(Temp,&T);
   VecRestoreArrayRead(_f,&f);
+  VecRestoreArrayRead(_gamma,&g);
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(dgdev_disl,&dgdev);
-  VecRestoreArrayRead(grainSize,&g);
-  VecRestoreArray(_d_t,&dg);
+  VecRestoreArrayRead(grainSize,&d);
+  VecRestoreArray(_d_t,&d_t);
 
   VecCopy(_d_t,grainSizeEv_t);
 
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// implicit time stepping with backward Euler
+PetscErrorCode GrainSizeEvolution::be(Vec& grainSizeNew,const Vec& grainSizePrev,const PetscScalar time,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp,const PetscScalar dt)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "GrainSizeEvolution::be";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  const PetscScalar *A,*QR,*p,*T,*f,*gamma,*s,*dgdev,*dprev;
+  PetscScalar *dNew;
+  VecGetArrayRead(_A,&A);
+  VecGetArrayRead(_QR,&QR);
+  VecGetArrayRead(_p,&p);
+  VecGetArrayRead(Temp,&T);
+  VecGetArrayRead(_f,&f);
+  VecGetArrayRead(_gamma,&gamma);
+  VecGetArrayRead(sdev,&s);
+  VecGetArrayRead(dgdev_disl,&dgdev);
+  VecGetArrayRead(grainSizePrev,&dprev);
+  VecGetArray(grainSizeNew,&dNew);
+
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(_d,&Istart,&Iend);CHKERRQ(ierr);
+  PetscInt N = Iend - Istart;
+
+  PetscScalar rootTol = 1e-9;
+  PetscInt maxNumIts = 1e4;
+  PetscInt rootIts = 0;
+  AustinEvans2007 temp(N, dt, dprev, A,QR,p,T, f,s,dgdev,gamma,_c);
+  ierr = temp.computeGrainSize(dNew, rootTol, rootIts, maxNumIts); CHKERRQ(ierr);
+
+  VecRestoreArrayRead(_A,&A);
+  VecRestoreArrayRead(_QR,&QR);
+  VecRestoreArrayRead(_p,&p);
+  VecRestoreArrayRead(Temp,&T);
+  VecRestoreArrayRead(_f,&f);
+  VecRestoreArrayRead(_gamma,&gamma);
+  VecRestoreArrayRead(sdev,&s);
+  VecRestoreArrayRead(dgdev_disl,&dgdev);
+  VecRestoreArrayRead(grainSizePrev,&dprev);
+  VecRestoreArray(grainSizeNew,&dNew);
+
+  VecCopy(grainSizeNew,_d);
+
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -448,3 +518,86 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
   #endif
   return ierr;
 }
+
+
+//======================================================================
+// Root-finding for Austin and Evans (2007) evolution law
+//======================================================================
+
+
+// constructor and destructor
+AustinEvans2007::AustinEvans2007(const PetscInt N,const PetscScalar deltaT, const PetscScalar* dprev,const PetscScalar* A,const PetscScalar* QR,const PetscScalar* p,const PetscScalar* T,const PetscScalar* f,const PetscScalar* sdev,const PetscScalar* dgdev,const PetscScalar* gamma,const PetscScalar& c)
+: _N(N),_deltaT(deltaT),_dprev(dprev),_A(A),_QR(QR),_p(p),_T(T),_f(f),_sdev(sdev),_dgdev(dgdev),_gamma(gamma),_c(c)
+{ }
+
+// command to perform root-finding process, once contextual variables have been set
+PetscErrorCode AustinEvans2007::computeGrainSize(PetscScalar* grainSize, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "AustinEvans2007::computeGrainSize";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+PetscPrintf(PETSC_COMM_WORLD,"line 542\n");
+  PetscScalar left = 0, right = 100, out = 0;
+  for (PetscInt Jj = 0; Jj< _N; Jj++) {
+
+    //Bisect rootFinder(maxNumIts,rootTol);
+    //ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+    //ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+
+    //~ PetscScalar x0 = grainSize[Jj];
+    //~ BracketedNewton rootFinder(maxNumIts,rootTol);
+    //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+    //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+
+    //~ grainSize[Jj] = out;
+    grainSize[Jj] = _dprev[Jj];
+  }
+PetscPrintf(PETSC_COMM_WORLD,"line 558\n");
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+// function that matches root finder template
+PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar* out)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
+  PetscScalar growth = Ag * pow(dnew,1.0-_p[Jj]); // term from static grain growth
+
+  PetscScalar Ar = - _f[Jj] / (_sdev[Jj]*_dgdev[Jj] * _c);
+  PetscScalar red = Ar * dnew*dnew; // term from grain size reduction
+
+  *out = dnew - _dprev[Jj] + _deltaT* (red + growth);
+
+  assert(!isnan(*out));
+  assert(!isinf(*out));
+  return ierr;
+}
+
+PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar *out,PetscScalar *J)
+{
+  PetscErrorCode ierr = 0;
+
+  PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
+  PetscScalar growth = Ag * pow(dnew,1.0-_p[Jj]); // term from static grain growth
+
+  PetscScalar Ar = - _f[Jj] / (_sdev[Jj]*_dgdev[Jj] * _c);
+  PetscScalar red = Ar * dnew*dnew; // term from grain size reduction
+
+  *out = dnew - _dprev[Jj] + _deltaT* (red + growth);
+
+  assert(!isnan(*out)); assert(!isinf(*out));
+  assert(!isnan(*J)); assert(!isinf(*J));
+  return ierr;
+}
+
+
+
+
+
+

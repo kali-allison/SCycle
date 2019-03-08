@@ -152,8 +152,6 @@ class Fault_qd: public Fault
     PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
 
     PetscErrorCode writeContext(const std::string outputDir);
@@ -192,7 +190,6 @@ class Fault_fd: public Fault
     PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT,
       map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
     PetscErrorCode computeVel();
     PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
     PetscErrorCode setPhi(const PetscScalar _deltaT);

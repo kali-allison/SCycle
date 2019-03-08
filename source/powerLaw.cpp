@@ -895,8 +895,8 @@ PetscErrorCode PowerLaw::loadSettings(const char *file)
     // temperature and grain size
     else if (var.compare("TVals")==0) { loadVectorFromInputFile(rhsFull,_TVals); }
     else if (var.compare("TDepths")==0) { loadVectorFromInputFile(rhsFull,_TDepths); }
-    else if (var.compare("grainSize_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_grainSizeVals); }
-    else if (var.compare("grainSize_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_grainSizeDepths); }
+    else if (var.compare("grainSizeEv_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_grainSizeVals); }
+    else if (var.compare("grainSizeEv_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_grainSizeDepths); }
 
     // cap on viscosity
     else if (var.compare("maxEffVisc")==0) { _effViscCap = atof( rhs.c_str() ); }
@@ -941,6 +941,9 @@ PetscErrorCode PowerLaw::checkInput()
     _wDiffCreep = "no";
     _wDislCreep = "no";
   }
+
+  assert(_grainSizeVals.size() >= 2);
+  assert(_grainSizeVals.size() == _grainSizeDepths.size() );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

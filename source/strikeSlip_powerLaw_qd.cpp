@@ -328,7 +328,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   }
 
   if (_grainSizeEvCoupling.compare("no")!=0) {
-     _grainDist->initiateIntegrand(_initTime,_varEx);
+     _grainDist->initiateIntegrand(_initTime,_varEx,_varIm);
   }
 
   #if VERBOSE > 1
@@ -701,12 +701,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _fault->updateTemperature(varImo.find("Temp")->second);
     _material->updateTemperature(varImo.find("Temp")->second);
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"line 704 med\n");
   // update grain size in material
   if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
     _material->updateGrainSize(varEx.find("grainSize")->second);
   }
-
+  if ( varIm.find("grainSize") != varIm.end() && _grainSizeEvCoupling.compare("coupled")==0) {
+    _material->updateGrainSize(varIm.find("grainSize")->second);
+  }
+PetscPrintf(PETSC_COMM_WORLD,"line 712 med\n");
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -717,11 +720,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"line 723 med\n");
   if ( varEx.find("grainSize") != varEx.end() ) {
     _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"line 727 med\n");
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -735,8 +738,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     VecSet(dvarEx["psi"],0.);
     VecSet(dvarEx["slip"],0.);
   }
-
+PetscPrintf(PETSC_COMM_WORLD,"line 741 med\n");
   // 3. implicitly integrated variables
+  if ( varIm.find("grainSize") != varIm.end() ) {
+    _grainDist->be(varIm["grainSize"],varIm.find("grainSize")->second,time,_material->_sdev,_material->_dgVdev_disl,_material->_T,dt);
+  }
+PetscPrintf(PETSC_COMM_WORLD,"line 746 med\n");
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
     Vec sxy,sxz,sdev;
