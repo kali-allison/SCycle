@@ -75,9 +75,10 @@ PetscErrorCode writeVec(Vec vec, const string filename)
 {
   PetscErrorCode ierr = 0;
   PetscViewer    viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
-  ierr = VecView(vec,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_WRITE,&viewer);
+  ierr = VecView(vec,viewer); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
   return ierr;
 }
 
@@ -86,7 +87,7 @@ PetscErrorCode writeVecAppend(Vec vec,const string filename)
 {
   PetscErrorCode ierr = 0;
   PetscViewer    viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&viewer); CHKERRQ(ierr);
+  PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&viewer);
   ierr = VecView(vec,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   return ierr;
@@ -128,27 +129,6 @@ PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const string dir)
     ierr = PetscViewerDestroy(&vwL[it->first]); CHKERRQ(ierr);
     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,(dir + it->first).c_str(),FILE_MODE_APPEND,&vwL[it->first]); CHKERRQ(ierr);
   }
-  return ierr;
-}
-
-// initiate viewer to write and append vectors
-PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
-{
-  PetscErrorCode ierr = 0;
-
-  // initiate viewer
-  PetscViewer vw;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_WRITE,&vw); CHKERRQ(ierr);
-  vwL[key].first = vw;
-  vwL[key].second = filename;
-
-  // write vec out
-  ierr = VecView(vec,vw); CHKERRQ(ierr);
-
-  // change viewer to append mode
-  ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename.c_str(),FILE_MODE_APPEND,&vwL[key].first); CHKERRQ(ierr);
-
   return ierr;
 }
 
@@ -953,21 +933,48 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
+// initiate viewer to write and append vectors
+PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
+{
+  PetscErrorCode ierr = 0;
+
+  // initiate viewer
+  PetscViewer viewer;
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
+  ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  vwL[key].first = viewer;
+  vwL[key].second = filename;
+
+  ierr = PetscViewerPopFormat(viewer); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+  // reset to append mode
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(),&vwL[key].first); CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr);
+  return ierr;
+}
+
+
 // append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
 PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
   PetscErrorCode ierr = 0;
 
   // initiate viewer
-  PetscViewer vw;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vw); CHKERRQ(ierr);
-  vwL[key].first = vw;
+  PetscViewer viewer;
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
+  ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+  vwL[key].first = viewer;
   vwL[key].second = filename;
-  ierr = VecView(vec, vw); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&vw); CHKERRQ(ierr);
 
-  // change viewer to append mode
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
-  
+  ierr = PetscViewerPopFormat(viewer); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(),&vwL[key].first); CHKERRQ(ierr);
+  ierr = PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr); 
   return ierr;
 }
 
@@ -975,10 +982,8 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
 // write a new ASCII file to 15 decimal places (for time and dt)
 PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
   PetscErrorCode ierr = 0;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
   ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
   
   return ierr;
@@ -987,10 +992,8 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscVi
 // write integer ASCII (for ckptNumber)
 PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscInt var) {
   PetscErrorCode ierr = 0;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
   ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer, "%i\n", var);CHKERRQ(ierr);
   
   return ierr;
@@ -999,10 +1002,8 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscVi
 // append to existing ASCII file (for scalars: time and dt)
 PetscErrorCode appendASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
   PetscErrorCode ierr = 0;
-  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &viewer); CHKERRQ(ierr);
-  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
   ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str()); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
   
   return ierr;

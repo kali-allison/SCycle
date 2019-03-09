@@ -1538,7 +1538,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_fd()
 
 // quasidynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1576,10 +1576,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
-  ierr = _fault_qd->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+  ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
-    _p->d_dt(time,varEx,dvarEx,stepCount);
+    _p->d_dt(time,varEx,dvarEx);
   }
 
   #if VERBOSE > 1
@@ -1590,7 +1590,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
 
 // quasidynamic: implicit/explicit time stepping
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1637,11 +1637,11 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
-  ierr = _fault_qd->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+  ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   if ( _hydraulicCoupling.compare("no")!=0 ) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt,stepCount);
-    // _p->d_dt(time,varEx,dvarEx,stepCount);
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
+    // _p->d_dt(time,varEx,dvarEx);
   }
 
   // heat equation
@@ -1666,7 +1666,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
 
 // fully dynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1678,7 +1678,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
   // update fault
-  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev,stepCount);CHKERRQ(ierr);
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
 
   // update body u from fault u
@@ -1737,7 +1737,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
     Vec tau = _fault_fd->_tauP;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
-    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt,stepCount); CHKERRQ(ierr);
+    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
     VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
     _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
     VecDestroy(&dTdt);
@@ -1751,7 +1751,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
 
 
 // fully dynamic: IMEX time stepping
-PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, map<string,Vec>& varIm, const map<string,Vec>& varImPrev, PetscInt stepCount)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, map<string,Vec>& varIm, const map<string,Vec>& varImPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1763,7 +1763,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
   // update fault
-  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev,stepCount);CHKERRQ(ierr);
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
 
 
   // update body u from fault u

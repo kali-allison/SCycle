@@ -1192,7 +1192,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
 
 // purely explicit adaptive time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
@@ -1217,7 +1217,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
-    _p->d_dt(time,varEx,dvarEx,stepCount);
+    _p->d_dt(time,varEx,dvarEx);
   }
 
   // update fields on fault from other classes
@@ -1231,7 +1231,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
   // rates for fault
   if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
-    ierr = _fault_qd->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+    ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
     VecSet(dvarEx["psi"],0.);
@@ -1244,7 +1244,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
 
 // implicit/explicit adaptive time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1285,7 +1285,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt,stepCount);
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
   // update shear stress on fault from momentum balance computation
@@ -1297,7 +1297,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
   // rates for fault
   if (_qd_bcLType.compare("symmFault")==0 || _qd_bcLType.compare("rigidFault")==0) {
-    ierr = _fault_qd->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+    ierr = _fault_qd->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
   else {
     VecSet(dvarEx["psi"],0.);
@@ -1327,7 +1327,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
 // fully dynamic: purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1340,7 +1340,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
   // effect of fault: update body u from fault u
-  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev,stepCount);CHKERRQ(ierr);
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
 
@@ -1379,7 +1379,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
     Vec gVxz_t = NULL;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
-    ierr = _he->d_dt(time,V,tau,sdev,gVxy_t,gVxz_t,Tn,dTdt,stepCount); CHKERRQ(ierr);
+    ierr = _he->d_dt(time,V,tau,sdev,gVxy_t,gVxz_t,Tn,dTdt); CHKERRQ(ierr);
     VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
     _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
     VecDestroy(&dTdt);
@@ -1393,7 +1393,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
 
 
 // fully dynamic: IMEX time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, map<string,Vec>& varIm, const map<string,Vec>& varImPrev, PetscInt stepCount)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, map<string,Vec>& varIm, const map<string,Vec>& varImPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1405,7 +1405,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   propagateWaves(time, deltaT, varNext, var, varPrev);
 
   // effect of fault: update body u from fault u
-  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev,stepCount);CHKERRQ(ierr);
+  ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   //~ ierr = VecScatterBegin(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);

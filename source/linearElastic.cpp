@@ -343,7 +343,7 @@ PetscErrorCode LinearElastic::allocateFields()
   VecSet(_bcL,0.0);
 
   VecDuplicate(_bcL,&_bcRShift);
-  PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
+  PetscObjectSetName((PetscObject) _bcRShift, "bcRShift");
   VecSet(_bcRShift,0.0);
 
   VecDuplicate(_bcL,&_bcR);
@@ -698,6 +698,7 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
   }
 
   // we are restarting the simulation from previous checkpoints, directly append
@@ -707,15 +708,17 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
     ierr = initiate_appendVecToOutput(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
   }
 
   // regular appending data to the files
-  else if (stepCount > 0 && stepCount <= _maxStepCount) {
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
     ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcRShift"].first); CHKERRQ(ierr);
     // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
     if (stepCount == _maxStepCount && _ckpt > 0) {
       ierr = writeVec(_bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
@@ -765,7 +768,7 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const std::string 
   }
   
   // regular appending values/vectors
-  else if (stepCount > 0 && stepCount <= _maxStepCount) {
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     // if need to compute sigma_xz

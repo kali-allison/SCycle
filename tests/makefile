@@ -13,9 +13,9 @@ include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-output: test_loadVecMap.o $(OBJECTS)
+output: testCheckpointLoadVal.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm test_loadVecMap.o
+	-rm testCheckpointLoadVal.o
 
 depend:
 	-g++ -MM *.c*
@@ -24,5 +24,5 @@ clean::
 	-rm -f *.o output
 
 # Dependencies
-test_loadVecMap.o: test_loadVecMap.cpp genFuncs.hpp
+testCheckpointLoadVal.o: testCheckpointLoadVal.cpp genFuncs.hpp
 genFuncs.o: genFuncs.hpp genFuncs.cpp

@@ -1,14 +1,4 @@
-#include <assert.h>
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <sstream>
-#include <string>
-#include <vector>
-
-#include <petscdmda.h>
-#include <petscts.h>
-#include <petscviewer.h>
+#include "genFuncs.hpp"
 
 using namespace std;
 
@@ -18,30 +8,16 @@ int main(int argc, char **args) {
   ierr = PetscInitialize(&argc, &args, NULL, NULL); CHKERRQ(ierr);
 
   // directory and filename
-  const string outputDir = "/home/yyy910805/";
-  const string filename = "_test";
-  PetscScalar value = 50.5;
+  const string outputDir = "/home/yyy910805/scycle/tests/";
+  const string filename = "momBal_bcL_ckpt";
 
-  const string checkpointFile = outputDir + filename;
-  PetscViewer viewer1, viewer2, viewer3;
-  int fd;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer1);
-  PetscViewerBinaryGetDescriptor(viewer1, &fd);
-  PetscBinaryWrite(fd, &value, 1, PETSC_SCALAR, PETSC_FALSE);
-  PetscViewerDestroy(&viewer1);
+  Vec x;
+  VecCreate(PETSC_COMM_WORLD, &x);
+  VecSetSizes(x, PETSC_DECIDE, 1);
+  VecSetFromOptions(x);
+  loadVecFromInputFile(x, outputDir, filename);
 
-  value = 100.5;
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_WRITE, &viewer3);
-  PetscViewerBinaryGetDescriptor(viewer3, &fd);
-  PetscBinaryWrite(fd, &value, 1, PETSC_SCALAR, PETSC_FALSE);
-  PetscViewerDestroy(&viewer3);
-  
-  PetscViewerBinaryOpen(PETSC_COMM_WORLD, checkpointFile.c_str(), FILE_MODE_READ, &viewer2);
-  PetscViewerBinaryGetDescriptor(viewer2, &fd);
-  PetscBinaryRead(fd, &value, 1, PETSC_SCALAR);
-  PetscViewerDestroy(&viewer2);
-  
-  ierr = PetscPrintf(PETSC_COMM_WORLD, " %f\n", value); CHKERRQ(ierr);
+  VecView(x, PETSC_VIEWER_STDOUT_WORLD);
 
   ierr = PetscFinalize(); CHKERRQ(ierr);
   

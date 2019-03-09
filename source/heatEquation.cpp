@@ -981,7 +981,7 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
 
 // for thermomechanical coupling with explicit time stepping
 // Note: This actually returns d/dt (T - Tamb), where Tamb is the 1D steady-state geotherm
-PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt, PetscInt stepCount)
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

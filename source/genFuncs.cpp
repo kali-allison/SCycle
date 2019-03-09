@@ -132,31 +132,6 @@ PetscErrorCode appendViewers(map<string,PetscViewer>& vwL,const string dir)
   return ierr;
 }
 
-// initiate viewer to write and append vectors
-PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
-{
-  PetscErrorCode ierr = 0;
-
-  // initiate viewer
-  PetscViewer viewer;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
-  ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-  vwL[key].first = viewer;
-  vwL[key].second = filename;
-
-  // write vec out
-  ierr = VecView(vec,viewer); CHKERRQ(ierr);
-  ierr = PetscViewerPopFormat(viewer); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-
-  // reset to append mode
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(),&vwL[key].first); CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr);
-  return ierr;
-}
-
 
 /* Print all entries of 2D DMDA global vector to stdout, including which
  * processor each entry lives on, and the corresponding subscripting indices
@@ -958,26 +933,46 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
-// append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
-PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
+// initiate viewer to write and append vectors
+PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
+{
   PetscErrorCode ierr = 0;
 
   // initiate viewer
   PetscViewer viewer;
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
   ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
   vwL[key].first = viewer;
   vwL[key].second = filename;
 
-  // write vec out
-  ierr = VecView(vec,viewer); CHKERRQ(ierr);
   ierr = PetscViewerPopFormat(viewer); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
+  // reset to append mode
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(),&vwL[key].first); CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr); 
+  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr);
+  return ierr;
+}
+
+
+// append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
+PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
+  PetscErrorCode ierr = 0;
+
+  // initiate viewer
+  PetscViewer viewer;
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  vwL[key].first = viewer;
+  vwL[key].second = filename;
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+  PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
+  PetscViewerSetType(vwL[key].first, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
+  PetscViewerFileSetName(vwL[key].first, filename.c_str());
+  PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB);    
   return ierr;
 }
 

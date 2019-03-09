@@ -629,7 +629,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
   }
 
   // regular appending data to the end of original data file
-  else if (stepCount > 0 && stepCount <= _maxStepCount) {
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
@@ -801,6 +801,8 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  loadFieldsFromFiles();
+
   // radiation damping parameter: 0.5 * sqrt(mu*rho)
   VecDuplicate(_tauP,&_eta_rad);
   PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
@@ -808,7 +810,6 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,1.0/_faultTypeScale);
 
-  loadFieldsFromFiles();
   loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
 
   #if VERBOSE > 1
@@ -853,7 +854,7 @@ PetscErrorCode Fault_qd::initiateIntegrand(const PetscScalar time, map<string,Ve
     varEx["psi"] = varPsi;
   }
 
-  // slip is initialized in the strikeSlip class's initiateIntegrand function, thus not initialized here
+  // slip is initialized in the strikeSlip class's initiateIntegrand function
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -933,7 +934,7 @@ PetscErrorCode Fault_qd::computeVel()
 
 
 // time stepping
-PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& varEx, map<string,Vec>& dvarEx, PetscInt stepCount)
+PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& varEx, map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -945,18 +946,12 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     // add pre-stress to quasi-static shear stress for starting simulation only
     ierr = VecAXPY(_tauQSP,1.0,_prestress); CHKERRQ(ierr);
   }
-  double startTime = MPI_Wtime();
   
+  double startTime = MPI_Wtime();
   // compute slip velocity
-  if (_ckptNumber > 0 && stepCount == 0) {
-    // don't compute slip velocity since we have already loaded from checkpoint
-    ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
-  }
-  else {
-    ierr = computeVel(); CHKERRQ(ierr);
-    ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
-    _computeVelTime += MPI_Wtime() - startTime;
-  }
+  ierr = computeVel(); CHKERRQ(ierr);
+  ierr = VecCopy(_slipVel,dvarEx["slip"]); CHKERRQ(ierr);
+  _computeVelTime += MPI_Wtime() - startTime;
   
   // compute rate of state variable
   Vec dstate = dvarEx.find("psi")->second;
@@ -991,14 +986,9 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
   _stateLawTime += MPI_Wtime() - startTime;
 
   // set tauP = tauQS - eta_rad *slipVel
-  if (stepCount == 0 && _ckptNumber > 0) {
-    // don't do anything since we have already loaded them from checkpoint
-  }
-  else {
-    ierr = VecCopy(_slipVel,_tauP); CHKERRQ(ierr); // V -> tau
-    ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP); CHKERRQ(ierr); // tau = V * eta_rad
-    ierr = VecAYPX(_tauP,-1.0,_tauQSP); CHKERRQ(ierr); // tau = tauQS - V*eta_rad
-  }
+  ierr = VecCopy(_slipVel,_tauP); CHKERRQ(ierr); // V -> tau
+  ierr = VecPointwiseMult(_tauP,_eta_rad,_tauP); CHKERRQ(ierr); // tau = V * eta_rad
+  ierr = VecAYPX(_tauP,-1.0,_tauQSP); CHKERRQ(ierr); // tau = tauQS - V*eta_rad
   
   // compute frictional strength of fault based on slip velocity
   strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
@@ -1522,7 +1512,7 @@ PetscErrorCode Fault_fd::updatePrestress(const PetscScalar currT)
 
 
 // calculate slip velocity by calling computeVel(), and performs explicit time stepping, updating fields with the new time step
-PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext,const map<string,Vec>& var,const map<string,Vec>& varPrev, PetscInt stepCount)
+PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext,const map<string,Vec>& var,const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
 

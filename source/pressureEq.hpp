@@ -118,12 +118,12 @@ public:
   PetscErrorCode loadFieldsFromFiles();
 
   // explicit time integration
-  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, PetscInt stepCount);
+  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
   // implicit time integration
-  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt, PetscInt stepCount);
+  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   PetscErrorCode be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
                     map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,

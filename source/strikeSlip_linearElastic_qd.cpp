@@ -416,17 +416,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
-  VecCopy(_material->_bcL,slip);
-  VecScale(slip,_faultTypeScale);
   if (_ckptNumber > 0) {
     ierr = loadVecFromInputFile(slip, _outputDir, "slip_ckpt"); CHKERRQ(ierr);
   }
   else {
+    VecCopy(_material->_bcL,slip);
+    VecScale(slip,_faultTypeScale);
     ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
   }
   _varEx["slip"] = slip;
 
-  if (_guessSteadyStateICs) {
+  if (_ckptNumber == 0 && _guessSteadyStateICs == 1) {
     solveSS();
   }
 
@@ -467,6 +467,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
   /* write solution to file (1D) when _currTime == _maxTime (simulation ends),
    * or if _stride1D > 0 and stepCount is an integer multiple of _stride1D */
   if (_currTime == _maxTime || (_stride1D > 0 && stepCount % _stride1D == 0)) {
+    printf("stepCount = %i\n",stepCount);
     ierr = writeStep1D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
@@ -715,7 +716,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   #endif
   double startTime = MPI_Wtime();
 
+  printf("bcL before initiateIntegrand():\n");
+  VecView(_material->_bcL, PETSC_VIEWER_STDOUT_WORLD);
   initiateIntegrand(); // put initial conditions into var for integration
+
+  printf("bcL after initiateIntegrand():\n");
+  VecView(_material->_bcL, PETSC_VIEWER_STDOUT_WORLD);
+  
   _stepCount = 0;
 
   // initialize time integrator
@@ -777,8 +784,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
       _quadEx->_errA.push_front(prevErr);
       _quadEx->_errA.push_front(currErr);
     }
-
-    // performs integration according to odeSolver class
+    printf("Checking loading of _bcL:\n");
+    VecView(_material->_bcL, PETSC_VIEWER_STDOUT_WORLD);
+    
     ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
@@ -795,25 +803,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 
 // purely explicit time stepping
 // note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, PetscInt stepCount)
+PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx)
 {
   PetscErrorCode ierr = 0;
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_ckptNumber > 0 && stepCount == 0) {
-    // do nothing if loaded from checkpoint already
+  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
+    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  else {
-    if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
-      ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-      ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
-    }
-    if (_bcRType.compare("remoteLoading")==0) {
-      ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
-      ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-    }
+  if (_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
   
+  // initializes varEx["psi"] = _psi, varEx["slip"] = _slip
   _fault->updateFields(time,varEx);
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0){
@@ -834,18 +838,18 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
-  ierr = _fault->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
-    _p->d_dt(time,varEx,dvarEx,stepCount);
+    _p->d_dt(time,varEx,dvarEx);
   }
-
+  
   return ierr;
 }
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt, PetscInt stepCount)
+PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -856,19 +860,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_ckptNumber > 0 && stepCount == 0) {
-    // do nothing since we've loaded from checkpoint
+  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
+    ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
+    ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  else {
-    if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
-      ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
-      ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
+  if (_bcRType.compare("remoteLoading")==0) {
+    ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
+    ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
     }
-    if (_bcRType.compare("remoteLoading")==0) {
-      ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
-      ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-    }
-  }
   
   _fault->updateFields(time,varEx);
 
@@ -894,10 +893,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // rates for fault
-  ierr = _fault->d_dt(time,varEx,dvarEx,stepCount); // sets rates for slip and state
+  ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
   if ( _hydraulicCoupling.compare("no")!=0 ) {
-    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt,stepCount);
+    _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
   // heat equation

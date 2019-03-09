@@ -106,7 +106,7 @@ class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
     PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // explicit time-stepping methods
-    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, PetscInt stepCount);
+    PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
     // IO functions
     PetscErrorCode view();

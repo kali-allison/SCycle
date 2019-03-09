@@ -193,7 +193,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   }
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
   // call timeMonitor and write out the first step
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
@@ -202,7 +202,7 @@ PetscErrorCode FEuler::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   // _maxNumSteps is already set to _maxStepCount from strikeSlip_linearElastic_qd
   while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
-    ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
       // var = var + deltaT*dvar
@@ -575,7 +575,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   }
 
   // set initial condition
-  ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
   // perform time stepping routine and calling d_dt
@@ -609,14 +609,14 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_k2[it->first],2*_deltaT,_f1[it->first]);CHKERRQ(ierr);
       }
-      ierr = obj->d_dt(_currT+_deltaT,_k2,_f2,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+_deltaT,_k2,_f2);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -648,7 +648,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       ierr = VecCopy(_y3[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
     }
-    ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     if (_totErr > 0.0) {
       _deltaT = computeStepSize(_totErr, ckptNumber);
@@ -1003,7 +1003,6 @@ PetscReal RK43::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
       VecNorm(errVec,NORM_2,&err);
       VecDestroy(&errVec);
-
       PetscReal s = 0;
       VecNorm(_y4[key],NORM_2,&s);
       _totErr += err / (s * _scale[i]);
@@ -1104,9 +1103,9 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   if (_maxNumSteps == 0) {
     return ierr;
   }
-
+  
   // set initial condition
-  ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+  ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   
@@ -1146,23 +1145,31 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       }
 
       printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
+
       // stage 1: k1 = var, compute f1 = f(k1)
       _f1 = _dvar;
 
       // stage 2: compute k2
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],a21*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
+	printf("Checking the value of _var, _f1 and _k2:\n");
+	VecView(_var[it->first], PETSC_VIEWER_STDOUT_WORLD);
+	VecView(_f1[it->first], PETSC_VIEWER_STDOUT_WORLD);
+	VecView(_k2[it->first], PETSC_VIEWER_STDOUT_WORLD);
       }
       // compute f2
-      ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2);CHKERRQ(ierr);
       
       // stage 3: compute k3
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k3[it->first],a31*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_k3[it->first],a32*_deltaT,_f2[it->first]); CHKERRQ(ierr);
+	printf("Checking the value of _k2, _f2:\n");
+	VecView(_k2[it->first], PETSC_VIEWER_STDOUT_WORLD);
+	VecView(_f2[it->first], PETSC_VIEWER_STDOUT_WORLD);
       }
       // compute f3
-      ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3);CHKERRQ(ierr);
 
       // stage 4
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1171,7 +1178,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
         ierr =  VecAXPY(_k4[it->first],a43*_deltaT,_f3[it->first]); CHKERRQ(ierr);
       }
       // compute f4
-      ierr = obj->d_dt(_currT+c4*_deltaT,_k4,_f4,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+c4*_deltaT,_k4,_f4);CHKERRQ(ierr);
 
       // stage 5
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1181,7 +1188,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
         ierr =  VecAXPY(_k5[it->first],a54*_deltaT,_f4[it->first]); CHKERRQ(ierr);
       }
       // compute f5
-      ierr = obj->d_dt(_currT+c5*_deltaT,_k5,_f5,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+c5*_deltaT,_k5,_f5);CHKERRQ(ierr);
 
       // stage 6
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1192,7 +1199,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
         ierr =  VecAXPY(_k6[it->first],a65*_deltaT,_f5[it->first]); CHKERRQ(ierr);
       }
       // compute f6
-      ierr = obj->d_dt(_currT+c6*_deltaT,_k6,_f6,_stepCount);CHKERRQ(ierr);
+      ierr = obj->d_dt(_currT+c6*_deltaT,_k6,_f6);CHKERRQ(ierr);
 
       // 3rd and 4th order updates
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
@@ -1235,7 +1242,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       VecSet(_dvar[it->first],0.0);
     }
 
-    ierr = obj->d_dt(_currT,_var,_dvar,_stepCount);CHKERRQ(ierr);
+    ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
     // write into output files
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 

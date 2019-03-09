@@ -521,7 +521,8 @@ PetscErrorCode SbpOps_m_varGrid::constructBs(const TempMats_m_varGrid& tempMats)
 }
 
 
-
+// TODO: need to be optimized
+// CHECK: whether called by some other function
 PetscErrorCode SbpOps_m_varGrid::updateVarCoeff(const Vec& coeff)
 {
   PetscErrorCode  ierr = 0;
@@ -540,8 +541,10 @@ PetscErrorCode SbpOps_m_varGrid::updateVarCoeff(const Vec& coeff)
   MatMatMult(_mu,_rz,MAT_REUSE_MATRIX,1.,&_murz);
 
   // update Mats
+  // saved private variables
   TempMats_m_varGrid tempMats(_order,_Ny,_dy,_Nz,_dz,_compatibilityType);
   constructBs(tempMats);
+  // TODO: a lot of intermediate matrices
   updateBCMats();
   updateA_BCs(tempMats);
 

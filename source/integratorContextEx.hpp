@@ -19,7 +19,7 @@ class IntegratorContextEx
 
   virtual PetscErrorCode integrate() = 0;
 
-  virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar, PetscInt stepCount) = 0;
+  virtual PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& var,map<string,Vec>& dvar) = 0;
 
     // for output and monitoring as time integration progresses
     // this function is not required

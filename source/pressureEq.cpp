@@ -955,7 +955,7 @@ PetscErrorCode PressureEq::dk_dt(const PetscScalar time, const Vec slipVel, cons
 }
 
 // purely explicit time integration
-PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, PetscInt stepCount)
+PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -984,7 +984,7 @@ PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &
 }
 
 // implicit/explicit time integration
-PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt, PetscInt stepCount)
+PetscErrorCode PressureEq::d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
