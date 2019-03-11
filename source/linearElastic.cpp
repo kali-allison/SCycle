@@ -578,7 +578,7 @@ PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcT
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-    // destroy current KSP context to reset
+  // destroy current KSP context to reset
   KSPDestroy(&_ksp);
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
 

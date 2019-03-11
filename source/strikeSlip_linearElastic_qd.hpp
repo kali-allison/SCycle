@@ -37,112 +37,115 @@ using namespace std;
 class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
 {
 private:
-    // disable default copy constructor and assignment operator
-    StrikeSlip_LinearElastic_qd(const StrikeSlip_LinearElastic_qd &that);
-    StrikeSlip_LinearElastic_qd& operator=(const StrikeSlip_LinearElastic_qd &rhs);
+  // disable default copy constructor and assignment operator
+  StrikeSlip_LinearElastic_qd(const StrikeSlip_LinearElastic_qd &that);
+  StrikeSlip_LinearElastic_qd& operator=(const StrikeSlip_LinearElastic_qd &rhs);
 
-    Domain *_D;
+  Domain *_D;
 
-    // IO information
-    string       _delim; // format is: var delim value (without the white space)
+  // IO information
+  string       _delim; // format is: var delim value (without the white space)
 
-    // problem properties
-    const bool      _isMMS; // true if running mms test
-    string          _outputDir; // output data
-    string          _inputDir; // input data
-    const bool      _loadICs; // true if starting from a previous simulation
-    PetscScalar     _vL;
-    string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-    string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-    string          _stateLaw;
-    int             _guessSteadyStateICs; // 0 = no, 1 = yes
-    string          _forcingType; // what body forcing term to include (i.e. iceStream)
-    PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+  // problem properties
+  const bool      _isMMS; // true if running mms test
+  string          _outputDir; // output data
+  string          _inputDir; // input data
+  const bool      _loadICs; // true if starting from a previous simulation
+  PetscScalar     _vL;
+  string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+  string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+  string          _stateLaw;
+  int             _guessSteadyStateICs; // 0 = no, 1 = yes
+  string          _forcingType; // what body forcing term to include (i.e. iceStream)
+  PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
-    // time stepping data
-    map <string,Vec>  _varEx; // holds variables for explicit integration in time
-    map <string,Vec>  _varIm; // holds variables for implicit integration in time
-    string            _timeIntegrator,_timeControlType;
-    PetscInt          _stride1D,_stride2D; // stride
-    PetscInt          _maxStepCount; // largest number of time steps
-    // checkpoint parameters
-    PetscInt          _ckpt, _ckptNumber, _interval;
-    PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
-    int               _stepCount; // number of time steps at which results are written out
-    PetscScalar       _timeStepTol;
-    PetscScalar       _initDeltaT;
-    vector<string>    _timeIntInds;// keys of variables to be used in time integration
-    vector<double>    _scale; // scale factor for entries in _timeIntInds
-    string            _normType;
-
-
-    // runtime data
-    double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
-
-    // viewers
-    PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
-
-    // forcing term for ice stream problem
-    Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
-    PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
+  // time stepping data
+  map <string,Vec>  _varEx; // holds variables for explicit integration in time
+  map <string,Vec>  _varIm; // holds variables for implicit integration in time
+  string            _timeIntegrator,_timeControlType;
+  PetscInt          _stride1D,_stride2D; // stride
+  PetscInt          _maxStepCount; // largest number of time steps
+  // checkpoint parameters
+  PetscInt          _ckpt, _ckptNumber, _interval;
+  PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
+  int               _stepCount; // number of time steps at which results are written out
+  PetscScalar       _timeStepTol;
+  PetscScalar       _initDeltaT;
+  vector<string>    _timeIntInds;// keys of variables to be used in time integration
+  vector<double>    _scale; // scale factor for entries in _timeIntInds
+  string            _normType;
 
 
-    // boundary conditions
-    // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
-    string              _bcRType,_bcTType,_bcLType,_bcBType;
-    string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
+  // runtime data
+  double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
-    // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
-    map <string,pair<PetscViewer,string> >  _viewers;
+  // viewers
+  PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
 
-    // for mapping from body fields to the fault
-    VecScatter* _body2fault;
+  // forcing term for ice stream problem
+  Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
+  PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
 
-    // private member functions
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode checkInput();
-    PetscErrorCode parseBCs(); // parse boundary conditions
-    PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
-    PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
-  public:
+  // boundary conditions
+  // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
+  string              _bcRType,_bcTType,_bcLType,_bcBType;
+  string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
-    OdeSolver                  *_quadEx; // explicit time stepping
-    OdeSolverImex              *_quadImex; // implicit time stepping
+  // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
+  map <string,pair<PetscViewer,string> >  _viewers;
 
-    Fault_qd                   *_fault;
-    LinearElastic              *_material; // linear elastic off-fault material properties
-    HeatEquation               *_he;
-    PressureEq                 *_p;
+  // for mapping from body fields to the fault
+  VecScatter* _body2fault;
 
-    // constructor and destructor
-    StrikeSlip_LinearElastic_qd(Domain&D);
-    ~StrikeSlip_LinearElastic_qd();
+  // private member functions
+  PetscErrorCode loadSettings(const char *file);
+  PetscErrorCode checkInput();
+  PetscErrorCode parseBCs(); // parse boundary conditions
+  PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
+  PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
-    // estimating steady state conditions
-    PetscErrorCode solveSS();
-    PetscErrorCode solveSSb();
+public:
 
-    // time stepping functions
-    PetscErrorCode integrate(); // will call OdeSolver method by same name
-    PetscErrorCode initiateIntegrand();
-    PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+  OdeSolver                  *_quadEx; // explicit time stepping
+  OdeSolverImex              *_quadImex; // implicit time stepping
 
-    // explicit time-stepping methods
+  Fault_qd                   *_fault;
+  LinearElastic              *_material; // linear elastic off-fault material properties
+  HeatEquation               *_he;
+  PressureEq                 *_p;
+
+  // constructor and destructor
+  StrikeSlip_LinearElastic_qd(Domain&D);
+  ~StrikeSlip_LinearElastic_qd();
+
+  // estimating steady state conditions
+  PetscErrorCode solveSS();
+  PetscErrorCode solveSSb();
+
+  // checkpoint loading check
+  PetscErrorCode testLoading();
+  
+  // time stepping functions
+  PetscErrorCode integrate(); // will call OdeSolver method by same name
+  PetscErrorCode initiateIntegrand();
+  PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+
+  // explicit time-stepping methods
   PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
 
-    // methods for implicit/explicit time stepping
+  // methods for implicit/explicit time stepping
   PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt);
 
-    // IO functions
-    PetscErrorCode view();
-    PetscErrorCode writeContext();
-    PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount);
-    PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
-    PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+  // IO functions
+  PetscErrorCode view();
+  PetscErrorCode writeContext();
+  PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount);
+  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
 
-    // debugging and MMS tests
-    PetscErrorCode measureMMSError();
+  // debugging and MMS tests
+  PetscErrorCode measureMMSError();
 };
 
 #endif

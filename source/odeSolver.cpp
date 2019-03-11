@@ -578,6 +578,11 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
+  // load new _deltaT if ckptNumber > 0 (calculated at the end of previous simulation)
+  if (ckptNumber > 0) {
+    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
+  }
+
   // perform time stepping routine and calling d_dt
   while (_stepCount < _maxNumSteps && _currT < _finalT) {
     _stepCount++;
@@ -605,36 +610,48 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
         VecSet(_y3[it->first],0.0);
       }
 
+      printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
+      
       // stage 1: integrate fields to _currT + 0.5*deltaT
+      // TODO: check with Kali, are we missing _f1 = _dvar here?
+      _f1 = _dvar;
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
+	printf("Checking the value of _var, _f1 and _k1:\n");
+	VecView(_var[it->first], PETSC_VIEWER_STDOUT_WORLD);
+	VecView(_f1[it->first], PETSC_VIEWER_STDOUT_WORLD);
+	VecView(_k1[it->first], PETSC_VIEWER_STDOUT_WORLD);
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_k2[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_k2[it->first],-_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_k2[it->first],2*_deltaT,_f1[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+_deltaT,_k2,_f2);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_y2[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y2[it->first],0.5*_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y2[it->first],0.5*_deltaT,_f2[it->first]);CHKERRQ(ierr);
-        ierr = VecWAXPY(_y3[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y3[it->first],_deltaT/6.0,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],2*_deltaT/3.0,_f1[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],_deltaT/6.0,_f2[it->first]);CHKERRQ(ierr);
       }
 
       // calculate error
       _totErr = computeError();
-      
-      if (_totErr <= _atol) {
+      printf("stepCount = %i, attemptCount = %i, _totErr = %e\n", _stepCount, attemptCount, _totErr);
+      // accept step
+      if (_totErr < _atol) {
+	printf("stepCount = %i, _totErr < _atol, breaking, attemptCount = %i\n", _stepCount, attemptCount);
 	break;
       }
-      // calculate _deltaT
-      _deltaT = computeStepSize(_totErr,ckptNumber);
+      
+      // calculate time step
+      _deltaT = computeStepSize(_totErr, ckptNumber);
+      printf("stepCount = %i, attemptCount = %i, _totErr >= _atol, computed time step = %e\n", _stepCount, attemptCount, _deltaT);
       if (_deltaT - _minDeltaT < 1e-8) {
 	break;
       }
@@ -650,6 +667,13 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
+    // save the _deltaT here as prevDeltaT
+    if (_stepCount == _maxNumSteps) {
+      PetscViewer viewer;
+      writeASCII(_outputDir, "prevDeltaT_ckpt", viewer, _deltaT);
+      PetscViewerDestroy(&viewer);
+    }
+
     if (_totErr > 0.0) {
       _deltaT = computeStepSize(_totErr, ckptNumber);
     }
@@ -657,23 +681,19 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     // push_front:_errA[0] = currErr, _errA[1] = prevErr
     _errA.push_front(_totErr);
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
-
-    // view totErr in file
-    if (_stepCount == 1) {
-      writeASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
-    }
-    else if (_stepCount > 1) {
-      appendASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
-    }
     
     // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer1, viewer2;
+      PetscViewer viewer1, viewer2, viewer3, viewer4;
       writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[1]);
       writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[0]);
+      writeASCII(_outputDir, "deltaT_ckpt", viewer3, _deltaT);
+      writeASCII(_outputDir, "currT_ckpt", viewer4, _currT);
       PetscViewerDestroy(&viewer1);
       PetscViewerDestroy(&viewer2);
-    }      
+      PetscViewerDestroy(&viewer3);
+      PetscViewerDestroy(&viewer4);
+    }
   }
 
   PetscViewerDestroy(&_viewErr);
@@ -1106,7 +1126,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   
   // set initial condition
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-  _f1 = _dvar;
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   
   // load new _deltaT if ckptNumber > 0 (calculated at the end of previous simulation)
@@ -1146,7 +1165,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
 
       printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
 
-      // stage 1: k1 = var, compute f1 = f(k1)
+      // stage 1: k1 = var, compute f1 = f(k1) = dvar
       _f1 = _dvar;
 
       // stage 2: compute k2
@@ -1246,7 +1265,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     // write into output files
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
-    // save the _deltaT here as prevDeltaT, also save _var
+    // save the _deltaT here as prevDeltaT
     if (_stepCount == _maxNumSteps) {
       PetscViewer viewer;
       writeASCII(_outputDir, "prevDeltaT_ckpt", viewer, _deltaT);
