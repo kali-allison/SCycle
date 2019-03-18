@@ -512,6 +512,8 @@ PetscErrorCode LinearElastic::setUpSBPContext()
   _sbp->computeMatrices(); // actually create the matrices
 
   PetscPrintf(PETSC_COMM_WORLD,"about to enter while loop to test updateVarCoeff\n");
+  
+  return ierr;
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -1,3 +1,4 @@
+
 #include <petscts.h>
 #include <petscviewerhdf5.h>
 #include <string>
@@ -86,6 +87,11 @@ int computeGreensFunction(const char * inputFile)
   VecSet(le._bcB,0.0);
   VecSet(le._bcR,0.0);
 
+  // set up KSP
+  Mat A;
+  le._sbp->getA(A);
+  le.setupKSP(le._sbp,le._ksp,le._pc,A);
+
   // prepare matrix to hold greens function
   Mat G;
   MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Nz,NULL,&G);
@@ -102,6 +108,7 @@ int computeGreensFunction(const char * inputFile)
   VecGetOwnershipRange(le._bcL,&Istart,&Iend);
 
   for(PetscInt Ii = Istart;Ii < Iend;Ii++) {
+    PetscPrintf(PETSC_COMM_WORLD,"Ii = %i\n",Ii);
     VecSet(le._bcL,0.0);
     VecSetValue(le._bcL,Ii,v,INSERT_VALUES);
 
@@ -125,10 +132,12 @@ int computeGreensFunction(const char * inputFile)
   }
 
   // output greens function
-  std::string filename;
-  filename =  d._outputDir + "G";
-  writeMat(G, filename);
+  std::string str;
+  str =  d._outputDir + "G";
+  writeMat(G,str.c_str());
 
+
+/*
   // output testing stuff
   VecSet(le._bcL,0.0);
   VecSet(le._bcR,5.0);
@@ -141,6 +150,13 @@ int computeGreensFunction(const char * inputFile)
   ierr = le._sbp->setRhs(le._rhs,le._bcL,le._bcR,le._bcT,le._bcB);CHKERRQ(ierr);
   ierr = KSPSolve(le._ksp,le._rhs,le._u);CHKERRQ(ierr);
   ierr = le.setSurfDisp();
+
+  str =  d._outputDir + "bcL";
+  writeVec(le._bcL,str.c_str());
+
+  str =  d._outputDir + "surfDisp";
+  writeVec(le._surfDisp,str.c_str());
+  */
 
   // write left boundary condition and surface displacement into file
   filename =  d._outputDir + "bcL";
@@ -232,11 +248,19 @@ int main(int argc,char **args)
   PetscInitialize(&argc,&args,NULL,NULL);
 
   const char * inputFile;
+
   if (argc > 1) {
     inputFile = args[1];
   }
   else {
     inputFile = "init.in";
+  }
+
+  {
+    Domain d(inputFile);
+    if (d._isMMS) { runMMSTests(inputFile); }
+    else { runEqCycle(d); }
+    //computeGreensFunction(inputFile);
   }
 
 {
