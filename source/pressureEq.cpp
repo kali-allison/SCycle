@@ -223,10 +223,15 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     pos = rhs.find(" ");
     rhs = rhs.substr(0, pos);
 
-    if (var.compare("hydraulicTimeIntType") == 0) { _hydraulicTimeIntType = rhs.c_str(); }
-    else if (var.compare("guessSteadyStateICs") == 0) { _guessSteadyStateICs = atoi(rhs.c_str()); }
+    if (var.compare("guessSteadyStateICs") == 0) { _guessSteadyStateICs = atoi(rhs.c_str()); }    
+    else if (var.compare("linSolver") == 0) { _linSolver = rhs.c_str(); }
+    else if (var.compare("hydraulicTimeIntType") == 0) { _hydraulicTimeIntType = rhs.c_str(); }
     else if (var.compare("bcB_ratio") == 0) { _bcB_ratio = atof(rhs.c_str()); }
     else if (var.compare("bcB_type") == 0) { _bcB_type = rhs.c_str(); }
+
+    // loading vector inputs in the input file
+    else if (var.compare("sNVals") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNVals); }
+    else if (var.compare("sNDepths") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNDepths); }
     else if (var.compare("n_pVals") == 0) { loadVectorFromInputFile(rhsFull, _n_pVals); }
     else if (var.compare("n_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _n_pDepths); }
     else if (var.compare("beta_pVals") == 0) { loadVectorFromInputFile(rhsFull, _beta_pVals); }
@@ -241,9 +246,8 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("pVals") == 0) { loadVectorFromInputFile(rhsFull, _pVals); }
     else if (var.compare("pDepths") == 0) { loadVectorFromInputFile(rhsFull, _pDepths); }
     else if (var.compare("vL") == 0) { _vL = atof(rhs.c_str()); }
-    else if (var.compare("sNVals") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNVals); }
-    else if (var.compare("sNDepths") == 0) { loadVectorFromInputFile(rhsFull, _sigmaNDepths); }
 
+    // permability evolution parameters - slip-dependent
     else if (var.compare("permSlipDependent") == 0) { _permSlipDependent = rhs.c_str(); }
     else if (var.compare("kL_pVals") == 0) { loadVectorFromInputFile(rhsFull, _kL_pVals); }
     else if (var.compare("kL_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _kL_pDepths); }
@@ -254,6 +258,7 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("kmax_pVals") == 0) { loadVectorFromInputFile(rhsFull, _kmax_pVals); }
     else if (var.compare("kmax_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _kmax_pDepths); }
 
+    // permeability evolution parameters - pressure-dependent
     else if (var.compare("permPressureDependent") == 0) { _permPressureDependent = rhs.c_str(); }
     else if (var.compare("kmin2_pVals") == 0) { loadVectorFromInputFile(rhsFull, _kmin2_pVals); }
     else if (var.compare("kmin2_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _kmin2_pDepths); }
@@ -261,6 +266,8 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("pstd_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _pstd_pDepths); }
     else if (var.compare("maxBeIteration") == 0) { _maxBeIteration = (int)atof(rhs.c_str()); }
     else if (var.compare("minBeDifference") == 0) { _minBeDifference = atof(rhs.c_str()); }
+
+    // checkpoint parameters
     else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
   }
