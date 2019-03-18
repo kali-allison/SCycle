@@ -24,7 +24,6 @@
  *
  */
 
-
 using namespace std;
 
 class Domain
@@ -32,15 +31,15 @@ class Domain
   public:
 
     const char    *_file;
-    std::string    _delim; // format is: var delim value (without the white space)
-    std::string    _inputDir; // directory to load input files from
-    string    _outputDir; // directory for output
-    string    _bulkDeformationType; // options: linearElastic, powerLaw
-    string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-    string    _sbpType; // matrix or matrix-free, compatible or fully compatible
-    string    _operatorType; // matrix-based or matrix-free
-    string    _sbpCompatibilityType; // compatible or fullyCompatible
-    string    _gridSpacingType; // variableGridSpacing or constantGridSpacing
+    string         _delim; // format is: var delim value (without the white space)
+    string         _inputDir; // directory to load input files from
+    string         _outputDir; // directory for output
+    string         _bulkDeformationType; // options: linearElastic, powerLaw
+    string         _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+    string         _sbpType; // matrix or matrix-free, compatible or fully compatible
+    string         _operatorType; // matrix-based or matrix-free
+    string         _sbpCompatibilityType; // compatible or fullyCompatible
+    string         _gridSpacingType; // variableGridSpacing or constantGridSpacing
     int            _isMMS; // run MMS test or not
     int            _loadICs; // load conditions from input files
 

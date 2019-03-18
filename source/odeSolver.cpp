@@ -613,29 +613,23 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
       
       // stage 1: integrate fields to _currT + 0.5*deltaT
-      // TODO: check with Kali, are we missing _f1 = _dvar here?
-      _f1 = _dvar;
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
-	printf("Checking the value of _var, _f1 and _k1:\n");
-	VecView(_var[it->first], PETSC_VIEWER_STDOUT_WORLD);
-	VecView(_f1[it->first], PETSC_VIEWER_STDOUT_WORLD);
-	VecView(_k1[it->first], PETSC_VIEWER_STDOUT_WORLD);
+        ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+0.5*_deltaT,_k1,_f1);CHKERRQ(ierr);
 
       // stage 2: integrate fields to _currT + _deltaT
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_k2[it->first],-_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_k2[it->first],-_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_k2[it->first],2*_deltaT,_f1[it->first]);CHKERRQ(ierr);
       }
       ierr = obj->d_dt(_currT+_deltaT,_k2,_f2);CHKERRQ(ierr);
 
       // 2nd and 3rd order update
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
-        ierr = VecWAXPY(_y2[it->first],0.5*_deltaT,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y2[it->first],0.5*_deltaT,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y2[it->first],0.5*_deltaT,_f2[it->first]);CHKERRQ(ierr);
-        ierr = VecWAXPY(_y3[it->first],_deltaT/6.0,_f1[it->first],_var[it->first]);CHKERRQ(ierr);
+        ierr = VecWAXPY(_y3[it->first],_deltaT/6.0,_dvar[it->first],_var[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],2*_deltaT/3.0,_f1[it->first]);CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],_deltaT/6.0,_f2[it->first]);CHKERRQ(ierr);
       }
@@ -935,13 +929,13 @@ PetscReal RK43::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
   PetscReal stepRatio;
 
   // if using integral feedback controller (I)
-  if (_controlType.compare("P") == 0) {
+  if (_controlType == "P") {
     PetscReal alpha = 1./(1.+_ord);
     stepRatio = _kappa*pow(_totTol/totErr,alpha);
   }
 
   //if using proportional-integral-derivative feedback (PID)
-  else if (_controlType.compare("PID") == 0) {
+  else if (_controlType == "PID") {
     PetscReal alpha = 0.49/_ord;
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
@@ -949,7 +943,7 @@ PetscReal RK43::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
     if (ckptNumber == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
-    else {
+    else if (ckptNumber > 0 || _stepCount >= 4) {
       stepRatio = _kappa * pow(_totTol/totErr,alpha)
                          * pow(_errA[0]/_totTol,beta)
                          * pow(_totTol/_errA[1],gamma);
@@ -1131,6 +1125,11 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   // load new _deltaT if ckptNumber > 0 (calculated at the end of previous simulation)
   if (ckptNumber > 0) {
     loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
+    loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", _errA[1]);
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _errA[0]);
+    printf("Checking _errA is correctly loaded:\n");
+    printf("_errA[0] = %e\n", _errA[0]);
+    printf("_errA[1] = %e\n", _errA[1]);
   }
   
   // perform time stepping
@@ -1171,10 +1170,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       // stage 2: compute k2
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],a21*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
-	printf("Checking the value of _var, _f1 and _k2:\n");
-	VecView(_var[it->first], PETSC_VIEWER_STDOUT_WORLD);
-	VecView(_f1[it->first], PETSC_VIEWER_STDOUT_WORLD);
-	VecView(_k2[it->first], PETSC_VIEWER_STDOUT_WORLD);
       }
       // compute f2
       ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2);CHKERRQ(ierr);
@@ -1183,9 +1178,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k3[it->first],a31*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_k3[it->first],a32*_deltaT,_f2[it->first]); CHKERRQ(ierr);
-	printf("Checking the value of _k2, _f2:\n");
-	VecView(_k2[it->first], PETSC_VIEWER_STDOUT_WORLD);
-	VecView(_f2[it->first], PETSC_VIEWER_STDOUT_WORLD);
       }
       // compute f3
       ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3);CHKERRQ(ierr);
@@ -1275,16 +1267,9 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     // _deltaT is computed again here
     if (_totErr > 0) {
       _deltaT = computeStepSize(_totErr, ckptNumber);
+      printf("Newly computed deltaT = %e at the end of stepCount = %i\n", _deltaT, _stepCount);
     }
     _errA.push_front(_totErr);
-
-    // write out totErr
-    if (ckptNumber == 0 && _stepCount == 1) {
-      writeASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
-    }
-    else if (ckptNumber > 0 || _stepCount > 1) {
-      appendASCII(_outputDir, "totErr.txt", _viewErr, _totErr);
-    }
 
     // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {

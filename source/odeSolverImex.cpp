@@ -228,7 +228,10 @@ PetscErrorCode RK32_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>&
   return ierr;
 }
 
-PetscErrorCode RK32_WBE::setErrInds(vector<string>& errInds) { _errInds = errInds; return 0; }
+PetscErrorCode RK32_WBE::setErrInds(vector<string>& errInds) {
+  _errInds = errInds;
+  return 0;
+}
 
 PetscErrorCode RK32_WBE::setErrInds(vector<string>& errInds, vector<double> scale)
 {

@@ -248,7 +248,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
-    _timeControlType.compare("PI")==0 ||
     _timeControlType.compare("PID")==0 );
 
   if (_initDeltaT < _minDeltaT || _initDeltaT < 1e-14) {
@@ -853,7 +852,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   initiateIntegrand();
 
   // test whether initiateIntegrand has changed any vectors loaded from checkpoint
-  testLoading();
+  if (_ckptNumber > 0) {
+    testLoading();
+  }
   
   _stepCount = 0;
 
@@ -887,15 +888,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
-    // load _errA if restarting and uses Runge Kutta
-    if (_ckptNumber > 0 && _timeControlType == "PID") {
-      PetscScalar prevErr, currErr;
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
-      _quadImex->_errA.push_front(prevErr);
-      _quadImex->_errA.push_front(currErr);
-    }
-    // performs integration according to odeSolver class
+    // perform all time integration
     ierr = _quadImex->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
@@ -908,15 +901,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     // control which fields are used to select step size
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
-    // load _errA from checkpoint files
-    if (_ckptNumber > 0 && _timeControlType == "PID") {
-      PetscScalar prevErr, currErr;
-      loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", prevErr);
-      loadValueFromCheckpoint(_outputDir, "currErr_ckpt", currErr);
-      _quadEx->_errA.push_front(prevErr);
-      _quadEx->_errA.push_front(currErr);
-    }
-    
+    // perform all time integration
     ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 

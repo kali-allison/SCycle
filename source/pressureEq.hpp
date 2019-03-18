@@ -15,22 +15,29 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 
+using namespace std;
+
+/* Class to solve for pressure evolution along the 1D vertical strike-slip fault
+ * Currently is a stand-alone solver, and does not couple to stress evolution on the fault
+ * Permeability can be slip-dependent, or pressure-dependent
+ */
+
 class PressureEq
 {
 public:
   Domain *_D; // shallow copy of domain
   Vec _p = NULL;     // pressure
-  std::string _permSlipDependent, _permPressureDependent;
+  string _permSlipDependent, _permPressureDependent;
 
 private:
   const char *_file;      // input file
-  std::string _delim;     // format is: var delim value (without the white space)
-  std::string _outputDir; // directory for output
-  std::string _inputDir;  // directory for input
-  const bool _isMMS;      // true if running mms test
-  std::string _hydraulicTimeIntType; // time integration type (explicit vs implicit)
+  string      _delim;     // format is: var delim value (without the white space)
+  string      _outputDir; // directory for output
+  string      _inputDir;  // directory for input
+  const bool  _isMMS;     // true if running mms test
+  string      _hydraulicTimeIntType; // time integration type (explicit vs implicit)
 
-  int _guessSteadyStateICs;
+  int         _guessSteadyStateICs;
   PetscScalar _initTime, _initDeltaT;
 
   // domain properties
@@ -47,27 +54,27 @@ private:
   PetscScalar _g; // gravitational acceleration
   PetscScalar _vL;
   PetscScalar _bcB_ratio;
-  std::string _bcB_type;
+  string _bcB_type;
   int _maxBeIteration;
   double _minBeDifference;
 
   // linear system
-  std::string _linSolver;
+  string _linSolver;
   KSP _ksp;
   PetscScalar _kspTol;
   SbpOps *_sbp;
-  std::string _sbpType;
+  string _sbpType;
   int _linSolveCount;
   Vec _bcL = NULL, _bcT = NULL, _bcB = NULL, _bcB_gravity = NULL, _bcB_impose = NULL;
   Vec _p_t = NULL;
 
   // input fields
-  std::vector<double> _n_pVals, _n_pDepths, _beta_pVals, _beta_pDepths, _k_pVals, _k_pDepths;
-  std::vector<double> _eta_pVals, _eta_pDepths, _rho_fVals, _rho_fDepths;
-  std::vector<double> _pVals, _pDepths, _dpVals, _dpDepths;
-  std::vector<double> _kL_pVals, _kL_pDepths, _kT_pVals, _kT_pDepths, _kmin_pVals, _kmin_pDepths, _kmax_pVals, _kmax_pDepths;
-  std::vector<double> _kmin2_pVals, _kmin2_pDepths, _pstd_pVals, _pstd_pDepths;
-  std::vector<double> _sigmaNVals,_sigmaNDepths;
+  vector<double> _n_pVals, _n_pDepths, _beta_pVals, _beta_pDepths, _k_pVals, _k_pDepths;
+  vector<double> _eta_pVals, _eta_pDepths, _rho_fVals, _rho_fDepths;
+  vector<double> _pVals, _pDepths, _dpVals, _dpDepths;
+  vector<double> _kL_pVals, _kL_pDepths, _kT_pVals, _kT_pDepths, _kmin_pVals, _kmin_pDepths, _kmax_pVals, _kmax_pDepths;
+  vector<double> _kmin2_pVals, _kmin2_pDepths, _pstd_pVals, _pstd_pDepths;
+  vector<double> _sigmaNVals,_sigmaNDepths;
   Vec                 _sN; // total normal stress
 
   VecScatter _scatters;
@@ -76,15 +83,14 @@ private:
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
 
-  // // viewers
-  // std::map <string,PetscViewer>  _viewers;
-
+  // checkpoint enabling
+  int _ckpt, _ckptNumber, _interval;
+  
   // viewers:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  //~ std::map <string,PetscViewer>  _viewers;
-  std::map<string, std::pair<PetscViewer, string>> _viewers;
+  map<string, pair<PetscViewer, string>> _viewers;
 
   // disable default copy constructor and assignment operator
   PressureEq(const PressureEq &that);
@@ -122,8 +128,10 @@ public:
   PetscErrorCode dp_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
+
   // implicit time integration
-  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
+  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
+		      map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   PetscErrorCode be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
                     map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
@@ -131,11 +139,12 @@ public:
 
   PetscErrorCode dk_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dk_dt(const PetscScalar time, const Vec slipVel, const Vec &K, Vec &dKdt);
+
   // IO
   PetscErrorCode view(const double totRunTime);
-  PetscErrorCode writeContext(const std::string outputDir);
+  PetscErrorCode writeContext(const string outputDir);
   PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
-  PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+  PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time, const string outputDir);
 
   // mms error
   PetscErrorCode measureMMSError(const double totRunTime);
