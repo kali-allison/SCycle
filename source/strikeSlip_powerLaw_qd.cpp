@@ -6,19 +6,19 @@ using namespace std;
 
 
 StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
-: _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_delim(D._delim),_outputDir(D._outputDir),
   _guessSteadyStateICs(0.),_isMMS(D._isMMS),
   _thermalCoupling("no"),_grainSizeEvCoupling("no"),_hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
   _vL(1e-9),_faultTypeScale(2.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+  _stride1D(1),_stride2D(1),_maxStepCount(D._maxStepCount),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
   _startTime(MPI_Wtime()),_miscTime(0),
-  _ckpt(0),_ckptNumber(0),_interval(500),
+  _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
   _quadEx(NULL),_quadImex(NULL),
@@ -312,7 +312,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
   VecScale(slip,2.0);
-  ierr = loadVecFromInputFile(slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
+  //ierr = loadVecFromInputFile(slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) { solveSS(0,_outputDir); } // doesn't solve for steady state tau
@@ -867,7 +867,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
 
   // steady-state shear stress on fault
   bool loadTauSS = 0;
-  loadVecFromInputFile(_fault->_tauP,_inputDir,"tauSS",loadTauSS);
+  //loadVecFromInputFile(_fault->_tauP,_inputDir,"tauSS",loadTauSS);
 
   // if steady-state shear stress not provided: tauSS = min(tauRS,tauVisc)
   if (loadTauSS == 0) {
@@ -1373,7 +1373,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
   VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
-  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+  //ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {

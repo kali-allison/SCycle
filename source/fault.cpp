@@ -6,16 +6,15 @@ using namespace std;
 
 
 Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
-: _D(&D),_inputFile(D._file),_delim(D._delim),
-  _inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
   _N(D._Nz),_L(D._Lz),_f0(0.6),_v0(1e-6),
   _sigmaN_cap(1e14),_sigmaN_floor(0.),
   _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
   _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
   _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
-  _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
-  _body2fault(&scatter2fault)
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
+  _maxStepCount(D._maxStepCount), _body2fault(&scatter2fault)
 {
   #if VERBOSE > 1
     std::string funcName = "Fault::Fault";
@@ -23,10 +22,6 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   #endif
 
   loadSettings(_inputFile);
-  if (_ckpt > 0) {
-    _maxStepCount = _interval;
-    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
-  }
   checkInput();
   setFields(D);
 
@@ -104,12 +99,6 @@ PetscErrorCode Fault::loadSettings(const char *file)
     // for locking part of the fault
     else if (var.compare("lockedVals")==0) { loadVectorFromInputFile(rhsFull,_lockedVals); }
     else if (var.compare("lockedDepths")==0) { loadVectorFromInputFile(rhsFull,_lockedDepths); }
-
-    // checkpoint enabling and interval
-    else if (var.compare("ckpt") == 0) { _ckpt = (int)atof(rhs.c_str()); }
-    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
-    else if (var.compare("maxStepCount") == 0) { _maxStepCount = (int)atof(rhs.c_str()); }
-
   }
 
   #if VERBOSE > 1
@@ -120,7 +109,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
 }
 
 
-// parse input file and load values into data members
+// load vector fields from directory: for checkpoints
 PetscErrorCode Fault::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
@@ -141,20 +130,9 @@ PetscErrorCode Fault::loadFieldsFromFiles()
     ierr = loadVecFromInputFile(_slipVel, _outputDir, "slipVel_ckpt"); CHKERRQ(ierr);
   }
   else {
-    ierr = loadVecFromInputFile(_sNEff, _inputDir,"sNEff"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_psi, _inputDir,"psi"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_slip, _inputDir,"slip"); CHKERRQ(ierr);
-    // load shear stress: pre-stress, quasistatic, and full
-    ierr = loadVecFromInputFile(_tauQSP, _inputDir,"tauQSP"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_tauP, _inputDir,"tauP"); CHKERRQ(ierr);
-    ierr = loadVecFromInputFile(_prestress, _inputDir,"prestress"); CHKERRQ(ierr);
     VecAXPY(_tauQSP,1.0,_prestress);
     VecCopy(_tauQSP,_tauP);
   }  
-
-  // rate and state parameters
-  ierr = loadVecFromInputFile(_a, _inputDir,"a"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_b, _inputDir,"b"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
@@ -188,12 +166,7 @@ PetscErrorCode Fault::checkInput()
   assert(_sigmaNVals.size() != 0 );
   assert(_rhoVals.size() != 0 );
   assert(_muVals.size() != 0 );
-
   assert(_rootTol >= 1e-14);
-  assert(_ckpt >= 0);
-  assert(_ckptNumber >= 0);
-  assert(_interval > 0);
-  assert(_maxStepCount > 0);
   
   assert(_stateLaw.compare("agingLaw")==0
     || _stateLaw.compare("slipLaw")==0
@@ -810,8 +783,6 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,1.0/_faultTypeScale);
 
-  loadVecFromInputFile(_eta_rad,D._inputDir,"eta_rad");
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1163,7 +1134,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   loadSettings(_inputFile);
   setFields();
   loadFieldsFromFiles();
-  loadVecFromInputFile(_tau0,D._inputDir,"tau0");
+  // loadVecFromInputFile(_tau0,D._inputDir,"tau0");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1525,15 +1496,18 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, m
   _deltaT = deltaT;
   VecCopy(var.find("psi")->second,_psi);
   VecCopy(var.find("slip")->second,_slip);
+
   // uPrev = (slip - slip0)/faultTypeScale
   VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second);
   VecScale(_uPrev,1.0/_faultTypeScale);
+
   // u = (slip - slip0)/2
   VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second);
   VecScale(_u,1.0/_faultTypeScale);
 
   // compute slip velocity
   ierr = setPhi(deltaT);
+
   // computes abs(slipVel)
   ierr = computeVel(); CHKERRQ(ierr);
 

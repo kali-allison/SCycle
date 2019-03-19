@@ -7,20 +7,17 @@ using namespace std;
 
 // construct class object
 LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
-: _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_delim(D._delim),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _stepCount(0),
-  _mu(NULL),_rho(NULL),_cs(NULL),
-  _bcRShift(NULL),_surfDisp(NULL),
+  _isMMS(D._isMMS),_stepCount(0),
+  _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
   _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
-  _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
-  _kspTol(1e-10),
+  _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
   _sbp(NULL),_sbpType(D._sbpType),
   _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
   _miscTime(0), _matrixTime(0), _linSolveCount(0),
-  _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8),
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber), _maxStepCount(D._maxStepCount),
   _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
 {
@@ -31,10 +28,6 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
 
   // load and set parameters
   loadSettings(D._file);
-  if (_ckpt > 0) {
-    _maxStepCount = _interval;
-    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
-  }
   checkInput();
   allocateFields();
   setMaterialParameters();
@@ -158,19 +151,6 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("momBal_computeSdev")==0) {
       _computeSdev = atof(rhs.c_str());
     }
-    
-    // check if checkpoint is enabled
-    else if (var.compare("ckpt") == 0) {
-      _ckpt = (int)atof(rhs.c_str());
-    }
-    // load checkpoint interval
-    else if (var.compare("interval") == 0) {
-      _interval = (int)atof(rhs.c_str());
-    }
-    // if checkpoint is enabled, change _maxStepCount to _interval
-    else if (var.compare("maxStepCount") == 0) {
-      _maxStepCount = (int)atof(rhs.c_str());
-    }
   }
 
   #if VERBOSE > 1
@@ -205,10 +185,6 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_muVals.size() != 0);
   assert(_rhoVals.size() == _rhoDepths.size());
   assert(_rhoVals.size() != 0);
-  assert(_ckptNumber >= 0);
-  assert(_ckpt >= 0);
-  assert(_interval > 0);
-  assert(_maxStepCount > 0);
   
   if (_computeSdev == 1) {
     _computeSxz = 1;
@@ -447,20 +423,7 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
     ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_bcR, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
   }
-  else {
-    // load left boundary condition bcL
-    ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
-    // load right boundary condition bcR
-    ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
-    VecSet(_bcR,0.0);
-  }
   
-  // load displacement vector u
-  ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
-
-  // load shear modulus mu
-  ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -904,7 +867,7 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   }
 
   else {
-    for(Ii = Istart; Ii < Iend; Ii++) {
+    for (Ii = Istart; Ii < Iend; Ii++) {
       ierr = VecGetValues(*_z,1,&Ii,&z); CHKERRQ(ierr);
       //~ z = _dz * Ii;
 
@@ -977,11 +940,6 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyBegin(_bcB);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcT);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcB);CHKERRQ(ierr);
-
-  // writeVec(_bcL,_outputDir+"mms_bcL");
-  // writeVec(_bcR,_outputDir+"mms_bcR");
-  // writeVec(_bcT,_outputDir+"mms_bcT");
-  // writeVec(_bcB,_outputDir+"mms_bcB");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);

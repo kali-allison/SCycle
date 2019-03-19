@@ -7,7 +7,7 @@
 // power-law rheology class
 
 GrainSizeEvolution::GrainSizeEvolution(Domain& D)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+: _D(&D),_file(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_g(NULL),_dg(NULL)
@@ -188,13 +188,12 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_A,_inputDir,"grainSize_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"grainSize_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_p,_inputDir,"grainSize_p"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_f,_inputDir,"grainSize_f"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_g,_inputDir,"grainSize_g"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_dg,_inputDir,"grainSize_dg"); CHKERRQ(ierr);
-
+  // ierr = loadVecFromInputFile(_A,_inputDir,"grainSize_A"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_QR,_inputDir,"grainSize_QR"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_p,_inputDir,"grainSize_p"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_f,_inputDir,"grainSize_f"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_g,_inputDir,"grainSize_g"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_dg,_inputDir,"grainSize_dg"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -202,9 +201,6 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
   #endif
   return ierr;
 }
-
-
-
 
 
 PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx)

@@ -940,19 +940,14 @@ PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL
 
   // initiate viewer
   PetscViewer viewer;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer);
-  ierr = PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
   vwL[key].first = viewer;
   vwL[key].second = filename;
-
-  ierr = PetscViewerPopFormat(viewer); CHKERRQ(ierr);
+  ierr = VecView(vec, viewer); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
   // reset to append mode
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(),&vwL[key].first); CHKERRQ(ierr);
-  ierr = PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND); CHKERRQ(ierr);
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
   return ierr;
 }
 
@@ -966,13 +961,13 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   vwL[key].first = viewer;
   vwL[key].second = filename;
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+  PetscViewerDestroy(&viewer);
 
   PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
-  PetscViewerSetType(vwL[key].first, PETSCVIEWERASCII);
+  PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
   PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
   PetscViewerFileSetName(vwL[key].first, filename.c_str());
-  PetscViewerPushFormat(vwL[key].first, PETSC_VIEWER_ASCII_MATLAB);    
+  VecView(vec,vwL[key].first);
   return ierr;
 }
 

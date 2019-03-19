@@ -2,15 +2,16 @@
 
 #define FILENAME "powerLaw.cpp"
 
+using namespace std;
 
 //======================================================================
 // pseudoplasticity class
 
-Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const std::string delim)
-: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const string delim)
+: _file(file),_delim(delim),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::Pseudoplasticity";
+    string funcName = "Pseudoplasticity::Pseudoplasticity";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -27,7 +28,7 @@ Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file,
 Pseudoplasticity::~Pseudoplasticity()
 {
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::~Pseudoplasticity";
+    string funcName = "Pseudoplasticity::~Pseudoplasticity";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -44,7 +45,7 @@ PetscErrorCode Pseudoplasticity::loadSettings()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::loadSettings()";
+    string funcName = "Pseudoplasticity::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -71,8 +72,7 @@ PetscErrorCode Pseudoplasticity::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("yieldStressVals")==0) { loadVectorFromInputFile(rhsFull,_yieldStressVals); }
+    if (var.compare("yieldStressVals")==0) { loadVectorFromInputFile(rhsFull,_yieldStressVals); }
     else if (var.compare("yieldStressDepths")==0) { loadVectorFromInputFile(rhsFull,_yieldStressDepths); }
 
   }
@@ -88,7 +88,7 @@ PetscErrorCode Pseudoplasticity::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::checkInput";
+    string funcName = "Pseudoplasticity::checkInput";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -107,7 +107,7 @@ PetscErrorCode Pseudoplasticity::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::setMaterialParameters";
+    string funcName = "Pseudoplasticity::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -129,13 +129,13 @@ PetscErrorCode Pseudoplasticity::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::loadFieldsFromFiles()";
+    string funcName = "Pseudoplasticity::loadFieldsFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_yieldStress,_inputDir,"plasticity_yieldStress"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
+    //ierr = loadVecFromInputFile(_yieldStress,_inputDir,"plasticity_yieldStress"); CHKERRQ(ierr);
+    //ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -144,7 +144,7 @@ PetscErrorCode Pseudoplasticity::loadFieldsFromFiles()
   return ierr;
 }
 
-PetscErrorCode Pseudoplasticity::writeContext(const std::string outputDir)
+PetscErrorCode Pseudoplasticity::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -152,7 +152,6 @@ PetscErrorCode Pseudoplasticity::writeContext(const std::string outputDir)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-
 
   ierr = writeVec(_yieldStress,outputDir + "plasticity_yieldStress"); CHKERRQ(ierr);
 
@@ -169,7 +168,7 @@ PetscErrorCode Pseudoplasticity::guessInvEffVisc(const double dg)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::guessInvEffVisc()";
+    string funcName = "Pseudoplasticity::guessInvEffVisc()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -191,7 +190,7 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "Pseudoplasticity::computeInvEffVisc()";
+    string funcName = "Pseudoplasticity::computeInvEffVisc()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -221,11 +220,11 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 //======================================================================
 // dislocation creep class
 
-DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file, const std::string delim)
-: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file, const string delim)
+: _file(file),_delim(delim),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::DislocationCreep";
+    string funcName = "DislocationCreep::DislocationCreep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -242,7 +241,7 @@ DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file,
 DislocationCreep::~DislocationCreep()
 {
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::~DislocationCreep";
+    string funcName = "DislocationCreep::~DislocationCreep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -261,7 +260,7 @@ PetscErrorCode DislocationCreep::loadSettings()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::loadSettings()";
+    string funcName = "DislocationCreep::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -288,14 +287,19 @@ PetscErrorCode DislocationCreep::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("disl_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
     else if (var.compare("disl_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
     else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
 
+    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
   }
 
   #if VERBOSE > 1
@@ -309,7 +313,7 @@ PetscErrorCode DislocationCreep::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::checkInput";
+    string funcName = "DislocationCreep::checkInput";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -332,7 +336,7 @@ PetscErrorCode DislocationCreep::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::setMaterialParameters";
+    string funcName = "DislocationCreep::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -354,15 +358,15 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::loadFieldsFromFiles()";
+    string funcName = "DislocationCreep::loadFieldsFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -371,7 +375,8 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
   return ierr;
 }
 
-PetscErrorCode DislocationCreep::writeContext(const std::string outputDir)
+
+PetscErrorCode DislocationCreep::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -400,7 +405,7 @@ PetscErrorCode DislocationCreep::guessInvEffVisc(const Vec& Temp,const double dg
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::guessInvEffVisc";
+    string funcName = "DislocationCreep::guessInvEffVisc";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -439,7 +444,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DislocationCreep::computeInvEffVisc";
+    string funcName = "DislocationCreep::computeInvEffVisc";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -477,11 +482,11 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
 // diffusion creep class
 
 
-DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, const std::string delim)
-: _file(file),_delim(delim),_inputDir("unspecified_"),_y(&y),_z(&z)
+DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, const string delim)
+: _file(file),_delim(delim),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::DiffusionCreep";
+    string funcName = "DiffusionCreep::DiffusionCreep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -498,7 +503,7 @@ DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, con
 DiffusionCreep::~DiffusionCreep()
 {
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::~DiffusionCreep";
+    string funcName = "DiffusionCreep::~DiffusionCreep";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -518,7 +523,7 @@ PetscErrorCode DiffusionCreep::loadSettings()
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::loadSettings()";
+    string funcName = "DiffusionCreep::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -545,8 +550,7 @@ PetscErrorCode DiffusionCreep::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("inputDir")==0) { _inputDir = rhs; }
-    else if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("diff_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
     else if (var.compare("diff_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
@@ -554,6 +558,14 @@ PetscErrorCode DiffusionCreep::loadSettings()
     else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
     else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
     else if (var.compare("diff_mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
+    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
+    else if (var.compare("mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
 
   }
 
@@ -568,7 +580,7 @@ PetscErrorCode DiffusionCreep::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::checkInput";
+    string funcName = "DiffusionCreep::checkInput";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -593,7 +605,7 @@ PetscErrorCode DiffusionCreep::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::setMaterialParameters";
+    string funcName = "DiffusionCreep::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -616,16 +628,16 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::loadFieldsFromFiles()";
+    string funcName = "DiffusionCreep::loadFieldsFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -634,7 +646,7 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
   return ierr;
 }
 
-PetscErrorCode DiffusionCreep::writeContext(const std::string outputDir)
+PetscErrorCode DiffusionCreep::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -642,7 +654,6 @@ PetscErrorCode DiffusionCreep::writeContext(const std::string outputDir)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-
 
   ierr = writeVec(_A,outputDir + "diff_A"); CHKERRQ(ierr);
   ierr = writeVec(_QR,outputDir + "diff_QR"); CHKERRQ(ierr);
@@ -665,7 +676,7 @@ PetscErrorCode DiffusionCreep::guessInvEffVisc(const Vec& Temp,const double dg,c
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::guessInvEffVisc";
+    string funcName = "DiffusionCreep::guessInvEffVisc";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -708,7 +719,7 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "DiffusionCreep::computeInvEffVisc";
+    string funcName = "DiffusionCreep::computeInvEffVisc";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -751,22 +762,26 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 // power-law rheology class
 
 PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_loadICs(D._loadICs),_wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("no"),_wLinearMaxwell("no"),
+: _D(&D),_file(D._file),_delim(D._delim),_outputDir(D._outputDir),
+  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),
+  _y(&D._y),_z(&D._z),_isMMS(D._isMMS),
+  _wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("yes"),_wLinearMaxwell("no"),
   _plastic(NULL),_disl(NULL),_diff(NULL),
-  _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e30),
+  _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),
+  _grainSize(NULL),_effViscCap(1e30),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
-  _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
-  _linSolver("unspecified"),_sbpType(D._sbpType),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
+  _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),
+  _dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
+  _linSolver("CG"),_sbpType(D._sbpType),
+  _bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
   _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),
   _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0),
-  _stepCount(0)
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0),_stepCount(0)
 {
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::PowerLaw";
+    string funcName = "PowerLaw::PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -777,9 +792,15 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   loadFieldsFromFiles(); // load from previous simulation
 
   // set up deformation mechanisms
-  if (_wPlasticity.compare("yes")==0) { _plastic = new Pseudoplasticity(*_y,*_z,_file,_delim); }
-  if (_wDislCreep.compare("yes")==0) { _disl = new DislocationCreep(*_y,*_z,_file,_delim); }
-  if (_wDiffCreep.compare("yes")==0) { _diff = new DiffusionCreep(*_y,*_z,_file,_delim); }
+  if (_wPlasticity == "yes") {
+    _plastic = new Pseudoplasticity(*_y,*_z,_file,_delim);
+  }
+  if (_wDislCreep == "yes") {
+    _disl = new DislocationCreep(*_y,*_z,_file,_delim);
+  }
+  if (_wDiffCreep == "yes") {
+    _diff = new DiffusionCreep(*_y,*_z,_file,_delim);
+  }
 
   // set up matrix operators and KSP environment
   setUpSBPContext(D); // set up matrix operators
@@ -793,7 +814,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
 PowerLaw::~PowerLaw()
 {
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::~PowerLaw";
+    string funcName = "PowerLaw::~PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -830,7 +851,7 @@ PowerLaw::~PowerLaw()
   delete _sbp_eta; _sbp_eta = NULL;
 
   // viewers
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
     PetscViewerDestroy(&_viewers[it->first].first);
   }
 
@@ -839,14 +860,12 @@ PowerLaw::~PowerLaw()
   #endif
 }
 
-
-
 // loads settings from the input text file
 PetscErrorCode PowerLaw::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
 #if VERBOSE > 1
-    std::string funcName = "PowerLaw::loadSettings()";
+    string funcName = "PowerLaw::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -913,7 +932,7 @@ PetscErrorCode PowerLaw::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::checkInput";
+    string funcName = "PowerLaw::checkInput";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -932,7 +951,7 @@ PetscErrorCode PowerLaw::checkInput()
     assert(_kspTol >= 1e-14);
   }
 
-  if (_wLinearMaxwell.compare("yes")==0) {
+  if (_wLinearMaxwell == "yes") {
     assert(_effViscVals_lm.size() >= 2);
     assert(_effViscVals_lm.size() == _effViscDepths_lm.size() );
     _wPlasticity = "no";
@@ -952,7 +971,7 @@ PetscErrorCode PowerLaw::allocateFields()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::allocateFields";
+    string funcName = "PowerLaw::allocateFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1001,12 +1020,12 @@ PetscErrorCode PowerLaw::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setMaterialParameters";
+    string funcName = "PowerLaw::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  // set each field using it's vals and depths std::vectors
+  // set each field using it's vals and depths vectors
   ierr = setVec(_mu,*_z,_muVals,_muDepths);                             CHKERRQ(ierr);
   ierr = setVec(_rho,*_z,_rhoVals,_rhoDepths);                          CHKERRQ(ierr);
   if (_wDiffCreep.compare("yes")==0) {
@@ -1052,29 +1071,28 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::loadFieldsFromFiles()";
+    string funcName = "PowerLaw::loadFieldsFromFiles()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
-  // load bcL and bcR
-  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
-  VecSet(_bcR,0.0);
+  // // load bcL and bcR
+  // ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
+  // VecSet(_bcR,0.0);
 
-  ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSize_g"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSize_g"); CHKERRQ(ierr);
 
-  // load viscous strains
-  ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
-
+  // // load viscous strains
+  // ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
+  // ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1088,7 +1106,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setUpSBPContext";
+    string funcName = "PowerLaw::setUpSBPContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1114,7 +1132,6 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
   _sbp->setLaplaceType("yz");
   _sbp->setDeleteIntermediateFields(0);
   _sbp->computeMatrices(); // actually create the matrices
-
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   Mat A; _sbp->getA(A);
@@ -1153,7 +1170,7 @@ PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setupKSP";
+    string funcName = "PowerLaw::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1221,7 +1238,7 @@ PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setupKSP_SSIts";
+    string funcName = "PowerLaw::setupKSP_SSIts";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1287,7 +1304,7 @@ PetscErrorCode PowerLaw::initializeMomBalMats()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::initializeMomBalMats";
+    string funcName = "PowerLaw::initializeMomBalMats";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1565,7 +1582,7 @@ PetscErrorCode PowerLaw::initiateIntegrand(const PetscScalar time,map<string,Vec
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::initiateIntegrand()";
+    string funcName = "PowerLaw::initiateIntegrand()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1587,7 +1604,7 @@ PetscErrorCode PowerLaw::updateFields(const PetscScalar time,const map<string,Ve
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateFields()";
+    string funcName = "PowerLaw::updateFields()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1605,7 +1622,7 @@ PetscErrorCode PowerLaw::updateTemperature(const Vec& T)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateTemperature()";
+    string funcName = "PowerLaw::updateTemperature()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1621,7 +1638,7 @@ PetscErrorCode PowerLaw::updateGrainSize(const Vec& grainSize)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateGrainSize()";
+    string funcName = "PowerLaw::updateGrainSize()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1637,7 +1654,7 @@ PetscErrorCode PowerLaw::setRHS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setRHS()";
+    string funcName = "PowerLaw::setRHS()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1655,7 +1672,7 @@ PetscErrorCode PowerLaw::computeU()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::computeU";
+    string funcName = "PowerLaw::computeU";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1673,11 +1690,11 @@ PetscErrorCode PowerLaw::computeU()
   return ierr;
 }
 
-PetscErrorCode PowerLaw::changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
+PetscErrorCode PowerLaw::changeBCTypes(string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::changeBCTypes()";
+    string funcName = "PowerLaw::changeBCTypes()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -2037,8 +2054,6 @@ PetscErrorCode PowerLaw::setSurfDisp()
 // Steady state functions
 //======================================================================
 
-
-
 // inititialize effective viscosity based on estimated strain rate
 // strainRate is in 1e-3 s^-1
 // let A = A exp(-Q/RT)
@@ -2048,7 +2063,7 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::guessSteadyStateEffVisc";
+    string funcName = "PowerLaw::guessSteadyStateEffVisc";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -2069,16 +2084,16 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   //~ if (_wDiffCreep.compare("yes")==0) { VecAXPY(_effVisc,_diff->_invEffVisc); }
   VecReciprocal(_effVisc);
 
-  ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  if (_wPlasticity.compare("yes")==0) {
-    ierr = loadVecFromInputFile(_plastic->_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
-  }
-  if (_wDislCreep.compare("yes")==0) {
-    ierr = loadVecFromInputFile(_disl->_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
-  }
-  if (_wDiffCreep.compare("yes")==0) {
-    ierr = loadVecFromInputFile(_diff->_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
-  }
+  // ierr = loadVecFromInputFile(_effVisc,_inputDir,"effVisc"); CHKERRQ(ierr);
+  // if (_wPlasticity.compare("yes")==0) {
+  //   ierr = loadVecFromInputFile(_plastic->_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
+  // }
+  // if (_wDislCreep.compare("yes")==0) {
+  //   ierr = loadVecFromInputFile(_disl->_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
+  // }
+  // if (_wDiffCreep.compare("yes")==0) {
+  //   ierr = loadVecFromInputFile(_diff->_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
+  // }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2086,13 +2101,12 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   return ierr;
 }
 
-
 // compute Bss and Css
-PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+PetscErrorCode PowerLaw::initializeSSMatrices(string bcRType,string bcTType,string bcLType,string bcBType)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::initializeSSMatrices";
+    string funcName = "PowerLaw::initializeSSMatrices";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -2123,11 +2137,11 @@ PetscErrorCode PowerLaw::initializeSSMatrices(std::string bcRType,std::string bc
   return ierr;
 }
 
-PetscErrorCode PowerLaw::setSSRHS(map<string,Vec>& varSS,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
+PetscErrorCode PowerLaw::setSSRHS(map<string,Vec>& varSS,string bcRType,string bcTType,string bcLType,string bcBType)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::setSSRHS";
+    string funcName = "PowerLaw::setSSRHS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -2151,7 +2165,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateSSa";
+    string funcName = "PowerLaw::updateSSa";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -2192,7 +2206,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "PowerLaw::updateSSb";
+    string funcName = "PowerLaw::updateSSb";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -2255,7 +2269,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 
 // Save all scalar fields to text file named pl_domain.txt in output directory.
 // Note that only the rank 0 processor's values will be saved.
-PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
+PetscErrorCode PowerLaw::writeDomain(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2265,7 +2279,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   #endif
 
   // output scalar fields
-  std::string str = outputDir + "momBal_context.txt";
+  string str = outputDir + "momBal_context.txt";
   PetscViewer    viewer;
 
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
@@ -2298,7 +2312,7 @@ PetscErrorCode PowerLaw::writeDomain(const std::string outputDir)
   return ierr;
 }
 
-PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
+PetscErrorCode PowerLaw::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2324,7 +2338,7 @@ PetscErrorCode PowerLaw::writeContext(const std::string outputDir)
 }
 
 
-PetscErrorCode PowerLaw::writeStep1D(PetscInt stepCount, const std::string outputDir)
+PetscErrorCode PowerLaw::writeStep1D(PetscInt stepCount, const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -2356,8 +2370,7 @@ PetscErrorCode PowerLaw::writeStep1D(PetscInt stepCount, const std::string outpu
   return ierr;
 }
 
-
-PetscErrorCode PowerLaw::writeStep2D(PetscInt stepCount, const std::string outputDir)
+PetscErrorCode PowerLaw::writeStep2D(PetscInt stepCount, const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
