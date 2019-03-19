@@ -13,9 +13,9 @@ include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
-output: testCheckpointLoadVal.o $(OBJECTS)
+output: test_io_initiateWriteAppend.o $(OBJECTS)
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm testCheckpointLoadVal.o
+	-rm  test_io_initiateWriteAppend.o
 
 depend:
 	-g++ -MM *.c*
@@ -24,5 +24,5 @@ clean::
 	-rm -f *.o output
 
 # Dependencies
-testCheckpointLoadVal.o: testCheckpointLoadVal.cpp genFuncs.hpp
+test_io_initiateWriteAppend.o: test_io_initiateWriteAppend.cpp genFuncs.hpp
 genFuncs.o: genFuncs.hpp genFuncs.cpp
