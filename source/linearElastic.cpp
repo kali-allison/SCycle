@@ -677,7 +677,7 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const std::string 
   }
 
   // regular appending data to the files
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
@@ -733,7 +733,7 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const std::string 
   }
   
   // regular appending values/vectors
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
     // if need to compute sigma_xz

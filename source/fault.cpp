@@ -602,7 +602,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
   }
 
   // regular appending data to the end of original data file
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
