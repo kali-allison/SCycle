@@ -282,7 +282,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
   Vec dy, dz;
   VecDuplicate(_D->_y,&dy);
   VecDuplicate(_D->_y,&dz);
-  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatGetDiagonal(yq, dy);
