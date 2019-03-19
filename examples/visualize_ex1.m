@@ -9,7 +9,7 @@ sourceDir = '~/scycle/data/ex1';
 d = loadContext(sourceDir);
 
 % load fields that are either size Ny or size Nz
-d.time = load(strcat(sourceDir,'med_time1D.txt'));
+d.time = load(strcat(sourceDir,'time1D.txt'));
 d.tau = loadVec(sourceDir,'tauP');
 d.slipVel = loadVec(sourceDir,'slipVel');
 

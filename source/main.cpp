@@ -132,10 +132,9 @@ int computeGreensFunction(const char * inputFile)
   }
 
   // output greens function
-  std::string str;
-  str =  d._outputDir + "G";
-  writeMat(G,str.c_str());
-
+  string filename;
+  filename =  d._outputDir + "G";
+  writeMat(G, filename);
 
 /*
   // output testing stuff
