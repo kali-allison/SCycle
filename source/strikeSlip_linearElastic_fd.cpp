@@ -7,25 +7,21 @@ using namespace std;
 
 strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),
-  _deltaT(-1), _CFL(-1),
-  _y(&D._y),_z(&D._z),
-  _alphay(NULL),
-  _outputDir(D._outputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
-  _initialConditions("u"), _inputDir("unspecified"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
+  _order(D._order),_Ny(D._Ny),_Nz(D._Nz), _Ly(D._Ly),_Lz(D._Lz),
+  _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),_alphay(NULL),
+  _outputDir(D._outputDir),_vL(1e-9),
+  _initialConditions("u"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
   _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0), _propagateTime(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0), _propagateTime(0),
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("outGoingCharacteristics"),
   _mat_bcRType("Neumann"),_mat_bcTType("Neumann"),_mat_bcLType("Neumann"),_mat_bcBType("Neumann"),
-  _quadWaveEx(NULL),
-  _fault(NULL),_material(NULL)
+  _quadWaveEx(NULL),_fault(NULL),_material(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd()";
@@ -135,7 +131,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
 
     else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
     else if (var.compare("initialConditions")==0) { _initialConditions = rhs.c_str(); }
-    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
 
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
@@ -164,8 +159,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
-
+  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);

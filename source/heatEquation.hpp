@@ -54,13 +54,11 @@ public:
   string               _heatEquationType;
   int                  _isMMS;
   PetscScalar          _initTime,_initDeltaT;
-  int                  _loadICs; // load conditions from input files
 
   // IO information
   const char  *_file; // input ASCII file location
   string       _outputDir; // output file location
   string       _delim; // format is: var delim value (without the white space)
-  string       _inputDir; // directory to load fields from
 
   // material parameters
   vector<double>  _rhoVals,_rhoDepths,_kVals,_kDepths,_cVals,_cDepths,_TVals,_TDepths;

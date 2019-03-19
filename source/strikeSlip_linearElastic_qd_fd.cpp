@@ -6,28 +6,26 @@ using namespace std;
 
 
 strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
-: _D(&D),_delim(D._delim),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
+: _D(&D),_delim(D._delim),_outputDir(D._outputDir),_vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
+  _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
   _cycleCount(0),_maxNumCycles(1e3),
-  _deltaT(-1), _CFL(-1),
-  _y(&D._y),_z(&D._z),
+  _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),
   _inDynamic(false),_allowed(false),
-  _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3), _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
+  _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
+  _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(10),_stride2D(10),
   _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),
   _stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
-  _maxStepCount(1e8),
+  _maxStepCount(D._maxStepCount),
   _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
   _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _ckpt(0),_ckptNumber(0),_interval(500),
+  _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
   _forcingVal(0),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
@@ -41,6 +39,9 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   #endif
 
   loadSettings(D._file);
+  if (_ckptNumber > 0) {
+    _guessSteadyStateICs = 0;
+  }
   checkInput();
   parseBCs();
 
@@ -56,7 +57,6 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
     _fault_qd->setThermalFields(T,_he->_k,_he->_c);
   }
 
-
   // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) {
     _p = new PressureEq(D);
@@ -67,8 +67,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-
-  if (_guessSteadyStateICs) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
+  if (_guessSteadyStateICs == 1) { _material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType); }
   else {_material = new LinearElastic(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType); }
   computePenaltyVectors();
 
@@ -184,9 +183,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("stride2D_fd")==0){ _stride2D_fd = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride1D_fd_end")==0){ _stride1D_fd_end = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride2D_fd_end")==0){ _stride2D_fd_end = (int)atof(rhs.c_str() ); }
-
-
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof(rhs.c_str() ); }
     else if (var.compare("initTime")==0) {
       _initTime = atof(rhs.c_str() );
       _currTime = _initTime;
@@ -220,12 +216,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("limit_qd")==0) { _limit_qd = atof(rhs.c_str() ); }
     else if (var.compare("limit_fd")==0) { _limit_fd = atof(rhs.c_str() ); }
     else if (var.compare("limit_stride_fd")==0) { _limit_stride_fd = atof(rhs.c_str() ); }
-
     else if (var.compare("deltaT_fd")==0) { _deltaT = atof(rhs.c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof(rhs.c_str() ); }
-
-    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
-
     else if (var.compare("maxNumCycles")==0) { _maxNumCycles = atoi(rhs.c_str() ); }
 
   }
@@ -246,7 +238,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::checkInput()
   #endif
 
   assert(_guessSteadyStateICs == 0 || _guessSteadyStateICs == 1);
-  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
+  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
 
   assert(_thermalCoupling.compare("coupled")==0 ||
       _thermalCoupling.compare("uncoupled")==0 ||
@@ -693,7 +685,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   if (_qd_bcLType.compare("symmFault")==0) {
     VecScale(slip,2.0);
   }
-  ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
+  //ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
   _varQSEx["slip"] = slip;
 
   if (_guessSteadyStateICs) { solveSS(); }
@@ -709,7 +701,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   if (_hydraulicCoupling.compare("no")!=0 ) {
     _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
   }
-
 
   // initiate integrand for FD:
   // ensure fault_fd == fault_qd
@@ -1246,7 +1237,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
   ierr = io_initiateWriteAppend(_viewers, "psi", _fault_qd->_psi, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
-  loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
+  //loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
   ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
@@ -1380,7 +1371,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
   VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
-  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+  //ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // compute forcing term for momentum balance equation
   // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)

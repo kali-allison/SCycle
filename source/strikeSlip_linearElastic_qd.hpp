@@ -47,26 +47,27 @@ private:
   string       _delim; // format is: var delim value (without the white space)
 
   // problem properties
-  const bool      _isMMS; // true if running mms test
-  string          _outputDir; // output data
-  string          _inputDir; // input data
-  const bool      _loadICs; // true if starting from a previous simulation
-  PetscScalar     _vL;
-  string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-  string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
-  string          _stateLaw;
-  int             _guessSteadyStateICs; // 0 = no, 1 = yes
-  string          _forcingType; // what body forcing term to include (i.e. iceStream)
-  PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+  const bool   _isMMS; // true if running mms test
+  string       _outputDir; // output data
+  PetscScalar  _vL;
+  string       _thermalCoupling,_heatEquationType; // thermomechanical coupling
+  string       _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
+  string       _stateLaw;
+  int          _guessSteadyStateICs; // 0 = no, 1 = yes
+  string       _forcingType; // what body forcing term to include (i.e. iceStream)
+  PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
   // time stepping data
   map <string,Vec>  _varEx; // holds variables for explicit integration in time
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   string            _timeIntegrator,_timeControlType;
   PetscInt          _stride1D,_stride2D; // stride
-  PetscInt          _maxStepCount; // largest number of time steps
+
   // checkpoint parameters
   PetscInt          _ckpt, _ckptNumber, _interval;
+  PetscInt          _maxStepCount; // largest number of time steps
+
+  // time monitoring parameters
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
   int               _stepCount; // number of time steps at which results are written out
   PetscScalar       _timeStepTol;
@@ -75,12 +76,11 @@ private:
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
 
-
   // runtime data
-  double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
+  double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
   // viewers
-  PetscViewer      _timeV1D,_dtimeV1D,_timeV2D;
+  PetscViewer _timeV1D,_dtimeV1D,_timeV2D;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -89,8 +89,8 @@ private:
 
   // boundary conditions
   // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
-  string              _bcRType,_bcTType,_bcLType,_bcBType;
-  string              _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
+  string  _bcRType,_bcTType,_bcLType,_bcBType;
+  string  _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
 
   // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
   map <string,pair<PetscViewer,string> >  _viewers;
@@ -107,13 +107,13 @@ private:
 
 public:
 
-  OdeSolver                  *_quadEx; // explicit time stepping
-  OdeSolverImex              *_quadImex; // implicit time stepping
+  OdeSolver        *_quadEx; // explicit time stepping
+  OdeSolverImex    *_quadImex; // implicit time stepping
 
-  Fault_qd                   *_fault;
-  LinearElastic              *_material; // linear elastic off-fault material properties
-  HeatEquation               *_he;
-  PressureEq                 *_p;
+  Fault_qd         *_fault;
+  LinearElastic    *_material; // linear elastic off-fault material properties
+  HeatEquation     *_he;
+  PressureEq       *_p;
 
   // constructor and destructor
   StrikeSlip_LinearElastic_qd(Domain&D);

@@ -7,7 +7,7 @@ using namespace std;
 PressureEq::PressureEq(Domain &D)
 : _D(&D), _p(NULL), _permSlipDependent("no"), _permPressureDependent("no"),
   _file(D._file), _delim(D._delim),
-  _outputDir(D._outputDir), _inputDir(D._inputDir), _isMMS(D._isMMS),
+  _outputDir(D._outputDir), _isMMS(D._isMMS),
   _hydraulicTimeIntType("explicit"),_guessSteadyStateICs(1),
   _initTime(0.0), _initDeltaT(1e-3),
   _order(D._order), _N(D._Nz), _L(D._Lz), _h(D._dr), _z(NULL),
@@ -28,6 +28,11 @@ PressureEq::PressureEq(Domain &D)
   checkInput();
   setFields(D);
 
+  if (_ckptNumber > 0) {
+    _guessSteadyStateICs = 0;
+    
+  }
+  
   setUpSBP();
 
   // Back Eular upates
@@ -36,18 +41,18 @@ PressureEq::PressureEq(Domain &D)
   }
 
   // compute initial conditions
-  if (!_isMMS && D._loadICs != 1)
-  {
+  // TODO: I think this logic can be improved
+  if (_isMMS == 0) {
     if (_guessSteadyStateICs == 1) {
-      if (_permPressureDependent.compare("no") == 0) {
+      if (_permPressureDependent == "no") {
         _maxBeIteration = 1;
       }
-      if (_permPressureDependent.compare("yes") == 0 && _permSlipDependent.compare("yes") == 0) {
+      if (_permPressureDependent == "yes" && _permSlipDependent == "yes") {
         VecCopy(_k_p, _k_slip);
       }
       for (int i = 0; i < _maxBeIteration; i++) {
         computeInitialSteadyStatePressure(D);
-        if (_permPressureDependent.compare("yes") == 0) {
+        if (_permPressureDependent == "yes") {
           updatePermPressureDependent();
           Vec coeff;
           computeVariableCoefficient(coeff);
@@ -56,13 +61,13 @@ PressureEq::PressureEq(Domain &D)
           VecDestroy(&coeff);
         }
       }
-      if (_permPressureDependent.compare("yes") == 0 && _permSlipDependent.compare("yes") == 0) {
+      if (_permPressureDependent == "yes" && _permSlipDependent == "yes") {
         VecCopy(_k_slip, _k_p);
       }
     }
   }
 
-  // load previous states
+  // load from checkpoint
   loadFieldsFromFiles();
 
   #if VERBOSE > 1

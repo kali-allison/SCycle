@@ -7,17 +7,15 @@ using namespace std;
 // member function definitions including constructor
 // first type of constructor with 1 parameter
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir(" "),
+: _file(file),_delim(" = "),_outputDir(" "),
   _bulkDeformationType("linearElastic"),
   _momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
   _sbpCompatibilityType("fullyCompatible"),
-  _gridSpacingType("variableGridSpacing"),
-  _isMMS(0),_loadICs(0),
-  _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),
-  _vL(1e-9),
+  _gridSpacingType("variableGridSpacing"),_isMMS(0),
+  _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
-  _bCoordTrans(-1)
+  _bCoordTrans(-1), _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file)";
@@ -25,8 +23,12 @@ Domain::Domain(const char *file)
   #endif
 
   // load data from file
-  loadData(_file);
-
+  loadSettings(_file);
+  if (_ckpt > 0) {
+    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
+    _maxStepCount = _interval;
+  }
+  
   // check domain size and set grid spacing in y direction
   if (_Ny > 1) {
     _dq = 1.0 / (_Ny - 1.0);
@@ -66,24 +68,26 @@ Domain::Domain(const char *file)
 
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir(" "),
+: _file(file),_delim(" = "),_outputDir(" "),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
   _sbpCompatibilityType("fullyCompatible"),
-  _gridSpacingType("variableGridSpacing"),
-  _isMMS(0),_loadICs(0),
-  _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),
-  _vL(1e-9),
+  _gridSpacingType("variableGridSpacing"),_isMMS(0),
+  _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(-1),_dr(-1),
-  _bCoordTrans(-1)
+  _bCoordTrans(-1), _ckpt(0), _ckptNumber(0), _interval(500), _maxStepCount(1e8)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
 
-  loadData(_file);
-
+  loadSettings(_file);
+  if (_ckpt > 0) {
+    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
+    _maxStepCount = _interval;
+  }
+  
   _Ny = Ny;
   _Nz = Nz;
 
@@ -118,7 +122,6 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
 }
 
 
@@ -150,8 +153,8 @@ Domain::~Domain()
 }
 
 
-// define loadData function, takes 1 parameter - the filename
-PetscErrorCode Domain::loadData(const char *file)
+// load settings from input file
+PetscErrorCode Domain::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
   PetscMPIInt rank,size;
@@ -202,12 +205,9 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("Lz") == 0) {
       _Lz = atof(rhs.c_str());
     }
+    // _isMMS must be 0 or 1
     else if (var.compare("isMMS") == 0) {
-      _isMMS = 0;
-      string temp = rhs;
-      if (temp.compare("yes") == 0 || temp.compare("y") == 0) {
-	_isMMS = 1;
-      }
+      _isMMS = atoi(rhs.c_str());
     }
     else if (var.compare("sbpType")==0) {
       _sbpType = rhs;
@@ -227,12 +227,6 @@ PetscErrorCode Domain::loadData(const char *file)
     else if (var.compare("momentumBalanceType")==0) {
       _momentumBalanceType = rhs;
     }
-    else if (var.compare("loadICs")==0) {
-      _loadICs = (int)atof(rhs.c_str());
-    }
-    else if (var.compare("inputDir")==0) {
-      _inputDir = rhs;
-    }
     else if (var.compare("outputDir")==0) {
       _outputDir =  rhs;
     }
@@ -241,6 +235,15 @@ PetscErrorCode Domain::loadData(const char *file)
     }
     else if (var.compare("vL")==0) {
       _vL = atof( rhs.c_str() );
+    }
+    else if (var.compare("maxStepCount") == 0) {
+      _maxStepCount = (int)atof(rhs.c_str());
+    }
+    else if (var.compare("ckpt") == 0) {
+      _ckpt = atoi(rhs.c_str());
+    }
+    else if (var.compare("interval") == 0) {
+      _interval = (int)atof(rhs.c_str());
     }
   }
 
@@ -325,6 +328,10 @@ PetscErrorCode Domain::checkInput()
   assert(_Ly > 0 && _Lz > 0);
   assert(_dq > 0 && !isnan(_dq));
   assert(_dr > 0 && !isnan(_dr));
+
+  assert(_ckpt >= 0 && _ckptNumber >= 0);
+  assert(_interval >= 0);
+  assert(_maxStepCount > 0);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -441,49 +448,53 @@ PetscErrorCode Domain::setFields()
   ierr = VecDuplicate(_y,&_r); CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) _r, "r"); CHKERRQ(ierr);
 
-  // construct coordinate transform
-  PetscInt Ii,Istart,Iend,Jj = 0;
-  PetscScalar *y,*z,*q,*r;
-  ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
-
-  // return pointers to local data arrays (the processor's portion of vector data)
-  ierr = VecGetArray(_y,&y); CHKERRQ(ierr);
-  ierr = VecGetArray(_z,&z); CHKERRQ(ierr);
-  ierr = VecGetArray(_q,&q); CHKERRQ(ierr);
-  ierr = VecGetArray(_r,&r); CHKERRQ(ierr);
-
-  // set vector entries for q, r (coordinate transform) and y, z (no transform)
-  for (Ii=Istart; Ii<Iend; Ii++) {
-    q[Jj] = _dq*(Ii/_Nz);
-    r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
-
-    // matrix-based, fully compatible, allows curvilinear coordinate transformation
-    if (_sbpType.compare("mfc_coordTrans") ) {
-      y[Jj] = (_dq*_Ly)*(Ii/_Nz);
-      z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
-    }
-    else {
-      // hardcoded transformation (not available for z)
-      if (_bCoordTrans > 0) {
-	y[Jj] = _Ly * sinh(_bCoordTrans * q[Jj]) / sinh(_bCoordTrans);
-      }
-      // no transformation
-      y[Jj] = q[Jj]*_Ly;
-      z[Jj] = r[Jj]*_Lz;
-    }
-    Jj++;
+  if (_ckptNumber > 0) {
+    loadVecFromInputFile(_y, _outputDir, "y");
+    loadVecFromInputFile(_z, _outputDir, "z");
+    loadVecFromInputFile(_q, _outputDir, "q");
+    loadVecFromInputFile(_r, _outputDir, "r");    
   }
+  else {
+    // construct coordinate transform
+    PetscInt Ii,Istart,Iend,Jj = 0;
+    PetscScalar *y,*z,*q,*r;
+    ierr = VecGetOwnershipRange(_q,&Istart,&Iend);CHKERRQ(ierr);
 
-  // restore arrays
-  ierr = VecRestoreArray(_y,&y); CHKERRQ(ierr);
-  ierr = VecRestoreArray(_z,&z); CHKERRQ(ierr);
-  ierr = VecRestoreArray(_q,&q); CHKERRQ(ierr);
-  ierr = VecRestoreArray(_r,&r); CHKERRQ(ierr);
+    // return pointers to local data arrays (the processor's portion of vector data)
+    ierr = VecGetArray(_y,&y); CHKERRQ(ierr);
+    ierr = VecGetArray(_z,&z); CHKERRQ(ierr);
+    ierr = VecGetArray(_q,&q); CHKERRQ(ierr);
+    ierr = VecGetArray(_r,&r); CHKERRQ(ierr);
 
-  // load y and z instead, if provided in input file
-  loadVecFromInputFile(_y,_inputDir,"y");
-  loadVecFromInputFile(_z,_inputDir,"z");
+    // set vector entries for q, r (coordinate transform) and y, z (no transform)
+    for (Ii=Istart; Ii<Iend; Ii++) {
+      q[Jj] = _dq*(Ii/_Nz);
+      r[Jj] = _dr*(Ii-_Nz*(Ii/_Nz));
 
+      // matrix-based, fully compatible, allows curvilinear coordinate transformation
+      if (_sbpType.compare("mfc_coordTrans") ) {
+	y[Jj] = (_dq*_Ly)*(Ii/_Nz);
+	z[Jj] = (_dr*_Lz)*(Ii-_Nz*(Ii/_Nz));
+      }
+      else {
+	// hardcoded transformation (not available for z)
+	if (_bCoordTrans > 0) {
+	  y[Jj] = _Ly * sinh(_bCoordTrans * q[Jj]) / sinh(_bCoordTrans);
+	}
+	// no transformation
+	y[Jj] = q[Jj]*_Ly;
+	z[Jj] = r[Jj]*_Lz;
+      }
+      Jj++;
+    }
+
+    // restore arrays
+    ierr = VecRestoreArray(_y,&y); CHKERRQ(ierr);
+    ierr = VecRestoreArray(_z,&z); CHKERRQ(ierr);
+    ierr = VecRestoreArray(_q,&q); CHKERRQ(ierr);
+    ierr = VecRestoreArray(_r,&r); CHKERRQ(ierr);
+  }
+ 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);

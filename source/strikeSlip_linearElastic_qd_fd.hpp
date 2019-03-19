@@ -51,8 +51,6 @@ private:
 
   // problem properties
   string       _outputDir; // output data
-  string       _inputDir; // input data
-  const bool   _loadICs; // true if starting from a previous simulation
   PetscScalar  _vL;
   string       _thermalCoupling,_heatEquationType; // thermomechanical coupling
   string       _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
