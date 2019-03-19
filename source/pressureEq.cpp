@@ -14,10 +14,11 @@ PressureEq::PressureEq(Domain &D)
   _n_p(NULL), _beta_p(NULL), _k_p(NULL), _eta_p(NULL), _rho_f(NULL), _g(9.8),
   _bcB_ratio(1.0), _bcB_type("Q"),
   _maxBeIteration(1), _minBeDifference(0.01),
-  _linSolver("AMG"), _ksp(NULL), _kspTol(1e-10),
+  _linSolver("CG"), _ksp(NULL), _kspTol(1e-10),
   _sbp(NULL), _sbpType(D._sbpType), _linSolveCount(0),
   _writeTime(0), _linSolveTime(0), _ptTime(0), _startTime(0),
-  _miscTime(0), _invTime(0), _ckpt(0), _ckptNumber(0), _interval(500)
+  _miscTime(0), _invTime(0),
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber), _maxStepCount(D._maxStepCount)
 {
   #if VERBOSE > 1
     string funcName = "PressureEq::PressureEq";
@@ -30,7 +31,6 @@ PressureEq::PressureEq(Domain &D)
 
   if (_ckptNumber > 0) {
     _guessSteadyStateICs = 0;
-    
   }
   
   setUpSBP();
@@ -271,12 +271,8 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("pstd_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _pstd_pDepths); }
     else if (var.compare("maxBeIteration") == 0) { _maxBeIteration = (int)atof(rhs.c_str()); }
     else if (var.compare("minBeDifference") == 0) { _minBeDifference = atof(rhs.c_str()); }
-
-    // checkpoint parameters
-    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
-    else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
   }
-
+  
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
   #endif
@@ -448,24 +444,30 @@ PetscErrorCode PressureEq::setFields(Domain &D)
 PetscErrorCode PressureEq::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "PressureEq::loadFieldsFromFiles()";
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
+#if VERBOSE > 1
+  string funcName = "PressureEq::loadFieldsFromFiles()";
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+  CHKERRQ(ierr);
+#endif
 
-  // material properties
-  ierr = loadVecFromInputFile(_p, _inputDir, "p_p"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_beta_p, _inputDir, "p_n"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_beta_p, _inputDir, "p_beta"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_k_p, _inputDir, "p_k"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_eta_p, _inputDir, "p_eta"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_rho_f, _inputDir, "p_rho_f"); CHKERRQ(ierr);
+  if (_ckptNumber > 0) {
+    ierr = loadVecFromInputFile(_p, _outputDir, "p_ckpt");
+    ierr = loadVecFromInputFile(_p_t, _outputDir, "p_t_ckpt");
+    ierr = loadVecFromInputFile(_k_p, _outputDir, "k_ckpt");
+    ierr = loadVecFromInputFile(_k_slip, _outputDir, "k_slip_ckpt");
+    ierr = loadVecFromInputFile(_k_press, _outputDir, "k_press_ckpt");
 
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
+    // other material properties files to load (not checkpoint files)
+    ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_n"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_beta_p, _outputDir, "p_beta"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_eta_p, _outputDir, "p_eta"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_rho_f, _outputDir, "p_rho_f"); CHKERRQ(ierr);
+  }      
+    
+#if VERBOSE > 1
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+  CHKERRQ(ierr);
+#endif
   return ierr;
 }
 
@@ -1759,8 +1761,6 @@ PetscErrorCode PressureEq::be_mms(const PetscScalar time, const map<string, Vec>
   return ierr;
 }
 
-
-
 // =====================================================================
 // IO commands
 
@@ -1787,7 +1787,6 @@ PetscErrorCode PressureEq::writeContext(const string outputDir)
     PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
   #endif
 
-  ierr = _sbp->writeOps(outputDir + "ops_p_");
   CHKERRQ(ierr);
 
   PetscViewer viewer;
@@ -1803,7 +1802,7 @@ PetscErrorCode PressureEq::writeContext(const string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer, "hydraulicTimeIntType = %s\n", _hydraulicTimeIntType.c_str()); CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-  // TODO: ask what these vectors are, and why they need to be written out
+  // write material parameters
   ierr = writeVec(_n_p, outputDir + "p_n"); CHKERRQ(ierr);
   ierr = writeVec(_beta_p, outputDir + "p_beta"); CHKERRQ(ierr);
   ierr = writeVec(_k_p, outputDir + "p_k"); CHKERRQ(ierr);
@@ -1851,7 +1850,6 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
   if (_isMMS) {
     Vec pA;
     VecDuplicate(_p, &pA);
-    // TODO: why do we need to do this step?
     mapToVec(pA, zzmms_pA1D, _z, time);
     if (stepCount == 0) {
       ierr = io_initiateWriteAppend(_viewers, "pA", pA, outputDir + "p_pA"); CHKERRQ(ierr);
@@ -1862,19 +1860,34 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     VecDestroy(&pA);
   }
 
-  if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "p", _p, outputDir + "p_p"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "p_t", _p_t, outputDir + "p_p_t"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k", _k_p, outputDir + "p_k"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k_slip", _k_slip, outputDir + "p_k_slip"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k_press", _k_press, outputDir + "p_k_press"); CHKERRQ(ierr);
+  if (stepCount == 0 && _ckptNumber == 0) {
+    ierr = io_initiateWriteAppend(_viewers, "p", _p, outputDir + "p"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "p_t", _p_t, outputDir + "p_t"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "k", _k_p, outputDir + "k"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "k_slip", _k_slip, outputDir + "k_slip"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "k_press", _k_press, outputDir + "k_press"); CHKERRQ(ierr);
   }
-  else {
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    ierr = initiate_appendVecToOutput(_viewers, "p", _p, outputDir + "p"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "p_t", _p_t, outputDir + "p_t"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k", _k_p, outputDir + "k"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k_slip", _k_slip, outputDir + "k_slip"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k_press", _k_press, outputDir + "k_press"); CHKERRQ(ierr);
+  }
+  else if (stepCount <= _maxStepCount) {
     ierr = VecView(_p, _viewers["p"].first); CHKERRQ(ierr);
     ierr = VecView(_p_t, _viewers["p_t"].first); CHKERRQ(ierr);
     ierr = VecView(_k_p, _viewers["k"].first); CHKERRQ(ierr);
     ierr = VecView(_k_slip, _viewers["k_slip"].first); CHKERRQ(ierr);
     ierr = VecView(_k_press, _viewers["k_press"].first); CHKERRQ(ierr);
+    // write checkpoint files
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      ierr = writeVec(_p, outputDir + "p_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_p_t, outputDir + "p_t_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_k_p, outputDir + "k_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_k_slip, outputDir + "k_slip_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_k_press, outputDir + "k_press_ckpt"); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1

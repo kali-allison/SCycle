@@ -75,7 +75,7 @@ private:
   vector<double> _kL_pVals, _kL_pDepths, _kT_pVals, _kT_pDepths, _kmin_pVals, _kmin_pDepths, _kmax_pVals, _kmax_pDepths;
   vector<double> _kmin2_pVals, _kmin2_pDepths, _pstd_pVals, _pstd_pDepths;
   vector<double> _sigmaNVals,_sigmaNDepths;
-  Vec                 _sN; // total normal stress
+  Vec            _sN; // total normal stress
 
   VecScatter _scatters;
 
@@ -84,7 +84,7 @@ private:
   double _invTime;
 
   // checkpoint enabling
-  int _ckpt, _ckptNumber, _interval;
+  PetscInt _ckpt, _ckptNumber, _maxStepCount;
   
   // viewers:
   // 1st string = key naming relevant field, e.g. "slip"
