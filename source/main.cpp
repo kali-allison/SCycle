@@ -125,7 +125,7 @@ int computeGreensFunction(const char * inputFile)
   }
 
   // output greens function
-  std::string filename;
+  string filename;
   filename =  d._outputDir + "G";
   writeMat(G, filename);
 
