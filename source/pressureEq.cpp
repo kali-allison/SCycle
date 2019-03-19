@@ -1874,7 +1874,7 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     ierr = initiate_appendVecToOutput(_viewers, "k_slip", _k_slip, outputDir + "k_slip"); CHKERRQ(ierr);
     ierr = initiate_appendVecToOutput(_viewers, "k_press", _k_press, outputDir + "k_press"); CHKERRQ(ierr);
   }
-  else if (stepCount <= _maxStepCount) {
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_p, _viewers["p"].first); CHKERRQ(ierr);
     ierr = VecView(_p_t, _viewers["p_t"].first); CHKERRQ(ierr);
     ierr = VecView(_k_p, _viewers["k"].first); CHKERRQ(ierr);
