@@ -64,4 +64,4 @@ interval = 10 # time step interval at which to write checkpoint files
 
 #======================================================================
 # directory for output
-outputDir = /home/yyy910805/scycle/data/ex1/
+outputDir = /data/dunham/yyang/scycle/data/ex1/
