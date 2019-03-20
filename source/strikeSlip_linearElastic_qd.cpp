@@ -816,6 +816,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::testLoading() {
     printf("prestress equal after initiateIntegrand\n");
   }
 
+  VecDestroy(&bcL_c);
+  VecDestroy(&bcR_c);
+  VecDestroy(&bcRShift_c);
+  VecDestroy(&slip_c);
+  VecDestroy(&slipVel_c);
+  VecDestroy(&tauP_c);
+  VecDestroy(&tauQSP_c);
+  VecDestroy(&psi_c);
+  VecDestroy(&sNEff_c);
+  VecDestroy(&prestress_c);
+
   return ierr;
 }
 

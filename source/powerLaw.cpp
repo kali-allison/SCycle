@@ -1110,7 +1110,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   Mat A; _sbp->getA(A);
-  setupKSP(A,_ksp,_pc);
+  setupKSP(_ksp,_pc,A);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1141,136 +1141,87 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
+PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "PowerLaw::setupKSP";
+    string funcName = "LinearElastic::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
-    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+  // create linear solver context
+  ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+
+  // set operators, here the matrix that defines the linear system also serves as the preconditioning matrix
+  ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+
+  // algebraic multigrid from HYPRE
+  if (_linSolver == "AMG") { 
+    ierr = KSPSetType(ksp,KSPRICHARDSON); CHKERRQ(ierr);
+    // necessary for solving steady state power law
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr); 
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
+    ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct LU from MUMPS
+  else if (_linSolver == "MUMPSLU") { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct Cholesky (RR^T) from MUMPS
+  else if (_linSolver == "MUMPSCHOLESKY") { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
-    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+
+  // preconditioned conjugate gradient
+  else if (_linSolver == "CG") {
+    ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    //    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCSetType(pc, PCILU); CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
+
+  // undefined linear solver
   else {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
   }
 
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(ksp);                                        CHKERRQ(ierr);
+  /* enable command line options to override those specified above, e.g.:
+     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
+   */
+  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp);                                                 CHKERRQ(ierr);
+  ierr = KSPSetUp(ksp); CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
+
   return ierr;
 }
 
-// set up KSP for steady state iterations
-PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "PowerLaw::setupKSP_SSIts";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  //~ if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
-    //~ // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    //~ ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    //~ ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    //~ ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    //~ ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    //~ ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
-    //~ ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-  //~ }
-  //~ else {
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);
-    //~ assert(0);
-  //~ }
-
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(ksp);                                        CHKERRQ(ierr);
-
-  // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp);                                                 CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 // compute B and C
 // B = H*Dy*mu + SAT terms
@@ -1675,9 +1626,10 @@ PetscErrorCode PowerLaw::changeBCTypes(string bcRTtype,string bcTTtype,string bc
 
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
   KSPDestroy(&_ksp);
-  Mat A; _sbp->getA(A);
+  Mat A;
+  _sbp->getA(A);
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(A,_ksp,_pc);
+  setupKSP(_ksp,_pc,A);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2145,7 +2097,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   _sbp_eta->getA(A);
   KSPDestroy(&_ksp_eta);
   KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
-  setupKSP_SSIts(A,_ksp_eta,_pc_eta);
+  setupKSP(_ksp_eta,_pc_eta,A);
 
   // solve for steady-state velocity
   ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);
