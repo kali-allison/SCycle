@@ -87,11 +87,6 @@ int computeGreensFunction(const char * inputFile)
   VecSet(le._bcB,0.0);
   VecSet(le._bcR,0.0);
 
-  // set up KSP
-  Mat A;
-  le._sbp->getA(A);
-  le.setupKSP(le._sbp,le._ksp,le._pc,A);
-
   // prepare matrix to hold greens function
   Mat G;
   MatCreateDense(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,d._Ny,d._Nz,NULL,&G);
