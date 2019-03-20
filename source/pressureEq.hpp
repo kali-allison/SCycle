@@ -60,7 +60,7 @@ private:
   Vec _n_p = NULL, _beta_p = NULL, _k_p = NULL, _eta_p = NULL, _rho_f = NULL;
   Vec _k_slip = NULL, _k_press = NULL;
   Vec _kL_p = NULL, _kT_p = NULL, _kmin_p = NULL, _kmax_p = NULL;
-  Vec _kmin2_p = NULL, _pstd_p = NULL;
+  Vec _kmin2_p = NULL, _sigma_p = NULL;
   PetscScalar _g; // gravitational acceleration
   PetscScalar _vL;
   PetscScalar _bcB_ratio;
@@ -83,7 +83,7 @@ private:
   vector<double> _eta_pVals, _eta_pDepths, _rho_fVals, _rho_fDepths;
   vector<double> _pVals, _pDepths, _dpVals, _dpDepths;
   vector<double> _kL_pVals, _kL_pDepths, _kT_pVals, _kT_pDepths, _kmin_pVals, _kmin_pDepths, _kmax_pVals, _kmax_pDepths;
-  vector<double> _kmin2_pVals, _kmin2_pDepths, _pstd_pVals, _pstd_pDepths;
+  vector<double> _kmin2_pVals, _kmin2_pDepths, _sigma_pVals, _sigma_pDepths;
   vector<double> _sigmaNVals,_sigmaNDepths;
   Vec            _sN; // total normal stress
 

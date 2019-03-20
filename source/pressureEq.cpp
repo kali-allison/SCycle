@@ -103,7 +103,7 @@ PressureEq::~PressureEq()
   VecDestroy(&_kmax_p);
   VecDestroy(&_k_press);
   VecDestroy(&_kmin2_p);
-  VecDestroy(&_pstd_p);
+  VecDestroy(&_sigma_p);
 
   VecDestroy(&_p);
   VecDestroy(&_bcL);
@@ -280,8 +280,8 @@ PetscErrorCode PressureEq::loadSettings(const char *file)
     else if (var.compare("permPressureDependent") == 0) { _permPressureDependent = rhs.c_str(); }
     else if (var.compare("kmin2_pVals") == 0) { loadVectorFromInputFile(rhsFull, _kmin2_pVals); }
     else if (var.compare("kmin2_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _kmin2_pDepths); }
-    else if (var.compare("pstd_pVals") == 0) { loadVectorFromInputFile(rhsFull, _pstd_pVals); }
-    else if (var.compare("pstd_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _pstd_pDepths); }
+    else if (var.compare("sigma_pVals") == 0) { loadVectorFromInputFile(rhsFull, _sigma_pVals); }
+    else if (var.compare("sigma_pDepths") == 0) { loadVectorFromInputFile(rhsFull, _sigma_pDepths); }
     else if (var.compare("maxBeIteration") == 0) { _maxBeIteration = (int)atof(rhs.c_str()); }
     else if (var.compare("minBeDifference") == 0) { _minBeDifference = atof(rhs.c_str()); }
   }
@@ -419,12 +419,12 @@ PetscErrorCode PressureEq::setFields(Domain &D)
     PetscObjectSetName((PetscObject)_pstd_p, "stdP_p");
     VecSet(_pstd_p, 0.0);
 
-    VecDuplicate(_p, &_pstd_p);
-    PetscObjectSetName((PetscObject)_pstd_p, "stdP_p");
-    VecSet(_pstd_p, 0.0);
+    VecDuplicate(_p, &_sigma_p);
+    PetscObjectSetName((PetscObject)_sigma_p, "sigma_p");
+    VecSet(_sigma_p, 0.0);
 
     ierr = setVec(_kmin2_p, _z, _kmin2_pVals, _kmin2_pDepths); CHKERRQ(ierr);
-    ierr = setVec(_pstd_p, _z, _pstd_pVals, _pstd_pDepths); CHKERRQ(ierr);
+    ierr = setVec(_sigma_p, _z, _sigma_pVals, _sigma_pDepths); CHKERRQ(ierr);
   }
 
   // boundary conditions
@@ -539,7 +539,7 @@ PetscErrorCode PressureEq::checkInput()
   assert(_kmin_pVals.size()  == _kmin_pDepths.size());
   assert(_kmax_pVals.size()  == _kmax_pDepths.size());
   assert(_kmin2_pVals.size() == _kmin2_pDepths.size());
-  assert(_pstd_pVals.size()  == _pstd_pDepths.size());
+  assert(_sigma_pVals.size() == _sigma_pDepths.size());
   assert(_sigmaNVals.size()  == _sigmaNDepths.size());
 
   assert(_pVals.size()       != 0);
@@ -553,7 +553,7 @@ PetscErrorCode PressureEq::checkInput()
   assert(_kmin_pVals.size()  != 0);
   assert(_kmax_pVals.size()  != 0);
   assert(_kmin2_pVals.size() != 0);
-  assert(_pstd_pVals.size()  != 0);
+  assert(_sigma_pVals.size() != 0);
   assert(_sigmaNVals.size()  != 0);
   assert(_g >= 0);
 
@@ -1015,7 +1015,7 @@ PetscErrorCode PressureEq::updatePermPressureDependent()
     PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
   #endif
 
-  // k = (k0 - kmin2) / exp( (sN-p)/pstd ) + kmin2
+  // k = (k0 - kmin2) / exp( (sN-p)/sigma_p ) + kmin2
   Vec tmp1, tmp2;
   VecDuplicate(_k_p, &tmp1);
   VecCopy(_k_slip, tmp1);
@@ -1023,8 +1023,8 @@ PetscErrorCode PressureEq::updatePermPressureDependent()
   VecCopy(_sN, tmp2);
 
   ierr = VecAXPY(tmp2, -1.0, _p); // sN - p
-  ierr = VecPointwiseDivide(tmp2, tmp2, _pstd_p); // (sN-p)/pstd
-  ierr = VecExp(tmp2); // exp( (sN-p)/pstd )
+  ierr = VecPointwiseDivide(tmp2, tmp2, _sigma_p); // (sN-p)/sigma_p
+  ierr = VecExp(tmp2); // exp( (sN-p)/sigma_p)
   ierr = VecAXPY(tmp1, -1.0, _kmin2_p);
   ierr = VecPointwiseDivide(tmp1, tmp1, tmp2);
   ierr = VecAXPY(tmp1, 1.0, _kmin2_p);
