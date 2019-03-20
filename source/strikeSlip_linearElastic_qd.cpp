@@ -5,7 +5,7 @@
 using namespace std;
 
 StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
-: _D(&D),_delim(D._delim),_isMMS(D._isMMS),
+  : _D(&D),_delim(D._delim),_isMMS(D._isMMS),_inputDir(D._inputDir),
   _outputDir(D._outputDir),_vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
@@ -1195,10 +1195,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
-  //ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term H*J if using a curvilinear grid (the H matrix and the Jacobian)
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacing.compare("variableGridSpacing")==0) {
     Vec temp1;
     Mat J,Jinv,qy,rz,yq,zr,H;
     VecDuplicate(_forcingTerm,&temp1);

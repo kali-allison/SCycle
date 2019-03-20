@@ -8,7 +8,7 @@ HeatEquation::HeatEquation(Domain& D)
 : _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Nz_lab(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(&D._y),_z(&D._z),
   _heatEquationType("transient"),_isMMS(D._isMMS),
-  _file(D._file),_outputDir(D._outputDir),_delim(D._delim),
+  _file(D._file),_inputDir(D._inputDir),_outputDir(D._outputDir),_delim(D._delim),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbpType(D._sbpType),_sbp(NULL),
@@ -224,25 +224,27 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
   #endif
 
   // material properties
-  // ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_k,_inputDir,"k"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_Qrad,_inputDir,"h"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_c,_inputDir,"c"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_k,_inputDir,"k"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_Qrad,_inputDir,"h"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_c,_inputDir,"c"); CHKERRQ(ierr);
 
   bool chkTamb = 0, chkT = 0, chkdT = 0;
 
   // load Tamb (background geotherm)
-  // loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
+  loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
 
   // load T
-  // loadVecFromInputFile(_T,_inputDir,"T",chkT);
+  loadVecFromInputFile(_T,_inputDir,"T",chkT);
 
   // if Tamb was loaded and T wasn't, copy Tamb into T
   if (chkT!=1 && chkTamb) { VecCopy(_Tamb,_T); }
 
   // load dT (perturbation from ambient geotherm)
-  // loadVecFromInputFile(_dT,_inputDir,"dT",chkdT);
-  if (chkdT!=1 && chkTamb) { // dT wasn't loaded, compute it from T and Tamb
+  loadVecFromInputFile(_dT,_inputDir,"dT",chkdT);
+
+  // dT wasn't loaded, compute it from T and Tamb
+  if (chkdT!=1 && chkTamb) {
     VecWAXPY(_dT,-1.0,_Tamb,_T);
   }
 

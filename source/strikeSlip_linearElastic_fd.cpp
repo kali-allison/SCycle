@@ -9,7 +9,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz), _Ly(D._Ly),_Lz(D._Lz),
   _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),_alphay(NULL),
-  _outputDir(D._outputDir),_vL(1e-9),
+  _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
   _initialConditions("u"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),

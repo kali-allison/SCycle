@@ -48,6 +48,7 @@ private:
 
   // problem properties
   const bool   _isMMS; // true if running mms test
+  string       _inputDir;
   string       _outputDir; // output data
   PetscScalar  _vL;
   string       _thermalCoupling,_heatEquationType; // thermomechanical coupling

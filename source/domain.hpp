@@ -32,6 +32,7 @@ public:
 
   const char    *_file;
   string         _delim; // format is: var delim value (without the white space)
+  string         _inputDir;
   string         _outputDir; // directory for output
   string         _bulkDeformationType; // options: linearElastic, powerLaw
   string         _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts

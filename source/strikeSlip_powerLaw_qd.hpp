@@ -47,6 +47,7 @@ public:
 
   // IO information
   string          _delim; // format is: var delim value (without the white space)
+  string          _inputDir;
   string          _outputDir; // output data
 
   // problem properties
