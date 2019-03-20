@@ -250,6 +250,7 @@ int main(int argc,char **args)
     runEqCycle(d);
   }
 }
+
   PetscFinalize();
   return ierr;
 }

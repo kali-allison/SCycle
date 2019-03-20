@@ -1,10 +1,10 @@
 all: main
 
 DEBUG_MODULES   = -DVERBOSE=1
-CFLAGS          = $(DEBUG_MODULES)
+CFLAGS          = $(DEBUG_MODULES) -fsanitize=undefined -fsanitize=address
 CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
-#LDFLAGS         = -fsanitize=undefined -fsanitize=address
+LDFLAGS         = -fsanitize=undefined -fsanitize=address
 CLINKER		= openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
@@ -16,7 +16,6 @@ OBJECTS := domain.o fault.o genFuncs.o\
  strikeSlip_linearElastic_fd.o strikeSlip_linearElastic_qd_fd.o strikeSlip_powerLaw_qd_fd.o
 
 
-PETSC_DIR = /home/yyy910805/petsc
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
