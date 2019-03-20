@@ -3,10 +3,11 @@
 
 #======================================================================
 # define the domain and problem type
+order = 4
 
 # set up the computational domain
-Ny = 151 # points in y-direction
-Nz = 151 # points in z-direction
+Ny = 11 # points in y-direction
+Nz = 11 # points in z-direction
 Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
@@ -63,7 +64,7 @@ n_pVals = [0.01 0.01]
 n_pDepths = [0 500]
 beta_pVals = [1 1] # 1/GPa
 beta_pDepths = [0 500]
-k_pVals = [1e-22 1e-22] # km^2
+k_pVals = [1e-12 1e-21] # km^2
 k_pDepths = [0 500]
 eta_pVals = [1e-13 1e-13] # GPa.s
 eta_pDepths = [0 500]
@@ -84,7 +85,7 @@ kmin_pDepths = [0 500]
 kmax_pVals = [1e-21 1e-21]  # km^2
 kmax_pDepths = [0 500]
 
-permPressureDependent = no
+permPressureDependent = yes
 sigma_pVals = [30 30]  # MPa
 sigma_pDepths = [0 500]
 kmin2_pVals = [1e-24 1e-24] # km^2
