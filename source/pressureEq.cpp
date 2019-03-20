@@ -415,10 +415,6 @@ PetscErrorCode PressureEq::setFields(Domain &D)
     PetscObjectSetName((PetscObject)_kmin2_p, "meanP_p");
     VecSet(_kmin2_p, 0.0);
     
-    VecDuplicate(_p, &_pstd_p);
-    PetscObjectSetName((PetscObject)_pstd_p, "stdP_p");
-    VecSet(_pstd_p, 0.0);
-
     VecDuplicate(_p, &_sigma_p);
     PetscObjectSetName((PetscObject)_sigma_p, "sigma_p");
     VecSet(_sigma_p, 0.0);

@@ -394,7 +394,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   Mat A;
   _material->_sbp->getA(A);
-  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A);
 
   // if to perform MMS test, also set MMS initial condition
   if (_isMMS) {

@@ -15,7 +15,6 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 
-<<<<<<< HEAD
 /* This class solves for the uncoupled fluid pressure during earthquake cycle
  * simulations, and solves for the permeability changes due to fault slip and
  * pore pressure. Results show a significant change of fluid pressure during
@@ -23,14 +22,12 @@
  * valve behavior in Earth's crust.
  */
 
-=======
 using namespace std;
 
 /* Class to solve for pressure evolution along the 1D vertical strike-slip fault
  * Currently is a stand-alone solver, and does not couple to stress evolution on the fault
  * Permeability can be slip-dependent, or pressure-dependent
  */
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
 
 class PressureEq
 {
@@ -93,21 +90,14 @@ private:
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
 
-<<<<<<< HEAD
-=======
   // checkpoint enabling
   PetscInt _ckpt, _ckptNumber, _maxStepCount;
   
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
   // viewers:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-<<<<<<< HEAD
-  std::map<string, std::pair<PetscViewer, string>> _viewers;
-=======
   map<string, pair<PetscViewer, string>> _viewers;
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
 
   // disable default copy constructor and assignment operator
   PressureEq(const PressureEq &that);
@@ -123,11 +113,8 @@ private:
   PetscErrorCode updatePermPressureDependent();
 
 
-<<<<<<< HEAD
   // constructor and destructor
-=======
 public:
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
   PressureEq(Domain &D);
   ~PressureEq();
 
@@ -151,19 +138,9 @@ public:
   // time derivative of pressure
   PetscErrorCode dp_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
-<<<<<<< HEAD
   PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
-=======
 
-  // implicit time integration
-  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-		      map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
-  PetscErrorCode be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-                    map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
-  PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-                        map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
-
+  
   // ============= implicit time integration ======================
   PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   // backward Euler
@@ -171,11 +148,9 @@ public:
   // time derivative of permeability
   PetscErrorCode dk_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dk_dt(const PetscScalar time, const Vec slipVel, const Vec &K, Vec &dKdt);
-<<<<<<< HEAD
+
   // MMS test for backward Euler
   PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
-=======
->>>>>>> 17b2c04c61793f2c98ac59419a1da6b961b75030
 
   // IO
   PetscErrorCode view(const double totRunTime);
