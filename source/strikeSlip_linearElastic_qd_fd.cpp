@@ -6,37 +6,38 @@ using namespace std;
 
 
 strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
-: _D(&D),_delim(D._delim),_outputDir(D._outputDir),_vL(1e-9),
-  _thermalCoupling("no"),_heatEquationType("transient"),
-  _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
-  _cycleCount(0),_maxNumCycles(1e3),
-  _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),
-  _inDynamic(false),_allowed(false),
-  _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
-  _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
-  _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(10),_stride2D(10),
-  _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),
-  _stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
-  _maxStepCount(D._maxStepCount),
-  _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
-  _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
-  _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
-  _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
-  _forcingVal(0),
-  _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
-  _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
-  _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
-  _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
-  _fault_qd(NULL),_fault_fd(NULL), _material(NULL),_he(NULL),_p(NULL)
+  : _D(&D),_delim(D._delim),
+    _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
+    _thermalCoupling("no"),_heatEquationType("transient"),
+    _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+    _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
+    _cycleCount(0),_maxNumCycles(1e3),
+    _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),
+    _inDynamic(false),_allowed(false),
+    _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
+    _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
+    _timeIntegrator("RK43"),_timeControlType("PID"),
+    _stride1D(10),_stride2D(10),
+    _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),
+    _stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
+    _maxStepCount(D._maxStepCount),
+    _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
+    _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
+    _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+    _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
+    _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
+    _forcingVal(0),
+    _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
+    _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
+    _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
+    _quadEx_qd(NULL),_quadImex_qd(NULL), _quadWaveEx(NULL),
+    _fault_qd(NULL),_fault_fd(NULL), _material(NULL),_he(NULL),_p(NULL)
 {
-  #if VERBOSE > 1
-    std::string funcName = "strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd()";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
+#if VERBOSE > 1
+  std::string funcName = "strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd()";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+#endif
 
   loadSettings(D._file);
   if (_ckptNumber > 0) {
@@ -677,7 +678,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
 
   // LinearElastic does not set up its KSP, so must set it up here
   Mat A; _material->_sbp->getA(A);
-  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A);
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
@@ -685,7 +686,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   if (_qd_bcLType.compare("symmFault")==0) {
     VecScale(slip,2.0);
   }
-  //ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
   _varQSEx["slip"] = slip;
 
   if (_guessSteadyStateICs) { solveSS(); }
@@ -1237,7 +1238,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
   ierr = io_initiateWriteAppend(_viewers, "psi", _fault_qd->_psi, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
-  //loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
+  loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
   ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
   // compute compute u that satisfies tau at left boundary
@@ -1371,7 +1372,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
   VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
-  //ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // compute forcing term for momentum balance equation
   // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)

@@ -394,7 +394,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   Mat A;
   _material->_sbp->getA(A);
-  _material->setupKSP(_material->_sbp,_material->_ksp,_material->_pc,A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A);
 
   // if to perform MMS test, also set MMS initial condition
   if (_isMMS) {
@@ -815,6 +815,17 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::testLoading() {
   else {
     printf("prestress equal after initiateIntegrand\n");
   }
+
+  VecDestroy(&bcL_c);
+  VecDestroy(&bcR_c);
+  VecDestroy(&bcRShift_c);
+  VecDestroy(&slip_c);
+  VecDestroy(&slipVel_c);
+  VecDestroy(&tauP_c);
+  VecDestroy(&tauQSP_c);
+  VecDestroy(&psi_c);
+  VecDestroy(&sNEff_c);
+  VecDestroy(&prestress_c);
 
   return ierr;
 }

@@ -8,7 +8,7 @@ using namespace std;
 // pseudoplasticity class
 
 Pseudoplasticity::Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const string delim)
-: _file(file),_delim(delim),_y(&y),_z(&z)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
     string funcName = "Pseudoplasticity::Pseudoplasticity";
@@ -72,7 +72,8 @@ PetscErrorCode Pseudoplasticity::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("yieldStressVals")==0) { loadVectorFromInputFile(rhsFull,_yieldStressVals); }
+    if (var.compare("inputDir") == 0) { _inputDir = rhs; }
+    else if (var.compare("yieldStressVals")==0) { loadVectorFromInputFile(rhsFull,_yieldStressVals); }
     else if (var.compare("yieldStressDepths")==0) { loadVectorFromInputFile(rhsFull,_yieldStressDepths); }
 
   }
@@ -134,8 +135,8 @@ PetscErrorCode Pseudoplasticity::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-    //ierr = loadVecFromInputFile(_yieldStress,_inputDir,"plasticity_yieldStress"); CHKERRQ(ierr);
-    //ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_yieldStress,_inputDir,"plasticity_yieldStress"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -221,7 +222,7 @@ PetscErrorCode Pseudoplasticity::computeInvEffVisc(const Vec& dgdev)
 // dislocation creep class
 
 DislocationCreep::DislocationCreep(const Vec& y, const Vec& z, const char *file, const string delim)
-: _file(file),_delim(delim),_y(&y),_z(&z)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
     string funcName = "DislocationCreep::DislocationCreep";
@@ -287,13 +288,7 @@ PetscErrorCode DislocationCreep::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("disl_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("disl_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
-
+    if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
@@ -363,10 +358,10 @@ PetscErrorCode DislocationCreep::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  // ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"disl_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"disl_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"disl_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -483,7 +478,7 @@ PetscErrorCode DislocationCreep::computeInvEffVisc(const Vec& Temp,const Vec& sd
 
 
 DiffusionCreep::DiffusionCreep(const Vec& y, const Vec& z, const char *file, const string delim)
-: _file(file),_delim(delim),_y(&y),_z(&z)
+  : _file(file),_delim(delim),_inputDir("unspecified"),_y(&y),_z(&z)
 {
   #if VERBOSE > 1
     string funcName = "DiffusionCreep::DiffusionCreep";
@@ -550,14 +545,7 @@ PetscErrorCode DiffusionCreep::loadSettings()
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
-    if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("diff_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("diff_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
-    else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
-    else if (var.compare("diff_mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
+    if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
     else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
@@ -633,11 +621,11 @@ PetscErrorCode DiffusionCreep::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  // ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_A,_inputDir,"diff_A"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_QR,_inputDir,"diff_QR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_n,_inputDir,"diff_n"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_m,_inputDir,"diff_m"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -761,6 +749,7 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 //======================================================================
 // power-law rheology class
 
+<<<<<<< HEAD
 PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
 : _D(&D),_file(D._file),_delim(D._delim),_outputDir(D._outputDir),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),
@@ -784,6 +773,32 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
     string funcName = "PowerLaw::PowerLaw";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+=======
+PowerLaw::PowerLaw(Domain& D,string bcRType,string bcTType,string bcLType,string bcBType)
+  : _D(&D),_file(D._file),_delim(D._delim),
+    _inputDir(D._inputDir),_outputDir(D._outputDir),
+    _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),
+    _y(&D._y),_z(&D._z),_isMMS(D._isMMS),
+    _wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("yes"),_wLinearMaxwell("no"),
+    _plastic(NULL),_disl(NULL),_diff(NULL),
+    _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),
+    _grainSize(NULL),_effViscCap(1e30),
+    _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
+    _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),
+    _dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
+    _linSolver("CG"),_sbpType(D._sbpType),
+    _bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
+    _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),
+    _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
+    _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
+    _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+    _startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0),_stepCount(0)
+{
+#if VERBOSE > 1
+  string funcName = "PowerLaw::PowerLaw";
+  PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+#endif
+>>>>>>> yuyun
 
   loadSettings(_file);
   checkInput();
@@ -1076,23 +1091,23 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  // // load bcL and bcR
-  // ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
-  // VecSet(_bcR,0.0);
+  // load bcL and bcR
+  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
+  VecSet(_bcR,0.0);
 
-  // ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSize_g"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSize_g"); CHKERRQ(ierr);
 
-  // // load viscous strains
-  // ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
-  // ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
+  // load viscous strains
+  ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1135,7 +1150,7 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
 
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
   Mat A; _sbp->getA(A);
-  setupKSP(A,_ksp,_pc);
+  setupKSP(_ksp,_pc,A);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1166,136 +1181,87 @@ PetscErrorCode PowerLaw::setUpSBPContext(Domain& D)
  * For information regarding HYPRE's solver options, especially the
  * preconditioner options, use the User manual online. Also, use -ksp_view.
  */
-PetscErrorCode PowerLaw::setupKSP(Mat& A,KSP& ksp,PC& pc)
+PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "PowerLaw::setupKSP";
+    string funcName = "LinearElastic::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
-    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+  // create linear solver context
+  ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
+
+  // set operators, here the matrix that defines the linear system also serves as the preconditioning matrix
+  ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+
+  // algebraic multigrid from HYPRE
+  if (_linSolver == "AMG") { 
+    ierr = KSPSetType(ksp,KSPRICHARDSON); CHKERRQ(ierr);
+    // necessary for solving steady state power law
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr); 
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
+    ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct LU from MUMPS
+  else if (_linSolver == "MUMPSLU") { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
+
+  // direct Cholesky (RR^T) from MUMPS
+  else if (_linSolver == "MUMPSCHOLESKY") { 
+    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
+    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
+    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
-    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+
+  // preconditioned conjugate gradient
+  else if (_linSolver == "CG") {
+    ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    //    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCSetType(pc, PCILU); CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
+
+  // undefined linear solver
   else {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
   }
 
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(ksp);                                        CHKERRQ(ierr);
+  /* enable command line options to override those specified above, e.g.:
+     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
+   */
+  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp);                                                 CHKERRQ(ierr);
+  ierr = KSPSetUp(ksp); CHKERRQ(ierr);
 
   #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
   #endif
+
   return ierr;
 }
 
-// set up KSP for steady state iterations
-PetscErrorCode PowerLaw::setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "PowerLaw::setupKSP_SSIts";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  //~ if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
-    //~ // uses HYPRE's solver AMG (not HYPRE's preconditioners)
-    //~ ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    //~ ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    //~ ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
-    //~ ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    //~ ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
-    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);              CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc);                           CHKERRQ(ierr);
-  //~ }
-  //~ else if (_linSolver.compare("PCG")==0) { // preconditioned conjugate gradient
-    //~ ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
-    //~ ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
-    //~ ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
-    //~ ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    //~ ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
-  //~ }
-  //~ else {
-    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);
-    //~ assert(0);
-  //~ }
-
-  // finish setting up KSP context using options defined above
-  ierr = KSPSetFromOptions(ksp);                                        CHKERRQ(ierr);
-
-  // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp);                                                 CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
 
 // compute B and C
 // B = H*Dy*mu + SAT terms
@@ -1700,9 +1666,10 @@ PetscErrorCode PowerLaw::changeBCTypes(string bcRTtype,string bcTTtype,string bc
 
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
   KSPDestroy(&_ksp);
-  Mat A; _sbp->getA(A);
+  Mat A;
+  _sbp->getA(A);
   KSPCreate(PETSC_COMM_WORLD,&_ksp);
-  setupKSP(A,_ksp,_pc);
+  setupKSP(_ksp,_pc,A);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2075,25 +2042,23 @@ PetscErrorCode PowerLaw::guessSteadyStateEffVisc(const PetscScalar strainRate)
   // estimate 1 / (effective viscosity) based on strain rate
   if (_wPlasticity.compare("yes")==0) { _plastic->guessInvEffVisc(strainRate); }
   if (_wDislCreep.compare("yes")==0) { _disl->guessInvEffVisc(_T,strainRate); }
-  //~ if (_wDiffCreep.compare("yes")==0) { _diff->guessInvEffVisc(strainRate); }
 
   // 1 / effVisc = 1/(plastic eff visc) + 1/(disl eff visc) + 1/(diff eff visc) + 1/(max eff visc)
   VecSet(_effVisc,1.0/_effViscCap);
   if (_wPlasticity.compare("yes")==0) { VecAXPY(_effVisc,1.0,_plastic->_invEffVisc); }
   if (_wDislCreep.compare("yes")==0) { VecAXPY(_effVisc,1.0,_disl->_invEffVisc); }
-  //~ if (_wDiffCreep.compare("yes")==0) { VecAXPY(_effVisc,_diff->_invEffVisc); }
   VecReciprocal(_effVisc);
 
-  // ierr = loadVecFromInputFile(_effVisc,_inputDir,"effVisc"); CHKERRQ(ierr);
-  // if (_wPlasticity.compare("yes")==0) {
-  //   ierr = loadVecFromInputFile(_plastic->_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
-  // }
-  // if (_wDislCreep.compare("yes")==0) {
-  //   ierr = loadVecFromInputFile(_disl->_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
-  // }
-  // if (_wDiffCreep.compare("yes")==0) {
-  //   ierr = loadVecFromInputFile(_diff->_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
-  // }
+  ierr = loadVecFromInputFile(_effVisc,_inputDir,"effVisc"); CHKERRQ(ierr);
+  if (_wPlasticity.compare("yes")==0) {
+    ierr = loadVecFromInputFile(_plastic->_invEffVisc,_inputDir,"plasticity_invEffVisc"); CHKERRQ(ierr);
+  }
+  if (_wDislCreep.compare("yes")==0) {
+    ierr = loadVecFromInputFile(_disl->_invEffVisc,_inputDir,"disl_invEffVisc"); CHKERRQ(ierr);
+  }
+  if (_wDiffCreep.compare("yes")==0) {
+    ierr = loadVecFromInputFile(_diff->_invEffVisc,_inputDir,"diff_invEffVisc"); CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2175,7 +2140,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   _sbp_eta->getA(A);
   KSPDestroy(&_ksp_eta);
   KSPCreate(PETSC_COMM_WORLD,&_ksp_eta);
-  setupKSP_SSIts(A,_ksp_eta,_pc_eta);
+  setupKSP(_ksp_eta,_pc_eta,A);
 
   // solve for steady-state velocity
   ierr = KSPSolve(_ksp_eta,_rhs,varSS["v"]);CHKERRQ(ierr);

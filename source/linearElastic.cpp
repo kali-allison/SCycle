@@ -219,10 +219,11 @@ PetscErrorCode LinearElastic::checkInput()
  * the command line argument: -ksp_converged_reason.
  *
  * For information regarding HYPRE's solver options, especially the
- * preconditioner options, use the User manual online. Also, use -ksp_view.
+ * preconditioner options, use the User manual online. 
+ * Use -ksp_view.
  */
 
-PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
+PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -230,14 +231,15 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // create KSP
+  // create linear solver context
   ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
 
+  // set operators, here the matrix that defines the linear system also serves as the preconditioning matrix
+  ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
+
   // algebraic multigrid from HYPRE
-  if (_linSolver.compare("AMG")==0) { 
-    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
+  if (_linSolver == "AMG") { 
     ierr = KSPSetType(ksp,KSPRICHARDSON); CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
     // necessary for solving steady state power law
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr); 
     ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
@@ -249,9 +251,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
   }
 
   // direct LU from MUMPS
-  else if (_linSolver.compare("MUMPSLU")==0) { 
+  else if (_linSolver == "MUMPSLU") { 
     ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
@@ -260,9 +261,8 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
   }
 
   // direct Cholesky (RR^T) from MUMPS
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { 
+  else if (_linSolver == "MUMPSCHOLESKY") { 
     ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
@@ -270,15 +270,15 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
   }
 
-  // conjugate gradient
-  else if (_linSolver.compare("CG")==0) {
+  // preconditioned conjugate gradient
+  else if (_linSolver == "CG") {
     ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
-    ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    //    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
+    ierr = PCSetType(pc, PCILU); CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
 
@@ -288,7 +288,9 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     assert(0);
   }
 
-  // finish setting up KSP context using options defined above
+  /* enable command line options to override those specified above, e.g.:
+     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
+   */
   ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
@@ -548,7 +550,7 @@ PetscErrorCode LinearElastic::changeBCTypes(string bcRTtype,string bcTTtype,stri
 
   Mat A;
   _sbp->getA(A);
-  setupKSP(_sbp,_ksp,_pc,A);
+  setupKSP(_ksp,_pc,A);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

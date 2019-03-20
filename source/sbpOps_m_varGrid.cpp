@@ -6,9 +6,10 @@
 //================= constructor and destructor ========================
 SbpOps_m_varGrid::SbpOps_m_varGrid(const int order,const PetscInt Ny,const PetscInt Nz,const PetscScalar Ly,const PetscScalar Lz,Vec& muVec)
 : _order(order),_Ny(Ny),_Nz(Nz),_dy(1./(Ny-1.)),_dz(1./(Nz-1.)),
-  // _muVec(&muVec),
-  _bcRType("unspecified"),_bcTType("unspecified"),_bcLType("unspecified"),_bcBType("unspecified"),
-  _runTime(0),_compatibilityType("fullyCompatible"),_D2type("yz"),_multByH(0),_deleteMats(0)
+  _bcRType("unspecified"),_bcTType("unspecified"),
+  _bcLType("unspecified"),_bcBType("unspecified"),
+  _runTime(0),_compatibilityType("fullyCompatible"),_D2type("yz"),
+  _multByH(0),_deleteMats(0)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting constructor in SbpOps_m_varGrid.cpp.\n");
@@ -28,17 +29,23 @@ SbpOps_m_varGrid::SbpOps_m_varGrid(const int order,const PetscInt Ny,const Petsc
   // penalty weights
   _alphaT = -1.0; // von Neumann
   _beta= 1.0; // 1 part of Dirichlet
-  if (_order == 2) { _alphaDy = -4.0/_dy; _alphaDz = -4.0/_dz; }
-  else if (_order == 4) { _alphaDy = 2.0*-48.0/17.0 /_dy; _alphaDz = 2.0*-48.0/17.0 /_dz;  }
-
-  if (_order == 2) { _h11y = 0.5 * _dy;  _h11z = 0.5 * _dz; }
-  else if (_order == 4) { _h11y = 17.0/48.0 * _dy;  _h11z = 17.0/48.0 * _dz; }
+  if (_order == 2) {
+    _alphaDy = -4.0/_dy;
+    _alphaDz = -4.0/_dz;
+    _h11y = 0.5 * _dy;
+    _h11z = 0.5 * _dz;
+  }
+  else if (_order == 4) {
+    _alphaDy = 2.0*-48.0/17.0 /_dy;
+    _alphaDz = 2.0*-48.0/17.0 /_dz;
+    _h11y = 17.0/48.0 * _dy;
+    _h11z = 17.0/48.0 * _dz;
+  }
 
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending constructor in SbpOps_m_varGrid.cpp.\n");
 #endif
 }
-
 
 
 SbpOps_m_varGrid::~SbpOps_m_varGrid()
@@ -163,7 +170,6 @@ PetscErrorCode SbpOps_m_varGrid::setGrid(Vec* y, Vec* z)
   #endif
   return ierr;
 }
-
 
 
 PetscErrorCode SbpOps_m_varGrid::setMultiplyByH(const int multByH)
@@ -528,7 +534,7 @@ PetscErrorCode SbpOps_m_varGrid::updateVarCoeff(const Vec& coeff)
   PetscErrorCode  ierr = 0;
   double startTime = MPI_Wtime();
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function updateVarCoeff in sbpOps.cpp.\n");
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function updateVarCoeff in %s.\n", FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -550,7 +556,7 @@ PetscErrorCode SbpOps_m_varGrid::updateVarCoeff(const Vec& coeff)
 
   _runTime = MPI_Wtime() - startTime;
   #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in sbpOps.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function updateVarCoeff in %s.\n", FILENAME);CHKERRQ(ierr);
   #endif
   return ierr;
 }
@@ -810,8 +816,6 @@ PetscErrorCode SbpOps_m_varGrid::constructD2(const TempMats_m_varGrid& tempMats)
   _runTime = MPI_Wtime() - startTime;
   return 0;
 }
-
-
 
 
 // assumes A has not been computed before
@@ -1155,15 +1159,15 @@ PetscErrorCode SbpOps_m_varGrid::constructDyymu(const TempMats_m_varGrid& tempMa
     MatDestroy(&temp);
   }
 
-  //~ writeMat(Dyymu,"/Users/kallison/eqcycle/data/mms_ops_p_Dyymu");
+#if VERBOSE > 2
+  ierr = MatView(Dyymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+#endif
 
-  #if VERBOSE > 2
-    ierr = MatView(Dyymu,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  #endif
-  #if VERBOSE >1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
-  #endif
-  return ierr;
+#if VERBOSE >1
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function %s in %s.\n",funcName.c_str(),FILENAME);CHKERRQ(ierr);
+#endif
+
+    return ierr;
 }
 
 // compute D2zmu using my class Spmat
@@ -1220,8 +1224,6 @@ switch ( _order ) {
       Spmat D2z(_Nz,_Nz);
       Spmat C2z(_Nz,_Nz);
       sbp_Spmat2(_Nz,1.0/_dz,D2z,C2z);
-      //~ if (_Nz > 1) { sbp_Spmat2(_Nz,1.0/_dz,D2z,C2z); }
-
 
       // kron(Iy,C2z)
       Mat Iy_C2z;

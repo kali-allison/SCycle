@@ -82,7 +82,7 @@ public:
   PetscErrorCode setMaterialParameters();
   PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode setUpSBPContext();
-  PetscErrorCode setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A);
+  PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A);
 
   // time stepping function
   PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);

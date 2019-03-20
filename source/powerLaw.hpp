@@ -33,6 +33,7 @@ private:
 public:
   const char     *_file;
   const string    _delim;
+  string          _inputDir;
   const Vec      *_y,*_z;
   Vec             _yieldStress; // (MPa)
   Vec             _invEffVisc; // (GPa) eff. viscosity from plasticity
@@ -63,6 +64,7 @@ private:
 public:
   const char     *_file;
   string          _delim;
+  string          _inputDir;
   const Vec      *_y,*_z;
   Vec             _A,_n,_QR;
   Vec             _invEffVisc; // 1 / (effective viscosity)
@@ -93,6 +95,7 @@ private:
 public:
   const char     *_file;
   string          _delim;
+  string          _inputDir;
   const Vec      *_y,*_z;
   Vec             _A,_n,_QR,_m;
   Vec             _invEffVisc; // 1 / (effective viscosity)
@@ -117,6 +120,7 @@ public:
   Domain         *_D;
   const char     *_file;
   string          _delim; // format is: var delim value (without the white space)
+  string          _inputDir;
   string          _outputDir;  // directory to output data into
 
   const PetscInt  _order,_Ny,_Nz;
@@ -190,8 +194,7 @@ public:
   PetscErrorCode setMaterialParameters();
   PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
   PetscErrorCode setUpSBPContext(Domain& D);
-  PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
-  PetscErrorCode setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc);
+  PetscErrorCode setupKSP(KSP& ksp, PC& pc, Mat &A);
 
 
   // for steady state computations
