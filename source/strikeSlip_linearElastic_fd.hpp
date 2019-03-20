@@ -51,6 +51,7 @@ private:
 
   Vec             _mu, _rho, _cs, _ay;
   Vec             _alphay;
+  string          _inputDir;
   string          _outputDir; // output data
   PetscScalar     _vL;
   string          _thermalCoupling,_heatEquationType; // thermomechanical coupling

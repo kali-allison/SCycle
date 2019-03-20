@@ -47,6 +47,7 @@ public:
   Domain      *_D; // shallow copy of domain
   const char  *_inputFile; // input file
   string       _delim; // format is: var delim value (without the white space)
+  string       _inputDir;
   string       _outputDir; // directory for output
   string       _stateLaw; // state evolution law
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid

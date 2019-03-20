@@ -7,7 +7,7 @@ using namespace std;
 // member function definitions including constructor
 // first type of constructor with 1 parameter
 Domain::Domain(const char *file)
-: _file(file),_delim(" = "),_outputDir(" "),
+  : _file(file),_delim(" = "),_inputDir("unspecified"),_outputDir(" "),
   _bulkDeformationType("linearElastic"),
   _momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
@@ -68,7 +68,7 @@ Domain::Domain(const char *file)
 
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-: _file(file),_delim(" = "),_outputDir(" "),
+  : _file(file),_delim(" = "),_inputDir("unspecified"),_outputDir(" "),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
   _sbpType("mfc_coordTrans"),_operatorType("matrix-based"),
   _sbpCompatibilityType("fullyCompatible"),
@@ -226,6 +226,9 @@ PetscErrorCode Domain::loadSettings(const char *file)
     }
     else if (var.compare("momentumBalanceType")==0) {
       _momentumBalanceType = rhs;
+    }
+    else if (var.compare("inputDir") == 0) {
+      _inputDir = rhs;
     }
     else if (var.compare("outputDir")==0) {
       _outputDir =  rhs;
@@ -493,6 +496,12 @@ PetscErrorCode Domain::setFields()
     ierr = VecRestoreArray(_z,&z); CHKERRQ(ierr);
     ierr = VecRestoreArray(_q,&q); CHKERRQ(ierr);
     ierr = VecRestoreArray(_r,&r); CHKERRQ(ierr);
+  }
+
+  // for ice stream forcing coordinate system
+  if (_ckptNumber == 0 && _inputDir != "unspecified") {
+    loadVecFromInputFile(_y, _inputDir, "y");
+    loadVecFromInputFile(_z, _inputDir, "z");
   }
  
   #if VERBOSE > 1

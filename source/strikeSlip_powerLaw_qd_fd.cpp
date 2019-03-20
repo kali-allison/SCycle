@@ -7,7 +7,7 @@ using namespace std;
 
 StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
 : _D(&D),_y(&D._y),_z(&D._z),_delim(D._delim),
-  _outputDir(D._outputDir),_vL(1e-9),
+  _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
@@ -1681,7 +1681,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
   VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
 
   // alternatively, load forcing term from user input
-  //ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
   if (_material->_sbpType.compare("mfc_coordTrans")==0) {

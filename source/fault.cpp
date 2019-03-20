@@ -6,15 +6,16 @@ using namespace std;
 
 
 Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
-: _D(&D),_inputFile(D._file),_delim(D._delim),_outputDir(D._outputDir),
-  _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
-  _N(D._Nz),_L(D._Lz),_f0(0.6),_v0(1e-6),
-  _sigmaN_cap(1e14),_sigmaN_floor(0.),
-  _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
-  _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
-  _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
-  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
-  _maxStepCount(D._maxStepCount), _body2fault(&scatter2fault)
+  : _D(&D),_inputFile(D._file),_delim(D._delim),
+    _inputDir(D._inputDir),_outputDir(D._outputDir),
+    _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
+    _N(D._Nz),_L(D._Lz),_f0(0.6),_v0(1e-6),
+    _sigmaN_cap(1e14),_sigmaN_floor(0.),
+    _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
+    _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
+    _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
+    _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
+    _maxStepCount(D._maxStepCount), _body2fault(&scatter2fault)
 {
   #if VERBOSE > 1
     std::string funcName = "Fault::Fault";
@@ -1134,7 +1135,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   loadSettings(_inputFile);
   setFields();
   loadFieldsFromFiles();
-  // loadVecFromInputFile(_tau0,D._inputDir,"tau0");
+  loadVecFromInputFile(_tau0,D._inputDir,"tau0");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

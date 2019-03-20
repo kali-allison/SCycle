@@ -57,6 +57,7 @@ public:
 
   // IO information
   const char  *_file; // input ASCII file location
+  string       _inputDir;
   string       _outputDir; // output file location
   string       _delim; // format is: var delim value (without the white space)
 

@@ -436,7 +436,7 @@ PetscReal RK32::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
     if (ckptNumber == 0 && _stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
-    else {
+    else if (ckptNumber > 0 || _stepCount >= 4) {
       stepRatio = _kappa * pow(_totTol/totErr,alpha)
                          * pow(_errA[0]/_totTol,beta)
                          * pow(_totTol/_errA[1],gamma);
@@ -578,9 +578,14 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
-  // load new _deltaT if ckptNumber > 0 (calculated at the end of previous simulation)
+  // load new _deltaT and previous errors if ckptNumber > 0 (calculated at the end of previous simulation)
   if (ckptNumber > 0) {
     loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
+    loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", _errA[1]);
+    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _errA[0]);
+    printf("Checking _errA is correctly loaded:\n");
+    printf("_errA[0] = %e\n", _errA[0]);
+    printf("_errA[1] = %e\n", _errA[1]);
   }
 
   // perform time stepping routine and calling d_dt
@@ -1122,7 +1127,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
   ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
   
-  // load new _deltaT if ckptNumber > 0 (calculated at the end of previous simulation)
+  // load new _deltaT and previous errors if ckptNumber > 0 (calculated at the end of previous simulation)
   if (ckptNumber > 0) {
     loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
     loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", _errA[1]);
@@ -1254,8 +1259,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     }
 
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    // write into output files
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
     // save the _deltaT here as prevDeltaT
     if (_stepCount == _maxNumSteps) {
@@ -1270,6 +1273,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
       printf("Newly computed deltaT = %e at the end of stepCount = %i\n", _deltaT, _stepCount);
     }
     _errA.push_front(_totErr);
+    // write into output files
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
 
     // save error into checkpoint file for final time step
     if (_stepCount == _maxNumSteps) {

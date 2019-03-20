@@ -53,6 +53,7 @@ public:
   string          _delim; // format is: var delim value (without the white space)
 
   // problem properties
+  string          _inputDir;
   string          _outputDir; // output data
   PetscScalar     _vL;
   string          _thermalCoupling,_heatEquationType; // thermomechanical coupling

@@ -28,6 +28,7 @@ public:
   // domain properties
   Domain         *_D; // shallow copy of domain
   string          _delim; // format is: var delim value (without the white space)
+  string          _inputDir;
   string          _outputDir;  // output data
   const PetscInt  _order,_Ny,_Nz;
   PetscScalar     _Ly,_Lz,_dy,_dz;
