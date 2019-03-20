@@ -55,4 +55,4 @@ timeStepTol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output
-outputDir = data/ex1_
+outputDir = /data/dunham/yyang/scycle/data/ex1_

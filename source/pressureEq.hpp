@@ -15,6 +15,14 @@
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
 
+/* This class solves for the uncoupled fluid pressure during earthquake cycle
+ * simulations, and solves for the permeability changes due to fault slip and
+ * pore pressure. Results show a significant change of fluid pressure during
+ * earthquake cycles, implying possible existence of overpressure and fault-
+ * valve behavior in Earth's crust.
+ */
+
+
 class PressureEq
 {
 private:
@@ -66,24 +74,22 @@ private:
   Vec                 _sN; // total normal stress
 
   VecScatter _scatters;
+
   // run time monitoring
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
-
-  // // viewers
-  // std::map <string,PetscViewer>  _viewers;
 
   // viewers:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  //~ std::map <string,PetscViewer>  _viewers;
   std::map<string, std::pair<PetscViewer, string>> _viewers;
 
   // disable default copy constructor and assignment operator
   PressureEq(const PressureEq &that);
   PressureEq &operator=(const PressureEq &rhs);
 
+  // private member functions
   PetscErrorCode computeVariableCoefficient(Vec &coeff);
   PetscErrorCode updateBoundaryCoefficient(const Vec &coeff);
   PetscErrorCode setUpSBP();
@@ -98,9 +104,11 @@ public:
 
   std::string _permSlipDependent, _permPressureDependent;
 
+  // constructor and destructor
   PressureEq(Domain &D);
   ~PressureEq();
 
+  // public member functions
   PetscErrorCode getPressure(Vec& P);
   PetscErrorCode setPressure(const Vec& P);
   PetscErrorCode getPermeability(Vec& K);
@@ -115,28 +123,30 @@ public:
   PetscErrorCode updateFields(const PetscScalar time, const map<string, Vec> &varEx, const map<string, Vec> &varIm);
   PetscErrorCode loadFieldsFromFiles();
 
-  // explicit time integration
+  // ============ explicit time integration =======================
   PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
+  // time derivative of pressure
   PetscErrorCode dp_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
-  PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
-  // implicit time integration
-  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-                      map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
-  PetscErrorCode be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-                    map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
-  PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx,
-                        map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
+  PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
 
+  // ============= implicit time integration ======================
+  PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
+  // backward Euler
+  PetscErrorCode be(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
+  // time derivative of permeability
   PetscErrorCode dk_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
   PetscErrorCode dk_dt(const PetscScalar time, const Vec slipVel, const Vec &K, Vec &dKdt);
+  // MMS test for backward Euler
+  PetscErrorCode be_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
+
   // IO
   PetscErrorCode view(const double totRunTime);
   PetscErrorCode writeContext(const std::string outputDir);
   PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
   PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
 
-  // mms error
+  // MMS error
   PetscErrorCode measureMMSError(const double totRunTime);
   static double zzmms_pSource1D(const double z, const double t);
   static double zzmms_pA1D(const double y, const double t);

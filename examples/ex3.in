@@ -16,7 +16,7 @@ vL = 1e-9 # (m/s) loading velocity
 bCoordTrans = 7 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
 
 # path to look for supplied z vector
-inputDir = examples/ex3_
+inputDir = /data/dunham/yyang/scycle/examples/ex3_
 
 # specify what problem to simulate
 bulkDeformationType = linearElastic # off-fault constitutive law
@@ -76,5 +76,4 @@ CFL = 0.5 # CFL condition used to determine time step size in coseismic period
 
 
 # directory for output
-outputDir = data/ex3_
-
+outputDir = /data/dunham/yyang/scycle/data/ex3_

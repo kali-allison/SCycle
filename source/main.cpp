@@ -231,7 +231,7 @@ int main(int argc,char **args)
   PetscErrorCode ierr = 0;
   PetscInitialize(&argc,&args,NULL,NULL);
 
-  const char * inputFile;
+  const char * inputFile = NULL;
   if (argc > 1) {
     inputFile = args[1];
   }
@@ -248,6 +248,9 @@ int main(int argc,char **args)
   else {
     runEqCycle(d);
   }
+
+  // free inputFile
+  free((void*) inputFile);
 
   PetscFinalize();
   return ierr;

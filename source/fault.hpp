@@ -202,7 +202,7 @@ struct ComputeVel_qd : public RootFinderContext
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0,_vL;
 
-  // constructor and destructor
+  // constructor
   ComputeVel_qd(const PetscInt N, const PetscScalar* eta,const PetscScalar* tauQS,const PetscScalar* sN,const PetscScalar* psi,const PetscScalar* a,const PetscScalar* b,const PetscScalar& v0,const PetscScalar& vL,const PetscScalar *locked,const PetscScalar *Co);
 
   // command to perform root-finding process, once contextual variables have been set
@@ -223,7 +223,7 @@ struct ComputeVel_fd : public RootFinderContext
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _vL;
 
-  // constructor and destructor
+  // constructor
   ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* fricPen,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
  
   // command to perform root-finding process, once contextual variables have been set
@@ -245,7 +245,7 @@ struct ComputeAging_fd : public RootFinderContext
   const PetscInt      _N; // length of the arrays
   const PetscScalar   _v0, _deltaT, _f0;
 
-  // constructor and destructor
+  // constructor
   ComputeAging_fd(const PetscInt N,const PetscScalar* Dc, const PetscScalar* b, PetscScalar* psiNext, const PetscScalar* psi, const PetscScalar* psiPrev, const PetscScalar* slipVel, const PetscScalar v0, const PetscScalar deltaT, const PetscScalar f0);
 
   // command to perform root-finding process, once contextual variables have been set
@@ -253,7 +253,6 @@ struct ComputeAging_fd : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
@@ -326,7 +325,7 @@ PetscScalar slipLaw_theta(const PetscScalar& state, const PetscScalar& slipVel, 
 PetscErrorCode slipLaw_theta_Vec(Vec& dstate, const Vec& theta, const Vec& slipVel, const Vec& Dc);
 
 
-// flash heating: compute Vs
+// flash heating: compute Vw
 PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const PetscScalar& c, const PetscScalar& k, const PetscScalar& D, const PetscScalar& Tw, const PetscScalar& tau_c);
 
 
