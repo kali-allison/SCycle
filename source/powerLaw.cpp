@@ -749,31 +749,6 @@ PetscErrorCode DiffusionCreep::computeInvEffVisc(const Vec& Temp,const Vec& sdev
 //======================================================================
 // power-law rheology class
 
-<<<<<<< HEAD
-PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType)
-: _D(&D),_file(D._file),_delim(D._delim),_outputDir(D._outputDir),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Ly(D._Ly),_Lz(D._Lz),
-  _y(&D._y),_z(&D._z),_isMMS(D._isMMS),
-  _wDiffCreep("no"), _wDislCreep("yes"),_wPlasticity("yes"),_wLinearMaxwell("no"),
-  _plastic(NULL),_disl(NULL),_diff(NULL),
-  _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),
-  _grainSize(NULL),_effViscCap(1e30),
-  _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
-  _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),
-  _dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
-  _linSolver("CG"),_sbpType(D._sbpType),
-  _bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
-  _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),
-  _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
-  _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
-  _startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0),_stepCount(0)
-{
-  #if VERBOSE > 1
-    string funcName = "PowerLaw::PowerLaw";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-=======
 PowerLaw::PowerLaw(Domain& D,string bcRType,string bcTType,string bcLType,string bcBType)
   : _D(&D),_file(D._file),_delim(D._delim),
     _inputDir(D._inputDir),_outputDir(D._outputDir),
@@ -798,7 +773,6 @@ PowerLaw::PowerLaw(Domain& D,string bcRType,string bcTType,string bcLType,string
   string funcName = "PowerLaw::PowerLaw";
   PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
 #endif
->>>>>>> yuyun
 
   loadSettings(_file);
   checkInput();
