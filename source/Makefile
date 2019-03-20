@@ -1,10 +1,9 @@
 all: main
 
 DEBUG_MODULES   = -DVERBOSE=1
-CFLAGS          = $(DEBUG_MODULES) -fsanitize=undefined -fsanitize=address
+CFLAGS          = $(DEBUG_MODULES)
 CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
-LDFLAGS         = -fsanitize=undefined -fsanitize=address
 CLINKER		= openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
