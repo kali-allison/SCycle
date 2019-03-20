@@ -537,7 +537,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   PetscErrorCode ierr = 0;
   PetscScalar    _totErr = 0;
   PetscInt       attemptCount = 0;
-  PetscViewer    _viewErr;
   
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
@@ -695,7 +694,6 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     }
   }
 
-  PetscViewerDestroy(&_viewErr);
   _runTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
@@ -1047,7 +1045,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
   PetscErrorCode ierr = 0;
   PetscScalar _totErr = 0;
   PetscInt attemptCount = 0;
-  PetscViewer _viewErr;
   
   // coefficients
   PetscScalar c2 = 1./2.;
@@ -1290,7 +1287,6 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj, PetscInt ckptNumber)
     }
   }
   
-  PetscViewerDestroy(&_viewErr);
   _runTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
