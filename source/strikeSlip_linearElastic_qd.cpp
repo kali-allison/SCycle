@@ -1198,7 +1198,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term H*J if using a curvilinear grid (the H matrix and the Jacobian)
-  if (_D->_gridSpacing.compare("variableGridSpacing")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1;
     Mat J,Jinv,qy,rz,yq,zr,H;
     VecDuplicate(_forcingTerm,&temp1);

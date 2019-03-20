@@ -477,7 +477,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
 
       // calculate time step
       _deltaT = computeStepSize(_totErr, ckptNumber);
-      if (_deltaT - _minDelta < 1e-8) {
+      if (_deltaT - _minDeltaT < 1e-8) {
 	printf("stepCount = %i, attemptCount = %i, _totErr >= _atol, computed time step = %e\n", _stepCount, attemptCount, _deltaT);
 	break;
       }
