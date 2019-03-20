@@ -125,9 +125,9 @@ int computeGreensFunction(const char * inputFile)
   }
 
   // output greens function
-  std::string str;
-  str =  d._outputDir + "G";
-  writeMat(G,str.c_str());
+  string filename;
+  filename =  d._outputDir + "G";
+  writeMat(G, filename);
 
   // output testing stuff
   VecSet(le._bcL,0.0);
@@ -143,10 +143,10 @@ int computeGreensFunction(const char * inputFile)
   ierr = le.setSurfDisp();
 
   // write left boundary condition and surface displacement into file
-  str =  d._outputDir + "bcL";
-  writeVec(le._bcL,str.c_str());
-  str =  d._outputDir + "surfDisp";
-  writeVec(le._surfDisp,str.c_str());
+  filename =  d._outputDir + "bcL";
+  writeVec(le._bcL, filename);
+  filename =  d._outputDir + "surfDisp";
+  writeVec(le._surfDisp, filename);
 
   // free memory
   MatDestroy(&G);
@@ -231,7 +231,7 @@ int main(int argc,char **args)
   PetscErrorCode ierr = 0;
   PetscInitialize(&argc,&args,NULL,NULL);
 
-  const char * inputFile = NULL;
+  const char * inputFile;
   if (argc > 1) {
     inputFile = args[1];
   }
@@ -239,6 +239,7 @@ int main(int argc,char **args)
     inputFile = "init.in";
   }
 
+{
   Domain d(inputFile);
   // run MMS test
   if (d._isMMS) {
@@ -248,11 +249,8 @@ int main(int argc,char **args)
   else {
     runEqCycle(d);
   }
-
-  // free inputFile
-  free((void*) inputFile);
+}
 
   PetscFinalize();
   return ierr;
 }
-

@@ -7,21 +7,23 @@ using namespace std;
 
 StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
 : _D(&D),_y(&D._y),_z(&D._z),_delim(D._delim),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
+  _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
-  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),_ay(NULL),_Fhat(NULL),_alphay(NULL),
+  _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
+  _cycleCount(0),_maxNumCycles(1e3),_deltaT(1e-3),_deltaT_fd(-1),_CFL(0.5),
+  _ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
   _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),_u0(NULL),
   _timeIntegrator("RK32"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+  _stride1D(1),_stride2D(1),_maxStepCount(D._maxStepCount),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),_forcingVal(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0),
+  _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
+  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL),_regime2DV(NULL),_forcingVal(0),
   _qd_bcRType("remoteLoading"),_qd_bcTType("freeSurface"),_qd_bcLType("symmFault"),_qd_bcBType("freeSurface"),
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
@@ -36,6 +38,9 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   #endif
 
   loadSettings(D._file);
+  if (_ckptNumber > 0) {
+    _guessSteadyStateICs = 0;
+  }
   checkInput();
   parseBCs();
 
@@ -65,8 +70,6 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   if (_hydraulicCoupling.compare("coupled")==0) {
     _fault_qd->setSNEff(_p->_p);
   }
-
-
 
   computePenaltyVectors();
   computeTimeStep(); // compute fully dynamic time step
@@ -178,7 +181,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
-    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
 
     // for steady state iteration
     else if (var.compare("fss_T")==0) { _fss_T = atof( rhs.c_str() ); }
@@ -205,7 +207,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("stride1D_fd_end")==0){ _stride1D_fd_end = (int)atof( rhs.c_str() ); }
     else if (var.compare("stride2D_fd_end")==0){ _stride2D_fd_end = (int)atof( rhs.c_str() ); }
 
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
@@ -215,7 +216,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
     else if (var.compare("scale")==0) { loadVectorFromInputFile(rhsFull,_scale); }
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
-
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
 
     else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
@@ -260,7 +260,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::checkInput()
   #endif
 
   assert(_guessSteadyStateICs == 0 || _guessSteadyStateICs == 1);
-  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
+  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
 
   assert(_thermalCoupling.compare("coupled")==0 ||
       _thermalCoupling.compare("uncoupled")==0 ||
@@ -525,7 +525,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
   VecScale(slip,_faultTypeScale);
-  if (_loadICs==1) {
+  if (_ckptNumber > 0) {
     VecCopy(_fault_qd->_slip,slip);
   }
   _varQSEx["slip"] = slip;
@@ -597,8 +597,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
 
 
 // monitoring function for ode solvers
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
@@ -616,16 +615,16 @@ double startTime = MPI_Wtime();
 
   if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-    else { ierr = _fault_qd->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
+    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
+    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
+    else { ierr = _fault_qd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
   if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
@@ -666,7 +665,7 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -694,7 +693,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep1D(const PetscInt stepCount, 
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -938,11 +937,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     _quadImex->setTimeRange(_currTime,_maxTime);
     _quadImex->setInitialStepCount(_stepCount);
-    _quadImex->setInitialConds(_varQSEx,_varIm);
+    _quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
     _quadImex->setToleranceType(_normType);
     _quadImex->setErrInds(_timeIntInds,_scale);
 
-    ierr = _quadImex->integrate(this); CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this, _ckptNumber); CHKERRQ(ierr);
 
     std::map<string,Vec> varOut = _quadImex->_varEx;
     for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
@@ -955,10 +954,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadEx->setTimeRange(_currTime,_maxTime);
     _quadEx->setInitialStepCount(_stepCount);
     _quadEx->setToleranceType(_normType);
-    _quadEx->setInitialConds(_varQSEx);
+    _quadEx->setInitialConds(_varQSEx,_outputDir);
     _quadEx->setErrInds(_timeIntInds,_scale);
 
-    ierr = _quadEx->integrate(this); CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this, _ckptNumber); CHKERRQ(ierr);
     std::map<string,Vec> varOut = _quadEx->_var;
     for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
       VecCopy(varOut[it->first],_varQSEx[it->first]);
@@ -1158,11 +1157,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm);
+    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
-    ierr = quadImex->integrate(this); CHKERRQ(ierr);
+    ierr = quadImex->integrate(this,_ckptNumber); CHKERRQ(ierr);
   }
   else {
     quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
@@ -1170,10 +1169,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx);
+    quadEx->setInitialConds(_varQSEx,_outputDir);
     quadEx->setErrInds(_timeIntInds,_scale);
 
-    ierr = quadEx->integrate(this); CHKERRQ(ierr);
+    ierr = quadEx->integrate(this,_ckptNumber); CHKERRQ(ierr);
   }
 
   delete quadEx;
@@ -1242,8 +1241,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
 
 // implicit/explicit adaptive time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1392,16 +1390,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
 
 
 // fully dynamic: IMEX time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev,
-      map<string,Vec>& varIm, const map<string,Vec>& varImPrev)
+PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev, map<string,Vec>& varIm, const map<string,Vec>& varImPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd_fd::d_dt fd imex";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-
 
   // momentum balance equation except for fault boundary
   propagateWaves(time, deltaT, varNext, var, varPrev);
@@ -1439,7 +1434,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
 
-
   // put implicitly integrated variables here
 
   #if VERBOSE > 1
@@ -1447,12 +1441,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   #endif
   return ierr;
 }
-
-
-
-
-
-
 
 
 // momentum balance equation and constitutive laws portion of d_dt

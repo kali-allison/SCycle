@@ -13,6 +13,8 @@
 
 class RootFinder;
 
+using namespace std;
+
 /*
  * Class containing the implementation of rate-and-state friction. The fault
  * is a line of length N.
@@ -36,159 +38,165 @@ class RootFinder;
 // base class for one-sided fault
 class Fault
 {
-  private:
-    // disable default copy constructor and assignment operator
-    Fault(const Fault & that);
-    Fault& operator=( const Fault& rhs);
+private:
+  // disable default copy constructor and assignment operator
+  Fault(const Fault & that);
+  Fault& operator=( const Fault& rhs);
 
-  public:
-    Domain           *_D; // shallow copy of domain
-    const char       *_inputFile; // input file
-    std::string       _delim; // format is: var delim value (without the white space)
-    std::string       _outputDir; // directory for output
-    std::string       _stateLaw; // state evolution law
-    PetscScalar       _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+public:
+  Domain      *_D; // shallow copy of domain
+  const char  *_inputFile; // input file
+  string       _delim; // format is: var delim value (without the white space)
+  string       _inputDir;
+  string       _outputDir; // directory for output
+  string       _stateLaw; // state evolution law
+  PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
-    // domain properties
-    const PetscInt     _N;  //number of nodes on fault
-    const PetscScalar  _L; // length of fault, grid spacing on fault
-    Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
+  // domain properties
+  const PetscInt     _N;  //number of nodes on fault
+  const PetscScalar  _L; // length of fault, grid spacing on fault
+  Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
-    Vec          _tauQSP,_tauP,_strength, _prestress; // shear stress: quasistatic,not qs,fault strength, prestress
-    Vec          _slip,_slipVel, _slip0; // slip, slip velocity, initial slip
-    Vec          _psi; // state variable
+  Vec          _tauQSP,_tauP,_strength, _prestress; // shear stress: quasistatic,not qs,fault strength, prestress
+  Vec          _slip,_slipVel, _slip0; // slip, slip velocity, initial slip
+  Vec          _psi; // state variable
 
-    // for locking the fault
-    std::vector<double>   _lockedVals,_lockedDepths;
-    Vec                   _locked;
+  // for locking the fault
+  vector<double>   _lockedVals,_lockedDepths;
+  Vec              _locked;
 
-    // rate-and-state parameters
-    PetscScalar           _f0,_v0;
-    std::vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
-    Vec                   _a,_b,_Dc;
-    std::vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
-    Vec                   _cohesion,_mu,_rho;
-    std::vector<double>   _sigmaNVals,_sigmaNDepths;
-    std::vector<double>   _stateVals,_stateDepths; // initial conditions for state variable
-    PetscScalar           _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
-    Vec                   _sNEff; // effective normal stress
-    Vec                   _sN; // total normal stress
+  // rate-and-state parameters
+  PetscScalar      _f0,_v0;
+  vector<double>   _aVals,_aDepths,_bVals,_bDepths,_DcVals,_DcDepths;
+  Vec              _a,_b,_Dc;
+  vector<double>   _cohesionVals,_cohesionDepths,_rhoVals,_rhoDepths,_muVals,_muDepths;
+  Vec              _cohesion,_mu,_rho;
+  vector<double>   _sigmaNVals,_sigmaNDepths;
+  vector<double>   _stateVals,_stateDepths; // initial conditions for state variable
+  PetscScalar      _sigmaN_cap,_sigmaN_floor; // allow cap and floor on normal stress
+  Vec              _sNEff; // effective normal stress
+  Vec              _sN; // total normal stress
 
-    // flash heating parameters
-    std::vector<double>   _TwVals,_TwDepths;
-    PetscScalar           _fw,_Vw_const,_tau_c,_D_fh;
-    Vec                   _T,_k,_c,_Vw,_Tw;
+  // flash heating parameters
+  vector<double>   _TwVals,_TwDepths;
+  PetscScalar      _fw,_Vw_const,_tau_c,_D_fh;
+  Vec              _T,_k,_c,_Vw,_Tw;
 
-    // tolerances for linear and nonlinear (for vel) solve
-    PetscScalar           _rootTol;
-    PetscInt              _rootIts,_maxNumIts; // total number of iterations
+  // tolerances for linear and nonlinear (for vel) solve
+  PetscScalar      _rootTol;
+  PetscInt         _rootIts,_maxNumIts; // total number of iterations
 
-    // viewers:
-    // 1st string = key naming relevant field, e.g. "slip"
-    // 2nd PetscViewer = PetscViewer object for file IO
-    // 3rd string = full file path name for output
-    //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+  // viewers:
+  // 1st string = key naming relevant field, e.g. "slip"
+  // 2nd PetscViewer = PetscViewer object for file IO
+  // 3rd string = full file path name for output
+  //~ map <string,PetscViewer>  _viewers;
+  map <string,pair<PetscViewer,string> >  _viewers;
 
-    // runtime data
-    double               _computeVelTime,_stateLawTime, _scatterTime;
+  // runtime data
+  double   _computeVelTime,_stateLawTime, _scatterTime;
 
-    // for mapping from body fields to the fault
-    VecScatter* _body2fault;
+  // checkpoint data
+  PetscInt _ckpt, _ckptNumber;
 
-    // iterators for _var
-    typedef std::vector<Vec>::iterator it_vec;
-    typedef std::vector<Vec>::const_iterator const_it_vec;
+  // max number of steps to take
+  PetscInt _maxStepCount;
+  
+  // for mapping from body fields to the fault
+  VecScatter* _body2fault;
 
+  // iterators for _var
+  typedef vector<Vec>::iterator it_vec;
+  typedef vector<Vec>::const_iterator const_it_vec;
 
-    Fault(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
-    virtual ~Fault();
+  Fault(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
+  virtual ~Fault();
 
-    // load settings from input file
-    PetscErrorCode loadSettings(const char *file);
-    PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode setFields(Domain&D);
-    PetscErrorCode setThermalFields(const Vec& T, const Vec& k, const Vec& c);
-    PetscErrorCode updateTemperature(const Vec& T);
-    PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
-    PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const PetscScalar maxVal);
+  // load settings from input file
+  PetscErrorCode loadSettings(const char *file);
+  PetscErrorCode checkInput(); // check input from file
+  PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode setFields(Domain&D);
+  PetscErrorCode setThermalFields(const Vec& T, const Vec& k, const Vec& c);
+  PetscErrorCode updateTemperature(const Vec& T);
+  PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
+  PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const PetscScalar maxVal);
 
-    // update effective normal stress to reflect new pore pressure
-    PetscErrorCode setSNEff(const Vec& p);
-    // update effective normal stress to reflect new pore pressure
-    PetscErrorCode setSN(const Vec& p);
+  // update effective normal stress to reflect new pore pressure
+  PetscErrorCode setSNEff(const Vec& p);
+  // update effective normal stress to reflect new pore pressure
+  PetscErrorCode setSN(const Vec& p);
 
-    // for steady state computations
-    PetscErrorCode guessSS(const PetscScalar vL);
-    PetscErrorCode computePsiSS(const PetscScalar vL);
+  // for steady state computations
+  PetscErrorCode guessSS(const PetscScalar vL);
+  PetscErrorCode computePsiSS(const PetscScalar vL);
 
-    // IO
-    PetscErrorCode virtual view(const double totRunTime);
-    PetscErrorCode virtual writeContext(const std::string outputDir);
-    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time);
-    PetscErrorCode virtual writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir);
+  // IO
+  PetscErrorCode virtual view(const double totRunTime);
+  PetscErrorCode virtual writeContext(const string outputDir);
+  PetscErrorCode virtual writeStep(PetscInt stepCount, const string outputDir);
 };
 
 
 // quasi-dynamic implementation of one-sided fault
 class Fault_qd: public Fault
 {
-  private:
-    // disable default copy constructor and assignment operator
-    Fault_qd(const Fault_qd & that);
-    Fault_qd& operator=( const Fault_qd& rhs);
+private:
+  // disable default copy constructor and assignment operator
+  Fault_qd(const Fault_qd & that);
+  Fault_qd& operator=( const Fault_qd& rhs);
 
-  public:
-    Vec _eta_rad; // radiation damping term
+public:
+  Vec _eta_rad; // radiation damping term
 
-    Fault_qd(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
-    ~Fault_qd();
+  Fault_qd(Domain& D,VecScatter& scatter2fault, const int& faultTypeScale);
+  ~Fault_qd();
 
-    PetscErrorCode loadSettings(const char *file);
+  PetscErrorCode loadSettings(const char *file);
 
-    // for interaction with mediator
-    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
-    PetscErrorCode computeVel();
-    PetscErrorCode writeContext(const std::string outputDir);
+  // for interaction with mediator
+  PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+  PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+  PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
+  PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode computeVel();
+  PetscErrorCode writeContext(const string outputDir);
 };
 
 
 // fully dynamic implementation of one-sided fault
 class Fault_fd: public Fault
 {
-  private:
-    // disable default copy constructor and assignment operator
-    Fault_fd(const Fault_fd & that);
-    Fault_fd& operator=( const Fault_fd& rhs);
+private:
+  // disable default copy constructor and assignment operator
+  Fault_fd(const Fault_fd & that);
+  Fault_fd& operator=( const Fault_fd& rhs);
 
-  public:
-    Vec                 _Phi, _an, _fricPen;
-    Vec                 _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
-    PetscScalar         _deltaT;
-    Vec                 _alphay;
-    Vec                 _tau0; // dU0/dy (stress at end of qd period)
+public:
+  Vec            _Phi, _an, _fricPen;
+  Vec            _u,_uPrev,_d2u; // d2u = (Dyy+Dzz)*u evaluated on the fault
+  PetscScalar    _deltaT;
+  Vec            _alphay;
+  Vec            _tau0; // dU0/dy (stress at end of qd period)
 
-    PetscScalar         _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
-    std::string         _timeMode;
+  PetscScalar    _tCenterTau, _tStdTau, _zCenterTau, _zStdTau, _ampTau;
+  string         _timeMode;
 
-    Fault_fd(Domain&, VecScatter& scatter2fault, const int& faultTypeScale);
-    ~Fault_fd();
+  Fault_fd(Domain&, VecScatter& scatter2fault, const int& faultTypeScale);
+  ~Fault_fd();
 
-    PetscErrorCode loadSettings(const char *file);
-
-    // for interaction with mediator
-    PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
-    PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
-    PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
-    PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
-    PetscErrorCode computeVel();
-    PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
-    PetscErrorCode setPhi(const PetscScalar _deltaT);
-    PetscErrorCode updatePrestress(const PetscScalar currT);
+  PetscErrorCode loadSettings(const char *file);
+  PetscErrorCode setFields();
+  
+  // for interaction with mediator
+  PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
+  PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
+  PetscErrorCode d_dt(const PetscScalar time,const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
+  PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
+  PetscErrorCode computeVel();
+  PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
+  PetscErrorCode setPhi(const PetscScalar _deltaT);
+  PetscErrorCode updatePrestress(const PetscScalar currT);
 };
 
 

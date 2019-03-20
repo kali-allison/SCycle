@@ -4,28 +4,24 @@
 
 using namespace std;
 
-
 // construct class object
-LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
-: _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
-  _isMMS(D._isMMS),_loadICs(D._loadICs),
-  _stepCount(0),
-  _mu(NULL),_rho(NULL),_cs(NULL),
-  _bcRShift(NULL),_surfDisp(NULL),
-  _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
-  _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),
-  _kspTol(1e-10),
-  _sbp(NULL),_sbpType(D._sbpType),
-  _timeV1D(NULL),_timeV2D(NULL),
-  _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0), _matrixTime(0), _linSolveCount(0),
-  _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
-  _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
+LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype)
+  : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+    _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
+    _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
+    _isMMS(D._isMMS),_stepCount(0),
+    _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
+    _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
+    _linSolver("CG"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
+    _sbp(NULL),_sbpType(D._sbpType),
+    _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
+    _miscTime(0), _matrixTime(0), _linSolveCount(0),
+    _ckpt(D._ckpt), _ckptNumber(D._ckptNumber), _maxStepCount(D._maxStepCount),
+    _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
+    _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL)
 {
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::LinearElastic()";
+    string funcName = "LinearElastic::LinearElastic()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -34,14 +30,12 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
   checkInput();
   allocateFields();
   setMaterialParameters();
-
+  
   double startMatrix = MPI_Wtime();
   setUpSBPContext(); // set up matrix operators
   _matrixTime += MPI_Wtime() - startMatrix;
 
-  if (_inputDir.compare("unspecified") != 0) {
-    loadFieldsFromFiles(); // load from previous simulation
-  }
+  loadFieldsFromFiles(); // load from previous simulation
 
   setSurfDisp();
 
@@ -55,7 +49,7 @@ LinearElastic::LinearElastic(Domain&D,std::string bcRTtype,std::string bcTTtype,
 LinearElastic::~LinearElastic()
 {
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::~LinearElastic()";
+    string funcName = "LinearElastic::~LinearElastic()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -83,10 +77,7 @@ LinearElastic::~LinearElastic()
   delete _sbp;
   _sbp = NULL;
 
-  // destroy viewers
-  PetscViewerDestroy(&_timeV1D);
-  PetscViewerDestroy(&_timeV2D);
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_viewers.begin(); it !=_viewers.end(); it++) {
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it !=_viewers.end(); it++) {
     // destroy PetscViewer iteratively
     PetscViewerDestroy(&_viewers[it->first].first);
   }
@@ -102,7 +93,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::loadSettings()";
+    string funcName = "LinearElastic::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -110,7 +101,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-
+  
   ifstream infile( file );
   string line, var, rhs, rhsFull;
   size_t pos = 0;
@@ -175,7 +166,7 @@ PetscErrorCode LinearElastic::checkInput()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::checkInput()";
+    string funcName = "LinearElastic::checkInput()";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -193,7 +184,7 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_muVals.size() != 0);
   assert(_rhoVals.size() == _rhoDepths.size());
   assert(_rhoVals.size() != 0);
-
+  
   if (_computeSdev == 1) {
     _computeSxz = 1;
   }
@@ -235,7 +226,7 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::setupKSP";
+    string funcName = "LinearElastic::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -255,7 +246,6 @@ PetscErrorCode LinearElastic::setupKSP(SbpOps* sbp,KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
 
   // direct LU from MUMPS
@@ -318,7 +308,7 @@ PetscErrorCode LinearElastic::allocateFields()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::allocateFields";
+    string funcName = "LinearElastic::allocateFields";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -328,7 +318,7 @@ PetscErrorCode LinearElastic::allocateFields()
   VecSet(_bcL,0.0);
 
   VecDuplicate(_bcL,&_bcRShift);
-  PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
+  PetscObjectSetName((PetscObject) _bcRShift, "bcRShift");
   VecSet(_bcRShift,0.0);
 
   VecDuplicate(_bcL,&_bcR);
@@ -388,7 +378,7 @@ PetscErrorCode LinearElastic::setMaterialParameters()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::setMaterialParameters";
+    string funcName = "LinearElastic::setMaterialParameters";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -422,23 +412,17 @@ PetscErrorCode LinearElastic::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::loadFieldsFromFiles";
+    string funcName = "LinearElastic::loadFieldsFromFiles";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // load left boundary condition bcL
-  ierr = loadVecFromInputFile(_bcL,_inputDir,"momBal_bcL"); CHKERRQ(ierr);
-
-  // load right boundary condition bcR
-  ierr = loadVecFromInputFile(_bcRShift,_inputDir,"momBal_bcR"); CHKERRQ(ierr);
-  VecSet(_bcR,0.0);
-
-  // load displacement vector u
-  ierr = loadVecFromInputFile(_u,_inputDir,"u"); CHKERRQ(ierr);
-
-  // load shear modulus mu
-  ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
-
+  // load fields from checkpoints
+  if (_ckptNumber > 0) {
+    ierr = loadVecFromInputFile(_bcL, _outputDir, "momBal_bcL_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcRShift, _outputDir, "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_bcR, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
+  }
+  
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -452,7 +436,7 @@ PetscErrorCode LinearElastic::setUpSBPContext()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::setUpSBPContext";
+    string funcName = "LinearElastic::setUpSBPContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -504,7 +488,7 @@ PetscErrorCode LinearElastic::computeU()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::computeU";
+    string funcName = "LinearElastic::computeU";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -532,7 +516,7 @@ PetscErrorCode LinearElastic::setRHS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::computeU";
+    string funcName = "LinearElastic::computeU";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -548,15 +532,15 @@ PetscErrorCode LinearElastic::setRHS()
 
 
 // change boundary condition types and reset linear solver
-PetscErrorCode LinearElastic::changeBCTypes(std::string bcRTtype,std::string bcTTtype,std::string bcLTtype,std::string bcBTtype)
+PetscErrorCode LinearElastic::changeBCTypes(string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::changeBCTypes";
+    string funcName = "LinearElastic::changeBCTypes";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-    // destroy current KSP context to reset
+  // destroy current KSP context to reset
   KSPDestroy(&_ksp);
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
 
@@ -577,26 +561,13 @@ PetscErrorCode LinearElastic::setSurfDisp()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::setSurfDisp";
+    string funcName = "LinearElastic::setSurfDisp";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   // extract surface displacement from u
   VecScatterBegin(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2T"], _u, _surfDisp, INSERT_VALUES, SCATTER_FORWARD);
-
-  //~ PetscInt    Ii,Istart,Iend,y;
-  //~ PetscScalar u;
-  //~ ierr = VecGetOwnershipRange(_u,&Istart,&Iend);
-  //~ for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ y = Ii / _Nz;
-    //~ if (Ii % _Nz == 0) {
-      //~ ierr = VecGetValues(_u,1,&Ii,&u);CHKERRQ(ierr);
-      //~ ierr = VecSetValue(_surfDisp,y,u,INSERT_VALUES);CHKERRQ(ierr);
-    //~ }
-  //~ }
-  //~ ierr = VecAssemblyBegin(_surfDisp);CHKERRQ(ierr);
-  //~ ierr = VecAssemblyEnd(_surfDisp);CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -620,50 +591,49 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);
 
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   misc time (s): %g\n",_miscTime);CHKERRQ(ierr);
-  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% misc time: %g\n",_miscTime/_integrateTime);CHKERRQ(ierr);
-
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  //~ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   return ierr;
 }
 
 
 // write out momentum balance context, such as linear solve settings, boundary conditions
-PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
+PetscErrorCode LinearElastic::writeContext(const string outputDir)
 {
   PetscErrorCode ierr = 0;
   PetscViewer    viewer;
 
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::writeContext";
+    string funcName = "LinearElastic::writeContext";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // write out scalar info in output directory text file
-  std::string str = outputDir + "momBal_context.txt";
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
+  // only write it once when we are doing the first checkpoint, since they are time-independent variables
+  if (_ckptNumber == 0) {
+    // write out scalar info in output directory text file
+    string str = outputDir + "momBal_context.txt";
+    PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+    PetscViewerSetType(viewer, PETSCVIEWERASCII);
+    PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+    PetscViewerFileSetName(viewer, str.c_str());
 
-  // linear solve settings
-  ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
+    // linear solve settings
+    ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
-  // boundary conditions
-  ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcT_type = %s\n",_bcTType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcL_type = %s\n",_bcLType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"bcB_type = %s\n",_bcBType.c_str());CHKERRQ(ierr);
+    // boundary conditions
+    ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcT_type = %s\n",_bcTType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcL_type = %s\n",_bcLType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"bcB_type = %s\n",_bcBType.c_str());CHKERRQ(ierr);
 
-  // free viewer memory
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+    // free viewer memory
+    ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-  // write vector _mu into file in output directory
-  ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
-
+    // write vector _mu into file in output directory
+    ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  }
+    
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -673,35 +643,52 @@ PetscErrorCode LinearElastic::writeContext(const std::string outputDir)
 
 
 // writes out fields of length Ny or Nz at each time step
-PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::writeStep1D";
+    string funcName = "LinearElastic::writeStep1D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
-  if (_timeV1D==NULL) {
-    ierr = _sbp->writeOps(outputDir + "ops_u_"); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+  // set up for the first time, when these files and viewers don't exist yet
+  if (stepCount == 0 && _ckptNumber == 0) {
     ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
+
+  // we are restarting the simulation from previous checkpoints, directly append
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    ierr = initiate_appendVecToOutput(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcB", _bcB, outputDir + "momBal_bcB"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcT", _bcT, outputDir + "momBal_bcT"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
+  }
+
+  // regular appending data to the files
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
     ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
     ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
     ierr = VecView(_bcB,_viewers["bcB"].first); CHKERRQ(ierr);
     ierr = VecView(_bcT,_viewers["bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers["bcRShift"].first); CHKERRQ(ierr);
+    // write last time step results for _bcL, _bcR and time into checkpoint files, if checkpoint is enabled
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      ierr = writeVec(_bcL, outputDir + "momBal_bcL_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_bcR, outputDir + "momBal_bcR_ckpt"); CHKERRQ(ierr);
+      ierr = writeVec(_bcRShift, outputDir + "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+    }
   }
-
+  
   _writeTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
@@ -713,32 +700,39 @@ PetscErrorCode LinearElastic::writeStep1D(const PetscInt stepCount, const PetscS
 
 
 // writes out fields of length Ny*Nz. These take up much more hard drive space, and more runtime to output, so are separate from the 1D fields
-PetscErrorCode LinearElastic::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "LinearElastic::writeStep2D";
+    string funcName = "LinearElastic::writeStep2D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
 
-  if (_timeV2D == NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"time2D.txt").c_str(),&_timeV2D); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time); CHKERRQ(ierr);
+  // initialize only once and write into file, at the beginning of the first checkpoint
+  if (stepCount == 0 && _ckptNumber == 0) {
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
-
     // if need to compute sigma_xz, also write out sxz into file
     if (_computeSxz) {
       ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
     }
   }
+
+  // append to previous data files if we had checkpoints before
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    ierr = initiate_appendVecToOutput(_viewers, "u", _surfDisp, outputDir + "u"); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "sxy", _surfDisp, outputDir + "sxy"); CHKERRQ(ierr);
+    // if need to compute sigma_xz
+    if (_computeSxz) {
+      ierr = initiate_appendVecToOutput(_viewers, "sxz", _surfDisp, outputDir + "sxz"); CHKERRQ(ierr);
+    }
+  }
   
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time); CHKERRQ(ierr);
+  // regular appending values/vectors
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
-
     // if need to compute sigma_xz
     if (_computeSxz) {
       ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
@@ -870,7 +864,7 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   }
 
   else {
-    for(Ii = Istart; Ii < Iend; Ii++) {
+    for (Ii = Istart; Ii < Iend; Ii++) {
       ierr = VecGetValues(*_z,1,&Ii,&z); CHKERRQ(ierr);
       //~ z = _dz * Ii;
 
@@ -943,11 +937,6 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   ierr = VecAssemblyBegin(_bcB);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcT);CHKERRQ(ierr);
   ierr = VecAssemblyEnd(_bcB);CHKERRQ(ierr);
-
-  // writeVec(_bcL,_outputDir+"mms_bcL");
-  // writeVec(_bcR,_outputDir+"mms_bcR");
-  // writeVec(_bcT,_outputDir+"mms_bcT");
-  // writeVec(_bcB,_outputDir+"mms_bcB");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
@@ -1077,16 +1066,15 @@ PetscErrorCode LinearElastic::measureMMSError(const PetscScalar time)
   double err2uA = computeNormDiff_2(_u,uA);
   double err2sigmaxy = computeNormDiff_2(_sxy,sigmaxyA);
 
-  //~ std::str = _outputDir = "uA";
   writeVec(uA,_outputDir+"uA");
-  //~ writeVec(_bcL,_outputDir+"mms_u_bcL");
-  //~ writeVec(_bcR,_outputDir+"mms_u_bcR");
-  //~ writeVec(_bcT,_outputDir+"mms_u_bcT");
-  //~ writeVec(_bcB,_outputDir+"mms_u_bcB");
+  // writeVec(_bcL,_outputDir+"mms_u_bcL");
+  // writeVec(_bcR,_outputDir+"mms_u_bcR");
+  // writeVec(_bcT,_outputDir+"mms_u_bcT");
+  // writeVec(_bcB,_outputDir+"mms_u_bcB");
 
-  //~ Mat H; _sbp->getH(H);
-  //~ double err2uA = computeNormDiff_Mat(H,_u,uA);
-  //~ double err2sigmaxy = computeNormDiff_2(_sxy,sigmaxyA);
+  // Mat H; _sbp->getH(H);
+  // double err2uA = computeNormDiff_Mat(H,_u,uA);
+  // double err2sigmaxy = computeNormDiff_2(_sxy,sigmaxyA);
 
   PetscPrintf(PETSC_COMM_WORLD,"%i  %3i %.4e %.4e % .15e %.4e % .15e\n",
               _order,_Ny,_dy,err2uA,log2(err2uA),err2sigmaxy,log2(err2sigmaxy));
@@ -1195,8 +1183,8 @@ double LinearElastic::zzmms_f_yy1D(const double y) {
   return -cos(y);
 }
 
-//~ double LinearElastic::zzmms_f_z1D(const double y) { return 0; }
-//~ double LinearElastic::zzmms_f_zz1D(const double y) { return 0; }
+// double LinearElastic::zzmms_f_z1D(const double y) { return 0; }
+// double LinearElastic::zzmms_f_zz1D(const double y) { return 0; }
 
 double LinearElastic::zzmms_uA1D(const double y,const double t) {
   return zzmms_f1D(y)*exp(-t);
@@ -1230,7 +1218,7 @@ double LinearElastic::zzmms_mu_y1D(const double y) {
   return cos(y);
 }
 
-//~ double LinearElastic::zzmms_mu_z1D(const double y) { return 0; }
+// double LinearElastic::zzmms_mu_z1D(const double y) { return 0; }
 
 double LinearElastic::zzmms_sigmaxy1D(const double y,const double t) {
   return zzmms_mu1D(y)*zzmms_uA_y1D(y,t);
@@ -1242,5 +1230,6 @@ double LinearElastic::zzmms_uSource1D(const double y,const double t) {
   PetscScalar u_y = zzmms_uA_y1D(y,t);
   PetscScalar u_yy = zzmms_uA_yy1D(y,t);
   PetscScalar u_zz = zzmms_uA_zz1D(y,t);
+
   return mu*(u_yy + u_zz) + mu_y*u_y;
 }

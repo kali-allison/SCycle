@@ -4,24 +4,24 @@
 
 using namespace std;
 
-
-StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
-: _D(&D),_delim(D._delim),_isMMS(D._isMMS),
-  _outputDir(D._outputDir),_inputDir(D._inputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
+StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
+  : _D(&D),_delim(D._delim),_isMMS(D._isMMS),_inputDir(D._inputDir),
+  _outputDir(D._outputDir),_vL(1e-9),
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _guessSteadyStateICs(0.),_forcingType("no"),_faultTypeScale(2.0),
+  _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
-  _initTime(0),_currTime(0),_maxTime(1e15),
+  _stride1D(1),_stride2D(1),
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber), _interval(D._interval),
+  _maxStepCount(D._maxStepCount),_initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(-1),_maxDeltaT(1e10),
   _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_totalRunTime(0),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_totalRunTime(0),
+  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
+  _forcingVal(0),
   _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
-  _quadEx(NULL),_quadImex(NULL),
-  _fault(NULL),_material(NULL),_he(NULL),_p(NULL)
+  _quadEx(NULL),_quadImex(NULL),_fault(NULL),_material(NULL),_he(NULL),_p(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd()";
@@ -29,31 +29,45 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   #endif
 
   loadSettings(D._file);
+  
+  /* if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file */
+  if (_ckptNumber > 0) {
+    loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
+    _currTime = _initTime;
+    loadValueFromCheckpoint(_outputDir, "prevDeltaT_ckpt", _initDeltaT);
+    _guessSteadyStateICs = 0;
+  }
+
   checkInput();
   parseBCs();
 
   // heat equation
-  if (_thermalCoupling.compare("no") != 0) {
+  if (_thermalCoupling != "no") {
     _he = new HeatEquation(D);
   }
 
   // fault
+  //_scatters is a VecScatter object in domain.cpp
   _body2fault = &(D._scatters["body2L"]);
+
+  // create a new Fault_qd object; attempts to load values from input or checkpoint files
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale);
-  if (_thermalCoupling.compare("no")!=0 && _stateLaw.compare("flashHeating") == 0) {
+
+  if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);
   }
 
   // pressure diffusion equation
-  if (_hydraulicCoupling.compare("no") != 0) {
+  if (_hydraulicCoupling != "no") {
     _p = new PressureEq(D);
   }
-  else if (_hydraulicCoupling.compare("coupled")==0) {
+  else if (_hydraulicCoupling == "coupled") {
     _fault->setSNEff(_p->_p);
   }
 
   // initiate momentum balance equation
-  if (_guessSteadyStateICs) {
+  // creates a new LinearElastic object (depending on whether we're reloading from checkpoint)
+  if (_guessSteadyStateICs == 1) {
     _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
   }
   else {
@@ -61,12 +75,14 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain&D)
   }
 
   // body forcing term for ice stream
-  _forcingTerm = NULL; _forcingTermPlain = NULL;
+  _forcingTerm = NULL;
+  _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) {
     constructIceStreamForcingTerm();
   }
 
-  computeMinTimeStep(); // compute min allowed time step for adaptive time stepping method
+  // compute min allowed time step for adaptive time stepping method
+  computeMinTimeStep();
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -93,7 +109,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   }
 
   {  // destroy viewers for steady state iteration
-    map<string,std::pair<PetscViewer,string> >::iterator it;
+    map<string,pair<PetscViewer,string>>::iterator it;
     for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
       PetscViewerDestroy(& (_viewers[it->first].first) );
     }
@@ -122,11 +138,13 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
 PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
 {
   PetscErrorCode ierr = 0;
-#if VERBOSE > 1
+
+  #if VERBOSE > 1
     std::string funcName = "HeatEquation::loadSettings()";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+    
   PetscMPIInt rank,size;
   MPI_Comm_size(PETSC_COMM_WORLD,&size);
   MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
@@ -134,8 +152,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
   ifstream infile( file );
   string line, var, rhs, rhsFull;
   size_t pos = 0;
-  while (getline(infile, line))
-  {
+  
+  while (getline(infile, line)) {
     istringstream iss(line);
     pos = line.find(_delim); // find position of the delimiter
     var = line.substr(0,pos);
@@ -158,10 +176,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
-    else if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
-    else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
-    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
-    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
+    else if (var.compare("stride1D")==0){ _stride1D = (int)atof(rhs.c_str()); }
+    else if (var.compare("stride2D")==0){ _stride2D = (int)atof(rhs.c_str()); }
+    else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }    
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
@@ -173,7 +190,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
     else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
 
-    // boundary conditions for momentum balance equation
+    // boundary condition types for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
     else if (var.compare("momBal_bcL_qd")==0) { _bcLType = rhs.c_str(); }
@@ -200,7 +217,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
   #endif
 
   assert(_guessSteadyStateICs == 0 || _guessSteadyStateICs == 1);
-  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
+  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
 
   assert(_thermalCoupling.compare("coupled")==0 ||
     _thermalCoupling.compare("uncoupled")==0 ||
@@ -219,20 +236,18 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::checkInput()
     _timeIntegrator.compare("RK43_WBE")==0 );
 
   assert(_timeControlType.compare("P")==0 ||
-    _timeControlType.compare("PI")==0 ||
     _timeControlType.compare("PID")==0 );
 
-  if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {
+  if (_initDeltaT < _minDeltaT || _initDeltaT < 1e-14) {
     _initDeltaT = _minDeltaT;
   }
 
-  assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
   assert(_timeStepTol >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
-  assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
-
+  assert(_initDeltaT > 0 && _initDeltaT >= _minDeltaT && _initDeltaT <= _maxDeltaT);
+  
   // check boundary condition types for momentum balance equation
   assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("remoteLoading")==0);
   assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("remoteLoading")==0);
@@ -267,7 +282,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
   Vec dy, dz;
   VecDuplicate(_D->_y,&dy);
   VecDuplicate(_D->_y,&dz);
-  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0){
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatGetDiagonal(yq, dy);
@@ -388,23 +403,28 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
-  VecCopy(_material->_bcL,slip);
-  VecScale(slip,_faultTypeScale);
-  ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
+  if (_ckptNumber > 0) {
+    ierr = loadVecFromInputFile(slip, _outputDir, "slip_ckpt"); CHKERRQ(ierr);
+  }
+  else {
+    VecCopy(_material->_bcL,slip);
+    VecScale(slip,_faultTypeScale);
+  }
   _varEx["slip"] = slip;
 
-  if (_guessSteadyStateICs) {
+  // will not be done if reloading from checkpoint
+  if (_guessSteadyStateICs == 1) {
     solveSS();
   }
 
   _fault->initiateIntegrand(_initTime,_varEx);
 
-  if (_thermalCoupling.compare("no")!=0 ) {
+  if (_thermalCoupling != "no") {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
      _fault->updateTemperature(_he->_T);
   }
 
-  if (_hydraulicCoupling.compare("no")!=0 ) {
+  if (_hydraulicCoupling != "no") {
      _p->initiateIntegrand(_initTime,_varEx,_varIm);
   }
 
@@ -417,10 +437,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
 
 // monitoring function for ode solvers
-PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT, const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount)
 {
   PetscErrorCode ierr = 0;
-  _currTime = time;
 
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor";
@@ -432,29 +451,28 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
   _deltaT = deltaT;
   _currTime = time;
 
-  // write solution to file (1D)
-  if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
-    ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    // check if there is hydraulic coupling and write result
+  /* write solution to file (1D) when _currTime == _maxTime (simulation ends),
+   * or if _stride1D > 0 and stepCount is an integer multiple of _stride1D */
+  if (_currTime == _maxTime || (_stride1D > 0 && stepCount % _stride1D == 0)) {
+    printf("stepCount = %i\n",stepCount);
+    ierr = writeStep1D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) {
-      ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+      ierr = _p->writeStep(_stepCount,_currTime,_outputDir); CHKERRQ(ierr);
     }
-    // check if there is thermal coupling and write result
     if (_thermalCoupling.compare("no")!=0) {
-      ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
+      ierr =  _he->writeStep1D(_stepCount,_currTime,_outputDir); CHKERRQ(ierr);
     }
   }
 
-  // write solution to file (2D)
-  if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
-    ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
-    // check if there is thermal coupling and write result
-    // currently no support for pressure?
+  /* write solution to file (2D) when _currTime == _maxTime (simulation ends),
+   * or if _stride2D > 0 and stepCount is an integer multiple of _stride2D */
+  if (_currTime == _maxTime || (_stride2D > 0 && stepCount % _stride2D == 0)) {
+    ierr = writeStep2D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) {
-      ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+      ierr =  _he->writeStep2D(_stepCount, _currTime,_outputDir); CHKERRQ(ierr);
     }
   }
 
@@ -472,8 +490,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(const PetscScalar time,c
 }
 
 
-// write out fields of length Ny or Nz at each time step
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+// write out time and _deltaT at each time step
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
 
@@ -482,38 +500,29 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep1D(const PetscInt stepCount
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // _timeV1D is a PetscViewer
-  if (_timeV1D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+  // first time creating files to write time and dt
+  if (stepCount == 0 && _ckptNumber == 0) {
+    writeASCII(outputDir, "time1D.txt", _timeV1D, time);
+    writeASCII(outputDir, "dt1D.txt", _dtimeV1D, deltaT);
   }
 
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+  // already checkpointed before, so append to these files
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    appendASCII(outputDir, "time1D.txt", _timeV1D, time);
+    appendASCII(outputDir, "dt1D.txt", _dtimeV1D, deltaT);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+
+  // regular appending to output files
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", deltaT);CHKERRQ(ierr);
+    // write last time step's time and dt to checkpoint file
+    if (stepCount == _maxStepCount && _ckpt > 0) {
+      PetscViewer viewer;
+      _ckptNumber++;
+      ierr = writeASCII(outputDir, "ckptNumber", viewer, _ckptNumber); CHKERRQ(ierr);
+      PetscViewerDestroy(&viewer);
+    }
   }
 
   #if VERBOSE > 1
@@ -523,6 +532,38 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(const PetscInt stepCount
 }
 
 
+// write out time at each time step
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const std::string outputDir)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_LinearElastic_qd::writeStep1D";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // first time creating files to write time
+  if (stepCount == 0 && _ckptNumber == 0) {
+    writeASCII(outputDir, "time2D.txt", _timeV2D, time);
+  }
+
+  // already checkpointed before, so append to these files
+  else if (stepCount == 0 && _ckptNumber > 0) {
+    appendASCII(outputDir, "time2D.txt", _timeV2D, time);
+  }
+
+  // regular appending to output files
+  else if (stepCount > 0 && stepCount <= _maxStepCount) {
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
+  }
+  
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+
+// print fields to screen
 PetscErrorCode StrikeSlip_LinearElastic_qd::view()
 {
   PetscErrorCode ierr = 0;
@@ -555,9 +596,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time (s): %g\n",totRunTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent writing output: %g\n",(_writeTime/_integrateTime)*100.);CHKERRQ(ierr);
-
-  // // output SBP matrices
-  // ierr = _material->_sbp->writeOps(_outputDir + "ops_u_"); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   checkpoint enabled: %i\n",_ckpt);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   checkpoint number: %i\n",_ckptNumber);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time interval: %i\n",_interval);CHKERRQ(ierr);
+  
   return ierr;
 }
 
@@ -571,9 +613,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // output scalar fields
-  std::string str = _outputDir + "mediator_context.txt";
-  PetscViewer    viewer;
+  // output scalar fields, only from the first processor in the PetscViewer
+  // write this out every checkpoint, since the values of some variables here change
+  string str = _outputDir + "mediator_context.txt";
+  PetscViewer viewer;
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -610,9 +653,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   ierr = PetscViewerASCIIPrintf(viewer,"momBal_bcB = %s\n",_bcBType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"faultTypeScale = %g\n",_faultTypeScale);CHKERRQ(ierr);
 
+  // checkpoint settings
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint enabled = %i\n",_ckpt);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint number = %i\n",_ckptNumber);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint interval = %i\n",_interval);CHKERRQ(ierr);
+  
   // free memory
   PetscViewerDestroy(&viewer);
 
+  // write context from other classes
   _material->writeContext(_outputDir);
   _fault->writeContext(_outputDir);
 
@@ -640,32 +689,171 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
 // Adaptive time stepping functions
 //======================================================================
 
+// test the correct loading of the checkpoint values
+PetscErrorCode StrikeSlip_LinearElastic_qd::testLoading() {
+  PetscErrorCode ierr = 0;
+  Vec bcL_c, bcR_c, bcRShift_c, slip_c, slipVel_c, tauP_c, tauQSP_c, psi_c, sNEff_c, prestress_c;
+  VecDuplicate(_material->_bcL, &bcL_c);
+  VecDuplicate(_material->_bcR, &bcR_c);
+  VecDuplicate(_material->_bcRShift, &bcRShift_c);
+  VecDuplicate(_fault->_slip, &slip_c);
+  VecDuplicate(_fault->_slipVel, &slipVel_c);
+  VecDuplicate(_fault->_tauP, &tauP_c);
+  VecDuplicate(_fault->_tauQSP, &tauQSP_c);
+  VecDuplicate(_fault->_psi, &psi_c);
+  VecDuplicate(_fault->_sNEff, &sNEff_c);
+  VecDuplicate(_fault->_prestress, &prestress_c);
+
+  ierr = loadVecFromInputFile(bcL_c, _outputDir, "momBal_bcL_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(bcR_c, _outputDir, "momBal_bcR_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(bcRShift_c, _outputDir, "momBal_bcRShift_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(slip_c, _outputDir, "slip_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(slipVel_c, _outputDir, "slipVel_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(tauP_c, _outputDir, "tauP_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(tauQSP_c, _outputDir, "tauQSP_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(psi_c, _outputDir, "psi_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(sNEff_c, _outputDir, "sNEff_ckpt"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(prestress_c, _outputDir, "prestress_ckpt"); CHKERRQ(ierr);
+
+  PetscBool flg;
+  VecEqual(_material->_bcL, bcL_c, &flg);
+  if (!flg) {
+    printf("Warning: bcL not equal after initiateIntegrand\n");
+    printVec(_material->_bcL);
+    printVec(bcL_c);
+  }
+  else {
+    printf("bcL equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_material->_bcR, bcR_c, &flg);
+  if (!flg) {
+    printf("Warning: bcR not equal after initiateIntegrand\n");
+    printVec(_material->_bcR);
+    printVec(bcR_c);
+  }
+  else {
+    printf("bcR equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_material->_bcRShift, bcRShift_c, &flg);
+  if (!flg) {
+    printf("Warning: bcRShift not equal after initiateIntegrand\n");
+    printVec(_material->_bcRShift);
+    printVec(bcRShift_c);
+  }
+  else {
+    printf("bcRShift equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_slip, slip_c, &flg);
+  if (!flg) {
+    printf("Warning: slip not equal after initiateIntegrand\n");
+    printVec(_fault->_slip);
+    printVec(slip_c);
+  }
+  else {
+    printf("slip equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_slipVel, slipVel_c, &flg);
+  if (!flg) {
+    printf("Warning: slipVel not equal after initiateIntegrand\n");
+    printVec(_fault->_slipVel);
+    printVec(slipVel_c);
+  }
+  else {
+    printf("slipVel equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_tauP, tauP_c, &flg);
+  if (!flg) {
+    printf("Warning: tauP not equal after initiateIntegrand\n");
+    printVec(_fault->_tauP);
+    printVec(tauP_c);
+  }
+  else {
+    printf("tauP equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_tauQSP, tauQSP_c, &flg);
+  if (!flg) {
+    printf("Warning: tauQSP not equal after initiateIntegrand\n");
+    printVec(_fault->_tauQSP);
+    printVec(tauQSP_c);
+  }
+  else {
+    printf("tauQSP equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_psi, psi_c, &flg);
+  if (!flg) {
+    printf("Warning: psi not equal after initiateIntegrand\n");
+    printVec(_fault->_psi);
+    printVec(psi_c);
+  }
+  else {
+    printf("psi equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_sNEff, sNEff_c, &flg);
+  if (!flg) {
+    printf("Warning: sNEff not equal after initiateIntegrand\n");
+    printVec(_fault->_sNEff);
+    printVec(sNEff_c);
+  }
+  else {
+    printf("sNEff equal after initiateIntegrand\n");
+  }
+
+  VecEqual(_fault->_prestress, prestress_c, &flg);
+  if (!flg) {
+    printf("Warning: prestress not equal after initiateIntegrand\n");
+    printVec(_fault->_prestress);
+    printVec(prestress_c);
+  }
+  else {
+    printf("prestress equal after initiateIntegrand\n");
+  }
+
+  return ierr;
+}
+
+
+// perform all integration and time stepping
 PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::integrate";
+    string funcName = "StrikeSlip_LinearElastic_qd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   double startTime = MPI_Wtime();
 
-  initiateIntegrand(); // put initial conditions into var for integration
+  // put initial conditions into var for integration
+  initiateIntegrand();
+
+  // test whether initiateIntegrand has changed any vectors loaded from checkpoint
+  if (_ckptNumber > 0) {
+    testLoading();
+  }
+  
   _stepCount = 0;
 
   // initialize time integrator
-  if (_timeIntegrator.compare("FEuler")==0) {
+  if (_timeIntegrator == "FEuler") {
     _quadEx = new FEuler(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK32")==0) {
+  else if (_timeIntegrator == "RK32") {
     _quadEx = new RK32(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK43")==0) {
+  else if (_timeIntegrator == "RK43") {
     _quadEx = new RK43(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK32_WBE")==0) {
+  else if (_timeIntegrator == "RK32_WBE") {
     _quadImex = new RK32_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK43_WBE")==0) {
+  else if (_timeIntegrator == "RK43_WBE") {
     _quadImex = new RK43_WBE(_maxStepCount,_maxTime,_initDeltaT,_timeControlType);
   }
   else {
@@ -674,24 +862,29 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
   }
 
   // with backward Euler, implicit time stepping
-  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
-    _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  if (_timeIntegrator == "RK32_WBE" || _timeIntegrator == "RK43_WBE") {
+    ierr = _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
+    ierr = _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
-    ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
-    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
+    // control which fields are used to select step size
+    ierr = _quadImex->setErrInds(_timeIntInds,_scale);
+    // perform all time integration
+    ierr = _quadImex->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
+
   // explicit time stepping
   else {
-    _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
-    _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+    ierr = _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
+    ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
-    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
+    // control which fields are used to select step size
+    ierr = _quadEx->setErrInds(_timeIntInds,_scale);
+    // perform all time integration
+    ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
   }
 
   // calculate time used in integration
@@ -720,12 +913,14 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
-
+  
+  // initializes varEx["psi"] = _psi, varEx["slip"] = _slip
   _fault->updateFields(time,varEx);
 
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0){
     _p->updateFields(time,varEx);
   }
+
   if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end()) {
     _fault->setSNEff(varEx.find("pressure")->second);
   }
@@ -745,7 +940,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end() ) && _hydraulicCoupling.compare("no")!=0 ){
     _p->d_dt(time,varEx,dvarEx);
   }
-
+  
   return ierr;
 }
 
@@ -755,7 +950,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::d_dt";
+    string funcName = "StrikeSlip_LinearElastic_qd::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -769,8 +964,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if (_bcRType.compare("remoteLoading")==0) {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
-  }
-
+    }
+  
   _fault->updateFields(time,varEx);
 
   if ( _hydraulicCoupling.compare("no")!=0 ) {
@@ -851,7 +1046,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSS";
+    string funcName = "StrikeSlip_LinearElastic_qd::solveSS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -859,8 +1054,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   _fault->guessSS(_vL); // sets: slipVel, psi, tau
 
   // writes tau and psi into file in output directory
-  ierr = io_initiateWriteAppend(_viewers, "tau", _fault->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
-  ierr = io_initiateWriteAppend(_viewers, "psi", _fault->_psi, _outputDir + "SS_tau"); CHKERRQ(ierr);
+  writeVec(_fault->_tauP, _outputDir + "SS_tauP");
+  writeVec(_fault->_psi, _outputDir + "SS_psi");
 
   // compute compute u that satisfies tau at left boundary
   VecCopy(_fault->_tauP,_material->_bcL);
@@ -873,8 +1068,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   ierr = _material->getStresses(sxy,sxz,sdev);
 
   // write slip and stress into file in output directory
-  ierr = io_initiateWriteAppend(_viewers, "SS_uSS0", _material->_u, _outputDir + "SS_uSS0"); CHKERRQ(ierr);
-  ierr = io_initiateWriteAppend(_viewers, "SS_sxySS", sxy, _outputDir + "SS_sxySS"); CHKERRQ(ierr);
+  writeVec(_material->_u, _outputDir + "SS_uSS0");
+  writeVec(sxy, _outputDir + "SS_sxySS");
 
   // scatter body fields to fault vector
   ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -892,6 +1087,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     VecDuplicate(sxy,&T);
     _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
     ierr = writeVec(_he->_T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+
     // free memory
     VecDestroy(&T);
   }
@@ -909,7 +1105,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_LinearElastic_qd::solveSSb";
+    string funcName = "StrikeSlip_LinearElastic_qd::solveSSb";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -926,31 +1122,33 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSSb()
     VecDestroy(&temp);
   }
 
-   ierr = io_initiateWriteAppend(_viewers, "SS_uSS1", _material->_u, _outputDir + "SS_uSS1"); CHKERRQ(ierr);
+  // write updated _u into file
+  writeVec(_material->_u, _outputDir + "SS_uSS1");
 
   // extract R boundary from u, to set _material->bcR
   VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
   VecCopy(_material->_bcRShift,_material->_bcR);
 
-  // extract L boundary from u to set slip, possibly _material->_bcL
+  // extract L boundary from u to set slip and _material->_bcL
   Vec uL;
   VecDuplicate(_material->_bcL,&uL);
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
 
   // write result into file in output directory
-  ierr = io_initiateWriteAppend(_viewers, "SS_uL", uL, _outputDir + "SS_uL"); CHKERRQ(ierr);
-  ierr = io_initiateWriteAppend(_viewers, "SS_bcRShift", _material->_bcRShift, _outputDir + "SS_bcRShift"); CHKERRQ(ierr);
+  writeVec(uL, _outputDir + "SS_uL");
+  writeVec(_material->_bcRShift, _outputDir + "SS_bcRShift");
 
+  // reset _bcL
   VecCopy(uL,_varEx["slip"]);
-  VecScale(_varEx["slip"],2.0);
+  // TODO: replaced second argument (2.0) with _faultTypeScale, check with Kali
+  VecScale(_varEx["slip"], _faultTypeScale);
   VecCopy(uL,_material->_bcL);
+  writeVec(_varEx["slip"], _outputDir + "SS_slip0");
 
   // free memory
   VecDestroy(&uL);
-
-  ierr = io_initiateWriteAppend(_viewers, "SS_slip0", _varEx["slip"], _outputDir + "SS_slip0"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -990,36 +1188,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
 
-  // // compute forcing term for momentum balance equation
-  // forcing = (1/Ly) * (tau_ss + eta_rad*V_ss)
-  // Vec tauSS = NULL,radDamp=NULL,V=NULL;
-  // VecDuplicate(_fault->_eta_rad,&V); VecSet(V,_vL);
-  // VecDuplicate(_fault->_eta_rad,&radDamp); VecPointwiseMult(radDamp,_fault->_eta_rad,V);
-  // _fault->computeTauRS(tauSS,_vL);
-  // VecAXPY(tauSS,1.0,radDamp);
-  // VecScale(tauSS,-1./_D->_Ly);
-
-  // VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  // MatMult(MapV,tauSS,_forcingTerm);
-
-  // // free memory
-  // MatDestroy(&MapV);
-  // VecDestroy(&tauSS);
-  // VecDestroy(&radDamp);
-
-  // // compute forcing term for momentum balance equation
-  // forcing = - tau_ss / Ly
-  // Vec tauSS = NULL;
-  // _fault->computeTauRS(tauSS,_vL);
-  // VecScale(tauSS,-1./_D->_Ly);
-
-  // VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,0.0);
-  // MatMult(MapV,tauSS,_forcingTerm);
-
-  // // free memory
-  // MatDestroy(&MapV);
-  // VecDestroy(&tauSS);
-
   // compute forcing term using scalar input
   VecDuplicate(_material->_u,&_forcingTerm);
   VecSet(_forcingTerm,_forcingVal);
@@ -1030,7 +1198,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term H*J if using a curvilinear grid (the H matrix and the Jacobian)
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1;
     Mat J,Jinv,qy,rz,yq,zr,H;
     VecDuplicate(_forcingTerm,&temp1);

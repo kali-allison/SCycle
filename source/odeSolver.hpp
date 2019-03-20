@@ -11,6 +11,7 @@
 #include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 
+using namespace std;
 /*
  * Provides a set of algorithms to solve a system of ODEs of
  * the form y' = f(t,y) using EXPLICIT time stepping.
@@ -55,51 +56,56 @@
 
 class OdeSolver
 {
-  public:
+public:
 
-    PetscReal               _initT,_finalT,_currT,_deltaT;
-    PetscInt                _maxNumSteps,_stepCount;
-    std::map<string,Vec>    _var,_dvar; // integration variable and rate
-    std::vector<string>     _errInds; // which keys of _var to use for error control
-    std::vector<double>     _scale; // scale factor for entries in _errInds
-    double                  _runTime;
-    string                  _controlType;
-    string                  _normType;
+  PetscReal          _initT,_finalT,_currT,_deltaT;
+  PetscInt           _maxNumSteps,_stepCount;
+  map<string,Vec>    _var,_dvar; // integration variable and rate
+  vector<string>     _errInds; // which keys of _var to use for error control
+  vector<double>     _scale; // scale factor for entries in _errInds
+  double             _runTime;
+  string             _controlType;
+  string             _normType;
 
-    OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    virtual ~OdeSolver() {};
+  // checkpoint input
+  string             _outputDir;
 
-    PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
-    PetscErrorCode setInitialStepCount(const PetscReal stepCount);
-    PetscErrorCode setStepSize(const PetscReal deltaT);
-    PetscErrorCode setToleranceType(const std::string normType); // type of norm used for error control
+  // for PID error control
+  boost::circular_buffer<double> _errA;
+  map<string,Vec> _y2,_y3,_y4;
+  
+  OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+  virtual ~OdeSolver() {};
 
-    virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
-    virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-    virtual PetscErrorCode setInitialConds(std::map<string,Vec>& var){return 1;};
-    virtual PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) = 0;
-    virtual PetscErrorCode setErrInds(std::vector<string>& errInds) = 0;
-    virtual PetscErrorCode setErrInds(std::vector<string>& errInds, vector<double> scale) = 0;
-    virtual PetscErrorCode view() = 0;
-    virtual PetscErrorCode integrate(IntegratorContextEx *obj) {return 1;};
+  PetscErrorCode setTimeRange(const PetscReal initT,const PetscReal finalT);
+  PetscErrorCode setInitialStepCount(const PetscReal stepCount);
+  PetscErrorCode setStepSize(const PetscReal deltaT);
+  PetscErrorCode setToleranceType(const string normType); // type of norm used for error control
+
+  virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
+  virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
+  virtual PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir){return 1;};
+  virtual PetscErrorCode setErrInds(vector<string>& errInds) = 0;
+  virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
+  virtual PetscErrorCode view() = 0;
+  virtual PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber) {return 1;};
 };
 
 
 // FEuler is a derived class from OdeSolver
 class FEuler : public OdeSolver
 {
-  public:
-    FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~FEuler();
-    PetscErrorCode view();
+public:
+  FEuler(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+  ~FEuler();
+  PetscErrorCode view();
 
-    PetscErrorCode setTolerance(const PetscReal tol){return 0;};
-    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
-    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
-    PetscErrorCode setErrInds(std::vector<string>& errInds) {return 0;};
-    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale) {return 0;};
-    PetscErrorCode integrate(IntegratorContextEx *obj);
+  PetscErrorCode setTolerance(const PetscReal tol){return 0;};
+  PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
+  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setErrInds(vector<string>& errInds) {return 0;};
+  PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) {return 0;};
+  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
 };
 
 
@@ -107,36 +113,36 @@ class FEuler : public OdeSolver
 // Based on algorithm from Hairer et al.
 class RK32 : public OdeSolver
 {
-  public:
+public:
 
-    PetscReal   _minDeltaT,_maxDeltaT;
-    PetscReal   _atol,_rtol; // absolute and relative tolerances
-    PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
-    PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
-    PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
+  PetscReal   _minDeltaT,_maxDeltaT;
+  PetscReal   _atol,_rtol; // absolute and relative tolerances
+  PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
+  PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
+  PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-    // for PID error control
-    boost::circular_buffer<double> _errA;
-    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
+  // for PID error control
+  boost::circular_buffer<double> _errA;
+  // error between 3rd order solution and embedded 2nd order solution
+  PetscReal   _totErr;
 
-    std::map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
+  map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
 
-    PetscReal computeStepSize(const PetscReal totErr);
-    PetscReal computeError();
+  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscReal computeError();
 
-    // constructor and destructor
-    RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~RK32();
+  // constructor and destructor
+  RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+  ~RK32();
 
-    // member functions of this class
-    PetscErrorCode setTolerance(const PetscReal tol);
-    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
-    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
-    PetscErrorCode setErrInds(std::vector<string>& errInds);
-    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
-    PetscErrorCode view();
-    PetscErrorCode integrate(IntegratorContextEx *obj);
+  // member functions of this class
+  PetscErrorCode setTolerance(const PetscReal tol);
+  PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
+  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setErrInds(vector<string>& errInds);
+  PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
+  PetscErrorCode view();
+  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
 };
 
 
@@ -146,37 +152,40 @@ class RK32 : public OdeSolver
 // Note: Has matching IMEX equivalent
 class RK43 : public OdeSolver
 {
-  public:
+public:
 
-    PetscReal   _minDeltaT,_maxDeltaT;
-    PetscReal   _atol,_rtol; // absolute and relative tolerances
-    PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
-    PetscReal   _kappa,_ord; // safety factor in step size determinance
-    PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
+  PetscReal   _minDeltaT,_maxDeltaT;
+  // absolute and relative tolerances
+  PetscReal   _atol,_rtol;
+  // total tolerance, might be atol, or rtol, or a combination of both
+  PetscReal   _totTol;
+  // safety factor in step size determinance
+  PetscReal   _kappa,_ord;
+  PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-    boost::circular_buffer<double> _errA;
-    PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
+  // for PID error control
+  boost::circular_buffer<double> _errA;
+  // error between 3rd order solution and embedded 2nd order solution
+  PetscReal   _totErr;
 
-    std::map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y4,_y3;
-    std::map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
+  map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y3,_y4;
+  map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
 
-    PetscReal computeStepSize(const PetscReal totErr);
-    PetscReal computeError();
+  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscReal computeError();
 
-    // constructor and destructor
-    RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
-    ~RK43();
+  // constructor and destructor
+  RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
+  ~RK43();
 
-    // various member functions
-    PetscErrorCode setTolerance(const PetscReal tol);
-    PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-    PetscErrorCode setInitialConds(std::map<string,Vec>& var);
-    PetscErrorCode setInitialCondsIm(std::map<string,Vec>& varIm) {return 0;};
-    PetscErrorCode setErrInds(std::vector<string>& errInds);
-    PetscErrorCode setErrInds(std::vector<string>& errInds, std::vector<double> scale);
-    PetscErrorCode view();
-    PetscErrorCode integrate(IntegratorContextEx *obj);
+  // various member functions
+  PetscErrorCode setTolerance(const PetscReal tol);
+  PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
+  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setErrInds(vector<string>& errInds);
+  PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
+  PetscErrorCode view();
+  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
 };
 
 #endif
-

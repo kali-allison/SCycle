@@ -7,25 +7,21 @@ using namespace std;
 
 strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
 : _D(&D),_delim(D._delim),_isMMS(D._isMMS),
-  _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-  _Ly(D._Ly),_Lz(D._Lz),
-  _deltaT(-1), _CFL(-1),
-  _y(&D._y),_z(&D._z),
-  _alphay(NULL),
-  _outputDir(D._outputDir),_loadICs(D._loadICs),
-  _vL(1e-9),
-  _initialConditions("u"), _inputDir("unspecified"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
+  _order(D._order),_Ny(D._Ny),_Nz(D._Nz), _Ly(D._Ly),_Lz(D._Lz),
+  _deltaT(-1), _CFL(-1),_y(&D._y),_z(&D._z),_alphay(NULL),
+  _inputDir(D._inputDir),_outputDir(D._outputDir),_vL(1e-9),
+  _initialConditions("u"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _stepCount(0),_atol(1e-8),
   _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0), _propagateTime(0),
+  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+  _startTime(MPI_Wtime()),_miscTime(0), _propagateTime(0),
+  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("outGoingCharacteristics"),
   _mat_bcRType("Neumann"),_mat_bcTType("Neumann"),_mat_bcLType("Neumann"),_mat_bcBType("Neumann"),
-  _quadWaveEx(NULL),
-  _fault(NULL),_material(NULL)
+  _quadWaveEx(NULL),_fault(NULL),_material(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd()";
@@ -135,7 +131,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
 
     else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
     else if (var.compare("initialConditions")==0) { _initialConditions = rhs.c_str(); }
-    else if (var.compare("inputDir")==0) { _inputDir = rhs.c_str(); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
 
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
@@ -164,8 +159,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  if (_loadICs) { assert(_guessSteadyStateICs == 0); }
-
+  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
@@ -223,8 +217,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
 
 // monitoring function for explicit integration
-PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode strikeSlip_linearElastic_fd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -239,16 +232,17 @@ double startTime = MPI_Wtime();
 
   if (_currTime == _maxTime || ( _stride1D > 0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount,_outputDir); CHKERRQ(ierr);
   }
 
   if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
   }
 
-_writeTime += MPI_Wtime() - startTime;
+  _writeTime += MPI_Wtime() - startTime;
+  
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
@@ -259,7 +253,7 @@ _writeTime += MPI_Wtime() - startTime;
 }
 
 
-PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -284,7 +278,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(const PetscInt stepCount
   return ierr;
 }
 
-PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(PetscInt stepCount, PetscScalar time,const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -404,8 +398,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::integrate()
 }
 
 // purely explicit time stepping// note that the heat equation never appears here because it is only ever solved implicitly
-PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT,
-  map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
+PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1

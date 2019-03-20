@@ -20,13 +20,11 @@ class IntegratorContext_WaveEq
     virtual PetscErrorCode integrate() = 0;
 
     // for intermediate time steps for explicitly integrated variables
-    virtual PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT,
-      map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev) = 0;
+  virtual PetscErrorCode d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev) = 0;
 
     // for output and monitoring as time integration progresses
     // this function is not required
-    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT,
-      const PetscInt stepCount,int& stopIntegration){return 1;};
+    virtual PetscErrorCode timeMonitor(const PetscReal time,const PetscScalar deltaT, const PetscInt stepCount,int& stopIntegration){return 1;};
 
 
 };
