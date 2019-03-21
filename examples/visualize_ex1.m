@@ -3,13 +3,13 @@
 % with linear elastic off-fault material.
 
 % define directory for output (can be relative or absolute path)
-sourceDir = '~/scycle/data/ex1';
+sourceDir = '../data/ex1_';
 
 % load context information, such as size of domain, number of points, etc
 d.dom = loadStruct(strcat(sourceDir,'domain.txt'),' = ');
 
 % load fields that are either size Ny or size Nz
-d.time = load(strcat(sourceDir,'time1D.txt'));
+d.time = load(strcat(sourceDir,'med_time1D.txt'));
 d.tau = loadVec(sourceDir,'tauP');
 d.slipVel = loadVec(sourceDir,'slipVel');
 

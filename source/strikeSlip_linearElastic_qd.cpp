@@ -166,6 +166,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
     else if (var.compare("stride1D")==0){ _stride1D = (int)atof(rhs.c_str()); }
     else if (var.compare("stride2D")==0){ _stride2D = (int)atof(rhs.c_str()); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
@@ -426,7 +427,7 @@ double startTime = MPI_Wtime();
   _deltaT = deltaT;
   _currTime = time;
 
-  if (_stride1D > 0 &&_currTime == _maxTime || (_stride1D > 0 && stepCount % _stride1D == 0)) {
+  if ( (_stride1D > 0 && _currTime == _maxTime) || (_stride1D > 0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
@@ -434,7 +435,7 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { _he->writeStep1D(_stepCount,_currTime,_outputDir); }
   }
 
-  if (_stride2D > 0 &&_currTime == _maxTime || (_stride2D > 0 && stepCount % _stride2D == 0)) {
+  if ( (_stride2D > 0 && _currTime == _maxTime) || (_stride2D > 0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount, _currTime, _deltaT, _outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { _he->writeStep2D(_stepCount, _currTime,_outputDir); }
@@ -671,9 +672,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
 
   // put initial conditions into var for integration
   initiateIntegrand();
-    //~ loadValueFromCheckpoint(_outputDir, "chkpt_prevErr", _errA[1]);
-    //~ loadValueFromCheckpoint(_outputDir, "chkpt_currErr", _errA[0]);
-  _stepCount = 0;
 
   // initialize time integrator
   if (_timeIntegrator == "FEuler") {

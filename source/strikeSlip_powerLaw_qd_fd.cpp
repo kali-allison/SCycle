@@ -205,6 +205,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
 
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
+    else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
     else if (var.compare("minDeltaT")==0) { _minDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("maxDeltaT")==0) {_maxDeltaT = atof( rhs.c_str() ); }
     else if (var.compare("initDeltaT")==0) { _initDeltaT = atof( rhs.c_str() ); }

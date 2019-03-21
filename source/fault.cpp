@@ -228,13 +228,13 @@ PetscErrorCode Fault::setFields(Domain& D)
   #endif
 
   // create z from D._z
-  VecDuplicate(_tauP,&_z);  VecSet(_b,0.0);
+  VecDuplicate(D._y0,&_z);
   double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
   _scatterTime += MPI_Wtime() - scatterStart;
 
-  VecDuplicate(D._y0,&_tauP); VecSet(_tauP,0.0);
+  VecDuplicate(_z,&_tauP); VecSet(_tauP,0.0);
   VecDuplicate(_tauP,&_tauQSP); VecSet(_tauQSP,0.0);
   VecDuplicate(_tauP,&_strength); VecSet(_strength,0.0);
   VecDuplicate(_tauP,&_prestress); VecSet(_prestress, 0.0);
@@ -514,43 +514,21 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
 
   // these files are initiated only for the first time step and when are checkpointing for the first time, since the files don't exist yet
   // writing vectors into binary files
-  if (stepCount == 0 && _D->_ckptNumber == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "strength", _strength, outputDir + "strength"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "sNEff", _sNEff, outputDir + "sNEff"); CHKERRQ(ierr);
+  if (_viewers.empty()) {
+    ierr = initiate_appendVecToOutput(_viewers, "slip", _slip, outputDir + "slip", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "slipVel", _slipVel, outputDir + "slipVel", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "tauP", _tauP, outputDir + "tauP", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "strength", _strength, outputDir + "strength", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "psi", _psi, outputDir + "psi", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "sNEff", _sNEff, outputDir + "sNEff", _D->_outFileMode); CHKERRQ(ierr);
 
     if (_stateLaw.compare("flashHeating") == 0) {
-      ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
-      ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
+      ierr = initiate_appendVecToOutput(_viewers, "T", _T, outputDir + "fault_T", _D->_outFileMode); CHKERRQ(ierr);
+      ierr = initiate_appendVecToOutput(_viewers, "Vw", _Vw, outputDir + "Vw", _D->_outFileMode); CHKERRQ(ierr);
     }
   }
-
-  /* if _ckptNumber > 0, we have finished the first checkpoint, and are restarting
-   * the simulation, and we are at step 0, then we need to initiate the viewers
-   * again, but this time, we open in append mode directly so data from this
-   * checkpoint will be appended to the end of the original data files */
-  // writing vectors into binary files
-  else if (stepCount == 0 && _D->_ckptNumber > 0) {
-    ierr = initiate_appendVecToOutput(_viewers, "slip", _slip, outputDir + "slip"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "slipVel", _slipVel, outputDir + "slipVel"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "tauP", _tauP, outputDir + "tauP"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "strength", _strength, outputDir + "strength"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "psi", _psi, outputDir + "psi"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "sNEff", _sNEff, outputDir + "sNEff"); CHKERRQ(ierr);
-
-    if (_stateLaw.compare("flashHeating") == 0) {
-      ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "fault_T"); CHKERRQ(ierr);
-      ierr = io_initiateWriteAppend(_viewers, "Vw", _Vw, outputDir + "Vw"); CHKERRQ(ierr);
-    }
-  }
-
-  // regular appending data to the end of original data file
-  else if (stepCount > 0 ) {
+  else {
     ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
     ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
     ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);

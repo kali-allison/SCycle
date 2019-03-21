@@ -957,11 +957,8 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
   PetscErrorCode ierr = 0;
 
   // initiate viewer
-  PetscViewer viewer;
-  vwL[key].first = viewer;
-  vwL[key].second = filename;
-
   PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
+  vwL[key].second = filename;
   PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
   PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
   PetscViewerFileSetName(vwL[key].first, filename.c_str());
@@ -1035,7 +1032,6 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
   PetscErrorCode ierr = 0;
 
   // initiate viewer
-  PetscViewer viewer;
   PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
   vwL[key].second = filename;
   PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
