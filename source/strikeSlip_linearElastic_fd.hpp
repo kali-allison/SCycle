@@ -77,9 +77,6 @@ private:
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;
 
-  // checkpoint enabling
-  PetscInt _ckpt, _ckptNumber;
-  
   // boundary conditions
   // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
   string       _bcRType,_bcTType,_bcLType,_bcBType;

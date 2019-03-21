@@ -34,7 +34,6 @@ public:
   PetscScalar     _Ly,_Lz,_dy,_dz;
   Vec            *_y,*_z; // to handle variable grid spacing
   const bool      _isMMS; // true if running mms test
-  PetscInt        _stepCount;
 
   // off-fault material fields
   Vec             _mu, _rho, _cs;
@@ -51,22 +50,17 @@ public:
   SbpOps         *_sbp;
   string          _sbpType;
 
-  // viewers
+  // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> >  _viewers;
+  map <string,pair<PetscViewer,string> >  _viewers1D;
+  map <string,pair<PetscViewer,string> >  _viewers2D;
 
   // runtime data
   double   _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _matrixTime;
   PetscInt _linSolveCount;
 
-  // checkpoint data
-  PetscInt _ckpt, _ckptNumber;
-
-  // max number of steps to take
-  PetscInt _maxStepCount;
-  
   // boundary conditions
   string _bcRType,_bcTType,_bcLType,_bcBType; // options: Dirichlet, Neumann
   Vec    _bcR,_bcT,_bcL,_bcB;
@@ -80,7 +74,7 @@ public:
   PetscErrorCode checkInput();
   PetscErrorCode allocateFields(); // allocate space for member fields
   PetscErrorCode setMaterialParameters();
-  PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode loadICsFromFiles();
   PetscErrorCode setUpSBPContext();
   PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A);
 
@@ -93,13 +87,15 @@ public:
   PetscErrorCode computeU();
   PetscErrorCode changeBCTypes(string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype);
 
-  // IO commands
+  // IO functions
   PetscErrorCode view(const double totRunTime);
   PetscErrorCode writeContext(const string outputDir);
-  // write out 1D fields
   PetscErrorCode writeStep1D(PetscInt stepCount, const string outputDir);
-  // write out 2D fields
   PetscErrorCode writeStep2D(PetscInt stepCount, const string outputDir);
+
+  // checkpointing functions
+  PetscErrorCode loadCheckpoint();
+  PetscErrorCode writeCheckpoint();
 
   // MMS functions
   PetscErrorCode setMMSInitialConditions(const double time);

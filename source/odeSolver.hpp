@@ -73,7 +73,7 @@ public:
   // for PID error control
   boost::circular_buffer<double> _errA;
   map<string,Vec> _y2,_y3,_y4;
-  
+
   OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);
   virtual ~OdeSolver() {};
 
@@ -88,7 +88,7 @@ public:
   virtual PetscErrorCode setErrInds(vector<string>& errInds) = 0;
   virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
   virtual PetscErrorCode view() = 0;
-  virtual PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber) {return 1;};
+  virtual PetscErrorCode integrate(IntegratorContextEx *obj) = 0;
 };
 
 
@@ -105,7 +105,7 @@ public:
   PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
   PetscErrorCode setErrInds(vector<string>& errInds) {return 0;};
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) {return 0;};
-  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
+  PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 
@@ -116,19 +116,16 @@ class RK32 : public OdeSolver
 public:
 
   PetscReal   _minDeltaT,_maxDeltaT;
-  PetscReal   _atol,_rtol; // absolute and relative tolerances
   PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
   PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-  // for PID error control
   boost::circular_buffer<double> _errA;
-  // error between 3rd order solution and embedded 2nd order solution
   PetscReal   _totErr;
 
   map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
 
-  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
 
   // constructor and destructor
@@ -142,7 +139,7 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
-  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
+  PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 
@@ -155,23 +152,17 @@ class RK43 : public OdeSolver
 public:
 
   PetscReal   _minDeltaT,_maxDeltaT;
-  // absolute and relative tolerances
   PetscReal   _atol,_rtol;
-  // total tolerance, might be atol, or rtol, or a combination of both
   PetscReal   _totTol;
-  // safety factor in step size determinance
   PetscReal   _kappa,_ord;
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
-
-  // for PID error control
   boost::circular_buffer<double> _errA;
-  // error between 3rd order solution and embedded 2nd order solution
   PetscReal   _totErr;
 
   map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y3,_y4;
   map<string,Vec> _f1,_f2,_f3,_f4,_f5,_f6;
 
-  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
 
   // constructor and destructor
@@ -185,7 +176,7 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
-  PetscErrorCode integrate(IntegratorContextEx *obj, PetscInt ckptNumber);
+  PetscErrorCode integrate(IntegratorContextEx *obj);
 };
 
 #endif

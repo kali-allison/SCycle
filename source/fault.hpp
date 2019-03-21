@@ -96,12 +96,6 @@ public:
   // runtime data
   double   _computeVelTime,_stateLawTime, _scatterTime;
 
-  // checkpoint data
-  PetscInt _ckpt, _ckptNumber;
-
-  // max number of steps to take
-  PetscInt _maxStepCount;
-  
   // for mapping from body fields to the fault
   VecScatter* _body2fault;
 
@@ -122,10 +116,8 @@ public:
   PetscErrorCode setVecFromVectors(Vec&, vector<double>&,vector<double>&);
   PetscErrorCode setVecFromVectors(Vec& vec, vector<double>& vals,vector<double>& depths, const PetscScalar maxVal);
 
-  // update effective normal stress to reflect new pore pressure
-  PetscErrorCode setSNEff(const Vec& p);
-  // update effective normal stress to reflect new pore pressure
-  PetscErrorCode setSN(const Vec& p);
+  PetscErrorCode setSNEff(const Vec& p); // update effective normal stress to reflect new pore pressure
+  PetscErrorCode setSN(const Vec& p); // update effective normal stress to reflect new pore pressure
 
   // for steady state computations
   PetscErrorCode guessSS(const PetscScalar vL);
@@ -135,6 +127,10 @@ public:
   PetscErrorCode virtual view(const double totRunTime);
   PetscErrorCode virtual writeContext(const string outputDir);
   PetscErrorCode virtual writeStep(PetscInt stepCount, const string outputDir);
+
+  // checkpointing
+  PetscErrorCode virtual loadCheckpoint();
+  PetscErrorCode virtual writeCheckpoint();
 };
 
 
@@ -187,7 +183,7 @@ public:
 
   PetscErrorCode loadSettings(const char *file);
   PetscErrorCode setFields();
-  
+
   // for interaction with mediator
   PetscErrorCode initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx);
   PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
@@ -218,7 +214,6 @@ struct ComputeVel_qd : public RootFinderContext
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 
@@ -233,13 +228,12 @@ struct ComputeVel_fd : public RootFinderContext
 
   // constructor
   ComputeVel_fd(const PetscScalar* locked, const PetscInt N,const PetscScalar* Phi, const PetscScalar* an, const PetscScalar* psi, const PetscScalar* fricPen,const PetscScalar* a,const PetscScalar* sneff, const PetscScalar v0, const PetscScalar vL);
- 
+
   // command to perform root-finding process, once contextual variables have been set
   PetscErrorCode computeVel(PetscScalar* slipVelA, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
 
   // function that matches root finder template
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar vel,PetscScalar* out);
-
   PetscErrorCode getResid(const PetscInt Jj,const PetscScalar slipVel,PetscScalar *out,PetscScalar *J);
 };
 

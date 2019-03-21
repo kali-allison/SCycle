@@ -840,8 +840,11 @@ PowerLaw::~PowerLaw()
   delete _sbp_eta; _sbp_eta = NULL;
 
   // viewers
-  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first].first);
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers1D.begin(); it!=_viewers1D.end(); it++ ) {
+    PetscViewerDestroy(&_viewers1D[it->first].first);
+  }
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers2D.begin(); it!=_viewers2D.end(); it++ ) {
+    PetscViewerDestroy(&_viewers2D[it->first].first);
   }
 
   #if VERBOSE > 1
@@ -1163,70 +1166,62 @@ PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // create linear solver context
-  ierr = KSPCreate(PETSC_COMM_WORLD,&_ksp); CHKERRQ(ierr);
-
-  // set operators, here the matrix that defines the linear system also serves as the preconditioning matrix
-  ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
-
-  // algebraic multigrid from HYPRE
-  if (_linSolver == "AMG") { 
-    ierr = KSPSetType(ksp,KSPRICHARDSON); CHKERRQ(ierr);
-    // necessary for solving steady state power law
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr); 
-    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
+  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
+    // uses HYPRE's solver AMG (not HYPRE's preconditioners)
+    ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = PCFactorSetLevels(pc,4);                                     CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    //~ PetscOptionsSetValue(NULL,"-pc_hypre_boomeramg_agg_nl 1");
   }
-
-  // direct LU from MUMPS
-  else if (_linSolver == "MUMPSLU") { 
-    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
+  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
+    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
   }
-
-  // direct Cholesky (RR^T) from MUMPS
-  else if (_linSolver == "MUMPSCHOLESKY") { 
-    ierr = KSPSetType(ksp,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
+  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
+    ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                  CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
   }
-
-  // preconditioned conjugate gradient
-  else if (_linSolver == "CG") {
-    ierr = KSPSetType(ksp,KSPCG); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPGetPC(ksp,&pc); CHKERRQ(ierr);
+  else if (_linSolver.compare("CG")==0) { // preconditioned conjugate gradient
+    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
+    ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    //    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCSetType(pc, PCILU); CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
   }
-
-  // undefined linear solver
   else {
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);
     assert(0);
   }
 
-  /* enable command line options to override those specified above, e.g.:
-     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
-   */
-  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
+  // finish setting up KSP context using options defined above
+  ierr = KSPSetFromOptions(ksp);                                        CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp); CHKERRQ(ierr);
+  ierr = KSPSetUp(ksp);                                                 CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2289,16 +2284,21 @@ PetscErrorCode PowerLaw::writeStep1D(PetscInt stepCount, const string outputDir)
   double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
-  if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "surfDisp", _surfDisp, outputDir + "surfDisp"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcL", _bcL, outputDir + "momBal_bcL"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcR", _bcR, outputDir + "momBal_bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift"); CHKERRQ(ierr);
+  if (_viewers1D.empty()) {
+    initiate_appendVecToOutput(_viewers1D, "surfDisp", _surfDisp, outputDir + "surfDisp", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "bcR", _bcR, outputDir + "momBal_bcR", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "bcT", _bcT, outputDir + "momBal_bcT", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "bcL", _bcL, outputDir + "momBal_bcL", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "bcB", _bcB, outputDir + "momBal_bcB", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift", _D->_outFileMode);
   }
   else {
-    ierr = VecView(_surfDisp,_viewers["surfDisp"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["bcL"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["bcR"].first); CHKERRQ(ierr);
+    ierr = VecView(_surfDisp,_viewers1D["surfDisp"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers1D["bcL"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers1D["bcR"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers1D["bcB"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers1D["bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers1D["bcRShift"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -2320,25 +2320,25 @@ PetscErrorCode PowerLaw::writeStep2D(PetscInt stepCount, const string outputDir)
 
   double startTime = MPI_Wtime();
 
-  if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "sxz", _sxz, outputDir + "sxz"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "gTxy", _gTxy, outputDir + "gTxy"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "gTxz", _gTxz, outputDir + "gTxz"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "gxy", _gVxy, outputDir + "gxy"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "gxz", _gVxz, outputDir + "gxz"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "effVisc", _effVisc, outputDir + "effVisc"); CHKERRQ(ierr);
+  if (_viewers2D.empty()) {
+    initiate_appendVecToOutput(_viewers2D, "u", _u, outputDir + "momBal_u", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "sxy", _sxy, outputDir + "momBal_sxy", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "sxz", _sxz, outputDir + "momBal_sxz", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "gTxy", _gTxy, outputDir + "momBal_gTxy", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "gTxz", _gTxz, outputDir + "momBal_gTxz", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "gxy", _gVxy, outputDir + "momBal_gxy", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "gxz", _gVxz, outputDir + "momBal_gxz", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "effVisc", _effVisc, outputDir + "momBal_effVisc", _D->_outFileMode);
   }
   else {
-    ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers["sxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_gTxy,_viewers["gTxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_gVxy,_viewers["gxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers["effVisc"].first); CHKERRQ(ierr);
-    ierr = VecView(_gTxz,_viewers["gTxz"].first); CHKERRQ(ierr);
-    ierr = VecView(_gVxz,_viewers["gxz"].first); CHKERRQ(ierr);
-    ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_u,_viewers2D["u"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxy,_viewers2D["sxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxy,_viewers2D["gTxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gVxy,_viewers2D["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_viewers2D["effVisc"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxz,_viewers2D["gTxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_gVxz,_viewers2D["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_sxz,_viewers2D["sxz"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

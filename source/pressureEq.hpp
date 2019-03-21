@@ -90,9 +90,7 @@ private:
   double _writeTime, _linSolveTime, _ptTime, _startTime, _miscTime;
   double _invTime;
 
-  // checkpoint enabling
-  PetscInt _ckpt, _ckptNumber, _maxStepCount;
-  
+
   // viewers:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
@@ -140,7 +138,7 @@ public:
   PetscErrorCode dp_dt(const PetscScalar time, const Vec& P, Vec& dPdt);
   PetscErrorCode d_dt_mms(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx);
 
-  
+
   // ============= implicit time integration ======================
   PetscErrorCode d_dt(const PetscScalar time, const map<string, Vec> &varEx, map<string, Vec> &dvarEx, map<string, Vec> &varIm, const map<string, Vec> &varImo, const PetscScalar dt);
   // backward Euler

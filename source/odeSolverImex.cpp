@@ -7,7 +7,7 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _runTime(0),_controlType(controlType),_normType("L2_absolute"),
   _outputDir(" "),_minDeltaT(0),_maxDeltaT(finalT),
-  _atol(1e-9),
+  _totTol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
 #if VERBOSE > 1
@@ -149,18 +149,7 @@ PetscErrorCode RK32_WBE::view()
 
 PetscErrorCode RK32_WBE::setTolerance(const PetscReal tol)
 {
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::setTolerance in odeSolverImex.cpp.\n");
-#endif
-  double startTime = MPI_Wtime();
-  _atol = tol;
-  _rtol = tol;
   _totTol = tol;
-
-  _runTime += MPI_Wtime() - startTime;
-#if VERBOSE > 1
-  PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::setTolerance in odeSolverImex.cpp.\n");
-#endif
   return 0;
 }
 
@@ -255,7 +244,7 @@ PetscErrorCode RK32_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK32_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
+PetscReal RK32_WBE::computeStepSize(const PetscReal totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::computeStepSize in odeSolverImex.cpp.\n");
@@ -274,10 +263,10 @@ PetscReal RK32_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
     PetscReal gamma = 0.1/_ord;
 
     // only do this for the first simulation when _errA is empty
-    if (ckptNumber == 0 && _stepCount < 4) {
+    if (_stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
-    else if (ckptNumber > 0 || _stepCount >= 4) {
+    else {
       stepRatio = _kappa * pow(_totTol/totErr,alpha)
                          * pow(_errA[0]/_totTol,beta)
                          * pow(_totTol/_errA[1],gamma);
@@ -361,7 +350,7 @@ PetscReal RK32_WBE::computeError()
 }
 
 
-PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumber)
+PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::integrate in odeSolver.cpp.\n");
@@ -371,6 +360,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   PetscErrorCode ierr=0;
   PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
+  int            stopIntegration = 0;
 
   // build default errInds if it hasn't been defined already
   if (_errInds.size()==0) {
@@ -379,9 +369,9 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
     }
   }
 
-  // check that errInds is valid
-  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    string key = _errInds[i];
+    // check that errInds is valid
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
@@ -390,60 +380,37 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
   assert(_scale.size() == _errInds.size());
 
-  if (_finalT == _initT) {
-    return ierr;
-  }
-  else if (_deltaT == 0) {
-    _deltaT = (_finalT - _initT)/_maxNumSteps;
-  }
-  if (_maxNumSteps == 0) {
-    return ierr;
-  }
+  if (_finalT==_initT) { return ierr; }
+  else if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
 
   // set initial condition
   ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
-  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
+  //~ ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);// write first step
 
-  // load new _deltaT and previous errors if ckptNumber > 0 (calculated at the end of previous simulation)
-  if (ckptNumber > 0) {
-    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
-    loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", _errA[1]);
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _errA[0]);
-    printf("Checking _errA is correctly loaded:\n");
-    printf("_errA[0] = %e\n", _errA[0]);
-    printf("_errA[1] = %e\n", _errA[1]);
-  }
-  
-  while (_stepCount < _maxNumSteps && _currT < _finalT) {
+  while (_stepCount<_maxNumSteps && _currT<_finalT) {
+
     _stepCount++;
     attemptCount = 0;
-    while (attemptCount < 100) {
+    while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
-      if (attemptCount >= 100) {
-	PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n");
-      }
-
-      if (_currT+_deltaT > _finalT) {
-	_deltaT = _finalT - _currT;
-      }
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
+      if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-        VecSet(_k1[it->first],0.0);
-	VecSet(_f1[it->first],0.0);
-        VecSet(_k2[it->first],0.0);
-	VecSet(_f2[it->first],0.0);
+        VecSet(_k1[it->first],0.0); VecSet(_f1[it->first],0.0);
+        VecSet(_k2[it->first],0.0); VecSet(_f2[it->first],0.0);
         VecSet(_y2[it->first],0.0);
         VecSet(_y3[it->first],0.0);
       }
 
-      printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
-      
       // stage 1: integrate fields to _currT + 0.5*deltaT
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_k1[it->first],0.5*_deltaT,_dvar[it->first],_varEx[it->first]);CHKERRQ(ierr);
@@ -469,24 +436,15 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
 
       // calculate error
       _totErr = computeError();
-      printf("stepCount = %i, attemptCount = %i, _totErr = %e\n", _stepCount, attemptCount, _totErr);
-      if (_totErr<_atol) {
-	printf("stepCount = %i, _totErr < _atol, breaking, attemptCount = %i\n", _stepCount, attemptCount);
-	break;
-      }
-
-      // calculate time step
-      _deltaT = computeStepSize(_totErr, ckptNumber);
-      if (_deltaT - _minDeltaT < 1e-8) {
-	printf("stepCount = %i, attemptCount = %i, _totErr >= _atol, computed time step = %e\n", _stepCount, attemptCount, _deltaT);
-	break;
-      }
+      if (_totErr<_totTol) { break; } // !!!orig
+      _deltaT = computeStepSize(_totErr);
+      if (_minDeltaT == _deltaT) { break; }
 
       _numRejectedSteps++;
     }
-    _currT = _currT+_deltaT;
 
     // accept 3rd order solution as update
+    _currT = _currT+_deltaT;
     for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
       VecSet(_varEx[it->first],0.0);
       ierr = VecCopy(_y3[it->first],_varEx[it->first]);CHKERRQ(ierr);
@@ -500,34 +458,13 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
     }
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
-    // save the _deltaT here as prevDeltaT
-    if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "prevDeltaT_ckpt", viewer, _deltaT);
-      PetscViewerDestroy(&viewer);
-    }
-    
-    if (_totErr > 0.0) {
-      _deltaT = computeStepSize(_totErr, ckptNumber);
-    }
-    
-    // record error for use when estimating time step
-    _errA.push_front(_totErr);
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
-    
-    // put error into checkpoint file
-    if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer1, viewer2, viewer3, viewer4;
-      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[1]);
-      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[0]);
-      writeASCII(_outputDir, "deltaT_ckpt", viewer3, _deltaT);
-      writeASCII(_outputDir, "currT_ckpt", viewer4, _currT);
-      PetscViewerDestroy(&viewer1);
-      PetscViewerDestroy(&viewer2);
-      PetscViewerDestroy(&viewer3);
-      PetscViewerDestroy(&viewer4);
-    }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
+
+
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -649,9 +586,7 @@ PetscErrorCode RK43_WBE::view()
 
 PetscErrorCode RK43_WBE::setTolerance(const PetscReal tol)
 {
-  _atol = tol;
   _totTol = tol;
-  _totTol = tol; // default
   return 0;
 }
 
@@ -790,7 +725,7 @@ PetscErrorCode RK43_WBE::setTimeStepBounds(const PetscReal minDeltaT, const Pets
   return 0;
 }
 
-PetscReal RK43_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
+PetscReal RK43_WBE::computeStepSize(const PetscReal totErr)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::computeStepSize in odeSolverImex.cpp.\n");
@@ -808,10 +743,10 @@ PetscReal RK43_WBE::computeStepSize(const PetscReal totErr, PetscInt ckptNumber)
     PetscReal beta  = 0.34/_ord;
     PetscReal gamma = 0.1/_ord;
     // only do this for the first simulation when _errA is empty
-    if (ckptNumber == 0 && _stepCount < 4) {
+    if (_stepCount < 4) {
       stepRatio = _kappa*pow(_totTol/totErr,1./(1.+_ord));
     }
-    else if (ckptNumber > 0 || _stepCount >= 4) {
+    else {
       stepRatio = _kappa * pow(_totTol/totErr,alpha)
                          * pow(_errA[0]/_totTol,beta)
                          * pow(_totTol/_errA[1],gamma);
@@ -894,7 +829,7 @@ PetscReal RK43_WBE::computeError()
 }
 
 
-PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumber)
+PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::integrate in odeSolver.cpp.\n");
@@ -904,8 +839,10 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   PetscErrorCode ierr=0;
   PetscReal      _totErr=0.0;
   PetscInt       attemptCount = 0;
+  int            stopIntegration = 0;
 
-  // coefficients (c1 = b2 = hb2 = 0)
+  // coefficients
+  //~ PetscScalar c1 = 0.;
   PetscScalar c2 = 1./2.;
   PetscScalar c3 = 83./250.;
   PetscScalar c4 = 31./50.;
@@ -913,12 +850,15 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   PetscScalar c6 = 1.;
 
   PetscScalar b1 = 82889./524892.;
+  //~ PetscScalar b2 = 0.;
   PetscScalar b3 = 15625./83664.;
   PetscScalar b4 = 69875./102672.;
   PetscScalar b5 = -2260./8211.;
   PetscScalar b6 = 1./4.;
 
+
   PetscScalar hb1 = 4586570599./29645900160.;
+  //~ PetscScalar hb2 = 0.;
   PetscScalar hb3 = 178811875./945068544.;
   PetscScalar hb4 = 814220225./1159782912.;
   PetscScalar hb5 = -3700637./11593932.;
@@ -944,11 +884,6 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   PetscScalar a64 = 3354512671639./8306763924573.;
   PetscScalar a65 = 4040./17871.;
 
-  // process norm type to set tolerance
-  _totTol = _atol;
-  if (_normType.compare("L2_relative")==0) { _totTol = _rtol; }
-  if (_normType.compare("L2_absolute")==0) { _totTol = _atol; }
-
 
   // if necessary, build default errInds
   if (_errInds.size()==0) {
@@ -958,8 +893,8 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
   }
 
   // check that errInds is valid
-  for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-    string key = _errInds[i];
+  for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    std::string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
       PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
     }
@@ -968,66 +903,40 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
 
   // set up scaling for elements in errInds
   if (_scale.size() == 0) { // if 0 entries, set all to 1
-    for (vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+    for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       _scale.push_back(1.0);
     }
   }
   assert(_scale.size() == _errInds.size());
 
-  if (_finalT == _initT) {
-    return ierr;
-  }
-  if (_deltaT == 0) {
-    _deltaT = (_finalT-_initT)/_maxNumSteps;
-  }
-  if (_maxNumSteps == 0) {
-    return ierr;
-  }
+  if (_finalT==_initT) { return ierr; }
+  if (_deltaT==0) { _deltaT = (_finalT-_initT)/_maxNumSteps; }
+  if (_maxNumSteps == 0) { return ierr; }
 
-  // set initial condition and write first step
+
+  // set initial condition
   ierr = obj->d_dt(_currT,_varEx,_dvar);CHKERRQ(ierr);
   _f1 = _dvar;
-  ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
+  //~ ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr); // write first step
 
-  // load new _deltaT and previous errors if ckptNumber > 0 (calculated at the end of previous simulation)
-  if (ckptNumber > 0) {
-    loadValueFromCheckpoint(_outputDir, "deltaT_ckpt", _deltaT);
-    loadValueFromCheckpoint(_outputDir, "prevErr_ckpt", _errA[1]);
-    loadValueFromCheckpoint(_outputDir, "currErr_ckpt", _errA[0]);
-    printf("Checking _errA is correctly loaded:\n");
-    printf("_errA[0] = %e\n", _errA[0]);
-    printf("_errA[1] = %e\n", _errA[1]);
-  }
-  
-  while (_stepCount < _maxNumSteps && _currT < _finalT) {
+  while (_stepCount<_maxNumSteps && _currT<_finalT) {
     _stepCount++;
     attemptCount = 0;
-    // repeat until time step is acceptable
-    while (attemptCount < 100) {
+    while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
-      if (attemptCount >= 100) {
-	PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n");
-      }
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
 
-      if (_currT+_deltaT > _finalT) {
-	_deltaT = _finalT - _currT;
-      }
+      if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         VecSet(_k2[it->first],0.0);
-        VecSet(_k3[it->first],0.0);
-	VecSet(_k4[it->first],0.0);
-        VecSet(_k5[it->first],0.0);
-	VecSet(_k6[it->first],0.0);
+        VecSet(_k3[it->first],0.0); VecSet(_k4[it->first],0.0);
+        VecSet(_k5[it->first],0.0); VecSet(_k6[it->first],0.0);
         VecSet(_f2[it->first],0.0);
-        VecSet(_f3[it->first],0.0);
-	VecSet(_f4[it->first],0.0);
-        VecSet(_f5[it->first],0.0);
-	VecSet(_f6[it->first],0.0);
+        VecSet(_f3[it->first],0.0); VecSet(_f4[it->first],0.0);
+        VecSet(_f5[it->first],0.0); VecSet(_f6[it->first],0.0);
       }
 
-      printf("stepCount = %i, deltaT = %e, currT = %e at beginning of attempt loop\n", _stepCount, _deltaT, _currT);
-      
       // stage 1: k1 = var, compute f1 = f(k1)
       _f1 = _dvar;
 
@@ -1074,11 +983,15 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
       // 3rd and 4th order updates
       for (map<string,Vec>::iterator it = _varEx.begin(); it!=_varEx.end(); it++ ) {
         ierr = VecWAXPY(_y3[it->first],hb1*_deltaT,_f1[it->first],_varEx[it->first]); CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_y3[it->first],hb2*_deltaT,_f2[it->first]); CHKERRQ(ierr); // hb2 = 0
         ierr = VecAXPY(_y3[it->first],hb3*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb4*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb5*_deltaT,_f5[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y3[it->first],hb6*_deltaT,_f6[it->first]); CHKERRQ(ierr);
+
+
         ierr = VecWAXPY(_y4[it->first],b1*_deltaT,_f1[it->first],_varEx[it->first]); CHKERRQ(ierr);
+        //~ ierr = VecAXPY(_y4[it->first],b2*_deltaT,_f2[it->first]); CHKERRQ(ierr); // b2 = 0
         ierr = VecAXPY(_y4[it->first],b3*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y4[it->first],b4*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_y4[it->first],b5*_deltaT,_f5[it->first]); CHKERRQ(ierr);
@@ -1087,20 +1000,10 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
 
       // calculate error
       _totErr = computeError();
-      printf("stepCount = %i, attemptCount = %i, _totErr = %e\n", _stepCount, attemptCount, _totErr);
-      
-      // accept step
-      if (_totErr < _atol) {
-	printf("stepCount = %i, _totErr < _atol, breaking, attemptCount = %i\n", _stepCount, attemptCount);
-	break;
-      }
+      if (_totErr<_totTol) { break; } // accept step
+      _deltaT = computeStepSize(_totErr);
+      if (_minDeltaT == _deltaT) { break; }
 
-      // calculate time step
-      _deltaT = computeStepSize(_totErr, ckptNumber);
-      printf("stepCount = %i, attemptCount = %i, _totErr >= _atol, computed time step = %e\n", _stepCount, attemptCount, _deltaT);
-      if (_deltaT - _minDeltaT < 1e-8) {
-	break;
-      }
       _numRejectedSteps++;
     }
     _currT = _currT+_deltaT;
@@ -1118,42 +1021,16 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj, PetscInt ckptNumb
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
       VecSet(_vardTIm[it->first],0.);
     }
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
-    // save the _deltaT here as prevDeltaT
-    if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer;
-      writeASCII(_outputDir, "prevDeltaT_ckpt", viewer, _deltaT);
-      PetscViewerDestroy(&viewer);
-    }
-    
-    if (_totErr > 0.0) {
-      _deltaT = computeStepSize(_totErr, ckptNumber);
-      printf("Newly computed deltaT = %e at the end of stepCount = %i\n", _deltaT, _stepCount);
-    }
-    
-    // record error for use when estimating time step
-    _errA.push_front(_totErr);
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount); CHKERRQ(ierr);
-
-    // put error into checkpoint file
-    if (_stepCount == _maxNumSteps) {
-      PetscViewer viewer1, viewer2, viewer3, viewer4;
-      writeASCII(_outputDir, "prevErr_ckpt", viewer1, _errA[1]);
-      writeASCII(_outputDir, "currErr_ckpt", viewer2, _errA[0]);
-      writeASCII(_outputDir, "deltaT_ckpt", viewer3, _deltaT);
-      writeASCII(_outputDir, "currT_ckpt", viewer4, _currT);
-      PetscViewerDestroy(&viewer1);
-      PetscViewerDestroy(&viewer2);
-      PetscViewerDestroy(&viewer3);
-      PetscViewerDestroy(&viewer4);
-    }
+    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
   }
 
   _runTime += MPI_Wtime() - startTime;
-
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::integrate in odeSolver.cpp.\n");
 #endif
-
   return ierr;
 }

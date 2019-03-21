@@ -13,13 +13,12 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
     _vL(1e-9),_faultTypeScale(2.0),
     _timeIntegrator("RK43"),_timeControlType("PID"),
-    _stride1D(1),_stride2D(1),_maxStepCount(D._maxStepCount),
+    _stride1D(1),_stride2D(1),_maxStepCount(1e8),
     _initTime(0),_currTime(0),_maxTime(1e15),
     _minDeltaT(1e-3),_maxDeltaT(1e10),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),
-    _ckpt(D._ckpt),_ckptNumber(D._ckptNumber),_interval(D._interval),
     _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
     _bcRType("remoteLoading"),_bcTType("freeSurface"),
     _bcLType("symmFault"),_bcBType("freeSurface"),
@@ -360,7 +359,7 @@ double startTime = MPI_Wtime();
   _deltaT = deltaT;
   _currTime = time;
 
-  if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
+  if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount, _outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
@@ -368,21 +367,19 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
+  if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount, _outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
-  //~ if (stepCount % 50 == 0) {
-    PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-    _material->computeMaxTimeStep(maxDeltaT_momBal);
-    maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
-    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
-    }
-    else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
-  //~ }
+  PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
+  _material->computeMaxTimeStep(maxDeltaT_momBal);
+  maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
+  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+      _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+  }
+  else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
@@ -521,19 +518,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
+  _D->write();
   _material->writeContext(_outputDir);
-  if (_he != NULL) {
-   _he->writeContext(_outputDir);
-  }
+  if (_he != NULL) { _he->writeContext(_outputDir); }
   _fault->writeContext(_outputDir);
-
-  if (_hydraulicCoupling.compare("no")!=0) {
-    _p->writeContext(_outputDir);
-  }
-
-  if (_grainSizeEvCoupling.compare("no")!=0) {
-    _grainDist->writeContext(_outputDir);
-  }
+  if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir); }
+  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist->writeContext(_outputDir); }
 
   if (_forcingType.compare("iceStream")==0) {
     ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
@@ -591,7 +581,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
-    ierr = _quadImex->integrate(this, _ckptNumber);CHKERRQ(ierr);
+    ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
   else {
     _quadEx->setTolerance(_timeStepTol);CHKERRQ(ierr);
@@ -601,7 +591,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
-    ierr = _quadEx->integrate(this, _ckptNumber);CHKERRQ(ierr);
+    ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
 
   _integrateTime += MPI_Wtime() - startTime;
@@ -969,12 +959,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
   ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
   ierr = _quadEx->setErrInds(_timeIntInds);
-  ierr = _quadEx->integrate(this,_ckptNumber);CHKERRQ(ierr);
+  ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   delete _quadEx; _quadEx = NULL;
 
   // viewers
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers.begin(); it!=_material->_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_material->_viewers[it->first].first);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers1D.begin(); it!=_material->_viewers1D.end(); it++ ) {
+    PetscViewerDestroy(&_material->_viewers1D[it->first].first);
+  }
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers2D.begin(); it!=_material->_viewers2D.end(); it++ ) {
+    PetscViewerDestroy(&_material->_viewers2D[it->first].first);
   }
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_fault->_viewers.begin(); it!=_fault->_viewers.end(); it++ ) {
     PetscViewerDestroy(&_fault->_viewers[it->first].first);

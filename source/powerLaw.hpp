@@ -176,7 +176,9 @@ public:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> >  _viewers;
+  map <string,pair<PetscViewer,string> >  _viewers1D;
+  map <string,pair<PetscViewer,string> >  _viewers2D;
+
   PetscErrorCode writeDomain(const string outputDir);
   PetscErrorCode writeContext(const string outputDir);
   PetscErrorCode writeStep1D(PetscInt stepCount, string outputDir);

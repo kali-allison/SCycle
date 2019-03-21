@@ -93,9 +93,6 @@ private:
   // runtime data
   double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
 
-  // checkpoint settings
-  PetscInt _ckpt, _ckptNumber, _interval;
-  
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
   PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
@@ -148,7 +145,7 @@ public:
   PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
   PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
   PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
-				map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
+        map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
 
   // help with switching between fully dynamic and quasidynamic
   bool checkSwitchRegime(const Fault* _fault);

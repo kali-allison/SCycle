@@ -18,7 +18,6 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
   _startTime(MPI_Wtime()),_miscTime(0), _propagateTime(0),
-  _ckpt(D._ckpt), _ckptNumber(D._ckptNumber),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("outGoingCharacteristics"),
   _mat_bcRType("Neumann"),_mat_bcTType("Neumann"),_mat_bcLType("Neumann"),_mat_bcBType("Neumann"),
   _quadWaveEx(NULL),_fault(NULL),_material(NULL)
@@ -159,7 +158,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
     CHKERRQ(ierr);
   #endif
 
-  if (_ckptNumber > 0) { assert(_guessSteadyStateICs == 0); }
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
@@ -230,19 +228,19 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _currTime = time;
 
-  if (_currTime == _maxTime || ( _stride1D > 0 && stepCount % _stride1D == 0)) {
+  if ( (_stride1D > 0 && _currTime == _maxTime) || (_stride1D > 0 && stepCount % _stride1D == 0) ) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
     ierr = _fault->writeStep(_stepCount,_outputDir); CHKERRQ(ierr);
   }
 
-  if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
+  if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
-  
+
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i %.15e\n",stepCount,_currTime);CHKERRQ(ierr);
   #endif
@@ -360,6 +358,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
+  _D->write();
   _material->writeContext(_outputDir);
   _fault->writeContext(_outputDir);
 

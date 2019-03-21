@@ -170,14 +170,12 @@ int computeGreensFunction(const char * inputFile)
 int runEqCycle(Domain& d)
 {
   PetscErrorCode ierr = 0;
-  // save all scalar fields to text file "domain.txt" in output directory (only for processor 0)
-  d.write();
 
   // quasi-dynamic earthquake cycle simulation
   // with a vertical strike-slip fault, and linear elastic off-fault material
   if (d._bulkDeformationType.compare("linearElastic") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_LinearElastic_qd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -187,7 +185,7 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and linear elastic off-fault material
   if (d._bulkDeformationType.compare("linearElastic") == 0 && d._momentumBalanceType.compare("dynamic") == 0) {
     strikeSlip_linearElastic_fd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -197,7 +195,7 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and power-law viscoelastic off-fault material
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -206,7 +204,7 @@ int runEqCycle(Domain& d)
   // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("steadyStateIts") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrateSS(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -216,7 +214,7 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and linear elastic off-fault material
   if (d._bulkDeformationType.compare("linearElastic") == 0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic") == 0) {
     strikeSlip_linearElastic_qd_fd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -226,7 +224,7 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and viscoelastic off-fault material
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic") == 0) {
     StrikeSlip_PowerLaw_qd_fd m(d);
-    ierr = m.writeContext(); CHKERRQ(ierr);
+    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -255,19 +253,9 @@ int main(int argc,char **args)
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
     //computeGreensFunction(inputFile);
+    //runTests(inputFile);
   }
 
-{
-  Domain d(inputFile);
-  // run MMS test
-  if (d._isMMS) {
-    runMMSTests(inputFile);
-  }
-  // run earthquake cycle
-  else {
-    runEqCycle(d);
-  }
-}
 
   PetscFinalize();
   return ierr;

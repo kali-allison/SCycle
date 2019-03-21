@@ -29,7 +29,7 @@ HeatEquation::HeatEquation(Domain& D)
 
   loadSettings(_file);
   // more loading to be added depending on which fields need to be saved and restarted
-  
+
   checkInput();
   allocateFields();
   setFields(); // sets material parameters
@@ -205,7 +205,7 @@ PetscErrorCode HeatEquation::loadSettings(const char *file)
     else if (var.compare("he_A0Depths")==0) { loadVectorFromInputFile(rhsFull,_A0Depths); }
     else if (var.compare("he_Lrad")==0) { _Lrad = atof( rhs.c_str() ); }
   }
-    
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -387,7 +387,7 @@ PetscErrorCode HeatEquation::checkInput()
   assert(_TVals.size() == _TDepths.size() );
   assert(_Nz_lab <= _Nz);
   assert(_Lz_lab <= _Lz);
-  
+
   if (_wRadioHeatGen.compare("yes") == 0) {
     assert(_A0Vals.size() == _A0Depths.size() );
     if (_A0Vals.size() == 0) {
@@ -436,7 +436,7 @@ PetscErrorCode HeatEquation::constructScatters(Vec& T, Vec& T_l)
   for (PetscInt Ii=0; Ii<(_Ny*_Nz_lab); Ii++) {
     ti[Ii] = Ii;
   }
-  
+
   IS ist;
   ierr = ISCreateGeneral(PETSC_COMM_WORLD, _Ny*_Nz_lab, ti, PETSC_COPY_VALUES, &ist); CHKERRQ(ierr);
   PetscFree(ti);
@@ -478,7 +478,7 @@ PetscErrorCode HeatEquation::constructMapV()
     Jj = Ii % _Nz;
     MatSetValues(_MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
   }
-  
+
   MatAssemblyBegin(_MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(_MapV,MAT_FINAL_ASSEMBLY);
 
@@ -550,7 +550,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
   PetscScalar bcBval = (_TVals[1] - _TVals[0])/(_TDepths[1]-_TDepths[0]) * (_Lz_lab-_TDepths[0]) + _TVals[0];
   VecSet(bcB,bcBval);
 
-  
+
   // fields that live only in the lithosphere
   Vec y,z,k,Qrad,Tamb_l;
   ierr = VecCreate(PETSC_COMM_WORLD,&y); CHKERRQ(ierr);
@@ -713,8 +713,10 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
@@ -723,8 +725,10 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(pc); CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspSS,KSPCG); CHKERRQ(ierr);
@@ -786,8 +790,10 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCLU); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(_pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(_pc); CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(_pc);                           CHKERRQ(ierr); // old PETSc
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
@@ -797,8 +803,10 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCCHOLESKY); CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(_pc,MATSOLVERMUMPS); CHKERRQ(ierr);
-    ierr = PCFactorSetUpMatSolverType(_pc); CHKERRQ(ierr);
+    //~ ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+    //~ ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+    ierr = PCFactorSetUpMatSolverPackage(_pc);                           CHKERRQ(ierr); // old PETSc
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG")==0) { // conjugate gradient
@@ -914,14 +922,14 @@ PetscErrorCode HeatEquation::setMMSBoundaryConditions(const double time,
       z = 0;
       if (!bcTType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
       else if (!bcTType.compare("Neumann")) {
-	v = zzmms_k(y,z)*zzmms_T_z(y,z,time);
+  v = zzmms_k(y,z)*zzmms_T_z(y,z,time);
       }
       ierr = VecSetValues(_bcT,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       z = _Lz;
       if (!bcBType.compare("Dirichlet")) { v = zzmms_T(y,z,time); }
       else if (!bcBType.compare("Neumann")) {
-	v = zzmms_k(y,z)*zzmms_T_z(y,z,time);
+  v = zzmms_k(y,z)*zzmms_T_z(y,z,time);
       }
       ierr = VecSetValues(_bcB,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }

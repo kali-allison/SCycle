@@ -63,17 +63,16 @@ public:
 
   PetscReal               _initT,_finalT,_currT,_deltaT;
   PetscInt                _maxNumSteps,_stepCount;
-  map<string,Vec>    _varEx,_dvar; // explicit integration variable and rate
-  map<string,Vec>    _varIm; // implicit integration variable, once per time step
-  vector<string>     _errInds; // which inds of _var to use for error control
-  vector<double>     _scale; // scale factor for entries in _errInds
+  map<string,Vec>         _varEx,_dvar; // explicit integration variable and rate
+  map<string,Vec>         _varIm; // implicit integration variable, once per time step
+  vector<string>          _errInds; // which inds of _var to use for error control
+  vector<double>          _scale; // scale factor for entries in _errInds
   double                  _runTime;
   string                  _controlType;
   string                  _normType;
   string                  _outputDir;
-  
+
   PetscReal   _minDeltaT,_maxDeltaT;
-  PetscReal   _atol,_rtol; // absolute and relative tolerances
   PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
@@ -98,8 +97,8 @@ public:
   virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
 
   virtual PetscErrorCode view() = 0;
-  virtual PetscErrorCode integrate(IntegratorContextImex *obj, PetscInt ckptNumber) = 0;
-  virtual PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber) = 0;
+  virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
+  virtual PetscReal computeStepSize(const PetscReal totErr) = 0;
   virtual PetscReal computeError() = 0;
 };
 
@@ -132,8 +131,8 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
-  PetscErrorCode integrate(IntegratorContextImex *obj, PetscInt ckptNumber);
-  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscErrorCode integrate(IntegratorContextImex *obj);
+  PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
 };
 
@@ -175,8 +174,8 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
-  PetscErrorCode integrate(IntegratorContextImex *obj, PetscInt ckptNumber);
-  PetscReal computeStepSize(const PetscReal totErr, PetscInt ckptNumber);
+  PetscErrorCode integrate(IntegratorContextImex *obj);
+  PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
 };
 

@@ -63,12 +63,7 @@ private:
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   string            _timeIntegrator,_timeControlType;
   PetscInt          _stride1D,_stride2D; // stride
-
-  // checkpoint parameters
-  PetscInt          _ckpt, _ckptNumber, _interval;
   PetscInt          _maxStepCount; // largest number of time steps
-
-  // time monitoring parameters
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
   int               _stepCount; // number of time steps at which results are written out
   PetscScalar       _timeStepTol;
@@ -81,7 +76,7 @@ private:
   double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
   // viewers
-  PetscViewer _timeV1D,_dtimeV1D,_timeV2D;
+  PetscViewer _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -124,9 +119,7 @@ public:
   PetscErrorCode solveSS();
   PetscErrorCode solveSSb();
 
-  // checkpoint loading check
-  PetscErrorCode testLoading();
-  
+
   // time stepping functions
   PetscErrorCode integrate(); // will call OdeSolver method by same name
   PetscErrorCode initiateIntegrand();
@@ -141,9 +134,13 @@ public:
   // IO functions
   PetscErrorCode view();
   PetscErrorCode writeContext();
-  PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount);
+  PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
   PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+
+  // checkpointing functions
+  PetscErrorCode loadCheckpoint();
+  PetscErrorCode writeCheckpoint();
 
   // debugging and MMS tests
   PetscErrorCode measureMMSError();
