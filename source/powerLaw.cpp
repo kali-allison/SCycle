@@ -758,7 +758,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   _mu(NULL),_rho(NULL),_cs(NULL),_effVisc(NULL),_T(NULL),_grainSize(NULL),_effViscCap(1e30),
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
   _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
-  _linSolver("unspecified"),_sbpType(D._sbpType),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
+  _linSolver("unspecified"),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
   _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),
   _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
@@ -941,9 +941,10 @@ PetscErrorCode PowerLaw::checkInput()
     _wDiffCreep = "no";
     _wDislCreep = "no";
   }
-
-  assert(_grainSizeVals.size() >= 2);
-  assert(_grainSizeVals.size() == _grainSizeDepths.size() );
+  if (_wDiffCreep.compare("yes") == 0) {
+    assert(_grainSizeVals.size() >= 2);
+    assert(_grainSizeVals.size() == _grainSizeDepths.size() );
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1071,12 +1072,13 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_mu,_inputDir,"mu"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_rho,_inputDir,"rho"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_effVisc,_inputDir,"EffVisc"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSize_g"); CHKERRQ(ierr);
 
-  // load viscous strains
+  ierr = loadVecFromInputFile(_T,_inputDir,"T"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_grainSize,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
+
   ierr = loadVecFromInputFile(_gVxy,_inputDir,"GVxy"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_gVxz,_inputDir,"GVxz"); CHKERRQ(ierr);
+
   ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
 
@@ -2374,7 +2376,6 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
   #endif
 
   double startTime = MPI_Wtime();
-
   if (stepCount == 0) {
     ierr = io_initiateWriteAppend(_viewers, "u", _u, outputDir + "u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "sxy", _sxy, outputDir + "sxy"); CHKERRQ(ierr);
@@ -2384,6 +2385,15 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     ierr = io_initiateWriteAppend(_viewers, "gxy", _gVxy, outputDir + "gxy"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "gxz", _gVxz, outputDir + "gxz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "effVisc", _effVisc, outputDir + "effVisc"); CHKERRQ(ierr);
+
+    if (_wDiffCreep.compare("yes")==0) {
+      ierr = io_initiateWriteAppend(_viewers, "momBal_grainSize", _grainSize, outputDir + "momBal_grainSize"); CHKERRQ(ierr);
+      ierr = io_initiateWriteAppend(_viewers, "diff_invEffVisc", _diff->_invEffVisc, outputDir + "diff_invEffVisc"); CHKERRQ(ierr);
+    }
+    if (_wDislCreep.compare("yes")==0) {
+      ierr = io_initiateWriteAppend(_viewers, "momBal_T", _T, outputDir + "momBal_T"); CHKERRQ(ierr);
+      ierr = io_initiateWriteAppend(_viewers, "disl_invEffVisc", _disl->_invEffVisc, outputDir + "disl_invEffVisc"); CHKERRQ(ierr);
+    }
   }
   else {
     ierr = VecView(_u,_viewers["u"].first); CHKERRQ(ierr);
@@ -2394,6 +2404,13 @@ PetscErrorCode PowerLaw::writeStep2D(const PetscInt stepCount, const PetscScalar
     ierr = VecView(_gTxz,_viewers["gTxz"].first); CHKERRQ(ierr);
     ierr = VecView(_gVxz,_viewers["gxz"].first); CHKERRQ(ierr);
     ierr = VecView(_sxz,_viewers["sxz"].first); CHKERRQ(ierr);
+
+    if (_wDiffCreep.compare("yes")==0) {
+      ierr = VecView(_diff->_invEffVisc,_viewers["diff_invEffVisc"].first); CHKERRQ(ierr);
+    }
+    if (_wDislCreep.compare("yes")==0) {
+      ierr = VecView(_disl->_invEffVisc,_viewers["disl_invEffVisc"].first); CHKERRQ(ierr);
+    }
   }
 
   _writeTime += MPI_Wtime() - startTime;

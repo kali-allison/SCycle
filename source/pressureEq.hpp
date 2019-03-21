@@ -51,7 +51,6 @@ private:
   KSP _ksp;
   PetscScalar _kspTol;
   SbpOps *_sbp;
-  std::string _sbpType;
   int _linSolveCount;
   Vec _bcL = NULL, _bcT = NULL, _bcB = NULL, _bcB_gravity = NULL, _bcB_impose = NULL;
   Vec _p_t = NULL;

@@ -11,7 +11,7 @@ HeatEquation::HeatEquation(Domain& D)
   _file(D._file),_outputDir(D._outputDir),_delim(D._delim),_inputDir(D._inputDir),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
-  _sbpType(D._sbpType),_sbp(NULL),
+  _sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
   _linSolver("CG"),_kspTol(1e-11),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),_I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
@@ -567,23 +567,7 @@ PetscErrorCode HeatEquation::computeInitialSteadyStateTemp()
 
   // create SBP operators, 1D in z-direction only, only in lithosphere
   SbpOps* sbp;
-  //~ if (_sbpType.compare("mc")==0) {
-    //~ sbp = new SbpOps_c(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-  //~ }
-  //~ else if (_sbpType.compare("mfc")==0) {
-    //~ sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-  //~ }
-  //~ else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
-    //~ sbp = new SbpOps_m_varGrid(_order,_Ny,_Nz_lab,_Ly,_Lz_lab,k);
-    //~ if (_Ny > 1 && _Nz > 1) { sbp->setGrid(&y,&z); }
-    //~ else if (_Ny == 1 && _Nz > 1) { sbp->setGrid(NULL,&z); }
-    //~ else if (_Ny > 1 && _Nz == 1) { sbp->setGrid(&y,NULL); }
-  //~ }
-  //~ else {
-    //~ PetscPrintf(PETSC_COMM_WORLD,"ERROR: SBP type type not understood\n");
-    //~ assert(0); // automatically fail
-  //~ }
-    if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
+  if (_D->_gridSpacingType.compare("constantGridSpacing")==0) {
     sbp = new SbpOps_m_constGrid(_order,_Ny,_Nz_lab,_Ly,_Lz,k);
   }
   else if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
@@ -1865,7 +1849,6 @@ PetscErrorCode HeatEquation::writeDomain(const std::string outputDir)
   ierr = PetscViewerASCIIPrintf(viewer,"withFrictionalHeating = %s\n",_wFrictionalHeating.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"withRadioHeatGeneration = %s\n",_wRadioHeatGen.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolver_heateq = %s\n",_linSolver.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"sbpType_heateq = %s\n",_sbpType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol_heateq = %.15e\n",_kspTol);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 

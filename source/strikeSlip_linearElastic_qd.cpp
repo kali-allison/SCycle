@@ -250,7 +250,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::computeMinTimeStep()
   Vec dy, dz;
   VecDuplicate(_D->_y,&dy);
   VecDuplicate(_D->_y,&dz);
-  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_D->_Ny-1));
@@ -963,7 +963,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
 
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     // multiply this term by H*J (the H matrix and the Jacobian)
     Vec temp1; VecDuplicate(_forcingTerm,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;

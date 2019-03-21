@@ -151,7 +151,7 @@ class PowerLaw
 
     // linear system data
     std::string           _linSolver;
-    std::string           _sbpType,_bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
+    std::string           _bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
     Vec                   _rhs,_bcT,_bcR,_bcB,_bcL,_bcRShift;
     KSP                   _ksp;
     PC                    _pc;

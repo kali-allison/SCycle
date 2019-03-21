@@ -459,7 +459,7 @@ double startPropagation = MPI_Wtime();
   ierr = MatMult(A, var.find("u")->second, temp);
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
       Mat J,Jinv,qy,rz,yq,zr;
       ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
       Vec temp;
@@ -535,7 +535,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::computeTimeStep()
   Vec dy, dz;
   VecDuplicate(*_y,&dy);
   VecDuplicate(*_y,&dz);
-  if (_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
     MatGetDiagonal(yq, dy); VecScale(dy,1.0/(_Ny-1));
@@ -618,7 +618,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::computePenaltyVectors()
   Vec alphay,alphaz;
   VecDuplicate(*_y, &alphay); VecSet(alphay,h11y);
   VecDuplicate(*_y, &alphaz); VecSet(alphaz,h11z);
-  if(_D->_sbpType.compare("mfc_coordTrans")==0){
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Mat J,Jinv,qy,rz,yq,zr;
     _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr);
     Vec temp1, temp2;

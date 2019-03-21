@@ -50,7 +50,6 @@ class LinearElastic
     PC                   _pc;
     PetscScalar          _kspTol;
     SbpOps              *_sbp;
-    std::string          _sbpType;
 
     // viewers
     PetscViewer      _timeV1D,_timeV2D;

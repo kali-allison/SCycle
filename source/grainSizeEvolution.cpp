@@ -341,6 +341,9 @@ PetscErrorCode GrainSizeEvolution::be(Vec& grainSizeNew,const Vec& grainSizePrev
     CHKERRQ(ierr);
   #endif
 
+  double startTime = MPI_Wtime();
+
+
   const PetscScalar *A,*QR,*p,*T,*f,*gamma,*s,*dgdev,*dprev;
   PetscScalar *dNew;
   VecGetArrayRead(_A,&A);
@@ -358,7 +361,7 @@ PetscErrorCode GrainSizeEvolution::be(Vec& grainSizeNew,const Vec& grainSizePrev
   ierr = VecGetOwnershipRange(_d,&Istart,&Iend);CHKERRQ(ierr);
   PetscInt N = Iend - Istart;
 
-  PetscScalar rootTol = 1e-9;
+  PetscScalar rootTol = 1e-13;
   PetscInt maxNumIts = 1e4;
   PetscInt rootIts = 0;
   AustinEvans2007 temp(N, dt, dprev, A,QR,p,T, f,s,dgdev,gamma,_c);
@@ -377,6 +380,7 @@ PetscErrorCode GrainSizeEvolution::be(Vec& grainSizeNew,const Vec& grainSizePrev
 
   VecCopy(grainSizeNew,_d);
 
+  _nonlinearSolveTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
@@ -466,6 +470,18 @@ PetscErrorCode GrainSizeEvolution::initiateVarSS(map<string,Vec>& varSS)
 // IO functions
 //======================================================================
 
+PetscErrorCode GrainSizeEvolution::view(const double totRunTime)
+{
+  PetscErrorCode ierr = 0;
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Grain Size Evolution Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving nonlinear system: (s): %g\n",_nonlinearSolveTime);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_nonlinearSolveTime/totRunTime*100.);CHKERRQ(ierr);
+
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+  return ierr;
+}
 
 PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
 {
@@ -524,7 +540,6 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
 // Root-finding for Austin and Evans (2007) evolution law
 //======================================================================
 
-
 // constructor and destructor
 AustinEvans2007::AustinEvans2007(const PetscInt N,const PetscScalar deltaT, const PetscScalar* dprev,const PetscScalar* A,const PetscScalar* QR,const PetscScalar* p,const PetscScalar* T,const PetscScalar* f,const PetscScalar* sdev,const PetscScalar* dgdev,const PetscScalar* gamma,const PetscScalar& c)
 : _N(N),_deltaT(deltaT),_dprev(dprev),_A(A),_QR(QR),_p(p),_T(T),_f(f),_sdev(sdev),_dgdev(dgdev),_gamma(gamma),_c(c)
@@ -538,23 +553,31 @@ PetscErrorCode AustinEvans2007::computeGrainSize(PetscScalar* grainSize, const P
     std::string funcName = "AustinEvans2007::computeGrainSize";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-PetscPrintf(PETSC_COMM_WORLD,"line 542\n");
-  PetscScalar left = 0, right = 100, out = 0;
+
+
   for (PetscInt Jj = 0; Jj< _N; Jj++) {
+    PetscScalar left = _dprev[Jj] / 10.0;
+    PetscScalar right = 10 * _dprev[Jj];
+    PetscScalar out = _dprev[Jj];
 
-    //Bisect rootFinder(maxNumIts,rootTol);
-    //ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-    //ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %.15e, right = %.15e\n",Jj,left, right);
 
-    //~ PetscScalar x0 = grainSize[Jj];
-    //~ BracketedNewton rootFinder(maxNumIts,rootTol);
-    //~ ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-    //~ ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
+    //~ Bisect rootFinder(maxNumIts,rootTol);
+    //~ ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
+    //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
+    PetscScalar x0 = _dprev[Jj];
+    BracketedNewton rootFinder(maxNumIts,rootTol);
+    ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
+    ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
 
-    //~ grainSize[Jj] = out;
-    grainSize[Jj] = _dprev[Jj];
+    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: out = %g\n",Jj,out);
+    //~ assert(0);
+
+    grainSize[Jj] = out;
+    assert(!isnan(grainSize[Jj]));
+    assert(!isinf(grainSize[Jj]));
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 558\n");
+
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -566,13 +589,18 @@ PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dne
 {
   PetscErrorCode ierr = 0;
 
+  // ensure never divide by 0
   PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
-  PetscScalar growth = Ag * pow(dnew,1.0-_p[Jj]); // term from static grain growth
+  PetscScalar Ar = _f[Jj] / (_gamma[Jj] * _c) * (_sdev[Jj]*_dgdev[Jj]);
 
-  PetscScalar Ar = - _f[Jj] / (_sdev[Jj]*_dgdev[Jj] * _c);
-  PetscScalar red = Ar * dnew*dnew; // term from grain size reduction
+  *out = _deltaT*Ar*pow(dnew,1.0+_p[Jj]) + pow(dnew,_p[Jj]) - _dprev[Jj]*pow(dnew,_p[Jj]-1.0) - _deltaT*Ag;
 
-  *out = dnew - _dprev[Jj] + _deltaT* (red + growth);
+  assert(!isnan(Ag));
+  assert(!isinf(Ag));
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"%i: dt = %.15e, Ag = %.15e, Ar = %.15e, dprev = %.15e, p = %.15e | dnew = %.15e, resid = %.15e\n",Jj,_deltaT,Ag,Ar,_dprev[Jj],_p[Jj],dnew,*out);
+  assert(!isnan(Ar));
+  assert(!isinf(Ar));
 
   assert(!isnan(*out));
   assert(!isinf(*out));
@@ -583,13 +611,14 @@ PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dne
 {
   PetscErrorCode ierr = 0;
 
+  // ensure never divide by 0
   PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
-  PetscScalar growth = Ag * pow(dnew,1.0-_p[Jj]); // term from static grain growth
+  PetscScalar Ar = _f[Jj] / (_gamma[Jj] * _c) * (_sdev[Jj]*_dgdev[Jj]);
 
-  PetscScalar Ar = - _f[Jj] / (_sdev[Jj]*_dgdev[Jj] * _c);
-  PetscScalar red = Ar * dnew*dnew; // term from grain size reduction
+  *out = _deltaT*Ar*pow(dnew,1.0+_p[Jj]) + pow(dnew,_p[Jj]) - _dprev[Jj]*pow(dnew,_p[Jj]-1.0) - _deltaT*Ag;
+  *J = _deltaT*Ar*(1+_p[Jj])*pow(dnew,_p[Jj]) + _p[Jj]*pow(dnew,_p[Jj]-1.0) - _dprev[Jj]*(_p[Jj]-1.0)*pow(dnew,_p[Jj]-2.0);
 
-  *out = dnew - _dprev[Jj] + _deltaT* (red + growth);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"%i: dt = %.15e, Ag = %.15e, Ar = %.15e, dprev = %.15e, p = %.15e | dnew = %.15e, resid = %.15e\n",Jj,_deltaT,Ag,Ar,_dprev[Jj],_p[Jj],dnew,*out);
 
   assert(!isnan(*out)); assert(!isinf(*out));
   assert(!isnan(*J)); assert(!isinf(*J));

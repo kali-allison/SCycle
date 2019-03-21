@@ -313,7 +313,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   ierr = loadVecFromInputFile(slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
   _varEx["slip"] = slip;
 
-  if (_guessSteadyStateICs) { solveSS(0,_outputDir); } // doesn't solve for steady state tau
+  if (_guessSteadyStateICs) {
+    //~ std::string saveWDiffCreep = _material->_wDiffCreep;
+    //~ _material->_wDiffCreep = "no";
+    solveSS(0,_outputDir);
+    //~ _material->_wDiffCreep = saveWDiffCreep;
+  } // doesn't solve for steady state tau
 
   _material->initiateIntegrand(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -701,15 +706,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _fault->updateTemperature(varImo.find("Temp")->second);
     _material->updateTemperature(varImo.find("Temp")->second);
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 704 med\n");
-  // update grain size in material
-  if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
-    _material->updateGrainSize(varEx.find("grainSize")->second);
-  }
-  if ( varIm.find("grainSize") != varIm.end() && _grainSizeEvCoupling.compare("coupled")==0) {
-    _material->updateGrainSize(varIm.find("grainSize")->second);
-  }
-PetscPrintf(PETSC_COMM_WORLD,"line 712 med\n");
+
+  //~ // update grain size in material
+  //~ if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
+    //~ _material->updateGrainSize(varEx.find("grainSize")->second);
+  //~ }
+  //~ if ( varIm.find("grainSize") != varIm.end() && _grainSizeEvCoupling.compare("coupled")==0) {
+    //~ _material->updateGrainSize(varIm.find("grainSize")->second);
+  //~ }
+
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
@@ -720,11 +725,11 @@ PetscPrintf(PETSC_COMM_WORLD,"line 712 med\n");
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 723 med\n");
+
   if ( varEx.find("grainSize") != varEx.end() ) {
     _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 727 med\n");
+
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -738,12 +743,12 @@ PetscPrintf(PETSC_COMM_WORLD,"line 727 med\n");
     VecSet(dvarEx["psi"],0.);
     VecSet(dvarEx["slip"],0.);
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 741 med\n");
+
   // 3. implicitly integrated variables
   if ( varIm.find("grainSize") != varIm.end() ) {
-    _grainDist->be(varIm["grainSize"],varIm.find("grainSize")->second,time,_material->_sdev,_material->_dgVdev_disl,_material->_T,dt);
+    _grainDist->be(varIm["grainSize"],varImo.find("grainSize")->second,time,_material->_sdev,_material->_dgVdev_disl,_material->_T,dt);
   }
-PetscPrintf(PETSC_COMM_WORLD,"line 746 med\n");
+
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
     Vec sxy,sxz,sdev;
@@ -825,7 +830,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _fault->updateTemperature(_varSS["Temp"]);
   }
   if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
-  if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
+  //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
   writeSS(Jj,baseOutDir);
   Jj = 1;
@@ -849,7 +854,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
 
     // update grain size
     if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
+    //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
     writeSS(Jj,baseOutDir);
     Jj++;
@@ -1021,7 +1026,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     io_initiateWriteAppend(vw, "invEffViscDisl", _material->_disl->_invEffVisc, outputDir + "SS_momBal_invEffViscDisl");
   }
 
-
+  //~ std::string saveDiffSetting = _material->_wDiffCreep;
+  //~ _material->_wDiffCreep = "no";
 
 
   // set up rhs vector containing boundary condition data
@@ -1077,6 +1083,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   // update u, gVxy, gVxz, boundary conditions based on effective viscosity
   ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr); // solve for gVxy, gVxz
   setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
+
+  //~ _material->_wDiffCreep = saveDiffSetting;
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1392,7 +1400,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
   // multiply forcing term by H, or by J*H if using a curvilinear grid
-  if (_material->_sbpType.compare("mfc_coordTrans")==0) {
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     // multiply this term by H*J (the H matrix and the Jacobian)
     Vec temp1; VecDuplicate(_forcingTerm,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;

@@ -56,6 +56,9 @@ class GrainSizeEvolution
     //~ std::map <string,PetscViewer>  _viewers;
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
+    // run time analysis
+    double       _nonlinearSolveTime;
+
 
 
     GrainSizeEvolution(Domain& D);
@@ -81,6 +84,7 @@ class GrainSizeEvolution
     PetscErrorCode be(Vec& grainSizeNew,const Vec& grainSizePrev,const PetscScalar time,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp,const PetscScalar dt);
 
     // file I/O
+    PetscErrorCode view(const double totRunTime);
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
