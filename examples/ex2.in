@@ -5,8 +5,8 @@
 # define the domain and problem type
 
 # set up the computational domain
-Ny = 11 # points in y-direction
-Nz = 11 # points in z-direction
+Ny = 151 # points in y-direction
+Nz = 151 # points in z-direction
 Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
@@ -19,7 +19,7 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters
-# state variable evolution law
+ # state variable evolution law
 stateLaw = agingLaw
 
 DcVals = [20e-3 20e-3] # (m) state evolution distance
@@ -37,31 +37,28 @@ sNDepths = [0 60] # (km)
 #=======================================================================
 # off-fault material parameters
 
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+#linSolver = CG
+
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3) rock density
 rhoDepths = [0 60] # (km)
-linSolver = MUMPSCHOLESKY
-#linSolver = CG
 
 #=======================================================================
 # settings for time integration
 
-timeIntegrator = RK43 # time integration type
-timeControlType = PID # error control
+timeIntegrator = RK43
 stride1D = 1 # number of time steps between output of 1D fields
 stride2D = 1 # number of time steps between output of 2D fields
-maxStepCount = 20 # maximum number of time steps
+maxStepCount = 5 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 3e10 # (s) final time
 timeStepTol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
-#========================================================================
-# checkpoint settings
-ckpt = 0   # enable checkpoint
-interval = 10  # checkpoint time step interval
 
-#========================================================================
 # directory for output
 outputDir = data/ex2_
+

@@ -175,10 +175,10 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and linear elastic off-fault material
   if (d._bulkDeformationType.compare("linearElastic") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_LinearElastic_qd m(d);
-    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    ierr = m.integrate(); CHKERRQ(ierr);
-    ierr = m.view(); CHKERRQ(ierr);
+    //~ if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
+    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
+    //~ ierr = m.integrate(); CHKERRQ(ierr);
+    //~ ierr = m.view(); CHKERRQ(ierr);
   }
 
   // single fully dynamic earthquake simulation
