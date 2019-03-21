@@ -926,7 +926,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
+    quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -938,7 +938,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx,_outputDir);
+    quadEx->setInitialConds(_varQSEx);
     quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
@@ -1471,7 +1471,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     quadImex->setTimeRange(_currTime,_maxTime);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
+    quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -1488,7 +1488,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadEx->setTimeRange(_currTime,_maxTime);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx,_outputDir);
+    quadEx->setInitialConds(_varQSEx);
     quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);

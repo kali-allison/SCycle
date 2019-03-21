@@ -127,6 +127,7 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscInt &value);
 
 PetscErrorCode writeASCII(const string outputDir, const string filename, PetscInt var,const string format);
+PetscErrorCode writeASCII(const string outputDir, const string filename, PetscScalar var,const string format);
 
 
 

@@ -6,7 +6,7 @@ OdeSolverImex::OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal del
 : _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),
   _runTime(0),_controlType(controlType),_normType("L2_absolute"),
-  _outputDir(" "),_minDeltaT(0),_maxDeltaT(finalT),
+  _minDeltaT(0),_maxDeltaT(finalT),
   _totTol(1e-9),
   _numRejectedSteps(0),_numMinSteps(0),_numMaxSteps(0)
 {
@@ -153,14 +153,13 @@ PetscErrorCode RK32_WBE::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK32_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm, const string outputDir)
+PetscErrorCode RK32_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::setInitialConds in odeSolverImex.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  _outputDir = outputDir;
 
   // explicit part
   _varEx = varEx;
@@ -458,11 +457,18 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     for (map<string,Vec>::iterator it = _vardTIm.begin(); it!=_vardTIm.end(); it++ ) {
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
     }
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
 
-    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    // compute new deltaT for next time step
+    // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
+    if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
+
+
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
+
+    // now update deltaT
+    _deltaT = _newDeltaT;
 
 
   }
@@ -590,14 +596,13 @@ PetscErrorCode RK43_WBE::setTolerance(const PetscReal tol)
   return 0;
 }
 
-PetscErrorCode RK43_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm, const string outputDir)
+PetscErrorCode RK43_WBE::setInitialConds(map<string,Vec>& varEx,map<string,Vec>& varIm)
 {
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::setInitialConds in RK43_WBE.cpp.\n");
 #endif
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  _outputDir = outputDir;
 
   // explicit part
   _varEx = varEx;
@@ -1021,11 +1026,17 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
       VecCopy(_vardTIm[it->first],_varIm[it->first]);
       VecSet(_vardTIm[it->first],0.);
     }
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE: Detected stop time integration request.\n"); break; }
-
-    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    // compute new deltaT for next time step
+    // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
+    if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
+
+
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
+
+    // now update deltaT
+    _deltaT = _newDeltaT;
   }
 
   _runTime += MPI_Wtime() - startTime;

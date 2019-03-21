@@ -160,8 +160,13 @@ PetscErrorCode Fault::loadCheckpoint()
   ierr = loadVecFromInputFile(_prestress,_outputDir + "chkpt_","prestress"); CHKERRQ(ierr);
 
   // rate and state parameters
-  ierr = loadVecFromInputFile(_a,_outputDir,"a"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_b,_outputDir,"b"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_a,_outputDir,"fault_a"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_b,_outputDir,"fault_b"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_Dc,_outputDir,"fault_Dc"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_cohesion,_outputDir,"fault_cohesion"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_locked,_outputDir,"fault_locked"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_locked,_outputDir,"fault_locked"); CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
@@ -566,8 +571,8 @@ PetscErrorCode Fault::writeCheckpoint()
   ierr = writeVec(_psi, _outputDir + "chkpt_" + "psi"); CHKERRQ(ierr);
   ierr = writeVec(_sNEff, _outputDir + "chkpt_" + "sNEff"); CHKERRQ(ierr);
   ierr = writeVec(_sN, _outputDir + "chkpt_" + "sN"); CHKERRQ(ierr);
-  ierr = writeVec(_tauP, _outputDir + "chkpt_" + "tauP"); CHKERRQ(ierr);
-  ierr = writeVec(_tauQSP, _outputDir + "chkpt_" + "tauQSP"); CHKERRQ(ierr);
+  ierr = writeVec(_tauP, _outputDir + "chkpt_" + "tau"); CHKERRQ(ierr);
+  ierr = writeVec(_tauQSP, _outputDir + "chkpt_" + "tauQS"); CHKERRQ(ierr);
   ierr = writeVec(_prestress, _outputDir + "chkpt_" + "prestress"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -716,7 +721,7 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_D->_ckpt > 0 && _D->_ckptNumber > 1) { // load from previous checkpoint
+  if (_D->_ckpt > 0 && _D->_ckptNumber > 0) { // load from previous checkpoint
     loadCheckpoint();
   }
   else { // otherwise set parameters from input file and user-provided Vecs

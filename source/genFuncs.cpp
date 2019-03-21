@@ -975,18 +975,30 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscIn
   PetscViewerDestroy(&viewer);
   return ierr;
 }
+PetscErrorCode writeASCII(const string outputDir, const string filename, PetscScalar var,const string format) {
+  PetscErrorCode ierr = 0;
+  PetscViewer viewer;
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
+  PetscViewerDestroy(&viewer);
+  return ierr;
+}
 
 // initiate viewer and write to an ASCII file using the specified format
 // mode can be FILE_MODE_WRITE or FILE_MODE_APPEND
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscScalar var)
 {
   PetscErrorCode ierr = 0;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  ierr = PetscViewerFileSetMode(viewer, mode); CHKERRQ(ierr);
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);                   CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);                  CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, mode);                          CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str());CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
 
   // ensure that viewer mode switches to append if it isn't that already
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND);              CHKERRQ(ierr);
 
   return ierr;
 }
@@ -994,12 +1006,15 @@ PetscErrorCode initiateWriteASCII(const string outputDir, const string filename,
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscInt var)
 {
   PetscErrorCode ierr = 0;
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  ierr = PetscViewerFileSetMode(viewer, mode); CHKERRQ(ierr);
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD,&viewer);                   CHKERRQ(ierr);
+  ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII);                  CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, mode);                          CHKERRQ(ierr);
+  ierr = PetscViewerFileSetName(viewer, (outputDir + filename).c_str());CHKERRQ(ierr);
+
   ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
 
   // ensure that viewer mode switches to append if it isn't that already
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND);              CHKERRQ(ierr);
 
   return ierr;
 }

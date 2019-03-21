@@ -945,7 +945,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);
     _quadImex->setTimeRange(_currTime,_maxTime);
     _quadImex->setInitialStepCount(_stepCount);
-    _quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
+    _quadImex->setInitialConds(_varQSEx,_varIm);
     _quadImex->setToleranceType(_normType);
     _quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -962,7 +962,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd()
     _quadEx->setTimeRange(_currTime,_maxTime);
     _quadEx->setInitialStepCount(_stepCount);
     _quadEx->setToleranceType(_normType);
-    _quadEx->setInitialConds(_varQSEx,_outputDir);
+    _quadEx->setInitialConds(_varQSEx);
     _quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = _quadEx->integrate(this); CHKERRQ(ierr);
@@ -1165,7 +1165,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadImex->setTimeStepBounds(_deltaT_fd,_deltaT_fd);
     quadImex->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadImex->setInitialStepCount(_stepCount);
-    quadImex->setInitialConds(_varQSEx,_varIm,_outputDir);
+    quadImex->setInitialConds(_varQSEx,_varIm);
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
@@ -1177,7 +1177,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_singleQDTimeStep()
     quadEx->setTimeRange(_currTime,_currTime+_deltaT_fd);
     quadEx->setInitialStepCount(_stepCount);
     quadEx->setToleranceType(_normType);
-    quadEx->setInitialConds(_varQSEx,_outputDir);
+    quadEx->setInitialConds(_varQSEx);
     quadEx->setErrInds(_timeIntInds,_scale);
 
     ierr = quadEx->integrate(this); CHKERRQ(ierr);

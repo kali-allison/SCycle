@@ -28,7 +28,7 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
   loadSettings(D._file);
   checkInput();
   allocateFields();
-  if (_D->_ckpt > 0 && _D->_ckptNumber > 1) { // load from previous checkpoint
+  if (_D->_ckpt > 0 && _D->_ckptNumber > 0) { // load from previous checkpoint
     loadCheckpoint();
   }
   else { // otherwise set parameters from input file and user-provided Vecs
@@ -402,11 +402,11 @@ PetscErrorCode LinearElastic::loadCheckpoint()
   #endif
 
   // boundary conditions
-  ierr = loadVecFromInputFile(_bcRShift, _outputDir + "chpt_", "momBal_bcRShift"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcR, _outputDir + "chpt_", "momBal_bcR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcT, _outputDir + "chpt_", "momBal_bcT"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcL, _outputDir + "chpt_", "momBal_bcL"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcB, _outputDir + "chpt_", "momBal_bcB"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcRShift, _outputDir + "chkpt_", "momBal_bcRShift"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcR, _outputDir + "chkpt_", "momBal_bcR"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcT, _outputDir + "chkpt_", "momBal_bcT"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcL, _outputDir + "chkpt_", "momBal_bcL"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_bcB, _outputDir + "chkpt_", "momBal_bcB"); CHKERRQ(ierr);
 
 
   // material parameters
@@ -608,6 +608,8 @@ PetscErrorCode LinearElastic::writeContext(const string outputDir)
 
   // write vector _mu into file in output directory
   ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
+  ierr = writeVec(_rho,outputDir + "momBal_rho"); CHKERRQ(ierr);
+  ierr = writeVec(_cs,outputDir + "momBal_cs"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

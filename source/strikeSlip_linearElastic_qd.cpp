@@ -31,7 +31,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
 
   // if checkpoint number > 0 (i.e. there has been a checkpoint already), load _initTime from checkpoint file
   if (_D->_ckptNumber > 0) {
-    loadValueFromCheckpoint(_outputDir, "currT_ckpt", _initTime);
+    loadValueFromCheckpoint(_outputDir, "chkpt_currT", _initTime);
     _currTime = _initTime;
     _guessSteadyStateICs = 0;
     loadValueFromCheckpoint(_outputDir, "chkpt_deltaT", _initDeltaT);
@@ -417,6 +417,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscS
 {
   PetscErrorCode ierr = 0;
 
+  #if VERBOSE > 0
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e \n",stepCount,time,deltaT);CHKERRQ(ierr);
+  #endif
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -441,7 +444,7 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { _he->writeStep2D(_stepCount, _currTime,_outputDir); }
   }
 
-  if (_D->_ckpt > 0 && stepCount % _D->_interval == 0) {
+  if (_D->_ckpt > 0 && (stepCount % _D->_interval == 0 || stepCount >= _maxStepCount || time >= _maxTime)) {
     ierr = writeCheckpoint(); CHKERRQ(ierr);
     ierr = _material->writeCheckpoint(); CHKERRQ(ierr);
     ierr = _fault->writeCheckpoint(); CHKERRQ(ierr);
@@ -451,9 +454,6 @@ double startTime = MPI_Wtime();
   }
 
 _writeTime += MPI_Wtime() - startTime;
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e \n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
-  #endif
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -531,20 +531,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeCheckpoint()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  writeASCII(_outputDir, "ckptNumber", _D->_ckptNumber++,"%i\n");
-  writeASCII(_outputDir, "chkpt_prevErr", _quadEx->_errA[1],"%.15e\n");
-  writeASCII(_outputDir, "chkpt_currErr", _quadEx->_errA[0],"%.15e\n");
-  writeASCII(_outputDir, "chkpt_deltaT", _deltaT,"%.15e\n");
+  _D->_ckptNumber++;
+  writeASCII(_outputDir, "ckptNumber", _D->_ckptNumber,"%i\n");
   writeASCII(_outputDir, "chkpt_currT", _currTime,"%.15e\n");
   writeASCII(_outputDir, "chkpt_stepCount", _stepCount,"%i\n");
 
   if (_timeIntegrator == "RK32_WBE" || _timeIntegrator == "RK43_WBE") {
+    assert(0);
     writeASCII(_outputDir, "chkpt_prevErr", _quadImex->_errA[1],"%.15e\n");
     writeASCII(_outputDir, "chkpt_currErr", _quadImex->_errA[0],"%.15e\n");
+    writeASCII(_outputDir, "chkpt_deltaT", _quadImex->_newDeltaT,"%.15e\n");
   }
   else {
     writeASCII(_outputDir, "chkpt_prevErr", _quadEx->_errA[1],"%.15e\n");
     writeASCII(_outputDir, "chkpt_currErr", _quadEx->_errA[0],"%.15e\n");
+    writeASCII(_outputDir, "chkpt_deltaT", _quadEx->_newDeltaT,"%.15e\n");
   }
 
 
@@ -700,7 +701,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
 
     if (_D->_ckpt > 0 && _D->_ckptNumber > 0) {
@@ -718,13 +719,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
 
     if (_D->_ckpt > 0 && _D->_ckptNumber > 0) {
       loadValueFromCheckpoint(_outputDir, "chkpt_prevErr", _quadEx->_errA[1]);
       loadValueFromCheckpoint(_outputDir, "chkpt_currErr", _quadEx->_errA[0]);
-      _quadImex->_stepCount = _stepCount;
+      _quadEx->_stepCount = _stepCount;
     }
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);

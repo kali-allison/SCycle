@@ -3,7 +3,7 @@
 % with linear elastic off-fault material.
 
 % define directory for output (can be relative or absolute path)
-sourceDir = '../data/ex1_';
+sourceDir = '../data/ex1_wchkpt_';
 
 % load context information, such as size of domain, number of points, etc
 d.dom = loadStruct(strcat(sourceDir,'domain.txt'),' = ');

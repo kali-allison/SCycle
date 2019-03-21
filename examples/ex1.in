@@ -48,7 +48,7 @@ rhoDepths = [0 60] # (km)
 #======================================================================
 # settings for time integration
 
-stride1D = 10 # number of time steps between output of 1D fields
+stride1D = 1 # number of time steps between output of 1D fields
 stride2D = 10 # number of time steps between output of 2D fields
 maxStepCount = 1e4 # maximum number of time steps
 initTime = 0 # (s) initial time
@@ -58,9 +58,10 @@ timeStepTol = 1e-5 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output
-outputDir = data/ex1_
+#outputDir = data/ex1_nchkpt_
+outputDir = data/ex1_wchkpt_
 
 # settings for checkpoints
-#ckpt = 0 # enable checkpointing if 1, disable if 0
-#interval = 10 # time step interval at which to write checkpoint files
+enableCheckpointing = 1 # enable checkpointing if 1, disable if 0
+interval = 1e3 # time step interval at which to write checkpoint files
 

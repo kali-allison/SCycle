@@ -7,7 +7,7 @@ using namespace std;
 // member function definitions including constructor
 // first type of constructor with 1 parameter
 Domain::Domain(const char *file)
-  : _file(file),_delim(" = "),_inputDir("unspecified"),_outputDir("data/"),
+  : _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),
   _momentumBalanceType("quasidynamic"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
@@ -25,7 +25,7 @@ Domain::Domain(const char *file)
   loadSettings(_file);
   if (_ckpt > 0) {
     loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
-    _outFileMode = FILE_MODE_APPEND;
+    if (_ckptNumber > 0) { _outFileMode = FILE_MODE_APPEND; }
   }
 
   // grid spacing for logical coordinates
@@ -55,7 +55,7 @@ Domain::Domain(const char *file)
 
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
-  : _file(file),_delim(" = "),_inputDir("unspecified"),_outputDir(" "),
+  : _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir(" "),
   _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
   _gridSpacingType("variableGridSpacing"),_isMMS(0),
@@ -184,7 +184,7 @@ PetscErrorCode Domain::loadSettings(const char *file)
     else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( rhs.c_str() ); }
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
 
-    else if (var.compare("ckpt") == 0) { _ckpt = atoi(rhs.c_str()); }
+    else if (var.compare("enableCheckpointing") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
   }
 

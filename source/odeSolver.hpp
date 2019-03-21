@@ -59,6 +59,7 @@ class OdeSolver
 public:
 
   PetscReal          _initT,_finalT,_currT,_deltaT;
+  PetscReal          _newDeltaT; // stores future deltaT for access by outside classes, primarily for checkpointing
   PetscInt           _maxNumSteps,_stepCount;
   map<string,Vec>    _var,_dvar; // integration variable and rate
   vector<string>     _errInds; // which keys of _var to use for error control
@@ -66,9 +67,6 @@ public:
   double             _runTime;
   string             _controlType;
   string             _normType;
-
-  // checkpoint input
-  string             _outputDir;
 
   // for PID error control
   boost::circular_buffer<double> _errA;
@@ -84,7 +82,7 @@ public:
 
   virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
   virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-  virtual PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir){return 1;};
+  virtual PetscErrorCode setInitialConds(map<string,Vec>& var){return 1;};
   virtual PetscErrorCode setErrInds(vector<string>& errInds) = 0;
   virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
   virtual PetscErrorCode view() = 0;
@@ -102,7 +100,7 @@ public:
 
   PetscErrorCode setTolerance(const PetscReal tol){return 0;};
   PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT){ return 0;};
-  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setInitialConds(map<string,Vec>& var);
   PetscErrorCode setErrInds(vector<string>& errInds) {return 0;};
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) {return 0;};
   PetscErrorCode integrate(IntegratorContextEx *obj);
@@ -120,7 +118,6 @@ public:
   PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
-  boost::circular_buffer<double> _errA;
   PetscReal   _totErr;
 
   map<string,Vec> _k1,_f1,_k2,_f2,_y2,_y3;
@@ -135,7 +132,7 @@ public:
   // member functions of this class
   PetscErrorCode setTolerance(const PetscReal tol);
   PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setInitialConds(map<string,Vec>& var);
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
@@ -156,7 +153,6 @@ public:
   PetscReal   _totTol;
   PetscReal   _kappa,_ord;
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
-  boost::circular_buffer<double> _errA;
   PetscReal   _totErr;
 
   map<string,Vec> _k1,_k2,_k3,_k4,_k5,_k6,_y3,_y4;
@@ -172,7 +168,7 @@ public:
   // various member functions
   PetscErrorCode setTolerance(const PetscReal tol);
   PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-  PetscErrorCode setInitialConds(map<string,Vec>& var, const string outputDir);
+  PetscErrorCode setInitialConds(map<string,Vec>& var);
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();

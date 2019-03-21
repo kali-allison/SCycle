@@ -4,9 +4,9 @@ using namespace std;
 
 // constructor for OdeSolver
 OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,string controlType)
-: _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),
+: _initT(0),_finalT(finalT),_currT(0),_deltaT(deltaT),_newDeltaT(deltaT),
   _maxNumSteps(maxNumSteps),_stepCount(0),_runTime(0),
-  _controlType(controlType),_normType("L2_absolute"), _outputDir(" ")
+  _controlType(controlType),_normType("L2_absolute")
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver constructor in odeSolver.cpp.\n");
@@ -144,7 +144,7 @@ PetscErrorCode FEuler::view()
 
 
 // set initial condition on _var and _dvar, computes runtime for this step
-PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var, const string outputDir)
+PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting FEuler::setInitialConds in odeSolver.cpp.\n");
@@ -152,7 +152,6 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var, const string output
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  _outputDir = outputDir;
   _var = var; // shallow copy
 
   for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++) {
@@ -298,7 +297,7 @@ PetscErrorCode RK32::setTolerance(const PetscReal tol)
 
 
 // set initial condition on _var and _dvar
-PetscErrorCode RK32::setInitialConds(map<string,Vec>& var, const string outputDir)
+PetscErrorCode RK32::setInitialConds(map<string,Vec>& var)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK32::setInitialConds in odeSolver.cpp.\n");
@@ -306,7 +305,6 @@ PetscErrorCode RK32::setInitialConds(map<string,Vec>& var, const string outputDi
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  _outputDir = outputDir;
   _var = var; // shallow copy
 
   // initialize RK vectors to zero
@@ -605,11 +603,18 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
+
+    // compute new deltaT for next time step
+    // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
+    if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
+    _errA.push_front(_totErr); // record error for use when estimating time step
+
+
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
 
-    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    // now update deltaT
+    _deltaT = _newDeltaT;
   }
 
   _runTime += MPI_Wtime() - startTime;
@@ -712,7 +717,7 @@ PetscErrorCode RK43::setTolerance(const PetscReal tol)
 
 
 // set initial conditions on _var, _dvar, and intermediate vectors used in RK43
-PetscErrorCode RK43::setInitialConds(map<string,Vec>& var, const string outputDir)
+PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
 {
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting RK43::setInitialConds in odeSolver.cpp.\n");
@@ -720,7 +725,6 @@ PetscErrorCode RK43::setInitialConds(map<string,Vec>& var, const string outputDi
 
   double startTime = MPI_Wtime();
   PetscErrorCode ierr = 0;
-  _outputDir = outputDir;
   _var = var;
 
   // initialize _dvar and various RK43 intermediate vectors to zero
@@ -1130,11 +1134,19 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       VecSet(_dvar[it->first],0.0);
     }
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
-    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n"); break; }
 
-    if (_totErr!=0.0) { _deltaT = computeStepSize(_totErr); }
+    // compute new deltaT for next time step
+    // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
+    if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
+
+
+    ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
+
+    // now update deltaT
+    _deltaT = _newDeltaT;
+
   }
 
   _runTime += MPI_Wtime() - startTime;

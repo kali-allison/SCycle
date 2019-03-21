@@ -587,7 +587,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     _quadImex->setTolerance(_timeStepTol);CHKERRQ(ierr);
     _quadImex->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
-    ierr = _quadImex->setInitialConds(_varEx,_varIm,_outputDir);CHKERRQ(ierr);
+    ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
@@ -598,7 +598,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
+    ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
@@ -967,7 +967,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
   ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
   ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
-  ierr = _quadEx->setInitialConds(_varEx,_outputDir);CHKERRQ(ierr);
+  ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
   ierr = _quadEx->setErrInds(_timeIntInds);
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   delete _quadEx; _quadEx = NULL;

@@ -62,6 +62,7 @@ class OdeSolverImex
 public:
 
   PetscReal               _initT,_finalT,_currT,_deltaT;
+  PetscReal          _newDeltaT; // stores future deltaT for access by outside classes, primarily for checkpointing
   PetscInt                _maxNumSteps,_stepCount;
   map<string,Vec>         _varEx,_dvar; // explicit integration variable and rate
   map<string,Vec>         _varIm; // implicit integration variable, once per time step
@@ -70,7 +71,6 @@ public:
   double                  _runTime;
   string                  _controlType;
   string                  _normType;
-  string                  _outputDir;
 
   PetscReal   _minDeltaT,_maxDeltaT;
   PetscReal   _totTol; // total tolerance, might be atol, or rtol, or a combination of both
@@ -92,7 +92,7 @@ public:
   virtual PetscErrorCode setStepSize(const PetscReal deltaT) = 0;
   virtual PetscErrorCode setTolerance(const PetscReal tol) = 0;
   virtual PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT) = 0;
-  virtual PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm, const string outputDir) = 0;
+  virtual PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm) = 0;
   virtual PetscErrorCode setErrInds(vector<string>& errInds) = 0;
   virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
 
@@ -111,7 +111,6 @@ public:
 
   // for P or PID error control
   PetscReal   _kappa,_ord; // safety factor in step size determinance, order of accuracy of method
-  boost::circular_buffer<double> _errA;
   PetscReal   _totErr; // error between 3rd order solution and embedded 2nd order solution
 
   // intermediate values for time stepping for the explicit variable
@@ -127,7 +126,7 @@ public:
   PetscErrorCode setStepSize(const PetscReal deltaT);
   PetscErrorCode setTolerance(const PetscReal tol);
   PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-  PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm, const string outputDir);
+  PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm);
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
@@ -150,7 +149,6 @@ public:
   // for P or PID error control
   // safety factor in step size determinance, order of accuracy of method
   PetscReal   _kappa,_ord;
-  boost::circular_buffer<double> _errA;
   // error between 3rd order solution and embedded 2nd order solution
   PetscReal   _totErr;
 
@@ -170,7 +168,7 @@ public:
   PetscErrorCode setStepSize(const PetscReal deltaT);
   PetscErrorCode setTolerance(const PetscReal tol);
   PetscErrorCode setTimeStepBounds(const PetscReal minDeltaT, const PetscReal maxDeltaT);
-  PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm, const string outputDir);
+  PetscErrorCode setInitialConds(map<string,Vec>& varEx, map<string,Vec>& varIm);
   PetscErrorCode setErrInds(vector<string>& errInds);
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
