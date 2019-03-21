@@ -77,3 +77,5 @@ CFL = 0.5 # CFL condition used to determine time step size in coseismic period
 
 # directory for output
 outputDir = /data/dunham/yyang/scycle/data/ex3_
+
+

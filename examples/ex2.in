@@ -64,4 +64,4 @@ interval = 10  # checkpoint time step interval
 
 #========================================================================
 # directory for output
-outputDir = /home/yyy910805/scycle/data/ex2/
+outputDir = data/ex2_
