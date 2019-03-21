@@ -92,7 +92,7 @@ public:
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
   // viewers
-  PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
+  PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output

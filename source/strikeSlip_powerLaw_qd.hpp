@@ -82,7 +82,7 @@ public:
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
 
   // viewers
-  PetscViewer _timeV1D,_dtimeV1D,_timeV2D;
+  PetscViewer _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output

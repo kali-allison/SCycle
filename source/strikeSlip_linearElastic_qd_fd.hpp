@@ -88,7 +88,7 @@ private:
 
 
   // viewers
-  PetscViewer       _timeV1D,_dtimeV1D,_timeV2D, _regime1DV, _regime2DV;
+  PetscViewer       _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D, _regime1DV, _regime2DV;
 
   // runtime data
   double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;

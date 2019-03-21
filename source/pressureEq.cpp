@@ -1945,26 +1945,23 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     VecDestroy(&pA);
   }
 
-  if (stepCount == 0 && _D->_ckptNumber == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "p", _p, outputDir + "p"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "p_t", _p_t, outputDir + "p_t"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k", _k_p, outputDir + "k"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k_slip", _k_slip, outputDir + "k_slip"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "k_press", _k_press, outputDir + "k_press"); CHKERRQ(ierr);
+
+  if (_viewers.empty()) {
+    ierr = initiate_appendVecToOutput(_viewers, "p", _p, outputDir + "p",_D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "p_t", _p_t, outputDir + "p_t",_D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k", _k_p, outputDir + "k",_D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k_slip", _k_slip, outputDir + "k_slip",_D->_outFileMode); CHKERRQ(ierr);
+    ierr = initiate_appendVecToOutput(_viewers, "k_press", _k_press, outputDir + "k_press",_D->_outFileMode); CHKERRQ(ierr);
   }
-  else if (stepCount == 0 && _D->_ckptNumber > 0) {
-    ierr = initiate_appendVecToOutput(_viewers, "p", _p, outputDir + "p"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "p_t", _p_t, outputDir + "p_t"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "k", _k_p, outputDir + "k"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "k_slip", _k_slip, outputDir + "k_slip"); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "k_press", _k_press, outputDir + "k_press"); CHKERRQ(ierr);
-  }
-  else if (stepCount > 0 ) {
+  else {
     ierr = VecView(_p, _viewers["p"].first); CHKERRQ(ierr);
     ierr = VecView(_p_t, _viewers["p_t"].first); CHKERRQ(ierr);
     ierr = VecView(_k_p, _viewers["k"].first); CHKERRQ(ierr);
     ierr = VecView(_k_slip, _viewers["k_slip"].first); CHKERRQ(ierr);
     ierr = VecView(_k_press, _viewers["k_press"].first); CHKERRQ(ierr);
+  }
+
+
     // write checkpoint files
     //~ if (stepCount == _maxStepCount && _D->_ckpt > 0) {
       //~ ierr = writeVec(_p, outputDir + "p_ckpt"); CHKERRQ(ierr);
@@ -1973,7 +1970,6 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
       //~ ierr = writeVec(_k_slip, outputDir + "k_slip_ckpt"); CHKERRQ(ierr);
       //~ ierr = writeVec(_k_press, outputDir + "k_press_ckpt"); CHKERRQ(ierr);
     //~ }
-  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);

@@ -72,7 +72,7 @@ private:
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
   //viewers
-  PetscViewer  _timeV1D,_dtimeV1D,_timeV2D;
+  PetscViewer  _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
 
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;

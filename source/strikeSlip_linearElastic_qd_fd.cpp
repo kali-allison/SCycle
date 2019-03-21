@@ -23,7 +23,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
     _maxStepCount(1e8),
     _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
+    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
     _forcingVal(0),
@@ -964,17 +964,25 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, P
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV1D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"regime1D.txt").c_str(),&_regime1DV);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_regime1DV, "%i\n",_inDynamic);CHKERRQ(ierr);
+  if (_timeV1D == NULL ) {
+    ierr = initiateWriteASCII(outputDir, "med_time1D.txt", _D->_outFileMode, _timeV1D, "%.15e\n", time);
+    CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time); CHKERRQ(ierr);
+  }
+
+  if (_dtimeV1D == NULL ) {
+    initiateWriteASCII(outputDir, "med_dt1D.txt", _D->_outFileMode, _dtimeV1D, "%.15e\n", _deltaT);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", _deltaT); CHKERRQ(ierr);
+  }
+
+  if (_regime1DV == NULL ) {
+    initiateWriteASCII(outputDir, "regime1D.txt", _D->_outFileMode, _regime1DV, "%i\n", (int)_inDynamic);
+  }
+  else {
     ierr = PetscViewerASCIIPrintf(_regime1DV, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
 
@@ -992,16 +1000,27 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep2D(const PetscInt stepCo
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"regime2D.txt").c_str(),&_regime2DV);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_regime2DV, "%i\n",_inDynamic);CHKERRQ(ierr);
+  if (_timeV2D == NULL ) {
+    ierr = initiateWriteASCII(outputDir, "med_time2D.txt", _D->_outFileMode, _timeV2D, "%.15e\n", time);
+    CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
+  }
+  if (_dtimeV2D == NULL ) {
+    initiateWriteASCII(outputDir, "med_dt2D.txt", _D->_outFileMode, _dtimeV2D, "%.15e\n", _deltaT);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", _deltaT); CHKERRQ(ierr);
+  }
+
+  if (_regime2DV == NULL ) {
+    initiateWriteASCII(outputDir, "regime2D.txt", _D->_outFileMode, _regime2DV, "%i\n", (int)_inDynamic);
+  }
+  else {
     ierr = PetscViewerASCIIPrintf(_regime2DV, "%i\n",_inDynamic);CHKERRQ(ierr);
   }
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

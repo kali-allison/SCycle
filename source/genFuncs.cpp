@@ -933,56 +933,36 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 }
 
 
-// initiate viewer to write and append vectors
-PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
-{
-  PetscErrorCode ierr = 0;
-
-  // initiate viewer
-  PetscViewer viewer;
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
-  vwL[key].first = viewer;
-  vwL[key].second = filename;
-  ierr = VecView(vec, viewer); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-
-  // reset to append mode
-  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
-  return ierr;
-}
-
-
-// append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
-PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
-  PetscErrorCode ierr = 0;
-
-  // initiate viewer
-  PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
-  vwL[key].second = filename;
-  PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
-  PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
-  PetscViewerFileSetName(vwL[key].first, filename.c_str());
-  VecView(vec,vwL[key].first);
-  return ierr;
-}
-
-//~ // write a new ASCII file to 15 decimal places (for time and dt)
-//~ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
+//~ // initiate viewer to write and append vectors
+//~ PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
+//~ {
   //~ PetscErrorCode ierr = 0;
-  //~ ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  //~ ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-  //~ ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
 
+  //~ // initiate viewer
+  //~ PetscViewer viewer;
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
+  //~ vwL[key].first = viewer;
+  //~ vwL[key].second = filename;
+  //~ ierr = VecView(vec, viewer); CHKERRQ(ierr);
+  //~ ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+  //~ // reset to append mode
+  //~ ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
   //~ return ierr;
 //~ }
 
-// write integer ASCII (for ckptNumber)
-//~ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscInt var) {
-  //~ PetscErrorCode ierr = 0;
-  //~ ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  //~ ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-  //~ ierr = PetscViewerASCIIPrintf(viewer, "%i\n", var);CHKERRQ(ierr);
 
+//~ // append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
+//~ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename) {
+  //~ PetscErrorCode ierr = 0;
+
+  //~ // initiate viewer
+  //~ PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
+  //~ vwL[key].second = filename;
+  //~ PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
+  //~ PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
+  //~ PetscViewerFileSetName(vwL[key].first, filename.c_str());
+  //~ VecView(vec,vwL[key].first);
   //~ return ierr;
 //~ }
 
@@ -996,23 +976,22 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscIn
   return ierr;
 }
 
-
-// append to existing ASCII file (for scalars: time and dt)
-//~ PetscErrorCode appendASCII(const string outputDir, const string filename, PetscViewer &viewer, PetscScalar var) {
-  //~ PetscErrorCode ierr = 0;
-  //~ ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  //~ ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
-  //~ ierr = PetscViewerASCIIPrintf(viewer, "%.15e\n", var);CHKERRQ(ierr);
-
-  //~ return ierr;
-//~ }
-
-
-
-
 // initiate viewer and write to an ASCII file using the specified format
 // mode can be FILE_MODE_WRITE or FILE_MODE_APPEND
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscScalar var)
+{
+  PetscErrorCode ierr = 0;
+  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
+  ierr = PetscViewerFileSetMode(viewer, mode); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
+
+  // ensure that viewer mode switches to append if it isn't that already
+  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
+
+  return ierr;
+}
+
+PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscInt var)
 {
   PetscErrorCode ierr = 0;
   ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
@@ -1048,7 +1027,23 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
 }
 
 
+// initiate viewer to write and append vectors
+PetscErrorCode io_initiateWriteAppend(map<string, pair<PetscViewer,string>> &vwL, const string key, const Vec& vec, const string filename)
+{
+  PetscErrorCode ierr = 0;
 
+  // initiate viewer
+  PetscViewer viewer;
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_WRITE, &viewer); CHKERRQ(ierr);
+  vwL[key].first = viewer;
+  vwL[key].second = filename;
+  ierr = VecView(vec, viewer); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+  // reset to append mode
+  ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first); CHKERRQ(ierr);
+  return ierr;
+}
 
 
 
