@@ -7,7 +7,7 @@
 // power-law rheology class
 
 GrainSizeEvolution::GrainSizeEvolution(Domain& D)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_timeIntegrationType("implicit"),
+: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_timeIntegrationType("explicit"),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_d(NULL),_d_t(NULL)
@@ -222,16 +222,12 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
 }
-
-
-
 
 
 PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<string,Vec>& varEx,map<string,Vec>& varIm)

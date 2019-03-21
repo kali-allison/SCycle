@@ -12,98 +12,99 @@
 #include "sbpOps_m_constGrid.hpp"
 #include "sbpOps_m_varGrid.hpp"
 
+using namespace std;
 
 // computes effective viscosity for pseudoplasticity
 // 1 / (effVisc) = (yield stress) / (inelastic strain rate)
 class Pseudoplasticity
 {
-  private:
-    // disable default copy constructor and assignment operator
-    Pseudoplasticity(const Pseudoplasticity &that);
-    Pseudoplasticity& operator=(const Pseudoplasticity &rhs);
+private:
+  // disable default copy constructor and assignment operator
+  Pseudoplasticity(const Pseudoplasticity &that);
+  Pseudoplasticity& operator=(const Pseudoplasticity &rhs);
 
-    // load settings and set material parameters
-    std::vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
-    PetscErrorCode loadSettings(); // load settings from input file
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode setMaterialParameters();
+  // load settings and set material parameters
+  vector<double>  _yieldStressVals,_yieldStressDepths; // define yield stress
+  PetscErrorCode loadSettings(); // load settings from input file
+  PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode checkInput(); // check input from file
+  PetscErrorCode setMaterialParameters();
 
-  public:
-    const char          *_file;
-    const std::string    _delim;
-    std::string          _inputDir; // directory to load fields from
-    const Vec           *_y,*_z;
-    Vec                  _yieldStress; // (MPa)
-    Vec                  _invEffVisc; // (GPa) eff. viscosity from plasticity
+public:
+  const char     *_file;
+  const string    _delim;
+  string          _inputDir;
+  const Vec      *_y,*_z;
+  Vec             _yieldStress; // (MPa)
+  Vec             _invEffVisc; // (GPa) eff. viscosity from plasticity
 
-    Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const std::string delim);
-    ~Pseudoplasticity();
-    PetscErrorCode guessInvEffVisc(const double dg);
-    PetscErrorCode computeInvEffVisc(const Vec& dgdev);
-    PetscErrorCode writeContext(const std::string outputDir);
+  Pseudoplasticity(const Vec& y, const Vec& z, const char *file, const string delim);
+  ~Pseudoplasticity();
+  PetscErrorCode guessInvEffVisc(const double dg);
+  PetscErrorCode computeInvEffVisc(const Vec& dgdev);
+  PetscErrorCode writeContext(const string outputDir);
 };
 
 // computes effective viscosity for dislocation creep
 // 1 / (effVisc) = A exp(-B/T) sdev^n
 class DislocationCreep
 {
-  private:
-    // disable default copy constructor and assignment operator
-    DislocationCreep(const DislocationCreep &that);
-    DislocationCreep& operator=(const DislocationCreep &rhs);
+private:
+  // disable default copy constructor and assignment operator
+  DislocationCreep(const DislocationCreep &that);
+  DislocationCreep& operator=(const DislocationCreep &rhs);
 
-    // load settings and set material parameters
-    std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
-    PetscErrorCode loadSettings(); // load settings from input file
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode setMaterialParameters();
+  // load settings and set material parameters
+  vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths;
+  PetscErrorCode loadSettings(); // load settings from input file
+  PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode checkInput(); // check input from file
+  PetscErrorCode setMaterialParameters();
 
-  public:
-    const char          *_file;
-    std::string          _delim;
-    std::string          _inputDir; // directory to load fields from
-    const Vec           *_y,*_z;
-    Vec                  _A,_n,_QR;
-    Vec                  _invEffVisc; // 1 / (effective viscosity)
+public:
+  const char     *_file;
+  string          _delim;
+  string          _inputDir;
+  const Vec      *_y,*_z;
+  Vec             _A,_n,_QR;
+  Vec             _invEffVisc; // 1 / (effective viscosity)
 
-    DislocationCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
-    ~DislocationCreep();
-    PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
-    PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
-    PetscErrorCode writeContext(const std::string outputDir);
+  DislocationCreep(const Vec& y, const Vec& z, const char *file, const string delim);
+  ~DislocationCreep();
+  PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
+  PetscErrorCode writeContext(const string outputDir);
 };
 
 // computes effective viscosity for diffusion creep
 // 1 / (effVisc) = A exp(-B/T) sdev^n d^-m
 class DiffusionCreep
 {
-  private:
-    // disable default copy constructor and assignment operator
-    DiffusionCreep(const DiffusionCreep &that);
-    DiffusionCreep& operator=(const DiffusionCreep &rhs);
+private:
+  // disable default copy constructor and assignment operator
+  DiffusionCreep(const DiffusionCreep &that);
+  DiffusionCreep& operator=(const DiffusionCreep &rhs);
 
-    // load settings and set material parameters
-    std::vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_mVals,_mDepths;
-    PetscErrorCode loadSettings(); // load settings from input file
-    PetscErrorCode loadFieldsFromFiles();
-    PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode setMaterialParameters();
+  // load settings and set material parameters
+  vector<double>  _AVals,_ADepths,_nVals,_nDepths,_BVals,_BDepths,_mVals,_mDepths;
+  PetscErrorCode loadSettings(); // load settings from input file
+  PetscErrorCode loadFieldsFromFiles();
+  PetscErrorCode checkInput(); // check input from file
+  PetscErrorCode setMaterialParameters();
 
-  public:
-    const char          *_file;
-    std::string          _delim;
-    std::string          _inputDir; // directory to load fields from
-    const Vec           *_y,*_z;
-    Vec                  _A,_n,_QR,_m;
-    Vec                  _invEffVisc; // 1 / (effective viscosity)
+public:
+  const char     *_file;
+  string          _delim;
+  string          _inputDir;
+  const Vec      *_y,*_z;
+  Vec             _A,_n,_QR,_m;
+  Vec             _invEffVisc; // 1 / (effective viscosity)
 
-    DiffusionCreep(const Vec& y, const Vec& z, const char *file, const std::string delim);
-    ~DiffusionCreep();
-    PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
-    PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
-    PetscErrorCode writeContext(const std::string outputDir);
+  DiffusionCreep(const Vec& y, const Vec& z, const char *file, const string delim);
+  ~DiffusionCreep();
+  PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
+  PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
+  PetscErrorCode writeContext(const string outputDir);
 };
 
 
@@ -126,7 +127,6 @@ class PowerLaw
     PetscScalar          _Ly,_Lz;
     Vec                 *_y,*_z; // to handle variable grid spacing
     const bool           _isMMS; // true if running mms test
-    const bool           _loadICs; // true if starting from a previous simulation
     std::string          _wDiffCreep, _wDislCreep,_wPlasticity,_wLinearMaxwell;
 
 
@@ -178,11 +178,12 @@ class PowerLaw
     // 2nd PetscViewer = PetscViewer object for file IO
     // 3rd string = full file path name for output
     //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers1D;
+    std::map <string,std::pair<PetscViewer,string> >  _viewers2D;
     PetscErrorCode writeDomain(const std::string outputDir);
     PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
-    PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeStep1D(const std::string outputDir);
+    PetscErrorCode writeStep2D(const std::string outputDir);
     PetscErrorCode view(const double totRunTime);
 
 
@@ -197,8 +198,8 @@ class PowerLaw
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
-    PetscErrorCode setupKSP(Mat& A,KSP& ksp,PC& pc);
-    PetscErrorCode setupKSP_SSIts(Mat& A,KSP& ksp,PC& pc);
+    PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A);
+    PetscErrorCode setupKSP_SSIts(KSP& ksp,PC& pc,Mat& A);
 
 
     // for steady state computations

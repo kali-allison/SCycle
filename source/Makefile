@@ -2,9 +2,9 @@ all: main
 
 DEBUG_MODULES   = -DVERBOSE=1
 CFLAGS          = $(DEBUG_MODULES)
-CPPFLAGS        = $(CFLAGS) -std=c++11 -O3
+CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
-CLINKER		      = openmpicc
+CLINKER		= openmpicc
 
 OBJECTS := domain.o fault.o genFuncs.o\
  odeSolver.o rootFinder.o \
@@ -25,10 +25,6 @@ main:  main.o $(OBJECTS)
 
 FDP: FDP.o
 	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-
-helloWorld: helloWorld.o
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB}
-	-rm helloWorld.o
 
 #.PHONY : clean
 clean::
@@ -52,7 +48,6 @@ heatEquation.o: heatEquation.cpp heatEquation.hpp genFuncs.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp
-helloWorld.o: helloWorld.cpp
 linearElastic.o: linearElastic.cpp linearElastic.hpp genFuncs.hpp \
  domain.hpp sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp \
  sbpOps_m_varGrid.hpp

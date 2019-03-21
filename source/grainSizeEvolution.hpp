@@ -11,6 +11,8 @@
 
 class RootFinder;
 
+using namespace std;
+
 /*
  * Class to explore grain size evolution. Currently uses the grain evolution law
  * from Austin and Evans (2007).

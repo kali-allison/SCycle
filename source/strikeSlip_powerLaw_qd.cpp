@@ -6,23 +6,27 @@ using namespace std;
 
 
 StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
-: _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
-  _guessSteadyStateICs(0.),_isMMS(D._isMMS),
-  _thermalCoupling("no"),_grainSizeEvCoupling("no"),_hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
-  _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
-  _vL(1e-9),_faultTypeScale(2.0),
-  _timeIntegrator("RK43"),_timeControlType("PID"),
-  _stride1D(1),_stride2D(1),_maxStepCount(1e8),
-  _initTime(0),_currTime(0),_maxTime(1e15),
-  _minDeltaT(1e-3),_maxDeltaT(1e10),
-  _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-  _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
-  _miscTime(0),_timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_forcingVal(0),
-  _bcRType("remoteLoading"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("freeSurface"),
-  _quadEx(NULL),_quadImex(NULL),
-  _fault(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
-  _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),_maxSSIts_effVisc(50),_maxSSIts_tot(100),_maxSSIts_timesteps(2e5),
-  _atolSS_effVisc(1e-3)
+  : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+    _guessSteadyStateICs(0.),_isMMS(D._isMMS),
+    _thermalCoupling("no"),_grainSizeEvCoupling("no"),
+    _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
+    _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
+    _vL(1e-9),_faultTypeScale(2.0),
+    _timeIntegrator("RK43"),_timeControlType("PID"),
+    _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+    _initTime(0),_currTime(0),_maxTime(1e15),
+    _minDeltaT(1e-3),_maxDeltaT(1e10),
+    _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+    _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
+    _startTime(MPI_Wtime()),_miscTime(0),
+    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),_forcingVal(0),
+    _bcRType("remoteLoading"),_bcTType("freeSurface"),
+    _bcLType("symmFault"),_bcBType("freeSurface"),
+    _quadEx(NULL),_quadImex(NULL),
+    _fault(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
+    _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),
+    _maxSSIts_effVisc(50),_maxSSIts_tot(100),_maxSSIts_timesteps(2e5),
+    _atolSS_effVisc(1e-3)
 {
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd()";
@@ -345,8 +349,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 
 
 // monitoring function for ode solvers
-PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(const PetscScalar time,const PetscScalar deltaT,
-      const PetscInt stepCount, int& stopIntegration)
+PetscErrorCode StrikeSlip_PowerLaw_qd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
 
@@ -361,30 +364,28 @@ double startTime = MPI_Wtime();
   _deltaT = deltaT;
   _currTime = time;
 
-  if (_currTime == _maxTime || (_stride1D>0 && stepCount % _stride1D == 0)) {
+  if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_outputDir); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_stepCount, _outputDir); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
   }
 
-  if (_currTime == _maxTime || (_stride2D>0 &&  stepCount % _stride2D == 0)) {
+  if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
     if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
-  //~ if (stepCount % 50 == 0) {
-    PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-    _material->computeMaxTimeStep(maxDeltaT_momBal);
-    maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
-    if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-        _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
-    }
-    else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
-  //~ }
+  PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
+  _material->computeMaxTimeStep(maxDeltaT_momBal);
+  maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
+  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
+      _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+  }
+  else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
@@ -403,7 +404,7 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -411,15 +412,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, con
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV1D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time1D.txt").c_str(),&_timeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_dt1D.txt").c_str(),&_dtimeV1D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+  if (_timeV1D == NULL ) {
+    ierr = initiateWriteASCII(outputDir, "med_time1D.txt", _D->_outFileMode, _timeV1D, "%.15e\n", time);
+    CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n",time);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n",_deltaT);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time); CHKERRQ(ierr);
+  }
+  if (_dtimeV1D == NULL ) {
+    initiateWriteASCII(outputDir, "med_dt1D.txt", _D->_outFileMode, _dtimeV1D, "%.15e\n", _deltaT);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", _deltaT); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -428,20 +432,27 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(const PetscInt stepCount, con
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    std::string funcName = "StrikeSlip_PowerLaw_qd::writeStep1D";
+    std::string funcName = "StrikeSlip_PowerLaw_qd::writeStep2D";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV2D==NULL) {
-    ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"med_time2D.txt").c_str(),&_timeV2D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+
+  if (_timeV2D == NULL ) {
+    ierr = initiateWriteASCII(outputDir, "med_time2D.txt", _D->_outFileMode, _timeV2D, "%.15e\n", time);
+    CHKERRQ(ierr);
   }
   else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n",time);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
+  }
+  if (_dtimeV2D == NULL ) {
+    initiateWriteASCII(outputDir, "med_dt2D.txt", _D->_outFileMode, _dtimeV2D, "%.15e\n", _deltaT);
+  }
+  else {
+    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", _deltaT); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -523,19 +534,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
+  _D->write();
   _material->writeContext(_outputDir);
-  if (_he != NULL) {
-   _he->writeContext(_outputDir);
-  }
+  if (_he != NULL) { _he->writeContext(_outputDir); }
   _fault->writeContext(_outputDir);
-
-  if (_hydraulicCoupling.compare("no")!=0) {
-    _p->writeContext(_outputDir);
-  }
-
-  if (_grainSizeEvCoupling.compare("no")!=0) {
-    _grainDist->writeContext(_outputDir);
-  }
+  if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir); }
+  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist->writeContext(_outputDir); }
 
   if (_forcingType.compare("iceStream")==0) {
     ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
@@ -648,9 +652,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx);
   }
 
-  if ( varEx.find("grainSize") != varEx.end() ) {
-    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  }
+  // if ( varEx.find("grainSize") != varEx.end() ) {
+  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  // }
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -673,8 +677,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
 
 // implicit/explicit time stepping
-PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx,
-      map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
+PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx, map<string,Vec>& varIm,const map<string,Vec>& varImo,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -726,9 +729,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
-  if ( varEx.find("grainSize") != varEx.end() ) {
-    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  }
+  // if ( varEx.find("grainSize") != varEx.end() ) {
+  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  // }
 
 
   // update fields on fault from other classes
@@ -982,17 +985,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   delete _quadEx; _quadEx = NULL;
 
-
-  // clean up memory from this run
-  //~ map<string,Vec>::iterator it;
-  //~ for (it = _varEx.begin(); it!=_varEx.end(); it++ ) {
-    //~ VecDestroy(&it->second);
-  //~ }
   // viewers
-  PetscViewerDestroy(&_material->_timeV1D);
-  PetscViewerDestroy(&_material->_timeV2D);
-  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers.begin(); it!=_material->_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_material->_viewers[it->first].first);
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers1D.begin(); it!=_material->_viewers1D.end(); it++ ) {
+    PetscViewerDestroy(&_material->_viewers1D[it->first].first);
+  }
+  for (map<string,std::pair<PetscViewer,string> >::iterator it=_material->_viewers2D.begin(); it!=_material->_viewers2D.end(); it++ ) {
+    PetscViewerDestroy(&_material->_viewers2D[it->first].first);
   }
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_fault->_viewers.begin(); it!=_fault->_viewers.end(); it++ ) {
     PetscViewerDestroy(&_fault->_viewers[it->first].first);

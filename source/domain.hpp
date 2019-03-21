@@ -24,62 +24,62 @@
  *
  */
 
-
 using namespace std;
 
 class Domain
 {
-  public:
+public:
 
-    const char    *_file;
-    std::string    _delim; // format is: var delim value (without the white space)
-    std::string    _outputDir; // directory for output
-    std::string    _bulkDeformationType; // options: linearElastic, powerLaw
-    std::string    _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
-    //~ std::string    _sbpType; // matrix or matrix-free, compatible or fully compatible
-    std::string    _operatorType; // matrix-based or matrix-free
-    std::string    _sbpCompatibilityType; // compatible or fullyCompatible
-    std::string    _gridSpacingType; // variableGridSpacing or constantGridSpacing
-    int            _isMMS; // run MMS test or not
-    int            _loadICs; // load conditions from input files
-    std::string    _inputDir; // directory to load input files from
+  const char    *_file;
+  string         _delim; // format is: var delim value (without the white space)
+  string         _inputDir; // directory for optional input vectors
+  string         _outputDir; // directory for output
+  string         _bulkDeformationType; // options: linearElastic, powerLaw
+  string         _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+  string         _sbpType; // matrix or matrix-free, compatible or fully compatible
+  string         _operatorType; // matrix-based or matrix-free
+  string         _sbpCompatibilityType; // compatible or fullyCompatible
+  string         _gridSpacingType; // variableGridSpacing or constantGridSpacing
+  int            _isMMS; // run MMS test or not
 
-    // domain properties
-    PetscInt     _order,_Ny,_Nz;
-    PetscScalar  _Ly,_Lz;
-    std::string  _yInputDir; // directory to load y from
-    std::string  _zInputDir; // directory to load z from
-    PetscScalar  _vL; // loading velocity
+  // domain properties
+  PetscInt     _order; // accuracy of spatial operators
+  PetscInt     _Ny,_Nz; // # of points in y and z directions
+  PetscScalar  _Ly,_Lz; // (km) domain size in y and z directions
+  PetscScalar  _vL; // loading velocity
 
-    // coordinate system
-    Vec   _q,_r,_y,_z; // q(y), r(z)
-    PetscScalar _dq,_dr;
-    PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
+  // coordinate system
+  Vec   _q,_r,_y,_z,_y0,_z0; // q(y), r(z)
+  PetscScalar _dq,_dr;  // spacing in q and r
+  PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
-    // scatters to take values from body field(s) to 1D fields
-    // naming convention for key (string): body2<boundary>, example: "body2L>"
-    std::map <string, VecScatter>  _scatters;
-    Vec _y0; // y = 0 vector, size Nz
-    Vec _z0; // z = 0 vector, size Ny
+  // checkpoint enabling
+  PetscInt _ckpt, _ckptNumber, _interval;
+  PetscFileMode _outFileMode; // FILE_MODE_WRITE or FILE_MODE_APPEND
 
-    Domain(const char * file);
-    Domain(const char *file,PetscInt Ny, PetscInt Nz);
-    ~Domain();
+  // scatters to take values from body field(s) to 1D fields
+  // naming convention for key (string): body2<boundary>, example: "body2L>"
+  map<string, VecScatter> _scatters;
 
+  Domain(const char * file);
+  Domain(const char *file,PetscInt Ny, PetscInt Nz);
+  ~Domain();
 
-    PetscErrorCode view(PetscMPIInt rank);
-    PetscErrorCode write();
+  PetscErrorCode view(PetscMPIInt rank);
+  PetscErrorCode write();
 
-  private:
+private:
 
-    // disable default copy constructor and assignment operator
-    Domain(const Domain &that);
-    Domain& operator=(const Domain &rhs);
+  // disable default copy constructor and assignment operator
+  Domain(const Domain &that);
+  Domain& operator=(const Domain &rhs);
 
-    PetscErrorCode loadData(const char *file); // load settings from input file
-    PetscErrorCode checkInput(); // check input from file
-    PetscErrorCode setFields();
-    PetscErrorCode setScatters();
+  PetscErrorCode loadSettings(const char *file); // load settings from input file
+  PetscErrorCode checkInput();
+  PetscErrorCode setFields();
+  // scatters indices of result vector to new vectors (e.g. displacement -> slip)
+  PetscErrorCode setScatters();
+  PetscErrorCode testScatters();
 };
 
 #endif

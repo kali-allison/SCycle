@@ -1,7 +1,6 @@
 #ifndef ROOTFINDER_HPP_INCLUDED
 #define ROOTFINDER_HPP_INCLUDED
 
-
 #include <petscts.h>
 #include <string>
 #include <assert.h>
@@ -20,7 +19,6 @@ class RootFinder
   protected:
     PetscInt _numIts,_maxNumIts;
     PetscScalar _atol;
-
 
     // disable default copy constructor and assignment operator
     RootFinder(const RootFinder & that);
@@ -76,6 +74,7 @@ class BracketedNewton : public RootFinder
     PetscErrorCode findRoot(RootFinderContext *obj,const PetscInt ind,const PetscScalar in,PetscScalar *out);
     PetscErrorCode setBounds(PetscScalar left,PetscScalar right);
 };
+
 
 class RegulaFalsi : public RootFinder
 {

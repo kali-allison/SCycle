@@ -6,7 +6,7 @@
 sourceDir = '../data/ex2_';
 
 % load context information, such as size of domain, number of points, etc
-d = loadContext(sourceDir);
+d.dom = loadStruct(strcat(sourceDir,'domain.txt'),' = ');
 
 % load fields that are either size Ny or size Nz
 d.time = load(strcat(sourceDir,'med_time1D.txt'));

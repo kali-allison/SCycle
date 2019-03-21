@@ -3,10 +3,10 @@
 % with linear elastic off-fault material.
 
 % define directory for output (can be relative or absolute path)
-sourceDir = '../data/ex1_';
+sourceDir = '../data/ex1_wchkpt_';
 
 % load context information, such as size of domain, number of points, etc
-d = loadContext(sourceDir);
+d.dom = loadStruct(strcat(sourceDir,'domain.txt'),' = ');
 
 % load fields that are either size Ny or size Nz
 d.time = load(strcat(sourceDir,'med_time1D.txt'));
@@ -37,7 +37,3 @@ semilogx(d.slipVel(1),d.tau(1),'g*') % indicate initial condition
 semilogx(d.slipVel(end),d.tau(end),'r*') % indicate final condition
 xlabel('integrated slip velocity (m/s km)'),ylabel('integrated shear stress (MPa km)')
 legend('simulation','initial condition','final condition','Location','Northwest')
-
-
-
-
