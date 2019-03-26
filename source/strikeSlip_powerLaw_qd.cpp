@@ -280,7 +280,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::parseBCs()
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0 || _bcLType.compare("remoteLoading")==0) {
     _mat_bcLType = "Dirichlet";
   }
-  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
+  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0 ) {
     _mat_bcLType = "Neumann";
   }
 
@@ -652,9 +652,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx);
   }
 
-  // if ( varEx.find("grainSize") != varEx.end() ) {
-  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  // }
+  if ( varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  }
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -832,7 +832,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
   }
-  if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
+  //~ if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
   //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
   writeSS(Jj,baseOutDir);
@@ -856,7 +856,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     }
 
     // update grain size
-    if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
+    //~ if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
     //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
     writeSS(Jj,baseOutDir);

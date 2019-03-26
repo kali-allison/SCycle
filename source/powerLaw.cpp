@@ -289,12 +289,12 @@ PetscErrorCode DislocationCreep::loadSettings()
     rhs = rhs.substr(0,pos);
 
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
-    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("disl_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("disl_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
   }
 
   #if VERBOSE > 1
@@ -546,14 +546,14 @@ PetscErrorCode DiffusionCreep::loadSettings()
     rhs = rhs.substr(0,pos);
 
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
-    else if (var.compare("AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
-    else if (var.compare("ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
-    else if (var.compare("nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
-    else if (var.compare("nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
-    else if (var.compare("mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
-    else if (var.compare("mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
+    else if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
+    else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
+    else if (var.compare("diff_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("diff_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
+    else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
+    else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
+    else if (var.compare("diff_mDepths")==0) { loadVectorFromInputFile(rhsFull,_mDepths); }
 
   }
 
@@ -2322,6 +2322,7 @@ double startTime = MPI_Wtime();
     initiate_appendVecToOutput(_viewers2D, "u", _u, outputDir + "momBal_u", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "sxy", _sxy, outputDir + "momBal_sxy", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "sxz", _sxz, outputDir + "momBal_sxz", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "sdev", _sdev, outputDir + "momBal_sdev", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "gTxy", _gTxy, outputDir + "momBal_gTxy", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "gTxz", _gTxz, outputDir + "momBal_gTxz", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "gxy", _gVxy, outputDir + "momBal_gxy", _D->_outFileMode);
@@ -2335,23 +2336,27 @@ double startTime = MPI_Wtime();
     if (_wDislCreep.compare("yes")==0) {
       ierr = io_initiateWriteAppend(_viewers2D, "momBal_T", _T, outputDir + "momBal_T"); CHKERRQ(ierr);
       ierr = io_initiateWriteAppend(_viewers2D, "disl_invEffVisc", _disl->_invEffVisc, outputDir + "disl_invEffVisc"); CHKERRQ(ierr);
+      ierr = io_initiateWriteAppend(_viewers2D, "disl_dgVdev", _dgVdev_disl, outputDir + "disl_dgVdev"); CHKERRQ(ierr);
     }
   }
   else {
     ierr = VecView(_u,_viewers2D["u"].first); CHKERRQ(ierr);
     ierr = VecView(_sxy,_viewers2D["sxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_gTxy,_viewers2D["gTxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_gVxy,_viewers2D["gxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_effVisc,_viewers2D["effVisc"].first); CHKERRQ(ierr);
-    ierr = VecView(_gTxz,_viewers2D["gTxz"].first); CHKERRQ(ierr);
-    ierr = VecView(_gVxz,_viewers2D["gxz"].first); CHKERRQ(ierr);
     ierr = VecView(_sxz,_viewers2D["sxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_sdev,_viewers2D["sdev"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxy,_viewers2D["gTxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gTxz,_viewers2D["gTxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_gVxy,_viewers2D["gxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_gVxz,_viewers2D["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_effVisc,_viewers2D["effVisc"].first); CHKERRQ(ierr);
+
 
     if (_wDiffCreep.compare("yes")==0) {
       ierr = VecView(_diff->_invEffVisc,_viewers2D["diff_invEffVisc"].first); CHKERRQ(ierr);
     }
     if (_wDislCreep.compare("yes")==0) {
       ierr = VecView(_disl->_invEffVisc,_viewers2D["disl_invEffVisc"].first); CHKERRQ(ierr);
+      ierr = VecView(_dgVdev_disl,_viewers2D["disl_dgVdev"].first); CHKERRQ(ierr);
     }
   }
 

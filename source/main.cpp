@@ -255,7 +255,7 @@ int runEqCycle(Domain& d)
   // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("steadyStateIts") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
-    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
+    ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrateSS(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);

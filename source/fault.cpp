@@ -494,6 +494,7 @@ PetscErrorCode Fault::writeContext(const string outputDir)
   ierr = writeVec(_locked,outputDir + "fault_locked"); CHKERRQ(ierr);
   ierr = writeVec(_prestress,outputDir + "fault_prestress"); CHKERRQ(ierr);
   ierr = writeVec(_slip0,outputDir + "fault_slip0"); CHKERRQ(ierr);
+  ierr = writeVec(_sNEff,outputDir + "fault_sNEff"); CHKERRQ(ierr);
 
   if (!_stateLaw.compare("flashHeating")) {
     ierr = writeVec(_Tw,outputDir + "fault_Tw"); CHKERRQ(ierr);

@@ -302,8 +302,6 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     PetscScalar red = - cc * d[Jj]*d[Jj] * s[Jj]*dgdev[Jj]; // grain size reduction from disl. creep
     d_t[Jj] = growth + red;
 
-    //~ if (abs(d_t[Jj]) < 1e-14) { d_t[Jj] = 0.; }
-
     Jj++;
   }
   VecRestoreArrayRead(_A,&A);
@@ -514,7 +512,7 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
 
   //~ double startTime = MPI_Wtime();
 
-  if (stepCount == 0) {
+  if (_viewers.empty()) {
     ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d", _d, outputDir + "grainSizeEv_d"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d_t", _d_t, outputDir + "grainSizeEv_d_t"); CHKERRQ(ierr);
   }
