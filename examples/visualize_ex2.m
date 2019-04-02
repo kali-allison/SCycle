@@ -1,6 +1,8 @@
 % Script demonstrating how to load and visualize example 2.
 % Example 2 is a quasidynamic earthquake cycle simulation with a vertical
 % strike-slip fault, and linear elastic off-fault material.
+%
+% Required matlab functions are located in matlab/visualizePetsc.
 
 % define directory for output (can be relative or absolute path)
 sourceDir = '../data/ex2_';

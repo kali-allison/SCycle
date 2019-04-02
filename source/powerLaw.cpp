@@ -1085,6 +1085,7 @@ PetscErrorCode PowerLaw::loadFieldsFromFiles()
 
   ierr = loadVecFromInputFile(_sxy,_inputDir,"Sxy"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_sxz,_inputDir,"Sxz"); CHKERRQ(ierr);
+  computeSDev();
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2327,6 +2328,8 @@ double startTime = MPI_Wtime();
     initiate_appendVecToOutput(_viewers2D, "gTxz", _gTxz, outputDir + "momBal_gTxz", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "gxy", _gVxy, outputDir + "momBal_gxy", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "gxz", _gVxz, outputDir + "momBal_gxz", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "dgVxy", _dgVxy, outputDir + "momBal_dgVxy", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers2D, "dgVxz", _dgVxz, outputDir + "momBal_dgVxz", _D->_outFileMode);
     initiate_appendVecToOutput(_viewers2D, "effVisc", _effVisc, outputDir + "momBal_effVisc", _D->_outFileMode);
 
     if (_wDiffCreep.compare("yes")==0) {
@@ -2348,6 +2351,8 @@ double startTime = MPI_Wtime();
     ierr = VecView(_gTxz,_viewers2D["gTxz"].first); CHKERRQ(ierr);
     ierr = VecView(_gVxy,_viewers2D["gxy"].first); CHKERRQ(ierr);
     ierr = VecView(_gVxz,_viewers2D["gxz"].first); CHKERRQ(ierr);
+    ierr = VecView(_dgVxy,_viewers2D["dgVxy"].first); CHKERRQ(ierr);
+    ierr = VecView(_dgVxz,_viewers2D["dgVxz"].first); CHKERRQ(ierr);
     ierr = VecView(_effVisc,_viewers2D["effVisc"].first); CHKERRQ(ierr);
 
 

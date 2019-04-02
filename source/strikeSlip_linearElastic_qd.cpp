@@ -705,6 +705,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale);
 
+    // save initial conditions before beginning integration
+    PetscInt stopIntegration = 0;
+    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
+
     if (_D->_ckpt > 0 && _D->_ckptNumber > 0) {
       loadValueFromCheckpoint(_outputDir, "chkpt_prevErr", _quadImex->_errA[1]);
       loadValueFromCheckpoint(_outputDir, "chkpt_currErr", _quadImex->_errA[0]);
@@ -722,6 +726,10 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::integrate()
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale);
+
+    // save initial conditions before beginning integration
+    PetscInt stopIntegration = 0;
+    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
 
     if (_D->_ckpt > 0 && _D->_ckptNumber > 0) {
       loadValueFromCheckpoint(_outputDir, "chkpt_prevErr", _quadEx->_errA[1]);

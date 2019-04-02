@@ -10,7 +10,7 @@ Nz = 151 # points in z-direction
 Ly = 100 # (km) horizontal domain size
 Lz = 30 # (km) vertical domain size
 vL = 1e-9 # (m/s) loading velocity
-bCoordTrans = 5 # controls grid stretching perpendicular to the fault. larger b means more grid stretching
+bCoordTrans = 5 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
 
 # specify what problem to simulate
 bulkDeformationType = linearElastic # off-fault constitutive law
@@ -19,8 +19,7 @@ guessSteadyStateICs = 1 # estimate steady-state initial conditions
 
 #=======================================================================
 # rate-and-state parameters
- # state variable evolution law
-stateLaw = agingLaw
+stateLaw = agingLaw # state variable evolution law
 
 DcVals = [20e-3 20e-3] # (m) state evolution distance
 DcDepths = [0 60] # (km)
@@ -37,9 +36,8 @@ sNDepths = [0 60] # (km)
 #=======================================================================
 # off-fault material parameters
 
-# algorithm for momentum balance equation
+# algorithm for momentum balance equation: MUMPSCHOLESKY (direct solver), CG (iterative solver), AMG (iterative solver)
 linSolver = MUMPSCHOLESKY
-#linSolver = CG
 
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
@@ -50,9 +48,9 @@ rhoDepths = [0 60] # (km)
 # settings for time integration
 
 timeIntegrator = RK43
-stride1D = 1 # number of time steps between output of 1D fields
-stride2D = 1 # number of time steps between output of 2D fields
-maxStepCount = 5 # maximum number of time steps
+stride1D = 5 # number of time steps between output of 1D fields
+stride2D = 5 # number of time steps between output of 2D fields
+maxStepCount = 1e12 # maximum number of time steps
 initTime = 0 # (s) initial time
 maxTime = 3e10 # (s) final time
 timeStepTol = 1e-7 # absolute tolerance for time integration

@@ -372,7 +372,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"RK32_WBE ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
     assert(_varEx.find(key) != _varEx.end());
   }
@@ -399,7 +399,7 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     attemptCount = 0;
     while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
-      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   RK32_WBE WARNING: maximum number of attempts reached\n"); }
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
@@ -901,7 +901,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
   for(std::vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     std::string key = _errInds[i];
     if (_varEx.find(key) == _varEx.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"RK43_WBE ERROR: %s is not an explicitly integrated variable!\n",key.c_str());
     }
     assert(_varEx.find(key) != _varEx.end());
   }
@@ -929,7 +929,7 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     attemptCount = 0;
     while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
-      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   RK43_WBE WARNING: maximum number of attempts reached\n"); }
 
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 

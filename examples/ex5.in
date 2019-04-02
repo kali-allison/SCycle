@@ -26,7 +26,6 @@ sbpType = mfc_coordTrans
 stateLaw = flashHeating
 v0 = 1e-6
 f0 = 0.6
-#fw = 0.12
 fw = 0
 Vw = 0.1
 Tw = 1.732e+03 # (K) = 900 C
@@ -58,24 +57,23 @@ rhoDepths = [0 60] # (km)
 #======================================================================
 # heat equation parameters
 
+# heat equation properties
+heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
 kDepths = [0 60]
 hVals = [0 0]
 hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
-rhoVals = [3 3] # g/cm^3
-rhoDepths = [0 60]
-shearZoneWidth = 1e-4 # km
 
-# geotherm
-#TVals = [293 1293] # 20 C/km
-#TVals = [293 1543] # 25 C/km
-#TVals = [293 1793] # 30 C/km
-TVals = [200 200]
-TDepths = [0 50]
+Nz_lab = 1
+TVals = [2.83150000e+02 2.83150000e+02]
+TDepths = [0.00 5.00000000e+02]
 
-# heat equation parameters: steadyState or transient; coupled, uncoupled, or no
+# width of frictional shear zone
+wVals = [0 0] # (m)
+wDepths = [0 500]
+
 heatEquationType = transient
 thermalCoupling = coupled
 withShearHeating = no
@@ -93,7 +91,7 @@ maxTime = 2e11 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-8 # absolute tolerance for time integration
+timeStepTol = 1e-8 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 # directory for output

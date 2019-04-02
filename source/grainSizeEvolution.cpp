@@ -301,6 +301,19 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]); // static grain growth rate
     PetscScalar red = - cc * d[Jj]*d[Jj] * s[Jj]*dgdev[Jj]; // grain size reduction from disl. creep
     d_t[Jj] = growth + red;
+    //~ if (d_t[Jj] < 1e-20) { d_t[Jj] = 0.;}
+    if (isinf(red)) {
+      PetscPrintf(PETSC_COMM_WORLD,"%i: cc = %.15e, d = %.15e, s = %.15e, dgdev = %.15e\n",Jj,cc,d[Jj],s[Jj],dgdev[Jj]);
+    }
+
+    assert(!isnan(dgdev[Jj]));
+    assert(!isinf(dgdev[Jj]));
+    assert(!isnan(growth));
+    assert(!isinf(growth));
+    assert(!isnan(red));
+    assert(!isinf(red));
+    assert(!isnan(d_t[Jj]));
+    assert(!isinf(d_t[Jj]));
 
     Jj++;
   }
