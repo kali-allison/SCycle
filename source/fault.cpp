@@ -290,6 +290,7 @@ PetscErrorCode Fault::setFields(Domain& D)
   ierr = setVec(temp1,_D->_z,_muVals,_muDepths); CHKERRQ(ierr);
   VecScatterBegin(*_body2fault, temp1, _mu, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, temp1, _mu, INSERT_VALUES, SCATTER_FORWARD);
+  VecDestroy(&temp1);
 
   _scatterTime += MPI_Wtime() - scatterStart;
 
@@ -592,7 +593,6 @@ Fault::~Fault()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // fields that exist on the fault
   VecDestroy(&_z);
   VecDestroy(&_tauQSP);
   VecDestroy(&_tauP);
@@ -715,7 +715,7 @@ PetscErrorCode Fault::computePsiSS(const PetscScalar vL)
 
 // constructor of derived class Fault_qd, initializes the same object as Fault
 Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
-: Fault(D,scatter2fault,faultTypeScale)
+: Fault(D,scatter2fault,faultTypeScale),_eta_rad(NULL)
 {
   #if VERBOSE > 1
     string funcName = "Fault_qd::Fault_qd";

@@ -1808,7 +1808,9 @@ PetscErrorCode PowerLaw::computeTotalStrains()
     CHKERRQ(ierr);
   #endif
 
-  _sbp->Dy(_u,_gTxy);
+  if (_Ny > 1) {
+    _sbp->Dy(_u,_gTxy);
+  }
   if (_Nz > 1) {
     _sbp->Dz(_u,_gTxz);
   }

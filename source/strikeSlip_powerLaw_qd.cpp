@@ -94,6 +94,7 @@ StrikeSlip_PowerLaw_qd::~StrikeSlip_PowerLaw_qd()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
+  PetscViewerDestroy(&_dtimeV2D);
 
 
   delete _quadImex;    _quadImex = NULL;
@@ -621,6 +622,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
 
+
   _integrateTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -674,7 +676,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
-  //~ // rates for fault
+  // rates for fault
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
@@ -682,6 +684,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     VecSet(dvarEx["psi"],0.);
     VecSet(dvarEx["slip"],0.);
   }
+
 
   return ierr;
 }

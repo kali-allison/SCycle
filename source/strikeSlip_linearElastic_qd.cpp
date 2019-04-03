@@ -106,6 +106,7 @@ StrikeSlip_LinearElastic_qd::~StrikeSlip_LinearElastic_qd()
   PetscViewerDestroy(&_timeV1D);
   PetscViewerDestroy(&_dtimeV1D);
   PetscViewerDestroy(&_timeV2D);
+  PetscViewerDestroy(&_dtimeV2D);
 
   delete _quadImex;    _quadImex = NULL;
   delete _quadEx;      _quadEx = NULL;

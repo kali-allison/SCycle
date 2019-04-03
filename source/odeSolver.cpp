@@ -80,7 +80,8 @@ PetscErrorCode OdeSolver::setToleranceType(const string normType)
   double startTime = MPI_Wtime();
   _normType = normType;
   assert(_normType.compare("L2_relative")==0 ||
-      _normType.compare("L2_absolute")==0 );
+    _normType.compare("L2_absolute")==0 ||
+    _normType.compare("max_relative")==0 );
 
   _runTime += MPI_Wtime() - startTime;
 
@@ -158,7 +159,6 @@ PetscErrorCode FEuler::setInitialConds(map<string,Vec>& var)
     Vec dvar;
     ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);
     ierr = VecSet(dvar,0.0); CHKERRQ(ierr);
-    // initialize _dvar to be a zero vector
     _dvar[it->first] = dvar;
   }
 
@@ -930,22 +930,22 @@ PetscReal RK43::computeError()
   // if using relative error for control
   // error: the absolute L2 error, scaled by the L2 norm of the solution and a user-inputted scale factor
   // tolerance: the relative tolerance
-  //~ if (_normType.compare("L2_relative")==0) {
-    //~ for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
-      //~ string key = _errInds[i];
-      //~ Vec errVec;
-      //~ VecDuplicate(_y3[key],&errVec);
-      //~ VecSet(errVec,0.0);
-      //~ ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
-      //~ VecNorm(errVec,NORM_2,&err);
-      //~ VecDestroy(&errVec);
-      //~ PetscReal s = 0;
-      //~ VecNorm(_y4[key],NORM_2,&s);
-      //~ _totErr += err / (s * _scale[i]);
-    //~ }
-  //~ }
-
   if (_normType.compare("L2_relative")==0) {
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
+      VecNorm(errVec,NORM_2,&err);
+      VecDestroy(&errVec);
+      PetscReal s = 0;
+      VecNorm(_y4[key],NORM_2,&s);
+      _totErr += err / (s * _scale[i]);
+    }
+  }
+
+  if (_normType.compare("max_relative")==0) {
     for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       string key = _errInds[i];
       Vec errVec;
@@ -956,6 +956,7 @@ PetscReal RK43::computeError()
       VecPointwiseDivide(errVec,errVec,_y4[key]);
       PetscReal maxV = 0;
       VecMax(errVec,NULL,&err);
+      VecDestroy(&errVec);
       assert(!isinf(err));
       _totErr += err / (_scale[i]);
     }

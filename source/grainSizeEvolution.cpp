@@ -35,12 +35,17 @@ GrainSizeEvolution::~GrainSizeEvolution()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // boundary conditions
   VecDestroy(&_A);
   VecDestroy(&_QR);
   VecDestroy(&_p);
   VecDestroy(&_f);
   VecDestroy(&_gamma);
+  VecDestroy(&_d);
+  VecDestroy(&_d_t);
+
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    PetscViewerDestroy(&_viewers[it->first].first);
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
