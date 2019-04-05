@@ -888,8 +888,8 @@ PetscErrorCode distributeVec(Vec& out, const Vec& in, const PetscInt gIstart, co
 // loading value from ASCII checkpoint file, which should only have one value (for scalar values: time and error)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscScalar &value) {
   PetscErrorCode ierr = 0;
-  string checkpointFile = outputDir + filename;
-  bool fileExists = doesFileExist(checkpointFile);
+  string         checkpointFile = outputDir + filename;
+  bool           fileExists = doesFileExist(checkpointFile);
 
   if (fileExists) {
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Loading %s\n", filename.c_str()); CHKERRQ(ierr);
@@ -898,7 +898,17 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
     ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
     ierr = PetscViewerFileSetMode(viewer, FILE_MODE_READ); CHKERRQ(ierr);
     ierr = PetscViewerFileSetName(viewer, checkpointFile.c_str()); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_SCALAR); CHKERRQ(ierr);
+    PetscMPIInt    rank, size;
+    MPI_Comm_size(PETSC_COMM_WORLD, &size);
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    if (!rank) {
+      ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_SCALAR); CHKERRQ(ierr);
+      MPI_Bcast(&value, 1, MPI_DOUBLE, 0, PETSC_COMM_WORLD);
+    }
+    else {
+      MPI_Bcast(&value, 1, MPI_DOUBLE, 0, PETSC_COMM_WORLD);
+    }
     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
   }
   else {
@@ -912,8 +922,8 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
 // loads value from ASCII file (for integers)
 PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string filename, PetscInt &value) {
   PetscErrorCode ierr = 0;
-  string checkpointFile = outputDir + filename;
-  bool fileExists = doesFileExist(checkpointFile);
+  string         checkpointFile = outputDir + filename;
+  bool           fileExists = doesFileExist(checkpointFile);
 
   if (fileExists) {
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Loading %s\n", filename.c_str()); CHKERRQ(ierr);
@@ -922,7 +932,17 @@ PetscErrorCode loadValueFromCheckpoint(const string outputDir, const string file
     ierr = PetscViewerSetType(viewer, PETSCVIEWERASCII); CHKERRQ(ierr);
     ierr = PetscViewerFileSetMode(viewer, FILE_MODE_READ); CHKERRQ(ierr);
     ierr = PetscViewerFileSetName(viewer, checkpointFile.c_str()); CHKERRQ(ierr);
-    ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_INT); CHKERRQ(ierr);
+    PetscMPIInt    rank, size;
+    MPI_Comm_size(PETSC_COMM_WORLD, &size);
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+
+    if (!rank) {
+      ierr = PetscViewerASCIIRead(viewer, &value, 1, NULL, PETSC_INT); CHKERRQ(ierr);
+      MPI_Bcast(&value, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+    }
+    else {
+      MPI_Bcast(&value, 1, MPI_INT, 0, PETSC_COMM_WORLD);
+    }
     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
   }
   else {
@@ -987,6 +1007,7 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscSc
 
 // initiate viewer and write to an ASCII file using the specified format
 // mode can be FILE_MODE_WRITE or FILE_MODE_APPEND
+// write ASCII file for scalar
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscScalar var)
 {
   PetscErrorCode ierr = 0;
@@ -1003,6 +1024,8 @@ PetscErrorCode initiateWriteASCII(const string outputDir, const string filename,
   return ierr;
 }
 
+
+// write ASCII file for integer
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscInt var)
 {
   PetscErrorCode ierr = 0;
