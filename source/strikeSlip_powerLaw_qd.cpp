@@ -280,7 +280,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::parseBCs()
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0 || _bcLType.compare("remoteLoading")==0) {
     _mat_bcLType = "Dirichlet";
   }
-  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0) {
+  else if (_bcLType.compare("freeSurface")==0 || _bcLType.compare("outGoingCharacteristics")==0 ) {
     _mat_bcLType = "Neumann";
   }
 
@@ -318,11 +318,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
-    //~ std::string saveWDiffCreep = _material->_wDiffCreep;
-    //~ _material->_wDiffCreep = "no";
+    std::string saveWDiffCreep = _material->_wDiffCreep;
+    _material->_wDiffCreep = "no"; // don't include diffusion creep when computing steady-state
     solveSS(0,_outputDir);
-    //~ _material->_wDiffCreep = saveWDiffCreep;
-  } // doesn't solve for steady state tau
+    _material->_wDiffCreep = saveWDiffCreep;
+  }
 
   _material->initiateIntegrand(_initTime,_varEx);
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -363,6 +363,9 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
   _deltaT = deltaT;
   _currTime = time;
+
+  if (_stepCount < 50 ) { _stride1D = 1; _stride2D = 1; }
+  else { _stride1D = 100; _stride2D = 100; }
 
   if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0)) {
     ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
@@ -597,6 +600,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
 
+    // save initial conditions before beginning integration
+    PetscInt stopIntegration = 0;
+    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
+
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
   else {
@@ -606,6 +613,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
     ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
+
+    // save initial conditions before beginning integration
+    PetscInt stopIntegration = 0;
+    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
@@ -641,6 +652,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->updateFields(time,varEx);
   }
 
+
   // update grain size in material
   if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
     _material->updateGrainSize(varEx.find("grainSize")->second);
@@ -652,9 +664,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx);
   }
 
-  // if ( varEx.find("grainSize") != varEx.end() ) {
-  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  // }
+  if ( varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  }
 
   // update fields on fault from other classes
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -662,7 +674,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
-  // rates for fault
+  //~ // rates for fault
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
   }
@@ -832,7 +844,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
   }
-  if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
+  //~ if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
   //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
   writeSS(Jj,baseOutDir);
@@ -856,7 +868,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     }
 
     // update grain size
-    if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
+    //~ if (_grainSizeEvCoupling.compare("no")!=0) { solveSSGrainSize(Jj); }
     //~ if (_grainSizeEvCoupling.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
 
     writeSS(Jj,baseOutDir);

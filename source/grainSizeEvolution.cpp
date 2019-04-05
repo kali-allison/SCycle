@@ -301,8 +301,19 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]); // static grain growth rate
     PetscScalar red = - cc * d[Jj]*d[Jj] * s[Jj]*dgdev[Jj]; // grain size reduction from disl. creep
     d_t[Jj] = growth + red;
+    //~ if (d_t[Jj] < 1e-20) { d_t[Jj] = 0.;}
+    if (isinf(red)) {
+      PetscPrintf(PETSC_COMM_WORLD,"%i: cc = %.15e, d = %.15e, s = %.15e, dgdev = %.15e\n",Jj,cc,d[Jj],s[Jj],dgdev[Jj]);
+    }
 
-    //~ if (abs(d_t[Jj]) < 1e-14) { d_t[Jj] = 0.; }
+    assert(!isnan(dgdev[Jj]));
+    assert(!isinf(dgdev[Jj]));
+    assert(!isnan(growth));
+    assert(!isinf(growth));
+    assert(!isnan(red));
+    assert(!isinf(red));
+    assert(!isnan(d_t[Jj]));
+    assert(!isinf(d_t[Jj]));
 
     Jj++;
   }
@@ -514,7 +525,7 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
 
   //~ double startTime = MPI_Wtime();
 
-  if (stepCount == 0) {
+  if (_viewers.empty()) {
     ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d", _d, outputDir + "grainSizeEv_d"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d_t", _d_t, outputDir + "grainSizeEv_d_t"); CHKERRQ(ierr);
   }

@@ -268,7 +268,7 @@ PetscErrorCode RK32::view()
 {
   PetscErrorCode ierr = 0;
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (3,2)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   norm type used to measure error: %s\n",_normType.c_str());CHKERRQ(ierr);
@@ -525,7 +525,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
   for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     string key = _errInds[i];
     if (_var.find(key) == _var.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"RK32 ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
     assert(_var.find(key) != _var.end());
   }
@@ -553,7 +553,7 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
 
     while (attemptCount<100) { // repeat until time step is acceptable
       attemptCount++;
-      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      if (attemptCount>=100) {PetscPrintf(PETSC_COMM_WORLD,"   RK32 WARNING: maximum number of attempts reached\n"); }
       //~ierr = PetscPrintf(PETSC_COMM_WORLD,"   attemptCount=%i\n",attemptCount);CHKERRQ(ierr);
       if (_currT+_deltaT>_finalT) { _deltaT=_finalT-_currT; }
 
@@ -689,7 +689,7 @@ PetscErrorCode RK43::view()
 {
   PetscErrorCode ierr = 0;
 
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nTime Integration summary:\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   integration algorithm: runge-kutta (4,3)\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   control scheme: %s\n",_controlType.c_str());CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   norm type used to measure error: %s\n",_normType.c_str());CHKERRQ(ierr);
@@ -930,6 +930,21 @@ PetscReal RK43::computeError()
   // if using relative error for control
   // error: the absolute L2 error, scaled by the L2 norm of the solution and a user-inputted scale factor
   // tolerance: the relative tolerance
+  //~ if (_normType.compare("L2_relative")==0) {
+    //~ for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      //~ string key = _errInds[i];
+      //~ Vec errVec;
+      //~ VecDuplicate(_y3[key],&errVec);
+      //~ VecSet(errVec,0.0);
+      //~ ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
+      //~ VecNorm(errVec,NORM_2,&err);
+      //~ VecDestroy(&errVec);
+      //~ PetscReal s = 0;
+      //~ VecNorm(_y4[key],NORM_2,&s);
+      //~ _totErr += err / (s * _scale[i]);
+    //~ }
+  //~ }
+
   if (_normType.compare("L2_relative")==0) {
     for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       string key = _errInds[i];
@@ -937,11 +952,12 @@ PetscReal RK43::computeError()
       VecDuplicate(_y3[key],&errVec);
       VecSet(errVec,0.0);
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
-      VecNorm(errVec,NORM_2,&err);
-      VecDestroy(&errVec);
-      PetscReal s = 0;
-      VecNorm(_y4[key],NORM_2,&s);
-      _totErr += err / (s * _scale[i]);
+      VecAbs(errVec);
+      VecPointwiseDivide(errVec,errVec,_y4[key]);
+      PetscReal maxV = 0;
+      VecMax(errVec,NULL,&err);
+      assert(!isinf(err));
+      _totErr += err / (_scale[i]);
     }
   }
 
@@ -1017,7 +1033,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
   for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
     string key = _errInds[i];
     if (_var.find(key) == _var.end()) {
-      PetscPrintf(PETSC_COMM_WORLD,"ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
+      PetscPrintf(PETSC_COMM_WORLD,"RK43 ERROR: %s is not an element of explicitly integrated variable!\n",key.c_str());
     }
     assert(_var.find(key) != _var.end());
   }
@@ -1044,7 +1060,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     attemptCount = 0;
     while (attemptCount < 100) {
       attemptCount++;
-      if (attemptCount >= 100) { PetscPrintf(PETSC_COMM_WORLD,"   WARNING: maximum number of attempts reached\n"); }
+      if (attemptCount >= 100) { PetscPrintf(PETSC_COMM_WORLD,"   RK43 WARNING: maximum number of attempts reached\n"); }
 
       if (_currT + _deltaT > _finalT) { _deltaT = _finalT - _currT; }
 
@@ -1136,13 +1152,13 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     // compute new deltaT for next time step
-    // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
+    // but call timeMonitor before updating to newDeltaT, to keep output
+    // consistent while allowing for checkpointing
     if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
     _errA.push_front(_totErr); // record error for use when estimating time step
 
-
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
-    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK32: Detected stop time integration request.\n"); break; }
+    if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n"); break; }
 
     // now update deltaT
     _deltaT = _newDeltaT;

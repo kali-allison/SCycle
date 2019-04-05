@@ -110,6 +110,7 @@ PetscErrorCode SbpOps_m_constGrid::setMatsToNull()
   _Hinv = NULL; _H = NULL; _Hyinv_Iz = NULL; _Iy_Hzinv = NULL; _Hy_Iz = NULL; _Iy_Hz = NULL;
   _e0y_Iz = NULL; _eNy_Iz = NULL; _Iy_e0z = NULL; _Iy_eNz = NULL;
   _E0y_Iz = NULL; _ENy_Iz = NULL; _Iy_E0z = NULL; _Iy_ENz = NULL;
+  _BSy_Iz = NULL; _Iy_BSz = NULL;
   _muxBySy_IzT = NULL; _Iy_muxBzSzT = NULL;
 
   #if VERBOSE > 1
@@ -268,10 +269,10 @@ PetscErrorCode SbpOps_m_constGrid::computeMatrices()
 
   TempMats_m_constGrid tempMats(_order,_Ny,_dy,_Nz,_dz,_compatibilityType);
 
-  constructMu(_muVec); //no memory leak
-  constructEs(tempMats); //no memory leak
-  constructes(tempMats);
-  constructHs(tempMats);
+  constructMu(_muVec);
+  constructEs(tempMats); // ok
+  constructes(tempMats); // ok
+  constructHs(tempMats);//ok
   constructBs(tempMats);
 
   construct1stDerivs(tempMats);

@@ -13,7 +13,7 @@ Ny = 301 # points in y-direction
 Nz = 351 # points in z-direction
 Ly = 500 # (km) horizontal domain size
 Lz = 500 # (km) vertical domain size
-bCoordTrans = 13.5
+bCoordTrans = 13.5 # controls grid stretching perpendicular to the fault: larger b means more grid stretching
 
 # specify what problem to simulate
 bulkDeformationType = powerLaw
@@ -64,6 +64,9 @@ nDepths = [0 100]
 
 maxEffVisc = 1e18 # GPa s
 
+#=======================================================================
+# off-fault material parameters
+
 # heat equation properties
 heatFieldsDistribution = layered
 kVals = [1.89e-9 1.89e-9]  # crustal conductivity (km^2 kPa/K/s)
@@ -73,14 +76,12 @@ hDepths = [0 60]
 cVals = [900 900] # in m^2/s^2/K = J/g/K,  for granite, J/K/g
 cDepths = [0 60]
 
-TVals = [293 1793] # (K) geotherm corresponding to 30 C/km
-TDepths = [0 50]
-
 Nz_lab = 251
 TVals = [2.83150000e+02 1.48815000e+03 1.48815725e+03 1.62315000e+03]
 TDepths = [0.00 5.00000000e+01 5.00241791e+01 5.00000000e+02]
 
-wVals = [10 10]
+# width of frictional shear zone
+wVals = [10 10]  # (m)
 wDepths = [0 500]
 
 thermalCoupling = coupled
@@ -88,8 +89,6 @@ heatEquationType = transient
 withViscShearHeating = yes
 withFrictionalHeating = yes
 withRadioHeatGeneration = yes
-
-
 
 #=======================================================================
 # settings for time integration
@@ -103,7 +102,7 @@ maxTime = 1e12 # (s) final time
 initDeltaT = 1e-3 # (s) size of initial time step
 minDeltaT = 1e-3 # (s) size of minimum time step
 maxDeltaT = 1e12 # (s) size of maximum time step
-atol = 1e-7 # absolute tolerance for time integration
+timeStepTol = 1e-7 # absolute tolerance for time integration
 timeIntInds = [psi slip] # variables to use to compute time step
 
 

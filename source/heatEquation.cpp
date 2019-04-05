@@ -7,7 +7,7 @@ using namespace std;
 HeatEquation::HeatEquation(Domain& D)
 : _D(&D),_order(D._order),_Ny(D._Ny),_Nz(D._Nz),_Nz_lab(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(&D._y),_z(&D._z),
-  _heatEquationType("transient"),_isMMS(D._isMMS),
+  _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(0),
   _file(D._file),_inputDir(D._inputDir),_outputDir(D._outputDir),_delim(D._delim),
   _kTz_z0(NULL),_kTz(NULL),_maxTemp(0),_maxTempV(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
@@ -35,7 +35,7 @@ HeatEquation::HeatEquation(Domain& D)
   setFields(); // sets material parameters
 
   loadFieldsFromFiles();
-  if (_isMMS == 0 && _ckptNumber == 0) { computeInitialSteadyStateTemp(); }
+  if (_loadICs == 0 && _isMMS == 0 && _ckptNumber == 0) { computeInitialSteadyStateTemp(); }
   if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(); }
   else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(); }
 
@@ -233,6 +233,7 @@ PetscErrorCode HeatEquation::loadFieldsFromFiles()
 
   // load Tamb (background geotherm)
   loadVecFromInputFile(_Tamb,_inputDir,"Tamb",chkTamb);
+  _loadICs = chkTamb;
 
   // load T
   loadVecFromInputFile(_T,_inputDir,"T",chkT);

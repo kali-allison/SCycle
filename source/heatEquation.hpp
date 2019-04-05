@@ -53,6 +53,7 @@ public:
   Vec                 *_y,*_z; // to handle variable grid spacing
   string               _heatEquationType;
   int                  _isMMS;
+  int                  _loadICs;
   PetscScalar          _initTime,_initDeltaT;
 
   // IO information

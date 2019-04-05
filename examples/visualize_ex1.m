@@ -1,9 +1,11 @@
 % Script demonstrating how to load and visualize example 1.
 % Example 1 is a quasidynamic earthquake cycle simulation for a spring slider
 % with linear elastic off-fault material.
+%
+% Required matlab functions are located in matlab/visualizePetsc.
 
 % define directory for output (can be relative or absolute path)
-sourceDir = '../data/ex1_wchkpt_';
+sourceDir = '../data/ex1_';
 
 % load context information, such as size of domain, number of points, etc
 d.dom = loadStruct(strcat(sourceDir,'domain.txt'),' = ');
