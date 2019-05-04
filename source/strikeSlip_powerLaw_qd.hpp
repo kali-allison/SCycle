@@ -53,8 +53,8 @@ public:
   // problem properties
   int             _guessSteadyStateICs; // 0 = no, 1 = yes
   const bool      _isMMS; // true if running mms test
-  string          _thermalCoupling; // thermomechanical coupling
-  string          _grainSizeEvCoupling; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
+  string          _thermalCoupling,_thermalCouplingSS; // thermomechanical coupling
+  string          _grainSizeEvCoupling,_grainSizeEvCouplingSS; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
   string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string          _stateLaw;
   string          _forcingType; // what body forcing term to include (i.e. iceStream)

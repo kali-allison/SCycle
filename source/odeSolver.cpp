@@ -493,6 +493,24 @@ PetscReal RK32::computeError()
     }
   }
 
+  // if using the maximum relative error for control
+  if (_normType.compare("max_relative")==0) {
+    for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
+      string key = _errInds[i];
+      Vec errVec;
+      VecDuplicate(_y3[key],&errVec);
+      VecSet(errVec,0.0);
+      ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
+      VecAbs(errVec);
+      VecPointwiseDivide(errVec,errVec,_y4[key]);
+      PetscReal maxV = 0;
+      VecMax(errVec,NULL,&err);
+      VecDestroy(&errVec);
+      assert(!isinf(err));
+      _totErr += err / (_scale[i]);
+    }
+  }
+
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending RK32::computeError in odeSolver.cpp.\n");
   #endif
@@ -945,6 +963,7 @@ PetscReal RK43::computeError()
     }
   }
 
+  // if using the maximum relative error for control
   if (_normType.compare("max_relative")==0) {
     for(vector<int>::size_type i = 0; i != _errInds.size(); i++) {
       string key = _errInds[i];

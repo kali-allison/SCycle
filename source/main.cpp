@@ -249,7 +249,7 @@ int runEqCycle(Domain& d)
     if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
-    //~ ierr = m.view(); CHKERRQ(ierr);
+    ierr = m.view(); CHKERRQ(ierr);
   }
 
   // fixed point iteration for power-law viscoelastic simulation with a vertical strike-slip fault

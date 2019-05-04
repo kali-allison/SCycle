@@ -32,7 +32,7 @@ class GrainSizeEvolution
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
     std::string          _outputDir;  // output data
-    std::string          _timeIntegrationType;  // explicit or implicit time stepping
+    std::string          _timeIntegrationType;  // "explicit" or "implicit" time stepping, or "piez" to follow piezometer
 
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz,_dy,_dz;
@@ -45,6 +45,8 @@ class GrainSizeEvolution
     PetscScalar           _c; // geometric constant
     std::vector<double>   _AVals,_ADepths,_QRVals,_QRDepths,_pVals,_pDepths,_fVals,_fDepths,_gammaVals,_gammaDepths;
     std::vector<double>   _dVals,_dDepths; // for initialization
+    std::vector<double>   _piez_AVals,_piez_ADepths,_piez_nVals,_piez_nDepths; // optional piezometer parameters, d = A * sdev^n
+    Vec                   _piez_A,_piez_n;
 
     Vec          _d; // grain size
     Vec          _d_t; // rate of grain size evolution
@@ -84,6 +86,9 @@ class GrainSizeEvolution
 
     // for implicit time stepping
     PetscErrorCode be(Vec& grainSizeNew,const Vec& grainSizePrev,const PetscScalar time,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp,const PetscScalar dt);
+
+    // compute grain size based on piezometric relation
+    PetscErrorCode computeGrainSizeFromPiez(const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
 
     // file I/O
     PetscErrorCode view(const double totRunTime);
