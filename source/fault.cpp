@@ -153,6 +153,7 @@ PetscErrorCode Fault::loadCheckpoint()
   ierr = loadVecFromInputFile(_sNEff,_outputDir + "chkpt_","sNEff"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_psi,_outputDir + "chkpt_","psi"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_slip,_outputDir + "chkpt_","slip"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_slipVel,_outputDir + "chkpt_","slipVel"); CHKERRQ(ierr);
 
   // load shear stress: pre-stress, quasistatic, and full
   ierr = loadVecFromInputFile(_tauQSP,_outputDir + "chkpt_","tauQS"); CHKERRQ(ierr);
