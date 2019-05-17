@@ -1049,7 +1049,7 @@ PetscErrorCode SbpOps_m_varGrid::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &
   double startTime = MPI_Wtime();
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting function setRhs in sbpOps_m_varGrid.cpp.\n");CHKERRQ(ierr);
 #endif
 
   if (_D2type.compare("yz")==0) {
@@ -1075,7 +1075,7 @@ PetscErrorCode SbpOps_m_varGrid::setRhs(Vec&rhs,Vec &bcL,Vec &bcR,Vec &bcT,Vec &
   }
 
 #if VERBOSE >1
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_fc.cpp.\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending function setRhs in sbpOps_m_varGrid.cpp.\n");CHKERRQ(ierr);
 #endif
 
   _runTime += MPI_Wtime() - startTime;

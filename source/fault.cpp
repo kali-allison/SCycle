@@ -1230,10 +1230,6 @@ PetscErrorCode Fault_fd::initiateIntegrand(const PetscScalar time,map<string,Vec
   VecCopy(_slip,varSlip);
   varEx["slip"] = varSlip;
 
-  // free memory
-  VecDestroy(&varPsi);
-  VecDestroy(&varSlip);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

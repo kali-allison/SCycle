@@ -15,7 +15,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _ay(NULL),_Fhat(NULL),_alphay(NULL),
   _inDynamic(false),_allowed(false), _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
   _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),_u0(NULL),
-  _timeIntegrator("RK32"),_timeControlType("PID"),
+  _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_maxStepCount(1e8),
   _initTime(0),_currTime(0),_maxTime(1e15),
   _minDeltaT(1e-3),_maxDeltaT(1e10),
@@ -43,10 +43,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   // initiate momentum balance equation
   _material = new PowerLaw(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
-  if ( _thermalCoupling.compare("no")!=0 ) {
-    _he = new HeatEquation(D); // heat equation
-  }
-  else { _he = NULL; }
+  _he = new HeatEquation(D); // heat equation
   if (_thermalCoupling.compare("coupled")==0) { VecCopy(_he->_T,_material->_T); }
 
   _body2fault = &(D._scatters["body2L"]);
@@ -60,12 +57,12 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   }
 
   // pressure diffusion equation
-  if (_hydraulicCoupling.compare("no")!=0) {
-    _p = new PressureEq(D);
-  }
-  if (_hydraulicCoupling.compare("coupled")==0) {
-    _fault_qd->setSNEff(_p->_p);
-  }
+  if (_hydraulicCoupling.compare("no")!=0) { _p = new PressureEq(D); }
+  if (_hydraulicCoupling.compare("coupled")==0) { _fault_qd->setSNEff(_p->_p); }
+
+  // grain size distribution
+  //~ if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist = new GrainSizeEvolution(D); }
+  //~ if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_d, _material->_grainSize); }
 
   computePenaltyVectors();
   computeTimeStep(); // compute fully dynamic time step
@@ -104,7 +101,7 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
     VecDestroy(&it->second);
   }
 
-  { // destroy viewers for steady state iteration
+  { // destroy viewers
     map<string,std::pair<PetscViewer,string> >::iterator it;
     for (it = _viewers.begin(); it!=_viewers.end(); it++ ) {
       PetscViewerDestroy(& (_viewers[it->first].first) );
@@ -117,7 +114,6 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
   PetscViewerDestroy(&_regime1DV);
   PetscViewerDestroy(&_regime2DV);
   VecDestroy(&_u0);
-  VecDestroy(&_Fhat);
   VecDestroy(&_ay);
 
 
@@ -129,11 +125,6 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
   delete _he;          _he = NULL;
   delete _p;           _p = NULL;
 
-  VecDestroy(&_varSS["Temp"]);
-  VecDestroy(&_varSS["gVxy_t"]);
-  VecDestroy(&_varSS["gVxz_t"]);
-  VecDestroy(&_varSS["tau"]);
-  VecDestroy(&_varSS["v"]);
   VecDestroy(&_forcingTerm);
 
   #if VERBOSE > 1
@@ -522,6 +513,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
   VecCopy(_material->_bcL,slip);
   VecScale(slip,_faultTypeScale);
   _varQSEx["slip"] = slip;
+  VecCopy(slip,_fault_qd->_slip);
 
   if (_guessSteadyStateICs) { assert(0); } // doesn't solve for steady state tau
 
@@ -537,7 +529,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
   if (_hydraulicCoupling.compare("no")!=0 ) {
      _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
   }
-
 
 
   // initiate integrand for fully dynamic:
@@ -558,27 +549,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
   VecDuplicate(_material->_u, &_u0); VecSet(_u0,0.0);
 
   // if solving the heat equation, add temperature to varFD
-  if (_thermalCoupling.compare("no")!=0 ) { VecDuplicate(_varIm["Temp"], &_varFD["Temp"]); VecCopy(_varIm["Temp"], _varFD["Temp"]); }
+  if (_thermalCoupling.compare("no")!=0 ) {
+    VecDuplicate(_varIm["Temp"], &_varFD["Temp"]);
+    VecCopy(_varIm["Temp"], _varFD["Temp"]);
+  }
 
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]);
     VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
-
-  // compute Fhat = A*uPrev - rhs - viscSource
-  //~ _material->setRHS();
-  //~ Mat A; _material->_sbp->getA(A);
-  //~ VecDuplicate(_material->_u, &_Fhat);
-  //~ MatMult(A, _material->_u, _Fhat);
-  // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
-  //~ Vec viscSource;
-  //~ ierr = VecDuplicate(_material->_gVxy,&viscSource);CHKERRQ(ierr);
-  //~ ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  //~ ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gVxy,_material->_gVxz); CHKERRQ(ierr);
-  //~ ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
-  //~ VecDestroy(&viscSource);
-  //~ VecAXPY(_Fhat, -1, _material->_rhs);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -871,15 +851,6 @@ double startTime_fd = MPI_Wtime();
 _dynTime += MPI_Wtime() - startTime_fd;
   }
 
-  // if start with fully dynamic phase
-  //~ {
-//~ double startTime_fd = MPI_Wtime();
-    //~ _allowed = false;
-    //~ _inDynamic = true;
-    //~ integrate_fd();
-//~ _dynTime += MPI_Wtime() - startTime_fd;
-  //~ }
-
   // for all cycles after 1st cycle
   _cycleCount++;
   while (_cycleCount < _maxNumCycles && _stepCount <= _maxStepCount && _currTime <= _maxTime) {
@@ -1075,18 +1046,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
   VecCopy(_material->_u,_varFDPrev["u"]);
   if (_thermalCoupling.compare("no")!=0 ) { VecCopy(_varIm["Temp"], _varFDPrev["Temp"]); } // if solving the heat equation
 
-  // compute Fhat = A*uPrev - rhs - viscSource
-  //~ Mat A; _material->_sbp->getA(A);
-  //~ MatMult(A, _material->_u, _Fhat);
-  // compute source terms to rhs: d/dy(mu*gVxy) + d/dz(mu*gVxz)
-  //~ Vec viscSource;
-  //~ ierr = VecDuplicate(_material->_gVxy,&viscSource);CHKERRQ(ierr);
-  //~ ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  //~ ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gVxy,_material->_gVxz); CHKERRQ(ierr);
-  //~ ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
-  //~ VecDestroy(&viscSource);
-  //~ VecAXPY(_Fhat, -1, _material->_rhs);
-
   // take 1 quasidynamic time step to compute variables at time n
   _inDynamic = 0;
   integrate_singleQDTimeStep();
@@ -1228,7 +1187,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
   ierr = _material->getStresses(sxy,sxz,sdev);
-  //~ ierr = _fault_qd->setTauQS(sxy); CHKERRQ(ierr); // new
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_qd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
@@ -1413,8 +1371,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
   ierr = _fault_fd->d_dt(time,_deltaT,varNext,var,varPrev);CHKERRQ(ierr);
   ierr = VecScatterBegin(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _fault_fd->_u, varNext["u"], INSERT_VALUES, SCATTER_REVERSE); CHKERRQ(ierr);
-  //~ ierr = VecScatterBegin(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-  //~ ierr = VecScatterEnd(*_body2fault, _Fhat, varNext["u"], ADD_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
 
   // compute stresses and effective viscosity
   VecCopy(varNext.find("u")->second, _material->_u);
@@ -1460,7 +1416,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   Vec viscSource;
   ierr = VecDuplicate(_material->_gVxy,&viscSource);CHKERRQ(ierr);
   ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gVxy,_material->_gVxz); CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource); CHKERRQ(ierr);
 
   _material->setRHS();
   ierr = VecAXPY(_material->_rhs,1.0,viscSource); CHKERRQ(ierr);
@@ -1479,9 +1435,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveMomentumBalance(const PetscScalar
   ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
 
   // compute viscous strain rates
-  Vec gVxy = varEx.find("gVxy")->second;
-  Vec gVxz = varEx.find("gVxz")->second;
-  ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  ierr = _material->computeViscStrainRates(time); CHKERRQ(ierr);
+  VecCopy(_material->_dgVxy,dvarEx["gVxy"]);
+  VecCopy(_material->_dgVxz,dvarEx["gVxz"]);
 
   return ierr;
 }
@@ -1504,7 +1460,6 @@ double startPropagation = MPI_Wtime();
   VecDuplicate(*_y, &temp);
   Mat A; _material->_sbp->getA(A);
   ierr = MatMult(A, var.find("u")->second, temp);
-  //~ ierr = VecAXPY(temp, 1.0, _Fhat); // !!! Fhat term
   ierr = _material->_sbp->Hinv(temp, D2u);
   VecDestroy(&temp);
   if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {

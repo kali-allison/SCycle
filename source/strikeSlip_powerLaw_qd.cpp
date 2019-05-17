@@ -659,7 +659,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
     _material->updateGrainSize(varEx.find("grainSize")->second);
   }
-  else if ( _grainDist->_timeIntegrationType == "piez" && _grainSizeEvCoupling == "coupled") {
+  else if ( _grainSizeEvCoupling == "coupled" && _grainDist->_timeIntegrationType == "piez" ) {
     _material->updateGrainSize(_grainDist->_d);
   }
 
@@ -672,7 +672,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if ( varEx.find("grainSize") != varEx.end() ) {
     _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
   }
-  else if ( _grainDist->_timeIntegrationType == "piez") {
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_timeIntegrationType == "piez") {
     _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
 
@@ -802,7 +802,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
   Vec viscSource;
   ierr = VecDuplicate(_material->_gVxy,&viscSource);CHKERRQ(ierr);
   ierr = VecSet(viscSource,0.0);CHKERRQ(ierr);
-  ierr = _material->computeViscStrainSourceTerms(viscSource,_material->_gVxy,_material->_gVxz); CHKERRQ(ierr);
+  ierr = _material->computeViscStrainSourceTerms(viscSource); CHKERRQ(ierr);
 
   // set up rhs vector
   //~ if (_isMMS) { _material->setMMSBoundaryConditions(time); }
@@ -824,9 +824,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveMomentumBalance(const PetscScalar ti
   ierr = _material->computeViscosity(_material->_effViscCap); CHKERRQ(ierr);
 
   // compute viscous strain rates
-  Vec gVxy = varEx.find("gVxy")->second;
-  Vec gVxz = varEx.find("gVxz")->second;
-  ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  //~ Vec gVxy = varEx.find("gVxy")->second;
+  //~ Vec gVxz = varEx.find("gVxz")->second;
+  //~ ierr = _material->computeViscStrainRates(time,gVxy,gVxz,dvarEx["gVxy"],dvarEx["gVxz"]); CHKERRQ(ierr);
+  ierr = _material->computeViscStrainRates(time); CHKERRQ(ierr);
+  VecCopy(_material->_dgVxy,dvarEx["gVxy"]);
+  VecCopy(_material->_dgVxz,dvarEx["gVxz"]);
   //~ if (_isMMS) { _material->addViscStrainRates_MMSSource(time,dvarEx["gVxy"],dvarEx["gVxz"]); }
 
   return ierr;

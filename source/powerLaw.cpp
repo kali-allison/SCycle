@@ -1163,7 +1163,7 @@ PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "LinearElastic::setupKSP";
+    string funcName = "PowerLaw::setupKSP";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -1346,7 +1346,7 @@ PetscErrorCode PowerLaw::setMMSInitialConditions(const PetscScalar time)
   ierr = VecDuplicate(_u,&uSource); CHKERRQ(ierr);
   ierr = VecDuplicate(_u,&HxuSource); CHKERRQ(ierr);
 
-  ierr = computeViscStrainSourceTerms(viscSource,_gVxy,_gVxz);CHKERRQ(ierr);
+  ierr = computeViscStrainSourceTerms(viscSource);CHKERRQ(ierr);
   if (_Nz == 1) { mapToVec(viscSourceMMS,zzmms_gSource1D,*_y,time); }
   else { mapToVec(viscSourceMMS,zzmms_gSource,*_y,*_z,time); }
   ierr = _sbp->H(viscSourceMMS,HxviscSourceMMS); CHKERRQ(ierr);
@@ -1648,7 +1648,7 @@ PetscErrorCode PowerLaw::changeBCTypes(string bcRTtype,string bcTTtype,string bc
 }
 
 
-PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gxz)
+PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1667,7 +1667,7 @@ PetscErrorCode PowerLaw::computeViscStrainSourceTerms(Vec& out,Vec& gxy, Vec& gx
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
       CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 
@@ -1700,17 +1700,16 @@ PetscErrorCode PowerLaw::computeViscosity(const PetscScalar viscCap)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 
-PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time,const Vec& gVxy, const Vec& gVxz,
-  Vec& gVxy_t, Vec& gVxz_t)
+PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time)
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::computeViscStrainRates";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1720,13 +1719,13 @@ PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time,const Vec
   ierr = computeViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
-  VecPointwiseMult(gVxy_t,_mu,SAT);
-  VecAXPY(gVxy_t,1.0,_sxy);
-  VecPointwiseDivide(gVxy_t,gVxy_t,_effVisc);
+  VecPointwiseMult(_dgVxy,_mu,SAT);
+  VecAXPY(_dgVxy,1.0,_sxy);
+  VecPointwiseDivide(_dgVxy,_dgVxy,_effVisc);
 
   if (_Nz > 1) {
-    VecCopy(_sxz,gVxz_t);
-    VecPointwiseDivide(gVxz_t,gVxz_t,_effVisc);
+    VecCopy(_sxz,_dgVxz);
+    VecPointwiseDivide(_dgVxz,_dgVxz,_effVisc);
   }
 
   VecDestroy(&SAT);
@@ -1736,10 +1735,10 @@ PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time,const Vec
 
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 
@@ -1795,7 +1794,7 @@ PetscErrorCode PowerLaw::computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, V
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
       CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 // computes gTxy and gTxz
@@ -1819,7 +1818,7 @@ PetscErrorCode PowerLaw::computeTotalStrains()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 // computes sigmaxy, sigmaxz, and sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
@@ -1853,7 +1852,7 @@ PetscErrorCode PowerLaw::computeStresses()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 // computes sigmadev = sqrt(sigmaxy^2 + sigmaxz^2)
@@ -1885,7 +1884,7 @@ PetscErrorCode PowerLaw::computeSDev()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 // computes dgdev = sqrt(dgxy^2 + dgxz^2)
@@ -1894,7 +1893,7 @@ PetscErrorCode PowerLaw::computeDevViscStrainRates()
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::computeDevViscStrainRates";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1941,10 +1940,10 @@ PetscErrorCode PowerLaw::computeDevViscStrainRates()
   }
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-  return ierr = 0;
+  return ierr;
 }
 
 PetscErrorCode PowerLaw::getStresses(Vec& sxy, Vec& sxz, Vec& sdev)

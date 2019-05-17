@@ -216,8 +216,8 @@ class PowerLaw
     PetscErrorCode updateTemperature(const Vec& T);
     PetscErrorCode updateGrainSize(const Vec& grainSize);
     PetscErrorCode computeMaxTimeStep(PetscScalar& maxTimeStep); // limited by Maxwell time
-    PetscErrorCode computeViscStrainSourceTerms(Vec& source,Vec& gxy, Vec& gxz);
-    PetscErrorCode computeViscStrainRates(const PetscScalar time,const Vec& gVxy,const Vec& gVxz,Vec& gVxy_t,Vec& gVxz_t);
+    PetscErrorCode computeViscStrainSourceTerms(Vec& source);
+    PetscErrorCode computeViscStrainRates(const PetscScalar time);
     PetscErrorCode computeViscousStrainRateSAT(Vec &u, Vec &gL, Vec &gR, Vec &out);
     PetscErrorCode computeTotalStrains();
     PetscErrorCode computeStresses();
