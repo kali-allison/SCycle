@@ -124,7 +124,7 @@ PetscErrorCode Fault::loadFieldsFromFiles()
 
   // load shear stress: pre-stress, quasistatic, and full
   ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_prestress,_D->_inputDir,"prestress"); CHKERRQ(ierr);
   VecAXPY(_tauQSP,1.0,_prestress);
   VecCopy(_tauQSP,_tauP);
@@ -1078,7 +1078,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   loadSettings(_inputFile);
   setFields();
   loadFieldsFromFiles();
-  loadVecFromInputFile(_tau0,D._inputDir,"tau0");
+  loadVecFromInputFile(_tau0,_D->_inputDir,"prestress");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1169,37 +1169,14 @@ PetscErrorCode Fault_fd::setFields() {
   #endif
 
   // allocate memory for Vec members
-  VecDuplicate(_tauP,&_tau0);
-  PetscObjectSetName((PetscObject) _tau0, "tau0");
-  VecSet(_tau0, 0.0);
-
-  VecDuplicate(_tauP,&_Phi);
-  PetscObjectSetName((PetscObject) _Phi, "Phi");
-  VecSet(_Phi, 0.0);
-
-  VecDuplicate(_tauP,&_an);
-  PetscObjectSetName((PetscObject) _an, "an");
-  VecSet(_an, 0.0);
-
-  VecDuplicate(_tauP,&_fricPen);
-  PetscObjectSetName((PetscObject) _fricPen, "constraintsFactor");
-  VecSet(_fricPen, 0.0);
-
-  VecDuplicate(_tauP,&_u);
-  PetscObjectSetName((PetscObject) _u, "uFault");
-  VecSet(_u,0.0);
-
-  VecDuplicate(_tauP,&_uPrev);
-  PetscObjectSetName((PetscObject) _uPrev, "uPrevFault");
-  VecSet(_uPrev,0.0);
-
-  VecDuplicate(_tauP,&_d2u);
-  PetscObjectSetName((PetscObject) _d2u, "uPrevFault");
-  VecSet(_d2u,0.0);
-
-  VecDuplicate(_tauP,&_alphay);
-  PetscObjectSetName((PetscObject) _alphay, "alphay");
-  VecSet(_alphay, 17.0/48.0 / (_N-1));
+  VecDuplicate(_tauP,&_tau0); VecSet(_tau0, 0.0);
+  VecDuplicate(_tauP,&_Phi); VecSet(_Phi, 0.0);
+  VecDuplicate(_tauP,&_an); VecSet(_an, 0.0);
+  VecDuplicate(_tauP,&_fricPen); VecSet(_fricPen, 0.0);
+  VecDuplicate(_tauP,&_u); VecSet(_u,0.0);
+  VecDuplicate(_tauP,&_uPrev); VecSet(_uPrev,0.0);
+  VecDuplicate(_tauP,&_d2u); VecSet(_d2u,0.0);
+  VecDuplicate(_tauP,&_alphay); VecSet(_alphay, 17.0/48.0 / (_N-1));
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1399,18 +1376,10 @@ PetscErrorCode Fault_fd::updatePrestress(const PetscScalar currT)
   PetscScalar exists = 1.0;
 
   // set timeOffset based on specified time mode
-  if(_timeMode.compare("Gaussian") == 0){
-    timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2));
-  }
-  else if (_timeMode.compare("Dirac") == 0 && currT > 0){
-    timeOffset = 0.0;
-  }
-  else if (_timeMode.compare("Heaviside") == 0){
-    timeOffset = 1.0;
-  }
-  else if (_timeMode.compare("None") == 0){
-    exists = 0.0;
-  }
+  if(_timeMode.compare("Gaussian") == 0){ timeOffset = exp(-pow((currT - _tCenterTau), 2) / pow(_tStdTau, 2)); }
+  else if (_timeMode.compare("Dirac") == 0 && currT > 0){ timeOffset = 0.0; }
+  else if (_timeMode.compare("Heaviside") == 0){ timeOffset = 1.0; }
+  else if (_timeMode.compare("None") == 0){ exists = 0.0; }
 
   // update tau0 prestress vector
   for (Ii = IBegin; Ii < IEnd; Ii++){
@@ -1509,7 +1478,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, m
   VecWAXPY(_slip,_faultTypeScale,_u,_slip0); // slip = 2*u + slip0
   VecCopy(_slip,varNext["slip"]);
 
-  // compute frictional strength of fault based on
+  // compute frictional strength of fault
   strength_psi_Vec(_strength, _psi, _slipVel, _a, _sNEff, _v0);
 
   #if VERBOSE > 1

@@ -8,7 +8,7 @@ using namespace std;
 StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
     _guessSteadyStateICs(0.),_isMMS(D._isMMS),
-    _thermalCoupling("no"),_grainSizeEvCoupling("no"),
+    _thermalCoupling("no"),_grainSizeEvCoupling("no"),_grainSizeEvCouplingSS("no"),
     _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
     _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
     _vL(1e-9),_faultTypeScale(2.0),
@@ -319,10 +319,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
-    //~ std::string saveWDiffCreep = _material->_wDiffCreep;
-    //~ _material->_wDiffCreep = "no"; // don't include diffusion creep when computing steady-state
     solveSS(0,_outputDir);
-    //~ _material->_wDiffCreep = saveWDiffCreep;
+    writeSS(0,_outputDir);
   }
 
   _material->initiateIntegrand(_initTime,_varEx);
@@ -393,9 +391,7 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-    //~ if (_stepCount > 5) { stopIntegration = 1; } // basic test
-    //~ if (time >= 1e11) { stopIntegration = 1; } // converges for all tested variations
-    if (time >= 1e11) { stopIntegration = 1; }
+    if (time >= 3e10) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -653,15 +649,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
   }
-
-
-  // update grain size in material
-  if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
-    _material->updateGrainSize(varEx.find("grainSize")->second);
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->updateFields(time,varEx);
   }
-  else if ( _grainSizeEvCoupling == "coupled" && _grainDist->_timeIntegrationType == "piez" ) {
-    _material->updateGrainSize(_grainDist->_d);
-  }
+  if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
+
 
   // 2. compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
@@ -669,11 +661,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx);
   }
 
-  if ( varEx.find("grainSize") != varEx.end() ) {
+  // compute grain size rate, or value from either piezometric relation or steady-state
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
     _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
   }
-  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_timeIntegrationType == "piez") {
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
     _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  }
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
 
 
@@ -732,13 +728,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _material->updateTemperature(varImo.find("Temp")->second);
   }
 
-  //~ // update grain size in material
-  //~ if ( varEx.find("grainSize") != varEx.end() && _grainSizeEvCoupling.compare("coupled")==0) {
-    //~ _material->updateGrainSize(varEx.find("grainSize")->second);
-  //~ }
-  //~ if ( varIm.find("grainSize") != varIm.end() && _grainSizeEvCoupling.compare("coupled")==0) {
-    //~ _material->updateGrainSize(varIm.find("grainSize")->second);
-  //~ }
+  // update grain size in material
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->updateFields(time,varEx);
+  }
+  if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
 
   // update effective normal stress in fault using pore pressure
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
@@ -751,9 +745,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
-  // if ( varEx.find("grainSize") != varEx.end() ) {
-  //   _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  // }
+  // compute grain size rate, or value from either piezometric relation or steady-state
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  }
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
+    _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  }
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  }
 
 
   // update fields on fault from other classes
@@ -770,9 +771,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   }
 
   // 3. implicitly integrated variables
-  if ( varIm.find("grainSize") != varIm.end() ) {
-    _grainDist->be(varIm["grainSize"],varImo.find("grainSize")->second,time,_material->_sdev,_material->_dgVdev_disl,_material->_T,dt);
-  }
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
@@ -1241,7 +1239,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "gVxz", _varSS["gVxz"], outputDir + "SS_gxz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
-
 
     // heat equation
     ierr = io_initiateWriteAppend(_viewers, "Temp", _he->_T, outputDir + "SS_Temp"); CHKERRQ(ierr);

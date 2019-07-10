@@ -7,9 +7,6 @@
 #include <vector>
 #include "genFuncs.hpp"
 #include "domain.hpp"
-#include "rootFinderContext.hpp"
-
-class RootFinder;
 
 using namespace std;
 
@@ -32,7 +29,7 @@ class GrainSizeEvolution
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
     std::string          _outputDir;  // output data
-    std::string          _timeIntegrationType;  // "explicit" or "implicit" time stepping, or "piez" to follow piezometer
+    std::string          _grainSizeEvType;  // "explicit" or "implicit" time stepping, or "piez" to follow piezometer
 
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz,_dy,_dz;
@@ -60,10 +57,6 @@ class GrainSizeEvolution
     //~ std::map <string,PetscViewer>  _viewers;
     std::map <string,std::pair<PetscViewer,string> >  _viewers;
 
-    // run time analysis
-    double       _nonlinearSolveTime;
-
-
 
     GrainSizeEvolution(Domain& D);
     ~GrainSizeEvolution();
@@ -84,9 +77,6 @@ class GrainSizeEvolution
     PetscErrorCode updateFields(const PetscScalar time,const map<string,Vec>& varEx);
     PetscErrorCode d_dt(Vec& grainSizeEv_t,const Vec& grainSize,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
 
-    // for implicit time stepping
-    PetscErrorCode be(Vec& grainSizeNew,const Vec& grainSizePrev,const PetscScalar time,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp,const PetscScalar dt);
-
     // compute grain size based on piezometric relation
     PetscErrorCode computeGrainSizeFromPiez(const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp);
 
@@ -96,33 +86,6 @@ class GrainSizeEvolution
     PetscErrorCode writeContext(const std::string outputDir);
     PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
 
-};
-
-// struct for root-finding pieces
-
-// computing the slip velocity for the quasi-dynamic problem
-struct AustinEvans2007 : public RootFinderContext
-{
-  // shallow copies of contextual fields
-  const PetscInt        _N; // length of the arrays
-  const PetscScalar     _deltaT; // (s) time step
-  const PetscScalar     *_dprev; // previous grain size
-  const PetscScalar     *_A, *_QR, *_p, *_T; // static grain growth parameters
-  const PetscScalar     *_f, *_sdev, *_dgdev; // mechanical work done by dislocation creep that reduces grain size
-  const PetscScalar     *_gamma; // (GJ/m^2) specific surface energy
-  const PetscScalar     _c; // geometric constant
-
-
-  // constructor and destructor
-  AustinEvans2007(const PetscInt N,const PetscScalar deltaT,const PetscScalar* dprev,const PetscScalar* A,const PetscScalar* QR,const PetscScalar* p,const PetscScalar* T,const PetscScalar* f,const PetscScalar* sdev,const PetscScalar* dgdev,const PetscScalar* gamma,const PetscScalar& c);
-  //~ ~AustinEvans2007(); // use default destructor, as this class consists entirely of shallow copies
-
-  // command to perform root-finding process, once contextual variables have been set
-  PetscErrorCode computeGrainSize(PetscScalar* grainSize, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts);
-
-  // function that matches root finder template
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar* out);
-  PetscErrorCode getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar *out,PetscScalar *J);
 };
 
 #include "rootFinder.hpp"

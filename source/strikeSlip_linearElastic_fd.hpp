@@ -67,8 +67,6 @@ private:
   PetscInt          _stride1D,_stride2D; // stride
   PetscScalar       _initTime,_currTime,_maxTime;
   int               _stepCount;
-  PetscScalar       _atol;
-  PetscScalar       _yCenterU, _zCenterU, _yStdU, _zStdU, _ampU;
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
   //viewers

@@ -13,8 +13,7 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _initialConditions("u"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
-  _stepCount(0),_atol(1e-8),
-  _yCenterU(0.3), _zCenterU(0.8), _yStdU(5.0), _zStdU(5.0), _ampU(10.0),
+  _stepCount(0),
   _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
   _startTime(MPI_Wtime()),_miscTime(0), _propagateTime(0),
@@ -106,13 +105,14 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
     var = line.substr(0,pos);
     rhs = "";
     if (line.length() > (pos + _delim.length())) {
-      rhs = rhs;
+      rhs = line.substr(pos+_delim.length(),line.npos);
     }
     rhsFull = rhs; // everything after _delim
 
     // interpret everything after the appearance of a space on the line as a comment
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
+
 
     if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
     else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
@@ -122,13 +122,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::loadSettings(const char *file)
     else if (var.compare("deltaT")==0) { _deltaT = atof( rhs.c_str() ); }
     else if (var.compare("CFL")==0) { _CFL = atof( rhs.c_str() ); }
 
-    else if (var.compare("center_y")==0) { _yCenterU = atof( rhs.c_str() ); }
-    else if (var.compare("center_z")==0) { _zCenterU = atof( rhs.c_str() ); }
-    else if (var.compare("std_y")==0) { _yStdU = atof( rhs.c_str() ); }
-    else if (var.compare("std_z")==0) { _zStdU = atof( rhs.c_str() ); }
-    else if (var.compare("amp_U")==0) { _ampU = atof( rhs.c_str() ); }
-
-    else if (var.compare("atol")==0) { _atol = atof( rhs.c_str() ); }
     else if (var.compare("initialConditions")==0) { _initialConditions = rhs.c_str(); }
     else if (var.compare("timeIntInds")==0) { loadVectorFromInputFile(rhsFull,_timeIntInds); }
 
@@ -157,13 +150,9 @@ PetscErrorCode strikeSlip_linearElastic_fd::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
-
   assert(_maxStepCount >= 0);
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
-  // assert(_stride1D >= 1);
-  // assert(_stride2D >= 1);
-  assert(_atol >= 1e-14);
 
   // check boundary condition types for momentum balance equation
   assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("outGoingCharacteristics")==0);
@@ -191,20 +180,7 @@ PetscErrorCode strikeSlip_linearElastic_fd::initiateIntegrand()
 
   _fault->initiateIntegrand(_initTime,_var);
 
-  // TODO move this into odesolver wave eq
-  //~ VecDuplicate(_var["psi"],&_varPrev["psi"]); VecCopy(_var["psi"],_varPrev["psi"]);
-  //~ VecDuplicate(_var["psi"],&_varNext["psi"]); VecCopy(_var["psi"],_varNext["psi"]);
-  //~ VecDuplicate(_var["slip"],&_varPrev["slip"]); VecCopy(_var["slip"],_varPrev["slip"]);
-  //~ VecDuplicate(_var["slip"],&_varNext["slip"]); VecCopy(_var["slip"],_varNext["slip"]);
-
-
-  //~ VecDuplicate(*_z, &_var["uPrev"]); VecSet(_var["uPrev"],0.); // TODO remove this
   VecDuplicate(*_z, &_var["u"]); VecSet(_var["u"], 0.0);
-
-  //~ VecDuplicate(*_z, &_varPrev["u"]); VecSet(_varPrev["u"], 0.0);
-
-  //~ VecDuplicate(*_z, &_varNext["u"]); VecSet(_varNext["u"], 0.0); // TODO remove this
-
 
 
   #if VERBOSE > 1
@@ -354,15 +330,12 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeContext()
 
   // time integration settings
   ierr = PetscViewerASCIIPrintf(viewer,"timeIntegrator = %s\n",_timeIntegrator.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeControlType = %s\n",_timeControlType.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride1D = %i\n",_stride1D);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"stride2D = %i\n",_stride1D);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxStepCount = %i\n",_maxStepCount);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"initTime = %.15e # (s)\n",_initTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"maxTime = %.15e # (s)\n",_maxTime);CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"deltaT = %.15e # (s)\n",_deltaT);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"atol = %.15e\n",_atol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"timeIntInds = %s\n",vector2str(_timeIntInds).c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
@@ -431,7 +404,6 @@ PetscErrorCode strikeSlip_linearElastic_fd::d_dt(const PetscScalar time, const P
   ierr = VecScatterBegin(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault->_tauP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   VecAXPY(_fault->_tauP, 1.0, _fault->_prestress);
-  VecAXPY(_fault->_tauP, 1.0, _fault->_tau0);
   VecCopy(_fault->_tauP,_fault->_tauQSP); // keep quasi-static shear stress updated as well
 
   #if VERBOSE > 1

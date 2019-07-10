@@ -605,7 +605,7 @@ double startTime = MPI_Wtime();
   _material->computeMaxTimeStep(maxDeltaT_momBal);
   maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-      _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+    _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
   else {
     _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);

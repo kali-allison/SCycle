@@ -7,7 +7,7 @@
 // power-law rheology class
 
 GrainSizeEvolution::GrainSizeEvolution(Domain& D)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_timeIntegrationType("explicit"),
+: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_grainSizeEvType("explicit"),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_piez_A(NULL),_piez_n(NULL),_d(NULL),_d_t(NULL)
@@ -116,7 +116,7 @@ PetscErrorCode GrainSizeEvolution::loadSettings(const char *file)
     else if (var.compare("grainSizeEv_grainSizeVals")==0) { loadVectorFromInputFile(rhsFull,_dVals); }
     else if (var.compare("grainSizeEv_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_dDepths); }
 
-    if (var.compare("grainSizeEv_timeIntegrationType")==0) { _timeIntegrationType = rhs.c_str(); }
+    if (var.compare("grainSizeEv_grainSizeEvType")==0) { _grainSizeEvType = rhs.c_str(); }
 
   }
 
@@ -160,10 +160,9 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_piez_AVals.size() == _piez_ADepths.size() );
     assert(_piez_nVals.size() == _piez_nDepths.size() );
 
-    assert(_timeIntegrationType.compare("explicit")==0 ||
-      _timeIntegrationType.compare("implicit")==0 ||
-      _timeIntegrationType.compare("piez")==0 );
-
+    assert(_grainSizeEvType.compare("transient")==0 ||
+      _grainSizeEvType.compare("steadyState")==0 ||
+      _grainSizeEvType.compare("piezometer")==0 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -215,7 +214,7 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
   VecSet(_d_t,0.);
 
   // if user provided piezometric relation
-  if (_timeIntegrationType == "piez" && _piez_ADepths.size()>0 && _piez_nDepths.size()>0) {
+  if (_grainSizeEvType == "piezometer") {
     VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0);
     VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0);
     ierr = setVec(_piez_A,*_z,_piez_AVals,_piez_ADepths);                                CHKERRQ(ierr);
@@ -248,6 +247,11 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
 
+  if (_grainSizeEvType == "piezometer") {
+    ierr = loadVecFromInputFile(_piez_A,_inputDir,"grainSizeEv_piez_A"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_piez_n,_inputDir,"grainSizeEv_piez_n"); CHKERRQ(ierr);
+  }
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
@@ -265,15 +269,12 @@ PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<
   #endif
 
   // add deep copy of grain size to integrated variables, stored in _var
-  if ( _timeIntegrationType.compare("explicit")==0) {
+  if ( _grainSizeEvType.compare("transient")==0) {
     if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_d,varEx["grainSize"]); }
     else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varEx["grainSize"] = var; }
   }
-  else if ( _timeIntegrationType.compare("implicit")==0) {
-    if (varIm.find("grainSize") != varIm.end() ) { VecCopy(_d,varIm["grainSize"]); }
-    else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varIm["grainSize"] = var; }
-  }
-  // if _timeIntegrationType == "piez" then do not add grain size to varEx or varIm
+
+  // if _grainSizeEvType == "piezometer" then do not add grain size to varEx
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -362,64 +363,6 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
 }
 
 
-// implicit time stepping with backward Euler
-PetscErrorCode GrainSizeEvolution::be(Vec& grainSizeNew,const Vec& grainSizePrev,const PetscScalar time,const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp,const PetscScalar dt)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "GrainSizeEvolution::be";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-    CHKERRQ(ierr);
-  #endif
-
-  double startTime = MPI_Wtime();
-
-
-  const PetscScalar *A,*QR,*p,*T,*f,*gamma,*s,*dgdev,*dprev;
-  PetscScalar *dNew;
-  VecGetArrayRead(_A,&A);
-  VecGetArrayRead(_QR,&QR);
-  VecGetArrayRead(_p,&p);
-  VecGetArrayRead(Temp,&T);
-  VecGetArrayRead(_f,&f);
-  VecGetArrayRead(_gamma,&gamma);
-  VecGetArrayRead(sdev,&s);
-  VecGetArrayRead(dgdev_disl,&dgdev);
-  VecGetArrayRead(grainSizePrev,&dprev);
-  VecGetArray(grainSizeNew,&dNew);
-
-  PetscInt Istart, Iend;
-  ierr = VecGetOwnershipRange(_d,&Istart,&Iend);CHKERRQ(ierr);
-  PetscInt N = Iend - Istart;
-
-  PetscScalar rootTol = 1e-13;
-  PetscInt maxNumIts = 1e4;
-  PetscInt rootIts = 0;
-  AustinEvans2007 temp(N, dt, dprev, A,QR,p,T, f,s,dgdev,gamma,_c);
-  ierr = temp.computeGrainSize(dNew, rootTol, rootIts, maxNumIts); CHKERRQ(ierr);
-
-  VecRestoreArrayRead(_A,&A);
-  VecRestoreArrayRead(_QR,&QR);
-  VecRestoreArrayRead(_p,&p);
-  VecRestoreArrayRead(Temp,&T);
-  VecRestoreArrayRead(_f,&f);
-  VecRestoreArrayRead(_gamma,&gamma);
-  VecRestoreArrayRead(sdev,&s);
-  VecRestoreArrayRead(dgdev_disl,&dgdev);
-  VecRestoreArrayRead(grainSizePrev,&dprev);
-  VecRestoreArray(grainSizeNew,&dNew);
-
-  VecCopy(grainSizeNew,_d);
-
-  _nonlinearSolveTime += MPI_Wtime() - startTime;
-
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
-
 // compute grain size based on piezometric relation
 PetscErrorCode GrainSizeEvolution::computeGrainSizeFromPiez(const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
 {
@@ -437,62 +380,25 @@ PetscErrorCode GrainSizeEvolution::computeGrainSizeFromPiez(const Vec& sdev, con
   PetscScalar *d;
   VecGetArray(_d,&d);
 
-  // if user provided piezometric relation
-  if (_piez_ADepths.size()>0 && _piez_nDepths.size()>0) {
-    const PetscScalar *A,*n;
-    VecGetArrayRead(_piez_A,&A);
-    VecGetArrayRead(_piez_n,&n);
-    PetscInt Jj = 0;
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      d[Jj] = A[Jj] * pow(s[Jj],n[Jj]);
+  const PetscScalar *A,*n;
+  VecGetArrayRead(_piez_A,&A);
+  VecGetArrayRead(_piez_n,&n);
 
-      // impose floor and ceiling to grain size
-      d[Jj] = max(d[Jj],1e-7);
-      d[Jj] = min(d[Jj],10.0);
+  PetscInt Jj = 0;
+  for (Ii=Istart;Ii<Iend;Ii++) {
+    d[Jj] = A[Jj] * pow(s[Jj],n[Jj]);
 
-      assert(!isnan(d[Jj]));
-      assert(!isinf(d[Jj]));
+    // impose floor and ceiling to grain size
+    d[Jj] = max(d[Jj],1e-7);
+    d[Jj] = min(d[Jj],10.0);
 
-      Jj++;
-    }
-    VecRestoreArrayRead(_piez_A,&A);
-    VecRestoreArrayRead(_piez_n,&n);
+    assert(!isnan(d[Jj]));
+    assert(!isinf(d[Jj]));
 
+    Jj++;
   }
-  else { // otherwise, construct relation from Austin and Evans (2007)
-    const PetscScalar *A,*B,*p,*T,*f,*g,*dgdev;
-
-    VecGetArrayRead(_A,&A);
-    VecGetArrayRead(_QR,&B);
-    VecGetArrayRead(_p,&p);
-    VecGetArrayRead(Temp,&T);
-    VecGetArrayRead(_f,&f);
-    VecGetArrayRead(_gamma,&g);
-    VecGetArrayRead(dgdev_disl,&dgdev);
-    PetscInt Jj = 0;
-    for (Ii=Istart;Ii<Iend;Ii++) {
-      PetscScalar AA = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]);
-      PetscScalar BB = f[Jj] / (g[Jj] *_c) * dgdev[Jj];
-      PetscScalar a = 1.0 - p[Jj];
-      PetscScalar b = 1.0;
-      PetscScalar c = 2.0;
-
-      d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
-
-      assert(!isnan(d[Jj]));
-      assert(!isinf(d[Jj]));
-
-      Jj++;
-    }
-    VecRestoreArrayRead(_A,&A);
-    VecRestoreArrayRead(_QR,&B);
-    VecRestoreArrayRead(_p,&p);
-    VecRestoreArrayRead(Temp,&T);
-    VecRestoreArrayRead(_f,&f);
-    VecRestoreArrayRead(_gamma,&g);
-    VecRestoreArrayRead(dgdev_disl,&dgdev);
-  }
-
+  VecRestoreArrayRead(_piez_A,&A);
+  VecRestoreArrayRead(_piez_n,&n);
   VecRestoreArrayRead(sdev,&s);
   VecRestoreArray(_d,&d);
 
@@ -510,7 +416,7 @@ PetscErrorCode GrainSizeEvolution::computeGrainSizeFromPiez(const Vec& sdev, con
 
 
 
-// compute steady-state grain size
+// compute steady-state grain size from Austin and Evans (2007)
 PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, const Vec& dgdev_disl, const Vec& Temp)
 {
   PetscErrorCode ierr = 0;
@@ -519,35 +425,36 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-
-  const PetscScalar *A,*B,*p,*T,*f,*g,*s,*dgdev;
-  PetscScalar *d;
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_d,&Istart,&Iend);
+  const PetscScalar *s;
+  VecGetArrayRead(sdev,&s);
+
+  PetscScalar *d;
+  VecGetArray(_d,&d);
+
+
+  const PetscScalar *A,*B,*p,*T,*f,*g,*dgdev;
+
   VecGetArrayRead(_A,&A);
   VecGetArrayRead(_QR,&B);
   VecGetArrayRead(_p,&p);
   VecGetArrayRead(Temp,&T);
   VecGetArrayRead(_f,&f);
   VecGetArrayRead(_gamma,&g);
-  VecGetArrayRead(sdev,&s);
   VecGetArrayRead(dgdev_disl,&dgdev);
-  VecGetArray(_d,&d);
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
-    //~ if (dgdev[Jj] < 1e-20) { continue; }
-    PetscScalar cc = f[Jj] / (g[Jj] *_c);
-    PetscScalar temp = A[Jj]*exp(-B[Jj]/T[Jj]) / (p[Jj]*cc*s[Jj]*dgdev[Jj]);
-    PetscScalar n = 1.0 / (1.0 + p[Jj]);
-    d[Jj] = pow(temp, n); // impose floor on grain size
-    d[Jj] = min(1e0,d[Jj]); // impose ceiling of 1 m
-    d[Jj] = max(1e-7,d[Jj]); // impose floor of 1 um
+    PetscScalar AA = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]);
+    PetscScalar BB = f[Jj] / (g[Jj] *_c) * dgdev[Jj];
+    PetscScalar a = 1.0 - p[Jj];
+    PetscScalar b = 1.0;
+    PetscScalar c = 2.0;
 
-    //~ PetscPrintf(PETSC_COMM_WORLD,"f=%g,g=%g,c=%g,cc=%g\n",f[Jj],g[Jj],_c,cc);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"A=%g,B=%g,T=%g,p=%g,  s=%g,dgdev=%g,  temp = %g\n",A[Jj],B[Jj],T[Jj],p[Jj],s[Jj],dgdev[Jj], temp);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"n = %g\n",n);
-    //~ PetscPrintf(PETSC_COMM_WORLD,"d = %g\n",d[Jj]);
-    //~ assert(0);
+    d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
+
+    assert(!isnan(d[Jj]));
+    assert(!isinf(d[Jj]));
 
     Jj++;
   }
@@ -557,8 +464,8 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
   VecRestoreArrayRead(Temp,&T);
   VecRestoreArrayRead(_f,&f);
   VecRestoreArrayRead(_gamma,&g);
-  VecRestoreArrayRead(sdev,&s);
   VecRestoreArrayRead(dgdev_disl,&dgdev);
+  VecRestoreArrayRead(sdev,&s);
   VecRestoreArray(_d,&d);
 
 
@@ -600,8 +507,6 @@ PetscErrorCode GrainSizeEvolution::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Grain Size Evolution Runtime Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving nonlinear system: (s): %g\n",_nonlinearSolveTime);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_nonlinearSolveTime/totRunTime*100.);CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
   return ierr;
@@ -617,11 +522,29 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
   #endif
 
 
-  ierr = writeVec(_A,outputDir + "grainSizeEv_A");                        CHKERRQ(ierr);
-  ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                      CHKERRQ(ierr);
-  ierr = writeVec(_p,outputDir + "grainSizeEv_p");                        CHKERRQ(ierr);
-  ierr = writeVec(_f,outputDir + "grainSizeEv_f");                        CHKERRQ(ierr);
-  ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");                CHKERRQ(ierr);
+  ierr = writeVec(_A,outputDir + "grainSizeEv_A");                      CHKERRQ(ierr);
+  ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                    CHKERRQ(ierr);
+  ierr = writeVec(_p,outputDir + "grainSizeEv_p");                      CHKERRQ(ierr);
+  ierr = writeVec(_f,outputDir + "grainSizeEv_f");                      CHKERRQ(ierr);
+  ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");              CHKERRQ(ierr);
+
+  if (_grainSizeEvType == "piezometer") {
+    ierr = writeVec(_piez_A,outputDir + "grainSizeEv_piez_A");          CHKERRQ(ierr);
+    ierr = writeVec(_piez_n,outputDir + "grainSizeEv_piez_n");          CHKERRQ(ierr);
+  }
+
+
+  // output scalar fields
+  std::string str = _outputDir + "grainSizeEv_context.txt";
+  PetscViewer    viewer;
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
+  PetscViewerSetType(viewer, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer, str.c_str());
+  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvType = %s\n",_grainSizeEvType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"c = %g\n",_c);CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -658,99 +581,5 @@ PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const Pet
   #endif
   return ierr;
 }
-
-
-//======================================================================
-// Root-finding for Austin and Evans (2007) evolution law
-//======================================================================
-
-// constructor and destructor
-AustinEvans2007::AustinEvans2007(const PetscInt N,const PetscScalar deltaT, const PetscScalar* dprev,const PetscScalar* A,const PetscScalar* QR,const PetscScalar* p,const PetscScalar* T,const PetscScalar* f,const PetscScalar* sdev,const PetscScalar* dgdev,const PetscScalar* gamma,const PetscScalar& c)
-: _N(N),_deltaT(deltaT),_dprev(dprev),_A(A),_QR(QR),_p(p),_T(T),_f(f),_sdev(sdev),_dgdev(dgdev),_gamma(gamma),_c(c)
-{ }
-
-// command to perform root-finding process, once contextual variables have been set
-PetscErrorCode AustinEvans2007::computeGrainSize(PetscScalar* grainSize, const PetscScalar rootTol, PetscInt& rootIts, const PetscInt maxNumIts)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    std::string funcName = "AustinEvans2007::computeGrainSize";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-
-  for (PetscInt Jj = 0; Jj< _N; Jj++) {
-    PetscScalar left = _dprev[Jj] / 10.0;
-    PetscScalar right = 10 * _dprev[Jj];
-    PetscScalar out = _dprev[Jj];
-
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: left = %.15e, right = %.15e\n",Jj,left, right);
-
-    //~ Bisect rootFinder(maxNumIts,rootTol);
-    //~ ierr = rootFinder.setBounds(left,right); CHKERRQ(ierr);
-    //~ ierr = rootFinder.findRoot(this,Jj,&out); assert(ierr == 0); CHKERRQ(ierr);
-    PetscScalar x0 = _dprev[Jj];
-    BracketedNewton rootFinder(maxNumIts,rootTol);
-    ierr = rootFinder.setBounds(left,right);CHKERRQ(ierr);
-    ierr = rootFinder.findRoot(this,Jj,x0,&out); assert(ierr == 0); CHKERRQ(ierr);
-
-    //~ PetscPrintf(PETSC_COMM_WORLD,"%i: out = %g\n",Jj,out);
-    //~ assert(0);
-
-    grainSize[Jj] = out;
-    assert(!isnan(grainSize[Jj]));
-    assert(!isinf(grainSize[Jj]));
-  }
-
-  #if VERBOSE > 1
-     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
-// function that matches root finder template
-PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar* out)
-{
-  PetscErrorCode ierr = 0;
-
-  // ensure never divide by 0
-  PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
-  PetscScalar Ar = _f[Jj] / (_gamma[Jj] * _c) * (_sdev[Jj]*_dgdev[Jj]);
-
-  *out = _deltaT*Ar*pow(dnew,1.0+_p[Jj]) + pow(dnew,_p[Jj]) - _dprev[Jj]*pow(dnew,_p[Jj]-1.0) - _deltaT*Ag;
-
-  assert(!isnan(Ag));
-  assert(!isinf(Ag));
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"%i: dt = %.15e, Ag = %.15e, Ar = %.15e, dprev = %.15e, p = %.15e | dnew = %.15e, resid = %.15e\n",Jj,_deltaT,Ag,Ar,_dprev[Jj],_p[Jj],dnew,*out);
-  assert(!isnan(Ar));
-  assert(!isinf(Ar));
-
-  assert(!isnan(*out));
-  assert(!isinf(*out));
-  return ierr;
-}
-
-PetscErrorCode AustinEvans2007::getResid(const PetscInt Jj,const PetscScalar dnew,PetscScalar *out,PetscScalar *J)
-{
-  PetscErrorCode ierr = 0;
-
-  // ensure never divide by 0
-  PetscScalar Ag = _A[Jj]*exp(-_QR[Jj]/_T[Jj]) * (1.0/_p[Jj]);
-  PetscScalar Ar = _f[Jj] / (_gamma[Jj] * _c) * (_sdev[Jj]*_dgdev[Jj]);
-
-  *out = _deltaT*Ar*pow(dnew,1.0+_p[Jj]) + pow(dnew,_p[Jj]) - _dprev[Jj]*pow(dnew,_p[Jj]-1.0) - _deltaT*Ag;
-  *J = _deltaT*Ar*(1+_p[Jj])*pow(dnew,_p[Jj]) + _p[Jj]*pow(dnew,_p[Jj]-1.0) - _dprev[Jj]*(_p[Jj]-1.0)*pow(dnew,_p[Jj]-2.0);
-
-  //~ PetscPrintf(PETSC_COMM_WORLD,"%i: dt = %.15e, Ag = %.15e, Ar = %.15e, dprev = %.15e, p = %.15e | dnew = %.15e, resid = %.15e\n",Jj,_deltaT,Ag,Ar,_dprev[Jj],_p[Jj],dnew,*out);
-
-  assert(!isnan(*out)); assert(!isinf(*out));
-  assert(!isnan(*J)); assert(!isinf(*J));
-  return ierr;
-}
-
-
-
-
 
 
