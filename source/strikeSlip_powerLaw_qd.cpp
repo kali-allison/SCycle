@@ -1339,16 +1339,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   #endif
 
   // adjust u so it has no negative values
-  PetscScalar minVal = 0;
-  VecMin(_material->_u,NULL,&minVal);
-  if (minVal < 0) {
-    minVal = abs(minVal);
-    Vec temp;
-    VecDuplicate(_material->_u,&temp);
-    VecSet(temp,minVal);
-    VecAXPY(_material->_u,1.,temp);
-    VecDestroy(&temp);
-  }
+  //~ PetscScalar minVal = 0;
+  //~ VecMin(_material->_u,NULL,&minVal);
+  //~ if (minVal < 0) {
+    //~ minVal = abs(minVal);
+    //~ Vec temp;
+    //~ VecDuplicate(_material->_u,&temp);
+    //~ VecSet(temp,minVal);
+    //~ VecAXPY(_material->_u,1.,temp);
+    //~ VecDestroy(&temp);
+  //~ }
 
   // extract R boundary from u, to set _material->bcR
   VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);
@@ -1359,6 +1359,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   Vec uL; VecDuplicate(_material->_bcL,&uL);
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
+  VecCopy(uL,_material->_bcL);
 
   if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
   else {

@@ -2151,7 +2151,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 
   // compute u
   VecCopy(varSS["v"],_u);
-  VecScale(_u,time);
+  VecScale(_u,1.0);
 
   // make u always positive
   PetscScalar minVal = 0;
