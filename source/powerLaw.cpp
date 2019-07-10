@@ -2301,7 +2301,6 @@ PetscErrorCode PowerLaw::writeStep1D(const std::string outputDir)
     ierr = VecView(_bcR,_viewers1D["bcR"].first); CHKERRQ(ierr);
     ierr = VecView(_bcB,_viewers1D["bcB"].first); CHKERRQ(ierr);
     ierr = VecView(_bcT,_viewers1D["bcT"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers1D["bcRShift"].first); CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

@@ -503,7 +503,6 @@ PetscReal RK32::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
       VecAbs(errVec);
       VecPointwiseDivide(errVec,errVec,_y4[key]);
-      PetscReal maxV = 0;
       VecMax(errVec,NULL,&err);
       VecDestroy(&errVec);
       assert(!isinf(err));
@@ -973,7 +972,6 @@ PetscReal RK43::computeError()
       ierr = VecWAXPY(errVec,-1.0,_y4[key],_y3[key]); CHKERRQ(ierr);
       VecAbs(errVec);
       VecPointwiseDivide(errVec,errVec,_y4[key]);
-      PetscReal maxV = 0;
       VecMax(errVec,NULL,&err);
       VecDestroy(&errVec);
       assert(!isinf(err));
