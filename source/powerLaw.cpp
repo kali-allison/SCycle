@@ -291,8 +291,8 @@ PetscErrorCode DislocationCreep::loadSettings()
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("disl_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("disl_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("disl_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("disl_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("disl_QRVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("disl_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
     else if (var.compare("disl_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("disl_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
   }
@@ -548,8 +548,8 @@ PetscErrorCode DiffusionCreep::loadSettings()
     if (var.compare("inputDir") == 0) { _inputDir = rhs; }
     else if (var.compare("diff_AVals")==0) { loadVectorFromInputFile(rhsFull,_AVals); }
     else if (var.compare("diff_ADepths")==0) { loadVectorFromInputFile(rhsFull,_ADepths); }
-    else if (var.compare("diff_BVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
-    else if (var.compare("diff_BDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
+    else if (var.compare("diff_QRVals")==0) { loadVectorFromInputFile(rhsFull,_BVals); }
+    else if (var.compare("diff_QRDepths")==0) { loadVectorFromInputFile(rhsFull,_BDepths); }
     else if (var.compare("diff_nVals")==0) { loadVectorFromInputFile(rhsFull,_nVals); }
     else if (var.compare("diff_nDepths")==0) { loadVectorFromInputFile(rhsFull,_nDepths); }
     else if (var.compare("diff_mVals")==0) { loadVectorFromInputFile(rhsFull,_mVals); }
@@ -1206,7 +1206,7 @@ PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_FALSE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
@@ -1719,6 +1719,7 @@ PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time)
   ierr = computeViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
+  VecSet(_dgVxy,0.);
   VecPointwiseMult(_dgVxy,_mu,SAT);
   VecAXPY(_dgVxy,1.0,_sxy);
   VecPointwiseDivide(_dgVxy,_dgVxy,_effVisc);
@@ -2151,7 +2152,7 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
 
   // compute u
   VecCopy(varSS["v"],_u);
-  VecScale(_u,1.0);
+  VecScale(_u,time);
 
   // make u always positive
   PetscScalar minVal = 0;
@@ -2169,13 +2170,13 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
   PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;
   PetscInt Istart, Iend;
   VecGetOwnershipRange(_sxy,&Istart,&Iend);
-  VecGetArray(_mu,&mu);
-  VecGetArray(_sxy,&sxy);
-  VecGetArray(_sxz,&sxz);
+  VecGetArrayRead(_mu,&mu);
+  VecGetArrayRead(_sxy,&sxy);
+  VecGetArrayRead(_sxz,&sxz);
+  VecGetArrayRead(varSS["gVxy_t"],&gVxy_t);
+  VecGetArrayRead(varSS["gVxz_t"],&gVxz_t);
   VecGetArray(_gVxy,&gxy);
   VecGetArray(_gVxz,&gxz);
-  VecGetArray(varSS["gVxy_t"],&gVxy_t);
-  VecGetArray(varSS["gVxz_t"],&gVxz_t);
   PetscInt Jj = 0;
   for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar gVxy0 = -sxy[Jj]/mu[Jj];
@@ -2184,13 +2185,14 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
     gxz[Jj] = gVxz_t[Jj] * time + gVxz0;
     Jj++;
   }
-  VecRestoreArray(_mu,&mu);
-  VecRestoreArray(_sxy,&sxy);
-  VecRestoreArray(_sxz,&sxz);
+  VecRestoreArrayRead(_mu,&mu);
+  VecRestoreArrayRead(_sxy,&sxy);
+  VecRestoreArrayRead(_sxz,&sxz);
+  VecRestoreArrayRead(varSS["gVxy_t"],&gVxy_t);
+  VecRestoreArrayRead(varSS["gVxz_t"],&gVxz_t);
   VecRestoreArray(_gVxy,&gxy);
   VecRestoreArray(_gVxz,&gxz);
-  VecRestoreArray(varSS["gVxy_t"],&gVxy_t);
-  VecRestoreArray(varSS["gVxz_t"],&gVxz_t);
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -851,9 +851,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   PetscInt Jj = 0;
 
   // initial guess for (thermo)mechanical problem
-  std::string saveWDiffCreep = _material->_wDiffCreep;
-  _material->_wDiffCreep = "no"; // don't include diffusion creep when computing steady-state for the first time
-  _material->_wDiffCreep = saveWDiffCreep;
   solveSS(Jj, baseOutDir);
 
   if (_thermalCouplingSS.compare("no")!=0) { solveSSHeatEquation(Jj); }
@@ -923,6 +920,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
     VecScatterEnd(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
     VecScale(tauVisc,_gss_t);
 
+    VecScale(_fault->_tauP,0.667);
     VecPointwiseMin(_fault->_tauP,_fault->_tauP,tauVisc);
     VecDestroy(&tauVisc);
   }
@@ -1083,18 +1081,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     VecCopy(temp,_varSS["effVisc"]);
 
     // write out results for current iteration
-    ierr = VecView(_varSS["effVisc"],vw["effViscTot"].first); CHKERRQ(ierr);
-    ierr = VecView(_material->_sxy,vw["Sxy"].first); CHKERRQ(ierr);
-    ierr = VecView(_material->_sxz,vw["Sxz"].first); CHKERRQ(ierr);
-    if (_material->_wPlasticity.compare("yes")==0) {
-      ierr = VecView(_material->_plastic->_invEffVisc,vw["invEffViscP"].first); CHKERRQ(ierr);
-    }
-    if (_material->_wDislCreep.compare("yes")==0) {
-      ierr = VecView(_material->_disl->_invEffVisc,vw["invEffViscDisl"].first); CHKERRQ(ierr);
-    }
-    if (_material->_wDiffCreep.compare("yes")==0) {
-      ierr = VecView(_material->_diff->_invEffVisc,vw["invEffViscDiff"].first); CHKERRQ(ierr);
-    }
+    //~ ierr = VecView(_varSS["effVisc"],vw["effViscTot"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_material->_sxy,vw["Sxy"].first); CHKERRQ(ierr);
+    //~ ierr = VecView(_material->_sxz,vw["Sxz"].first); CHKERRQ(ierr);
+    //~ if (_material->_wPlasticity.compare("yes")==0) {
+      //~ ierr = VecView(_material->_plastic->_invEffVisc,vw["invEffViscP"].first); CHKERRQ(ierr);
+    //~ }
+    //~ if (_material->_wDislCreep.compare("yes")==0) {
+      //~ ierr = VecView(_material->_disl->_invEffVisc,vw["invEffViscDisl"].first); CHKERRQ(ierr);
+    //~ }
+    //~ if (_material->_wDiffCreep.compare("yes")==0) {
+      //~ ierr = VecView(_material->_diff->_invEffVisc,vw["invEffViscDiff"].first); CHKERRQ(ierr);
+    //~ }
 
     // evaluate convergence of this iteration
     PetscScalar len;
@@ -1339,16 +1337,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   #endif
 
   // adjust u so it has no negative values
-  //~ PetscScalar minVal = 0;
-  //~ VecMin(_material->_u,NULL,&minVal);
-  //~ if (minVal < 0) {
-    //~ minVal = abs(minVal);
-    //~ Vec temp;
-    //~ VecDuplicate(_material->_u,&temp);
-    //~ VecSet(temp,minVal);
-    //~ VecAXPY(_material->_u,1.,temp);
-    //~ VecDestroy(&temp);
-  //~ }
+  PetscScalar minVal = 0;
+  VecMin(_material->_u,NULL,&minVal);
+  if (minVal < 0) {
+    minVal = abs(minVal);
+    Vec temp;
+    VecDuplicate(_material->_u,&temp);
+    VecSet(temp,minVal);
+    VecAXPY(_material->_u,1.,temp);
+    VecDestroy(&temp);
+  }
 
   // extract R boundary from u, to set _material->bcR
   VecScatterBegin(_D->_scatters["body2R"], _material->_u, _material->_bcRShift, INSERT_VALUES, SCATTER_FORWARD);

@@ -324,8 +324,13 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar cc = f[Jj] / (g[Jj] *_c);
-    PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]); // static grain growth rate
-    PetscScalar red = - cc * d[Jj]*d[Jj] * s[Jj]*dgdev[Jj]; // grain size reduction from disl. creep
+
+    // static grain growth rate
+    PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]);
+
+    // grain size reduction from work done by dislocation creep
+    PetscScalar w = s[Jj]*0.5*dgdev[Jj]; // work, 0.5 to convert from engineering strain rate to geophysics strain rate
+    PetscScalar red = - cc * d[Jj]*d[Jj] * w;
     d_t[Jj] = growth + red;
     if (isinf(red)) {
       PetscPrintf(PETSC_COMM_WORLD,"%i: cc = %.15e, d = %.15e, s = %.15e, dgdev = %.15e\n",Jj,cc,d[Jj],s[Jj],dgdev[Jj]);
@@ -446,7 +451,7 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
   PetscInt Jj = 0;
   for (Ii=Istart;Ii<Iend;Ii++) {
     PetscScalar AA = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]);
-    PetscScalar BB = f[Jj] / (g[Jj] *_c) * dgdev[Jj];
+    PetscScalar BB = f[Jj] / (g[Jj] *_c) * 0.5 * dgdev[Jj]; // 0.5 to convert dgdev from engineering to geophysics convention
     PetscScalar a = 1.0 - p[Jj];
     PetscScalar b = 1.0;
     PetscScalar c = 2.0;
