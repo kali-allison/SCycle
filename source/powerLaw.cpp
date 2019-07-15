@@ -2167,7 +2167,8 @@ PetscErrorCode PowerLaw::updateSSb(map<string,Vec>& varSS,const PetscScalar time
   }
 
 
-  PetscScalar *mu,*gVxy_t,*gVxz_t,*gxy,*gxz,*sxy,*sxz=0;
+  PetscScalar *gxy=0,*gxz=0;
+  const PetscScalar *mu,*gVxy_t,*gVxz_t,*sxy,*sxz;
   PetscInt Istart, Iend;
   VecGetOwnershipRange(_sxy,&Istart,&Iend);
   VecGetArrayRead(_mu,&mu);
