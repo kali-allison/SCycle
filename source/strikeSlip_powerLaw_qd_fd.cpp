@@ -1177,12 +1177,27 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
   }
+  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    //~ _grainDist->updateFields(time,varEx);
+  //~ }
+  //~ if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->d_dt(time,varEx,dvarEx);
   }
+
+  // compute grain size rate, or value from either piezometric relation or steady-state
+  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    //~ _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  //~ }
+  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
+    //~ _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  //~ }
+  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    //~ _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  //~ }
 
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;
@@ -1233,6 +1248,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if ( varImo.find("pressure") != varImo.end() || varEx.find("pressure") != varEx.end()) {
     _p->updateFields(time,varEx,varImo);
   }
+  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    //~ _grainDist->updateFields(time,varEx);
+  //~ }
+  //~ if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
 
   // update temperature in momBal and fault
   if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
@@ -1244,6 +1263,17 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if (_hydraulicCoupling.compare("coupled")==0) {
     _fault_qd->setSNEff(_p->_p);
   }
+
+  // compute grain size rate, or value from either piezometric relation or steady-state
+  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    //~ _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  //~ }
+  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
+    //~ _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  //~ }
+  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    //~ _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  //~ }
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
@@ -1270,15 +1300,28 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
-    Vec sxy,sxz,sdev;
-    _material->getStresses(sxy,sxz,sdev);
+
+    // frictional shear heating source terms
     Vec V = dvarEx.find("slip")->second;
     Vec tau = _fault_qd->_tauP;
-    Vec gVxy_t = dvarEx.find("gVxy")->second;
-    Vec gVxz_t = dvarEx.find("gVxz")->second;
+
+    // compute viscous strain rate that contributes to viscous shear heating:
+    Vec dgV_sh;
+    VecDuplicate(_material->_dgVdev,&dgV_sh);
+    //~ if ( _grainSizeEvCoupling.compare("no")!=0) {
+      //~ // relevant visc strain rate = (total) - (portion contributing to grain size reduction)
+      //~ VecPointwiseMult(dgV_sh,_grainDist->_f,_material->_dgVdev_disl);
+      //~ VecScale(dgV_sh,-1.0);
+      //~ VecAXPY(dgV_sh,1.0,_material->_dgVdev);
+    //~ }
+    //~ else {
+      VecCopy(_material->_dgVdev,dgV_sh);
+    //~ }
+
     Vec Told = varImo.find("Temp")->second;
-    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
-    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+    ierr = _he->be(time,V,tau,_material->_sdev,dgV_sh,varIm["Temp"],Told,dt); CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgdev, T, old T, dt
+    VecDestroy(&dgV_sh);
   }
 
   #if VERBOSE > 1
@@ -1289,7 +1332,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
 
 
 // fully dynamic: purely explicit time stepping
-// note that the heat equation never appears here because it is only ever solved implicitly
 PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const PetscScalar deltaT, map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev)
 {
   PetscErrorCode ierr = 0;
@@ -1335,17 +1377,30 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time, const Pet
 
   // explicitly integrate heat equation using forward Euler
   if (_thermalCoupling.compare("no")!=0) {
+    // frictional shear heating source terms
     Vec V = _fault_fd->_slipVel;
     Vec tau = _fault_fd->_tauP;
-    Vec sxy,sxz,sdev; _material->getStresses(sxy,sxz,sdev);
-    Vec gVxy_t = NULL;
-    Vec gVxz_t = NULL;
+
+    // compute viscous strain rate that contributes to viscous shear heating:
+    Vec dgV_sh;
+    VecDuplicate(_material->_dgVdev,&dgV_sh);
+    //~ if ( _grainSizeEvCoupling.compare("no")!=0) {
+      //~ // relevant visc strain rate = (total) - (portion contributing to grain size reduction)
+      //~ VecPointwiseMult(dgV_sh,_f,_material->_dgVdev_disl);
+      //~ VecScale(dgV_sh,-1.0);
+      //~ VecAXPY(dgV_sh,1.0,_material->_dgVdev);
+    //~ }
+    //~ else {
+      VecCopy(_material->_dgVdev,dgV_sh);
+    //~ }
+
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
-    ierr = _he->d_dt(time,V,tau,sdev,gVxy_t,gVxz_t,Tn,dTdt); CHKERRQ(ierr);
+    ierr = _he->d_dt(time,V,tau,sdev,dgV_sh,Tn,dTdt); CHKERRQ(ierr);
     VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
     _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
     VecDestroy(&dTdt);
+    VecDestroy(&dgV_sh);
   }
 
   #if VERBOSE > 1

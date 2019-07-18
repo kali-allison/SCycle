@@ -1275,7 +1275,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   if (_thermalCoupling.compare("no")!=0) {
     ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
     Vec T; VecDuplicate(_material->_sxy,&T);
-    _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,NULL,T);
+    _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,T);
     ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
@@ -1657,10 +1657,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time,const
     _material->getStresses(sxy,sxz,sdev);
     Vec V = dvarEx.find("slip")->second;
     Vec tau = _fault_qd->_tauP;
-    Vec gVxy_t = NULL;
-    Vec gVxz_t = NULL;
     Vec Told = varImo.find("Temp")->second;
-    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
+    ierr = _he->be(time,V,tau,sdev,NULL,varIm["Temp"],Told,dt); CHKERRQ(ierr);
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
   }
 
@@ -1744,7 +1742,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
     Vec tau = _fault_fd->_tauP;
     Vec Tn = var.find("Temp")->second;
     Vec dTdt; VecDuplicate(Tn,&dTdt);
-    ierr = _he->d_dt(time,V,tau,NULL,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
+    ierr = _he->d_dt(time,V,tau,NULL,NULL,Tn,dTdt); CHKERRQ(ierr);
     VecWAXPY(varNext["Temp"], deltaT, dTdt, Tn); // Tn+1 = deltaT * dTdt + Tn
     _he->setTemp(varNext["Temp"]); // keep heat equation T up to date
     VecDestroy(&dTdt);

@@ -1888,7 +1888,8 @@ PetscErrorCode PowerLaw::computeSDev()
   return ierr;
 }
 
-// computes dgdev = sqrt(dgxy^2 + dgxz^2)
+// computes the 2nd invariant of the deviatoric strain rate
+// dgdev = sqrt(dgxy^2 + dgxz^2)
 PetscErrorCode PowerLaw::computeDevViscStrainRates()
 {
     PetscErrorCode ierr = 0;

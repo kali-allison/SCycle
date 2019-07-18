@@ -147,7 +147,7 @@ class PowerLaw
     Vec                   _sxy,_sxz,_sdev; // sigma_xz (MPa), deviatoric stress (MPa)
     Vec                   _gTxy,_gVxy,_dgVxy; // total strain, viscous strain, and viscous strain rate
     Vec                   _gTxz,_gVxz,_dgVxz; // total strain, viscous strain, and viscous strain rate
-    Vec                   _dgVdev,_dgVdev_disl; // deviatoric strain and strain rate
+    Vec                   _dgVdev,_dgVdev_disl; // deviatoric strain rate
 
     // linear system data
     std::string           _linSolver;

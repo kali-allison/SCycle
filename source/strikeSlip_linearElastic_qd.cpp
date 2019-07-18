@@ -856,11 +856,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if (varIm.find("Temp") != varIm.end()) {
     Vec V = dvarEx.find("slip")->second;
     Vec tau = _fault->_tauP;
-    Vec gVxy_t = NULL;
-    Vec gVxz_t = NULL;
     Vec Told = varImo.find("Temp")->second;
     // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
-    ierr = _he->be(time,V,tau,NULL,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
+    ierr = _he->be(time,V,tau,NULL,NULL,varIm["Temp"],Told,dt); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -936,7 +934,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     _material->getStresses(sxy,sxz,sdev);
     Vec T;
     VecDuplicate(sxy,&T);
-    _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,NULL,T);
+    _he->computeSteadyStateTemp(_currTime,_fault->_slipVel,_fault->_tauP,NULL,NULL,T);
     ierr = writeVec(_he->_T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
 
     // free memory

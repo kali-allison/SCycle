@@ -129,7 +129,7 @@ public:
   PetscErrorCode computeInitialSteadyStateTemp();
   PetscErrorCode setUpSteadyStateProblem();
   PetscErrorCode setUpTransientProblem();
-  PetscErrorCode computeViscousShearHeating(const Vec& sdev, const Vec& dgxy, const Vec& dgxz);
+  PetscErrorCode computeViscousShearHeating(const Vec& sdev, const Vec& dgdev);
   PetscErrorCode computeFrictionalShearHeating(const Vec& tau, const Vec& slipVel);
   PetscErrorCode setupKSP(Mat& A);
   PetscErrorCode setupKSP_SS(Mat& A);
@@ -146,9 +146,8 @@ public:
   PetscErrorCode getTemp(Vec& T); // return total temperature
   PetscErrorCode setTemp(const Vec& T); // set temperature
 
-  PetscErrorCode computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmadev, const Vec& dgxy,const Vec& dgxz,Vec& T);
+  PetscErrorCode computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmadev, const Vec& dgdev,Vec& T);
   PetscErrorCode initiateVarSS(map<string,Vec>& varSS);
-  PetscErrorCode updateSS(map<string,Vec>& varSS);
 
 
   // compute rate
@@ -157,13 +156,13 @@ public:
 
 
   // implicitly solve for temperature using backward Euler
-  PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-  PetscErrorCode be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-  PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
-  PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmadev, const Vec& dgxy, const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt);
+  PetscErrorCode be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt);
+  PetscErrorCode be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt);
+  PetscErrorCode be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt);
+  PetscErrorCode be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sigmadev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt);
 
   PetscErrorCode d_dt_mms(const PetscScalar time,const Vec& T, Vec& dTdt);
-  PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt);
+  PetscErrorCode d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev, const Vec& T, Vec& dTdt);
 
 
   // IO commands

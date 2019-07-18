@@ -983,7 +983,7 @@ PetscErrorCode HeatEquation::measureMMSError(const PetscScalar time)
 
 // for thermomechanical coupling with explicit time stepping
 // Note: This actually returns d/dt (T - Tamb), where Tamb is the 1D steady-state geotherm
-PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgxy, const Vec& dgxz, const Vec& T, Vec& dTdt)
+PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const Vec& tau,const Vec& sdev, const Vec& dgdev, const Vec& T, Vec& dTdt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1009,8 +1009,8 @@ PetscErrorCode HeatEquation::d_dt(const PetscScalar time,const Vec slipVel,const
   }
 
   // viscous shear heating: Qvisc
-  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
-    computeViscousShearHeating(sdev, dgxy, dgxz);
+  if (_wViscShearHeating.compare("yes")==0 && dgdev!=NULL && sdev!=NULL) {
+    computeViscousShearHeating(sdev, dgdev);
     VecAXPY(_Q,1.0,_Qvisc);
   }
 
@@ -1105,7 +1105,7 @@ PetscErrorCode HeatEquation::d_dt_mms(const PetscScalar time,const Vec& T, Vec& 
 
 
 // for thermomechanical coupling using backward Euler (implicit time stepping)
-PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1120,13 +1120,13 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
     assert(0);
   }
   else if (_isMMS && _heatEquationType.compare("steadyState")==0) {
-    be_steadyStateMMS(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
+    be_steadyStateMMS(time,slipVel,tau,sdev,dgdev,T,To,dt);
   }
   else if (!_isMMS && _heatEquationType.compare("transient")==0) {
-    be_transient(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
+    be_transient(time,slipVel,tau,sdev,dgdev,T,To,dt);
   }
   else if (!_isMMS && _heatEquationType.compare("steadyState")==0) {
-    be_steadyState(time,slipVel,tau,sdev,dgxy,dgxz,T,To,dt);
+    be_steadyState(time,slipVel,tau,sdev,dgdev,T,To,dt);
   }
 
   computeHeatFlux();
@@ -1143,7 +1143,7 @@ PetscErrorCode HeatEquation::be(const PetscScalar time,const Vec slipVel,const V
 
 // for thermomechanical problem using implicit time stepping (backward Euler)
 // Note: This function uses the KSP algorithm to solve for dT, where T = Tamb + dT
-PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& Tn,const PetscScalar dt)
+PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipVel,const Vec& tau, const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& Tn,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1181,9 +1181,8 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
   }
 
   // viscous shear heating: Qvisc
-  if (_wViscShearHeating.compare("yes")==0
-      && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
-    computeViscousShearHeating(sdev, dgxy, dgxz);
+  if (_wViscShearHeating.compare("yes")==0 && dgdev!=NULL && sdev!=NULL) {
+    computeViscousShearHeating(sdev, dgdev);
     VecAXPY(_Q,1.0,_Qvisc);
   }
 
@@ -1240,7 +1239,7 @@ PetscErrorCode HeatEquation::be_transient(const PetscScalar time,const Vec slipV
 // for thermomechanical problem when solving only the steady-state heat equation
 // Note: This function uses the KSP algorithm to solve for dT, where T = Tamb + dT
 PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& Tn,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& Tn,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1273,9 +1272,8 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
   }
 
   // viscous shear heating: Qvisc
-  if (_wViscShearHeating.compare("yes")==0
-      && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
-    computeViscousShearHeating(sdev, dgxy, dgxz);
+  if (_wViscShearHeating.compare("yes")==0 && dgdev!=NULL && sdev!=NULL) {
+    computeViscousShearHeating(sdev, dgdev);
     VecAXPY(_Q,-1.0,_Qvisc);
   }
 
@@ -1318,7 +1316,7 @@ PetscErrorCode HeatEquation::be_steadyState(const PetscScalar time,const Vec sli
 
 // for thermomechanical coupling solving only the steady-state heat equation with MMS test
 PetscErrorCode HeatEquation::be_steadyStateMMS(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T,const Vec& To,const PetscScalar dt)
+  const Vec& sdev, const Vec& dgdev,Vec& T,const Vec& To,const PetscScalar dt)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1406,34 +1404,11 @@ PetscErrorCode HeatEquation::initiateVarSS(map<string,Vec>& varSS)
 }
 
 
-PetscErrorCode HeatEquation::updateSS(map<string,Vec>& varSS)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "HeatEquation::updateSS";
-    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-
-  Vec slipVel = varSS.find("slipVel")->second;
-  Vec tau = varSS.find("tau")->second;
-  Vec sDev = varSS.find("sDev")->second;
-  Vec gVxy_t = varSS.find("gVxy_t")->second;
-  Vec gVxz_t = varSS.find("gVxz_t")->second;
-
-  // final argument is output
-  ierr = computeSteadyStateTemp(0,slipVel,tau,sDev,gVxy_t,gVxz_t,varSS["Temp"]); CHKERRQ(ierr);
-
-  #if VERBOSE > 1
-    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
-  #endif
-  return ierr;
-}
-
 // compute steady-state temperature given boundary conditions and shear heating source terms (assuming these remain constant) Qfric and Qvisc
 // Note: solves for dT, where dT = T - Tamb and Tamb also satisfies the steady-state heat equation
 // and can includes radioactive heat generation.
 PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const Vec slipVel,const Vec& tau,
-  const Vec& sdev, const Vec& dgxy,const Vec& dgxz,Vec& T)
+  const Vec& sdev, const Vec& dgdev,Vec& T)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1453,22 +1428,22 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
   VecSet(_Q,0.);
 
   // left boundary: heat generated by fault motion: bcL or Qfric depending on shear zone width
-  if (_wFrictionalHeating.compare("yes")==0) {
+  if (_wFrictionalHeating == "yes") {
     computeFrictionalShearHeating(tau,slipVel);
     VecAXPY(_Q,-1.0,_Qfric);
     VecScale(_bcL,-1.);
   }
 
   // compute shear heating component
-  if (_wViscShearHeating.compare("yes")==0 && dgxy!=NULL && dgxz!=NULL && sdev!=NULL) {
-    computeViscousShearHeating(sdev, dgxy, dgxz);
+  if (_wViscShearHeating == "yes" && dgdev!=NULL && sdev!=NULL) {
+    computeViscousShearHeating(sdev, dgdev);
     VecAXPY(_Q,-1.0,_Qvisc);
   }
 
   // rhs = J*H*Q + (SAT BC terms)
   Vec rhs; VecDuplicate(_k,&rhs); VecSet(rhs,0.0);
   ierr = _sbp->setRhs(rhs,_bcL,_bcR,_bcT,_bcB);CHKERRQ(ierr);
-  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
+  if (_D->_gridSpacingType == "variableGridSpacing") {
     Vec temp1; VecDuplicate(_Q,&temp1);
     Mat J,Jinv,qy,rz,yq,zr;
     ierr = _sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
@@ -1506,7 +1481,7 @@ PetscErrorCode HeatEquation::computeSteadyStateTemp(const PetscScalar time,const
 
 
 // compute viscous shear heating term (uses temperature from previous time step)
-PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const Vec& dgxy, const Vec& dgxz)
+PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const Vec& dgdev)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1515,22 +1490,11 @@ PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const V
     CHKERRQ(ierr);
   #endif
 
-  // shear heating terms: sdev * dgv  (stresses times viscous strain rates)
-  // sdev = sqrt(sxy^2 + sxz^2)
-  // dgv = sqrt(dgVxy^2 + dgVxz^2)
   VecSet(_Qvisc,0.0);
+  VecPointwiseMult(_Qvisc,sdev,dgdev);
 
-  // compute dgv
-  VecPointwiseMult(_Qvisc,dgxy,dgxy);
-  Vec temp;
-  VecDuplicate(sdev,&temp);
-  VecPointwiseMult(temp,dgxz,dgxz);
-  VecAXPY(_Qvisc,1.0,temp);
-  VecDestroy(&temp);
-  VecSqrtAbs(_Qvisc);
-
-  // multiply by deviatoric stress
-  VecPointwiseMult(_Qvisc,sdev,_Qvisc); // Qvisc = sdev * Qvisc
+  // convert from engineering to geophysics convention for viscous strain rate
+  VecScale(_Qvisc,0.5);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);

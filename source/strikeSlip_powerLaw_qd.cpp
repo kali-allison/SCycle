@@ -774,15 +774,28 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
 
   // heat equation
   if (varIm.find("Temp") != varIm.end()) {
-    Vec sxy,sxz,sdev;
-    _material->getStresses(sxy,sxz,sdev);
+
+    // frictional shear heating source terms
     Vec V = dvarEx.find("slip")->second;
     Vec tau = _fault->_tauP;
-    Vec gVxy_t = dvarEx.find("gVxy")->second;
-    Vec gVxz_t = dvarEx.find("gVxz")->second;
+
+    // compute viscous strain rate that contributes to viscous shear heating:
+    Vec dgV_sh;
+    VecDuplicate(_material->_dgVdev,&dgV_sh);
+    if ( _grainSizeEvCoupling.compare("no")!=0) {
+      // relevant visc strain rate = (total) - (portion contributing to grain size reduction)
+      VecPointwiseMult(dgV_sh,_grainDist->_f,_material->_dgVdev_disl);
+      VecScale(dgV_sh,-1.0);
+      VecAXPY(dgV_sh,1.0,_material->_dgVdev);
+    }
+    else {
+      VecCopy(_material->_dgVdev,dgV_sh);
+    }
+
     Vec Told = varImo.find("Temp")->second;
-    ierr = _he->be(time,V,tau,sdev,gVxy_t,gVxz_t,varIm["Temp"],Told,dt); CHKERRQ(ierr);
-    // arguments: time, slipVel, txy, sigmadev, dgxy, dgxz, T, old T, dt
+    ierr = _he->be(time,V,tau,_material->_sdev,dgV_sh,varIm["Temp"],Told,dt); CHKERRQ(ierr);
+    // arguments: time, slipVel, txy, sigmadev, dgdev, T, old T, dt
+    VecDestroy(&dgV_sh);
   }
 
   #if VERBOSE > 1
@@ -1149,14 +1162,26 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSHeatEquation(const PetscInt Jj)
   VecDuplicate(_varSS["Temp"],&T_old);
   VecCopy(_varSS["Temp"],T_old);
 
-  // get source terms for heat equation
-  Vec sxy, sxz, sdev;
-  _material->getStresses(sxy,sxz,sdev);
+  // frictional shear heating source terms
   Vec V; VecDuplicate(_varSS["slipVel"],&V); VecSet(V,_D->_vL);
   VecPointwiseMin(_varSS["slipVel"],V,_varSS["slipVel"]);
 
+  // viscous shear heating source terms
+  Vec dgV_sh;
+  VecDuplicate(_material->_dgVdev,&dgV_sh);
+  if ( _grainSizeEvCouplingSS.compare("no")!=0) {
+    // relevant visc strain rate = (total) - (portion contributing to grain size reduction)
+    VecPointwiseMult(dgV_sh,_grainDist->_f,_material->_dgVdev_disl);
+    VecScale(dgV_sh,-1.0);
+    VecAXPY(dgV_sh,1.0,_material->_dgVdev);
+  }
+  else {
+    VecCopy(_material->_dgVdev,dgV_sh);
+  }
+
   // compute new steady-state temperature
-  _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault->_tauP,sdev,_varSS["gVxy_t"],_varSS["gVxz_t"],_varSS["Temp"]);
+  _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault->_tauP,_material->_sdev,dgV_sh,_varSS["Temp"]);
+  VecDestroy(&dgV_sh);
 
   // If this is first iteration, keep Temp.
   // If not, apply damping parameter for update
