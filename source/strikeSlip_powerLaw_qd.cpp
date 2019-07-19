@@ -500,7 +500,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvolution = %s\n",_grainSizeEvCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvCoupling = %s\n",_grainSizeEvCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
@@ -863,19 +863,42 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   std::string baseOutDir = _outputDir;
   PetscInt Jj = 0;
 
+  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_0");
+  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_0");
+
   // initial guess for (thermo)mechanical problem
   solveSS(Jj, baseOutDir);
+
+  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_1");
+  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_1");
+  writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_1");
+  writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_1");
+  writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_1");
+
 
   if (_thermalCouplingSS.compare("no")!=0) { solveSSHeatEquation(Jj); }
   if (_thermalCouplingSS.compare("coupled")==0) {
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
   }
-  if (_grainSizeEvCouplingSS.compare("no")!=0) { solveSSGrainSize(Jj); }
-  if (_grainSizeEvCouplingSS.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
+  PetscPrintf(PETSC_COMM_WORLD,"\n\n line 884\n\n");
+  if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
+  if (_grainSizeEvCouplingSS == "coupled") {
+    _material->updateGrainSize(_varSS["grainSize"]);
+    PetscPrintf(PETSC_COMM_WORLD,"\n\n line 888\n\n");
+  }
+
+
+  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_2");
+  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_2");
+  writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_2");
+  writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_2");
+  writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_2");
+
 
   writeSS(Jj,baseOutDir);
   Jj = 1;
+  assert(0);
 
   // iterate to converge to steady-state solution
   while (Jj < _maxSSIts_tot) {
@@ -895,8 +918,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     }
 
     // update grain size
-    if (_grainSizeEvCouplingSS.compare("no")!=0) { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCouplingSS.compare("coupled")==0) { _material->updateGrainSize(_varSS["grainSize"]); }
+    if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
+    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
     writeSS(Jj,baseOutDir);
     Jj++;
@@ -1220,8 +1243,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   }
 
   // save previous grain size for damping
-  Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
-  VecCopy(_varSS["grainSize"],g_old);
+  //~ Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
+  //~ VecCopy(_varSS["grainSize"],g_old);
 
   // get source terms for grain size distribution equation
   Vec sdev = _material->_sdev;
@@ -1236,7 +1259,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   //~ VecAXPY(_varSS["grainSize"],1.-_fss_grainSize,g_old);
 
   // clean up memory usage
-  VecDestroy(&g_old);
+  //~ VecDestroy(&g_old);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

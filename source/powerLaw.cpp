@@ -775,6 +775,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   setMaterialParameters();
   loadFieldsFromFiles(); // load from previous simulation
 
+
   // set up deformation mechanisms
   if (_wPlasticity == "yes") {
     _plastic = new Pseudoplasticity(*_y,*_z,_file,_delim);
