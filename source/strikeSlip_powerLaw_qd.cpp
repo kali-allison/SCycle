@@ -209,25 +209,29 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
 
   assert(_guessSteadyStateICs == 0 || _guessSteadyStateICs == 1);
 
-  assert(_thermalCoupling.compare("coupled")==0 ||
-      _thermalCoupling.compare("uncoupled")==0 ||
-      _thermalCoupling.compare("no")==0 );
+  assert(_thermalCoupling == "coupled" ||
+      _thermalCoupling == "uncoupled" ||
+      _thermalCoupling == "no" );
 
-  assert(_hydraulicCoupling.compare("coupled")==0 ||
-      _hydraulicCoupling.compare("uncoupled")==0 ||
-      _hydraulicCoupling.compare("no")==0 );
+  assert(_grainSizeEvCoupling == "coupled" ||
+      _grainSizeEvCoupling == "uncoupled" ||
+      _grainSizeEvCoupling == "no" );
 
-  assert(_forcingType.compare("iceStream")==0 || _forcingType.compare("no")==0 );
+  assert(_hydraulicCoupling == "coupled" ||
+      _hydraulicCoupling == "uncoupled" ||
+      _hydraulicCoupling == "no" );
 
-  assert(_timeIntegrator.compare("FEuler")==0 ||
-      _timeIntegrator.compare("RK32")==0 ||
-      _timeIntegrator.compare("RK43")==0 ||
-      _timeIntegrator.compare("RK32_WBE")==0 ||
-      _timeIntegrator.compare("RK43_WBE")==0 );
+  assert(_forcingType == "iceStream" || _forcingType == "no" );
 
-  assert(_timeControlType.compare("P")==0 ||
-         _timeControlType.compare("PI")==0 ||
-         _timeControlType.compare("PID")==0 );
+  assert(_timeIntegrator == "FEuler" ||
+      _timeIntegrator == "RK32" ||
+      _timeIntegrator == "RK43" ||
+      _timeIntegrator == "RK32_WBE" ||
+      _timeIntegrator == "RK43_WBE" );
+
+  assert(_timeControlType == "P" ||
+         _timeControlType == "PI" ||
+         _timeControlType == "PID" );
 
   if (_initDeltaT<_minDeltaT || _initDeltaT < 1e-14) {_initDeltaT = _minDeltaT; }
   assert(_maxStepCount >= 0);
@@ -239,13 +243,13 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
   // check boundary condition types for momentum balance equation
-  assert(_bcRType.compare("freeSurface")==0 || _bcRType.compare("remoteLoading")==0);
-  assert(_bcTType.compare("freeSurface")==0 || _bcTType.compare("remoteLoading")==0);
-  assert(_bcLType.compare("symmFault")==0   || _bcLType.compare("rigidFault")==0 );
-  assert(_bcBType.compare("freeSurface")==0 || _bcBType.compare("remoteLoading")==0);
+  assert(_bcRType == "freeSurface" || _bcRType == "remoteLoading");
+  assert(_bcTType == "freeSurface" || _bcTType == "remoteLoading");
+  assert(_bcLType == "symmFault"   || _bcLType == "rigidFault" );
+  assert(_bcBType == "freeSurface" || _bcBType == "remoteLoading");
 
-  if (_stateLaw.compare("flashHeating")==0) {
-    assert(_thermalCoupling.compare("no")!=0);
+  if (_stateLaw == "flashHeating") {
+    assert(_thermalCoupling != "no");
   }
 
   #if VERBOSE > 1
@@ -391,7 +395,7 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-    if (time >= 3e10) { stopIntegration = 1; }
+    if (time >= 5e10) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -863,42 +867,41 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   std::string baseOutDir = _outputDir;
   PetscInt Jj = 0;
 
-  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_0");
-  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_0");
+  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_0");
+  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_0");
+  //~ writeVec(_material->_T,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_T_0");
+  //~ writeVec(_he->_T,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/he_T_0");
 
   // initial guess for (thermo)mechanical problem
   solveSS(Jj, baseOutDir);
 
-  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_1");
-  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_1");
-  writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_1");
-  writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_1");
-  writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_1");
+  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_1");
+  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_1");
+  //~ writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_1");
+  //~ writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_1");
+  //~ writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_1");
+  //~ writeVec(_material->_sdev,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_sdev_1");
 
 
-  if (_thermalCouplingSS.compare("no")!=0) { solveSSHeatEquation(Jj); }
-  if (_thermalCouplingSS.compare("coupled")==0) {
+  if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
+  if (_thermalCouplingSS == "coupled") {
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
   }
-  PetscPrintf(PETSC_COMM_WORLD,"\n\n line 884\n\n");
   if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-  if (_grainSizeEvCouplingSS == "coupled") {
-    _material->updateGrainSize(_varSS["grainSize"]);
-    PetscPrintf(PETSC_COMM_WORLD,"\n\n line 888\n\n");
-  }
+  if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
 
-  writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_2");
-  writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_2");
-  writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_2");
-  writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_2");
-  writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_2");
+  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_2");
+  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_2");
+  //~ writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_2");
+  //~ writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_2");
+  //~ writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_2");
+  //~ writeVec(_material->_sdev,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_sdev_2");
 
 
   writeSS(Jj,baseOutDir);
   Jj = 1;
-  assert(0);
 
   // iterate to converge to steady-state solution
   while (Jj < _maxSSIts_tot) {
@@ -911,8 +914,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
     solveSSViscoelasticProblem(Jj,baseOutDir);
 
     // update temperature
-    if (_thermalCouplingSS.compare("no")!=0) { solveSSHeatEquation(Jj); }
-    if (_thermalCouplingSS.compare("coupled")==0) {
+    if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
+    if (_thermalCouplingSS == "coupled") {
       _material->updateTemperature(_varSS["Temp"]);
       _fault->updateTemperature(_varSS["Temp"]);
     }
@@ -1033,10 +1036,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   _fault->initiateIntegrand(_initTime,_varEx);
 
   // integrate to find the approximate steady state shear stress on the fault
-  if (_timeIntegrator.compare("RK32")==0) {
+  if (_timeIntegrator == "RK32") {
     _quadEx = new RK32(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
   }
-  else if (_timeIntegrator.compare("RK43")==0) {
+  else if (_timeIntegrator == "RK43") {
     _quadEx = new RK43(_maxSSIts_timesteps,_maxTime,_initDeltaT,_timeControlType);
   }
   else {
@@ -1079,20 +1082,20 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   #endif
 
   // set up file I/O
-  char buff[5]; sprintf(buff,"%04d",Jj); std::string outputDir = baseOutDir + string(buff) + "_";
-  std::map <string,std::pair<PetscViewer,string> >  vw;
-  io_initiateWriteAppend(vw, "effViscTot", _varSS["effVisc"], outputDir + "SS_momBal_effViscTot");
-  io_initiateWriteAppend(vw, "Sxy", _material->_sxy, outputDir + "SS_momBal_Sxy");
-  io_initiateWriteAppend(vw, "Sxz", _material->_sxz, outputDir + "SS_momBal_Sxz");
-  if (_material->_wPlasticity.compare("yes")==0) {
-    io_initiateWriteAppend(vw, "invEffViscP", _material->_plastic->_invEffVisc, outputDir + "SS_momBal_invEffViscP");
-  }
-  if (_material->_wDislCreep.compare("yes")==0) {
-    io_initiateWriteAppend(vw, "invEffViscDisl", _material->_disl->_invEffVisc, outputDir + "SS_momBal_invEffViscDisl");
-  }
-  if (_material->_wDiffCreep.compare("yes")==0) {
-    io_initiateWriteAppend(vw, "invEffViscDiff", _material->_diff->_invEffVisc, outputDir + "SS_momBal_invEffViscDiff");
-  }
+  //~ char buff[5]; sprintf(buff,"%04d",Jj); std::string outputDir = baseOutDir + string(buff) + "_";
+  //~ std::map <string,std::pair<PetscViewer,string> >  vw;
+  //~ io_initiateWriteAppend(vw, "effViscTot", _varSS["effVisc"], outputDir + "SS_momBal_effViscTot");
+  //~ io_initiateWriteAppend(vw, "Sxy", _material->_sxy, outputDir + "SS_momBal_Sxy");
+  //~ io_initiateWriteAppend(vw, "Sxz", _material->_sxz, outputDir + "SS_momBal_Sxz");
+  //~ if (_material->_wPlasticity.compare("yes")==0) {
+    //~ io_initiateWriteAppend(vw, "invEffViscP", _material->_plastic->_invEffVisc, outputDir + "SS_momBal_invEffViscP");
+  //~ }
+  //~ if (_material->_wDislCreep.compare("yes")==0) {
+    //~ io_initiateWriteAppend(vw, "invEffViscDisl", _material->_disl->_invEffVisc, outputDir + "SS_momBal_invEffViscDisl");
+  //~ }
+  //~ if (_material->_wDiffCreep.compare("yes")==0) {
+    //~ io_initiateWriteAppend(vw, "invEffViscDiff", _material->_diff->_invEffVisc, outputDir + "SS_momBal_invEffViscDiff");
+  //~ }
 
   // set up rhs vector containing boundary condition data
   VecCopy(_varSS["tau"],_material->_bcL);
@@ -1141,10 +1144,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   VecDestroy(&temp);
 
   // destroy viewers for steady state iteration
-  map<string,std::pair<PetscViewer,string> >::iterator it;
-  for (it = vw.begin(); it!=vw.end(); it++ ) {
-    PetscViewerDestroy(& (vw[it->first].first) );
-  }
+  //~ map<string,std::pair<PetscViewer,string> >::iterator it;
+  //~ for (it = vw.begin(); it!=vw.end(); it++ ) {
+    //~ PetscViewerDestroy(& (vw[it->first].first) );
+  //~ }
 
 
   // update u, gVxy, gVxz, boundary conditions based on effective viscosity
@@ -1192,7 +1195,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSHeatEquation(const PetscInt Jj)
   // viscous shear heating source terms
   Vec dgV_sh;
   VecDuplicate(_material->_dgVdev,&dgV_sh);
-  if ( _grainSizeEvCouplingSS.compare("no")!=0) {
+  if ( _grainSizeEvCouplingSS != "no") {
     // relevant visc strain rate = (total) - (portion contributing to grain size reduction)
     VecPointwiseMult(dgV_sh,_grainDist->_f,_material->_dgVdev_disl);
     VecScale(dgV_sh,-1.0);
@@ -1243,8 +1246,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   }
 
   // save previous grain size for damping
-  //~ Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
-  //~ VecCopy(_varSS["grainSize"],g_old);
+  Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
+  VecCopy(_varSS["grainSize"],g_old);
 
   // get source terms for grain size distribution equation
   Vec sdev = _material->_sdev;
@@ -1254,12 +1257,14 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   _grainDist->computeSteadyStateGrainSize(sdev, dgVdev,_varSS["Temp"]);
   VecCopy(_grainDist->_d,_varSS["grainSize"]);
 
-  // apply damping parameter for update
+  // apply damping parameter for update log10(accepted d) = (1-f)*log10(old d) + f*log10(new d):
+    MyVecLog10AXPBY(_grainDist->_d,1.-_fss_grainSize,g_old,_fss_grainSize,_varSS["grainSize"]);
+    VecCopy(_grainDist->_d,_varSS["grainSize"]);
   //~ VecScale(_varSS["grainSize"],_fss_grainSize);
   //~ VecAXPY(_varSS["grainSize"],1.-_fss_grainSize,g_old);
 
   // clean up memory usage
-  //~ VecDestroy(&g_old);
+  VecDestroy(&g_old);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1305,9 +1310,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "he_bcB", _he->_bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
 
     // grain size evolution
-    if (_grainSizeEvCouplingSS.compare("no")!=0) {
+    if (_grainSizeEvCouplingSS != "no") {
       ierr = io_initiateWriteAppend(_viewers, "SS_grainSizeEv_d", _grainDist->_d, outputDir + "SS_grainSizeEv_d"); CHKERRQ(ierr);
-      ierr = io_initiateWriteAppend(_viewers, "SS_grainSizeEv_d_t", _grainDist->_d_t, outputDir + "SS_grainSizeEv_d_t"); CHKERRQ(ierr);
+      //~ ierr = io_initiateWriteAppend(_viewers, "SS_grainSizeEv_d_t", _grainDist->_d_t, outputDir + "SS_grainSizeEv_d_t"); CHKERRQ(ierr);
     }
 
     // rheology
@@ -1315,11 +1320,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     //~ if (_material->_wPlasticity.compare("no")!=0) {
       //~ io_initiateWriteAppend(_viewers, "invEffViscP", _material->_plastic->_invEffVisc, outputDir + "SS_momBal_invEffViscP");
     //~ }
-    if (_material->_wDislCreep.compare("no")!=0) {
+    if (_material->_wDislCreep != "no") {
       io_initiateWriteAppend(_viewers, "disl_invEffVisc", _material->_disl->_invEffVisc, outputDir + "SS_disl_invEffVisc");
       ierr = io_initiateWriteAppend(_viewers, "disl_dgVdev", _material->_dgVdev_disl, outputDir + "disl_dgVdev"); CHKERRQ(ierr);
     }
-    if (_material->_wDiffCreep.compare("no")!=0) {
+    if (_material->_wDiffCreep != "no") {
       io_initiateWriteAppend(_viewers, "diff_invEffVisc", _material->_diff->_invEffVisc, outputDir + "SS_diff_invEffVisc");
     }
   }
@@ -1350,20 +1355,20 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
       ierr = VecView(_he->_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
     }
 
-    if (_grainSizeEvCouplingSS.compare("no")!=0) {
+    if (_grainSizeEvCouplingSS != "no") {
       ierr = VecView(_grainDist->_d,_viewers["SS_grainSizeEv_d"].first); CHKERRQ(ierr);
-      ierr = VecView(_grainDist->_d_t,_viewers["SS_grainSizeEv_d_t"].first); CHKERRQ(ierr);
+      //~ ierr = VecView(_grainDist->_d_t,_viewers["SS_grainSizeEv_d_t"].first); CHKERRQ(ierr);
     }
 
     ierr = VecView(_varSS["effVisc"],_viewers["effVisc"].first); CHKERRQ(ierr);
     //~ if (_material->_wPlasticity.compare("no")!=0) {
       //~ ierr = VecView(_material->_plastic->_invEffVisc,_viewers["invEffViscP"].first); CHKERRQ(ierr);
     //~ }
-    if (_material->_wDislCreep.compare("no")!=0) {
+    if (_material->_wDislCreep != "no") {
       ierr = VecView(_material->_disl->_invEffVisc,_viewers["disl_invEffVisc"].first); CHKERRQ(ierr);
       ierr = VecView(_material->_dgVdev_disl,_viewers["disl_dgVdev"].first); CHKERRQ(ierr);
     }
-    if (_material->_wDiffCreep.compare("no")!=0) {
+    if (_material->_wDiffCreep != "no") {
       ierr = VecView(_material->_diff->_invEffVisc,_viewers["diff_invEffVisc"].first); CHKERRQ(ierr);
     }
   }
@@ -1414,7 +1419,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
     VecCopy(uL,slip);
     _varEx["slip"] = slip;
   }
-  if (_bcLType.compare("symmFault")==0) {
+  if (_bcLType == "symmFault") {
     VecScale(_varEx["slip"],2.);
   }
 
