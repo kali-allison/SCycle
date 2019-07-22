@@ -938,7 +938,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
     VecScatterEnd(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
     VecScale(tauVisc,_gss_t);
 
-    VecScale(_fault->_tauP,0.667);
     VecPointwiseMin(_fault->_tauP,_fault->_tauP,tauVisc);
     VecDestroy(&tauVisc);
   }
