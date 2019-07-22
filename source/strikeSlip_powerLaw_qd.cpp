@@ -867,21 +867,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   std::string baseOutDir = _outputDir;
   PetscInt Jj = 0;
 
-  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_0");
-  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_0");
-  //~ writeVec(_material->_T,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_T_0");
-  //~ writeVec(_he->_T,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/he_T_0");
-
   // initial guess for (thermo)mechanical problem
   solveSS(Jj, baseOutDir);
-
-  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_1");
-  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_1");
-  //~ writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_1");
-  //~ writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_1");
-  //~ writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_1");
-  //~ writeVec(_material->_sdev,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_sdev_1");
-
 
   if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
   if (_thermalCouplingSS == "coupled") {
@@ -890,14 +877,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   }
   if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
   if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
-
-
-  //~ writeVec(_grainDist->_d,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/ge_grainSize_2");
-  //~ writeVec(_material->_grainSize,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_grainSize_2");
-  //~ writeVec(_material->_diff->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/diff_invEffVisc_2");
-  //~ writeVec(_material->_disl->_invEffVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/disl_invEffVisc_2");
-  //~ writeVec(_material->_effVisc,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_effVisc_2");
-  //~ writeVec(_material->_sdev,"/data/dunham/kallison/grainSizeEv/wdisl_wdiff/test/mat_sdev_2");
 
 
   writeSS(Jj,baseOutDir);
