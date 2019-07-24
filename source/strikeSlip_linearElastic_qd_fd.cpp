@@ -1351,13 +1351,15 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
     CHKERRQ(ierr);
   #endif
 
-// matrix to map the value for the forcing term, which lives on the fault, to all other processors
-  Mat MapV;
+/*
+  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  Mat MapV = NULL;
   MatCreate(PETSC_COMM_WORLD,&MapV);
   MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
-  MatSetFromOptions(MapV);
-  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
-  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  PetscInt NN = 0;
+  VecGetLocalSize(_material->_mu,&NN);
+  MatMPIAIJSetPreallocation(MapV,NN,NULL,NN,NULL);
+  MatSeqAIJSetPreallocation(MapV,NN,NULL);
   MatSetUp(MapV);
 
   PetscScalar v=1.0;
@@ -1369,6 +1371,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
   }
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+*/
 
   //~ // compute forcing term for momentum balance equation
   //~ // forcing = - tau_ss / Ly

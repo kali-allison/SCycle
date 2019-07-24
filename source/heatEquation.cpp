@@ -36,8 +36,8 @@ HeatEquation::HeatEquation(Domain& D)
 
   loadFieldsFromFiles();
   if (_loadICs == 0 && _isMMS == 0 && _ckptNumber == 0) { computeInitialSteadyStateTemp(); }
-  if (_heatEquationType.compare("transient")==0 ) { setUpTransientProblem(); }
-  else if (_heatEquationType.compare("steadyState")==0 ) { setUpSteadyStateProblem(); }
+  if (_heatEquationType == "transient" ) { setUpTransientProblem(); }
+  else if (_heatEquationType == "steadyState" ) { setUpSteadyStateProblem(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

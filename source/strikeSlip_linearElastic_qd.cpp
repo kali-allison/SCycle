@@ -57,12 +57,8 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   else if (_hydraulicCoupling == "coupled") { _fault->setSNEff(_p->_p); }
 
   // initiate momentum balance equation
-  if (_guessSteadyStateICs == 1) {
-    _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType);
-  }
-  else {
-    _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
-  }
+  if (_guessSteadyStateICs == 1) { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,"Neumann",_mat_bcBType); }
+  else { _material = new LinearElastic(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType); }
 
   // body forcing term for ice stream
   _forcingTerm = NULL;
@@ -1016,13 +1012,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
     CHKERRQ(ierr);
   #endif
 
+/*
   // matrix to map the value for the forcing term, which lives on the fault, to all other processors
-  Mat MapV;
+  Mat MapV = NULL;
   MatCreate(PETSC_COMM_WORLD,&MapV);
   MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
-  MatSetFromOptions(MapV);
-  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
-  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  PetscInt NN = 0;
+  VecGetLocalSize(_material->_mu,&NN);
+  MatMPIAIJSetPreallocation(MapV,NN,NULL,NN,NULL);
+  MatSeqAIJSetPreallocation(MapV,NN,NULL);
   MatSetUp(MapV);
 
   PetscScalar v=1.0;
@@ -1034,7 +1032,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   }
   MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
-
+*/
   // compute forcing term using scalar input
   VecDuplicate(_material->_u,&_forcingTerm);
   VecSet(_forcingTerm,_forcingVal);
@@ -1044,7 +1042,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
   // alternatively, load forcing term from user input
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
 
-  // multiply forcing term H*J if using a curvilinear grid (the H matrix and the Jacobian)
   if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
     Vec temp1;
     Mat J,Jinv,qy,rz,yq,zr,H;
@@ -1055,8 +1052,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::constructIceStreamForcingTerm()
     ierr = MatMult(H,temp1,_forcingTerm); CHKERRQ(ierr);
     VecDestroy(&temp1);
   }
-
-  // multiply forcing term by H if grid is regular
   else{
     Vec temp1;
     Mat H;

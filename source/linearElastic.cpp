@@ -41,7 +41,6 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
   _matrixTime += MPI_Wtime() - startMatrix;
 
 
-
   setSurfDisp();
 
   #if VERBOSE > 1

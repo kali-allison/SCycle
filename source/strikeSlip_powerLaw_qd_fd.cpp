@@ -1646,24 +1646,24 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::constructIceStreamForcingTerm()
 
 
 
-  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
-  Mat MapV;
-  MatCreate(PETSC_COMM_WORLD,&MapV);
-  MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
-  MatSetFromOptions(MapV);
-  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
-  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
-  MatSetUp(MapV);
+  //~ // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  //~ Mat MapV;
+  //~ MatCreate(PETSC_COMM_WORLD,&MapV);
+  //~ MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
+  //~ MatSetFromOptions(MapV);
+  //~ MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
+  //~ MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  //~ MatSetUp(MapV);
 
-  PetscScalar v=1.0;
-  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
-  MatGetOwnershipRange(MapV,&Istart,&Iend);
-  for (Ii = Istart; Ii < Iend; Ii++) {
-    Jj = Ii % _D->_Nz;
-    MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
-  }
-  MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+  //~ PetscScalar v=1.0;
+  //~ PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  //~ MatGetOwnershipRange(MapV,&Istart,&Iend);
+  //~ for (Ii = Istart; Ii < Iend; Ii++) {
+    //~ Jj = Ii % _D->_Nz;
+    //~ MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  //~ }
+  //~ MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
+  //~ MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
 
 
   //~ // compute forcing term for momentum balance equation

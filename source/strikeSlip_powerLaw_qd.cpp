@@ -1059,22 +1059,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // set up file I/O
-  //~ char buff[5]; sprintf(buff,"%04d",Jj); std::string outputDir = baseOutDir + string(buff) + "_";
-  //~ std::map <string,std::pair<PetscViewer,string> >  vw;
-  //~ io_initiateWriteAppend(vw, "effViscTot", _varSS["effVisc"], outputDir + "SS_momBal_effViscTot");
-  //~ io_initiateWriteAppend(vw, "Sxy", _material->_sxy, outputDir + "SS_momBal_Sxy");
-  //~ io_initiateWriteAppend(vw, "Sxz", _material->_sxz, outputDir + "SS_momBal_Sxz");
-  //~ if (_material->_wPlasticity.compare("yes")==0) {
-    //~ io_initiateWriteAppend(vw, "invEffViscP", _material->_plastic->_invEffVisc, outputDir + "SS_momBal_invEffViscP");
-  //~ }
-  //~ if (_material->_wDislCreep.compare("yes")==0) {
-    //~ io_initiateWriteAppend(vw, "invEffViscDisl", _material->_disl->_invEffVisc, outputDir + "SS_momBal_invEffViscDisl");
-  //~ }
-  //~ if (_material->_wDiffCreep.compare("yes")==0) {
-    //~ io_initiateWriteAppend(vw, "invEffViscDiff", _material->_diff->_invEffVisc, outputDir + "SS_momBal_invEffViscDiff");
-  //~ }
-
   // set up rhs vector containing boundary condition data
   VecCopy(_varSS["tau"],_material->_bcL);
   VecSet(_material->_bcR,_vL/2.);
@@ -1089,27 +1073,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     _material->setSSRHS(_varSS,"Dirichlet","Neumann","Neumann","Neumann");
     _material->updateSSa(_varSS); // compute v, viscous strain rates
 
-    // update effective viscosity: accepted viscosity = (1-f)*(old viscosity) + f*(new viscosity):
-    //~ VecScale(_varSS["effVisc"],_fss_EffVisc);
-    //~ VecAXPY(_varSS["effVisc"],1.-_fss_EffVisc,effVisc_old);
-
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
     MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
     VecCopy(temp,_varSS["effVisc"]);
-
-    // write out results for current iteration
-    //~ ierr = VecView(_varSS["effVisc"],vw["effViscTot"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_material->_sxy,vw["Sxy"].first); CHKERRQ(ierr);
-    //~ ierr = VecView(_material->_sxz,vw["Sxz"].first); CHKERRQ(ierr);
-    //~ if (_material->_wPlasticity.compare("yes")==0) {
-      //~ ierr = VecView(_material->_plastic->_invEffVisc,vw["invEffViscP"].first); CHKERRQ(ierr);
-    //~ }
-    //~ if (_material->_wDislCreep.compare("yes")==0) {
-      //~ ierr = VecView(_material->_disl->_invEffVisc,vw["invEffViscDisl"].first); CHKERRQ(ierr);
-    //~ }
-    //~ if (_material->_wDiffCreep.compare("yes")==0) {
-      //~ ierr = VecView(_material->_diff->_invEffVisc,vw["invEffViscDiff"].first); CHKERRQ(ierr);
-    //~ }
 
     // evaluate convergence of this iteration
     PetscScalar len;
@@ -1120,12 +1086,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   }
   VecDestroy(&effVisc_old);
   VecDestroy(&temp);
-
-  // destroy viewers for steady state iteration
-  //~ map<string,std::pair<PetscViewer,string> >::iterator it;
-  //~ for (it = vw.begin(); it!=vw.end(); it++ ) {
-    //~ PetscViewerDestroy(& (vw[it->first].first) );
-  //~ }
 
 
   // update u, gVxy, gVxz, boundary conditions based on effective viscosity
@@ -1422,24 +1382,24 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::constructIceStreamForcingTerm()
 
 
 
-  // matrix to map the value for the forcing term, which lives on the fault, to all other processors
-  Mat MapV;
-  MatCreate(PETSC_COMM_WORLD,&MapV);
-  MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
-  MatSetFromOptions(MapV);
-  MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
-  MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
-  MatSetUp(MapV);
+  //~ // matrix to map the value for the forcing term, which lives on the fault, to all other processors
+  //~ Mat MapV;
+  //~ MatCreate(PETSC_COMM_WORLD,&MapV);
+  //~ MatSetSizes(MapV,PETSC_DECIDE,PETSC_DECIDE,_D->_Ny*_D->_Nz,_D->_Nz);
+  //~ MatSetFromOptions(MapV);
+  //~ MatMPIAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL,_D->_Ny*_D->_Nz,NULL);
+  //~ MatSeqAIJSetPreallocation(MapV,_D->_Ny*_D->_Nz,NULL);
+  //~ MatSetUp(MapV);
 
-  PetscScalar v=1.0;
-  PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
-  MatGetOwnershipRange(MapV,&Istart,&Iend);
-  for (Ii = Istart; Ii < Iend; Ii++) {
-    Jj = Ii % _D->_Nz;
-    MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
-  }
-  MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
+  //~ PetscScalar v=1.0;
+  //~ PetscInt Ii=0,Istart=0,Iend=0,Jj=0;
+  //~ MatGetOwnershipRange(MapV,&Istart,&Iend);
+  //~ for (Ii = Istart; Ii < Iend; Ii++) {
+    //~ Jj = Ii % _D->_Nz;
+    //~ MatSetValues(MapV,1,&Ii,1,&Jj,&v,INSERT_VALUES);
+  //~ }
+  //~ MatAssemblyBegin(MapV,MAT_FINAL_ASSEMBLY);
+  //~ MatAssemblyEnd(MapV,MAT_FINAL_ASSEMBLY);
 
 
   // compute forcing term for momentum balance equation
