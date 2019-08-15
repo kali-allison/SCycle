@@ -121,12 +121,13 @@ public:
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
   //~ map <string,PetscViewer>  _viewers;
-  map <string,pair<PetscViewer,string> >  _viewers;
-  map <string,Vec>                             _varSS; // holds variables for steady state iteration
-  PetscScalar                                       _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
-  PetscScalar                                       _gss_t; // guess steady state strain rate
-  PetscInt                 _maxSSIts_effVisc,_maxSSIts_tot,_maxSSIts_timesteps; // max iterations allowed
-  PetscScalar              _atolSS_effVisc;
+  map <string,pair<PetscViewer,string> > _viewers;
+  map <string,Vec>                       _varSS; // holds variables for steady state iteration
+  PetscScalar                            _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
+  PetscScalar                            _gss_t; // guess steady state strain rate
+  PetscInt                               _maxSSIts_effVisc,_maxSSIts_tot,_maxSSIts_timesteps; // max iterations allowed
+  PetscScalar                            _atolSS_effVisc;
+  PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
   PetscErrorCode writeSS(const int Ii, const string outputDir);
   PetscErrorCode computeSSEffVisc();

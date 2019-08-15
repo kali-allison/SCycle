@@ -322,9 +322,9 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerASCIIPrintf(viewer,"\n");CHKERRQ(ierr);
 
   // checkpoint settings
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint enabled = %i\n",_ckpt);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint number = %i\n",_ckptNumber);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint interval = %i\n",_interval);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_enabled = %i\n",_ckpt);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_number = %i\n",_ckptNumber);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"checkpoint_interval = %i\n",_interval);CHKERRQ(ierr);
 
   // get number of processors
   PetscMPIInt size;

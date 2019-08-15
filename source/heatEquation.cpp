@@ -1870,7 +1870,7 @@ PetscErrorCode HeatEquation::writeContext(const string outputDir)
     ierr = writeVec(_Qrad,outputDir + "he_Qrad"); CHKERRQ(ierr);
   }
 
-  ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);
+  //~ ierr = _sbp->writeOps(_outputDir + "ops_he_"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);

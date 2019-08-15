@@ -2272,6 +2272,10 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
   if (_wDislCreep.compare("yes")==0) {_disl->writeContext(outputDir); }
   if (_wDiffCreep.compare("yes")==0) {_diff->writeContext(outputDir); }
 
+  if (_wDislCreep.compare("yes")==0) {
+    ierr = io_initiateWriteAppend(_viewers2D, "momBal_T", _T, outputDir + "momBal_T"); CHKERRQ(ierr);
+  }
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

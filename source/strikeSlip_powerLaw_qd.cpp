@@ -26,7 +26,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _fault(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
     _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),
     _maxSSIts_effVisc(50),_maxSSIts_tot(100),_maxSSIts_timesteps(2e5),
-    _atolSS_effVisc(1e-3)
+    _atolSS_effVisc(1e-4),_maxSSIts_time(5e10)
 {
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd()";
@@ -162,6 +162,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("maxSSIts_tot")==0) { _maxSSIts_tot = atoi( rhs.c_str() ); }
     else if (var.compare("maxSSIts_timesteps")==0) { _maxSSIts_timesteps = (int) atoi( rhs.c_str() ); }
     else if (var.compare("atolSS_effVisc")==0) { _atolSS_effVisc = atof( rhs.c_str() ); }
+    else if (var.compare("maxSSIts_time")==0) { _maxSSIts_time = atof( rhs.c_str() ); }
 
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
@@ -395,7 +396,7 @@ double startTime = MPI_Wtime();
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
-    if (time >= 5e10) { stopIntegration = 1; }
+    if (time >= _maxSSIts_time) { stopIntegration = 1; }
   }
 
   #if VERBOSE > 0
@@ -1192,7 +1193,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   Vec dgVdev = _material->_dgVdev_disl;
 
   // compute new steady-state grain size distribution
-  _grainDist->computeSteadyStateGrainSize(sdev, dgVdev,_varSS["Temp"]);
+    if (_grainDist->_grainSizeEvType == "piezometer") {
+    _grainDist->computeGrainSizeFromPiez(sdev, dgVdev, _varSS["Temp"]);
+  }
+  else {
+    _grainDist->computeSteadyStateGrainSize(sdev, dgVdev, _varSS["Temp"]);
+  }
   VecCopy(_grainDist->_d,_varSS["grainSize"]);
 
   // apply damping parameter for update log10(accepted d) = (1-f)*log10(old d) + f*log10(new d):

@@ -572,8 +572,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::view()
   if (_hydraulicCoupling.compare("no")!=0) { _p->view(_integrateTime); }
   if (_thermalCoupling.compare("no")!=0) { _he->view(); }
 
+  // get number of processors
+  PetscMPIInt size;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"StrikeSlip_LinearElastic_qd Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of processors: %i\n",size);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in integration (s): %g\n",_integrateTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   total run time (s): %g\n",totRunTime);CHKERRQ(ierr);
