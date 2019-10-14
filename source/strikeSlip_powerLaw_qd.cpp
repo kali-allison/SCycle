@@ -324,6 +324,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
+    _grainSizeEvCouplingSS = _grainSizeEvCoupling;
     solveSS(0,_outputDir);
     writeSS(0,_outputDir);
   }
@@ -871,15 +872,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   // initial guess for (thermo)mechanical problem
   solveSS(Jj, baseOutDir);
 
-  if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
-  if (_thermalCouplingSS == "coupled") {
-      _material->updateTemperature(_varSS["Temp"]);
-      _fault->updateTemperature(_varSS["Temp"]);
-  }
-  if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-  if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
-
-
   writeSS(Jj,baseOutDir);
   Jj = 1;
 
@@ -984,6 +976,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
   guessTauSS(_varSS);
 
   solveSSViscoelasticProblem(Jj,baseOutDir); // converge to steady state eta etc
+
+  if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
+  if (_thermalCouplingSS == "coupled") {
+      _material->updateTemperature(_varSS["Temp"]);
+      _fault->updateTemperature(_varSS["Temp"]);
+  }
+
+  if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
+  if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1193,19 +1194,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   Vec dgVdev = _material->_dgVdev_disl;
 
   // compute new steady-state grain size distribution
-    if (_grainDist->_grainSizeEvType == "piezometer") {
+  if (_grainDist->_grainSizeEvType == "piezometer") {
     _grainDist->computeGrainSizeFromPiez(sdev, dgVdev, _varSS["Temp"]);
   }
   else {
     _grainDist->computeSteadyStateGrainSize(sdev, dgVdev, _varSS["Temp"]);
   }
-  VecCopy(_grainDist->_d,_varSS["grainSize"]);
 
   // apply damping parameter for update log10(accepted d) = (1-f)*log10(old d) + f*log10(new d):
     MyVecLog10AXPBY(_grainDist->_d,1.-_fss_grainSize,g_old,_fss_grainSize,_varSS["grainSize"]);
     VecCopy(_grainDist->_d,_varSS["grainSize"]);
-  //~ VecScale(_varSS["grainSize"],_fss_grainSize);
-  //~ VecAXPY(_varSS["grainSize"],1.-_fss_grainSize,g_old);
 
   // clean up memory usage
   VecDestroy(&g_old);

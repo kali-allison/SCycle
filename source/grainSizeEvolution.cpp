@@ -456,9 +456,22 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     PetscScalar b = 1.0;
     PetscScalar c = 2.0;
 
-    d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
+    if ( isinf( pow(BB/AA,1.0/(a-c)) ) ) {
+      d[Jj] = 1e-8;
+    }
+    else {
+      d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
+    }
 
     if ( isnan(d[Jj]) ) {
+
+      PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
+      PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);
+      PetscPrintf(PETSC_COMM_WORLD,"pow(BB/AA,1.0/(a-c)) = %.15e\n", pow(BB/AA,1.0/(a-c)));
+      PetscPrintf(PETSC_COMM_WORLD,"b/(a-c) = %.15e\n", b/(a-c));
+      PetscPrintf(PETSC_COMM_WORLD,"sdev = %.15e\n", s[Jj]);
+    }
+    if ( isinf(d[Jj]) ) {
 
       PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
       PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);

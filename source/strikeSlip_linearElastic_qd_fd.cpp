@@ -832,9 +832,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
     if ((_p->_permSlipDependent).compare("yes")==0) {
       VecCopy(_varQSEx["permeability"], _varFDPrev["permeability"]);
     }
-    // if (_hydraulicCoupling.compare("coupled")==0 ){
-    //   _fault_fd->setSNEff(_varFD["pressure"]);
-    // }
   }
 
   // take 1 quasidynamic time step to compute variables at time n
@@ -873,7 +870,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
-  VecAXPY(_fault_fd->_tau0,1.0,_fault_fd->_prestress); // add prestress to tau0 so don't have to do this each time step
+  //~ VecAXPY(_fault_fd->_tau0,1.0,_fault_fd->_prestress); // add prestress to tau0 so don't have to do this each time step
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
@@ -1703,7 +1700,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   VecAXPY(_fault_fd->_tauQSP, 1.0, _fault_fd->_prestress);
-  // update shear stress tauP: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
@@ -1788,7 +1784,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::d_dt(const PetscScalar time, cons
   ierr = VecScatterBegin(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, sxy, _fault_fd->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   VecAXPY(_fault_fd->_tauQSP, 1.0, _fault_fd->_prestress);
-  // update shear stress: tau = tauQS - eta_rad * slipVel
   VecPointwiseMult(_fault_fd->_tauP,_fault_qd->_eta_rad,_fault_fd->_slipVel);
   VecAYPX(_fault_fd->_tauP,-1.0,_fault_fd->_tauQSP); // tauP = -tauP + tauQSP = eta_rad*slipVel + tauQSP
 
