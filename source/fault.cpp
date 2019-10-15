@@ -125,7 +125,7 @@ PetscErrorCode Fault::loadFieldsFromFiles()
   // load shear stress: pre-stress, quasistatic, and full
   ierr = loadVecFromInputFile(_prestress,_D->_inputDir,"prestress"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
-  VecAXPY(_tauQSP,1.0,_prestress);
+  //~ VecAXPY(_tauQSP,1.0,_prestress);
 
   bool loadedTauP = 0;
   ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau",loadedTauP); CHKERRQ(ierr);
