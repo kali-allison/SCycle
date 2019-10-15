@@ -56,6 +56,14 @@ muDepths = [0 200] # (km)
 rhoVals = [2.670 2.670] # (g/cm^3)
 rhoDepths = [0 200] # (km)
 
+
+# boundary condition for remote boundary (bcR):
+# if displacing bcR at 1/2 tectonic plate rate
+#momBal_bcR_qd = remoteLoading
+
+# if using a free surface boundary condition at bcR
+momBal_bcR_qd = freeSurface
+
 #=======================================================================
 # settings for time integration
 
