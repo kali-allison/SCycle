@@ -15,7 +15,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _timeIntegrator("RK43"),_timeControlType("PID"),
     _stride1D(1),_stride2D(1),_maxStepCount(1e8),
     _initTime(0),_currTime(0),_maxTime(1e15),
-    _minDeltaT(1e-3),_maxDeltaT(1e10),
+    _minDeltaT(-1),_maxDeltaT(1e10),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),
@@ -62,6 +62,9 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   // body forcing term for ice stream
   _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
+
+  // compute min allowed time step for adaptive time stepping method
+  computeMinTimeStep();
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -239,7 +242,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
   assert(_initTime >= 0);
   assert(_maxTime >= 0 && _maxTime>=_initTime);
   assert(_timeStepTol >= 1e-14);
-  assert(_minDeltaT >= 1e-14);
   assert(_maxDeltaT >= 1e-14  &&  _maxDeltaT >= _minDeltaT);
   assert(_initDeltaT>0 && _initDeltaT>=_minDeltaT && _initDeltaT<=_maxDeltaT);
 
@@ -257,6 +259,71 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
+  return ierr;
+}
+
+// compute recommended smallest time step based on grid spacing and shear wave speed
+// Note: defaults to user specified value
+// recommended minDeltaT <= min(dy/cs, dz/cs)
+PetscErrorCode StrikeSlip_PowerLaw_qd::computeMinTimeStep()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::computeTimeStep";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // compute grid spacing in y and z
+  Vec dy, dz;
+  VecDuplicate(_D->_y,&dy);
+  VecDuplicate(_D->_y,&dz);
+
+  if (_D->_gridSpacingType.compare("variableGridSpacing")==0) {
+    Mat J,Jinv,qy,rz,yq,zr;
+    ierr = _material->_sbp->getCoordTrans(J,Jinv,qy,rz,yq,zr); CHKERRQ(ierr);
+    MatGetDiagonal(yq, dy);
+    VecScale(dy,1.0/(_D->_Ny-1));
+    MatGetDiagonal(zr, dz);
+    VecScale(dz,1.0/(_D->_Nz-1));
+  }
+  else {
+    VecSet(dy,_D->_Ly/(_D->_Ny-1.0));
+    VecSet(dz,_D->_Lz/(_D->_Nz-1.0));
+  }
+
+  // compute time for shear wave to travel one dy or dz
+  Vec ts_dy,ts_dz;
+  VecDuplicate(_D->_y,&ts_dy);
+  VecDuplicate(_D->_z,&ts_dz);
+  VecPointwiseDivide(ts_dy,dy,_material->_cs);
+  VecPointwiseDivide(ts_dz,dz,_material->_cs);
+
+  PetscScalar min_ts_dy, min_ts_dz;
+  VecMin(ts_dy,NULL,&min_ts_dy);
+  VecMin(ts_dz,NULL,&min_ts_dz);
+
+  // clean up memory usage
+  VecDestroy(&dy);
+  VecDestroy(&dz);
+  VecDestroy(&ts_dy);
+  VecDestroy(&ts_dz);
+
+  // smallest reasonable time step
+  PetscScalar min_deltaT = min(min_ts_dy,min_ts_dz);
+
+  // provide if not user specified
+  if (_minDeltaT == -1) {
+    _minDeltaT = min_deltaT;
+  }
+  else if (_minDeltaT > min_deltaT) {
+    PetscPrintf(PETSC_COMM_WORLD,"Warning: minimum requested time step (minDeltaT) is larger than recommended.");
+    PetscPrintf(PETSC_COMM_WORLD," Requested: %e s, Recommended (min(dy/cs,dz/cs)): %e s\n",_minDeltaT,min_deltaT);
+  }
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
   return ierr;
 }
 
