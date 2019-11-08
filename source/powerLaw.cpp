@@ -1901,7 +1901,7 @@ PetscErrorCode PowerLaw::computeDevViscStrainRates()
   #endif
 
   {
-    // compute deviatoric rate
+    // compute deviatoric strain rate
     PetscScalar const *dgVxy,*dgVxz;
     PetscScalar *dgVdev;
     VecGetArrayRead(_dgVxy,&dgVxy);
@@ -1919,7 +1919,7 @@ PetscErrorCode PowerLaw::computeDevViscStrainRates()
     VecRestoreArray(_dgVdev,&dgVdev);
   }
 
-  // compute 2nd invariant in viscous strain rate, the deviatoric strain rate
+  // compute deviatoric strain rate from dislocation creep only
   if (_wDislCreep.compare("yes")==0) {
     PetscScalar const *invVisc_disl,*sxy,*sxz;
     PetscScalar *dgVdev;
@@ -2132,7 +2132,7 @@ PetscErrorCode PowerLaw::updateSSa(map<string,Vec>& varSS)
   ierr = computeDevViscStrainRates(); CHKERRQ(ierr); // deviatoric strain rate
 
   // update effective viscosity
-  ierr = computeViscosity(_effViscCap); CHKERRQ(ierr); // new viscosity
+  //~ ierr = computeViscosity(_effViscCap); CHKERRQ(ierr); // new viscosity
 
 
   #if VERBOSE > 1

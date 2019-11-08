@@ -959,9 +959,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _fault->updateTemperature(_varSS["Temp"]);
     }
 
-    // update grain size
-    if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
+    //~ // update grain size
+    //~ if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
+    //~ if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
     writeSS(Jj,baseOutDir);
     Jj++;
@@ -1142,6 +1142,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     _material->setSSRHS(_varSS,"Dirichlet","Neumann","Neumann","Neumann");
     _material->updateSSa(_varSS); // compute v, viscous strain rates
 
+    // update grain size
+    if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
+    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
+
+    _material->computeViscosity(_material->_effViscCap); // new viscosity
+
     // update effective viscosity: log10(accepted viscosity) = (1-f)*log10(old viscosity) + f*log10(new viscosity):
     MyVecLog10AXPBY(temp,1.-_fss_EffVisc,effVisc_old,_fss_EffVisc,_varSS["effVisc"]);
     VecCopy(temp,_varSS["effVisc"]);
@@ -1253,8 +1259,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   }
 
   // save previous grain size for damping
-  Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
-  VecCopy(_varSS["grainSize"],g_old);
+  //~ Vec g_old; VecDuplicate(_varSS["grainSize"],&g_old);
+  //~ VecCopy(_varSS["grainSize"],g_old);
 
   // get source terms for grain size distribution equation
   Vec sdev = _material->_sdev;
@@ -1268,12 +1274,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
     _grainDist->computeSteadyStateGrainSize(sdev, dgVdev, _varSS["Temp"]);
   }
 
+  // update to new grain size with no damping
+  VecCopy(_grainDist->_d,_varSS["grainSize"]);
+
+
   // apply damping parameter for update log10(accepted d) = (1-f)*log10(old d) + f*log10(new d):
-    MyVecLog10AXPBY(_grainDist->_d,1.-_fss_grainSize,g_old,_fss_grainSize,_varSS["grainSize"]);
-    VecCopy(_grainDist->_d,_varSS["grainSize"]);
+  //~ MyVecLog10AXPBY(_grainDist->_d,1.-_fss_grainSize,g_old,_fss_grainSize,_varSS["grainSize"]);
+  //~ VecCopy(_grainDist->_d,_varSS["grainSize"]);
 
   // clean up memory usage
-  VecDestroy(&g_old);
+  //~ VecDestroy(&g_old);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
