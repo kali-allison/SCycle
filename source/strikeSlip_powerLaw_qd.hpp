@@ -131,6 +131,7 @@ public:
   PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
   PetscErrorCode writeSS(const int Ii, const string outputDir);
+  PetscErrorCode writeSS_viscLoop(const int Ii, const string outputDir);
   PetscErrorCode computeSSEffVisc();
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();

@@ -29,7 +29,8 @@ class GrainSizeEvolution
     std::string          _delim; // format is: var delim value (without the white space)
     std::string          _inputDir; // directory to load fields from
     std::string          _outputDir;  // output data
-    std::string          _grainSizeEvType;  // "explicit" or "implicit" time stepping, or "piez" to follow piezometer
+    std::string          _grainSizeEvType; // transient, steadyState, or piezometer
+    std::string          _grainSizeEvTypeSS; // transient, steadyState, or piezometer
 
     const PetscInt       _order,_Ny,_Nz;
     PetscScalar          _Ly,_Lz,_dy,_dz;
