@@ -45,8 +45,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   if (_thermalCoupling != "no") { _he = new HeatEquation(D); }
 
   // fault
-  //_scatters is a VecScatter object in domain.cpp
-  _body2fault = &(D._scatters["body2L"]);
+  _body2fault = &(D._scatters["body2L"]); // pull out fault component of 2D fields
   _fault = new Fault_qd(D,D._scatters["body2L"],_faultTypeScale);
   if (_thermalCoupling != "no" && _stateLaw == "flashHeating") {
     _fault->setThermalFields(_he->_Tamb,_he->_k,_he->_c);

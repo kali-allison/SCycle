@@ -237,6 +237,24 @@ double computeNormDiff_L2_scaleL2(const Vec& vec1,const Vec& vec2)
   return err;
 }
 
+// computes max( abs( vec1 - vec2 ./ / vec1 ))
+double computeMaxDiff_scaleVec1(const Vec& vec1,const Vec& vec2)
+{
+  PetscErrorCode ierr = 0;
+  PetscScalar err = 0;
+  Vec diff;
+  ierr = VecDuplicate(vec1,&diff);                                      CHKERRQ(ierr);
+  ierr = VecWAXPY(diff,-1.0,vec1,vec2);                                 CHKERRQ(ierr);
+  ierr = VecAbs(diff);                                                  CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(diff,diff,vec1);                            CHKERRQ(ierr);
+  ierr = VecMax(diff,NULL,&err);                                        CHKERRQ(ierr);
+  assert(!isinf(err));
+
+  VecDestroy(&diff);
+
+  return err;
+}
+
 // out = vecL' x A x vecR
 double multVecMatsVec(const Vec& vecL, const Mat& A, const Vec& vecR)
 {

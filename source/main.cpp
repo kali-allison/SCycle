@@ -132,6 +132,9 @@ int computeGreensFunction(const char * inputFile)
 
   // create linear elastic object using domain (includes material properties) specifications
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
+  Mat A;
+  le._sbp->getA(A);
+  le.setupKSP(le._ksp,le._pc,A);
 
   // set up boundaries
   VecSet(le._bcT,0.0);
@@ -160,7 +163,7 @@ int computeGreensFunction(const char * inputFile)
 
     // solve for displacement
     ierr = le._sbp->setRhs(le._rhs,le._bcL,le._bcR,le._bcT,le._bcB); CHKERRQ(ierr);
-    ierr = KSPSolve(le._ksp,le._rhs,le._u); CHKERRQ(ierr);
+    ierr = KSPSolve(le._ksp,le._rhs,le._u);
     ierr = le.setSurfDisp();
 
     // assign values to G
@@ -247,7 +250,8 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and power-law viscoelastic off-fault material
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
-    if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
+    //~ if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
+    ierr = m.writeContext();
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -300,7 +304,7 @@ int main(int argc,char **args)
     Domain d(inputFile);
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
-    //computeGreensFunction(inputFile);
+    //~ computeGreensFunction(inputFile);
     //runTests(inputFile);
   }
 

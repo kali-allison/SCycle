@@ -7,7 +7,8 @@
 // power-law rheology class
 
 GrainSizeEvolution::GrainSizeEvolution(Domain& D)
-: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),_grainSizeEvType("transient"),
+: _D(&D),_file(D._file),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
+  _grainSizeEvType("transient"),_grainSizeEvTypeSS("steadyState"),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
   _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_piez_A(NULL),_piez_n(NULL),_d(NULL),_d_t(NULL)
@@ -117,6 +118,7 @@ PetscErrorCode GrainSizeEvolution::loadSettings(const char *file)
     else if (var.compare("grainSizeEv_grainSizeDepths")==0) { loadVectorFromInputFile(rhsFull,_dDepths); }
 
     if (var.compare("grainSizeEv_grainSizeEvType")==0) { _grainSizeEvType = rhs.c_str(); }
+    if (var.compare("grainSizeEv_grainSizeEvTypeSS")==0) { _grainSizeEvTypeSS = rhs.c_str(); }
 
   }
 
@@ -163,6 +165,10 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_grainSizeEvType.compare("transient")==0 ||
       _grainSizeEvType.compare("steadyState")==0 ||
       _grainSizeEvType.compare("piezometer")==0 );
+
+    assert(_grainSizeEvTypeSS.compare("transient")==0 ||
+      _grainSizeEvTypeSS.compare("steadyState")==0 ||
+      _grainSizeEvTypeSS.compare("piezometer")==0 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -214,7 +220,7 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
   VecSet(_d_t,0.);
 
   // if user provided piezometric relation
-  if (_grainSizeEvType == "piezometer") {
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
     VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0);
     VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0);
     ierr = setVec(_piez_A,*_z,_piez_AVals,_piez_ADepths);                                CHKERRQ(ierr);
@@ -247,7 +253,7 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
 
-  if (_grainSizeEvType == "piezometer") {
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
     ierr = loadVecFromInputFile(_piez_A,_inputDir,"grainSizeEv_piez_A"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_piez_n,_inputDir,"grainSizeEv_piez_n"); CHKERRQ(ierr);
   }
@@ -269,12 +275,10 @@ PetscErrorCode GrainSizeEvolution::initiateIntegrand(const PetscScalar time,map<
   #endif
 
   // add deep copy of grain size to integrated variables, stored in _var
-  if ( _grainSizeEvType.compare("transient")==0) {
+  if (_grainSizeEvType != "transient") {
     if (varEx.find("grainSize") != varEx.end() ) { VecCopy(_d,varEx["grainSize"]); }
     else { Vec var; VecDuplicate(_d,&var); VecCopy(_d,var); varEx["grainSize"] = var; }
   }
-
-  // if _grainSizeEvType == "piezometer" then do not add grain size to varEx
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -456,9 +460,22 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     PetscScalar b = 1.0;
     PetscScalar c = 2.0;
 
-    d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
+    if ( isinf( pow(BB/AA,1.0/(a-c)) ) ) {
+      d[Jj] = 1e-8;
+    }
+    else {
+      d[Jj] = pow(BB/AA,1.0/(a-c)) * pow(s[Jj],b/(a-c));
+    }
 
     if ( std::isnan(d[Jj]) ) {
+
+      PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
+      PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);
+      PetscPrintf(PETSC_COMM_WORLD,"pow(BB/AA,1.0/(a-c)) = %.15e\n", pow(BB/AA,1.0/(a-c)));
+      PetscPrintf(PETSC_COMM_WORLD,"b/(a-c) = %.15e\n", b/(a-c));
+      PetscPrintf(PETSC_COMM_WORLD,"sdev = %.15e\n", s[Jj]);
+    }
+    if ( isinf(d[Jj]) ) {
 
       PetscPrintf(PETSC_COMM_WORLD,"A = %.15e, QR = %.15e, p = %.15e, T = %.15e\n", A[Jj], B[Jj], p[Jj], T[Jj]);
       PetscPrintf(PETSC_COMM_WORLD,"AA = %.15e, BB = %.15e, a = %.15e, b = %.15e, c = %.15e\n", AA, BB, a, b, c);
@@ -542,7 +559,7 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
   ierr = writeVec(_f,outputDir + "grainSizeEv_f");                      CHKERRQ(ierr);
   ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");              CHKERRQ(ierr);
 
-  if (_grainSizeEvType == "piezometer") {
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
     ierr = writeVec(_piez_A,outputDir + "grainSizeEv_piez_A");          CHKERRQ(ierr);
     ierr = writeVec(_piez_n,outputDir + "grainSizeEv_piez_n");          CHKERRQ(ierr);
   }
@@ -556,6 +573,7 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvType = %s\n",_grainSizeEvType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvTypeSS = %s\n",_grainSizeEvTypeSS.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"c = %g\n",_c);CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);

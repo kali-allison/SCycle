@@ -113,6 +113,7 @@ public:
   PetscErrorCode loadSettings(const char *file);
   PetscErrorCode checkInput();
   PetscErrorCode parseBCs(); // parse boundary conditions
+  PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
   PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
   // estimating steady state conditions
@@ -130,6 +131,7 @@ public:
   PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
   PetscErrorCode writeSS(const int Ii, const string outputDir);
+  PetscErrorCode writeSS_viscLoop(const int Ii, const string outputDir);
   PetscErrorCode computeSSEffVisc();
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();

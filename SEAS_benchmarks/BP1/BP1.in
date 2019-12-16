@@ -1,0 +1,79 @@
+# Input file for SEAS benchmark problem 1.
+
+
+#=======================================================================
+# set up computational domain, directories for ICs and output
+
+# directory for ICs
+inputDir = /data/dunham/kallison/scycle/SEAS_benchmarks/BP1/ICs/
+
+# directory for output
+outputDir = /data/dunham/kallison/scycle/SEAS_benchmarks/BP1/output/
+
+# set up the computational domain
+Ny = 401
+Nz = 2401
+Ly = 500
+Lz = 500
+
+# specify what problem to simulate
+problemType = strikeSlip
+bulkDeformationType = linearElastic
+momentumBalanceType = quasidynamic
+vL = 1e-9 # (m/s) loading rate
+
+#=======================================================================
+# rate-and-state parameters
+lockedVals = [0 0 -1 -1]
+lockedDepths = [0 40 40 500]
+
+# state variable evolution law
+stateLaw = agingLaw
+f0 = 0.6 # reference friction coefficient
+v0 = 1e-6 # reference slip rate (m/s)
+DcVals = [0.008 0.008] # m
+DcDepths = [0 500] # (km)
+
+aVals = [0.01 0.01 0.025 0.025]
+aDepths = [0 15 18 500]
+bVals = [0.015 0.015]
+bDepths = [0 500]
+
+sNVals = [50 50] # (MPa) effective normal stress
+sNDepths = [0 500] # (km)
+
+#=======================================================================
+# off-fault material parameters
+
+# compute stress component sxz
+momBal_computeSxz = 1
+
+# algorithm for momentum balance equation
+linSolver = MUMPSCHOLESKY
+
+muVals = [32.0381 32.0381] # (GPa) shear modulus
+muDepths = [0 200] # (km)
+rhoVals = [2.670 2.670] # (g/cm^3)
+rhoDepths = [0 200] # (km)
+
+
+# boundary condition for remote boundary (bcR):
+# if displacing bcR at 1/2 tectonic plate rate
+#momBal_bcR_qd = remoteLoading
+
+# if using a free surface boundary condition at bcR
+momBal_bcR_qd = freeSurface
+
+#=======================================================================
+# settings for time integration
+
+timeIntegrator = RK43
+stride1D = 10 # how often to write out fields that live on the fault
+stride2D = 0 # how often to write out body fields
+maxStepCount = 1e8 # maximum number of time steps
+initTime = 0 # (s) initial time
+maxTime = 9.4608e+10 # (s) final time: 3000 years
+#maxDeltaT = 3.154e+6 # (s) size of maximum time step: 0.1 years
+timeStepTol = 1e-7 # absolute tolerance for time integration
+timeIntInds = [psi slip] # variables to use to compute time step
+

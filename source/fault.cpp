@@ -123,11 +123,14 @@ PetscErrorCode Fault::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
 
   // load shear stress: pre-stress, quasistatic, and full
-  ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_prestress,_D->_inputDir,"prestress"); CHKERRQ(ierr);
-  VecAXPY(_tauQSP,1.0,_prestress);
-  VecCopy(_tauQSP,_tauP);
+  ierr = loadVecFromInputFile(_tauQSP,_D->_inputDir,"tauQS"); CHKERRQ(ierr);
+  //~ VecAXPY(_tauQSP,1.0,_prestress);
+
+  bool loadedTauP = 0;
+  ierr = loadVecFromInputFile(_tauP,_D->_inputDir,"tau",loadedTauP); CHKERRQ(ierr);
+  if (!loadedTauP) { VecCopy(_tauQSP,_tauP); }
+  VecCopy(_tauP,_strength);
 
   // rate and state parameters
   ierr = loadVecFromInputFile(_a,_D->_inputDir,"fault_a"); CHKERRQ(ierr);
@@ -894,7 +897,6 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("constantState") == 0) {
-    // dpsi = 0; psi = f0 - b*ln(|V|/v0)
     VecSet(dstate,0.);
   }
   else {
@@ -1418,7 +1420,7 @@ PetscErrorCode Fault_fd::d_dt(const PetscScalar time,const PetscScalar deltaT, m
   VecWAXPY(_uPrev,-1.0,_slip0,varPrev.find("slip")->second);
   VecScale(_uPrev,1.0/_faultTypeScale);
 
-  // u = (slip - slip0)/2
+  // u = (slip - slip0)/faultTypeScale
   VecWAXPY(_u,-1.0,_slip0,var.find("slip")->second);
   VecScale(_u,1.0/_faultTypeScale);
 
