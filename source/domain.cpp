@@ -196,7 +196,7 @@ PetscErrorCode Domain::loadSettings(const char *file)
 }
 
 
-// Specified processor prints scalar/string data members to stdout.
+// Specified processor prints scalar/string data members to std::out.
 PetscErrorCode Domain::view(PetscMPIInt rank)
 {
   PetscErrorCode ierr = 0;
