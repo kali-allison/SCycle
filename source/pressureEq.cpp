@@ -780,7 +780,7 @@ PetscErrorCode PressureEq::setupKSP(const Mat &A)
   // set up preconditioner, using the boomerAMG PC from Hypre
   ierr = KSPGetPC(_ksp, &pc); CHKERRQ(ierr);
   ierr = PCSetType(pc, PCHYPRE); CHKERRQ(ierr);
-  ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr);
+  //~ ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr); //!!! THIS IS NEEDED
   ierr = KSPSetTolerances(_ksp, _kspTol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
   ierr = PCFactorSetLevels(pc, 4); CHKERRQ(ierr);
   ierr = KSPSetInitialGuessNonzero(_ksp, PETSC_TRUE); CHKERRQ(ierr);
@@ -828,7 +828,7 @@ PetscErrorCode PressureEq::computeInitialSteadyStatePressure(Domain &D)
   ierr = KSPSetReusePreconditioner(ksp, PETSC_FALSE); CHKERRQ(ierr);
   ierr = KSPGetPC(ksp, &pc); CHKERRQ(ierr);
   ierr = PCSetType(pc, PCHYPRE); CHKERRQ(ierr);
-  ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr);
+  //~ ierr = PCHYPRESetType(pc, "boomeramg"); CHKERRQ(ierr); //!!! THIS IS NEEDED
   ierr = KSPSetTolerances(ksp, _kspTol, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
   ierr = PCFactorSetLevels(pc, 4); CHKERRQ(ierr);
   ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE); CHKERRQ(ierr);
