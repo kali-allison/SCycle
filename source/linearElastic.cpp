@@ -159,8 +159,7 @@ PetscErrorCode LinearElastic::checkInput()
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
          _linSolver.compare("PCG") == 0 ||
-         _linSolver.compare("AMG") == 0 ||
-         _linSolver.compare("CG") == 0 );
+         _linSolver.compare("AMG") == 0 );
 
   if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
     assert(_kspTol >= 1e-14);
@@ -266,19 +265,14 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
 
-  // undefined linear solver
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
     assert(0);
   }
-
-  // enable command line options to override those specified above, e.g.:
-  // -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
-  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
-
   // perform computation of preconditioners now, rather than on first use
   ierr = KSPSetUp(ksp); CHKERRQ(ierr);
 
@@ -560,6 +554,7 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Linear Elastic Runtime Summary:\n"); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   linear solver algorithm: %s\n",_linSolver.c_str()); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent creating matrices (s): %g\n",_matrixTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount); CHKERRQ(ierr);

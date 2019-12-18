@@ -704,7 +704,7 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr); // necessary for solving steady state power law
     ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
+    //~ ierr = PCHYPRESetType(pc,"boomeramg"); CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspSS,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
@@ -781,7 +781,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCHYPRESetType(_pc,"boomeramg"); CHKERRQ(ierr);
+    //~ ierr = PCHYPRESetType(_pc,"boomeramg"); CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspTrans,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCFactorSetLevels(_pc,4); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
@@ -1784,6 +1784,7 @@ PetscErrorCode HeatEquation::view()
   PetscErrorCode ierr = 0;
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Heat Equation Runtime Summary:\n");CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   linear solver algorithm: %s\n",_linSolver.c_str()); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent in be (s): %g\n",_beTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);

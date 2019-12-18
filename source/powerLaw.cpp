@@ -1211,7 +1211,8 @@ PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+    //~ ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
   }
   else {
@@ -2385,8 +2386,7 @@ PetscErrorCode PowerLaw::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Power Law Runtime Summary:\n");CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   Ny = %i, Nz = %i\n",_Ny,_Nz);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   solver algorithm = %s\n",_linSolver.c_str());CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   linear solver algorithm: %s\n",_linSolver.c_str()); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime);CHKERRQ(ierr);

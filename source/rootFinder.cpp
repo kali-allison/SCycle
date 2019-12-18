@@ -224,7 +224,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
 
     // use bisection if Newton out of range or not converging quickly enough
     if ( ((_x-_right)*_fPrime-_f)*((_x-_left)*_fPrime-_f) > 0.0
-	|| fabs(2.0*_f) > fabs(dxOld*_fPrime) ) {
+  || fabs(2.0*_f) > fabs(dxOld*_fPrime) ) {
       dxOld = dx;
       dx = 0.5*(_right - _left);
       _x = _left + dx;
@@ -235,7 +235,7 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
       dx = _f/_fPrime;
       _x -= dx;
     }
-    
+
     ierr = obj->getResid(ind,_x,&_f,&_fPrime); CHKERRQ(ierr);
 
     // update bounds
