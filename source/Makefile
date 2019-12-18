@@ -2,7 +2,7 @@ all: main
 
 DEBUG_MODULES   = -DVERBOSE=1
 CFLAGS          = $(DEBUG_MODULES)
-CPPFLAGS        = $(CFLAGS) -std=c++11 -Wall -Werror -g
+CXXFLAGS        = $(CFLAGS) -std=c++14 -Wall -Werror -g
 FFLAGS	        = -I${PETSC_DIR}/include/finclude
 CLINKER		= openmpicc
 

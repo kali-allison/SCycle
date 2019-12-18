@@ -248,7 +248,7 @@ double computeMaxDiff_scaleVec1(const Vec& vec1,const Vec& vec2)
   ierr = VecAbs(diff);                                                  CHKERRQ(ierr);
   ierr = VecPointwiseDivide(diff,diff,vec1);                            CHKERRQ(ierr);
   ierr = VecMax(diff,NULL,&err);                                        CHKERRQ(ierr);
-  assert(!isinf(err));
+  assert(!std::isinf(err));
 
   VecDestroy(&diff);
 

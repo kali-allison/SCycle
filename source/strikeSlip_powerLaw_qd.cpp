@@ -19,7 +19,8 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),
-    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),_forcingVal(0),
+    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
+    _forcingTerm(NULL),_forcingTermPlain(NULL),_forcingVal(0),
     _bcRType("remoteLoading"),_bcTType("freeSurface"),
     _bcLType("symmFault"),_bcBType("freeSurface"),
     _quadEx(NULL),_quadImex(NULL),
@@ -51,15 +52,19 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _fault->setThermalFields(T,_he->_k,_he->_c);
   }
 
-  // pressure diffusion equation
+  //~ // pressure diffusion equation
   if (_hydraulicCoupling.compare("no")!=0) { _p = new PressureEq(D); }
   if (_hydraulicCoupling.compare("coupled")==0) { _fault->setSNEff(_p->_p); }
 
-  // grain size distribution
-  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist = new GrainSizeEvolution(D); }
-  if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_d, _material->_grainSize); }
+  //~ // grain size distribution
+  if (_grainSizeEvCoupling.compare("no")!=0 || _grainSizeEvCouplingSS.compare("no")!=0)  {
+    _grainDist = new GrainSizeEvolution(D);
+  }
+  if (_grainSizeEvCoupling.compare("coupled")==0 || _grainSizeEvCouplingSS.compare("coupled")==0) {
+    VecCopy(_grainDist->_d, _material->_grainSize);
+  }
 
-  // body forcing term for ice stream
+  //~ // body forcing term for ice stream
   _forcingTerm = NULL; _forcingTermPlain = NULL;
   if (_forcingType.compare("iceStream")==0) { constructIceStreamForcingTerm(); }
 
@@ -109,6 +114,7 @@ StrikeSlip_PowerLaw_qd::~StrikeSlip_PowerLaw_qd()
   delete _grainDist;   _grainDist = NULL;
 
   if (_varSS.find("v") != _varSS.end()) { VecDestroy(&_varSS["v"]); }
+  if (_varSS.find("grainSize") != _varSS.end()) { VecDestroy(&_varSS["grainSize"]); }
   VecDestroy(&_forcingTerm);
   VecDestroy(&_forcingTermPlain);
 
@@ -151,6 +157,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
 
     if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
     if (var.compare("grainSizeEvCoupling")==0) { _grainSizeEvCoupling = rhs.c_str(); }
+    if (var.compare("grainSizeEvCouplingSS")==0) { _grainSizeEvCouplingSS = rhs.c_str(); }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
@@ -391,7 +398,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
-    _grainSizeEvCouplingSS = _grainSizeEvCoupling;
+    //~ _grainSizeEvCouplingSS = _grainSizeEvCoupling;
     solveSS(0,_outputDir);
     writeSS(0,_outputDir);
   }
@@ -722,9 +729,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
   }
-  if ( varEx.find("grainSize") != varEx.end() ) {
-    _grainDist->updateFields(time,varEx);
-  }
+  if ( varEx.find("grainSize") != varEx.end() ) { _grainDist->updateFields(time,varEx); }
   if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
 
 
@@ -930,7 +935,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   double startTime = MPI_Wtime();
 
   _thermalCouplingSS = _thermalCoupling; _thermalCoupling = "no";
-  _grainSizeEvCouplingSS = _grainSizeEvCoupling;// _grainSizeEvCoupling = "no";
 
   std::string baseOutDir = _outputDir;
   PetscInt Jj = 0;
@@ -958,13 +962,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
       _fault->updateTemperature(_varSS["Temp"]);
     }
 
-    //~ // update grain size
-    //~ if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-    //~ if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
-
     writeSS(Jj,baseOutDir);
     Jj++;
   }
+
 
 
   _integrateTime += MPI_Wtime() - startTime;
@@ -1040,7 +1041,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
 
   // estimate steady-state shear stress at y = 0
   guessTauSS(_varSS);
-
   solveSSViscoelasticProblem(Jj,baseOutDir); // converge to steady state eta etc
 
   if (_thermalCouplingSS != "no") { solveSSHeatEquation(Jj); }
@@ -1136,25 +1136,19 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
-  Vec effVisc_disl_old; VecDuplicate(_varSS["effVisc"],&effVisc_disl_old);
-  Vec effVisc_diff_old; VecDuplicate(_varSS["effVisc"],&effVisc_diff_old);
-  Vec effVisc_disl_new; VecDuplicate(_varSS["effVisc"],&effVisc_disl_new);
-  Vec effVisc_diff_new; VecDuplicate(_varSS["effVisc"],&effVisc_diff_new);
 
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10, err_disl = 1e10, err_diff = 1e10;
   int Ii = 0;
   while (Ii < _maxSSIts_effVisc && err >= _atolSS_effVisc) {
     VecCopy(_varSS["effVisc"],effVisc_old);
-    VecCopy(_material->_disl->_invEffVisc,effVisc_disl_old); VecShift(effVisc_disl_old,1.0/1.0e35); VecReciprocal(effVisc_disl_old);
-    VecCopy(_material->_diff->_invEffVisc,effVisc_diff_old); VecShift(effVisc_diff_old,1.0/_material->_effViscCap); VecReciprocal(effVisc_diff_old);
 
     _material->setSSRHS(_varSS,"Dirichlet","Neumann","Neumann","Neumann");
     _material->updateSSa(_varSS); // compute v, viscous strain rates
 
     // update grain size
     if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
+    //~ if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
     _material->computeViscosity(_material->_effViscCap); // new viscosity
 
@@ -1165,24 +1159,12 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
     // evaluate convergence of this iteration
     err = computeMaxDiff_scaleVec1(effVisc_old,_varSS["effVisc"]); // total eff visc
 
-    VecCopy(_material->_disl->_invEffVisc,effVisc_disl_new); VecShift(effVisc_disl_new,1.0/1.0e35);
-    VecReciprocal(effVisc_disl_new);
-    VecCopy(_material->_diff->_invEffVisc,effVisc_diff_new); VecShift(effVisc_diff_new,1.0/_material->_effViscCap);
-    VecReciprocal(effVisc_diff_new);
-    err_disl = computeMaxDiff_scaleVec1(effVisc_disl_old,effVisc_disl_new); // disl eff visc
-    err_diff = computeMaxDiff_scaleVec1(effVisc_diff_old,effVisc_diff_new); // diff eff visc
+    //~ PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e %e %e\n",Ii,err,err_disl,err_diff);
+    PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
 
-
-    PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e %e %e\n",Ii,err,err_disl,err_diff);
-
-    writeSS_viscLoop(Ii,_outputDir);
     Ii++;
   }
   VecDestroy(&effVisc_old);
-  VecDestroy(&effVisc_disl_old);
-  VecDestroy(&effVisc_diff_old);
-  VecDestroy(&effVisc_disl_new);
-  VecDestroy(&effVisc_diff_new);
   VecDestroy(&temp);
 
 

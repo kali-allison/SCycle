@@ -28,68 +28,18 @@ int runTests(const char * inputFile)
 {
   PetscErrorCode ierr = 0;
 
-  Domain D(inputFile);
-
-  string outputDir = "";
-  string filename = "test.txt";
-  //~ PetscFileMode mode = D._outFileMode;
-  PetscViewer viewer;
-  string format = "%.15e\n";
-
-
-  PetscViewerCreate(PETSC_COMM_WORLD,&viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetName(viewer, filename.c_str());
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-
-  PetscScalar var = 0.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-
-  var = 1.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-
-
-  PetscViewerDestroy(&viewer);
-  PetscViewerCreate(PETSC_COMM_WORLD,&viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_APPEND);
-  PetscViewerFileSetName(viewer, filename.c_str());
-
-  var = 2.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-
-
-/*
-  //~ ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  //~ ierr = PetscViewerFileSetMode(viewer, mode); CHKERRQ(ierr);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_WRITE); CHKERRQ(ierr);
-
-  PetscScalar var = 0.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-
-  // ensure that viewer mode switches to append if it isn't that already
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
-
-  var = 1.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-
-  PetscViewerDestroy(&viewer);
-  ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD, (outputDir + filename).c_str(), &viewer);
-  ierr = PetscViewerFileSetMode(viewer, FILE_MODE_APPEND); CHKERRQ(ierr);
-  var = 2.0;
-  ierr = PetscViewerASCIIPrintf(viewer, format.c_str(), var);CHKERRQ(ierr);
-*/
+  Domain D(inputFile); // checked
 
   //~ VecScatter* _body2fault = &(D._scatters["body2L"]);
   //~ Fault_qd _fault_qd(D,D._scatters["body2L"],2.0); // fault for quasidynamic problem
   //~ Fault_fd _fault_fd(D, D._scatters["body2L"],2.0); // fault for fully dynamic problem
   //~ HeatEquation _he(D);
   //~ LinearElastic _material(D,"Dirichlet","Neumann","Dirichlet","Neumann");
-  //~ PowerLaw _material(D,_he,"Dirichlet","Neumann","Dirichlet","Neumann");
+  //~ PowerLaw _material(D,"Dirichlet","Neumann","Dirichlet","Neumann");
 
   //~ strikeSlip_linearElastic_fd m(D);
   //~ strikeSlip_linearElastic_qd_fd m(D);
-  //~ StrikeSlip_PowerLaw_qd m(D);
+  StrikeSlip_PowerLaw_qd m(D);
   //~ StrikeSlip_PowerLaw_qd_fd m(D);
 
   return ierr;
@@ -305,7 +255,7 @@ int main(int argc,char **args)
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
     //~ computeGreensFunction(inputFile);
-    //runTests(inputFile);
+    //~ runTests(inputFile);
   }
 
 

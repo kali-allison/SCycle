@@ -85,8 +85,8 @@ PetscErrorCode Bisect::findRoot(RootFinderContext *obj,const PetscInt ind,PetscS
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
 
-  assert(!isnan(_fLeft)); assert(!isnan(_fRight));
-  assert(!isinf(_fLeft)); assert(!isinf(_fRight));
+  assert(!std::isnan(_fLeft)); assert(!std::isnan(_fRight));
+  assert(!std::isinf(_fLeft)); assert(!std::isinf(_fRight));
 
   if (sqrt(_fLeft*_fLeft) <= _atol) { *out = _left; return 0; }
   else if (sqrt(_fRight*_fRight) <= _atol) { *out = _right; return 0; }
@@ -180,17 +180,17 @@ PetscErrorCode BracketedNewton::findRoot(RootFinderContext *obj,const PetscInt i
 
   // check if initial input is the root
   ierr = obj->getResid(ind,_x,&_f,&_fPrime);CHKERRQ(ierr);
-  assert(!isinf(_f)); assert(!isnan(_f));
-  assert(!isinf(x0)); assert(!isnan(x0));
+  assert(!std::isinf(_f)); assert(!std::isnan(_f));
+  assert(!std::isinf(x0)); assert(!std::isnan(x0));
   if (abs(_f) <= _atol) { *out = x0; return 0; }
 
   // check if endpoints are root
   ierr = obj->getResid(ind,_left,&_fLeft);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
-  assert(!isnan(_fLeft));
-  assert(!isnan(_fRight));
-  assert(!isinf(_fLeft));
-  assert(!isinf(_fRight));
+  assert(!std::isnan(_fLeft));
+  assert(!std::isnan(_fRight));
+  assert(!std::isinf(_fLeft));
+  assert(!std::isinf(_fRight));
 
   if (sqrt(_fLeft*_fLeft) <= _atol) {
     *out = _left;
@@ -315,8 +315,8 @@ PetscErrorCode RegulaFalsi::findRoot(RootFinderContext *obj,const PetscInt ind,c
   ierr = obj->getResid(ind,_right,&_fRight);CHKERRQ(ierr);
   ierr = obj->getResid(ind,_x,&_f);CHKERRQ(ierr);
 
-  assert(!isnan(_fLeft)); assert(!isnan(_fRight));
-  assert(!isinf(_fLeft)); assert(!isinf(_fRight));
+  assert(!std::isnan(_fLeft)); assert(!std::isnan(_fRight));
+  assert(!std::isinf(_fLeft)); assert(!std::isinf(_fRight));
 
 #if VERBOSE > 3
   ierr = PetscPrintf(PETSC_COMM_WORLD,"fLeft = %g, fRight = %g\n",_fLeft,_fRight);CHKERRQ(ierr);
