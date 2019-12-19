@@ -1138,7 +1138,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
 
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
-  double err = 1e10, err_disl = 1e10, err_diff = 1e10;
+  double err = 1e10;
   int Ii = 0;
   while (Ii < _maxSSIts_effVisc && err >= _atolSS_effVisc) {
     VecCopy(_varSS["effVisc"],effVisc_old);
