@@ -40,8 +40,6 @@ sNDepths = [0 60] # (km)
 #======================================================================
 # off-fault material parameters
 
-linSolver = CG
-
 muVals = [30 30] # (GPa) shear modulus
 muDepths = [0 60] # (km)
 rhoVals = [3 3] # (g/cm^3) rock density

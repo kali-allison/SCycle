@@ -751,7 +751,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
   else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
-    PetscPrintf(PETSC_COMM_WORLD,"computing steady state grain size in med::d_dt");
     _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
 
@@ -1150,7 +1149,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
     // update grain size
     if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); PetscPrintf(PETSC_COMM_WORLD,"updating momBal grain sizegrain size in med::solveSSGrainSize");}
+    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
 
     _material->computeViscosity(_material->_effViscCap); // new viscosity
 
@@ -1278,7 +1277,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
     _grainDist->computeGrainSizeFromPiez(sdev, dgVdev, _varSS["Temp"]);
   }
   else {
-    PetscPrintf(PETSC_COMM_WORLD,"computing steady state grain size in med::solveSSGrainSize");
     _grainDist->computeSteadyStateGrainSize(sdev, dgVdev, _varSS["Temp"]);
   }
 
