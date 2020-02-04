@@ -227,6 +227,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
   assert(_grainSizeEvCoupling == "coupled" ||
       _grainSizeEvCoupling == "uncoupled" ||
       _grainSizeEvCoupling == "no" );
+  assert(_grainSizeEvCouplingSS == "coupled" ||
+      _grainSizeEvCouplingSS == "uncoupled" ||
+      _grainSizeEvCouplingSS == "no" );
 
   assert(_hydraulicCoupling == "coupled" ||
       _hydraulicCoupling == "uncoupled" ||
@@ -581,6 +584,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvCoupling = %s\n",_grainSizeEvCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvCouplingSS = %s\n",_grainSizeEvCouplingSS.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
@@ -619,7 +623,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   if (_he != NULL) { _he->writeContext(_outputDir); }
   _fault->writeContext(_outputDir);
   if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir); }
-  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist->writeContext(_outputDir); }
+  if (_grainSizeEvCoupling.compare("no")!=0 || _grainSizeEvCouplingSS.compare("no")!=0) { _grainDist->writeContext(_outputDir); }
 
   if (_forcingType.compare("iceStream")==0) {
     ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
@@ -747,6 +751,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
   else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    PetscPrintf(PETSC_COMM_WORLD,"computing steady state grain size in med::d_dt");
     _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
   }
 
@@ -1049,9 +1054,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSS(const PetscInt Jj, const std::str
       _fault->updateTemperature(_varSS["Temp"]);
   }
 
-  if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-  if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
-
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -1148,7 +1150,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
     // update grain size
     if (_grainSizeEvCouplingSS != "no") { solveSSGrainSize(Jj); }
-    //~ if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); }
+    if (_grainSizeEvCouplingSS == "coupled") { _material->updateGrainSize(_varSS["grainSize"]); PetscPrintf(PETSC_COMM_WORLD,"updating momBal grain sizegrain size in med::solveSSGrainSize");}
 
     _material->computeViscosity(_material->_effViscCap); // new viscosity
 
@@ -1161,7 +1163,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
     //~ PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e %e %e\n",Ii,err,err_disl,err_diff);
     PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
-
+    //~ writeSS_viscLoop(Ii,_outputDir);
     Ii++;
   }
   VecDestroy(&effVisc_old);
@@ -1272,10 +1274,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSGrainSize(const PetscInt Jj)
   Vec dgVdev = _material->_dgVdev_disl;
 
   // compute new steady-state grain size distribution
-  if (_grainDist->_grainSizeEvType == "piezometer") {
+  if (_grainDist->_grainSizeEvTypeSS == "piezometer") {
     _grainDist->computeGrainSizeFromPiez(sdev, dgVdev, _varSS["Temp"]);
   }
   else {
+    PetscPrintf(PETSC_COMM_WORLD,"computing steady state grain size in med::solveSSGrainSize");
     _grainDist->computeSteadyStateGrainSize(sdev, dgVdev, _varSS["Temp"]);
   }
 
@@ -1421,6 +1424,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS_viscLoop(const int Ii, const std:
     ierr = io_initiateWriteAppend(_viewers, "sxz", _varSS["sxz"], outputDir + "viscLoop_sxz"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "gVxy", _varSS["gVxy"], outputDir + "viscLoop_gxy"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "gVxz", _varSS["gVxz"], outputDir + "viscLoop_gxz"); CHKERRQ(ierr);
+    ierr = io_initiateWriteAppend(_viewers, "bcL", _material->_bcL, outputDir + "viscLoop_bcL"); CHKERRQ(ierr);
 
     // grain size evolution
     if (_grainSizeEvCouplingSS != "no") {

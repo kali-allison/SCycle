@@ -174,6 +174,10 @@ int computeGreensFunction(const char * inputFile)
 int runEqCycle(Domain& d)
 {
   PetscErrorCode ierr = 0;
+  // report number of processors
+  PetscMPIInt numCores;
+  MPI_Comm_size(PETSC_COMM_WORLD,&numCores);
+  PetscPrintf(PETSC_COMM_WORLD,"Total number of processors: %i\n\n",numCores);
 
   // quasi-dynamic earthquake cycle simulation
   // with a vertical strike-slip fault, and linear elastic off-fault material

@@ -139,36 +139,37 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     CHKERRQ(ierr);
   #endif
 
-    assert(_AVals.size() >= 2);
-    assert(_AVals.size() == _ADepths.size() );
+  assert(_dVals.size() >= 2);
+  assert(_dVals.size() == _dDepths.size() );
 
-    assert(_QRVals.size() >= 2);
-    assert(_QRVals.size() == _QRDepths.size() );
+  assert(_grainSizeEvType.compare("transient")==0 ||
+    _grainSizeEvType.compare("steadyState")==0 ||
+    _grainSizeEvType.compare("piezometer")==0 );
 
-    assert(_pVals.size() >= 2);
-    assert(_pVals.size() == _pDepths.size() );
+  assert(_grainSizeEvTypeSS.compare("transient")==0 ||
+    _grainSizeEvTypeSS.compare("steadyState")==0 ||
+    _grainSizeEvTypeSS.compare("piezometer")==0 );
 
-    assert(_fVals.size() >= 2);
-    assert(_fVals.size() == _fDepths.size() );
-
-    assert(_gammaVals.size() >= 2);
-    assert(_gammaVals.size() == _gammaDepths.size() );
-
-    assert(_dVals.size() >= 2);
-    assert(_dVals.size() == _dDepths.size() );
-
-    assert(_c > 0);
-
+  if (_grainSizeEvType=="piezometer" || _grainSizeEvTypeSS=="piezometer") {
     assert(_piez_AVals.size() == _piez_ADepths.size() );
     assert(_piez_nVals.size() == _piez_nDepths.size() );
+  }
 
-    assert(_grainSizeEvType.compare("transient")==0 ||
-      _grainSizeEvType.compare("steadyState")==0 ||
-      _grainSizeEvType.compare("piezometer")==0 );
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+    assert(_AVals.size() >= 2);
+    assert(_QRVals.size() >= 2);
+    assert(_pVals.size() >= 2);
+    assert(_gammaVals.size() >= 2);
+    assert(_c > 0);
+  }
+  assert(_fVals.size() >= 2);
+  assert(_AVals.size() == _ADepths.size() );
+  assert(_QRVals.size() == _QRDepths.size() );
+  assert(_pVals.size() == _pDepths.size() );
+  assert(_fVals.size() == _fDepths.size() );
+  assert(_gammaVals.size() == _gammaDepths.size() );
 
-    assert(_grainSizeEvTypeSS.compare("transient")==0 ||
-      _grainSizeEvTypeSS.compare("steadyState")==0 ||
-      _grainSizeEvTypeSS.compare("piezometer")==0 );
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -186,13 +187,22 @@ PetscErrorCode GrainSizeEvolution::allocateFields()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecDuplicate(*_z,&_A); VecSet(_A,0.0);
-  VecDuplicate(_A,&_QR); VecSet(_QR,0.0);
-  VecDuplicate(_A,&_p); VecSet(_p,0.0);
-  VecDuplicate(_A,&_f); VecSet(_f,0.0);
-  VecDuplicate(_A,&_gamma); VecSet(_gamma,0.0);
-  VecDuplicate(_A,&_d); VecSet(_d,0.0);
-  VecDuplicate(_A,&_d_t); VecSet(_d_t,0.0);
+  VecDuplicate(*_z,&_d); VecSet(_d,0.0);
+  VecDuplicate(_d,&_d_t); VecSet(_d_t,0.0);
+  VecDuplicate(_d,&_f); VecSet(_f,0.0);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+    VecDuplicate(_d,&_A); VecSet(_A,0.0);
+    VecDuplicate(_d,&_QR); VecSet(_QR,0.0);
+    VecDuplicate(_d,&_p); VecSet(_p,0.0);
+    VecDuplicate(_d,&_gamma); VecSet(_gamma,0.0);
+  }
+
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
+    VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0);
+    VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0);
+  }
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -211,18 +221,19 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
   #endif
 
   // set each field using it's vals and depths std::vectors
-  ierr = setVec(_A,*_z,_AVals,_ADepths);                                CHKERRQ(ierr);
-  ierr = setVec(_QR,*_z,_QRVals,_QRDepths);                             CHKERRQ(ierr);
-  ierr = setVec(_p,*_z,_pVals,_pDepths);                                CHKERRQ(ierr);
-  ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
-  ierr = setVec(_gamma,*_z,_gammaVals,_gammaDepths);                    CHKERRQ(ierr);
   ierr = setVec(_d,*_z,_dVals,_dDepths);                                CHKERRQ(ierr);
   VecSet(_d_t,0.);
+  ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+    ierr = setVec(_A,*_z,_AVals,_ADepths);                              CHKERRQ(ierr);
+    ierr = setVec(_QR,*_z,_QRVals,_QRDepths);                           CHKERRQ(ierr);
+    ierr = setVec(_p,*_z,_pVals,_pDepths);                              CHKERRQ(ierr);
+    ierr = setVec(_gamma,*_z,_gammaVals,_gammaDepths);                  CHKERRQ(ierr);
+  }
 
   // if user provided piezometric relation
   if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
-    VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0);
-    VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0);
     ierr = setVec(_piez_A,*_z,_piez_AVals,_piez_ADepths);                                CHKERRQ(ierr);
     ierr = setVec(_piez_n,*_z,_piez_nVals,_piez_nDepths);                                CHKERRQ(ierr);
   }
@@ -245,13 +256,17 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
     CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_A,_inputDir,"grainSizeEv_A"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_QR,_inputDir,"grainSizeEv_QR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_p,_inputDir,"grainSizeEv_p"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_f,_inputDir,"grainSizeEv_f"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_gamma,_inputDir,"grainSizeEv_gamma"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
+  ierr = loadVecFromInputFile(_f,_inputDir,"grainSizeEv_f"); CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+    ierr = loadVecFromInputFile(_A,_inputDir,"grainSizeEv_A"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_QR,_inputDir,"grainSizeEv_QR"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_p,_inputDir,"grainSizeEv_p"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_gamma,_inputDir,"grainSizeEv_gamma"); CHKERRQ(ierr);
+  }
+
 
   if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
     ierr = loadVecFromInputFile(_piez_A,_inputDir,"grainSizeEv_piez_A"); CHKERRQ(ierr);
@@ -398,7 +413,7 @@ PetscErrorCode GrainSizeEvolution::computeGrainSizeFromPiez(const Vec& sdev, con
     d[Jj] = A[Jj] * pow(s[Jj],n[Jj]);
 
     // impose floor and ceiling to grain size
-    d[Jj] = max(d[Jj],1e-7);
+    d[Jj] = max(d[Jj],1e-8);
     d[Jj] = min(d[Jj],10.0);
 
     assert(!std::isnan(d[Jj]));
@@ -552,12 +567,14 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
     CHKERRQ(ierr);
   #endif
 
-
-  ierr = writeVec(_A,outputDir + "grainSizeEv_A");                      CHKERRQ(ierr);
-  ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                    CHKERRQ(ierr);
-  ierr = writeVec(_p,outputDir + "grainSizeEv_p");                      CHKERRQ(ierr);
-  ierr = writeVec(_f,outputDir + "grainSizeEv_f");                      CHKERRQ(ierr);
-  ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");              CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+    ierr = writeVec(_A,outputDir + "grainSizeEv_A");                    CHKERRQ(ierr);
+    ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                  CHKERRQ(ierr);
+    ierr = writeVec(_p,outputDir + "grainSizeEv_p");                    CHKERRQ(ierr);
+    ierr = writeVec(_f,outputDir + "grainSizeEv_f");                    CHKERRQ(ierr);
+    ierr = writeVec(_gamma,outputDir + "grainSizeEv_gamma");            CHKERRQ(ierr);
+  }
 
   if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
     ierr = writeVec(_piez_A,outputDir + "grainSizeEv_piez_A");          CHKERRQ(ierr);
