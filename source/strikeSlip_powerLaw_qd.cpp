@@ -1351,6 +1351,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     }
     if (_material->_wDiffCreep != "no") {
       io_initiateWriteAppend(_viewers, "diff_invEffVisc", _material->_diff->_invEffVisc, outputDir + "SS_diff_invEffVisc");
+      io_initiateWriteAppend(_viewers, "momBal_grainSize", _material->_grainSize, outputDir + "SS_momBal_grainSize");
     }
   }
   else {
