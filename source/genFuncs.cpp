@@ -1077,7 +1077,12 @@ PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>>
   VecView(vec,vwL[key].first);
 
   // ensure that viewer mode switches to append if it isn't that already
+  PetscViewerDestroy(&vwL[key].first);
+  PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);
+  PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);
+  PetscViewerFileSetName(vwL[key].first, filename.c_str());
   PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
+  //~ PetscViewerFileSetMode(vwL[key].first, FILE_MODE_APPEND);
 
   return ierr;
 }

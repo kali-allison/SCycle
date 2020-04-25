@@ -21,6 +21,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _startTime(MPI_Wtime()),_miscTime(0),
     _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
     _forcingTerm(NULL),_forcingTermPlain(NULL),_forcingVal(0),
+    _bcT_L(0),
     _bcRType("remoteLoading"),_bcTType("freeSurface"),
     _bcLType("symmFault"),_bcBType("freeSurface"),
     _quadEx(NULL),_quadImex(NULL),
@@ -194,6 +195,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
 
     else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
 
+    else if (var.compare("bcT_L")==0) { _bcT_L = atof( rhs.c_str() ); }
+
     // boundary conditions for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
     else if (var.compare("momBal_bcT_qd")==0) { _bcTType = rhs.c_str(); }
@@ -257,9 +260,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
 
   // check boundary condition types for momentum balance equation
   assert(_bcRType == "freeSurface" || _bcRType == "remoteLoading");
-  assert(_bcTType == "freeSurface" || _bcTType == "remoteLoading");
+  assert(_bcTType == "freeSurface" || _bcTType == "remoteLoading" || _bcTType == "atan_u");
   assert(_bcLType == "symmFault"   || _bcLType == "rigidFault" );
   assert(_bcBType == "freeSurface" || _bcBType == "remoteLoading");
+
+  if (_bcTType == "atan_u") { assert(_bcT_L > 0.); }
 
   if (_stateLaw == "flashHeating") {
     assert(_thermalCoupling != "no");
@@ -353,7 +358,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::parseBCs()
     _mat_bcRType = "Neumann";
   }
 
-  if (_bcTType.compare("symmFault")==0 || _bcTType.compare("rigidFault")==0 || _bcTType.compare("remoteLoading")==0) {
+  if (_bcTType.compare("atan_u")==0 || _bcTType.compare("symmFault")==0 || _bcTType.compare("rigidFault")==0 || _bcTType.compare("remoteLoading")==0) {
     _mat_bcTType = "Dirichlet";
   }
   else if (_bcTType.compare("freeSurface")==0 || _bcTType.compare("outGoingCharacteristics")==0) {
@@ -727,6 +732,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
+  if (_bcTType.compare("atan_u")==0) { updateBCT_atan_u(time); }
 
   _material->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
@@ -795,6 +801,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
+  if (_bcTType.compare("atan_u")==0) { updateBCT_atan_u(time); }
 
   _material->updateFields(time,varEx);
   _fault->updateFields(time,varEx);
@@ -979,6 +986,80 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrateSS()
   return ierr;
 }
 
+// compute the forcing term for top bc in terms of particle velocity
+PetscErrorCode StrikeSlip_PowerLaw_qd::updateBCT_atan_v()
+{
+  PetscErrorCode ierr = 0;
+
+  #if VERBOSE > 2
+    string funcName = "StrikeSlip_PowerLaw_qd::updateBCT_atan_v";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+    Vec yT;
+  VecDuplicate(_D->_z0,&yT);
+  VecScatterBegin(_D->_scatters["body2T"], _D->_y, yT, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_D->_scatters["body2T"], _D->_y, yT, INSERT_VALUES, SCATTER_FORWARD);
+
+  PetscInt                Istart,Iend;
+  PetscScalar            *bcT;
+  const PetscScalar      *y;
+  VecGetOwnershipRange(_material->_bcT,&Istart,&Iend);
+  VecGetArray(_material->_bcT,&bcT);
+  VecGetArrayRead(yT,&y);
+
+  PetscInt Jj = 0;
+  PetscScalar amp = atan(_D->_Ly/(2.0*PETSC_PI*_bcT_L));
+  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    bcT[Jj] = (_vL/_faultTypeScale/amp) * atan(y[Jj]/(2.0*PETSC_PI*_bcT_L));
+    Jj++;
+  }
+  VecRestoreArray(_material->_bcT,&bcT);
+  VecRestoreArrayRead(_D->_y0,&y);
+
+  VecDestroy(&yT);
+
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  return ierr;
+}
+
+// compute the forcing term for top bc in terms of displacement
+PetscErrorCode StrikeSlip_PowerLaw_qd::updateBCT_atan_u(const PetscScalar time)
+{
+  PetscErrorCode ierr = 0;
+
+  #if VERBOSE > 2
+    string funcName = "StrikeSlip_PowerLaw_qd::updateBCT_atan_u";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  PetscInt           Istart,Iend;
+  PetscScalar       *bcT;
+  const PetscScalar *y,*bcTShift;
+  VecGetOwnershipRange(_material->_bcT,&Istart,&Iend);
+  VecGetArray(_material->_bcT,&bcT);
+  VecGetArrayRead(_D->_y0,&y);
+  VecGetArrayRead(_material->_bcTShift,&bcTShift);
+
+  PetscInt Jj = 0;
+  PetscScalar amp = atan(_D->_Ly/(2.0*PETSC_PI*_bcT_L));
+  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    bcT[Jj] = (_vL/_faultTypeScale/amp) * atan(y[Jj]/(2.0*PETSC_PI*_bcT_L)) * time + bcTShift[Jj];
+    Jj++;
+  }
+  VecRestoreArray(_material->_bcT,&bcT);
+  VecRestoreArrayRead(_D->_y0,&y);
+
+  #if VERBOSE > 3
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  return ierr;
+}
+
 
 // estimate steady state shear stress on fault, store in varSS
 PetscErrorCode StrikeSlip_PowerLaw_qd::guessTauSS(map<string,Vec>& varSS)
@@ -1134,6 +1215,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   // set up rhs vector containing boundary condition data
   VecCopy(_varSS["tau"],_material->_bcL);
   VecSet(_material->_bcR,_vL/2.);
+  string  _mat_bcTType_SS = "Neumann";
+  if (_bcTType == "atan_u") {
+    updateBCT_atan_v();
+    _mat_bcTType_SS = "Dirichlet";
+  }
 
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
@@ -1144,7 +1230,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   while (Ii < _maxSSIts_effVisc && err >= _atolSS_effVisc) {
     VecCopy(_varSS["effVisc"],effVisc_old);
 
-    _material->setSSRHS(_varSS,"Dirichlet","Neumann","Neumann","Neumann");
+    _material->setSSRHS(_varSS,"Dirichlet",_mat_bcTType_SS,"Neumann","Neumann");
     _material->updateSSa(_varSS); // compute v, viscous strain rates
 
     // update grain size
@@ -1172,7 +1258,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   // update u, gVxy, gVxz, boundary conditions based on effective viscosity
   ierr = _material->updateSSb(_varSS,_initTime); CHKERRQ(ierr); // solve for gVxy, gVxz
   setSSBCs(); // update u, boundary conditions to be positive, consistent with varEx
-
+//~ VecView(_material->_bcT,PETSC_VIEWER_STDOUT_WORLD);
+//~ assert(0);
   // update shear stress on fault
   ierr = VecScatterBegin(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
   ierr = VecScatterEnd(*_body2fault, _material->_sxy, _fault->_tauQSP, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
@@ -1322,6 +1409,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = io_initiateWriteAppend(_viewers, "u", _varSS["u"], outputDir + "SS_u"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "v", _varSS["v"], outputDir + "SS_v"); CHKERRQ(ierr);
 
+    ierr = io_initiateWriteAppend(_viewers, "momBal_bcT", _material->_bcT, outputDir + "SS_momBal_bcT"); CHKERRQ(ierr);
+
     // heat equation
     ierr = io_initiateWriteAppend(_viewers, "Temp", _he->_T, outputDir + "SS_Temp"); CHKERRQ(ierr);
     ierr = io_initiateWriteAppend(_viewers, "kTz", _he->_kTz, outputDir + "SS_kTz"); CHKERRQ(ierr);
@@ -1379,6 +1468,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
       ierr = VecView(_he->_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
       ierr = VecView(_he->_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
+
+      ierr = VecView(_material->_bcT,_viewers["momBal_bcT"].first); CHKERRQ(ierr);
     }
 
     if (_grainSizeEvCouplingSS != "no") {
@@ -1502,6 +1593,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::setSSBCs()
   VecScatterBegin(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(_D->_scatters["body2L"], _material->_u, uL, INSERT_VALUES, SCATTER_FORWARD);
   VecCopy(uL,_material->_bcL);
+
+  // extract top boundary from u to set bcT, if using Dirichlet loading for top BC
+  //~ VecScatterBegin(_D->_scatters["body2T"], _material->_u, _material->_bcTShift, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecScatterEnd(_D->_scatters["body2T"], _material->_u, _material->_bcTShift, INSERT_VALUES, SCATTER_FORWARD);
+  //~ VecCopy(_material->_bcTShift,_material->_bcT);
 
   if (_varEx.find("slip") != _varEx.end() ) { VecCopy(uL,_varEx["slip"]); }
   else {

@@ -500,6 +500,13 @@ PetscErrorCode Domain::setScatters()
     ISDestroy(&isf); ISDestroy(&ist);
   }
 
+
+  VecScatterBegin(_scatters["body2T"], _y, _z0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2T"], _y, _z0, INSERT_VALUES, SCATTER_FORWARD);
+
+  VecScatterBegin(_scatters["body2L"], _z, _y0, INSERT_VALUES, SCATTER_FORWARD);
+  VecScatterEnd(_scatters["body2L"], _z, _y0, INSERT_VALUES, SCATTER_FORWARD);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);

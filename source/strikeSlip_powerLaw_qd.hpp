@@ -88,6 +88,10 @@ public:
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
   PetscScalar _forcingVal; // body force per unit volume (same in entire domain)
 
+  // parameters for forced displacement top boundary condition
+  // u(z=0) = (2/pi)*vL / bcT_A * atan(y / (2*pi*bcT_L) )
+  PetscScalar _bcT_L; // (m/s) amplitude, (km) length scale
+
 
   // boundary conditions
   // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
@@ -115,6 +119,8 @@ public:
   PetscErrorCode parseBCs(); // parse boundary conditions
   PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
   PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
+  PetscErrorCode updateBCT_atan_v(); // bcT = atan term (velocity)
+  PetscErrorCode updateBCT_atan_u(const PetscScalar time); // bcT = atan term (displacement)
 
   // estimating steady state conditions
   // viewers:

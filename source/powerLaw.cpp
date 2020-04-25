@@ -758,7 +758,7 @@ PowerLaw::PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string
   _u(NULL),_surfDisp(NULL),_sxy(NULL),_sxz(NULL),_sdev(NULL),
   _gTxy(NULL),_gVxy(NULL),_dgVxy(NULL),_gTxz(NULL),_gVxz(NULL),_dgVxz(NULL),_dgVdev(NULL),_dgVdev_disl(NULL),
   _linSolver("unspecified"),_bcRType(bcRType),_bcTType(bcTType),_bcLType(bcLType),_bcBType(bcBType),
-  _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),
+  _rhs(NULL),_bcT(NULL),_bcR(NULL),_bcB(NULL),_bcL(NULL),_bcRShift(NULL),_bcTShift(NULL),
   _ksp(NULL),_pc(NULL),_kspTol(1e-10),_sbp(NULL),_B(NULL),_C(NULL),
   _sbp_eta(NULL),_ksp_eta(NULL),_pc_eta(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),_miscTime(0),_linSolveCount(0),
@@ -814,6 +814,7 @@ PowerLaw::~PowerLaw()
   VecDestroy(&_bcT);
   VecDestroy(&_bcB);
   VecDestroy(&_bcRShift);
+  VecDestroy(&_bcTShift);
 
   // body fields
   VecDestroy(&_mu);
@@ -972,6 +973,7 @@ PetscErrorCode PowerLaw::allocateFields()
   VecDuplicate(_bcL,&_bcRShift); VecSet(_bcRShift,0.0);
   VecDuplicate(_bcL,&_bcR); VecSet(_bcR,0.);
   VecDuplicate(_D->_z0,&_bcT); VecSet(_bcT,0.0);
+  VecDuplicate(_bcT,&_bcTShift); VecSet(_bcT,0.0);
   VecDuplicate(_bcT,&_bcB); VecSet(_bcB,0.0);
 
 
