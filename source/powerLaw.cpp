@@ -1723,6 +1723,7 @@ PetscErrorCode PowerLaw::computeViscStrainRates(const PetscScalar time)
   ierr = computeViscousStrainRateSAT(_u,_bcL,_bcR,SAT); CHKERRQ(ierr);
 
   // d/dt gxy = sxy/visc + qy*mu/visc*SAT
+  VecSet(SAT,0.); // !!! Just for testing purposes
   VecSet(_dgVxy,0.);
   VecPointwiseMult(_dgVxy,_mu,SAT);
   VecAXPY(_dgVxy,1.0,_sxy);
@@ -2271,7 +2272,10 @@ PetscErrorCode PowerLaw::writeContext(const string outputDir)
 
   if (_wPlasticity.compare("yes")==0) {_plastic->writeContext(outputDir); }
   if (_wDislCreep.compare("yes")==0) {_disl->writeContext(outputDir); }
-  if (_wDiffCreep.compare("yes")==0) {_diff->writeContext(outputDir); }
+  if (_wDiffCreep.compare("yes")==0) {
+    _diff->writeContext(outputDir);
+    ierr = writeVec(_grainSize,outputDir + "momBal_grainSize"); CHKERRQ(ierr);
+  }
 
 
   #if VERBOSE > 1
@@ -2365,7 +2369,7 @@ double startTime = MPI_Wtime();
 
 
     if (_wDiffCreep.compare("yes")==0) {
-      ierr = VecView(_grainSize,_viewers2D["momBal_grainSize"].first); CHKERRQ(ierr);
+      //~ ierr = VecView(_grainSize,_viewers2D["momBal_grainSize"].first); CHKERRQ(ierr);
       ierr = VecView(_diff->_invEffVisc,_viewers2D["diff_invEffVisc"].first); CHKERRQ(ierr);
     }
     if (_wDislCreep.compare("yes")==0) {

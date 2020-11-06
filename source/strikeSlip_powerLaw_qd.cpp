@@ -27,7 +27,7 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _quadEx(NULL),_quadImex(NULL),
     _fault(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
     _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),
-    _maxSSIts_effVisc(50),_maxSSIts_tot(100),_maxSSIts_timesteps(2e5),
+    _maxSSIts_effVisc(50),_maxSSIts_tot(100),_maxSSIts_timesteps(8e4),
     _atolSS_effVisc(1e-4),_maxSSIts_time(5e10)
 {
   #if VERBOSE > 1
@@ -157,8 +157,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     rhs = rhs.substr(0,pos);
 
     if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
-    if (var.compare("grainSizeEvCoupling")==0) { _grainSizeEvCoupling = rhs.c_str(); }
-    if (var.compare("grainSizeEvCouplingSS")==0) { _grainSizeEvCouplingSS = rhs.c_str(); }
+    else if (var.compare("grainSizeEvCoupling")==0) { _grainSizeEvCoupling = rhs.c_str(); }
+    else if (var.compare("grainSizeEvCouplingSS")==0) { _grainSizeEvCouplingSS = rhs.c_str(); }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
@@ -406,7 +406,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
-    //~ _grainSizeEvCouplingSS = _grainSizeEvCoupling;
     solveSS(0,_outputDir);
     writeSS(0,_outputDir);
   }
@@ -1179,7 +1178,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   }
   ierr = _quadEx->setTolerance(_timeStepTol); CHKERRQ(ierr);
   ierr = _quadEx->setTimeStepBounds(_minDeltaT,_maxDeltaT);CHKERRQ(ierr);
+  //~ if (Jj==1) { ierr = _quadEx->setTimeRange(0.0,1e6); CHKERRQ(ierr); }
+  //~ if (Jj==2) { ierr = _quadEx->setTimeRange(0.0,1e6); CHKERRQ(ierr); }
+  //~ if (Jj>2) {
   ierr = _quadEx->setTimeRange(_initTime,_maxTime); CHKERRQ(ierr);
+//~ }
   ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
   ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
   ierr = _quadEx->setErrInds(_timeIntInds);
@@ -1196,6 +1199,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
   for (map<string,std::pair<PetscViewer,string> >::iterator it=_fault->_viewers.begin(); it!=_fault->_viewers.end(); it++ ) {
     PetscViewerDestroy(&_fault->_viewers[it->first].first);
   }
+
+
+  // impose ceiling on fault velocity: slipVel <= vL
+  PetscScalar *V;
+  VecGetArray(_fault->_slipVel,&V);
+  PetscInt Kk = 0; // local array index
+  PetscInt Istart, Iend;
+  ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
+  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+    V[Kk] = min(V[Kk],_vL);
+    Kk++;
+  }
+  VecRestoreArray(_fault->_slipVel,&V);
+
+  // compute frictional strength of fault based on updated slip velocity
+  strength_psi_Vec(_fault->_strength, _fault->_psi, _fault->_slipVel, _fault->_a, _fault->_sNEff, _fault->_v0);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

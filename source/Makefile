@@ -114,10 +114,10 @@ strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
- heatEquation.hpp powerLaw.hpp
+ heatEquation.hpp powerLaw.hpp grainSizeEvolution.hpp
 strikeSlip_powerLaw_qd_fd.o: strikeSlip_powerLaw_qd_fd.cpp \
  strikeSlip_powerLaw_qd_fd.hpp integratorContextEx.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
- heatEquation.hpp powerLaw.hpp
+ heatEquation.hpp powerLaw.hpp grainSizeEvolution.hpp

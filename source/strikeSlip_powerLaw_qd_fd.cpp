@@ -27,7 +27,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _fd_bcRType("outGoingCharacteristics"),_fd_bcTType("freeSurface"),_fd_bcLType("symmFault"),_fd_bcBType("outGoingCharacteristics"),
   _mat_fd_bcRType("Neumann"),_mat_fd_bcTType("Neumann"),_mat_fd_bcLType("Neumann"),_mat_fd_bcBType("Neumann"),
   _quadEx(NULL),_quadImex(NULL),
-  _fault_qd(NULL),_material(NULL),_he(NULL),_p(NULL),
+  _fault_qd(NULL),_material(NULL),_he(NULL),_p(NULL),_grainDist(NULL),
   _fss_T(0.2),_fss_EffVisc(0.2),_gss_t(1e-6),_maxSSIts_effVisc(50),_maxSSIts_tau(75),_maxSSIts_timesteps(2e4),
   _atolSS_effVisc(1e-3)
 {
@@ -61,8 +61,8 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   if (_hydraulicCoupling.compare("coupled")==0) { _fault_qd->setSNEff(_p->_p); }
 
   // grain size distribution
-  //~ if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist = new GrainSizeEvolution(D); }
-  //~ if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_d, _material->_grainSize); }
+  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist = new GrainSizeEvolution(D); }
+  if (_grainSizeEvCoupling.compare("coupled")==0) { VecCopy(_grainDist->_d, _material->_grainSize); }
 
   computePenaltyVectors();
   computeTimeStep(); // compute fully dynamic time step
@@ -124,6 +124,7 @@ StrikeSlip_PowerLaw_qd_fd::~StrikeSlip_PowerLaw_qd_fd()
   delete _fault_fd;    _fault_fd = NULL;
   delete _he;          _he = NULL;
   delete _p;           _p = NULL;
+  delete _grainDist;   _grainDist = NULL;
 
   VecDestroy(&_forcingTerm);
 
@@ -164,6 +165,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     rhs = rhs.substr(0,pos);
 
     if (var.compare("thermalCoupling")==0) { _thermalCoupling = rhs.c_str(); }
+    else if (var.compare("grainSizeEvCoupling")==0) { _grainSizeEvCoupling = rhs.c_str(); }
+    else if (var.compare("grainSizeEvCouplingSS")==0) { _grainSizeEvCouplingSS = rhs.c_str(); }
     else if (var.compare("hydraulicCoupling")==0) { _hydraulicCoupling = rhs.c_str(); }
     else if (var.compare("stateLaw")==0) { _stateLaw = rhs.c_str(); }
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
@@ -530,6 +533,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
      _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
   }
 
+  if (_grainSizeEvCoupling.compare("no")!=0) {
+    _grainDist->initiateIntegrand(_initTime,_varQSEx,_varIm);
+  }
+
 
   // initiate integrand for fully dynamic:
   // ensure fault_fd == fault_qd
@@ -554,11 +561,18 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrands()
     VecCopy(_varIm["Temp"], _varFD["Temp"]);
   }
 
+  // if solving the grain size evolution equation, add to varFD
+  if (_grainSizeEvCoupling.compare("no")!=0) {
+    _grainDist->initiateIntegrand(_initTime,_varFD,_varIm);
+  }
+
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
     VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]);
     VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
+
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -598,6 +612,7 @@ double startTime = MPI_Wtime();
     ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_outputDir);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
+    if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_stepCount,time,_outputDir);CHKERRQ(ierr); }
   }
 
   // prevent adaptive time stepper from taking time steps > Maxwell time
@@ -1177,10 +1192,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   if (varEx.find("pressure") != varEx.end() && _hydraulicCoupling.compare("no")!=0) {
     _p->updateFields(time,varEx);
   }
-  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
-    //~ _grainDist->updateFields(time,varEx);
-  //~ }
-  //~ if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->updateFields(time,varEx);
+  }
+  if ( _grainSizeEvCoupling == "coupled" ) { _material->updateGrainSize(_grainDist->_d); }
 
   // compute rates
   ierr = solveMomentumBalance(time,varEx,dvarEx); CHKERRQ(ierr);
@@ -1189,15 +1204,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::d_dt(const PetscScalar time,const map<
   }
 
   // compute grain size rate, or value from either piezometric relation or steady-state
-  //~ if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
-    //~ _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
-  //~ }
-  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
-    //~ _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
-  //~ }
-  //~ else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
-    //~ _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
-  //~ }
+  if ( _grainSizeEvCoupling.compare("no")!=0 && varEx.find("grainSize") != varEx.end() ) {
+    _grainDist->d_dt(dvarEx["grainSize"],varEx.find("grainSize")->second,_material->_sdev,_material->_dgVdev_disl,_material->_T);
+  }
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "piezometer") {
+    _grainDist->computeGrainSizeFromPiez(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  }
+  else if ( _grainSizeEvCoupling.compare("no")!=0 && _grainDist->_grainSizeEvType == "steadyState") {
+    _grainDist->computeSteadyStateGrainSize(_material->_sdev, _material->_dgVdev_disl, _material->_T);
+  }
 
   // update fields on fault from other classes
   Vec sxy,sxz,sdev;

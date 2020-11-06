@@ -27,6 +27,7 @@
 #include "pressureEq.hpp"
 #include "heatEquation.hpp"
 #include "powerLaw.hpp"
+#include "grainSizeEvolution.hpp"
 
 using namespace std;
 
@@ -57,6 +58,7 @@ public:
   string          _outputDir; // output data
   PetscScalar     _vL;
   string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
+  string          _grainSizeEvCoupling,_grainSizeEvCouplingSS; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
   string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string          _stateLaw;
   int             _guessSteadyStateICs; // 0 = no, 1 = yes
@@ -119,6 +121,7 @@ public:
   PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
   HeatEquation               *_he;
   PressureEq                 *_p;
+  GrainSizeEvolution         *_grainDist;
 
 
   StrikeSlip_PowerLaw_qd_fd(Domain&D);

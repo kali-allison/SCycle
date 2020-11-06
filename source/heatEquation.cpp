@@ -1496,7 +1496,7 @@ PetscErrorCode HeatEquation::computeViscousShearHeating(const Vec& sdev, const V
   VecPointwiseMult(_Qvisc,sdev,dgdev);
 
   // convert from engineering to geophysics convention for viscous strain rate
-  VecScale(_Qvisc,0.5);
+  VecScale(_Qvisc,sqrt(2.0));
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
