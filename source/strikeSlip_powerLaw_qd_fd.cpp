@@ -762,6 +762,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
   PetscViewerFileSetName(viewer, str.c_str());
   ierr = PetscViewerASCIIPrintf(viewer,"thermalCoupling = %s\n",_thermalCoupling.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvCoupling = %s\n",_grainSizeEvCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"hydraulicCoupling = %s\n",_hydraulicCoupling.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"forcingType = %s\n",_forcingType.c_str());CHKERRQ(ierr);
 
@@ -823,6 +824,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   _fault_qd->writeContext(_outputDir);
 
   if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir); }
+  if (_grainSizeEvCoupling.compare("no")!=0) { _grainDist->writeContext(_outputDir); }
   if (_forcingType.compare("iceStream")==0) {
     ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
   }
