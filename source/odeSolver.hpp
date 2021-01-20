@@ -7,7 +7,6 @@
 #include <vector>
 #include <algorithm>
 #include <assert.h>
-#include <boost/circular_buffer.hpp>
 #include "integratorContextEx.hpp"
 #include "genFuncs.hpp"
 
@@ -69,7 +68,7 @@ public:
   string             _normType;
 
   // for PID error control
-  boost::circular_buffer<double> _errA;
+  double _errA[2];
   map<string,Vec> _y2,_y3,_y4;
 
   OdeSolver(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);

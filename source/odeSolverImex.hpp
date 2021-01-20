@@ -8,7 +8,6 @@
 #include <map>
 #include <algorithm>
 #include <assert.h>
-#include <boost/circular_buffer.hpp>
 #include "integratorContextImex.hpp"
 #include "genFuncs.hpp"
 
@@ -77,7 +76,7 @@ public:
   PetscInt    _numRejectedSteps,_numMinSteps,_numMaxSteps;
 
   // for PID error control
-  boost::circular_buffer<double> _errA;
+  double _errA[2];
 
   // constructor and destructor
   OdeSolverImex(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string controlType);

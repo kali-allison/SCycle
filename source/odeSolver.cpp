@@ -228,10 +228,9 @@ RK32::RK32(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 
   double startTime = MPI_Wtime();
 
-  // _errA is a boost circular buffer, the resize makes it hold 2 doubles
-  _errA.resize(2);
-  _errA.push_front(0);
-  _errA.push_front(0);
+  // initialize place-holder values for errA, which holds errors from past 2 time steps
+  _errA[0] = 0.;
+  _errA[1] = 0.;
 
   _runTime += MPI_Wtime() - startTime;
 
@@ -624,7 +623,8 @@ PetscErrorCode RK32::integrate(IntegratorContextEx *obj)
     // compute new deltaT for next time step
     // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
     if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    _errA[1] = _errA[0]; // record error for use when estimating time step
+    _errA[0] = _totErr;
 
 
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
@@ -661,9 +661,9 @@ RK43::RK43(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string control
 
   double startTime = MPI_Wtime();
 
-  _errA.resize(2);
-  _errA.push_front(0);
-  _errA.push_front(0);
+  // initialize place-holder values for errA, which holds errors from past 2 time steps
+  _errA[0] = 0.;
+  _errA[1] = 0.;
 
   _runTime += MPI_Wtime() - startTime;
 
@@ -1173,7 +1173,8 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
     // but call timeMonitor before updating to newDeltaT, to keep output
     // consistent while allowing for checkpointing
     if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    _errA[1] = _errA[0]; // record error for use when estimating time step
+    _errA[0] = _totErr;
 
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
     if (stopIntegration > 0) { PetscPrintf(PETSC_COMM_WORLD,"RK43: Detected stop time integration request.\n"); break; }

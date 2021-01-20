@@ -45,6 +45,9 @@ void printVecsDiff(Vec vec1,Vec vec2);
 // Print out (vec1 - vec2) with 15 significant figures.
 void printVecsSum(Vec vec1,Vec vec2);
 
+// check that a Vec contains no inf or NaN values
+double anyIsnan(const Vec& vec, string str);
+
 // Write vec to the file loc in binary format.
 PetscErrorCode writeVec(Vec vec, const string filename);
 

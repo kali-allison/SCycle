@@ -1243,6 +1243,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
   // loop over effective viscosity
   Vec effVisc_old; VecDuplicate(_varSS["effVisc"],&effVisc_old);
 
+
+
   Vec temp; VecDuplicate(_varSS["effVisc"],&temp); VecSet(temp,0.);
   double err = 1e10;
   int Ii = 0;
@@ -1264,6 +1266,10 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSSViscoelasticProblem(const PetscInt
 
     // evaluate convergence of this iteration
     err = computeMaxDiff_scaleVec1(effVisc_old,_varSS["effVisc"]); // total eff visc
+
+    anyIsnan(effVisc_old,"strikeSlipPowerLaw_qd: line 1270\n");
+    anyIsnan(_material->_sxy,"strikeSlipPowerLaw_qd: line 1271\n");
+    anyIsnan(_material->_sxz,"strikeSlipPowerLaw_qd: line 1272\n");
 
     //~ PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e %e %e\n",Ii,err,err_disl,err_diff);
     PetscPrintf(PETSC_COMM_WORLD,"    effective viscosity loop: %i %e\n",Ii,err);
