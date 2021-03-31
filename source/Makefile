@@ -20,7 +20,7 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 
 
 main:  main.o $(OBJECTS)
-	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB} -L$(LIBX11_LIBDIR) -Wl,-rpath,$(LIBX11_LIBDIR) -lX11
+	-${CLINKER} $^ -o $@ ${PETSC_SYS_LIB} -L$(LIBX11_LIBDIR)
 	-rm main.o
 
 FDP: FDP.o

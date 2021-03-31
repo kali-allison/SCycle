@@ -257,7 +257,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     //~ ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
   }
 
-  // preconditioned conjugate gradient
+  // preconditioned conjugate gradient, using AMG as preconditioner
   else if (_linSolver == "PCG") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
@@ -267,6 +267,15 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
+  }
+  // preconditioned conjugate gradient, using block Jacobi (block ILU) preconditioner
+  else if (_linSolver == "CG_PCBJacobi") {
+    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCBJACOBI);                                       CHKERRQ(ierr);
   }
 
   else {
