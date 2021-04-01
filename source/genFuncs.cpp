@@ -70,6 +70,29 @@ void printVecsSum(Vec vec1,Vec vec2)
   }
 }
 
+// check that a Vec contains no inf or NaN values
+double anyIsnan(const Vec& vec, string str)
+{
+  PetscErrorCode ierr = 0;
+
+  const PetscScalar *val;
+  PetscInt Istart, Iend;
+  VecGetOwnershipRange(vec,&Istart,&Iend);
+  VecGetArrayRead(vec,&val);
+  PetscInt Jj = 0;
+  for (PetscInt Ii=Istart;Ii<Iend;Ii++) {
+    if (isnan(val[Jj]) || isinf(val[Jj])) {
+      PetscPrintf(PETSC_COMM_WORLD,str.c_str());
+      assert(!isnan(val[Jj]));
+      assert(!isinf(val[Jj]));
+    }
+    Jj++;
+  }
+  VecRestoreArrayRead(vec,&val);
+
+  return ierr;
+}
+
 // write a single vector to file in binary format
 PetscErrorCode writeVec(Vec vec, const string filename)
 {
@@ -633,6 +656,8 @@ PetscErrorCode setVec(Vec& vec, const Vec& coord, vector<double>& vals,vector<do
   VecRestoreArrayRead(coord,&coordA);
   return ierr;
 }
+
+
 
 PetscErrorCode mapToVec(Vec& vec, double(*func)(double,double), const Vec& yV, const double t)
 {

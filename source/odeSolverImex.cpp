@@ -56,9 +56,9 @@ RK32_WBE::RK32_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string
 #endif
   double startTime = MPI_Wtime();
 
-  _errA.resize(2);
-  _errA.push_front(0);
-  _errA.push_front(0);
+  // initialize place-holder values for errA, which holds errors from past 2 time steps
+  _errA[0] = 0.;
+  _errA[1] = 0.;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -461,7 +461,8 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
     // compute new deltaT for next time step
     // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
     if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    _errA[1] = _errA[0]; // record error for use when estimating time step
+    _errA[0] = _totErr;
 
 
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);
@@ -494,9 +495,9 @@ RK43_WBE::RK43_WBE(PetscInt maxNumSteps,PetscReal finalT,PetscReal deltaT,string
 #endif
   double startTime = MPI_Wtime();
 
-  _errA.resize(2);
-  _errA.push_front(0);
-  _errA.push_front(0);
+  // initialize place-holder values for errA, which holds errors from past 2 time steps
+  _errA[0] = 0.;
+  _errA[1] = 0.;
 
   _runTime += MPI_Wtime() - startTime;
 #if VERBOSE > 1
@@ -1029,7 +1030,8 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
     // compute new deltaT for next time step
     // but timeMonitor before updating to newDeltaT, to keep output consistent while allowing for checkpointing
     if (_totErr!=0.0) { _newDeltaT = computeStepSize(_totErr); }
-    _errA.push_front(_totErr); // record error for use when estimating time step
+    _errA[1] = _errA[0]; // record error for use when estimating time step
+    _errA[0] = _totErr;
 
 
     ierr = obj->timeMonitor(_currT,_deltaT,_stepCount,stopIntegration); CHKERRQ(ierr);

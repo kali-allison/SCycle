@@ -348,7 +348,7 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     PetscScalar growth = A[Jj] * exp(-B[Jj]/T[Jj]) * (1.0/p[Jj]) * pow(d[Jj], 1.0-p[Jj]);
 
     // grain size reduction from work done by dislocation creep
-    PetscScalar w = s[Jj]*0.5*dgdev[Jj]; // work, 0.5 to convert from engineering strain rate to geophysics strain rate
+    PetscScalar w = s[Jj]*0.5*dgdev[Jj]; // work, 0.5 to convert dgdev from engineering to geophysics convention
     PetscScalar red = - cc * d[Jj]*d[Jj] * w;
     d_t[Jj] = growth + red;
     if (std::isinf(red)) {
