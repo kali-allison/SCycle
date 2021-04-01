@@ -769,6 +769,26 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::d_dt(const PetscScalar time,const map<str
   // rates for fault
   if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
     ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
+
+
+    // impose ceiling on fault velocity: slipVel <= vL
+    PetscScalar *V;
+    VecGetArray(_fault->_slipVel,&V);
+    PetscInt Kk = 0; // local array index
+    PetscInt Istart, Iend;
+    ierr = VecGetOwnershipRange(_fault->_slipVel,&Istart,&Iend); // local portion of global Vec index
+    for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+      V[Kk] = min(V[Kk],_vL);
+      Kk++;
+    }
+    VecRestoreArray(_fault->_slipVel,&V);
+
+    // compute frictional strength of fault based on updated slip velocity
+    strength_psi_Vec(_fault->_strength, _fault->_psi, _fault->_slipVel, _fault->_a, _fault->_sNEff, _fault->_v0);
+    VecCopy(_fault->_strength,_fault->_tauP);
+    VecCopy(_fault->_slipVel,_fault->_tauQSP); // V -> tauQS
+    VecPointwiseMult(_fault->_tauQSP,_fault->_eta_rad,_fault->_tauQSP); // tauQS = V * eta_rad
+    VecAYPX(_fault->_tauQSP,1.0,_fault->_tauP); // tauQS = tau + V*eta_rad
   }
   else {
     VecSet(dvarEx["psi"],0.);
@@ -1215,6 +1235,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::solveSStau(const PetscInt Jj, const std::
 
   // compute frictional strength of fault based on updated slip velocity
   strength_psi_Vec(_fault->_strength, _fault->_psi, _fault->_slipVel, _fault->_a, _fault->_sNEff, _fault->_v0);
+  VecCopy(_fault->_strength,_fault->_tauP);
+  VecCopy(_fault->_slipVel,_fault->_tauQSP); // V -> tauQS
+  VecPointwiseMult(_fault->_tauQSP,_fault->_eta_rad,_fault->_tauQSP); // tauQS = V * eta_rad
+  VecAYPX(_fault->_tauQSP,1.0,_fault->_tauP); // tauQS = tau + V*eta_rad
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
