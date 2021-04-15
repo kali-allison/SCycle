@@ -158,7 +158,8 @@ PetscErrorCode LinearElastic::checkInput()
 
   assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
          _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("PCG") == 0 ||
+         _linSolver.compare("CG_PCBJacobi") == 0 ||
+         _linSolver.compare("CG_PCAMG") == 0 ||
          _linSolver.compare("AMG") == 0 );
 
   if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
@@ -233,16 +234,21 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
   }
 
   // direct LU from MUMPS
+#if defined(PETSC_HAVE_MUMPS)
   else if (_linSolver == "MUMPSLU") {
     ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCLU);                                          CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
-    ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
-    //~ ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
-    //~ ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
+    #if PETSC_VERSION_MINOR > 5
+      ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+      ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    #endif
+    #if PETSC_VERSION_MINOR < 5
+      ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+      ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
+    #endif
   }
 
   // direct Cholesky (RR^T) from MUMPS
@@ -251,14 +257,19 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = PCSetType(pc,PCCHOLESKY);                                    CHKERRQ(ierr);
-    ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
-    ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
-    //~ ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
-    //~ ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
+    #if PETSC_VERSION_MINOR > 5
+      ierr = PCFactorSetMatSolverType(pc,MATSOLVERMUMPS);                 CHKERRQ(ierr); // new PETSc
+      ierr = PCFactorSetUpMatSolverType(pc);                              CHKERRQ(ierr); // new PETSc
+    #endif
+    #if PETSC_VERSION_MINOR < 5
+      ierr = PCFactorSetMatSolverPackage(pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
+      ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
+    #endif
   }
+#endif
 
   // preconditioned conjugate gradient, using AMG as preconditioner
-  else if (_linSolver == "PCG") {
+  else if (_linSolver == "CG_PCAMG") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
@@ -276,6 +287,8 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCBJACOBI);                                       CHKERRQ(ierr);
+    //~ ierr = SubPCFactorSetUseInPlace(pc,PETSC_TRUE);                         CHKERRQ(ierr);
+    //~ ierr = PCFactorSetLevels(pc,1);                                       CHKERRQ(ierr);
   }
 
   else {
@@ -283,7 +296,8 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     assert(0);
   }
   // perform computation of preconditioners now, rather than on first use
-  ierr = KSPSetUp(ksp); CHKERRQ(ierr);
+  //~ ierr = KSPSetUp(ksp); CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -477,6 +491,11 @@ PetscErrorCode LinearElastic::computeU()
   ierr = KSPSolve(_ksp,_rhs,_u); CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
+
+  // print number of iterations required to converge
+  PetscInt itNum = 555;
+  KSPGetIterationNumber(_ksp,&itNum);
+  PetscPrintf(PETSC_COMM_WORLD,"itNum = %i\n",itNum);
 
   ierr = setSurfDisp();
 
