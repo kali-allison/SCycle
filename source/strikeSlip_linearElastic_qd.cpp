@@ -413,15 +413,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 PetscErrorCode StrikeSlip_LinearElastic_qd::timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration)
 {
   PetscErrorCode ierr = 0;
-
-  #if VERBOSE > 0
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e \n",stepCount,time,deltaT);CHKERRQ(ierr);
-  #endif
   #if VERBOSE > 1
     std::string funcName = "StrikeSlip_LinearElastic_qd::timeMonitor";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
-double startTime = MPI_Wtime();
+  double startTime = MPI_Wtime();
 
   _stepCount = stepCount;
   _deltaT = deltaT;
@@ -450,7 +446,7 @@ double startTime = MPI_Wtime();
     stopIntegration = 1;
   }
 
-_writeTime += MPI_Wtime() - startTime;
+  _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 0
     ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e\n",stepCount,_currTime,_deltaT);CHKERRQ(ierr);
   #endif
