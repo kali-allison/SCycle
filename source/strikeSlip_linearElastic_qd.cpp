@@ -378,8 +378,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
-
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
@@ -393,6 +391,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
     _material->_sbp->getA(A);
     _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
   }
+
+  if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
 
   _fault->initiateIntegrand(_initTime,_varEx);
@@ -1091,8 +1091,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::measureMMSError()
   PetscErrorCode ierr = 0;
 
   _material->measureMMSError(_currTime);
-  _he->measureMMSError(_currTime);
-  _p->measureMMSError(_currTime);
+  //~ _he->measureMMSError(_currTime);
+  //~ _p->measureMMSError(_currTime);
 
   return ierr;
 }
