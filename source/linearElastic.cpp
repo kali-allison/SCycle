@@ -8,7 +8,7 @@ using namespace std;
 LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype)
   : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
     _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
-    _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
+    _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),_y0(&D._y0),_z0(&D._z0),
     _isMMS(D._isMMS),
     _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
@@ -818,61 +818,46 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
   PetscInt Ii,Istart,Iend;
   ierr = VecGetOwnershipRange(_bcL,&Istart,&Iend);CHKERRQ(ierr);
 
+
   if (_Nz == 1) {
     Ii = Istart;
 
     // left boundary
     y = 0;
     // uAnal(y=0,z), Dirichlet boundary condition
-    if (!_bcLType.compare("Dirichlet")) {
-      v = zzmms_uA1D(y,time);
-    }
+    if (!_bcLType.compare("Dirichlet")) { v = zzmms_uA1D(y,time); }
     // sigma_xy = mu * (du/dy), Neumann boundary condition
-    else if (!_bcLType.compare("Neumann")) {
-      v = zzmms_mu1D(y) * zzmms_uA_y1D(y,time);
-    }
+    else if (!_bcLType.compare("Neumann")) { v = zzmms_mu1D(y) * zzmms_uA_y1D(y,time); }
     ierr = VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES); CHKERRQ(ierr);
 
     // right boundary
     y = _Ly;
     // uAnal(y=Ly,z)
-    if (!_bcRType.compare("Dirichlet")) {
-      v = zzmms_uA1D(y,time);
-    }
+    if (!_bcRType.compare("Dirichlet")) { v = zzmms_uA1D(y,time); }
     // sigma_xy = mu * (du/dy)
-    else if (!_bcRType.compare("Neumann")) {
-      v = zzmms_mu1D(y) * zzmms_uA_y1D(y,time);
-    }
+    else if (!_bcRType.compare("Neumann")) { v = zzmms_mu1D(y) * zzmms_uA_y1D(y,time); }
     ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES); CHKERRQ(ierr);
   }
 
   else {
     for (Ii = Istart; Ii < Iend; Ii++) {
-      ierr = VecGetValues(*_z,1,&Ii,&z); CHKERRQ(ierr);
+      ierr = VecGetValues(*_y0,1,&Ii,&z); CHKERRQ(ierr);
       //~ z = _dz * Ii;
 
       // left boundary
       y = 0;
       // uAnal(y=0,z)
-      if (!_bcLType.compare("Dirichlet")) {
-  v = zzmms_uA(y,z,time);
-      }
+      if (!_bcLType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); }
       // sigma_xy = mu * d/dy u
-      else if (!_bcLType.compare("Neumann")) {
-  v = zzmms_mu(y,z) * zzmms_uA_y(y,z,time);
-      }
+      else if (!_bcLType.compare("Neumann")) { v = zzmms_mu(y,z) * zzmms_uA_y(y,z,time); }
       ierr = VecSetValues(_bcL,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
 
       // right boundary
       y = _Ly;
       // uAnal(y=Ly,z)
-      if (!_bcRType.compare("Dirichlet")) {
-  v = zzmms_uA(y,z,time);
-      }
+      if (!_bcRType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); }
       // sigma_xy = mu * d/dy u
-      else if (!_bcRType.compare("Neumann")) {
-  v = zzmms_mu(y,z) * zzmms_uA_y(y,z,time);
-      }
+      else if (!_bcRType.compare("Neumann")) { v = zzmms_mu(y,z) * zzmms_uA_y(y,z,time); }
       ierr = VecSetValues(_bcR,1,&Ii,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }
@@ -894,23 +879,15 @@ PetscErrorCode LinearElastic::setMMSBoundaryConditions(const double time)
       // top boundary
       z = 0;
       // uAnal(y, z = 0)
-      if (!_bcTType.compare("Dirichlet")) {
-  v = zzmms_uA(y,z,time);
-      }
-      else if (!_bcTType.compare("Neumann")) {
-  v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time));
-      }
+      if (!_bcTType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); }
+      else if (!_bcTType.compare("Neumann")) { v = zzmms_mu(y,z) * (zzmms_uA_z(y,z,time)); }
       ierr = VecSetValues(_bcT,1,&Jj,&v,INSERT_VALUES); CHKERRQ(ierr);
 
       // bottom boundary
       z = _Lz;
       // uAnal(y, z = Lz)
-      if (!_bcBType.compare("Dirichlet")) {
-  v = zzmms_uA(y,z,time);
-      }
-      else if (!_bcBType.compare("Neumann")) {
-  v = zzmms_mu(y,z) * zzmms_uA_z(y,z,time);
-      }
+      if (!_bcBType.compare("Dirichlet")) { v = zzmms_uA(y,z,time); }
+      else if (!_bcBType.compare("Neumann")) { v = zzmms_mu(y,z) * zzmms_uA_z(y,z,time); }
       ierr = VecSetValues(_bcB,1,&Jj,&v,INSERT_VALUES);CHKERRQ(ierr);
     }
   }

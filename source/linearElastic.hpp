@@ -32,7 +32,7 @@ public:
   string          _outputDir;  // output data
   const PetscInt  _order,_Ny,_Nz;
   PetscScalar     _Ly,_Lz,_dy,_dz;
-  Vec            *_y,*_z; // to handle variable grid spacing
+  Vec            *_y,*_z,*_y0,*_z0; // to handle variable grid spacing
   const bool      _isMMS; // true if running mms test
 
   // off-fault material fields
