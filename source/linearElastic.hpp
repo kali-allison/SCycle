@@ -43,12 +43,13 @@ public:
   int             _computeSxz,_computeSdev; // 0 = no, 1 = yes
 
   // linear system data
-  string          _linSolver;
+  string          _linSolverSS,_linSolverTrans; // linear solver algorithm for steady-state, transient problem
   KSP             _ksp;
   PC              _pc;
   PetscScalar     _kspTol;
   SbpOps         *_sbp;
   string          _sbpType;
+  PetscInt        _kspItNum;
 
   // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
@@ -76,7 +77,7 @@ public:
   PetscErrorCode setMaterialParameters();
   PetscErrorCode loadICsFromFiles();
   PetscErrorCode setUpSBPContext();
-  PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A);
+  PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver);
 
   // time stepping function
   PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);

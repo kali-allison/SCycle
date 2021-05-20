@@ -675,10 +675,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
 
   // initiate integrand for QD
 
-  // LinearElastic does not set up its KSP, so must set it up here
-  Mat A; _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A);
-
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
@@ -689,6 +685,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::initiateIntegrands()
   _varQSEx["slip"] = slip;
 
   if (_guessSteadyStateICs) { solveSS(); }
+
+  // LinearElastic does not set up its KSP, so must set it up here
+  Mat A; _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
 
   VecCopy(_varQSEx["slip"],_fault_qd->_slip);
   _fault_qd->initiateIntegrand(_initTime,_varQSEx);
@@ -1253,6 +1253,11 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS");
   ierr = io_initiateWriteAppend(_viewers, "tau", _fault_qd->_tauP, _outputDir + "SS_tau"); CHKERRQ(ierr);
 
+  // set up KSP for steady-state solution
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
+
   // compute compute u that satisfies tau at left boundary
   VecCopy(_fault_qd->_tauP,_material->_bcL);
   _material->setRHS();
@@ -1276,6 +1281,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
     ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
     VecDestroy(&T);
   }
+
+  KSPDestroy(&_material->_ksp);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

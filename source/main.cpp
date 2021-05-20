@@ -84,7 +84,7 @@ int computeGreensFunction(const char * inputFile)
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
   Mat A;
   le._sbp->getA(A);
-  le.setupKSP(le._ksp,le._pc,A);
+  le.setupKSP(le._ksp,le._pc,A,le._linSolverSS);
 
   // set up boundaries
   VecSet(le._bcT,0.0);

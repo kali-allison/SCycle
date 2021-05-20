@@ -378,10 +378,6 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Mat A;
-  _material->_sbp->getA(A);
-  _material->setupKSP(_material->_ksp,_material->_pc,A);
-
   if (_isMMS) { _material->setMMSInitialConditions(_initTime); }
 
   Vec slip;
@@ -391,6 +387,13 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs == 1) { solveSS(); }
+
+  { // set up KSP context for time integration
+    Mat A;
+    _material->_sbp->getA(A);
+    _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
+  }
+
 
   _fault->initiateIntegrand(_initTime,_varEx);
 
@@ -898,6 +901,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // set up KSP for steady-state solution
+  Mat A;
+  _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS);
+
   // estimate steady-state conditions for fault, material based on strain rate
   _fault->guessSS(_vL); // sets: slipVel, psi, tau
 
@@ -939,6 +947,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
     // free memory
     VecDestroy(&T);
   }
+
+  // free memory for KSP
+  KSPDestroy(&_material->_ksp);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

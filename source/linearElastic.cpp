@@ -12,8 +12,8 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
     _isMMS(D._isMMS),
     _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
-    _linSolver("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
-    _sbp(NULL),
+    _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
+    _sbp(NULL),_kspItNum(0),
     _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
     _miscTime(0), _matrixTime(0), _linSolveCount(0),
     _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
@@ -125,7 +125,8 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     pos = rhs.find(" "); // interpret everything after the appearance of a space on the line as a comment
     rhs = rhs.substr(0,pos); // rhs is everything starting at location 0 and spans pos characters
 
-    if (var.compare("linSolver")==0) { _linSolver = rhs; }
+    if (var.compare("linSolverSS")==0) { _linSolverSS = rhs; }
+    else if (var.compare("linSolverTrans")==0) { _linSolverTrans = rhs; }
     else if (var.compare("kspTol")==0) { _kspTol = atof( (rhs).c_str() ); }
 
     else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
@@ -156,15 +157,18 @@ PetscErrorCode LinearElastic::checkInput()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  assert(_linSolver.compare("MUMPSCHOLESKY") == 0 ||
-         _linSolver.compare("MUMPSLU") == 0 ||
-         _linSolver.compare("CG_PCBJacobi") == 0 ||
-         _linSolver.compare("CG_PCAMG") == 0 ||
-         _linSolver.compare("AMG") == 0 );
+  assert(_linSolverSS.compare("MUMPSCHOLESKY") == 0 ||
+         _linSolverSS.compare("MUMPSLU") == 0 ||
+         _linSolverSS.compare("CG_PCBJacobi") == 0 ||
+         _linSolverSS.compare("CG_PCAMG") == 0 ||
+         _linSolverSS.compare("AMG") == 0 );
 
-  if (_linSolver.compare("CG")==0 || _linSolver.compare("AMG")==0) {
-    assert(_kspTol >= 1e-14);
-  }
+  assert(_linSolverTrans.compare("MUMPSCHOLESKY") == 0 ||
+         _linSolverTrans.compare("MUMPSLU") == 0 ||
+         _linSolverTrans.compare("CG_PCBJacobi") == 0 ||
+         _linSolverTrans.compare("CG_PCAMG") == 0 ||
+         _linSolverTrans.compare("AMG") == 0 );
+
 
   assert(_muVals.size() == _muDepths.size());
   assert(_muVals.size() != 0);
@@ -207,7 +211,7 @@ PetscErrorCode LinearElastic::checkInput()
  * Use -ksp_view.
  */
 
-PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
+PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -222,7 +226,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
   ierr = KSPSetOperators(ksp,A,A); CHKERRQ(ierr);
 
   // algebraic multigrid from HYPRE
-  if (_linSolver == "AMG") {
+  if (linSolver == "AMG") {
     ierr = KSPSetType(ksp,KSPRICHARDSON);                               CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
@@ -235,7 +239,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
 
   // direct LU from MUMPS
 #if defined(PETSC_HAVE_MUMPS)
-  else if (_linSolver == "MUMPSLU") {
+  else if (linSolver == "MUMPSLU") {
     ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
     ierr = KSPSetOperators(ksp,A,A);                                    CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
@@ -252,7 +256,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
   }
 
   // direct Cholesky (RR^T) from MUMPS
-  else if (_linSolver == "MUMPSCHOLESKY") {
+  else if (linSolver == "MUMPSCHOLESKY") {
     ierr = KSPSetType(ksp,KSPPREONLY);                                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
@@ -269,7 +273,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
 #endif
 
   // preconditioned conjugate gradient, using AMG as preconditioner
-  else if (_linSolver == "CG_PCAMG") {
+  else if (linSolver == "CG_PCAMG") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
@@ -280,7 +284,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A)
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
   }
   // preconditioned conjugate gradient, using block Jacobi (block ILU) preconditioner
-  else if (_linSolver == "CG_PCBJacobi") {
+  else if (linSolver == "CG_PCBJacobi") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
@@ -493,9 +497,10 @@ PetscErrorCode LinearElastic::computeU()
   _linSolveCount++;
 
   // print number of iterations required to converge
-  PetscInt itNum = 555;
+  PetscInt itNum = 0;
   KSPGetIterationNumber(_ksp,&itNum);
-  PetscPrintf(PETSC_COMM_WORLD,"itNum = %i\n",itNum);
+  _kspItNum += itNum;
+  //~ PetscPrintf(PETSC_COMM_WORLD,"itNum = %i\n",itNum);
 
   ierr = setSurfDisp();
 
@@ -543,10 +548,6 @@ PetscErrorCode LinearElastic::changeBCTypes(string bcRTtype,string bcTTtype,stri
   KSPDestroy(&_ksp);
   _sbp->changeBCTypes(bcRTtype,bcTTtype,bcLTtype,bcBTtype);
 
-  Mat A;
-  _sbp->getA(A);
-  setupKSP(_ksp,_pc,A);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
@@ -582,11 +583,12 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n-------------------------------\n\n");CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"Linear Elastic Runtime Summary:\n"); CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   linear solver algorithm: %s\n",_linSolver.c_str()); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   linear solver algorithm: %s\n",_linSolverTrans.c_str()); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent creating matrices (s): %g\n",_matrixTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of iterations for linear system solve (s): %i\n",_kspItNum); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);
@@ -616,7 +618,8 @@ PetscErrorCode LinearElastic::writeContext(const string outputDir)
   PetscViewerFileSetName(viewer, str.c_str());
 
   // linear solve settings
-  ierr = PetscViewerASCIIPrintf(viewer,"linSolver = %s\n",_linSolver.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"linSolverSS = %s\n",_linSolverSS.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"linSolverTrans = %s\n",_linSolverTrans.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
 
   // boundary conditions
