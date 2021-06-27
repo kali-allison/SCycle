@@ -284,18 +284,31 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
     ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
+    ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
   }
-  // preconditioned conjugate gradient, using block Jacobi (block ILU) preconditioner
+  // preconditioned conjugate gradient, using block Jacobi preconditioner
   else if (linSolver == "CG_PCBJacobi") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_rkspTol,_akspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCBJACOBI);                                       CHKERRQ(ierr);
-    //~ ierr = SubPCFactorSetUseInPlace(pc,PETSC_TRUE);                         CHKERRQ(ierr);
-    //~ ierr = PCFactorSetLevels(pc,1);                                       CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCBJACOBI);                                     CHKERRQ(ierr);
+    ierr = KSPSetUp(ksp);                                      CHKERRQ(ierr);
+
+    // now set solver for each block
+    // Extract the array of KSP contexts for the local blocks
+    PetscInt       nlocal,first,ii;
+    KSP            *subksp; /* array of local KSP contexts on this processor */
+    PC             subpc;
+    ierr = PCBJacobiGetSubKSP(pc,&nlocal,&first,&subksp);CHKERRQ(ierr);
+
+    // Loop over the local blocks, setting various KSP options for each block.
+    for (ii=0; ii<nlocal; ii++) {
+      ierr = KSPGetPC(subksp[ii],&subpc);CHKERRQ(ierr);
+      ierr = PCSetType(subpc,PCILU);CHKERRQ(ierr);
+    }
+
   }
 
   else {
@@ -304,7 +317,7 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
   }
   // perform computation of preconditioners now, rather than on first use
   //~ ierr = KSPSetUp(ksp); CHKERRQ(ierr);
-  ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
+  //~ ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -597,6 +610,8 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
+
+  ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }
