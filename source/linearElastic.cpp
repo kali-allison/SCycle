@@ -128,6 +128,8 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     if (var.compare("linSolverSS")==0) { _linSolverSS = rhs; }
     else if (var.compare("linSolverTrans")==0) { _linSolverTrans = rhs; }
     else if (var.compare("kspTol")==0) { _kspTol = atof( (rhs).c_str() ); }
+    else if (var.compare("akspTol")==0) { _akspTol = atof( (rhs).c_str() ); }
+    else if (var.compare("rkspTol")==0) { _rkspTol = atof( (rhs).c_str() ); }
 
     else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
     else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
@@ -289,7 +291,8 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
-    ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    //~ ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_rkspTol,_akspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCBJACOBI);                                       CHKERRQ(ierr);
     //~ ierr = SubPCFactorSetUseInPlace(pc,PETSC_TRUE);                         CHKERRQ(ierr);
     //~ ierr = PCFactorSetLevels(pc,1);                                       CHKERRQ(ierr);
@@ -620,7 +623,9 @@ PetscErrorCode LinearElastic::writeContext(const string outputDir)
   // linear solve settings
   ierr = PetscViewerASCIIPrintf(viewer,"linSolverSS = %s\n",_linSolverSS.c_str());CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,"linSolverTrans = %s\n",_linSolverTrans.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
+  //~ ierr = PetscViewerASCIIPrintf(viewer,"kspTol = %.15e\n",_kspTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"rkspTol = %.15e\n",_rkspTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer,"akspTol = %.15e\n",_akspTol);CHKERRQ(ierr);
 
   // boundary conditions
   ierr = PetscViewerASCIIPrintf(viewer,"bcR_type = %s\n",_bcRType.c_str());CHKERRQ(ierr);

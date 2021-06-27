@@ -46,7 +46,7 @@ public:
   string          _linSolverSS,_linSolverTrans; // linear solver algorithm for steady-state, transient problem
   KSP             _ksp;
   PC              _pc;
-  PetscScalar     _kspTol;
+  PetscScalar     _kspTol,_akspTol,_rkspTol;
   SbpOps         *_sbp;
   string          _sbpType;
   PetscInt        _kspItNum;
