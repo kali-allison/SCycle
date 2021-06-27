@@ -9,7 +9,9 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
   : _D(&D),_inputFile(D._file),_delim(D._delim),
     _inputDir(D._inputDir),_outputDir(D._outputDir),
     _stateLaw("agingLaw"),_faultTypeScale(faultTypeScale),
-    _N(D._Nz),_L(D._Lz),_f0(0.6),_v0(1e-6),
+    _N(D._Nz),_L(D._Lz),
+    _prestressScalar(0.),
+    _f0(0.6),_v0(1e-6),
     _sigmaN_cap(1e14),_sigmaN_floor(0.),
     _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
     _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
@@ -60,6 +62,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
     pos = rhs.find(" ");
     rhs = rhs.substr(0,pos);
 
+
     if (var.compare("DcVals")==0) { loadVectorFromInputFile(rhsFull,_DcVals); }
     else if (var.compare("DcDepths")==0) { loadVectorFromInputFile(rhsFull,_DcDepths); }
     else if (var.compare("sNVals")==0) { loadVectorFromInputFile(rhsFull,_sigmaNVals); }
@@ -82,6 +85,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
     // tolerance for nonlinear solve
     else if (var.compare("rootTol")==0) { _rootTol = atof( rhs.c_str() ); }
+    else if (var.compare("prestressScalar")==0) { _prestressScalar = atof( rhs.c_str() ); }
 
     // friction parameters
     else if (var.compare("f0")==0) { _f0 = atof( rhs.c_str() ); }
@@ -247,7 +251,7 @@ PetscErrorCode Fault::setFields(Domain& D)
   VecDuplicate(_z,&_tauP); VecSet(_tauP,0.0);
   VecDuplicate(_tauP,&_tauQSP); VecSet(_tauQSP,0.0);
   VecDuplicate(_tauP,&_strength); VecSet(_strength,0.0);
-  VecDuplicate(_tauP,&_prestress); VecSet(_prestress, 0.0);
+  VecDuplicate(_tauP,&_prestress); VecSet(_prestress, _prestressScalar);
 
   VecDuplicate(_tauP,&_psi); VecSet(_psi,0.0);
   VecDuplicate(_tauP,&_slip); VecSet(_slip,0.0);

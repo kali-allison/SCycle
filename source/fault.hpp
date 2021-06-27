@@ -58,6 +58,7 @@ public:
   Vec                _z; // vector of z-coordinates on fault (allows for variable grid spacing)
 
   Vec          _tauQSP,_tauP,_strength, _prestress; // shear stress: quasistatic,not qs,fault strength, prestress
+  PetscScalar  _prestressScalar;
   Vec          _slip,_slipVel, _slip0; // slip, slip velocity, initial slip
   Vec          _psi; // state variable
 
