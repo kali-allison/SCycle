@@ -13,7 +13,7 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
     _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
     _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
-    _sbp(NULL),_kspItNum(0),
+    _sbp(NULL),_kspItNum(0),_pcIluFill(0.),
     _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
     _miscTime(0), _matrixTime(0), _linSolveCount(0),
     _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
@@ -130,6 +130,7 @@ PetscErrorCode LinearElastic::loadSettings(const char *file)
     else if (var.compare("kspTol")==0) { _kspTol = atof( (rhs).c_str() ); }
     else if (var.compare("akspTol")==0) { _akspTol = atof( (rhs).c_str() ); }
     else if (var.compare("rkspTol")==0) { _rkspTol = atof( (rhs).c_str() ); }
+    else if (var.compare("pcIluFill")==0) { _pcIluFill = atoi( (rhs).c_str() ); }
 
     else if (var.compare("muVals")==0) { loadVectorFromInputFile(rhsFull,_muVals); }
     else if (var.compare("muDepths")==0) { loadVectorFromInputFile(rhsFull,_muDepths); }
@@ -307,8 +308,10 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     for (ii=0; ii<nlocal; ii++) {
       ierr = KSPGetPC(subksp[ii],&subpc);                               CHKERRQ(ierr);
       ierr = PCSetType(subpc,PCILU);                                    CHKERRQ(ierr);
-      ierr = KSPSetInitialGuessNonzero(subksp[ii], PETSC_TRUE);                CHKERRQ(ierr);
-      ierr = KSPSetReusePreconditioner(subksp[ii],PETSC_TRUE);                 CHKERRQ(ierr);
+      ierr = PCFactorSetLevels(subpc,_pcIluFill);                                CHKERRQ(ierr);
+      //~ ierr = PCFactorSetFill(subpc,_pcIluFill);                                CHKERRQ(ierr);
+      //~ ierr = KSPSetInitialGuessNonzero(subksp[ii], PETSC_TRUE);                CHKERRQ(ierr);
+      //~ ierr = KSPSetReusePreconditioner(subksp[ii],PETSC_TRUE);                 CHKERRQ(ierr);
     }
 
 

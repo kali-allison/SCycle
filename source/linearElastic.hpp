@@ -50,6 +50,7 @@ public:
   SbpOps         *_sbp;
   string          _sbpType;
   PetscInt        _kspItNum;
+  PetscInt        _pcIluFill;
 
   // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
