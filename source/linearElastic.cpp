@@ -162,14 +162,15 @@ PetscErrorCode LinearElastic::checkInput()
 
   assert(_linSolverSS.compare("MUMPSCHOLESKY") == 0 ||
          _linSolverSS.compare("MUMPSLU") == 0 ||
-
+         _linSolverSS.compare("CG_PCBJacobi_SubCholesky") == 0 ||
+         _linSolverSS.compare("CG_PCBJacobi_SubILU") == 0 ||
          _linSolverSS.compare("CG_PCAMG") == 0 ||
          _linSolverSS.compare("AMG") == 0 );
 
   assert(_linSolverTrans.compare("MUMPSCHOLESKY") == 0 ||
          _linSolverTrans.compare("MUMPSLU") == 0 ||
-         _linSolverSS.compare("CG_PCBJacobi_SubCholesky") == 0 ||
-         _linSolverSS.compare("CG_PCBJacobi_SubILU") == 0 ||
+         _linSolverTrans.compare("CG_PCBJacobi_SubCholesky") == 0 ||
+         _linSolverTrans.compare("CG_PCBJacobi_SubILU") == 0 ||
          _linSolverTrans.compare("CG_PCAMG") == 0 ||
          _linSolverTrans.compare("AMG") == 0 );
 
@@ -334,8 +335,9 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     // Loop over the local blocks, setting various KSP options for each block.
     for (ii=0; ii<nlocal; ii++) {
       ierr = KSPGetPC(subksp[ii],&subpc);                               CHKERRQ(ierr);
-      ierr = PCSetType(subpc,PCILU);                                    CHKERRQ(ierr);
+      ierr = PCSetType(subpc,PCICC);                                    CHKERRQ(ierr);
       ierr = PCFactorSetLevels(subpc,_pcIluFill);                       CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,"picIluFill = %i\n",_pcIluFill);
     }
     ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
   }
