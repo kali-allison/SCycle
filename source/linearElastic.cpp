@@ -162,13 +162,14 @@ PetscErrorCode LinearElastic::checkInput()
 
   assert(_linSolverSS.compare("MUMPSCHOLESKY") == 0 ||
          _linSolverSS.compare("MUMPSLU") == 0 ||
-         _linSolverSS.compare("CG_PCBJacobi") == 0 ||
+
          _linSolverSS.compare("CG_PCAMG") == 0 ||
          _linSolverSS.compare("AMG") == 0 );
 
   assert(_linSolverTrans.compare("MUMPSCHOLESKY") == 0 ||
          _linSolverTrans.compare("MUMPSLU") == 0 ||
-         _linSolverTrans.compare("CG_PCBJacobi") == 0 ||
+         _linSolverSS.compare("CG_PCBJacobi_SubCholesky") == 0 ||
+         _linSolverSS.compare("CG_PCBJacobi_SubILU") == 0 ||
          _linSolverTrans.compare("CG_PCAMG") == 0 ||
          _linSolverTrans.compare("AMG") == 0 );
 
@@ -288,14 +289,14 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
   }
   // preconditioned conjugate gradient, using block Jacobi preconditioner
-  else if (linSolver == "CG_PCBJacobi") {
+  else if (linSolver == "CG_PCBJacobi_SubCholesky") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(ksp,_rkspTol,_akspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCBJACOBI);                                     CHKERRQ(ierr);
-    ierr = KSPSetUp(ksp);                                      CHKERRQ(ierr);
+    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
 
     // now set solver for each block
     // Extract the array of KSP contexts for the local blocks
@@ -312,8 +313,31 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
       ierr = PCSetType(subpc,PCCHOLESKY);                               CHKERRQ(ierr);
       ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     }
+    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
+  }
+  else if (linSolver == "CG_PCBJacobi_SubILU") {
+    ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
+    ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
+    ierr = KSPSetTolerances(ksp,_rkspTol,_akspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCBJACOBI);                                     CHKERRQ(ierr);
+    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
 
+    // now set solver for each block
+    // Extract the array of KSP contexts for the local blocks
+    PetscInt       nlocal,first,ii;
+    KSP            *subksp; /* array of local KSP contexts on this processor */
+    PC             subpc;
+    ierr = PCBJacobiGetSubKSP(pc,&nlocal,&first,&subksp);CHKERRQ(ierr);
 
+    // Loop over the local blocks, setting various KSP options for each block.
+    for (ii=0; ii<nlocal; ii++) {
+      ierr = KSPGetPC(subksp[ii],&subpc);                               CHKERRQ(ierr);
+      ierr = PCSetType(subpc,PCILU);                                    CHKERRQ(ierr);
+      ierr = PCFactorSetLevels(subpc,_pcIluFill);                       CHKERRQ(ierr);
+    }
+    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
   }
 
   else {
