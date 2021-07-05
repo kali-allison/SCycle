@@ -307,11 +307,10 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     // Loop over the local blocks, setting various KSP options for each block.
     for (ii=0; ii<nlocal; ii++) {
       ierr = KSPGetPC(subksp[ii],&subpc);                               CHKERRQ(ierr);
-      ierr = PCSetType(subpc,PCILU);                                    CHKERRQ(ierr);
-      ierr = PCFactorSetLevels(subpc,_pcIluFill);                                CHKERRQ(ierr);
-      //~ ierr = PCFactorSetFill(subpc,_pcIluFill);                                CHKERRQ(ierr);
-      //~ ierr = KSPSetInitialGuessNonzero(subksp[ii], PETSC_TRUE);                CHKERRQ(ierr);
-      //~ ierr = KSPSetReusePreconditioner(subksp[ii],PETSC_TRUE);                 CHKERRQ(ierr);
+      //~ ierr = PCSetType(subpc,PCILU);                                    CHKERRQ(ierr);
+      //~ ierr = PCFactorSetLevels(subpc,_pcIluFill);                       CHKERRQ(ierr);
+      ierr = PCSetType(subpc,PCCHOLESKY);                               CHKERRQ(ierr);
+      ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     }
 
 
