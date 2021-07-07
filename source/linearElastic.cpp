@@ -4,6 +4,35 @@
 
 using namespace std;
 
+
+KeepKSPCount::KeepKSPCount(int startIt)
+  : _myKspItNum(startIt)
+{}
+
+KeepKSPCount::~KeepKSPCount()
+{}
+
+/* ------------------------------------------------------------- */
+/*
+   MyKSPMonitor - This is a user-defined routine for monitoring
+   the KSP iterative solvers.
+
+   Input Parameters:
+     ksp   - iterative context
+     n     - iteration number
+     rnorm - 2-norm (preconditioned) residual value (may be estimated)
+     ctx - optional user-defined monitor context for keeping track of iteration number
+*/
+PetscErrorCode MyKSPMonitor(KSP ksp,PetscInt n,PetscReal rnorm,void *ctx)
+{
+  PetscErrorCode ierr = 0;
+  KeepKSPCount * usrctx = static_cast<KeepKSPCount *> (ctx);
+  usrctx->_myKspItNum++;
+  //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"  total iteration %D:  iteration %D KSP Residual norm %14.12e \n",usrctx->_myKspItNum,n,rnorm);CHKERRQ(ierr);
+  return ierr;
+}
+
+
 // construct class object
 LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcLTtype,string bcBTtype)
   : _D(&D),_delim(D._delim),_inputDir(D._inputDir),_outputDir(D._outputDir),
@@ -13,7 +42,7 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
     _mu(NULL),_rho(NULL),_cs(NULL),_bcRShift(NULL),_surfDisp(NULL),
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
     _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
-    _sbp(NULL),_kspItNum(0),_pcIluFill(0.),
+    _sbp(NULL),_kspItNum(0),_myKspCtx(0),_pcIluFill(0.),
     _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
     _miscTime(0), _matrixTime(0), _linSolveCount(0),
     _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
@@ -191,6 +220,8 @@ PetscErrorCode LinearElastic::checkInput()
 }
 
 
+
+
 /*
  * Set up the Krylov Subspace and Preconditioner (KSP) environment. A
  * table of options available through PETSc and linked external packages
@@ -318,6 +349,8 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
   }
   else if (linSolver == "CG_PCBJacobi_SubILU") {
     ierr = KSPSetType(ksp,KSPCG);                                       CHKERRQ(ierr);
+    ierr = KSPMonitorSet(ksp,&MyKSPMonitor,(void*)&_myKspCtx,0);                      CHKERRQ(ierr);
+    ierr = KSPCGSetType(ksp,KSP_CG_SYMMETRIC);                           CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(ksp, PETSC_TRUE);                  CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
     ierr = KSPGetPC(ksp,&pc);                                           CHKERRQ(ierr);
@@ -337,9 +370,11 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
       ierr = KSPGetPC(subksp[ii],&subpc);                               CHKERRQ(ierr);
       ierr = PCSetType(subpc,PCICC);                                    CHKERRQ(ierr);
       ierr = PCFactorSetLevels(subpc,_pcIluFill);                       CHKERRQ(ierr);
-      PetscPrintf(PETSC_COMM_WORLD,"picIluFill = %i\n",_pcIluFill);
+      ierr = KSPSetReusePreconditioner(subksp[ii],PETSC_TRUE);          CHKERRQ(ierr);
+      //~ PetscPrintf(PETSC_COMM_WORLD,"picIluFill = %i\n",_pcIluFill);
     }
-    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
+    //~ ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
+    ierr = KSPSetFromOptions(ksp);                                               CHKERRQ(ierr);
   }
 
   else {
@@ -635,7 +670,8 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent writing output (s): %g\n",_writeTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime); CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of iterations for linear system solve (s): %i\n",_kspItNum); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   PETSc number of iterations for linear system solve (s): %i\n",_kspItNum); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   SCycle number of iterations for linear system solve (s): %i\n",_myKspCtx._myKspItNum); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);

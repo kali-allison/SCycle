@@ -1098,6 +1098,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
         ierr = VecWAXPY(_k2[it->first],a21*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
       }
+      //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nstage 2\n");
       ierr = obj->d_dt(_currT+c2*_deltaT,_k2,_f2);CHKERRQ(ierr);
 
       // stage 3: compute k3
@@ -1105,6 +1106,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
         ierr = VecWAXPY(_k3[it->first],a31*_deltaT,_f1[it->first],_var[it->first]); CHKERRQ(ierr);
         ierr = VecAXPY(_k3[it->first],a32*_deltaT,_f2[it->first]); CHKERRQ(ierr);
       }
+      //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nstage 3\n");
       ierr = obj->d_dt(_currT+c3*_deltaT,_k3,_f3);CHKERRQ(ierr);
 
       // stage 4
@@ -1113,6 +1115,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
         ierr =  VecAXPY(_k4[it->first],a42*_deltaT,_f2[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k4[it->first],a43*_deltaT,_f3[it->first]); CHKERRQ(ierr);
       }
+      //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nstage 4\n");
       ierr = obj->d_dt(_currT+c4*_deltaT,_k4,_f4);CHKERRQ(ierr);
 
       // stage 5
@@ -1122,6 +1125,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
         ierr =  VecAXPY(_k5[it->first],a53*_deltaT,_f3[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k5[it->first],a54*_deltaT,_f4[it->first]); CHKERRQ(ierr);
       }
+      //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nstage 5\n");
       ierr = obj->d_dt(_currT+c5*_deltaT,_k5,_f5);CHKERRQ(ierr);
 
       // stage 6
@@ -1132,6 +1136,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
         ierr =  VecAXPY(_k6[it->first],a64*_deltaT,_f4[it->first]); CHKERRQ(ierr);
         ierr =  VecAXPY(_k6[it->first],a65*_deltaT,_f5[it->first]); CHKERRQ(ierr);
       }
+      //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nstage 6\n");
       ierr = obj->d_dt(_currT+c6*_deltaT,_k6,_f6);CHKERRQ(ierr);
 
       // 3rd and 4th order updates
@@ -1167,6 +1172,7 @@ PetscErrorCode RK43::integrate(IntegratorContextEx *obj)
       ierr = VecCopy(_y4[it->first],_var[it->first]);CHKERRQ(ierr);
       VecSet(_dvar[it->first],0.0);
     }
+    //~ PetscPrintf(PETSC_COMM_WORLD,"\n\nFinal stage\n");
     ierr = obj->d_dt(_currT,_var,_dvar);CHKERRQ(ierr);
 
     // compute new deltaT for next time step

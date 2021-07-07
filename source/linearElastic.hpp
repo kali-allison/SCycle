@@ -16,6 +16,19 @@
 
 using namespace std;
 
+
+class KeepKSPCount
+{
+  public:
+    int _myKspItNum;
+
+    KeepKSPCount(int startIt);
+    ~KeepKSPCount();
+};
+
+
+PetscErrorCode MyKSPMonitor(KSP ksp,PetscInt n,PetscReal rnorm,void *ctx);
+
 // Class for a linear elastic material
 class LinearElastic
 {
@@ -50,6 +63,7 @@ public:
   SbpOps         *_sbp;
   string          _sbpType;
   PetscInt        _kspItNum;
+  KeepKSPCount    _myKspCtx;
   PetscInt        _pcIluFill;
 
   // viewers for 1D and 2D fields
@@ -79,6 +93,7 @@ public:
   PetscErrorCode loadICsFromFiles();
   PetscErrorCode setUpSBPContext();
   PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver);
+  //~ static PetscErrorCode MyKSPMonitor(KSP ksp,PetscInt n,PetscReal rnorm,void *dummy);
 
   // time stepping function
   PetscErrorCode getStresses(Vec& sxy, Vec& sxz, Vec& sdev);
