@@ -204,11 +204,10 @@ int runEqCycle(Domain& d)
   // with a vertical strike-slip fault, and power-law viscoelastic off-fault material
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
-    PetscPrintf(PETSC_COMM_WORLD,"here!!\n");
     //~ if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
     ierr = m.writeContext();
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
-    //~ ierr = m.integrate(); CHKERRQ(ierr);
+    ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
   }
 
