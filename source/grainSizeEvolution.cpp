@@ -143,10 +143,12 @@ PetscErrorCode GrainSizeEvolution::checkInput()
   assert(_dVals.size() == _dDepths.size() );
 
   assert(_grainSizeEvType.compare("transient")==0 ||
+    _grainSizeEvType.compare("constant")==0 ||
     _grainSizeEvType.compare("steadyState")==0 ||
     _grainSizeEvType.compare("piezometer")==0 );
 
   assert(_grainSizeEvTypeSS.compare("transient")==0 ||
+    _grainSizeEvTypeSS.compare("constant")==0 ||
     _grainSizeEvTypeSS.compare("steadyState")==0 ||
     _grainSizeEvTypeSS.compare("piezometer")==0 );
 
@@ -155,8 +157,8 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_piez_nVals.size() == _piez_nDepths.size() );
   }
 
-  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
-    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||  _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     assert(_AVals.size() >= 2);
     assert(_QRVals.size() >= 2);
     assert(_pVals.size() >= 2);
@@ -224,8 +226,8 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
   ierr = setVec(_d,*_z,_dVals,_dDepths);                                CHKERRQ(ierr);
   VecSet(_d_t,0.);
   ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
-  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
-    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = setVec(_A,*_z,_AVals,_ADepths);                              CHKERRQ(ierr);
     ierr = setVec(_QR,*_z,_QRVals,_QRDepths);                           CHKERRQ(ierr);
     ierr = setVec(_p,*_z,_pVals,_pDepths);                              CHKERRQ(ierr);
@@ -259,8 +261,8 @@ PetscErrorCode GrainSizeEvolution::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_d,_inputDir,"grainSizeEv_d"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_d_t,_inputDir,"grainSizeEv_d_t"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_f,_inputDir,"grainSizeEv_f"); CHKERRQ(ierr);
-  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
-    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState"|| _grainSizeEvTypeSS=="constant") {
     ierr = loadVecFromInputFile(_A,_inputDir,"grainSizeEv_A"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_QR,_inputDir,"grainSizeEv_QR"); CHKERRQ(ierr);
     ierr = loadVecFromInputFile(_p,_inputDir,"grainSizeEv_p"); CHKERRQ(ierr);
@@ -324,6 +326,10 @@ PetscErrorCode GrainSizeEvolution::d_dt(Vec& grainSizeEv_t,const Vec& grainSize,
     std::string funcName = "GrainSizeEvolution::d_dt";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  if (_grainSizeEvType=="constant") {
+    return ierr;
+  }
 
 
   const PetscScalar *A,*B,*p,*T,*f,*g,*s,*dgdev,*d;
@@ -449,6 +455,10 @@ PetscErrorCode GrainSizeEvolution::computeSteadyStateGrainSize(const Vec& sdev, 
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  if (_grainSizeEvTypeSS=="constant") {
+    return ierr;
+  }
+
   PetscInt Ii,Istart,Iend;
   VecGetOwnershipRange(_d,&Istart,&Iend);
   const PetscScalar *s;
@@ -567,8 +577,8 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
     CHKERRQ(ierr);
   #endif
 
-  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
-    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = writeVec(_A,outputDir + "grainSizeEv_A");                    CHKERRQ(ierr);
     ierr = writeVec(_QR,outputDir + "grainSizeEv_QR");                  CHKERRQ(ierr);
     ierr = writeVec(_p,outputDir + "grainSizeEv_p");                    CHKERRQ(ierr);

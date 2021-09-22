@@ -20,7 +20,7 @@ using namespace std;
 class KeepKSPCount
 {
   public:
-    int _myKspItNum;
+    int _myKspItNumTot,_myKspItNumStep;
 
     KeepKSPCount(int startIt);
     ~KeepKSPCount();

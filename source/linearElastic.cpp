@@ -6,7 +6,7 @@ using namespace std;
 
 
 KeepKSPCount::KeepKSPCount(int startIt)
-  : _myKspItNum(startIt)
+  : _myKspItNumTot(startIt),_myKspItNumStep(startIt)
 {}
 
 KeepKSPCount::~KeepKSPCount()
@@ -27,7 +27,8 @@ PetscErrorCode MyKSPMonitor(KSP ksp,PetscInt n,PetscReal rnorm,void *ctx)
 {
   PetscErrorCode ierr = 0;
   KeepKSPCount * usrctx = static_cast<KeepKSPCount *> (ctx);
-  usrctx->_myKspItNum++;
+  usrctx->_myKspItNumTot++;
+  usrctx->_myKspItNumStep++;
   //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"  total iteration %D:  iteration %D KSP Residual norm %14.12e \n",usrctx->_myKspItNum,n,rnorm);CHKERRQ(ierr);
   return ierr;
 }
@@ -572,11 +573,38 @@ PetscErrorCode LinearElastic::computeU()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  //~ // if u is very close to 0, choose initial guess of all 1s
+  //~ Vec u;
+  //~ VecDuplicate(_u,&u);
+  //~ VecCopy(_u,u);
+  //~ PetscScalar norm2U;
+  //~ VecNorm(_u,NORM_2,&norm2U);
+  //~ if (norm2U < 1e-8) {
+    //~ VecSet(_u,1.0);
+  //~ }
+
+  // scale rhs by norm2(rhs)
+  //~ PetscScalar scaleRhs;
+  //~ VecNorm(_rhs,NORM_2,&scaleRhs);
+  //~ scaleRhs = abs(scaleRhs);
+  //~ if (scaleRhs > 1e-7) {
+      //~ VecScale(_rhs,1.0/scaleRhs);
+      //~ VecScale(_u,1.0/scaleRhs);
+  //~ }
+
+  //~ PetscPrintf(PETSC_COMM_WORLD,"scaleRhs = %.1e, norm2U = %.1e\n",scaleRhs,norm2U);
+
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_ksp,_rhs,_u); CHKERRQ(ierr);
   _linSolveTime += MPI_Wtime() - startTime;
   _linSolveCount++;
+
+  //~ // scale u to account for rhs scaling
+  //~ if (scaleRhs > 1e-7) {
+    //~ VecScale(_u,scaleRhs);
+  //~ }
+
 
   // print number of iterations required to converge
   PetscInt itNum = 0;
@@ -585,6 +613,7 @@ PetscErrorCode LinearElastic::computeU()
   //~ PetscPrintf(PETSC_COMM_WORLD,"itNum = %i\n",itNum);
 
   ierr = setSurfDisp();
+  //~ VecDestroy(&u);
 
   // // force solution to be accurate to debug MMS test
   // ierr = mapToVec(_u,zzmms_uA,*_y,*_z,time); CHKERRQ(ierr);
@@ -671,7 +700,7 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   number of times linear system was solved: %i\n",_linSolveCount); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   time spent solving linear system (s): %g\n",_linSolveTime); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   PETSc number of iterations for linear system solve (s): %i\n",_kspItNum); CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"   SCycle number of iterations for linear system solve (s): %i\n",_myKspCtx._myKspItNum); CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"   SCycle number of iterations for linear system solve (s): %i\n",_myKspCtx._myKspItNumTot); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent solving linear system: %g\n",_linSolveTime/totRunTime*100.); CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD,"   %% integration time spent creating matrices: %g\n",_matrixTime/totRunTime*100.); CHKERRQ(ierr);
