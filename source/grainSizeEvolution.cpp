@@ -192,8 +192,8 @@ PetscErrorCode GrainSizeEvolution::allocateFields()
   VecDuplicate(*_z,&_d); VecSet(_d,0.0);
   VecDuplicate(_d,&_d_t); VecSet(_d_t,0.0);
   VecDuplicate(_d,&_f); VecSet(_f,0.0);
-  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" ||
-    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState") {
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     VecDuplicate(_d,&_A); VecSet(_A,0.0);
     VecDuplicate(_d,&_QR); VecSet(_QR,0.0);
     VecDuplicate(_d,&_p); VecSet(_p,0.0);
