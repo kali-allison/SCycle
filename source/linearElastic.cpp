@@ -707,7 +707,7 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
 
   ierr = PetscPrintf(PETSC_COMM_WORLD,"\n");CHKERRQ(ierr);
 
-  ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //~ ierr = KSPView(_ksp,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   return ierr;
 }
