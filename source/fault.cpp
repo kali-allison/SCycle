@@ -94,6 +94,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
     // flash heating parameters
     else if (var.compare("fw")==0) { _fw = atof( rhs.c_str() ); }
     else if (var.compare("Vw")==0) { _Vw_const = atof( rhs.c_str() ); }
+    else if (var.compare("Vw_type")==0) { _VwType = rhs.c_str(); }
     else if (var.compare("TwVals")==0) { loadVectorFromInputFile(rhsFull,_TwVals); }
     else if (var.compare("TwDepths")==0) {
       loadVectorFromInputFile(rhsFull,_TwDepths); }
@@ -222,6 +223,7 @@ PetscErrorCode Fault::checkInput()
   if (_stateLaw.compare("flashHeating") == 0) {
     assert(_TwVals.size() == _TwDepths.size() );
     assert(_TwVals.size() != 0 );
+    assert(_VwType.compare("constant")==0 || _VwType.compare("function_of_Tw")==0 );
   }
 
   #if VERBOSE > 1
@@ -492,6 +494,7 @@ PetscErrorCode Fault::writeContext(const string outputDir)
     ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw_const);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer,"VwType = %s\n",_VwType.c_str());CHKERRQ(ierr);
   }
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
@@ -897,7 +900,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("flashHeating") == 0) {
-    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_Vw,_D_fh,_Tw,_tau_c,_Vw_const,_fw,_Dc,_a,_b,_f0,_v0);
+    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_Vw,_D_fh,_Tw,_tau_c,_Vw_const,_fw,_Dc,_a,_b,_f0,_v0,_VwType);
     CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("constantState") == 0) {
@@ -2169,7 +2172,7 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
 
 
 // applies the flash heating state law to a Vec
-PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0)
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const string _VwType)
 {
   PetscErrorCode ierr = 0;
 
@@ -2192,11 +2195,22 @@ PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel
   PetscInt Istart, Iend;
   ierr = VecGetOwnershipRange(psi,&Istart,&Iend); // local portion of global Vec index
 
-  for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
-    VwA[Jj] = flashHeating_Vw(TA[Jj], rhoA[Jj],cA[Jj],kA[Jj],D, TwA[Jj], tau_c);
-    PetscScalar Vwi = VwA[Jj]; // if not constant
-    dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],Vwi,fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
-    Jj++;
+  if (_VwType.compare("constant") == 0) {
+    for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+      dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],VwA[Jj],fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
+      Jj++;
+    }
+  }
+  else if (_VwType.compare("function_of_Tw") == 0) {
+    for (PetscInt Ii = Istart; Ii < Iend; Ii++) {
+      VwA[Jj] = flashHeating_Vw(TA[Jj], rhoA[Jj],cA[Jj],kA[Jj],D, TwA[Jj], tau_c);
+      dpsiA[Jj] = flashHeating_psi(psiA[Jj],slipVelA[Jj],VwA[Jj],fw,DcA[Jj],aA[Jj],bA[Jj],f0,v0);
+      Jj++;
+    }
+  }
+  else {
+    PetscPrintf(PETSC_COMM_WORLD,"_VwType not understood!\n");
+    assert(0);
   }
 
   VecRestoreArray(dpsi,&dpsiA);
