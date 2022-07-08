@@ -72,13 +72,12 @@ public:
   PetscScalar      _maxTemp;
   PetscViewer      _maxTempV;
 
-  // viewers:
+  // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  //~ map <string,PetscViewer>  _viewers;
-  map <string,pair<PetscViewer,string> >  _viewers;
-  PetscViewer          _timeV; // time output viewer
+  map <string,pair<PetscViewer,string> >  _viewers1D;
+  map <string,pair<PetscViewer,string> >  _viewers2D;
 
   // which factors to include: viscous and frictional shear heating, and radioactive heat generation
   string          _wViscShearHeating,_wFrictionalHeating,_wRadioHeatGen;

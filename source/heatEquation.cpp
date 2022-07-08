@@ -78,8 +78,11 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_bcL);
   VecDestroy(&_bcB);
 
-  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first].first);
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers1D.begin(); it !=_viewers1D.end(); it++) {
+    PetscViewerDestroy(&_viewers1D[it->first].first);
+  }
+  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers2D.begin(); it !=_viewers2D.end(); it++) {
+    PetscViewerDestroy(&_viewers2D[it->first].first);
   }
   PetscViewerDestroy(&_maxTempV);
 
@@ -1736,22 +1739,22 @@ PetscErrorCode HeatEquation::writeStep1D(const PetscInt stepCount, const PetscSc
 
   VecMax(_dT, NULL, &_maxTemp); // compute max T for output
 
-  if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcR", _bcR, outputDir + "he_bcR"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcT", _bcT, outputDir + "he_bcT"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcB", _bcB, outputDir + "he_bcB"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "he_bcL", _bcL, outputDir + "he_bcL"); CHKERRQ(ierr);
+  if (_viewers1D.empty()) {
+    initiate_appendVecToOutput(_viewers1D, "kTz_y0", _kTz_z0, outputDir + "he_kTz_y0", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "he_bcR", _bcR, outputDir + "he_bcR", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "he_bcT", _bcT, outputDir + "he_bcT", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "he_bcL", _bcL, outputDir + "he_bcL", _D->_outFileMode);
+    initiate_appendVecToOutput(_viewers1D, "he_bcB", _bcB, outputDir + "he_bcB", _D->_outFileMode);
 
     ierr = PetscViewerASCIIOpen(PETSC_COMM_WORLD,(outputDir+"he_maxT.txt").c_str(),&_maxTempV);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_kTz_z0,_viewers["kTz_y0"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers["he_bcL"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers["he_bcR"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcT,_viewers["he_bcT"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcB,_viewers["he_bcB"].first); CHKERRQ(ierr);
+    ierr = VecView(_kTz_z0,_viewers1D["kTz_y0"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcR,_viewers1D["he_bcR"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcT,_viewers1D["he_bcT"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcL,_viewers1D["he_bcL"].first); CHKERRQ(ierr);
+    ierr = VecView(_bcB,_viewers1D["he_bcB"].first); CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(_maxTempV, "%.15e\n",_maxTemp); CHKERRQ(ierr);
   }
 
@@ -1775,21 +1778,21 @@ PetscErrorCode HeatEquation::writeStep2D(const PetscInt stepCount, const PetscSc
 
   double startTime = MPI_Wtime();
 
-  if (stepCount == 0) {
-    ierr = io_initiateWriteAppend(_viewers, "T", _T, outputDir + "he_T"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "dT", _dT, outputDir + "he_dT"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "kTz", _kTz, outputDir + "he_kTz"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "Qfric", _Qfric, outputDir + "he_Qfric"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "Qvisc", _Qvisc, outputDir + "he_Qvisc"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "Q", _Q, outputDir + "he_Q"); CHKERRQ(ierr);
+  if (_viewers2D.empty()) {
+    initiate_appendVecToOutput(_viewers2D, "T", _T, outputDir + "he_T", _D->_outFileMode);               CHKERRQ(ierr);
+    initiate_appendVecToOutput(_viewers2D, "dT", _dT, outputDir + "he_dT", _D->_outFileMode);            CHKERRQ(ierr);
+    initiate_appendVecToOutput(_viewers2D, "kTz", _kTz, outputDir + "he_kTz", _D->_outFileMode);         CHKERRQ(ierr);
+    initiate_appendVecToOutput(_viewers2D, "Qfric", _Qfric, outputDir + "he_Qfric", _D->_outFileMode);   CHKERRQ(ierr);
+    initiate_appendVecToOutput(_viewers2D, "Qvisc", _Qvisc, outputDir + "he_Qvisc", _D->_outFileMode);   CHKERRQ(ierr);
+    initiate_appendVecToOutput(_viewers2D, "Q", _Q, outputDir + "he_Q", _D->_outFileMode);               CHKERRQ(ierr);
   }
   else {
-    ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
-    ierr = VecView(_dT,_viewers["dT"].first); CHKERRQ(ierr);
-    ierr = VecView(_kTz,_viewers["kTz"].first); CHKERRQ(ierr);
-    ierr = VecView(_Qfric,_viewers["Qfric"].first); CHKERRQ(ierr);
-    ierr = VecView(_Qvisc,_viewers["Qvisc"].first); CHKERRQ(ierr);
-    ierr = VecView(_Q,_viewers["Q"].first); CHKERRQ(ierr);
+    ierr = VecView(_T,_viewers2D["T"].first);                             CHKERRQ(ierr);
+    ierr = VecView(_dT,_viewers2D["dT"].first);                           CHKERRQ(ierr);
+    ierr = VecView(_kTz,_viewers2D["kTz"].first);                         CHKERRQ(ierr);
+    ierr = VecView(_Qfric,_viewers2D["Qfric"].first);                     CHKERRQ(ierr);
+    ierr = VecView(_Qvisc,_viewers2D["Qvisc"].first);                     CHKERRQ(ierr);
+    ierr = VecView(_Q,_viewers2D["Q"].first);                             CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;

@@ -592,8 +592,6 @@ PetscErrorCode LinearElastic::computeU()
       //~ VecScale(_u,1.0/scaleRhs);
   //~ }
 
-  //~ PetscPrintf(PETSC_COMM_WORLD,"scaleRhs = %.1e, norm2U = %.1e\n",scaleRhs,norm2U);
-
   // solve for displacement
   double startTime = MPI_Wtime();
   ierr = KSPSolve(_ksp,_rhs,_u); CHKERRQ(ierr);

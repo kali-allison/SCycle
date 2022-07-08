@@ -525,7 +525,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate()
 double startTime_qd = MPI_Wtime();
     _allowed = false;
     _inDynamic = false;
-    prepare_fd2qd();
     integrate_qd();
 _qdTime += MPI_Wtime() - startTime_qd;
 
@@ -793,6 +792,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -875,7 +877,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
-
+  Mat A; _material->_sbp->getA(A);
+  _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
+  KSPView(_material->_ksp,  PETSC_VIEWER_STDOUT_WORLD);
+  assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1447,6 +1452,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     std::string funcName = "strikeSlip_linearElastic_qd_fd::integrate_qd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  double startTime = MPI_Wtime();
 
   OdeSolver      *quadEx = NULL; // explicit time stepping
   OdeSolverImex  *quadImex = NULL; // implicit time stepping
@@ -1508,6 +1514,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
   delete quadEx;
   delete quadImex;
 
+  // calculate time used in integration
+  _integrateTime += MPI_Wtime() - startTime;
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1522,6 +1531,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_fd()
     std::string funcName = "strikeSlip_linearElastic_qd_fd::integrate_fd";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+  double startTime = MPI_Wtime();
 
   OdeSolver_WaveEq          *quadWaveEx;
   //~ OdeSolver_WaveEq_Imex     *quadWaveImex;
@@ -1540,6 +1550,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_fd()
 
   delete quadWaveEx;
   //~ delete quadWaveImex;
+  // calculate time used in integration
+  _integrateTime += MPI_Wtime() - startTime;
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
