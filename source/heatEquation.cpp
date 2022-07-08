@@ -13,7 +13,7 @@ HeatEquation::HeatEquation(Domain& D)
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
-  _linSolver("CG"),_kspTol(1e-11),
+  _linSolver("CG_PCAMG"),_kspTol(1e-11),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),
   _I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
@@ -741,15 +741,17 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
       ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
     #endif
   }
-  else if (_linSolver.compare("CG")==0) { // conjugate gradient
-    ierr = KSPSetType(_kspSS,KSPCG); CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(_kspSS, PETSC_TRUE);
-    ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
-    ierr = KSPGetPC(_kspSS,&pc); CHKERRQ(ierr);
+  else if (_linSolver.compare("CG_PCAMG")==0) { // conjugate gradient
+    ierr = KSPSetType(_kspSS,KSPCG);                                    CHKERRQ(ierr);
+    ierr = KSPSetOperators(_kspSS,A,A);                                 CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_kspSS,PETSC_TRUE);                CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE);                CHKERRQ(ierr);
+    ierr = KSPGetPC(_kspSS,&_pc);                                       CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspSS,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
+    ierr = KSPGetPC(_kspSS,&pc);                                           CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
@@ -782,6 +784,8 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   #endif
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&_kspTrans); CHKERRQ(ierr);
+  PC pc;
+
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(_kspTrans,KSPRICHARDSON); CHKERRQ(ierr);
@@ -828,15 +832,17 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
     #endif
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("PCG")==0) { // conjugate gradient
-    ierr = KSPSetType(_kspTrans,KSPCG); CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE); CHKERRQ(ierr);
-    ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
+  else if (_linSolver.compare("CG_PCAMG")==0) { // conjugate gradient
+    ierr = KSPSetType(_kspTrans,KSPCG);                                 CHKERRQ(ierr);
+    ierr = KSPSetOperators(_kspTrans,A,A);                              CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE);            CHKERRQ(ierr);
+    ierr = KSPGetPC(_kspTrans,&_pc);                                    CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspTrans,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(_pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
+    ierr = KSPGetPC(_kspTrans,&pc);                                           CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
+    ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n");
