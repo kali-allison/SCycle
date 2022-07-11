@@ -94,7 +94,7 @@ PetscErrorCode Fault::loadSettings(const char *file)
     // flash heating parameters
     else if (var.compare("fw")==0) { _fw = atof( rhs.c_str() ); }
     else if (var.compare("Vw")==0) { _Vw_const = atof( rhs.c_str() ); }
-    else if (var.compare("Vw_type")==0) { _VwType = rhs.c_str(); }
+    else if (var.compare("VwType")==0) { _VwType = rhs.c_str(); }
     else if (var.compare("TwVals")==0) { loadVectorFromInputFile(rhsFull,_TwVals); }
     else if (var.compare("TwDepths")==0) {
       loadVectorFromInputFile(rhsFull,_TwDepths); }
