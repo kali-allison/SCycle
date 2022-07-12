@@ -854,6 +854,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
 
   // accept command line options
   ierr = KSPSetFromOptions(_kspTrans);CHKERRQ(ierr);
+  ierr = KSPSetUp(_kspTrans);CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
   double startTime = MPI_Wtime();

@@ -318,8 +318,9 @@ PetscErrorCode LinearElastic::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSo
     ierr = KSPSetTolerances(ksp,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
-    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE); CHKERRQ(ierr);
-    ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
+    ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
+    ierr = KSPSetFromOptions(ksp);                                      CHKERRQ(ierr);
+    ierr = KSPSetUp(ksp);                                               CHKERRQ(ierr);
   }
   // preconditioned conjugate gradient, using block Jacobi preconditioner
   else if (linSolver == "CG_PCBJacobi_SubCholesky") {

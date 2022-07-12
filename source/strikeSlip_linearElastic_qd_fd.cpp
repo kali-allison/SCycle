@@ -879,8 +879,6 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
   Mat A; _material->_sbp->getA(A);
   _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans);
-  KSPView(_material->_ksp,  PETSC_VIEWER_STDOUT_WORLD);
-  assert(0);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
