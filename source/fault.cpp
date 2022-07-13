@@ -2151,8 +2151,8 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
   PetscScalar absV = abs(slipVel);
 
   // compute fss
-  //~ PetscScalar fLV = f0 + (a-b)*log(absV/v0); // not regularized
-  PetscScalar fLV =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
+  PetscScalar fLV = f0 + (a-b)*log(absV/v0); // not regularized
+  //~ PetscScalar fLV =(a-b)*asinh( (double) absV/v0/2.0 * exp(f0/(a-b)));  // regularized
   PetscScalar fss = fLV;
 
   // compute f
