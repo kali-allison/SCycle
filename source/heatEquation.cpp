@@ -1546,7 +1546,7 @@ PetscErrorCode HeatEquation::computeFrictionalShearHeating(const Vec& tau, const
 
   // if left boundary condition is heat flux: q = bcL = tau*slipVel/2
   if (_wMax == 0) {
-    VecScale(_bcL,-0.5);
+    VecScale(_bcL,0.5); // was -0.5, changed to +0.5 July 13 2022
     VecSet(_Qfric,0.);
   }
 
