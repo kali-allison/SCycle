@@ -55,6 +55,7 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
     Vec T; VecDuplicate(_D->_y,&T);
     _he->getTemp(T);
     _fault_qd->setThermalFields(T,_he->_k,_he->_c);
+    _fault_fd->setThermalFields(T,_he->_k,_he->_c);
   }
 
   // pressure diffusion equation
@@ -786,6 +787,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   VecCopy(_fault_fd->_tauP,      _fault_qd->_tauP);
   VecCopy(_fault_fd->_tauQSP,    _fault_qd->_tauQSP);
   VecCopy(_fault_fd->_strength,  _fault_qd->_strength);
+  VecCopy(_fault_fd->_T,         _fault_qd->_T);
 
   // update viewers to keep IO consistent
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
@@ -872,6 +874,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_strength,  _fault_fd->_tau0);
   VecCopy(_fault_qd->_tauP,      _fault_fd->_tauP);
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
+  VecCopy(_fault_fd->_T,         _fault_qd->_T);
   //~ VecAXPY(_fault_fd->_tau0,1.0,_fault_fd->_prestress); // add prestress to tau0 so don't have to do this each time step
   _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
