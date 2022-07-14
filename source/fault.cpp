@@ -13,7 +13,7 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
     _prestressScalar(0.),
     _f0(0.6),_v0(1e-6),
     _sigmaN_cap(1e14),_sigmaN_floor(0.),
-    _fw(0.64),_Vw_const(0.12),_tau_c(3),_D_fh(5),
+    _fw(0.64),_tau_c(3),_D_fh(5),
     _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
     _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
     _body2fault(&scatter2fault)
@@ -93,11 +93,11 @@ PetscErrorCode Fault::loadSettings(const char *file)
 
     // flash heating parameters
     else if (var.compare("fw")==0) { _fw = atof( rhs.c_str() ); }
-    else if (var.compare("Vw")==0) { _Vw_const = atof( rhs.c_str() ); }
     else if (var.compare("VwType")==0) { _VwType = rhs.c_str(); }
+    else if (var.compare("VwVals")==0) { loadVectorFromInputFile(rhsFull,_VwVals); }
+    else if (var.compare("VwDepths")==0) { loadVectorFromInputFile(rhsFull,_VwDepths); }
     else if (var.compare("TwVals")==0) { loadVectorFromInputFile(rhsFull,_TwVals); }
-    else if (var.compare("TwDepths")==0) {
-      loadVectorFromInputFile(rhsFull,_TwDepths); }
+    else if (var.compare("TwDepths")==0) { loadVectorFromInputFile(rhsFull,_TwDepths); }
     else if (var.compare("D")==0) { _D_fh = atof( rhs.c_str() ); }
     else if (var.compare("tau_c")==0) { _tau_c = atof( rhs.c_str() ); }
 
@@ -279,6 +279,7 @@ PetscErrorCode Fault::setFields(Domain& D)
     VecDuplicate(_tauP,&_Tw);
     ierr = setVec(_Tw,_z,_TwVals,_TwDepths); CHKERRQ(ierr);
     VecDuplicate(_tauP,&_Vw);
+    ierr = setVec(_Vw,_z,_VwVals,_VwDepths); CHKERRQ(ierr);
   }
   else { _T = NULL; _k = NULL; _c = NULL; _Tw = NULL; _Vw = NULL; }
 
@@ -345,8 +346,6 @@ PetscErrorCode Fault::setThermalFields(const Vec& T, const Vec& k, const Vec& c)
 
   VecScatterBegin(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, c, _c, INSERT_VALUES, SCATTER_FORWARD);
-
-  VecSet(_Vw,_Vw_const);
 
   _scatterTime += MPI_Wtime() - scatterStart;
 
@@ -491,7 +490,6 @@ PetscErrorCode Fault::writeContext(const string outputDir)
   // write flash heating parameters if this is enabled
   if (!_stateLaw.compare("flashHeating")) {
     ierr = PetscViewerASCIIPrintf(viewer,"fw = %.15e\n",_fw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"Vw = %.15e\n",_Vw_const);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
     ierr = PetscViewerASCIIPrintf(viewer,"VwType = %s\n",_VwType.c_str());CHKERRQ(ierr);
@@ -511,6 +509,7 @@ PetscErrorCode Fault::writeContext(const string outputDir)
 
   if (!_stateLaw.compare("flashHeating")) {
     ierr = writeVec(_Tw,outputDir + "fault_Tw"); CHKERRQ(ierr);
+    ierr = writeVec(_Vw,outputDir + "fault_Vw"); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -900,7 +899,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
     ierr =  slipLaw_psi_Vec(dstate,_psi,_slipVel,_a,_b,_f0,_v0,_Dc); CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("flashHeating") == 0) {
-    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_Vw,_D_fh,_Tw,_tau_c,_Vw_const,_fw,_Dc,_a,_b,_f0,_v0,_VwType);
+    ierr = flashHeating_psi_Vec(dstate,_psi,_slipVel,_T,_rho,_c,_k,_Vw,_D_fh,_Tw,_tau_c,_fw,_Dc,_a,_b,_f0,_v0,_VwType);
     CHKERRQ(ierr);
   }
   else if (_stateLaw.compare("constantState") == 0) {
@@ -2172,7 +2171,7 @@ PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel,
 
 
 // applies the flash heating state law to a Vec
-PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const string _VwType)
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const string _VwType)
 {
   PetscErrorCode ierr = 0;
 

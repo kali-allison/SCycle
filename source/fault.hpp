@@ -80,8 +80,8 @@ public:
 
   // flash heating parameters
   string       _VwType; // constant or function_of_Tw
-  vector<double>   _TwVals,_TwDepths;
-  PetscScalar      _fw,_Vw_const,_tau_c,_D_fh;
+  vector<double>   _TwVals,_TwDepths,_VwVals,_VwDepths;
+  PetscScalar      _fw,_tau_c,_D_fh;
   Vec              _T,_k,_c,_Vw,_Tw;
 
   // tolerances for linear and nonlinear (for vel) solve
@@ -336,7 +336,7 @@ PetscScalar flashHeating_Vw(const PetscScalar& T, const PetscScalar& rho, const 
 // flash heating: slip law, state variable: psi
 PetscScalar flashHeating_psi(const PetscScalar& psi, const PetscScalar& slipVel, const PetscScalar& Vw, const PetscScalar& fw, const PetscScalar& Dc,const PetscScalar& a,const PetscScalar& b, const PetscScalar& f0, const PetscScalar& v0);
 
-PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& Vw_const, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const string _VwType);
+PetscErrorCode flashHeating_psi_Vec(Vec &dpsi,const Vec& psi, const Vec& slipVel, const Vec& T, const Vec& rho, const Vec& c, const Vec& k, Vec& Vw, const PetscScalar& D, const Vec& Tw, const PetscScalar& tau_c, const PetscScalar& fw, const Vec& Dc,const Vec& a,const Vec& b, const PetscScalar& f0, const PetscScalar& v0, const string _VwType);
 
 
 // frictional strength, regularized form, for state variable psi
