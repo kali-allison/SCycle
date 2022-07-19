@@ -141,6 +141,9 @@ PetscErrorCode Fault::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_a,_D->_inputDir,"fault_a"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_b,_D->_inputDir,"fault_b"); CHKERRQ(ierr);
   ierr = loadVecFromInputFile(_Dc,_D->_inputDir,"fault_Dc"); CHKERRQ(ierr);
+  if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = loadVecFromInputFile(_Vw,_D->_inputDir,"fault_Vw"); CHKERRQ(ierr);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
