@@ -143,6 +143,7 @@ PetscErrorCode Fault::loadFieldsFromFiles()
   ierr = loadVecFromInputFile(_Dc,_D->_inputDir,"fault_Dc"); CHKERRQ(ierr);
   if (_stateLaw.compare("flashHeating") == 0) {
     ierr = loadVecFromInputFile(_Vw,_D->_inputDir,"fault_Vw"); CHKERRQ(ierr);
+    ierr = loadVecFromInputFile(_Tw,_D->_inputDir,"fault_Tw"); CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
