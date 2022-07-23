@@ -1280,13 +1280,13 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::solveSS()
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
 
   // steady state temperature
-  if (_thermalCoupling.compare("no")!=0) {
-    ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
-    Vec T; VecDuplicate(_material->_sxy,&T);
-    _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,T);
-    ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
-    VecDestroy(&T);
-  }
+  //~ if (_thermalCoupling.compare("no")!=0) {
+    //~ ierr = writeVec(_he->_Tamb,_outputDir + "SS_T0"); CHKERRQ(ierr);
+    //~ Vec T; VecDuplicate(_material->_sxy,&T);
+    //~ _he->computeSteadyStateTemp(_currTime,_fault_qd->_slipVel,_fault_qd->_tauP,NULL,NULL,T);
+    //~ ierr = writeVec(T,_outputDir + "SS_TSS"); CHKERRQ(ierr);
+    //~ VecDestroy(&T);
+  //~ }
 
   KSPDestroy(&_material->_ksp);
 
