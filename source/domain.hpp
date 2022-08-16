@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <vector>
 #include <iostream>
+#include <petscviewerhdf5.h>
 #include <petscdmda.h>
 #include <petscdm.h>
 #include "genFuncs.hpp"
@@ -54,6 +55,9 @@ public:
   PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
   // checkpoint enabling
+  int             _saveChkpts, _restartFromChkpt;
+  PetscFileMode   _outputFileMode; // maybe change to outFileMode after getting rid of Yuyun's implementation (don't want to get them confused right now)
+  PetscInt        _prevChkptTimeStep1D,_prevChkptTimeStep2D; // time step index of simulation data that corresponds to checkpoint data
   PetscInt _ckpt, _ckptNumber, _interval;
   PetscFileMode _outFileMode; // FILE_MODE_WRITE or FILE_MODE_APPEND
 
@@ -66,7 +70,9 @@ public:
   ~Domain();
 
   PetscErrorCode view(PetscMPIInt rank);
-  PetscErrorCode write();
+  PetscErrorCode write(PetscViewer& viewer);
+  PetscErrorCode writeHDF5(PetscViewer& viewer);
+  PetscErrorCode writeCheckpoint(PetscViewer& viewer);
 
 private:
 
@@ -76,9 +82,10 @@ private:
 
   PetscErrorCode loadSettings(const char *file); // load settings from input file
   PetscErrorCode checkInput();
+  PetscErrorCode allocateFields();
   PetscErrorCode setFields();
-  // scatters indices of result vector to new vectors (e.g. displacement -> slip)
-  PetscErrorCode setScatters();
+  PetscErrorCode loadCheckpoint();
+  PetscErrorCode setScatters(); // generate scatters to move indices of one vector to a differently sized vector (e.g. displacement -> slip)
   PetscErrorCode testScatters();
 };
 

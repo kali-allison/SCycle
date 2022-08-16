@@ -1,6 +1,6 @@
 
 #include <petscts.h>
-//~ #include <petscviewerhdf5.h>
+#include <petscviewerhdf5.h>
 #include <string>
 #include <petscdmda.h>
 
@@ -45,6 +45,187 @@ int runTests(const char * inputFile)
   return ierr;
 }
 
+// generate data and write to file for future checkpoint experiment
+int initiateFields(Vec& timeVec, Vec& solution, Vec& chkptIndex)
+{
+  PetscErrorCode ierr = 0;
+
+  ierr = VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &timeVec);CHKERRQ(ierr);
+  ierr = VecSetBlockSize(timeVec, 1);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) timeVec, "time");CHKERRQ(ierr);
+  VecSet(timeVec,0.);
+
+  ierr = VecCreate(PETSC_COMM_WORLD,&solution); CHKERRQ(ierr);
+  ierr = VecSetSizes(solution,PETSC_DECIDE,5); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) solution, "solution");CHKERRQ(ierr);
+  ierr = VecSetFromOptions(solution); CHKERRQ(ierr);
+  VecSet(solution,0.);
+
+  VecDuplicate(timeVec,&chkptIndex);
+  VecSet(chkptIndex,0.);
+  ierr = PetscObjectSetName((PetscObject) chkptIndex, "chkptIndex");CHKERRQ(ierr);
+
+
+  return ierr;
+}
+
+
+
+// generate data and write to file for future checkpoint experiment
+int runFirstStep()
+{
+  PetscErrorCode ierr = 0;
+
+  //~ Domain D(inputFile);
+  PetscPrintf(PETSC_COMM_WORLD,"Running first step.\n");
+
+  // directory for output
+  string outputDir = "/Users/kallison/scycle/data/";
+
+  PetscScalar time = 0.;
+  PetscInt    chkptIndex = 0; // for writing out to checkpoint file
+
+  // prepare to output data
+  PetscViewer viewer_checkpoint;
+  string outFileName = outputDir + "checkpoint.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &viewer_checkpoint);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5SetBaseDimension2(viewer_checkpoint, PETSC_TRUE);CHKERRQ(ierr);
+
+  PetscViewer viewer;
+  outFileName = outputDir + "results.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5SetBaseDimension2(viewer, PETSC_TRUE);CHKERRQ(ierr);
+
+  // generate data for simulation
+  Vec timeVec, solution, chkptIndexVec;
+  ierr = initiateFields(timeVec, solution, chkptIndexVec);CHKERRQ(ierr);
+  ierr = VecSet(timeVec, time);                                          CHKERRQ(ierr);
+  ierr = VecSet(solution, time);                                         CHKERRQ(ierr);
+
+  // Write time and solution
+  ierr = PetscViewerHDF5PushGroup(viewer, "/timeStepResults");           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = VecView(timeVec, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(solution, viewer);                                      CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                                CHKERRQ(ierr);
+
+  // write checkpoint
+  ierr = PetscViewerHDF5GetTimestep(viewer,&chkptIndex);                 CHKERRQ(ierr);
+  ierr = VecSet(chkptIndexVec,chkptIndex);                               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer_checkpoint, "/");               CHKERRQ(ierr);
+  ierr = VecView(timeVec, viewer_checkpoint);                            CHKERRQ(ierr);
+  ierr = VecView(solution, viewer_checkpoint);                           CHKERRQ(ierr);
+  ierr = VecView(chkptIndexVec, viewer_checkpoint);                      CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer_checkpoint, "/time", "chkptTimeStep", PETSC_INT, &chkptIndex);
+  ierr = PetscViewerHDF5PopGroup(viewer_checkpoint);                     CHKERRQ(ierr);
+
+  // simulate writing out many time steps + occasional checkpointing
+  for (int ii = 1; ii <31; ii++ )
+  {
+    time = (float) ii;
+    VecSet(timeVec, time);
+    VecSet(solution, time);
+    //~ PetscPrintf(PETSC_COMM_WORLD,"ii = %i, time = %f\n",ii, time);
+
+    PetscPrintf(PETSC_COMM_WORLD,"ii = %i, time = %0.f",ii, time);
+    if (ii % 2 == 0) {
+      // Write time and solution
+      ierr = PetscViewerHDF5PushGroup(viewer, "/timeStepResults");       CHKERRQ(ierr);
+      ierr = PetscViewerHDF5IncrementTimestep(viewer);                   CHKERRQ(ierr);
+      ierr = VecView(timeVec, viewer);                                   CHKERRQ(ierr);
+      ierr = VecView(solution, viewer);                                  CHKERRQ(ierr);
+      ierr = PetscViewerHDF5PopGroup(viewer);                            CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,", regular write");
+    }
+
+    if (ii % 5 == 0) {
+      // write checkpoint
+      PetscViewerFileSetMode(viewer_checkpoint,FILE_MODE_WRITE);
+      ierr = PetscViewerHDF5GetTimestep(viewer,&chkptIndex);             CHKERRQ(ierr);
+      ierr = VecSet(chkptIndexVec,chkptIndex);                           CHKERRQ(ierr);
+      ierr = PetscViewerHDF5PushGroup(viewer_checkpoint, "/");           CHKERRQ(ierr);
+      ierr = VecView(timeVec, viewer_checkpoint);                        CHKERRQ(ierr);
+      ierr = VecView(solution, viewer_checkpoint);                       CHKERRQ(ierr);
+      ierr = VecView(chkptIndexVec, viewer_checkpoint);                  CHKERRQ(ierr);
+      ierr = PetscViewerHDF5WriteAttribute(viewer_checkpoint, "/time", "chkptTimeStep", PETSC_INT, &chkptIndex);
+      ierr = PetscViewerHDF5PopGroup(viewer_checkpoint);                 CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD,", chkptIndex = %i",chkptIndex);
+    }
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
+  }
+
+  PetscViewerDestroy(&viewer);
+  PetscViewerDestroy(&viewer_checkpoint);
+  VecDestroy(&timeVec);
+  VecDestroy(&solution);
+  VecDestroy(&chkptIndexVec);
+
+
+  return ierr;
+}
+
+// try loading from checkpoint produced by runFirstStep
+int runSecondStep()
+{
+  PetscErrorCode ierr = 0;
+
+  //~ Domain D(inputFile);
+  PetscPrintf(PETSC_COMM_WORLD,"Running second step.\n");
+
+  // directory for output
+  string outputDir = "/Users/kallison/scycle/data/";
+
+  PetscInt chkptTimeStep;
+
+  // load saved checkpoint data
+  PetscViewer viewer_prev_checkpoint;
+  string outFileName = outputDir + "checkpoint.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_READ, &viewer_prev_checkpoint);CHKERRQ(ierr);
+
+  // initiate Vecs to put data into
+  Vec timeVec, solution, chkptIndexVec;
+  ierr = initiateFields(timeVec, solution, chkptIndexVec);               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/");          CHKERRQ(ierr);
+  ierr = VecLoad(timeVec,viewer_prev_checkpoint);                        CHKERRQ(ierr);
+  ierr = VecLoad(solution,viewer_prev_checkpoint);                       CHKERRQ(ierr);
+  ierr = VecLoad(chkptIndexVec,viewer_prev_checkpoint);                  CHKERRQ(ierr);
+  //~ PetscErrorCode PetscViewerHDF5ReadAttribute(PetscViewer viewer, const char parent[], const char name[], PetscDataType datatype, const void *defaultValue, void *value)
+  ierr = PetscViewerHDF5ReadAttribute(viewer_prev_checkpoint, "/time", "chkptTimeStep", PETSC_INT, NULL, &chkptTimeStep); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);                CHKERRQ(ierr);
+
+  VecView(chkptIndexVec, PETSC_VIEWER_STDOUT_WORLD);
+  VecView(timeVec, PETSC_VIEWER_STDOUT_WORLD);
+
+  PetscPrintf(PETSC_COMM_WORLD,"chkptTimeStep = %i\n",chkptTimeStep);
+
+  PetscViewerDestroy(&viewer_prev_checkpoint);
+  VecDestroy(&timeVec);
+  VecDestroy(&solution);
+  VecDestroy(&chkptIndexVec);
+
+
+  return ierr;
+}
+
+int testHDF5()
+{
+  PetscErrorCode ierr = 0;
+
+  //~ Domain D(inputFile);
+  PetscPrintf(PETSC_COMM_WORLD,"Hello!\n");
+
+  // directory for output
+  string outputDir = "/Users/kallison/scycle/data/";
+
+  runFirstStep();
+
+  runSecondStep();
+
+
+
+  return ierr;
+}
+
 
 int runMMSTests(const char * inputFile)
 {
@@ -56,13 +237,13 @@ for (PetscInt Ny = 21; Ny < 82; Ny = (Ny - 1) * 2 + 1)
   {
     Domain d(inputFile,Ny,Ny);
     // Domain d(inputFile,Ny,1);
-    d.write();
+    //~ d.write();
 
     StrikeSlip_LinearElastic_qd m(d);
     ierr = m.writeContext(); CHKERRQ(ierr);
     ierr = m.integrate(); CHKERRQ(ierr);
 
-    //~ ierr = m.view(); CHKERRQ(ierr);
+    ierr = m.view(); CHKERRQ(ierr);
     ierr = m.measureMMSError();CHKERRQ(ierr);
   }
 
@@ -78,7 +259,7 @@ int computeGreensFunction(const char * inputFile)
 
   // create domain object and write scalar fields into file
   Domain d(inputFile);
-  d.write();
+  //~ d.write();
 
   // create linear elastic object using domain (includes material properties) specifications
   LinearElastic le(d,"Dirichlet","Neumann","Dirichlet","Neumann");
@@ -205,7 +386,7 @@ int runEqCycle(Domain& d)
   if (d._bulkDeformationType.compare("powerLaw") == 0 && d._momentumBalanceType.compare("quasidynamic") == 0) {
     StrikeSlip_PowerLaw_qd m(d);
     //~ if (d._ckptNumber < 1) { ierr = m.writeContext(); CHKERRQ(ierr); }
-    ierr = m.writeContext();
+    ierr = m.writeContext(); CHKERRQ(ierr);
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
     ierr = m.view(); CHKERRQ(ierr);
@@ -258,6 +439,7 @@ int main(int argc,char **args)
     Domain d(inputFile);
     if (d._isMMS) { runMMSTests(inputFile); }
     else { runEqCycle(d); }
+    //~ testHDF5();
     //~ computeGreensFunction(inputFile);
     //~ runTests(inputFile);
   }

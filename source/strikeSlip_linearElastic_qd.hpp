@@ -62,21 +62,25 @@ private:
   map <string,Vec>  _varEx; // holds variables for explicit integration in time
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   string            _timeIntegrator,_timeControlType;
-  PetscInt          _stride1D,_stride2D; // stride
+  PetscInt          _stride1D,_stride2D, _strideChkpt; // # of time steps before writing out results
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
+  Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec; // Vecs to hold current time and time step for output
   int               _stepCount; // number of time steps at which results are written out
   PetscScalar       _timeStepTol;
   PetscScalar       _initDeltaT;
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
+  PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
+
+  Vec               _JjSSVec; // Vec containing current index (Ii) for steady state iteration
 
   // runtime data
   double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_totalRunTime, _miscTime;
 
   // viewers
-  PetscViewer _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
+  PetscViewer _viewer_context,_viewer1D,_viewer2D,_viewerSS,_viewer_chkpt;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -87,9 +91,6 @@ private:
   // Options: freeSurface, tau, outgoingCharacteristics, remoteLoading, symmFault, rigidFault
   string  _bcRType,_bcTType,_bcLType,_bcBType;
   string  _mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType;
-
-  // 1st (string) argument is key, second is viewer, and 3rd (string) is output directory
-  map <string,pair<PetscViewer,string> >  _viewers;
 
   // for mapping from body fields to the fault
   VecScatter* _body2fault;
@@ -120,6 +121,7 @@ public:
   PetscErrorCode solveSSb();
 
 
+
   // time stepping functions
   PetscErrorCode integrate(); // will call OdeSolver method by same name
   PetscErrorCode initiateIntegrand();
@@ -137,6 +139,7 @@ public:
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
   PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+  PetscErrorCode writeSS(const int Ii, const string outputDir);
 
   // checkpointing functions
   PetscErrorCode loadCheckpoint();

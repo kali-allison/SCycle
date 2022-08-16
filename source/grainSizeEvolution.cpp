@@ -11,7 +11,8 @@ GrainSizeEvolution::GrainSizeEvolution(Domain& D)
   _grainSizeEvType("transient"),_grainSizeEvTypeSS("steadyState"),
   _order(D._order),_Ny(D._Ny),_Nz(D._Nz),
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_y(&D._y),_z(&D._z),
-  _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_piez_A(NULL),_piez_n(NULL),_d(NULL),_d_t(NULL)
+  _A(NULL),_QR(NULL),_p(NULL),_f(NULL),_gamma(NULL),_piez_A(NULL),_piez_n(NULL),_d(NULL),_d_t(NULL),
+  _viewer(NULL)
 {
   #if VERBOSE > 1
     std::string funcName = "GrainSizeEvolution::GrainSizeEvolution";
@@ -46,9 +47,10 @@ GrainSizeEvolution::~GrainSizeEvolution()
   VecDestroy(&_d);
   VecDestroy(&_d_t);
 
-  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
-    PetscViewerDestroy(&_viewers[it->first].first);
-  }
+  //~ for (map<string,pair<PetscViewer,string> >::iterator it=_viewers.begin(); it!=_viewers.end(); it++ ) {
+    //~ PetscViewerDestroy(&_viewers[it->first].first);
+  //~ }
+  PetscViewerDestroy(&_viewer);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -141,6 +143,7 @@ PetscErrorCode GrainSizeEvolution::checkInput()
 
   assert(_dVals.size() >= 2);
   assert(_dVals.size() == _dDepths.size() );
+  assert(_fVals.size() >= 2);
 
   assert(_grainSizeEvType.compare("transient")==0 ||
     _grainSizeEvType.compare("constant")==0 ||
@@ -165,7 +168,6 @@ PetscErrorCode GrainSizeEvolution::checkInput()
     assert(_gammaVals.size() >= 2);
     assert(_c > 0);
   }
-  assert(_fVals.size() >= 2);
   assert(_AVals.size() == _ADepths.size() );
   assert(_QRVals.size() == _QRDepths.size() );
   assert(_pVals.size() == _pDepths.size() );
@@ -189,20 +191,20 @@ PetscErrorCode GrainSizeEvolution::allocateFields()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecDuplicate(*_z,&_d); VecSet(_d,0.0);
-  VecDuplicate(_d,&_d_t); VecSet(_d_t,0.0);
-  VecDuplicate(_d,&_f); VecSet(_f,0.0);
+  VecDuplicate(*_z,&_d); VecSet(_d,0.0); PetscObjectSetName((PetscObject) _d, "d");
+  VecDuplicate(_d,&_d_t); VecSet(_d_t,0.0); PetscObjectSetName((PetscObject) _d_t, "d_t");
+  VecDuplicate(_d,&_f); VecSet(_f,0.0); PetscObjectSetName((PetscObject) _f, "f");
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
-    VecDuplicate(_d,&_A); VecSet(_A,0.0);
-    VecDuplicate(_d,&_QR); VecSet(_QR,0.0);
-    VecDuplicate(_d,&_p); VecSet(_p,0.0);
-    VecDuplicate(_d,&_gamma); VecSet(_gamma,0.0);
+    VecDuplicate(_d,&_A); VecSet(_A,0.0); PetscObjectSetName((PetscObject) _A, "A");
+    VecDuplicate(_d,&_QR); VecSet(_QR,0.0); PetscObjectSetName((PetscObject) _QR, "QR");
+    VecDuplicate(_d,&_p); VecSet(_p,0.0); PetscObjectSetName((PetscObject) _p, "p");
+    VecDuplicate(_d,&_gamma); VecSet(_gamma,0.0); PetscObjectSetName((PetscObject) _gamma, "gamma");
   }
 
   if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
-    VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0);
-    VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0);
+    VecDuplicate(*_z,&_piez_A); VecSet(_piez_A,0.0); PetscObjectSetName((PetscObject) _piez_A, "A");
+    VecDuplicate(*_z,&_piez_n); VecSet(_piez_n,0.0); PetscObjectSetName((PetscObject) _piez_n, "n");
   }
 
 
@@ -224,8 +226,8 @@ PetscErrorCode GrainSizeEvolution::setMaterialParameters()
 
   // set each field using it's vals and depths std::vectors
   ierr = setVec(_d,*_z,_dVals,_dDepths);                                CHKERRQ(ierr);
+  ierr = setVec(_f,*_z,_fVals,_fDepths);                              CHKERRQ(ierr);
   VecSet(_d_t,0.);
-  ierr = setVec(_f,*_z,_fVals,_fDepths);                                CHKERRQ(ierr);
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = setVec(_A,*_z,_AVals,_ADepths);                              CHKERRQ(ierr);
@@ -568,7 +570,7 @@ PetscErrorCode GrainSizeEvolution::view(const double totRunTime)
   return ierr;
 }
 
-PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
+PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir, PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -577,6 +579,25 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
     CHKERRQ(ierr);
   #endif
 
+  // write context variables
+  ierr = VecView(_f, viewer);                                         CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/wattmeter");      CHKERRQ(ierr);
+    ierr = VecView(_A, viewer);                                         CHKERRQ(ierr);
+    ierr = VecView(_QR, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_p, viewer);                                         CHKERRQ(ierr);
+    ierr = VecView(_gamma, viewer);                                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  }
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/piezometer");     CHKERRQ(ierr);
+    ierr = VecView(_piez_A, viewer);                                    CHKERRQ(ierr);
+    ierr = VecView(_piez_n, viewer);                                    CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+  }
+
+/*
   if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
     _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
     ierr = writeVec(_A,outputDir + "grainSizeEv_A");                    CHKERRQ(ierr);
@@ -590,20 +611,23 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
     ierr = writeVec(_piez_A,outputDir + "grainSizeEv_piez_A");          CHKERRQ(ierr);
     ierr = writeVec(_piez_n,outputDir + "grainSizeEv_piez_n");          CHKERRQ(ierr);
   }
-
+*/
 
   // output scalar fields
-  std::string str = _outputDir + "grainSizeEv_context.txt";
-  PetscViewer    viewer;
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
-  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvType = %s\n",_grainSizeEvType.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"grainSizeEvTypeSS = %s\n",_grainSizeEvTypeSS.c_str());CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"c = %g\n",_c);CHKERRQ(ierr);
+  std::string str = _outputDir + "grainSizeEv.txt";
+  PetscViewer    viewer_scalar;
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer_scalar);
+  PetscViewerSetType(viewer_scalar, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer_scalar, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer_scalar, str.c_str());
+  ierr = PetscViewerASCIIPrintf(viewer_scalar,"grainSizeEvType = %s\n",_grainSizeEvType.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_scalar,"grainSizeEvTypeSS = %s\n",_grainSizeEvTypeSS.c_str());CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
+    ierr = PetscViewerASCIIPrintf(viewer_scalar,"c = %g\n",_c);CHKERRQ(ierr);
+  }
 
-  PetscViewerDestroy(&viewer);
+  PetscViewerDestroy(&viewer_scalar);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -613,27 +637,65 @@ PetscErrorCode GrainSizeEvolution::writeContext(const std::string outputDir)
 }
 
 
-PetscErrorCode GrainSizeEvolution::writeStep(const PetscInt stepCount, const PetscScalar time, const std::string outputDir)
+PetscErrorCode GrainSizeEvolution::writeStep(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "GrainSizeEvolution::writeStep1D";
+    string funcName = "GrainSizeEvolution::writeStep";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);
   #endif
 
-  //~ double startTime = MPI_Wtime();
+  // write fields
+  ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv");              CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
 
-  if (_viewers.empty()) {
-    ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d", _d, outputDir + "grainSizeEv_d"); CHKERRQ(ierr);
-    ierr = io_initiateWriteAppend(_viewers, "grainSizeEv_d_t", _d_t, outputDir + "grainSizeEv_d_t"); CHKERRQ(ierr);
+  ierr = VecView(_d, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_d_t, viewer);                                         CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode GrainSizeEvolution::writeCheckpoint(PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "GrainSizeEvolution::writeCheckpoint";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "grainSizeEv");               CHKERRQ(ierr);
+
+  ierr = VecView(_f, viewer);                                           CHKERRQ(ierr);
+  if (_grainSizeEvType=="transient" || _grainSizeEvType=="steadyState" || _grainSizeEvType=="constant" ||
+    _grainSizeEvTypeSS=="transient" ||  _grainSizeEvTypeSS=="steadyState" ||  _grainSizeEvTypeSS=="constant") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/wattmeter");      CHKERRQ(ierr);
+    ierr = VecView(_A, viewer);                                         CHKERRQ(ierr);
+    ierr = VecView(_QR, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_p, viewer);                                         CHKERRQ(ierr);
+    ierr = VecView(_gamma, viewer);                                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
-  else {
-    ierr = VecView(_d,_viewers["grainSizeEv_d"].first); CHKERRQ(ierr);
-    ierr = VecView(_d_t,_viewers["grainSizeEv_d_t"].first); CHKERRQ(ierr);
+  if (_grainSizeEvType == "piezometer" || _grainSizeEvTypeSS == "piezometer") {
+    ierr = PetscViewerHDF5PushGroup(viewer, "/grainSizeEv/piezometer");     CHKERRQ(ierr);
+    ierr = VecView(_piez_A, viewer);                                    CHKERRQ(ierr);
+    ierr = VecView(_piez_n, viewer);                                    CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
-  //~ _writeTime += MPI_Wtime() - startTime;
+  ierr = VecView(_d, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_d_t, viewer);                                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
     CHKERRQ(ierr);

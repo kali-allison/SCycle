@@ -58,7 +58,7 @@ class OdeSolver
 public:
 
   PetscReal          _initT,_finalT,_currT,_deltaT;
-  PetscReal          _newDeltaT; // stores future deltaT for access by outside classes, primarily for checkpointing
+  PetscReal          _newDeltaT; // stores future deltaT primarily for checkpointing
   PetscInt           _maxNumSteps,_stepCount;
   map<string,Vec>    _var,_dvar; // integration variable and rate
   vector<string>     _errInds; // which keys of _var to use for error control
@@ -86,6 +86,8 @@ public:
   virtual PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) = 0;
   virtual PetscErrorCode view() = 0;
   virtual PetscErrorCode integrate(IntegratorContextEx *obj) = 0;
+  virtual PetscErrorCode writeCheckpoint(PetscViewer &viewer) = 0;
+  virtual PetscErrorCode loadCheckpoint(const std::string inputDir) = 0;
 };
 
 
@@ -103,6 +105,8 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds) {return 0;};
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale) {return 0;};
   PetscErrorCode integrate(IntegratorContextEx *obj);
+  PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(const std::string inputDir);
 };
 
 
@@ -136,6 +140,8 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
   PetscErrorCode integrate(IntegratorContextEx *obj);
+  PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(const std::string inputDir);
 };
 
 
@@ -172,6 +178,8 @@ public:
   PetscErrorCode setErrInds(vector<string>& errInds, vector<double> scale);
   PetscErrorCode view();
   PetscErrorCode integrate(IntegratorContextEx *obj);
+  PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(const std::string inputDir);
 };
 
 #endif

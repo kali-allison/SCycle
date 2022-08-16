@@ -93,6 +93,23 @@ double anyIsnan(const Vec& vec, string str)
   return ierr;
 }
 
+// write a single vector to file in HDF5 format
+PetscErrorCode writeVec_hdf5(Vec vec, const string outFileName, const string group, const string objectName)
+{
+  PetscErrorCode err = 0;
+  PetscViewer viewer;
+  err = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &viewer);CHKERRQ(err);
+  err = PetscViewerHDF5PushGroup(viewer, group.c_str());CHKERRQ(err);
+  err = PetscViewerHDF5PushTimestepping(viewer);CHKERRQ(err);
+  PetscObjectSetName((PetscObject) vec, objectName.c_str());
+  err = VecView(vec, viewer);CHKERRQ(err);
+  err = PetscViewerHDF5PopTimestepping(viewer);CHKERRQ(err);
+  err = PetscViewerHDF5PopGroup(viewer);CHKERRQ(err);
+  PetscViewerDestroy(&viewer);
+
+  return err;
+}
+
 // write a single vector to file in binary format
 PetscErrorCode writeVec(Vec vec, const string filename)
 {
@@ -1085,6 +1102,31 @@ PetscErrorCode initiateWriteASCII(const string outputDir, const string filename,
   return ierr;
 }
 
+
+// append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
+PetscErrorCode initiate_writeVec_hdf5(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename, const PetscFileMode mode)
+{
+  PetscErrorCode ierr = 0;
+
+  // initiate viewer
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);        CHKERRQ(ierr);
+  ierr = PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);       CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, filename.c_str(), mode, &vwL[key].first);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(vwL[key].first);             CHKERRQ(ierr);
+
+  // write Vec for the first time
+  ierr = VecView(vec,vwL[key].first);                                   CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopTimestepping(vwL[key].first);              CHKERRQ(ierr);
+
+  // ensure that viewer mode switches to append if it isn't that already
+  ierr = PetscViewerDestroy(&vwL[key].first);
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &vwL[key].first);          CHKERRQ(ierr);
+  ierr = PetscViewerSetType(vwL[key].first, PETSCVIEWERBINARY);         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, filename.c_str(), FILE_MODE_APPEND, &vwL[key].first);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(vwL[key].first);             CHKERRQ(ierr);
+
+  return ierr;
+}
 
 // append PetscVecs to existing files (saving new outputs to original data file during future checkpoints)
 PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename, const PetscFileMode mode)

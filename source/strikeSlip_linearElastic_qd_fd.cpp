@@ -23,7 +23,8 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
     _maxStepCount(1e8),
     _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
-    _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),_regime1DV(NULL), _regime2DV(NULL),
+    _time1DVec(NULL), _dtime1DVec(NULL),_time2DVec(NULL), _dtime2DVec(NULL),_regime1DVec(NULL),_regime2DVec(NULL),
+    _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
     _forcingVal(0),
@@ -109,15 +110,17 @@ strikeSlip_linearElastic_qd_fd::~strikeSlip_linearElastic_qd_fd()
   }
 
 
-  PetscViewerDestroy(&_timeV1D);
-  PetscViewerDestroy(&_dtimeV1D);
-  PetscViewerDestroy(&_timeV2D);
-  PetscViewerDestroy(&_regime1DV);
-  PetscViewerDestroy(&_regime2DV);
+  PetscViewerDestroy(&_viewer1D);
+  PetscViewerDestroy(&_viewer2D);
+  PetscViewerDestroy(&_viewer_context);
   VecDestroy(&_u0);
   VecDestroy(&_ay);
   VecDestroy(&_forcingTerm);
   VecDestroy(&_forcingTermPlain);
+  VecDestroy(&_time1DVec);
+  VecDestroy(&_dtime1DVec);
+  VecDestroy(&_time2DVec);
+  VecDestroy(&_dtime2DVec);
 
   delete _quadImex_qd;    _quadImex_qd = NULL;
   delete _quadEx_qd;      _quadEx_qd = NULL;
@@ -790,7 +793,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_fd2qd()
   VecCopy(_fault_fd->_T,         _fault_qd->_T);
 
   // update viewers to keep IO consistent
-  _fault_fd->_viewers.swap(_fault_qd->_viewers);
+  //~ _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
@@ -876,7 +879,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::prepare_qd2fd()
   VecCopy(_fault_qd->_tauQSP,    _fault_fd->_tauQSP);
   VecCopy(_fault_fd->_T,         _fault_qd->_T);
   //~ VecAXPY(_fault_fd->_tau0,1.0,_fault_fd->_prestress); // add prestress to tau0 so don't have to do this each time step
-  _fault_fd->_viewers.swap(_fault_qd->_viewers);
+  //~ _fault_fd->_viewers.swap(_fault_qd->_viewers);
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
@@ -967,26 +970,35 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, P
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV1D == NULL ) {
-    ierr = initiateWriteASCII(outputDir, "med_time1D.txt", _D->_outFileMode, _timeV1D, "%.15e\n", time);
-    CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time); CHKERRQ(ierr);
-  }
+  // update Vecs to reflect current time and time step
+  VecSet(_time1DVec,time);
+  VecSet(_dtime1DVec,_deltaT);
+  VecSet(_regime1DVec,(int) _inDynamic);
 
-  if (_dtimeV1D == NULL ) {
-    initiateWriteASCII(outputDir, "med_dt1D.txt", _D->_outFileMode, _dtimeV1D, "%.15e\n", _deltaT);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", _deltaT); CHKERRQ(ierr);
-  }
+  if (_viewer1D == NULL ) {
+    // initiate viewer
+    string outFileName = outputDir + "data_1D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer1D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(_viewer1D, PETSC_TRUE);CHKERRQ(ierr);
 
-  if (_regime1DV == NULL ) {
-    initiateWriteASCII(outputDir, "regime1D.txt", _D->_outFileMode, _regime1DV, "%i\n", (int)_inDynamic);
+    // write time
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");        CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    ierr = VecView(_time1DVec, _viewer1D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime1DVec, _viewer1D);                             CHKERRQ(ierr);
+    ierr = VecView(_regime1DVec, _viewer1D);                            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer1D);                          CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_regime1DV, "%i\n",_inDynamic);CHKERRQ(ierr);
+  else{
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");        CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewer1D);                 CHKERRQ(ierr);
+    ierr = VecView(_time1DVec, _viewer1D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime1DVec, _viewer1D);                             CHKERRQ(ierr);
+    ierr = VecView(_regime1DVec, _viewer1D);                            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer1D);                          CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -1003,25 +1015,34 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep2D(const PetscInt stepCo
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV2D == NULL ) {
-    ierr = initiateWriteASCII(outputDir, "med_time2D.txt", _D->_outFileMode, _timeV2D, "%.15e\n", time);
-    CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
-  }
-  if (_dtimeV2D == NULL ) {
-    initiateWriteASCII(outputDir, "med_dt2D.txt", _D->_outFileMode, _dtimeV2D, "%.15e\n", _deltaT);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", _deltaT); CHKERRQ(ierr);
-  }
+  // update Vecs to reflect current time and time step
+  VecSet(_time2DVec,time);
+  VecSet(_dtime2DVec,_deltaT);
+  VecSet(_regime2DVec,(int) _inDynamic);
 
-  if (_regime2DV == NULL ) {
-    initiateWriteASCII(outputDir, "regime2D.txt", _D->_outFileMode, _regime2DV, "%i\n", (int)_inDynamic);
+  if (_viewer2D == NULL ) {
+    // initiate viewer
+    string outFileName = outputDir + "data_2D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer2D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(_viewer2D, PETSC_TRUE);CHKERRQ(ierr);
+
+    // write time
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/timeStepping");        CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
+    ierr = VecView(_regime2DVec, _viewer2D);                            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_regime2DV, "%i\n",_inDynamic);CHKERRQ(ierr);
+  else{
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/timeStepping");        CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);                 CHKERRQ(ierr);
+    ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
 
 
@@ -1133,14 +1154,21 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
-  _D->write();
-  _material->writeContext(_outputDir);
-  _fault_qd->writeContext(_outputDir);
-  if (_thermalCoupling.compare("no")!=0) { _he->writeContext(_outputDir); }
-  if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir); }
+  // write non-ascii context
+  string outFileName = _outputDir + "data_context.h5";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &_viewer_context); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(_viewer_context, PETSCVIEWERBINARY); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer_context);CHKERRQ(ierr);
 
+  _D->write(_viewer_context);
+  _fault_qd->writeContext(_outputDir, _viewer_context);
+  _material->writeContext(_outputDir, _viewer_context);
+  if (_thermalCoupling.compare("no")!=0) { _he->writeContext(_outputDir, _viewer_context); }
+  if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir, _viewer_context); }
   if (_forcingType.compare("iceStream")==0) {
-    ierr = writeVec(_forcingTermPlain,_outputDir + "momBal_forcingTerm"); CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                 CHKERRQ(ierr);
+    ierr = VecView(_forcingTermPlain, viewer);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -1397,7 +1425,9 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::constructIceStreamForcingTerm()
 
   // compute forcing term using scalar input
   VecDuplicate(_material->_u,&_forcingTerm); VecSet(_forcingTerm,_forcingVal);
+  PetscObjectSetName((PetscObject) _forcingTerm, "forcingTerm");
   VecDuplicate(_material->_u,&_forcingTermPlain); VecCopy(_forcingTerm,_forcingTermPlain);
+  PetscObjectSetName((PetscObject) _forcingTermPlain, "forcingTermPlain");
 
   // alternatively, load forcing term from user input
   ierr = loadVecFromInputFile(_forcingTerm,_inputDir,"iceForcingTerm"); CHKERRQ(ierr);
@@ -1843,17 +1873,17 @@ double startTime = MPI_Wtime();
 
   if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0) ) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
-    if(_inDynamic){ ierr = _fault_fd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
-    else { ierr = _fault_qd->writeStep(_stepCount,_outputDir); CHKERRQ(ierr); }
-    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_stepCount,time,_outputDir); CHKERRQ(ierr); }
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr); }
+    ierr = _material->writeStep1D(_viewer1D); CHKERRQ(ierr);
+    if(_inDynamic){ ierr = _fault_fd->writeStep(_viewer1D); CHKERRQ(ierr); }
+    else { ierr = _fault_qd->writeStep(_viewer1D); CHKERRQ(ierr); }
+    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_viewer1D); CHKERRQ(ierr); }
+    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewer1D); CHKERRQ(ierr); }
   }
 
   if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0) ) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
-    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_stepCount,time,_outputDir);CHKERRQ(ierr); }
+    ierr = _material->writeStep2D(_viewer2D);CHKERRQ(ierr);
+    if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
   }
 
   if(_inDynamic){ if(checkSwitchRegime(_fault_fd)){ stopIntegration = 1; } }

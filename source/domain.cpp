@@ -14,19 +14,17 @@ Domain::Domain(const char *file)
   _gridSpacingType("variableGridSpacing"),_isMMS(0),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
-  _bCoordTrans(-1), _ckpt(0), _ckptNumber(0), _interval(1e4),_outFileMode(FILE_MODE_WRITE)
+  _bCoordTrans(-1),
+  _saveChkpts(1), _restartFromChkpt(1),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
+  _ckpt(0), _ckptNumber(0), _interval(1e4),_outFileMode(FILE_MODE_APPEND)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file)";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
   #endif
 
-  // load data from file
   loadSettings(_file);
-  if (_ckpt > 0) {
-    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
-    if (_ckptNumber > 0) { _outFileMode = FILE_MODE_APPEND; }
-  }
+  checkInput();
 
   // grid spacing for logical coordinates
   if (_Ny > 1) { _dq = 1.0 / (_Ny - 1.0); }
@@ -42,8 +40,10 @@ Domain::Domain(const char *file)
     }
   #endif
 
-  checkInput(); // perform some basic value checking to prevent NaNs
-  setFields();
+  allocateFields();
+  //~ setFields();
+  if (_restartFromChkpt == 1) { loadCheckpoint(); }
+  if (_restartFromChkpt == 0) { setFields(); }
   setScatters();
 
   #if VERBOSE > 1
@@ -61,7 +61,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _gridSpacingType("variableGridSpacing"),_isMMS(0),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
-  _bCoordTrans(-1), _ckpt(0), _ckptNumber(0), _interval(500),_outFileMode(FILE_MODE_WRITE)
+  _bCoordTrans(-1),
+  _saveChkpts(1), _restartFromChkpt(1),_outputFileMode(FILE_MODE_APPEND),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
+  _ckpt(0), _ckptNumber(0), _interval(500),_outFileMode(FILE_MODE_WRITE)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
@@ -69,16 +71,12 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   #endif
 
   loadSettings(_file);
-  if (_ckpt > 0) {
-    loadValueFromCheckpoint(_outputDir, "ckptNumber", _ckptNumber);
-    _outFileMode = FILE_MODE_APPEND;
-  }
+  checkInput();
 
   _Ny = Ny;
   _Nz = Nz;
 
   if (_Ny > 1) { _dq = 1.0/(_Ny-1.0); }
-
   if (_Nz > 1) { _dr = 1.0/(_Nz-1.0); }
 
   #if VERBOSE > 2 // each processor prints loaded values to screen
@@ -91,7 +89,10 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
     }
   #endif
 
-  checkInput(); // perform some basic value checking to prevent NaNs
+  if (_restartFromChkpt == 1) {
+    loadCheckpoint();
+  }
+  allocateFields();
   setFields();
   setScatters();
 
@@ -183,6 +184,9 @@ PetscErrorCode Domain::loadSettings(const char *file)
 
     else if (var.compare("bCoordTrans")==0) { _bCoordTrans = atof( rhs.c_str() ); }
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
+
+    else if (var.compare("saveChkpts") == 0) { _saveChkpts = atoi(rhs.c_str()); }
+    else if (var.compare("restartFromChkpt") == 0) { _restartFromChkpt = atoi(rhs.c_str()); }
 
     else if (var.compare("enableCheckpointing") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }
@@ -283,7 +287,7 @@ PetscErrorCode Domain::checkInput()
 // Save all scalar fields to text file named domain.txt in output directory.
 // Also writes out coordinate systems q, r, y, z into respective files in output directory
 // Note that only the rank 0 processor's values will be saved.
-PetscErrorCode Domain::write()
+PetscErrorCode Domain::write(PetscViewer& viewer_hdf5)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -333,11 +337,8 @@ PetscErrorCode Domain::write()
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
 
 
-  // output context vectors
-  ierr = writeVec(_q,_outputDir + "q"); CHKERRQ(ierr);
-  ierr = writeVec(_r,_outputDir + "r"); CHKERRQ(ierr);
-  ierr = writeVec(_y,_outputDir + "y"); CHKERRQ(ierr);
-  ierr = writeVec(_z,_outputDir + "z"); CHKERRQ(ierr);
+  // output coordinate system vectors
+  writeHDF5(viewer_hdf5);
 
 
   #if VERBOSE > 1
@@ -347,13 +348,62 @@ PetscErrorCode Domain::write()
   return ierr;
 }
 
-
-// construct coordinate transform, setting vectors q, r, y, z
-PetscErrorCode Domain::setFields()
+// output using HDF5 format
+PetscErrorCode Domain::writeHDF5(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "Domain::setFields";
+    string funcName = "Domain::writeHDF5";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/domain");            CHKERRQ(ierr);
+  ierr = VecView(_q, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_y, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_z, viewer);                                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// output all information needed for checkpoint
+PetscErrorCode Domain::writeCheckpoint(PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Domain::writeCheckpoint";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/domain");                    CHKERRQ(ierr);
+  ierr = VecView(_q, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_r, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_y, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_z, viewer);                                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode Domain::allocateFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Domain::allocateFields";
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
@@ -367,6 +417,29 @@ PetscErrorCode Domain::setFields()
   ierr = VecDuplicate(_y,&_q); CHKERRQ(ierr);
   ierr = VecDuplicate(_y,&_r); CHKERRQ(ierr);
 
+
+  // name vectors for output
+  ierr = PetscObjectSetName((PetscObject) _q, "q");                     CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _r, "r");                     CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _y, "y");                     CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _z, "z");                     CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+// construct coordinate transform, setting vectors q, r, y, z
+PetscErrorCode Domain::setFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Domain::setFields";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
 
   // construct q and r
   {
@@ -388,8 +461,7 @@ PetscErrorCode Domain::setFields()
 
   // construct y
   bool fileExists = 0;
-  if (_ckptNumber > 0) { loadVecFromInputFile(_y, _outputDir, "y",fileExists); }
-  if (fileExists==0) { loadVecFromInputFile(_y, _inputDir, "y",fileExists); }
+  loadVecFromInputFile(_y, _inputDir, "y",fileExists);
   if (fileExists==0) {
     if (_bCoordTrans <= 0) {
       VecCopy(_q,_y);
@@ -415,8 +487,7 @@ PetscErrorCode Domain::setFields()
 
   // construct z
   fileExists = 0;
-  if (_ckptNumber > 0) { loadVecFromInputFile(_z, _outputDir, "z",fileExists); }
-  if (fileExists==0) { loadVecFromInputFile(_z, _inputDir, "z",fileExists); }
+  loadVecFromInputFile(_z, _inputDir, "z",fileExists);
   if (fileExists==0) {
     VecCopy(_r,_z);
     VecScale(_z,_Lz);
@@ -429,6 +500,56 @@ PetscErrorCode Domain::setFields()
   return ierr;
 }
 
+PetscErrorCode Domain::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Domain::allocateFields";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+  bool fileExists = 0;
+  fileExists = doesFileExist(fileName);
+  if (fileExists && _restartFromChkpt == 1) {
+    _outputFileMode = FILE_MODE_APPEND;
+    PetscPrintf(PETSC_COMM_WORLD,"Note: will start simulation from previous checkpoint.\n");
+
+    // load saved checkpoint data
+    PetscViewer viewer_prev_checkpoint;
+
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer_prev_checkpoint);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/domain");   CHKERRQ(ierr);
+    ierr = VecLoad(_q,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_r,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_y,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = VecLoad(_z,viewer_prev_checkpoint);                            CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
+
+    ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/time1D");   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5ReadAttribute(viewer_prev_checkpoint, "time1D", "chkptTimeStep", PETSC_INT, NULL, &_prevChkptTimeStep1D); CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/time2D");   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5ReadAttribute(viewer_prev_checkpoint, "time2D", "chkptTimeStep", PETSC_INT, NULL, &_prevChkptTimeStep2D); CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
+    PetscPrintf(PETSC_COMM_WORLD,"prevChkptTimeStep1D = %i\n",_prevChkptTimeStep1D);
+
+    PetscViewerDestroy(&viewer_prev_checkpoint);
+  }
+  else {
+    _restartFromChkpt = 0;
+    _outputFileMode = FILE_MODE_WRITE;
+    PetscPrintf(PETSC_COMM_WORLD,"\n\ndo not restart from checkpoint\n\n");
+  }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
 
 // scatters values from one vector to another
 // used to get slip on the fault from the displacement vector, i.e., slip = u(1:Nz); shear stress on the fault from the stress vector sxy; surface displacement; surface heat flux

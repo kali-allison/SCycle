@@ -15,6 +15,7 @@ Fault::Fault(Domain &D, VecScatter& scatter2fault, const int& faultTypeScale)
     _sigmaN_cap(1e14),_sigmaN_floor(0.),
     _fw(0.64),_tau_c(3),_D_fh(5),
     _rootTol(1e-12),_rootIts(0),_maxNumIts(1e4),
+    _viewer_hdf5(NULL),
     _computeVelTime(0),_stateLawTime(0), _scatterTime(0),
     _body2fault(&scatter2fault)
 {
@@ -162,24 +163,47 @@ PetscErrorCode Fault::loadCheckpoint()
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting Fault::loadCheckpoint in fault.cpp.\n");CHKERRQ(ierr);
   #endif
 
-  ierr = loadVecFromInputFile(_sN,_outputDir + "chkpt_","sN"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_sNEff,_outputDir + "chkpt_","sNEff"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_psi,_outputDir + "chkpt_","psi"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_slip,_outputDir + "chkpt_","slip"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_slipVel,_outputDir + "chkpt_","slipVel"); CHKERRQ(ierr);
+  string fileName = _outputDir + "checkpoint.h5";
 
-  // load shear stress: pre-stress, quasistatic, and full
-  ierr = loadVecFromInputFile(_tauQSP,_outputDir + "chkpt_","tauQS"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_tauP,_outputDir + "chkpt_","tau"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_prestress,_outputDir + "chkpt_","prestress"); CHKERRQ(ierr);
+  // load saved checkpoint data
+  PetscViewer viewer;
 
-  // rate and state parameters
-  ierr = loadVecFromInputFile(_a,_outputDir,"fault_a"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_b,_outputDir,"fault_b"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_Dc,_outputDir,"fault_Dc"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_cohesion,_outputDir,"fault_cohesion"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_locked,_outputDir,"fault_locked"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_locked,_outputDir,"fault_locked"); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                    CHKERRQ(ierr);
+
+  ierr = VecLoad(_z, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_a, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_b, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_Dc, viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_cohesion, viewer);                                    CHKERRQ(ierr);
+  ierr = VecLoad(_locked, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_prestress, viewer);                                   CHKERRQ(ierr);
+  ierr = VecLoad(_slip0, viewer);                                       CHKERRQ(ierr);
+  ierr = VecLoad(_sNEff, viewer);                                       CHKERRQ(ierr);
+  ierr = VecLoad(_sN, viewer);                                          CHKERRQ(ierr);
+
+  if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = VecLoad(_k, viewer);                                        CHKERRQ(ierr);
+    ierr = VecLoad(_c, viewer);                                        CHKERRQ(ierr);
+    ierr = VecLoad(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecLoad(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = VecLoad(_slip, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_slipVel, viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_tauP, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_tauQSP, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_strength, viewer);                                    CHKERRQ(ierr);
+  ierr = VecLoad(_psi, viewer);                                         CHKERRQ(ierr);
+  if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = VecLoad(_T, viewer);                                         CHKERRQ(ierr);
+    ierr = VecLoad(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
 
 
   #if VERBOSE > 1
@@ -247,43 +271,44 @@ PetscErrorCode Fault::setFields(Domain& D)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // create z from D._z
   VecDuplicate(D._y0,&_z);
   double scatterStart = MPI_Wtime();
   VecScatterBegin(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
   VecScatterEnd(*_body2fault, D._z, _z, INSERT_VALUES, SCATTER_FORWARD);
   _scatterTime += MPI_Wtime() - scatterStart;
+  PetscObjectSetName((PetscObject) _z, "z");
 
-  VecDuplicate(_z,&_tauP); VecSet(_tauP,0.0);
-  VecDuplicate(_tauP,&_tauQSP); VecSet(_tauQSP,0.0);
-  VecDuplicate(_tauP,&_strength); VecSet(_strength,0.0);
-  VecDuplicate(_tauP,&_prestress); VecSet(_prestress, _prestressScalar);
+  VecDuplicate(_z,&_tauP);         VecSet(_tauP,0.0);      PetscObjectSetName((PetscObject) _tauP, "tau");
+  VecDuplicate(_tauP,&_tauQSP);    VecSet(_tauQSP,0.0);    PetscObjectSetName((PetscObject) _tauQSP, "tauQS");
+  VecDuplicate(_tauP,&_strength);  VecSet(_strength,0.0);  PetscObjectSetName((PetscObject) _strength, "strength");
+  VecDuplicate(_tauP,&_prestress); VecSet(_prestress, _prestressScalar); PetscObjectSetName((PetscObject) _prestress, "prestress");
 
-  VecDuplicate(_tauP,&_psi); VecSet(_psi,0.0);
-  VecDuplicate(_tauP,&_slip); VecSet(_slip,0.0);
-  VecDuplicate(_tauP,&_slipVel); VecSet(_slipVel,0.0);
+  VecDuplicate(_tauP,&_psi);      VecSet(_psi,0.0);      PetscObjectSetName((PetscObject) _psi, "psi");
+  VecDuplicate(_tauP,&_slip);     VecSet(_slip,0.0);     PetscObjectSetName((PetscObject) _slip, "slip");
+  VecDuplicate(_tauP,&_slipVel);  VecSet(_slipVel,0.0);  PetscObjectSetName((PetscObject) _slipVel, "slipVel");
 
-  VecDuplicate(_tauP,&_Dc); VecSet(_Dc,0.0);
-  VecDuplicate(_tauP,&_a); VecSet(_a,0.0);
-  VecDuplicate(_tauP,&_b); VecSet(_b,0.0);
-  VecDuplicate(_tauP,&_cohesion);  VecSet(_cohesion,0.0);
-  VecDuplicate(_tauP,&_sN); VecSet(_b,0.0);
-  VecDuplicate(_tauP,&_sNEff); VecSet(_sNEff,0.0);
-  VecDuplicate(_tauP,&_rho); VecSet(_rho,0.0);
-  VecDuplicate(_tauP,&_mu); VecSet(_mu,0.0);
-  VecDuplicate(_tauP,&_locked); VecSet(_sNEff,0.0);
-  VecDuplicate(_tauP,&_slip0); VecSet(_slip0, 0.0);
-
+  VecDuplicate(_tauP,&_Dc);       VecSet(_Dc,0.0);       PetscObjectSetName((PetscObject) _Dc, "Dc");
+  VecDuplicate(_tauP,&_a);        VecSet(_a,0.0);        PetscObjectSetName((PetscObject) _a, "a");
+  VecDuplicate(_tauP,&_b);        VecSet(_b,0.0);        PetscObjectSetName((PetscObject) _b, "b");
+  VecDuplicate(_tauP,&_cohesion); VecSet(_cohesion,0.0); PetscObjectSetName((PetscObject) _cohesion, "cohesion");
+  VecDuplicate(_tauP,&_sN);       VecSet(_sN,0.0);       PetscObjectSetName((PetscObject) _sN, "sN");
+  VecDuplicate(_tauP,&_sNEff);    VecSet(_sNEff,0.0);    PetscObjectSetName((PetscObject) _sNEff, "sNEff");
+  VecDuplicate(_tauP,&_rho);      VecSet(_rho,0.0);      PetscObjectSetName((PetscObject) _rho, "rho");
+  VecDuplicate(_tauP,&_mu);       VecSet(_mu,0.0);       PetscObjectSetName((PetscObject) _mu, "mu");
+  VecDuplicate(_tauP,&_locked);   VecSet(_locked,0.0);   PetscObjectSetName((PetscObject) _locked, "locked");
+  VecDuplicate(_tauP,&_slip0);    VecSet(_slip0, 0.0);   PetscObjectSetName((PetscObject) _slip0, "slip0");
 
 
   if (_stateLaw.compare("flashHeating") == 0) {
-    VecDuplicate(_tauP,&_T);
-    VecDuplicate(_tauP,&_k);
-    VecDuplicate(_tauP,&_c);
+    VecDuplicate(_tauP,&_T);      VecSet(_T,0.0);       PetscObjectSetName((PetscObject) _T, "T");
+    VecDuplicate(_tauP,&_k);      VecSet(_k,0.0);       PetscObjectSetName((PetscObject) _k, "k");
+    VecDuplicate(_tauP,&_c);      VecSet(_c,0.0);       PetscObjectSetName((PetscObject) _c, "c");
     VecDuplicate(_tauP,&_Tw);
     ierr = setVec(_Tw,_z,_TwVals,_TwDepths); CHKERRQ(ierr);
+    PetscObjectSetName((PetscObject) _Tw, "Tw");
     VecDuplicate(_tauP,&_Vw);
     ierr = setVec(_Vw,_z,_VwVals,_VwDepths); CHKERRQ(ierr);
+    PetscObjectSetName((PetscObject) _Vw, "Vw");
   }
   else { _T = NULL; _k = NULL; _c = NULL; _Tw = NULL; _Vw = NULL; }
 
@@ -320,6 +345,7 @@ PetscErrorCode Fault::setFields(Domain& D)
     VecDestroy(&temp);
   }
   VecCopy(_sN,_sNEff);
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -469,7 +495,7 @@ PetscErrorCode Fault::view(const double totRunTime)
 
 // write out parameter settings into "fault_context.txt" file in output directory
 // also output vector fields into their respective files in output directory
-PetscErrorCode Fault::writeContext(const string outputDir)
+PetscErrorCode Fault::writeContext(const string outputDir, PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
 
@@ -478,43 +504,46 @@ PetscErrorCode Fault::writeContext(const string outputDir)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  PetscViewer    viewer;
+  PetscViewer    viewer_ascii;
   // write out scalar info
-  string str = outputDir + "fault_context.txt";
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
+  string str = outputDir + "fault.txt";
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer_ascii);
+  PetscViewerSetType(viewer_ascii, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer_ascii, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer_ascii, str.c_str());
 
-  ierr = PetscViewerASCIIPrintf(viewer,"rootTol = %.15e\n",_rootTol);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"f0 = %.15e\n",_f0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii,"rootTol = %.15e\n",_rootTol);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii,"f0 = %.15e\n",_f0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii,"v0 = %.15e\n",_v0);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii,"stateEvolutionLaw = %s\n",_stateLaw.c_str());CHKERRQ(ierr);
 
   // write flash heating parameters if this is enabled
   if (!_stateLaw.compare("flashHeating")) {
-    ierr = PetscViewerASCIIPrintf(viewer,"fw = %.15e\n",_fw);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
-    ierr = PetscViewerASCIIPrintf(viewer,"VwType = %s\n",_VwType.c_str());CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer_ascii,"fw = %.15e\n",_fw);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer_ascii,"tau_c = %.15e # (GPa)\n",_tau_c);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer_ascii,"D = %.15e # (um)\n",_D);CHKERRQ(ierr);
+    ierr = PetscViewerASCIIPrintf(viewer_ascii,"VwType = %s\n",_VwType.c_str());CHKERRQ(ierr);
   }
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer_ascii);CHKERRQ(ierr);
 
-  // output vector fields
-  ierr = writeVec(_z,outputDir + "fault_z"); CHKERRQ(ierr);
-  ierr = writeVec(_a,outputDir + "fault_a"); CHKERRQ(ierr);
-  ierr = writeVec(_b,outputDir + "fault_b"); CHKERRQ(ierr);
-  ierr = writeVec(_Dc,outputDir + "fault_Dc"); CHKERRQ(ierr);
-  ierr = writeVec(_cohesion,outputDir + "fault_cohesion"); CHKERRQ(ierr);
-  ierr = writeVec(_locked,outputDir + "fault_locked"); CHKERRQ(ierr);
-  ierr = writeVec(_prestress,outputDir + "fault_prestress"); CHKERRQ(ierr);
-  ierr = writeVec(_slip0,outputDir + "fault_slip0"); CHKERRQ(ierr);
-  ierr = writeVec(_sNEff,outputDir + "fault_sNEff"); CHKERRQ(ierr);
+
+  // write Vec context fields
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                    CHKERRQ(ierr);
+  ierr = VecView(_z, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_a, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_b, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_Dc, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_cohesion, viewer);                                    CHKERRQ(ierr);
+  ierr = VecView(_locked, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_prestress, viewer);                                   CHKERRQ(ierr);
+  ierr = VecView(_slip0, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_sNEff, viewer);                                       CHKERRQ(ierr);
 
   if (!_stateLaw.compare("flashHeating")) {
-    ierr = writeVec(_Tw,outputDir + "fault_Tw"); CHKERRQ(ierr);
-    ierr = writeVec(_Vw,outputDir + "fault_Vw"); CHKERRQ(ierr);
+    ierr = VecView(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
   }
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -523,9 +552,8 @@ PetscErrorCode Fault::writeContext(const string outputDir)
   return ierr;
 }
 
-
 // writes out vector fields at each time step (specified by user using stepCount)
-PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
+PetscErrorCode Fault::writeStep(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
 
@@ -534,36 +562,24 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // these files are initiated only for the first time step and when are checkpointing for the first time, since the files don't exist yet
-  // writing vectors into binary files
-  if (_viewers.empty()) {
-    ierr = initiate_appendVecToOutput(_viewers, "slip", _slip, outputDir + "slip", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "slipVel", _slipVel, outputDir + "slipVel", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "tauP", _tauP, outputDir + "tauP", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "tauQSP", _tauQSP, outputDir + "tauQSP", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "strength", _strength, outputDir + "strength", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "psi", _psi, outputDir + "psi", _D->_outFileMode); CHKERRQ(ierr);
-    ierr = initiate_appendVecToOutput(_viewers, "sNEff", _sNEff, outputDir + "sNEff", _D->_outFileMode); CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(viewer);                     CHKERRQ(ierr);
+
+    ierr = VecView(_slip, viewer);                                      CHKERRQ(ierr);
+    ierr = VecView(_slipVel, viewer);                                   CHKERRQ(ierr);
+    ierr = VecView(_tauP, viewer);                                      CHKERRQ(ierr);
+    ierr = VecView(_tauQSP, viewer);                                    CHKERRQ(ierr);
+    ierr = VecView(_strength, viewer);                                  CHKERRQ(ierr);
+    ierr = VecView(_psi, viewer);                                       CHKERRQ(ierr);
 
     if (_stateLaw.compare("flashHeating") == 0) {
-      ierr = initiate_appendVecToOutput(_viewers, "T", _T, outputDir + "fault_T", _D->_outFileMode); CHKERRQ(ierr);
-      ierr = initiate_appendVecToOutput(_viewers, "Vw", _Vw, outputDir + "Vw", _D->_outFileMode); CHKERRQ(ierr);
+      ierr = VecView(_T, viewer);                                       CHKERRQ(ierr);
+      ierr = VecView(_Vw, viewer);                                      CHKERRQ(ierr);
     }
-  }
-  else {
-    ierr = VecView(_slip,_viewers["slip"].first); CHKERRQ(ierr);
-    ierr = VecView(_slipVel,_viewers["slipVel"].first); CHKERRQ(ierr);
-    ierr = VecView(_tauP,_viewers["tauP"].first); CHKERRQ(ierr);
-    ierr = VecView(_tauQSP,_viewers["tauQSP"].first); CHKERRQ(ierr);
-    ierr = VecView(_strength,_viewers["strength"].first); CHKERRQ(ierr);
-    ierr = VecView(_psi,_viewers["psi"].first); CHKERRQ(ierr);
-    ierr = VecView(_sNEff,_viewers["sNEff"].first); CHKERRQ(ierr);
 
-    if (_stateLaw.compare("flashHeating") == 0) {
-      ierr = VecView(_T,_viewers["T"].first); CHKERRQ(ierr);
-      ierr = VecView(_Vw,_viewers["Vw"].first); CHKERRQ(ierr);
-    }
-  }
+    ierr = PetscViewerHDF5PopTimestepping(viewer);                      CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -574,7 +590,7 @@ PetscErrorCode Fault::writeStep(PetscInt stepCount, const string outputDir)
 
 
 // writes out vector fields at each time step (specified by user using stepCount)
-PetscErrorCode Fault::writeCheckpoint()
+PetscErrorCode Fault::writeCheckpoint(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
 
@@ -583,14 +599,37 @@ PetscErrorCode Fault::writeCheckpoint()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  ierr = writeVec(_slip, _outputDir + "chkpt_" + "slip"); CHKERRQ(ierr);
-  ierr = writeVec(_slipVel, _outputDir + "chkpt_" + "slipVel"); CHKERRQ(ierr);
-  ierr = writeVec(_psi, _outputDir + "chkpt_" + "psi"); CHKERRQ(ierr);
-  ierr = writeVec(_sNEff, _outputDir + "chkpt_" + "sNEff"); CHKERRQ(ierr);
-  ierr = writeVec(_sN, _outputDir + "chkpt_" + "sN"); CHKERRQ(ierr);
-  ierr = writeVec(_tauP, _outputDir + "chkpt_" + "tau"); CHKERRQ(ierr);
-  ierr = writeVec(_tauQSP, _outputDir + "chkpt_" + "tauQS"); CHKERRQ(ierr);
-  ierr = writeVec(_prestress, _outputDir + "chkpt_" + "prestress"); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                     CHKERRQ(ierr);
+
+  ierr = VecView(_z, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_a, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_b, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_Dc, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_cohesion, viewer);                                    CHKERRQ(ierr);
+  ierr = VecView(_locked, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_prestress, viewer);                                   CHKERRQ(ierr);
+  ierr = VecView(_slip0, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_sNEff, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_sN, viewer);                                          CHKERRQ(ierr);
+
+  if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = VecView(_k, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_c, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = VecView(_slip, viewer);                                        CHKERRQ(ierr);
+  ierr = VecView(_slipVel, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_tauP, viewer);                                        CHKERRQ(ierr);
+  ierr = VecView(_tauQSP, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_strength, viewer);                                    CHKERRQ(ierr);
+  ierr = VecView(_psi, viewer);                                         CHKERRQ(ierr);
+  if (_stateLaw.compare("flashHeating") == 0) {
+    ierr = VecView(_T, viewer);                                         CHKERRQ(ierr);
+    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -634,9 +673,10 @@ Fault::~Fault()
   VecDestroy(&_c);
   VecDestroy(&_T);
 
-  for (map<string,pair<PetscViewer,string>>::iterator it = _viewers.begin(); it != _viewers.end(); it++) {
-    PetscViewerDestroy(&_viewers[it->first].first);
-  }
+  //~ for (map<string,pair<PetscViewer,string>>::iterator it = _viewers.begin(); it != _viewers.end(); it++) {
+    //~ PetscViewerDestroy(&_viewers[it->first].first);
+  //~ }
+  PetscViewerDestroy(&_viewer_hdf5);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -737,19 +777,19 @@ Fault_qd::Fault_qd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_D->_ckpt > 0 && _D->_ckptNumber > 0) { // load from previous checkpoint
-    loadCheckpoint();
-  }
-  else { // otherwise set parameters from input file and user-provided Vecs
-    loadFieldsFromFiles();
-  }
-
   // radiation damping parameter: 0.5 * sqrt(mu*rho)
   VecDuplicate(_tauP,&_eta_rad);
   PetscObjectSetName((PetscObject) _eta_rad, "eta_rad");
   VecPointwiseMult(_eta_rad,_mu,_rho);
   VecSqrtAbs(_eta_rad);
   VecScale(_eta_rad,1.0/_faultTypeScale);
+
+  if (_D->_restartFromChkpt) { // load from previous checkpoint
+    loadCheckpoint();
+  }
+  else { // otherwise set parameters from input file and user-provided Vecs
+    loadFieldsFromFiles();
+  }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -933,7 +973,7 @@ PetscErrorCode Fault_qd::d_dt(const PetscScalar time, const map<string,Vec>& var
 
 
 // output vector fields into file, and calls writeContext function in Fault
-PetscErrorCode Fault_qd::writeContext(const string outputDir)
+PetscErrorCode Fault_qd::writeContext(const string outputDir, PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -941,17 +981,95 @@ PetscErrorCode Fault_qd::writeContext(const string outputDir)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  Fault::writeContext(outputDir);
+  Fault::writeContext(outputDir, viewer);
 
-  ierr = writeVec(_eta_rad,outputDir + "fault_eta_rad"); CHKERRQ(ierr);
-  ierr = writeVec(_mu,outputDir + "fault_mu"); CHKERRQ(ierr);
-  ierr = writeVec(_rho,outputDir + "fault_rho"); CHKERRQ(ierr);
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                   CHKERRQ(ierr);
+  ierr = VecView(_eta_rad, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_mu, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_rho, viewer);                                           CHKERRQ(ierr);
+
+  if (!_stateLaw.compare("flashHeating")) {
+    ierr = VecView(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
   return ierr;
 }
+
+
+
+PetscErrorCode Fault_qd::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_qd::loadCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Fault::loadCheckpoint();
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault_qd");                 CHKERRQ(ierr);
+  ierr = VecLoad(_eta_rad, viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
+
+  if (!_stateLaw.compare("flashHeating")) {
+    ierr = VecLoad(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecLoad(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Fault_qd::writeCheckpoint(PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_qd::writeCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Fault::writeCheckpoint(viewer);
+
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault_qd");                  CHKERRQ(ierr);
+  ierr = VecView(_eta_rad, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_rho, viewer);                                         CHKERRQ(ierr);
+
+  if (!_stateLaw.compare("flashHeating")) {
+    ierr = VecView(_Tw, viewer);                                        CHKERRQ(ierr);
+    ierr = VecView(_Vw, viewer);                                        CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 
 
 //======================================================================
@@ -1090,8 +1208,14 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   // load settings and fields specific to fully-dynamics case
   loadSettings(_inputFile);
   setFields();
-  loadFieldsFromFiles();
-  loadVecFromInputFile(_tau0,_D->_inputDir,"prestress");
+  if (_D->_restartFromChkpt) { // load from previous checkpoint
+    loadCheckpoint();
+  }
+  else {
+    loadFieldsFromFiles();
+    loadVecFromInputFile(_tau0,_D->_inputDir,"prestress");
+  }
+
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1182,14 +1306,14 @@ PetscErrorCode Fault_fd::setFields() {
   #endif
 
   // allocate memory for Vec members
-  VecDuplicate(_tauP,&_tau0); VecSet(_tau0, 0.0);
-  VecDuplicate(_tauP,&_Phi); VecSet(_Phi, 0.0);
-  VecDuplicate(_tauP,&_an); VecSet(_an, 0.0);
-  VecDuplicate(_tauP,&_fricPen); VecSet(_fricPen, 0.0);
-  VecDuplicate(_tauP,&_u); VecSet(_u,0.0);
-  VecDuplicate(_tauP,&_uPrev); VecSet(_uPrev,0.0);
-  VecDuplicate(_tauP,&_d2u); VecSet(_d2u,0.0);
-  VecDuplicate(_tauP,&_alphay); VecSet(_alphay, 17.0/48.0 / (_N-1));
+  VecDuplicate(_tauP,&_tau0);     VecSet(_tau0, 0.0);                   PetscObjectSetName((PetscObject) _tau0, "tau0");
+  VecDuplicate(_tauP,&_Phi);      VecSet(_Phi, 0.0);                    PetscObjectSetName((PetscObject) _Phi, "Phi");
+  VecDuplicate(_tauP,&_an);       VecSet(_an, 0.0);                     PetscObjectSetName((PetscObject) _an, "an");
+  VecDuplicate(_tauP,&_fricPen);  VecSet(_fricPen, 0.0);                PetscObjectSetName((PetscObject) _fricPen, "fricPen");
+  VecDuplicate(_tauP,&_u);        VecSet(_u,0.0);                       PetscObjectSetName((PetscObject) _u, "u");
+  VecDuplicate(_tauP,&_uPrev);    VecSet(_uPrev,0.0);                   PetscObjectSetName((PetscObject) _uPrev, "uPrev");
+  VecDuplicate(_tauP,&_d2u);      VecSet(_d2u,0.0);                     PetscObjectSetName((PetscObject) _d2u, "d2u");
+  VecDuplicate(_tauP,&_alphay);   VecSet(_alphay, 17.0/48.0 / (_N-1));  PetscObjectSetName((PetscObject) _alphay, "alphay");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1550,6 +1674,71 @@ PetscErrorCode Fault_fd::setPhi(const PetscScalar deltaT)
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  return ierr;
+}
+
+PetscErrorCode Fault_fd::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_fd::loadCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Fault::loadCheckpoint();
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault_fd");                 CHKERRQ(ierr);
+  ierr = VecLoad(_tau0, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_Phi, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_an, viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_fricPen, viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_u, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_uPrev, viewer);                                       CHKERRQ(ierr);
+  ierr = VecLoad(_d2u, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_alphay, viewer);                                      CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode Fault_fd::writeCheckpoint(PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "Fault_fd::writeCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  Fault::writeCheckpoint(viewer);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault_fd");                 CHKERRQ(ierr);
+  ierr = VecView(_tau0, viewer);                                        CHKERRQ(ierr);
+  ierr = VecView(_Phi, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_an, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_fricPen, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_u, viewer);                                           CHKERRQ(ierr);
+  ierr = VecView(_uPrev, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_d2u, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_alphay, viewer);                                     CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
   return ierr;
 }
 

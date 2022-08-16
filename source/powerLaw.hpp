@@ -5,6 +5,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
+#include <petscviewerhdf5.h>
 #include "genFuncs.hpp"
 #include "domain.hpp"
 #include "heatEquation.hpp"
@@ -42,7 +43,7 @@ public:
   ~Pseudoplasticity();
   PetscErrorCode guessInvEffVisc(const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& dgdev);
-  PetscErrorCode writeContext(const string outputDir);
+  PetscErrorCode writeContext(PetscViewer &viewer);
 };
 
 // computes effective viscosity for dislocation creep
@@ -73,7 +74,7 @@ public:
   ~DislocationCreep();
   PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
-  PetscErrorCode writeContext(const string outputDir);
+  PetscErrorCode writeContext(PetscViewer &viewer);
 };
 
 // computes effective viscosity for diffusion creep
@@ -104,7 +105,7 @@ public:
   ~DiffusionCreep();
   PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
-  PetscErrorCode writeContext(const string outputDir);
+  PetscErrorCode writeContext(PetscViewer &viewer);
 };
 
 
@@ -150,7 +151,7 @@ class PowerLaw
     Vec                   _dgVdev,_dgVdev_disl; // deviatoric strain rate
 
     // linear system data
-    std::string           _linSolver;
+    std::string           _linSolverSS,_linSolverTrans;
     std::string           _bcRType,_bcTType,_bcLType,_bcBType; // BC options: Neumann, Dirichlet
     Vec                   _rhs,_bcT,_bcR,_bcB,_bcL,_bcRShift,_bcTShift;
     KSP                   _ksp;
@@ -170,23 +171,6 @@ class PowerLaw
     double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime;
     PetscInt     _linSolveCount;
 
-    // viewers and functions for file I/O
-    PetscInt         _stepCount;
-    PetscViewer      _timeV1D,_timeV2D;
-    // viewers:
-    // 1st string = key naming relevant field, e.g. "slip"
-    // 2nd PetscViewer = PetscViewer object for file IO
-    // 3rd string = full file path name for output
-    //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers1D;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers2D;
-    PetscErrorCode writeDomain(const std::string outputDir);
-    PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep1D(const std::string outputDir);
-    PetscErrorCode writeStep2D(const std::string outputDir);
-    PetscErrorCode view(const double totRunTime);
-
-
 
     PowerLaw(Domain& D,std::string bcRType,std::string bcTType,std::string bcLType,std::string bcBType);
     ~PowerLaw();
@@ -198,8 +182,16 @@ class PowerLaw
     PetscErrorCode setMaterialParameters();
     PetscErrorCode loadFieldsFromFiles(); // load non-effective-viscosity parameters
     PetscErrorCode setUpSBPContext(Domain& D);
-    PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A);
-    PetscErrorCode setupKSP_SSIts(KSP& ksp,PC& pc,Mat& A);
+    PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver);
+    //~ PetscErrorCode setupKSP_SSIts(KSP& ksp,PC& pc,Mat& A);
+
+    // IO
+    PetscErrorCode writeDomain(const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir, PetscViewer& viewer);
+    PetscErrorCode writeStep1D(PetscViewer& viewer);
+    PetscErrorCode writeStep2D(PetscViewer& viewer);
+    PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+    PetscErrorCode view(const double totRunTime);
 
 
     // for steady state computations

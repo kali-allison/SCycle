@@ -79,7 +79,7 @@ public:
   Vec              _sN; // total normal stress
 
   // flash heating parameters
-  string       _VwType; // constant or function_of_Tw
+  string           _VwType; // constant or function_of_Tw
   vector<double>   _TwVals,_TwDepths,_VwVals,_VwDepths;
   PetscScalar      _fw,_tau_c,_D_fh;
   Vec              _T,_k,_c,_Vw,_Tw;
@@ -93,7 +93,7 @@ public:
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
   //~ map <string,PetscViewer>  _viewers;
-  map <string,pair<PetscViewer,string> >  _viewers;
+  PetscViewer _viewer_hdf5;
 
   // runtime data
   double   _computeVelTime,_stateLawTime, _scatterTime;
@@ -127,12 +127,12 @@ public:
 
   // IO
   PetscErrorCode virtual view(const double totRunTime);
-  PetscErrorCode virtual writeContext(const string outputDir);
-  PetscErrorCode virtual writeStep(PetscInt stepCount, const string outputDir);
+  PetscErrorCode virtual writeContext(const string outputDir, PetscViewer& viewer);
+  PetscErrorCode virtual writeStep(PetscViewer& viewer);
 
   // checkpointing
+  PetscErrorCode virtual writeCheckpoint(PetscViewer& viewer);
   PetscErrorCode virtual loadCheckpoint();
-  PetscErrorCode virtual writeCheckpoint();
 };
 
 
@@ -158,7 +158,9 @@ public:
   PetscErrorCode d_dt(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
   PetscErrorCode getResid(const PetscInt ind,const PetscScalar vel,PetscScalar* out);
   PetscErrorCode computeVel();
-  PetscErrorCode writeContext(const string outputDir);
+  PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
+  PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+  PetscErrorCode loadCheckpoint();
 };
 
 
@@ -195,6 +197,8 @@ public:
   PetscErrorCode computeStateEvolution(Vec& psiNext, const Vec& psi, const Vec& psiPrev);
   PetscErrorCode setPhi(const PetscScalar _deltaT);
   PetscErrorCode updatePrestress(const PetscScalar currT);
+  PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+  PetscErrorCode loadCheckpoint();
 };
 
 

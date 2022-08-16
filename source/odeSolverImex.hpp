@@ -61,7 +61,7 @@ class OdeSolverImex
 public:
 
   PetscReal               _initT,_finalT,_currT,_deltaT;
-  PetscReal          _newDeltaT; // stores future deltaT for access by outside classes, primarily for checkpointing
+  PetscReal               _newDeltaT; // stores future deltaT for access by outside classes, primarily for checkpointing
   PetscInt                _maxNumSteps,_stepCount;
   map<string,Vec>         _varEx,_dvar; // explicit integration variable and rate
   map<string,Vec>         _varIm; // implicit integration variable, once per time step
@@ -99,6 +99,8 @@ public:
   virtual PetscErrorCode integrate(IntegratorContextImex *obj) = 0;
   virtual PetscReal computeStepSize(const PetscReal totErr) = 0;
   virtual PetscReal computeError() = 0;
+  virtual PetscErrorCode writeCheckpoint(PetscViewer &viewer) = 0;
+  virtual PetscErrorCode loadCheckpoint(const std::string inputDir) = 0;
 };
 
 
@@ -132,6 +134,8 @@ public:
   PetscErrorCode integrate(IntegratorContextImex *obj);
   PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
+  PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(const std::string inputDir);
 };
 
 
@@ -174,6 +178,8 @@ public:
   PetscErrorCode integrate(IntegratorContextImex *obj);
   PetscReal computeStepSize(const PetscReal totErr);
   PetscReal computeError();
+  PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(const std::string inputDir);
 };
 
 #endif

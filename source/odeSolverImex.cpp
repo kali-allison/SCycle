@@ -482,6 +482,65 @@ PetscErrorCode RK32_WBE::integrate(IntegratorContextImex *obj)
 }
 
 
+PetscErrorCode RK32_WBE::writeCheckpoint(PetscViewer &viewer)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
+
+  // needed errA[0], errA[1], _stepCount
+  // not needed, but just in case: _deltaT, _totErr
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+
+  return ierr;
+}
+
+PetscErrorCode RK32_WBE::loadCheckpoint(const std::string inputDir)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting RK32_WBE::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
+
+  // needed errA[0], errA[1], _stepCount
+  // not needed, but just in case: _deltaT, _totErr
+
+  string fileName = inputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK32_WBE::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+
+  return ierr;
+}
+
 
 //======================================================================
 //======================================================================
@@ -1045,5 +1104,64 @@ PetscErrorCode RK43_WBE::integrate(IntegratorContextImex *obj)
 #if VERBOSE > 1
   PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::integrate in odeSolver.cpp.\n");
 #endif
+  return ierr;
+}
+
+PetscErrorCode RK43_WBE::writeCheckpoint(PetscViewer &viewer)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
+
+  // needed errA[0], errA[1], _stepCount
+  // not needed, but just in case: _deltaT, _totErr
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, &_errA[0]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, &_errA[1]);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_newDeltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, &_totErr);    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+
+  return ierr;
+}
+
+PetscErrorCode RK43_WBE::loadCheckpoint(const std::string inputDir)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting RK43_WBE::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
+
+  // needed errA[0], errA[1], _stepCount
+  // not needed, but just in case: _deltaT, _totErr
+
+  string fileName = inputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA0", PETSC_SCALAR, NULL, &_errA[0]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "errA1", PETSC_SCALAR, NULL, &_errA[1]); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "totErr", PETSC_SCALAR, NULL, &_totErr); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_newDeltaT); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending RK43_WBE::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+
   return ierr;
 }

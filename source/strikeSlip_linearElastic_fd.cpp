@@ -13,8 +13,9 @@ strikeSlip_linearElastic_fd::strikeSlip_linearElastic_fd(Domain&D)
   _initialConditions("u"),_guessSteadyStateICs(0),_faultTypeScale(2.0),
   _maxStepCount(1e8), _stride1D(1),_stride2D(1),
   _initTime(0),_currTime(0),_maxTime(1e15),
+  _time1DVec(NULL), _dtime1DVec(NULL),_time2DVec(NULL), _dtime2DVec(NULL),
   _stepCount(0),
-  _timeV1D(NULL),_dtimeV1D(NULL),_timeV2D(NULL),_dtimeV2D(NULL),
+  _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),
   _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
   _startTime(MPI_Wtime()),_miscTime(0), _propagateTime(0),
   _bcRType("outGoingCharacteristics"),_bcTType("freeSurface"),_bcLType("symmFault"),_bcBType("outGoingCharacteristics"),
@@ -67,11 +68,15 @@ strikeSlip_linearElastic_fd::~strikeSlip_linearElastic_fd()
     VecDestroy(&it->second);
   }
 
-  PetscViewerDestroy(&_timeV1D);
-  PetscViewerDestroy(&_dtimeV1D);
-  PetscViewerDestroy(&_timeV2D);
-
+  VecDestroy(&_time1DVec);
+  VecDestroy(&_dtime1DVec);
+  VecDestroy(&_time2DVec);
+  VecDestroy(&_dtime2DVec);
   VecDestroy(&_ay);
+
+  PetscViewerDestroy(&_viewer1D);
+  PetscViewerDestroy(&_viewer2D);
+  PetscViewerDestroy(&_viewer_context);
 
   delete _quadWaveEx;      _quadWaveEx = NULL;
   delete _material;        _material = NULL;
@@ -206,13 +211,13 @@ double startTime = MPI_Wtime();
 
   if ( (_stride1D > 0 && _currTime == _maxTime) || (_stride1D > 0 && stepCount % _stride1D == 0) ) {
     ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep1D(_stepCount,_outputDir); CHKERRQ(ierr);
-    ierr = _fault->writeStep(_stepCount,_outputDir); CHKERRQ(ierr);
+    ierr = _material->writeStep1D(_viewer1D); CHKERRQ(ierr);
+    ierr = _fault->writeStep(_viewer1D); CHKERRQ(ierr);
   }
 
   if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0)) {
     ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
-    ierr = _material->writeStep2D(_stepCount,_outputDir);CHKERRQ(ierr);
+    ierr = _material->writeStep2D(_viewer2D);CHKERRQ(ierr);
   }
 
   _writeTime += MPI_Wtime() - startTime;
@@ -235,18 +240,32 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeStep1D(PetscInt stepCount, Pets
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV1D == NULL ) {
-    ierr = initiateWriteASCII(outputDir, "med_time1D.txt", _D->_outFileMode, _timeV1D, "%.15e\n", time);
-    CHKERRQ(ierr);
+  // update Vecs to reflect current time and time step
+  VecSet(_time1DVec,time);
+  VecSet(_dtime1DVec,_deltaT);
+
+  if (_viewer1D == NULL ) {
+    // initiate viewer
+    string outFileName = outputDir + "data_1D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer1D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(_viewer1D, PETSC_TRUE);CHKERRQ(ierr);
+
+    // write time
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);               CHKERRQ(ierr);
+    ierr = VecView(_time1DVec, _viewer1D);                           CHKERRQ(ierr);
+    ierr = VecView(_dtime1DVec, _viewer1D);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer1D);                       CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV1D, "%.15e\n", time); CHKERRQ(ierr);
-  }
-  if (_dtimeV1D == NULL ) {
-    initiateWriteASCII(outputDir, "med_dt1D.txt", _D->_outFileMode, _dtimeV1D, "%.15e\n", _deltaT);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_dtimeV1D, "%.15e\n", _deltaT); CHKERRQ(ierr);
+  else{
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewer1D);              CHKERRQ(ierr);
+    ierr = VecView(_time1DVec, _viewer1D);                           CHKERRQ(ierr);
+    ierr = VecView(_dtime1DVec, _viewer1D);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer1D);                       CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -263,18 +282,32 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeStep2D(PetscInt stepCount, Pets
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  if (_timeV2D == NULL ) {
-    ierr = initiateWriteASCII(outputDir, "med_time2D.txt", _D->_outFileMode, _timeV2D, "%.15e\n", time);
-    CHKERRQ(ierr);
+  // update Vecs to reflect current time and time step
+  VecSet(_time2DVec,time);
+  VecSet(_dtime2DVec,_deltaT);
+
+  if (_viewer2D == NULL ) {
+    // initiate viewer
+    string outFileName = outputDir + "data_2D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer2D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(_viewer2D, PETSC_TRUE);CHKERRQ(ierr);
+
+    // write time
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");                     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);               CHKERRQ(ierr);
+    ierr = VecView(_time2DVec, _viewer2D);                           CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                       CHKERRQ(ierr);
   }
-  else {
-    ierr = PetscViewerASCIIPrintf(_timeV2D, "%.15e\n", time); CHKERRQ(ierr);
-  }
-  if (_dtimeV2D == NULL ) {
-    ierr = initiateWriteASCII(outputDir, "med_dt2D.txt", _D->_outFileMode, _dtimeV2D, "%.15e\n", _deltaT); CHKERRQ(ierr);
-  }
-  else {
-    ierr = PetscViewerASCIIPrintf(_dtimeV2D, "%.15e\n", _deltaT); CHKERRQ(ierr);
+  else{
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);              CHKERRQ(ierr);
+    ierr = VecView(_time2DVec, _viewer2D);                           CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                          CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                       CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -340,9 +373,16 @@ PetscErrorCode strikeSlip_linearElastic_fd::writeContext()
 
   PetscViewerDestroy(&viewer);
 
-  _D->write();
-  _material->writeContext(_outputDir);
-  _fault->writeContext(_outputDir);
+  // write non-ascii context
+  string outFileName = _outputDir + "data_context.h5";
+  ierr = PetscViewerCreate(PETSC_COMM_WORLD, &_viewer_context); CHKERRQ(ierr);
+  ierr = PetscViewerSetType(_viewer_context, PETSCVIEWERBINARY); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer_context);CHKERRQ(ierr);
+
+  _D->write(_viewer_context);
+  _fault->writeContext(_outputDir, _viewer_context);
+  _material->writeContext(_outputDir, _viewer_context);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

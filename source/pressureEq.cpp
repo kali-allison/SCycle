@@ -1862,7 +1862,7 @@ PetscErrorCode PressureEq::view(const double totRunTime)
 
 
 // extends SymmFault's writeContext
-PetscErrorCode PressureEq::writeContext(const string outputDir)
+PetscErrorCode PressureEq::writeContext(const string outputDir, PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1872,27 +1872,29 @@ PetscErrorCode PressureEq::writeContext(const string outputDir)
 
   CHKERRQ(ierr);
 
-  PetscViewer viewer;
+  PetscViewer viewer_ascii;
 
   // write out scalar info
   string str = outputDir + "p_context.txt";
-  PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
-  PetscViewerSetType(viewer, PETSCVIEWERASCII);
-  PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
-  PetscViewerFileSetName(viewer, str.c_str());
+  PetscViewerCreate(PETSC_COMM_WORLD, &viewer_ascii);
+  PetscViewerSetType(viewer_ascii, PETSCVIEWERASCII);
+  PetscViewerFileSetMode(viewer_ascii, FILE_MODE_WRITE);
+  PetscViewerFileSetName(viewer_ascii, str.c_str());
 
-  ierr = PetscViewerASCIIPrintf(viewer, "g = %.15e\n", _g); CHKERRQ(ierr);
-  ierr = PetscViewerASCIIPrintf(viewer, "hydraulicTimeIntType = %s\n", _hydraulicTimeIntType.c_str()); CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii, "g = %.15e\n", _g); CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(viewer_ascii, "hydraulicTimeIntType = %s\n", _hydraulicTimeIntType.c_str()); CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer_ascii); CHKERRQ(ierr);
 
   // write material parameters
-  ierr = writeVec(_n_p, outputDir + "p_n"); CHKERRQ(ierr);
-  ierr = writeVec(_beta_p, outputDir + "p_beta"); CHKERRQ(ierr);
-  ierr = writeVec(_k_p, outputDir + "p_k"); CHKERRQ(ierr);
-  ierr = writeVec(_k_slip, outputDir + "p_k_slip"); CHKERRQ(ierr);
-  ierr = writeVec(_k_press, outputDir + "p_k_press"); CHKERRQ(ierr);
-  ierr = writeVec(_eta_p, outputDir + "p_eta"); CHKERRQ(ierr);
-  ierr = writeVec(_rho_f, outputDir + "p_rho_f"); CHKERRQ(ierr);
+  // these are also written out with writeStep, so do they actually count as context variables??
+  //~ ierr = PetscViewerHDF5PushGroup(viewer, "/pressureEq");               CHKERRQ(ierr);
+  //~ ierr = VecView(_n_p, viewer);                                         CHKERRQ(ierr);
+  //~ ierr = VecView(_beta_p, viewer);                                      CHKERRQ(ierr);
+  //~ ierr = VecView(_k_slip, viewer);                                      CHKERRQ(ierr);
+  //~ ierr = VecView(_k_press, viewer);                                     CHKERRQ(ierr);
+  //~ ierr = VecView(_eta_p, viewer);                                       CHKERRQ(ierr);
+  //~ ierr = VecView(_rho_f, viewer);                                       CHKERRQ(ierr);
+  //~ ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
@@ -1901,8 +1903,7 @@ PetscErrorCode PressureEq::writeContext(const string outputDir)
 }
 
 
-// extends SymmFault's writeContext
-PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar time)
+PetscErrorCode PressureEq::writeStep(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1911,25 +1912,20 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     CHKERRQ(ierr);
   #endif
 
-  writeStep(stepCount, time, _outputDir);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/pressureEq");               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
 
-  #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
-  return ierr;
-}
+  ierr = VecView(_n_p, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_beta_p, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_slip, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_press, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_eta_p, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_rho_f, viewer);                                       CHKERRQ(ierr);
 
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
-PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar time, const string outputDir)
-{
-  PetscErrorCode ierr = 0;
-  #if VERBOSE > 1
-    string funcName = "PressureEq::writeStep";
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
-    CHKERRQ(ierr);
-  #endif
-
+/*
   if (_isMMS) {
     Vec pA;
     VecDuplicate(_p, &pA);
@@ -1957,7 +1953,7 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
     ierr = VecView(_k_p, _viewers["k"].first); CHKERRQ(ierr);
     ierr = VecView(_k_slip, _viewers["k_slip"].first); CHKERRQ(ierr);
     ierr = VecView(_k_press, _viewers["k_press"].first); CHKERRQ(ierr);
-  }
+  }*/
 
 
     // write checkpoint files
@@ -1968,6 +1964,40 @@ PetscErrorCode PressureEq::writeStep(const PetscInt stepCount, const PetscScalar
       //~ ierr = writeVec(_k_slip, outputDir + "k_slip_ckpt"); CHKERRQ(ierr);
       //~ ierr = writeVec(_k_press, outputDir + "k_press_ckpt"); CHKERRQ(ierr);
     //~ }
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode PressureEq::writeCheckpoint(PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "PressureEq::writeStep";
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "pressureEq");               CHKERRQ(ierr);
+
+  ierr = VecView(_n_p, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_beta_p, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_slip, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_press, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_eta_p, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_rho_f, viewer);                                       CHKERRQ(ierr);
+
+  ierr = VecView(_n_p, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_beta_p, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_slip, viewer);                                      CHKERRQ(ierr);
+  ierr = VecView(_k_press, viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_eta_p, viewer);                                       CHKERRQ(ierr);
+  ierr = VecView(_rho_f, viewer);                                       CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);

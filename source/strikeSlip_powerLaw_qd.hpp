@@ -70,6 +70,7 @@ public:
   PetscInt          _stride1D,_stride2D; // stride
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
+  Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec; // Vecs to hold current time and time step for output
   int               _stepCount;
   PetscScalar       _timeStepTol;
   PetscScalar       _initDeltaT;
@@ -77,12 +78,11 @@ public:
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
 
-
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
 
   // viewers
-  PetscViewer _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
+  PetscViewer _viewer_context,_viewer1D,_viewer2D,_viewerSS;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -127,9 +127,9 @@ public:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  //~ map <string,PetscViewer>  _viewers;
   map <string,pair<PetscViewer,string> > _viewers;
   map <string,Vec>                       _varSS; // holds variables for steady state iteration
+  Vec                                    _JjSSVec; // Vec containing current index (Ii) for steady state iteration
   PetscScalar                            _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
   PetscScalar                            _gss_t; // guess steady state strain rate
   PetscInt                               _maxSSIts_effVisc,_maxSSIts_tot,_maxSSIts_timesteps; // max iterations allowed
@@ -137,6 +137,7 @@ public:
   PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
   PetscErrorCode writeSS(const int Ii, const string outputDir);
+  PetscErrorCode writeSS_old(const int Ii, const string outputDir);
   PetscErrorCode writeSS_viscLoop(const int Ii, const string outputDir);
   PetscErrorCode computeSSEffVisc();
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);

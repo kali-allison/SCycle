@@ -66,11 +66,12 @@ private:
   PetscInt          _maxStepCount; // largest number of time steps
   PetscInt          _stride1D,_stride2D; // stride
   PetscScalar       _initTime,_currTime,_maxTime;
+  Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec; // Vecs to hold current time and time step for output
   int               _stepCount;
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
 
-  //viewers
-  PetscViewer  _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D;
+  // viewers
+  PetscViewer _viewer_context,_viewer1D,_viewer2D;
 
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime;

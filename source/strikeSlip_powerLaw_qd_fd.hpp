@@ -93,8 +93,9 @@ public:
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
-  // viewers
-  PetscViewer      _timeV1D,_dtimeV1D,_timeV2D,_dtimeV2D,_regime1DV,_regime2DV; // regime = 1 if fd, 0 if qd
+    // Vecs and viewers for output
+  Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec, _regime1DVec, _regime2DVec; // Vecs to hold current time and time step for output
+  PetscViewer       _viewer_context, _viewer1D, _viewer2D;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output

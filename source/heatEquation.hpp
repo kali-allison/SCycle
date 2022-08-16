@@ -69,15 +69,15 @@ public:
   Vec  _kTz_z0,_kTz; // surface and total heat flux
 
   // max temperature for writing out
-  PetscScalar      _maxTemp;
-  PetscViewer      _maxTempV;
+  PetscScalar      _maxdT;
+  Vec              _maxdTVec;
 
   // viewers for 1D and 2D fields
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> >  _viewers1D;
   map <string,pair<PetscViewer,string> >  _viewers2D;
+  PetscViewer                             _viewer1D_hdf5;
 
   // which factors to include: viscous and frictional shear heating, and radioactive heat generation
   string          _wViscShearHeating,_wFrictionalHeating,_wRadioHeatGen;
@@ -167,9 +167,10 @@ public:
   // IO commands
   PetscErrorCode view();
   PetscErrorCode writeDomain(const string outputDir);
-  PetscErrorCode writeContext(const string outputDir);
-  PetscErrorCode writeStep1D(const PetscInt stepCount, const PetscScalar time,const string outputDir);
-  PetscErrorCode writeStep2D(const PetscInt stepCount, const PetscScalar time,const string outputDir);
+  PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
+  PetscErrorCode writeStep1D(PetscViewer& viewer);
+  PetscErrorCode writeStep2D(PetscViewer& viewer);
+  PetscErrorCode writeCheckpoint(PetscViewer& viewer);
 
 
   // MMS functions

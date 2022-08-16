@@ -70,8 +70,10 @@ public:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> >  _viewers1D;
+  //~ map <string,pair<PetscViewer,string> >  _viewers1D;
   map <string,pair<PetscViewer,string> >  _viewers2D;
+  PetscViewer _viewer1D_hdf5;
+  PetscViewer _viewer2D_hdf5;
 
   // runtime data
   double   _writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _matrixTime;
@@ -90,7 +92,7 @@ public:
   PetscErrorCode checkInput();
   PetscErrorCode allocateFields(); // allocate space for member fields
   PetscErrorCode setMaterialParameters();
-  PetscErrorCode loadICsFromFiles();
+  PetscErrorCode loadFieldsFromFiles();
   PetscErrorCode setUpSBPContext();
   PetscErrorCode setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver);
   //~ static PetscErrorCode MyKSPMonitor(KSP ksp,PetscInt n,PetscReal rnorm,void *dummy);
@@ -106,13 +108,14 @@ public:
 
   // IO functions
   PetscErrorCode view(const double totRunTime);
-  PetscErrorCode writeContext(const string outputDir);
-  PetscErrorCode writeStep1D(PetscInt stepCount, const string outputDir);
-  PetscErrorCode writeStep2D(PetscInt stepCount, const string outputDir);
+  PetscErrorCode writeDomain();
+  PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
+  PetscErrorCode writeStep1D(PetscViewer& viewer);
+  PetscErrorCode writeStep2D(PetscViewer& viewer);
 
   // checkpointing functions
   PetscErrorCode loadCheckpoint();
-  PetscErrorCode writeCheckpoint();
+  PetscErrorCode writeCheckpoint(PetscViewer& viewer);
 
   // MMS functions
   PetscErrorCode setMMSInitialConditions(const double time);

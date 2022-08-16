@@ -3,6 +3,7 @@
 
 #include <petscts.h>
 #include <petscdmda.h>
+#include <petscviewerhdf5.h>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -47,6 +48,9 @@ void printVecsSum(Vec vec1,Vec vec2);
 
 // check that a Vec contains no inf or NaN values
 double anyIsnan(const Vec& vec, string str);
+
+// write a single vector to file in HDF5 format
+PetscErrorCode writeVec_hdf5(Vec vec, const string outFileName, const string group, const string objectName);
 
 // Write vec to the file loc in binary format.
 PetscErrorCode writeVec(Vec vec, const string filename);
@@ -137,6 +141,8 @@ PetscErrorCode writeASCII(const string outputDir, const string filename, PetscSc
 
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscScalar var);
 PetscErrorCode initiateWriteASCII(const string outputDir, const string filename, const PetscFileMode mode, PetscViewer &viewer, const string format, PetscInt var);
+
+PetscErrorCode initiate_writeVec_hdf5(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename, const PetscFileMode mode);
 
 PetscErrorCode initiate_appendVecToOutput(map<string, pair<PetscViewer, string>> &vwL, const string key, const Vec &vec, const string filename, const PetscFileMode mode);
 

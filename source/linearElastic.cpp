@@ -44,6 +44,7 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
     _rhs(NULL),_u(NULL),_sxy(NULL),_sxz(NULL),_computeSxz(0),_computeSdev(0),
     _linSolverSS("MUMPSCHOLESKY"),_linSolverTrans("MUMPSCHOLESKY"),_ksp(NULL),_pc(NULL),_kspTol(1e-10),
     _sbp(NULL),_kspItNum(0),_myKspCtx(0),_pcIluFill(0.),
+    _viewer1D_hdf5(NULL),_viewer2D_hdf5(NULL),
     _writeTime(0),_linSolveTime(0),_factorTime(0),_startTime(MPI_Wtime()),
     _miscTime(0), _matrixTime(0), _linSolveCount(0),
     _bcRType(bcRTtype),_bcTType(bcTTtype),_bcLType(bcLTtype),_bcBType(bcBTtype),
@@ -58,13 +59,9 @@ LinearElastic::LinearElastic(Domain&D,string bcRTtype,string bcTTtype,string bcL
   loadSettings(D._file);
   checkInput();
   allocateFields();
-  if (_D->_ckpt > 0 && _D->_ckptNumber > 0) { // load from previous checkpoint
-    loadCheckpoint();
-  }
-  else { // otherwise set parameters from input file and user-provided Vecs
-    setMaterialParameters();
-    loadICsFromFiles();
-  }
+  setMaterialParameters();
+  if (_D->_restartFromChkpt) { loadCheckpoint(); }
+  else { loadFieldsFromFiles(); }
 
   double startMatrix = MPI_Wtime();
   setUpSBPContext(); // set up matrix operators
@@ -111,12 +108,15 @@ LinearElastic::~LinearElastic()
   delete _sbp;
   _sbp = NULL;
 
-  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers1D.begin(); it !=_viewers1D.end(); it++) {
-    PetscViewerDestroy(&_viewers1D[it->first].first);
-  }
+  //~ for (map<string,pair<PetscViewer,string> >::iterator it=_viewers1D.begin(); it !=_viewers1D.end(); it++) {
+    //~ PetscViewerDestroy(&_viewers1D[it->first].first);
+  //~ }
   for (map<string,pair<PetscViewer,string> >::iterator it=_viewers2D.begin(); it !=_viewers2D.end(); it++) {
     PetscViewerDestroy(&_viewers2D[it->first].first);
   }
+
+  PetscViewerDestroy(&_viewer1D_hdf5);
+  PetscViewerDestroy(&_viewer2D_hdf5);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -407,34 +407,40 @@ PetscErrorCode LinearElastic::allocateFields()
 
     // boundary conditions
   VecDuplicate(_D->_y0,&_bcL);
-  PetscObjectSetName((PetscObject) _bcL, "_bcL");
+  PetscObjectSetName((PetscObject) _bcL, "bcL");
   VecSet(_bcL,0.0);
 
-  VecDuplicate(_bcL,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "bcRPShift");
+  VecDuplicate(_bcL,&_bcRShift); PetscObjectSetName((PetscObject) _bcRShift, "bcRShift");
   VecSet(_bcRShift,0.0);
-  VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "_bcR");
+  VecDuplicate(_bcL,&_bcR); PetscObjectSetName((PetscObject) _bcR, "bcR");
   VecSet(_bcR,0.);
 
   VecDuplicate(_D->_z0,&_bcT);
-  PetscObjectSetName((PetscObject) _bcT, "_bcT");
+  PetscObjectSetName((PetscObject) _bcT, "bcT");
   VecSet(_bcT,0.0);
 
-  VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "_bcB");
+  VecDuplicate(_bcT,&_bcB); PetscObjectSetName((PetscObject) _bcB, "bcB");
   VecSet(_bcB,0.0);
 
 
   // other fieds
-  VecDuplicate(*_z,&_rhs); VecSet(_rhs,0.0);
-  VecDuplicate(*_z,&_mu);
-  VecDuplicate(*_z,&_rho);
-  VecDuplicate(*_z,&_cs);
-  VecDuplicate(_rhs,&_u); VecSet(_u,0.0);
-  VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0);
-  if (_computeSxz) { VecDuplicate(_rhs,&_sxz); VecSet(_sxz,0.0); }
+  VecDuplicate(*_z,&_rhs); VecSet(_rhs,0.0); PetscObjectSetName((PetscObject) _rhs, "rhs");
+  VecDuplicate(*_z,&_mu); PetscObjectSetName((PetscObject) _mu, "mu");
+  VecDuplicate(*_z,&_rho); PetscObjectSetName((PetscObject) _rho, "rho");
+  VecDuplicate(*_z,&_cs); PetscObjectSetName((PetscObject) _cs, "cs");
+  VecDuplicate(_rhs,&_u); VecSet(_u,0.0); PetscObjectSetName((PetscObject) _u, "u");
+  VecDuplicate(_rhs,&_sxy); VecSet(_sxy,0.0); PetscObjectSetName((PetscObject) _sxy, "sxy");
+  if (_computeSxz) {
+    VecDuplicate(_rhs,&_sxz); VecSet(_sxz,0.0);
+    PetscObjectSetName((PetscObject) _sxz, "sxz");
+    }
   else { _sxz = NULL; }
-  if (_computeSdev) { VecDuplicate(_rhs,&_sdev); VecSet(_sdev,0.0); }
+  if (_computeSdev) {
+    VecDuplicate(_rhs,&_sdev); VecSet(_sdev,0.0);
+    PetscObjectSetName((PetscObject) _sxz, "sxz");
+  }
   else { _sdev = NULL; }
-  VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "_surfDisp");
+  VecDuplicate(_bcT,&_surfDisp); PetscObjectSetName((PetscObject) _surfDisp, "surfDisp");
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -473,12 +479,11 @@ PetscErrorCode LinearElastic::setMaterialParameters()
 }
 
 
-// parse input file and load values into data members
-PetscErrorCode LinearElastic::loadICsFromFiles()
+PetscErrorCode LinearElastic::loadFieldsFromFiles()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "LinearElastic::loadICsFromFiles";
+    string funcName = "LinearElastic::loadFieldsFromFiles";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
@@ -505,18 +510,49 @@ PetscErrorCode LinearElastic::loadCheckpoint()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  // boundary conditions
-  ierr = loadVecFromInputFile(_bcRShift, _outputDir + "chkpt_", "momBal_bcRShift"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcR, _outputDir + "chkpt_", "momBal_bcR"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcT, _outputDir + "chkpt_", "momBal_bcT"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcL, _outputDir + "chkpt_", "momBal_bcL"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_bcB, _outputDir + "chkpt_", "momBal_bcB"); CHKERRQ(ierr);
+  string fileName = _outputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+
+  ierr = VecLoad(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_cs, viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecLoad(_surfDisp,viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcRShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_bcB,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcT,viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecLoad(_u,viewer);                                            CHKERRQ(ierr);
+  ierr = VecLoad(_sxy,viewer);                                          CHKERRQ(ierr);
+  if (_computeSxz) {
+    ierr = VecLoad(_sxy,viewer);                                        CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
 
 
-  // material parameters
-  ierr = loadVecFromInputFile(_mu, _outputDir, "momBal_mu"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_rho, _outputDir, "momBal_rho"); CHKERRQ(ierr);
-  ierr = loadVecFromInputFile(_cs, _outputDir, "momBal_cs"); CHKERRQ(ierr);
+  //~ // boundary conditions
+  //~ ierr = loadVecFromInputFile(_bcRShift, _outputDir + "chkpt_", "momBal_bcRShift"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_bcR, _outputDir + "chkpt_", "momBal_bcR"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_bcT, _outputDir + "chkpt_", "momBal_bcT"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_bcL, _outputDir + "chkpt_", "momBal_bcL"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_bcB, _outputDir + "chkpt_", "momBal_bcB"); CHKERRQ(ierr);
+
+
+  //~ // material parameters
+  //~ ierr = loadVecFromInputFile(_mu, _outputDir, "momBal_mu"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_rho, _outputDir, "momBal_rho"); CHKERRQ(ierr);
+  //~ ierr = loadVecFromInputFile(_cs, _outputDir, "momBal_cs"); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -713,18 +749,18 @@ PetscErrorCode LinearElastic::view(const double totRunTime)
 
 
 // write out momentum balance context, such as linear solve settings, boundary conditions
-PetscErrorCode LinearElastic::writeContext(const string outputDir)
+PetscErrorCode LinearElastic::writeDomain()
 {
   PetscErrorCode ierr = 0;
   PetscViewer    viewer;
 
   #if VERBOSE > 1
-    string funcName = "LinearElastic::writeContext";
+    string funcName = "LinearElastic::writeDomain";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
   // write out scalar info in output directory text file
-  string str = outputDir + "momBal_context.txt";
+  string str = _outputDir + "momBal.txt";
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
   PetscViewerFileSetMode(viewer, FILE_MODE_WRITE);
@@ -746,10 +782,31 @@ PetscErrorCode LinearElastic::writeContext(const string outputDir)
   // free viewer memory
   ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-  // write vector _mu into file in output directory
-  ierr = writeVec(_mu,outputDir + "momBal_mu"); CHKERRQ(ierr);
-  ierr = writeVec(_rho,outputDir + "momBal_rho"); CHKERRQ(ierr);
-  ierr = writeVec(_cs,outputDir + "momBal_cs"); CHKERRQ(ierr);
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  return ierr;
+}
+
+// write out momentum balance context, such as linear solve settings, boundary conditions
+PetscErrorCode LinearElastic::writeContext(const string outputDir, PetscViewer& viewer)
+{
+  PetscErrorCode ierr = 0;
+
+  #if VERBOSE > 1
+    string funcName = "LinearElastic::writeContext";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  writeDomain();
+
+  // write context variables
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+  ierr = VecView(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_cs, viewer);                                          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -760,7 +817,7 @@ PetscErrorCode LinearElastic::writeContext(const string outputDir)
 
 
 // writes out fields of length Ny or Nz at each time step
-PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const string outputDir)
+PetscErrorCode LinearElastic::writeStep1D(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -769,21 +826,16 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const string outpu
   #endif
   double startTime = MPI_Wtime();
 
-  if (_viewers1D.empty()) {
-    initiate_appendVecToOutput(_viewers1D, "surfDisp", _surfDisp, outputDir + "surfDisp", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers1D, "bcR", _bcR, outputDir + "momBal_bcR", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers1D, "bcT", _bcT, outputDir + "momBal_bcT", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers1D, "bcL", _bcL, outputDir + "momBal_bcL", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers1D, "bcB", _bcB, outputDir + "momBal_bcB", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers1D, "bcRShift", _bcRShift, outputDir + "momBal_bcRShift", _D->_outFileMode);
-  }
-  else {
-    ierr = VecView(_surfDisp,_viewers1D["surfDisp"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcL,_viewers1D["bcL"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcR,_viewers1D["bcR"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcB,_viewers1D["bcB"].first); CHKERRQ(ierr);
-    ierr = VecView(_bcT,_viewers1D["bcT"].first); CHKERRQ(ierr);
-  }
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
+  ierr = VecView(_surfDisp,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcRShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcB,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcT,viewer);                                          CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   _writeTime += MPI_Wtime() - startTime;
 
@@ -796,7 +848,7 @@ PetscErrorCode LinearElastic::writeStep1D(PetscInt stepCount, const string outpu
 
 
 // writes out fields of length Ny*Nz. These take up much more hard drive space, and more runtime to output, so are separate from the 1D fields
-PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const string outputDir)
+PetscErrorCode LinearElastic::writeStep2D(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -805,16 +857,16 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const string outpu
   #endif
   double startTime = MPI_Wtime();
 
-  if (_viewers2D.empty()) {
-    initiate_appendVecToOutput(_viewers2D, "u", _u, outputDir + "momBal_u", _D->_outFileMode);
-    initiate_appendVecToOutput(_viewers2D, "sxy", _sxy, outputDir + "momBal_sxy", _D->_outFileMode);
-    if (_computeSxz) { initiate_appendVecToOutput(_viewers2D, "sxz", _sxz, outputDir + "momBal_sxz", _D->_outFileMode); }
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                  CHKERRQ(ierr);
+  ierr = VecView(_u,viewer);                                            CHKERRQ(ierr);
+  ierr = VecView(_sxy,viewer);                                          CHKERRQ(ierr);
+  if (_computeSxz) {
+    ierr = VecView(_sxy,viewer);                                        CHKERRQ(ierr);
   }
-  else {
-    ierr = VecView(_u,_viewers2D["u"].first); CHKERRQ(ierr);
-    ierr = VecView(_sxy,_viewers2D["sxy"].first); CHKERRQ(ierr);
-    if (_computeSxz) { ierr = VecView(_sxz,_viewers2D["sxz"].first); CHKERRQ(ierr); }
-  }
+
+  ierr = PetscViewerHDF5PopTimestepping(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -825,7 +877,7 @@ PetscErrorCode LinearElastic::writeStep2D(PetscInt stepCount, const string outpu
 }
 
 // writes out fields of length Ny or Nz at each time step
-PetscErrorCode LinearElastic::writeCheckpoint()
+PetscErrorCode LinearElastic::writeCheckpoint(PetscViewer& viewer)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -833,11 +885,27 @@ PetscErrorCode LinearElastic::writeCheckpoint()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  ierr = writeVec(_bcR, _outputDir + "chkpt_" +"momBal_bcR"); CHKERRQ(ierr);
-  ierr = writeVec(_bcRShift, _outputDir + "chkpt_" + "momBal_bcRShift"); CHKERRQ(ierr);
-  ierr = writeVec(_bcT, _outputDir + "chkpt_" + "momBal_bcT"); CHKERRQ(ierr);
-  ierr = writeVec(_bcL, _outputDir + "chkpt_" +"momBal_bcL"); CHKERRQ(ierr);
-  ierr = writeVec(_bcB, _outputDir + "chkpt_" +"momBal_bcB"); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                   CHKERRQ(ierr);
+
+  ierr = VecView(_mu, viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecView(_cs, viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecView(_surfDisp,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcRShift,viewer);                                     CHKERRQ(ierr);
+  ierr = VecView(_bcB,viewer);                                          CHKERRQ(ierr);
+  ierr = VecView(_bcT,viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecView(_u,viewer);                                            CHKERRQ(ierr);
+  ierr = VecView(_sxy,viewer);                                          CHKERRQ(ierr);
+  if (_computeSxz) {
+    ierr = VecView(_sxy,viewer);                                        CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -56,7 +56,8 @@ class GrainSizeEvolution
     // 2nd PetscViewer = PetscViewer object for file IO
     // 3rd string = full file path name for output
     //~ std::map <string,PetscViewer>  _viewers;
-    std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    //~ std::map <string,std::pair<PetscViewer,string> >  _viewers;
+    PetscViewer _viewer;
 
 
     GrainSizeEvolution(Domain& D);
@@ -83,9 +84,9 @@ class GrainSizeEvolution
 
     // file I/O
     PetscErrorCode view(const double totRunTime);
-    PetscErrorCode writeDomain(const std::string outputDir);
-    PetscErrorCode writeContext(const std::string outputDir);
-    PetscErrorCode writeStep(const PetscInt stepCount, const PetscScalar time,const std::string outputDir);
+    PetscErrorCode writeContext(const std::string outputDir, PetscViewer& viewer);
+    PetscErrorCode writeStep(PetscViewer& viewer);
+    PetscErrorCode writeCheckpoint(PetscViewer& viewer);
 
 };
 
