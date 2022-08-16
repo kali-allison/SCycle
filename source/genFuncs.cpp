@@ -29,6 +29,10 @@ void destroyVector(map<string,Vec>& vec)
 // Print out a vector with 15 significant figures.
 void printVec(Vec vec)
 {
+  //~ const char *name;
+  //~ PetscObjectGetName((PetscObject) vec, &name);
+  //~ PetscPrintf(PETSC_COMM_WORLD,"Vec %s: ",name);
+
   PetscInt Ii,Istart,Iend;
   PetscScalar v;
   VecGetOwnershipRange(vec,&Istart,&Iend);

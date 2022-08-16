@@ -666,7 +666,7 @@ PetscErrorCode LinearElastic::setRHS()
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "LinearElastic::computeU";
+    string funcName = "LinearElastic::setRHS";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 

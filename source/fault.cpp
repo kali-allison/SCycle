@@ -205,7 +205,6 @@ PetscErrorCode Fault::loadCheckpoint()
 
   PetscViewerDestroy(&viewer);
 
-
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending Fault::loadFieldsFromFiles in fault.cpp.\n");CHKERRQ(ierr);
   #endif

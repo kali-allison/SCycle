@@ -534,7 +534,6 @@ PetscErrorCode Domain::loadCheckpoint()
     ierr = PetscViewerHDF5PushGroup(viewer_prev_checkpoint, "/time2D");   CHKERRQ(ierr);
     ierr = PetscViewerHDF5ReadAttribute(viewer_prev_checkpoint, "time2D", "chkptTimeStep", PETSC_INT, NULL, &_prevChkptTimeStep2D); CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer_prev_checkpoint);               CHKERRQ(ierr);
-    PetscPrintf(PETSC_COMM_WORLD,"prevChkptTimeStep1D = %i\n",_prevChkptTimeStep1D);
 
     PetscViewerDestroy(&viewer_prev_checkpoint);
   }
