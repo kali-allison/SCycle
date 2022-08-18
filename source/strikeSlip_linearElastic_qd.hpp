@@ -140,7 +140,7 @@ public:
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
   PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT);
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT);
-  PetscErrorCode writeSS(const int Ii, const string outputDir);
+  PetscErrorCode writeSS(const int Ii);
 
   // checkpointing functions
   PetscErrorCode loadCheckpoint();

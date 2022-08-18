@@ -595,7 +595,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeStep2D(PetscInt stepCount, Pets
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_LinearElastic_qd::writeSS(const int Ii, const string outputDir)
+PetscErrorCode StrikeSlip_LinearElastic_qd::writeSS(const int Ii)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1098,7 +1098,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   loadVecFromInputFile(_fault->_tauP,_inputDir,"tauSS"); // if provided, set tau from file instead
 
   // output initial conditions, mostly for debugging purposes
-  writeSS(0,_outputDir);
+  writeSS(0);
 
   // compute compute u that satisfies tau at left boundary
   VecCopy(_fault->_tauP,_material->_bcL);
@@ -1129,7 +1129,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   }
 
   // output final steady state results
-  writeSS(1,_outputDir);
+  writeSS(1);
 
   // free memory for KSP
   KSPDestroy(&_material->_ksp);

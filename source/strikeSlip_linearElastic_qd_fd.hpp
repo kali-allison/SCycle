@@ -171,6 +171,7 @@ public:
   PetscErrorCode writeContext();
   PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time);
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode writeSS(const int Ii);
   PetscErrorCode loadCheckpoint();
   PetscErrorCode writeCheckpoint();
 
