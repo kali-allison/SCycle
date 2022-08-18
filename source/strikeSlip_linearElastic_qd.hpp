@@ -138,8 +138,8 @@ public:
   PetscErrorCode view();
   PetscErrorCode writeContext();
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
-  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
-  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT, const string outputDir);
+  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT);
+  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, PetscScalar deltaT);
   PetscErrorCode writeSS(const int Ii, const string outputDir);
 
   // checkpointing functions

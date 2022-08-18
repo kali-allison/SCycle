@@ -154,6 +154,7 @@ public:
   PetscErrorCode writeContext(const string outputDir, PetscViewer& viewer);
   PetscErrorCode writeStep(PetscViewer& viewer);
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+  PetscErrorCode loadCheckpoint();
 
   // MMS error
   PetscErrorCode measureMMSError(const double totRunTime);

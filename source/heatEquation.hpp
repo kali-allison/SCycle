@@ -171,6 +171,7 @@ public:
   PetscErrorCode writeStep1D(PetscViewer& viewer);
   PetscErrorCode writeStep2D(PetscViewer& viewer);
   PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+  PetscErrorCode loadCheckpoint();
 
 
   // MMS functions

@@ -44,6 +44,7 @@ public:
   PetscErrorCode guessInvEffVisc(const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& dgdev);
   PetscErrorCode writeContext(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
 
 // computes effective viscosity for dislocation creep
@@ -75,6 +76,7 @@ public:
   PetscErrorCode guessInvEffVisc(const Vec& Temp, const double dg);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev);
   PetscErrorCode writeContext(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
 
 // computes effective viscosity for diffusion creep
@@ -106,6 +108,7 @@ public:
   PetscErrorCode guessInvEffVisc(const Vec& Temp,const double dg,const Vec& grainSize);
   PetscErrorCode computeInvEffVisc(const Vec& Temp,const Vec& sdev,const Vec& grainSize);
   PetscErrorCode writeContext(PetscViewer &viewer);
+  PetscErrorCode loadCheckpoint(PetscViewer& viewer);
 };
 
 
@@ -191,6 +194,7 @@ class PowerLaw
     PetscErrorCode writeStep1D(PetscViewer& viewer);
     PetscErrorCode writeStep2D(PetscViewer& viewer);
     PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+    PetscErrorCode loadCheckpoint();
     PetscErrorCode view(const double totRunTime);
 
 

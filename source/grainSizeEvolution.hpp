@@ -87,6 +87,7 @@ class GrainSizeEvolution
     PetscErrorCode writeContext(const std::string outputDir, PetscViewer& viewer);
     PetscErrorCode writeStep(PetscViewer& viewer);
     PetscErrorCode writeCheckpoint(PetscViewer& viewer);
+    PetscErrorCode loadCheckpoint();
 
 };
 

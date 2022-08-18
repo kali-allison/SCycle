@@ -13,14 +13,15 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
     _stateLaw("agingLaw"),_forcingType("no"),_wLinearMaxwell("no"),
     _vL(1e-9),_faultTypeScale(2.0),
     _timeIntegrator("RK43"),_timeControlType("PID"),
-    _stride1D(1),_stride2D(1),_maxStepCount(1e8),
+    _stride1D(1),_stride2D(1),_strideChkpt(1e4),_maxStepCount(1e8),
     _initTime(0),_currTime(0),_maxTime(1e15),
     _minDeltaT(-1),_maxDeltaT(1e10),
     _time1DVec(NULL), _dtime1DVec(NULL),_time2DVec(NULL), _dtime2DVec(NULL),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+    _chkptTimeStep1D(0), _chkptTimeStep2D(0),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),
-    _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),_viewerSS(NULL),
+    _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),_viewerSS(NULL),_viewer_chkpt(NULL),
     _forcingTerm(NULL),_forcingTermPlain(NULL),_forcingVal(0),
     _bcT_L(0),
     _bcRType("remoteLoading"),_bcTType("freeSurface"),
@@ -40,6 +41,12 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
   loadSettings(D._file);
   checkInput();
   parseBCs();
+  allocateFields();
+
+  if (_D->_restartFromChkpt) {
+    loadCheckpoint();
+    _guessSteadyStateICs = 0;
+  }
 
   // initiate momentum balance equation
   _material = new PowerLaw(D,_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
@@ -73,17 +80,6 @@ StrikeSlip_PowerLaw_qd::StrikeSlip_PowerLaw_qd(Domain&D)
 
   // compute min allowed time step for adaptive time stepping method
   computeMinTimeStep();
-
-  // initiate Vecs to hold current time and time step
-  VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_time1DVec);
-  VecSetBlockSize(_time1DVec, 1);
-  PetscObjectSetName((PetscObject) _time1DVec, "time1D"); VecSet(_time1DVec,_initTime);
-
-  VecDuplicate(_time1DVec,&_dtime1DVec); PetscObjectSetName((PetscObject) _dtime1DVec, "dtime1D"); VecSet(_dtime1DVec,_deltaT);
-  VecDuplicate(_time1DVec,&_time2DVec); PetscObjectSetName((PetscObject) _time2DVec, "time2D"); VecSet(_time2DVec,_initTime);
-  VecDuplicate(_time1DVec,&_dtime2DVec); PetscObjectSetName((PetscObject) _dtime2DVec, "dtime2D"); VecSet(_dtime2DVec,_deltaT);
-
-
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
@@ -197,6 +193,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::loadSettings(const char *file)
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
     else if (var.compare("stride1D")==0){ _stride1D = (int)atof( rhs.c_str() ); }
     else if (var.compare("stride2D")==0){ _stride2D = (int)atof( rhs.c_str() ); }
+    else if (var.compare("strideChkpt")==0){ _strideChkpt = (int)atof(rhs.c_str()); }
     else if (var.compare("maxStepCount")==0) { _maxStepCount = (int)atof( rhs.c_str() ); }
     else if (var.compare("initTime")==0) { _initTime = atof( rhs.c_str() ); }
     else if (var.compare("maxTime")==0) { _maxTime = atof( rhs.c_str() ); }
@@ -287,12 +284,50 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::checkInput()
     assert(_thermalCoupling != "no");
   }
 
+  if (_thermalCoupling != "no" && (_timeIntegrator != "RK32_WBE" && _timeIntegrator != "RK43_WBE")) {
+    assert(0);
+  }
+
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
+}
+
+// allocate space for member fields
+PetscErrorCode StrikeSlip_PowerLaw_qd::allocateFields()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "StrikeSlip_PowerLaw_qd::allocateFields";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  // initiate Vecs to hold current time and time step
+  ierr = VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_time1DVec); CHKERRQ(ierr);
+  ierr = VecSetBlockSize(_time1DVec, 1); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _time1DVec, "time1D"); CHKERRQ(ierr);
+  ierr = VecSet(_time1DVec,_initTime); CHKERRQ(ierr);
+
+  ierr = VecDuplicate(_time1DVec,&_dtime1DVec); CHKERRQ(ierr);
+  PetscObjectSetName((PetscObject) _dtime1DVec, "dtime1D"); CHKERRQ(ierr);
+  VecSet(_dtime1DVec,_deltaT); CHKERRQ(ierr);
+
+  ierr = VecDuplicate(_time1DVec,&_time2DVec); CHKERRQ(ierr);
+  PetscObjectSetName((PetscObject) _time2DVec, "time2D"); CHKERRQ(ierr);
+  VecSet(_time2DVec,_initTime); CHKERRQ(ierr);
+
+  ierr = VecDuplicate(_time1DVec,&_dtime2DVec); CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) _dtime2DVec, "dtime2D"); CHKERRQ(ierr);
+  ierr = VecSet(_dtime2DVec,_deltaT); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+return ierr;
 }
 
 // compute recommended smallest time step based on grid spacing and shear wave speed
@@ -425,7 +460,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
 
   if (_guessSteadyStateICs) {
     solveSS(0,_outputDir);
+
     writeSS(0,_outputDir);
+    VecDestroy(&_JjSSVec);
   }
   { // set up KSP context for time integration
     Mat A;
@@ -474,7 +511,7 @@ double startTime = MPI_Wtime();
   _currTime = time;
 
   if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0)) {
-    ierr = writeStep1D(stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = writeStep1D(stepCount,time); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_viewer1D); CHKERRQ(ierr);
     ierr = _fault->writeStep(_viewer1D); CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { _p->writeStep(_viewer1D); }
@@ -482,19 +519,31 @@ double startTime = MPI_Wtime();
   }
 
   if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0)) {
-    ierr = writeStep2D(stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = writeStep2D(stepCount,time); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_viewer2D);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
     if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_viewer2D);CHKERRQ(ierr); }
   }
 
+  if ( _D->_saveChkpts == 1 && ((_strideChkpt > 0 && stepCount % _strideChkpt == 0) || (_currTime == _maxTime)) ) {
+    ierr = writeCheckpoint();                                           CHKERRQ(ierr);
+    ierr = _D->writeCheckpoint(_viewer_chkpt);                          CHKERRQ(ierr);
+    ierr = _material->writeCheckpoint(_viewer_chkpt);                   CHKERRQ(ierr);
+    ierr = _fault->writeCheckpoint(_viewer_chkpt);                      CHKERRQ(ierr);
+    ierr = _he->writeCheckpoint(_viewer_chkpt);                         CHKERRQ(ierr);
+    if (_quadEx != NULL) { ierr = _quadEx->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
+    if (_quadImex != NULL) { ierr = _quadImex->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
+    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
+
+  }
+
   PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-  _material->computeMaxTimeStep(maxDeltaT_momBal);
+  ierr =  _material->computeMaxTimeStep(maxDeltaT_momBal);CHKERRQ(ierr);
   maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
   if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-      _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+    ierr = _quadImex->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
-  else {_quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
+  else { ierr = _quadEx->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr); }
 
   // stopping criteria for time integration
   if (_D->_momentumBalanceType.compare("steadyStateIts")==0) {
@@ -511,7 +560,7 @@ _writeTime += MPI_Wtime() - startTime;
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -525,13 +574,17 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScal
 
   if (_viewer1D == NULL ) {
     // initiate viewer
-    string outFileName = outputDir + "data_1D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer1D);CHKERRQ(ierr);
+    string outFileName = _outputDir + "data_1D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer1D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer1D, PETSC_TRUE);CHKERRQ(ierr);
 
     // write time
-    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");     CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);               CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer1D, _D->_prevChkptTimeStep1D +1); CHKERRQ(ierr);
+    }
+
     ierr = VecView(_time1DVec, _viewer1D);                           CHKERRQ(ierr);
     ierr = VecView(_dtime1DVec, _viewer1D);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                CHKERRQ(ierr);
@@ -553,7 +606,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep1D(PetscInt stepCount, PetscScal
   return ierr;
 }
 
-PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -568,26 +621,30 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScal
 
   if (_viewer2D == NULL ) {
     // initiate viewer
-    string outFileName = outputDir + "data_2D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer2D);CHKERRQ(ierr);
+    string outFileName = _outputDir + "data_2D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer2D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer2D, PETSC_TRUE);CHKERRQ(ierr);
 
     // write time
-    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");                     CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);               CHKERRQ(ierr);
-    ierr = VecView(_time2DVec, _viewer2D);                           CHKERRQ(ierr);
-    ierr = VecView(_dtime2DVec, _viewer2D);                          CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopGroup(_viewer2D);                       CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer2D, _D->_prevChkptTimeStep2D +1); CHKERRQ(ierr);
+    }
+
+    ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
   else{
-    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");               CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);               CHKERRQ(ierr);
-    ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);              CHKERRQ(ierr);
-    ierr = VecView(_time2DVec, _viewer2D);                           CHKERRQ(ierr);
-    ierr = VecView(_dtime2DVec, _viewer2D);                          CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                CHKERRQ(ierr);
-    ierr = PetscViewerHDF5PopGroup(_viewer2D);                       CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");                CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);                 CHKERRQ(ierr);
+    ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
+    ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
 
   #if VERBOSE > 1
@@ -595,6 +652,99 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeStep2D(PetscInt stepCount, PetscScal
   #endif
   return ierr;
 }
+
+
+
+PetscErrorCode StrikeSlip_PowerLaw_qd::writeCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::writeCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  if (_viewer_chkpt == NULL ) {
+    // initiate viewer
+    string outFileName = _outputDir + "checkpoint.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &_viewer_chkpt);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5SetBaseDimension2(_viewer_chkpt, PETSC_TRUE);CHKERRQ(ierr);
+  }
+
+  if (_viewer1D != NULL) {
+    ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5GetTimestep(_viewer1D,&_chkptTimeStep1D);     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer1D);                   CHKERRQ(ierr);
+
+  }
+  if (_viewer2D != NULL) {
+    ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    ierr = PetscViewerHDF5GetTimestep(_viewer2D,&_chkptTimeStep2D);     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
+  }
+
+  ierr = PetscViewerFileSetMode(_viewer_chkpt,FILE_MODE_WRITE);         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(_viewer_chkpt, "/time1D");            CHKERRQ(ierr);
+  ierr = VecView(_time1DVec, _viewer_chkpt);                            CHKERRQ(ierr);
+  ierr = VecView(_dtime1DVec, _viewer_chkpt);                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                        CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(_viewer_chkpt, "/time2D");          CHKERRQ(ierr);
+  ierr = VecView(_time2DVec, _viewer_chkpt);                          CHKERRQ(ierr);
+  ierr = VecView(_dtime2DVec, _viewer_chkpt);                         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep2D); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                      CHKERRQ(ierr);
+
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode StrikeSlip_PowerLaw_qd::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    std::string funcName = "StrikeSlip_PowerLaw_qd::loadCheckpoint";
+    PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+    // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerFileSetMode(viewer,FILE_MODE_READ);         CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");            CHKERRQ(ierr);
+  ierr = VecLoad(_time1DVec, viewer);                            CHKERRQ(ierr);
+  ierr = VecLoad(_dtime1DVec, viewer);                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "currTime", PETSC_SCALAR, NULL, &_currTime); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                        CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time2D");            CHKERRQ(ierr);
+  ierr = VecLoad(_time2DVec, viewer);                            CHKERRQ(ierr);
+  ierr = VecLoad(_dtime2DVec, viewer);                           CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                        CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  _initTime = _currTime;
+  _initDeltaT = _deltaT;
+  _maxStepCount = _maxStepCount + _stepCount;
+
+  #if VERBOSE > 1
+     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
+  #endif
+  return ierr;
+}
+
 
 
 PetscErrorCode StrikeSlip_PowerLaw_qd::view()
@@ -674,7 +824,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeContext()
   string outFileName = _outputDir + "data_context.h5";
   ierr = PetscViewerCreate(PETSC_COMM_WORLD, &_viewer_context); CHKERRQ(ierr);
   ierr = PetscViewerSetType(_viewer_context, PETSCVIEWERBINARY); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer_context);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &_viewer_context);CHKERRQ(ierr);
 
   _D->write(_viewer_context);
   _fault->writeContext(_outputDir, _viewer_context);
@@ -739,11 +889,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadImex->setTimeRange(_initTime,_maxTime);
     ierr = _quadImex->setInitialConds(_varEx,_varIm);CHKERRQ(ierr);
     ierr = _quadImex->setToleranceType(_normType); CHKERRQ(ierr);
-    ierr = _quadImex->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
+    ierr = _quadImex->setErrInds(_timeIntInds,_scale);
 
-    // save initial conditions before beginning integration
-    PetscInt stopIntegration = 0;
-    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
+    if (_D->_restartFromChkpt) { ierr = _quadImex->loadCheckpoint(_outputDir); CHKERRQ(ierr); }
 
     ierr = _quadImex->integrate(this);CHKERRQ(ierr);
   }
@@ -753,11 +901,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::integrate()
     ierr = _quadEx->setTimeRange(_initTime,_maxTime);
     ierr = _quadEx->setToleranceType(_normType); CHKERRQ(ierr);
     ierr = _quadEx->setInitialConds(_varEx);CHKERRQ(ierr);
-    ierr = _quadEx->setErrInds(_timeIntInds,_scale); // control which fields are used to select step size
+    ierr = _quadEx->setErrInds(_timeIntInds,_scale);
 
-    // save initial conditions before beginning integration
-    PetscInt stopIntegration = 0;
-    timeMonitor(_initTime,_initDeltaT,0,stopIntegration);
+    if (_D->_restartFromChkpt) { ierr = _quadEx->loadCheckpoint(_outputDir); CHKERRQ(ierr); }
 
     ierr = _quadEx->integrate(this);CHKERRQ(ierr);
   }
@@ -1499,7 +1645,17 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecSet(_JjSSVec,Ii);
+  bool needToDestroyJjSSVec = 0;
+  if (_JjSSVec == NULL) {
+    // initiate Vec to hold index Jj
+    VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+    VecSetBlockSize(_JjSSVec, 1);
+    PetscObjectSetName((PetscObject) _JjSSVec, "index");
+    VecSet(_JjSSVec,Ii);
+    needToDestroyJjSSVec = 1;
+  }
+
+  ierr = VecSet(_JjSSVec,Ii);                                           CHKERRQ(ierr);
 
   if (_viewerSS == NULL) {
     // set up viewer for output of steady-state data
@@ -1539,6 +1695,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
     if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_viewerSS); CHKERRQ(ierr); }
   }
+
+  if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

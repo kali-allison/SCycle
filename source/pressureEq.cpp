@@ -30,7 +30,7 @@ PressureEq::PressureEq(Domain &D)
   checkInput();
   setFields(D);
 
-  if (_D->_ckptNumber > 0) {
+  if (_D->_restartFromChkpt) {
     _guessSteadyStateICs = 0;
   }
 
@@ -68,8 +68,8 @@ PressureEq::PressureEq(Domain &D)
     }
   }
 
-  // load from checkpoint
-  loadFieldsFromFiles();
+  if (_D->_restartFromChkpt) { loadCheckpoint(); }
+  else { loadFieldsFromFiles(); }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
@@ -1981,7 +1981,7 @@ PetscErrorCode PressureEq::writeCheckpoint(PetscViewer& viewer)
     CHKERRQ(ierr);
   #endif
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "pressureEq");               CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/pressureEq");               CHKERRQ(ierr);
 
   ierr = VecView(_n_p, viewer);                                         CHKERRQ(ierr);
   ierr = VecView(_beta_p, viewer);                                      CHKERRQ(ierr);
@@ -1998,6 +1998,48 @@ PetscErrorCode PressureEq::writeCheckpoint(PetscViewer& viewer)
   ierr = VecView(_rho_f, viewer);                                       CHKERRQ(ierr);
 
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode PressureEq::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "PressureEq::loadCheckpoint";
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting %s in %s\n", funcName.c_str(), FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+  PetscViewer viewer;
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "pressureEq");               CHKERRQ(ierr);
+
+  ierr = VecLoad(_n_p, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_beta_p, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_k_slip, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_k_press, viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_eta_p, viewer);                                       CHKERRQ(ierr);
+  ierr = VecLoad(_rho_f, viewer);                                       CHKERRQ(ierr);
+
+  ierr = VecLoad(_n_p, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_beta_p, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_k_slip, viewer);                                      CHKERRQ(ierr);
+  ierr = VecLoad(_k_press, viewer);                                     CHKERRQ(ierr);
+  ierr = VecLoad(_eta_p, viewer);                                       CHKERRQ(ierr);
+  ierr = VecLoad(_rho_f, viewer);                                       CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Ending %s in %s\n", funcName.c_str(), FILENAME);

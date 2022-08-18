@@ -540,20 +540,6 @@ PetscErrorCode LinearElastic::loadCheckpoint()
 
   PetscViewerDestroy(&viewer);
 
-
-  //~ // boundary conditions
-  //~ ierr = loadVecFromInputFile(_bcRShift, _outputDir + "chkpt_", "momBal_bcRShift"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_bcR, _outputDir + "chkpt_", "momBal_bcR"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_bcT, _outputDir + "chkpt_", "momBal_bcT"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_bcL, _outputDir + "chkpt_", "momBal_bcL"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_bcB, _outputDir + "chkpt_", "momBal_bcB"); CHKERRQ(ierr);
-
-
-  //~ // material parameters
-  //~ ierr = loadVecFromInputFile(_mu, _outputDir, "momBal_mu"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_rho, _outputDir, "momBal_rho"); CHKERRQ(ierr);
-  //~ ierr = loadVecFromInputFile(_cs, _outputDir, "momBal_cs"); CHKERRQ(ierr);
-
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
   #endif

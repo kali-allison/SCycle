@@ -13,7 +13,7 @@ HeatEquation::HeatEquation(Domain& D)
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
-  _linSolver("MUMPSCHOLESKY"),_kspTol(1e-11),
+  _linSolver("CG_PCAMG"),_kspTol(1e-11),
   _kspSS(NULL),_kspTrans(NULL),_pc(NULL),
   _I(NULL),_rcInv(NULL),_B(NULL),_pcMat(NULL),_D2ath(NULL),
   _MapV(NULL),_Gw(NULL),_w(NULL),
@@ -33,8 +33,11 @@ HeatEquation::HeatEquation(Domain& D)
   allocateFields();
   setFields();
 
-  loadFieldsFromFiles();
-  if (_loadICs == 0 && _isMMS == 0 && _ckptNumber == 0) { computeInitialSteadyStateTemp(); }
+  if (_D->_restartFromChkpt) { loadCheckpoint(); }
+  else { loadFieldsFromFiles(); }
+
+  if (_D->_restartFromChkpt == 0 &&_loadICs == 0 && _isMMS == 0 ) { computeInitialSteadyStateTemp(); }
+
   if (_heatEquationType == "transient" ) { setUpTransientProblem();}
   else if (_heatEquationType == "steadyState" ) { setUpSteadyStateProblem(); }
 
@@ -816,7 +819,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
       ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
       ierr = PCFactorSetUpMatSolverPackage(_pc);                           CHKERRQ(ierr); // old PETSc
     #endif
-    ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
@@ -833,7 +835,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
       ierr = PCFactorSetMatSolverPackage(_pc,MATSOLVERMUMPS);              CHKERRQ(ierr); // old PETSc
       ierr = PCFactorSetUpMatSolverPackage(_pc);                           CHKERRQ(ierr); // old PETSc
     #endif
-    ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
   }
   else if (_linSolver.compare("CG_PCAMG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspTrans,KSPCG);                                 CHKERRQ(ierr);
@@ -1805,7 +1806,7 @@ PetscErrorCode HeatEquation::writeCheckpoint(PetscViewer& viewer)
 
   double startTime = MPI_Wtime();
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "heatEquation");              CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");              CHKERRQ(ierr);
   ierr = VecView(_k, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_rho, viewer);                                         CHKERRQ(ierr);
   ierr = VecView(_Qrad, viewer);                                        CHKERRQ(ierr);
@@ -1836,6 +1837,59 @@ PetscErrorCode HeatEquation::writeCheckpoint(PetscViewer& viewer)
 
 
   _writeTime += MPI_Wtime() - startTime;
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+
+PetscErrorCode HeatEquation::loadCheckpoint()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::loadCheckpoint";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    CHKERRQ(ierr);
+  #endif
+
+  string fileName = _outputDir + "checkpoint.h5";
+
+  PetscViewer viewer;
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
+  ierr = VecLoad(_k, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_c, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_Tamb, viewer);                                        CHKERRQ(ierr);
+  if (_wFrictionalHeating.compare("yes")==0) {
+    ierr = VecLoad(_Gw, viewer);                                         CHKERRQ(ierr);
+    VecScale(_w,1e3); // output w in m
+    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+    VecScale(_w,1e-3); // convert w from m to km
+  }
+  if (_wRadioHeatGen.compare("yes")==0) {
+    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+  }
+
+  ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcT,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcB,viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
+  ierr = VecLoad(_dT,viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_kTz,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_Qfric,viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_Qvisc,viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_Q,viewer);                                            CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
     CHKERRQ(ierr);

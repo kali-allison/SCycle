@@ -74,7 +74,7 @@ private:
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   Vec               _u0; // total displacement at start of fd
   string            _timeIntegrator,_timeControlType;
-  PetscInt          _stride1D,_stride2D; // stride
+  PetscInt          _stride1D,_stride2D, _strideChkpt; // stride
   PetscInt          _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;
@@ -85,11 +85,12 @@ private:
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
+  PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
 
 
   // Vecs and viewers for output
   Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec, _regime1DVec, _regime2DVec; // Vecs to hold current time and time step for output
-  PetscViewer       _viewer_context, _viewer1D, _viewer2D;
+  PetscViewer       _viewer_context, _viewer1D, _viewer2D,_viewerSS,_viewer_chkpt;
 
   // runtime data
   double _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime, _propagateTime, _dynTime, _qdTime;
@@ -166,13 +167,12 @@ public:
 
   // IO functions
   PetscErrorCode view();
-  PetscErrorCode writeContext();
-
-  // handles switching between quasidynamic and fully dynamic
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount,int& stopIntegration);
-
-  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, const string outputDir);
-  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const string outputDir);
+  PetscErrorCode writeContext();
+  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode loadCheckpoint();
+  PetscErrorCode writeCheckpoint();
 
 };
 

@@ -1207,7 +1207,7 @@ Fault_fd::Fault_fd(Domain &D, VecScatter& scatter2fault, const int& faultTypeSca
   // load settings and fields specific to fully-dynamics case
   loadSettings(_inputFile);
   setFields();
-  if (_D->_restartFromChkpt) { // load from previous checkpoint
+  if (_D->_restartFromChkpt) {
     loadCheckpoint();
   }
   else {

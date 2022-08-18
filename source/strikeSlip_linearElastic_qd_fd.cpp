@@ -17,14 +17,15 @@ strikeSlip_linearElastic_qd_fd::strikeSlip_linearElastic_qd_fd(Domain&D)
     _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
     _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
     _timeIntegrator("RK43"),_timeControlType("PID"),
-    _stride1D(10),_stride2D(10),
+    _stride1D(10),_stride2D(10),_strideChkpt(1e4),
     _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),
     _stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
     _maxStepCount(1e8),
     _initTime(0),_currTime(0),_minDeltaT(1e-3),_maxDeltaT(1e10),_maxTime(1e15),
     _stepCount(0),_timeStepTol(1e-8),_initDeltaT(1e-3),_normType("L2_absolute"),
+    _chkptTimeStep1D(0), _chkptTimeStep2D(0),
     _time1DVec(NULL), _dtime1DVec(NULL),_time2DVec(NULL), _dtime2DVec(NULL),_regime1DVec(NULL),_regime2DVec(NULL),
-    _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),
+    _viewer_context(NULL),_viewer1D(NULL),_viewer2D(NULL),_viewerSS(NULL),_viewer_chkpt(NULL),
     _integrateTime(0),_writeTime(0),_linSolveTime(0),_factorTime(0),
     _startTime(MPI_Wtime()),_miscTime(0),_dynTime(0), _qdTime(0),
     _forcingVal(0),
@@ -187,6 +188,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("stride2D_fd")==0){ _stride2D_fd = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride1D_fd_end")==0){ _stride1D_fd_end = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride2D_fd_end")==0){ _stride2D_fd_end = (int)atof(rhs.c_str() ); }
+    else if (var.compare("strideChkpt")==0){ _strideChkpt = (int)atof(rhs.c_str()); }
     else if (var.compare("initTime")==0) {
       _initTime = atof(rhs.c_str() );
       _currTime = _initTime;
@@ -962,7 +964,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_singleQDTimeStep()
 
 
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, PetscScalar time, const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -977,13 +979,17 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, P
 
   if (_viewer1D == NULL ) {
     // initiate viewer
-    string outFileName = outputDir + "data_1D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer1D);CHKERRQ(ierr);
+    string outFileName = _outputDir + "data_1D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer1D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer1D, PETSC_TRUE);CHKERRQ(ierr);
 
     // write time
-    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");        CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer1D, _D->_prevChkptTimeStep1D +1); CHKERRQ(ierr);
+    }
+
     ierr = VecView(_time1DVec, _viewer1D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime1DVec, _viewer1D);                             CHKERRQ(ierr);
     ierr = VecView(_regime1DVec, _viewer1D);                            CHKERRQ(ierr);
@@ -1007,7 +1013,7 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep1D(PetscInt stepCount, P
   return ierr;
 }
 
-PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time,const std::string outputDir)
+PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep2D(const PetscInt stepCount, const PetscScalar time)
 {
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
@@ -1022,13 +1028,17 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::writeStep2D(const PetscInt stepCo
 
   if (_viewer2D == NULL ) {
     // initiate viewer
-    string outFileName = outputDir + "data_2D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer2D);CHKERRQ(ierr);
+    string outFileName = _outputDir + "data_2D.h5";
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer2D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer2D, PETSC_TRUE);CHKERRQ(ierr);
 
     // write time
     ierr = PetscViewerHDF5PushGroup(_viewer2D, "/timeStepping");        CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer1D, _D->_prevChkptTimeStep2D +1); CHKERRQ(ierr);
+    }
+
     ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
     ierr = VecView(_regime2DVec, _viewer2D);                            CHKERRQ(ierr);
@@ -1519,6 +1529,8 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadImex->setToleranceType(_normType);
     quadImex->setErrInds(_timeIntInds,_scale);
 
+    if (_D->_restartFromChkpt) { ierr = quadImex->loadCheckpoint(_outputDir); CHKERRQ(ierr); }
+
     ierr = quadImex->integrate(this); CHKERRQ(ierr);
 
     std::map<string,Vec> varOut = quadImex->_varEx;
@@ -1535,7 +1547,10 @@ PetscErrorCode strikeSlip_linearElastic_qd_fd::integrate_qd()
     quadEx->setInitialConds(_varQSEx);
     quadEx->setErrInds(_timeIntInds,_scale);
 
+    if (_D->_restartFromChkpt) { ierr = quadEx->loadCheckpoint(_outputDir); CHKERRQ(ierr); }
+
     ierr = quadEx->integrate(this); CHKERRQ(ierr);
+
     std::map<string,Vec> varOut = quadEx->_var;
     for (map<string,Vec>::iterator it = varOut.begin(); it != varOut.end(); it++ ) {
       VecCopy(varOut[it->first],_varQSEx[it->first]);
@@ -1872,7 +1887,7 @@ double startTime = MPI_Wtime();
   _stepCount = stepCount;
 
   if ( (_stride1D>0 &&_currTime == _maxTime) || (_stride1D>0 && stepCount % _stride1D == 0) ) {
-    ierr = writeStep1D(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = writeStep1D(_stepCount,time); CHKERRQ(ierr);
     ierr = _material->writeStep1D(_viewer1D); CHKERRQ(ierr);
     if(_inDynamic){ ierr = _fault_fd->writeStep(_viewer1D); CHKERRQ(ierr); }
     else { ierr = _fault_qd->writeStep(_viewer1D); CHKERRQ(ierr); }
@@ -1881,9 +1896,21 @@ double startTime = MPI_Wtime();
   }
 
   if ( (_stride2D>0 &&_currTime == _maxTime) || (_stride2D>0 && stepCount % _stride2D == 0) ) {
-    ierr = writeStep2D(_stepCount,time,_outputDir); CHKERRQ(ierr);
+    ierr = writeStep2D(_stepCount,time); CHKERRQ(ierr);
     ierr = _material->writeStep2D(_viewer2D);CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
+  }
+
+  // only support checkpointing during interseismic period for now
+  if ( ~!_inDynamic && _D->_saveChkpts== 1 && ((_strideChkpt > 0 && stepCount % _strideChkpt == 0) || (_currTime == _maxTime)) ) {
+    ierr = writeCheckpoint();                                           CHKERRQ(ierr);
+    ierr = _D->writeCheckpoint(_viewer_chkpt);                          CHKERRQ(ierr);
+    ierr = _material->writeCheckpoint(_viewer_chkpt);                   CHKERRQ(ierr);
+    ierr = _fault_qd->writeCheckpoint(_viewer_chkpt);                      CHKERRQ(ierr);
+    if (_quadEx != NULL) { ierr = _quadEx->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
+    if (_quadImex != NULL) { ierr = _quadImex->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
+    if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeCheckpoint(_viewer_chkpt);  CHKERRQ(ierr); }
+    if (_thermalCoupling.compare("no")!=0) { ierr = _he->writeCheckpoint(_viewer_chkpt); CHKERRQ(ierr); }
   }
 
   if(_inDynamic){ if(checkSwitchRegime(_fault_fd)){ stopIntegration = 1; } }

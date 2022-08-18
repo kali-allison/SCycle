@@ -67,7 +67,7 @@ public:
   map <string,Vec>  _varEx; // holds variables for explicit integration in time
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   string            _timeIntegrator,_timeControlType;
-  PetscInt          _stride1D,_stride2D; // stride
+  PetscInt          _stride1D,_stride2D, _strideChkpt; // stride
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT,_deltaT;
   Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec; // Vecs to hold current time and time step for output
@@ -77,12 +77,13 @@ public:
   vector<string>    _timeIntInds; // indices of variables to be used in time integration
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
+  PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
 
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
 
   // viewers
-  PetscViewer _viewer_context,_viewer1D,_viewer2D,_viewerSS;
+  PetscViewer _viewer_context,_viewer1D,_viewer2D,_viewerSS,_viewer_chkpt;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
@@ -117,6 +118,7 @@ public:
   PetscErrorCode loadSettings(const char *file);
   PetscErrorCode checkInput();
   PetscErrorCode parseBCs(); // parse boundary conditions
+  PetscErrorCode allocateFields();
   PetscErrorCode computeMinTimeStep(); // compute min allowed time step as dx / cs
   PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
   PetscErrorCode updateBCT_atan_v(); // bcT = atan term (velocity)
@@ -167,8 +169,10 @@ public:
   PetscErrorCode view();
   PetscErrorCode writeContext();
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
-  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time, const string outputDir);
-  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time, const string outputDir);
+  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode writeCheckpoint();
+  PetscErrorCode loadCheckpoint();
 
   // debugging and MMS tests
   PetscErrorCode measureMMSError();
