@@ -38,7 +38,7 @@ int runTests(const char * inputFile)
   //~ PowerLaw _material(D,"Dirichlet","Neumann","Dirichlet","Neumann");
 
   //~ strikeSlip_linearElastic_fd m(D);
-  //~ strikeSlip_linearElastic_qd_fd m(D);
+  //~ StrikeSlip_linearElastic_qd_fd m(D);
   StrikeSlip_PowerLaw_qd m(D);
   //~ StrikeSlip_PowerLaw_qd_fd m(D);
 
@@ -404,11 +404,11 @@ int runEqCycle(Domain& d)
   // earthquake cycle simulation, with fully dynamic earthquakes and quasi-dynamic interseismic periods
   // with a vertical strike-slip fault, and linear elastic off-fault material
   if (d._bulkDeformationType.compare("linearElastic") == 0 && d._momentumBalanceType.compare("quasidynamic_and_dynamic") == 0) {
-    strikeSlip_linearElastic_qd_fd m(d);
+    StrikeSlip_linearElastic_qd_fd m(d);
     if (d._restartFromChkpt == 0) { ierr = m.writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
     ierr = m.integrate(); CHKERRQ(ierr);
-    ierr = m.view(); CHKERRQ(ierr);
+    //~ ierr = m.view(); CHKERRQ(ierr);
   }
 
   // earthquake cycle simulation, with fully dynamic earthquakes and quasi-dynamic interseismic periods

@@ -1733,7 +1733,7 @@ PetscErrorCode HeatEquation::writeStep1D(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::writeStep1D";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1757,7 +1757,7 @@ PetscErrorCode HeatEquation::writeStep1D(PetscViewer& viewer)
   _writeTime += MPI_Wtime() - startTime;
 
 #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME); CHKERRQ(ierr);
 #endif
   return ierr;
 }
@@ -1768,7 +1768,7 @@ PetscErrorCode HeatEquation::writeStep2D(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::writeStep2D";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1788,7 +1788,7 @@ PetscErrorCode HeatEquation::writeStep2D(PetscViewer& viewer)
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1800,7 +1800,7 @@ PetscErrorCode HeatEquation::writeCheckpoint(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::writeCheckpoint";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1838,7 +1838,7 @@ PetscErrorCode HeatEquation::writeCheckpoint(PetscViewer& viewer)
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1850,7 +1850,7 @@ PetscErrorCode HeatEquation::loadCheckpoint()
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "HeatEquation::loadCheckpoint";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1891,7 +1891,7 @@ PetscErrorCode HeatEquation::loadCheckpoint()
   PetscViewerDestroy(&viewer);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at step %i\n",funcName.c_str(),FILENAME,stepCount);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;

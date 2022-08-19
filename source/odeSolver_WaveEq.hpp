@@ -35,6 +35,9 @@ class OdeSolver_WaveEq
     PetscErrorCode view();
     PetscErrorCode integrate(IntegratorContext_WaveEq *obj);
 
+    PetscErrorCode writeCheckpoint(PetscViewer &viewer);
+    PetscErrorCode loadCheckpoint(const std::string inputDir);
+
     std::map<string,Vec>& getVar(){return _var;};
 };
 

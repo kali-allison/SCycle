@@ -603,7 +603,18 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeSS(const int Ii)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  VecSet(_JjSSVec,Ii);
+  bool needToDestroyJjSSVec = 0;
+  if (_JjSSVec == NULL) {
+    // initiate Vec to hold index Jj
+    VecCreateMPI(PETSC_COMM_WORLD, 1, 1, &_JjSSVec);
+    VecSetBlockSize(_JjSSVec, 1);
+    PetscObjectSetName((PetscObject) _JjSSVec, "index");
+    VecSet(_JjSSVec,Ii);
+    needToDestroyJjSSVec = 1;
+  }
+  else {
+    VecSet(_JjSSVec,Ii);
+  }
 
   if (_viewerSS == NULL) {
     // set up viewer for output of steady-state data
@@ -644,6 +655,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeSS(const int Ii)
     ierr = _material->writeStep2D(_viewerSS);                           CHKERRQ(ierr);
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewerSS); CHKERRQ(ierr); }
   }
+
+  if (needToDestroyJjSSVec == 1) {VecDestroy(&_JjSSVec);}
 
 
   #if VERBOSE > 1
@@ -717,19 +730,19 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadCheckpoint()
 
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
 
-  ierr = PetscViewerFileSetMode(viewer,FILE_MODE_READ);         CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");            CHKERRQ(ierr);
-  ierr = VecLoad(_time1DVec, viewer);                            CHKERRQ(ierr);
-  ierr = VecLoad(_dtime1DVec, viewer);                           CHKERRQ(ierr);
+  ierr = PetscViewerFileSetMode(viewer,FILE_MODE_READ);                 CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                   CHKERRQ(ierr);
+  ierr = VecLoad(_time1DVec, viewer);                                   CHKERRQ(ierr);
+  ierr = VecLoad(_dtime1DVec, viewer);                                  CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "currTime", PETSC_SCALAR, NULL, &_currTime); CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
   ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "/time2D");            CHKERRQ(ierr);
-  ierr = VecLoad(_time2DVec, viewer);                            CHKERRQ(ierr);
-  ierr = VecLoad(_dtime2DVec, viewer);                           CHKERRQ(ierr);
-  ierr = PetscViewerHDF5PopGroup(viewer);                        CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time2D");                   CHKERRQ(ierr);
+  ierr = VecLoad(_time2DVec, viewer);                                   CHKERRQ(ierr);
+  ierr = VecLoad(_dtime2DVec, viewer);                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
 

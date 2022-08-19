@@ -24,7 +24,6 @@ OdeSolver::OdeSolver(PetscInt maxNumSteps, PetscReal finalT,PetscReal deltaT,str
 // if starting with a nonzero initial step count
 PetscErrorCode OdeSolver::setInitialStepCount(const PetscReal stepCount) {
   _stepCount = stepCount;
-  _maxNumSteps = stepCount + _maxNumSteps;
   return 0;
 }
 

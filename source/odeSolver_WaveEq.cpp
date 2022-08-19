@@ -40,7 +40,6 @@ PetscErrorCode OdeSolver_WaveEq::setStepSize(const PetscReal deltaT) { _deltaT =
 PetscErrorCode OdeSolver_WaveEq::setInitialStepCount(const PetscReal stepCount)
 {
   _stepCount = stepCount;
-  _maxNumSteps = stepCount + _maxNumSteps;
   return 0;
 }
 
@@ -185,4 +184,91 @@ PetscErrorCode OdeSolver_WaveEq::integrate(IntegratorContext_WaveEq *obj)
   return ierr;
 }
 
+PetscErrorCode OdeSolver_WaveEq::loadCheckpoint(const std::string inputDir)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
 
+  // needed errA[0], errA[1], _stepCount
+  // not needed, but just in case: _deltaT, _totErr
+
+  string fileName = inputDir + "checkpoint.h5";
+
+  // load saved checkpoint data
+  PetscViewer viewer;
+
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D");                                                  CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "stepCount", PETSC_INT, NULL, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5ReadAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, NULL, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer);                                                              CHKERRQ(ierr);
+assert(0);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varNext"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    //~ ierr = PetscObjectSetName((PetscObject) _varNext[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecLoad(_varNext[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/var"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+    //~ ierr = PetscObjectSetName((PetscObject) _var[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecLoad(_var[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varPrev"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
+    //~ ierr = PetscObjectSetName((PetscObject) _varPrev[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecLoad(_varPrev[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq::loadCheckpoint in odeSolver.cpp.\n");
+  #endif
+
+  return ierr;
+}
+
+PetscErrorCode OdeSolver_WaveEq::writeCheckpoint(PetscViewer &viewer)
+{
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Starting OdeSolver_WaveEq::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+  PetscErrorCode ierr;
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/time1D"); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "stepCount", PETSC_INT, &_stepCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(viewer, "time1D", "deltaT", PETSC_SCALAR, &_deltaT); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varNext"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _varNext.begin(); it!=_varNext.end(); it++ ) {
+    ierr = PetscObjectSetName((PetscObject) _varNext[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecView(_varNext[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/var"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _var.begin(); it!=_var.end(); it++ ) {
+    ierr = PetscObjectSetName((PetscObject) _var[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecView(_var[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PushGroup(viewer, "/odeSolver_WaveEq/varPrev"); CHKERRQ(ierr);
+  for (map<string,Vec>::iterator it = _varPrev.begin(); it!=_varPrev.end(); it++ ) {
+    ierr = PetscObjectSetName((PetscObject) _varPrev[it->first], (it->first).c_str()); CHKERRQ(ierr);
+    ierr = VecView(_varPrev[it->first], viewer);                          CHKERRQ(ierr);
+  }
+  ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);
+
+
+
+
+  #if VERBOSE > 1
+    PetscPrintf(PETSC_COMM_WORLD,"Ending OdeSolver_WaveEq::writeCheckpoint in odeSolver.cpp.\n");
+  #endif
+
+  return ierr;
+}

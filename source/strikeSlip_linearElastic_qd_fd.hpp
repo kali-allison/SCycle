@@ -37,12 +37,12 @@ using namespace std;
  */
 
 
-class strikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
+class StrikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
 {
 private:
   // disable default copy constructor and assignment operator
-  strikeSlip_linearElastic_qd_fd(const strikeSlip_linearElastic_qd_fd &that);
-  strikeSlip_linearElastic_qd_fd& operator=(const strikeSlip_linearElastic_qd_fd &rhs);
+  StrikeSlip_linearElastic_qd_fd(const StrikeSlip_linearElastic_qd_fd &that);
+  StrikeSlip_linearElastic_qd_fd& operator=(const StrikeSlip_linearElastic_qd_fd &rhs);
 
   Domain *_D;
 
@@ -81,11 +81,13 @@ private:
 
   int               _stepCount;
   PetscScalar       _timeStepTol;
-  PetscScalar       _initDeltaT, _dT;
+  PetscScalar       _initDeltaT;
   vector<string>    _timeIntInds;// keys of variables to be used in time integration
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
   PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
+
+  Vec               _JjSSVec; // Vec containing current index (Ii) for steady state iteration
 
 
   // Vecs and viewers for output
@@ -113,7 +115,8 @@ private:
 
   PetscErrorCode loadSettings(const char *file);
   PetscErrorCode checkInput();
-  PetscErrorCode parseBCs(); // parse boundary conditions
+  PetscErrorCode parseBCs();
+  PetscErrorCode allocateFields();
   PetscErrorCode computeTimeStep();
   PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
   PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
@@ -131,8 +134,8 @@ public:
   PressureEq                 *_p;
 
 
-  strikeSlip_linearElastic_qd_fd(Domain&D);
-  ~strikeSlip_linearElastic_qd_fd();
+  StrikeSlip_linearElastic_qd_fd(Domain&D);
+  ~StrikeSlip_linearElastic_qd_fd();
 
   // estimating steady state conditions
   PetscErrorCode solveSS();

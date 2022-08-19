@@ -1654,6 +1654,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     VecSet(_JjSSVec,Ii);
     needToDestroyJjSSVec = 1;
   }
+  else {
+    VecSet(_JjSSVec,Ii);
+  }
 
   ierr = VecSet(_JjSSVec,Ii);                                           CHKERRQ(ierr);
 
@@ -1664,7 +1667,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     ierr = PetscViewerSetType(_viewerSS, PETSCVIEWERBINARY);            CHKERRQ(ierr);
     ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_WRITE, &_viewerSS);CHKERRQ(ierr);
 
-    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/postLinearSolve");     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");     CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewerSS);                  CHKERRQ(ierr);
     ierr = VecView(_JjSSVec, _viewerSS);                                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopTimestepping(_viewerSS);                   CHKERRQ(ierr);
@@ -1679,7 +1682,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::writeSS(const int Ii, const std::string o
     if (_grainSizeEvCoupling.compare("no")!=0) { ierr =  _grainDist->writeStep(_viewerSS); CHKERRQ(ierr); }
   }
   else {
-    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/postLinearSolve");     CHKERRQ(ierr);
+    ierr = PetscViewerHDF5PushGroup(_viewerSS, "/steadyState");     CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewerSS);                  CHKERRQ(ierr);
     ierr = PetscViewerHDF5IncrementTimestep(_viewerSS);                 CHKERRQ(ierr);
     ierr = VecView(_JjSSVec, _viewerSS);                                CHKERRQ(ierr);
