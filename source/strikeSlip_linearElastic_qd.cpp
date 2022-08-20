@@ -418,7 +418,12 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
-  VecScale(slip,_faultTypeScale);
+  if (_bcLType.compare("symmFault")==0) {
+    VecScale(slip,_faultTypeScale);
+  }
+  if (!_D->_restartFromChkpt) {
+    ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
+  }
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs == 1) { solveSS(); }

@@ -454,13 +454,16 @@ PetscErrorCode StrikeSlip_PowerLaw_qd::initiateIntegrand()
   Vec slip;
   VecDuplicate(_material->_bcL,&slip);
   VecCopy(_material->_bcL,slip);
-  VecScale(slip,2.0);
-  ierr = loadVecFromInputFile(slip,_D->_inputDir,"slip"); CHKERRQ(ierr);
+  if (_bcLType.compare("symmFault")==0) {
+    VecScale(slip,_faultTypeScale);
+  }
+  if (!_D->_restartFromChkpt) {
+    ierr = loadVecFromInputFile(slip,_inputDir,"slip"); CHKERRQ(ierr);
+  }
   _varEx["slip"] = slip;
 
   if (_guessSteadyStateICs) {
     solveSS(0,_outputDir);
-
     writeSS(0,_outputDir);
     VecDestroy(&_JjSSVec);
   }

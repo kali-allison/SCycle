@@ -60,7 +60,7 @@ private:
   string       _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
-  PetscInt     _cycleCount,_maxNumCycles;
+  PetscInt     _cycleCount,_maxNumCycles,_phaseCount;
   PetscScalar  _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
   Vec         *_y,*_z;
   Vec          _ay;
@@ -144,10 +144,12 @@ public:
 
   // time stepping functions
   PetscErrorCode integrate(); // will call OdeSolver method by same name
-  PetscErrorCode integrate_qd();
-  PetscErrorCode integrate_fd();
+  PetscErrorCode integrate_qd(int isFirstPhase);
+  PetscErrorCode integrate_fd(int isFirstPhase);
   PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
   PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand_qd(); // allocate space for varQDEx and varIm, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand_fd(); // allocate space for varFD
   PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
   PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
         map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
