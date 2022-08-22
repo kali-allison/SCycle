@@ -65,7 +65,7 @@ public:
   string          _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
 
-  PetscInt        _cycleCount,_maxNumCycles;
+  PetscInt        _cycleCount,_maxNumCycles,_phaseCount;
   PetscScalar     _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
   Vec             _ay;
   Vec             _Fhat;
@@ -89,13 +89,14 @@ public:
   vector<string>    _timeIntInds; // indices of variables to be used in time integration
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
+  PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
 
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
     // Vecs and viewers for output
   Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec, _regime1DVec, _regime2DVec; // Vecs to hold current time and time step for output
-  PetscViewer       _viewer_context, _viewer1D, _viewer2D;
+  PetscViewer       _viewer_context, _viewer1D, _viewer2D,_viewerSS,_viewer_chkpt;
 
   // forcing term for ice stream problem
   Vec _forcingTerm, _forcingTermPlain; // body forcing term, copy of body forcing term for output
