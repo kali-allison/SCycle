@@ -11,6 +11,7 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
+#include "problemContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -34,7 +35,7 @@ using namespace std;
 
 
 // StrikeSlip_LinearElastic_qd is a derived class from IntegratorContextEx and IntegratorContextImex
-class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_LinearElastic_qd: public IntegratorContextEx, public IntegratorContextImex, public ProblemContext
 {
 private:
   // disable default copy constructor and assignment operator
@@ -57,6 +58,7 @@ private:
   int          _guessSteadyStateICs; // 0 = no, 1 = yes
   string       _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar  _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+  int           _evolveTemperature,_computeSSHeatEq;
 
   // time stepping data
   map <string,Vec>  _varEx; // holds variables for explicit integration in time

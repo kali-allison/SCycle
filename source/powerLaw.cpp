@@ -1301,7 +1301,6 @@ PetscErrorCode PowerLaw::setupKSP(KSP& ksp,PC& pc,Mat& A,std::string& linSolver)
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
     //~ ierr = PCFactorSetShiftType(pc,MAT_SHIFT_POSITIVE_DEFINITE);        CHKERRQ(ierr);
-    ierr = KSPSetInitialGuessNonzero(ksp,PETSC_TRUE);                   CHKERRQ(ierr);
   }
   else {
     ierr = PetscPrintf(PETSC_COMM_WORLD,"ERROR: linSolver type not understood\n"); CHKERRQ(ierr);

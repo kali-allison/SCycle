@@ -13,6 +13,7 @@
 #include "integratorContextImex.hpp"
 #include "integratorContext_WaveEq.hpp"
 #include "integratorContext_WaveEq_Imex.hpp"
+#include "problemContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -37,12 +38,12 @@ using namespace std;
  */
 
 
-class StrikeSlip_linearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex
+class StrikeSlip_LinearElastic_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public IntegratorContext_WaveEq_Imex, public ProblemContext
 {
 private:
   // disable default copy constructor and assignment operator
-  StrikeSlip_linearElastic_qd_fd(const StrikeSlip_linearElastic_qd_fd &that);
-  StrikeSlip_linearElastic_qd_fd& operator=(const StrikeSlip_linearElastic_qd_fd &rhs);
+  StrikeSlip_LinearElastic_qd_fd(const StrikeSlip_LinearElastic_qd_fd &that);
+  StrikeSlip_LinearElastic_qd_fd& operator=(const StrikeSlip_LinearElastic_qd_fd &rhs);
 
   Domain *_D;
 
@@ -134,8 +135,8 @@ public:
   PressureEq                 *_p;
 
 
-  StrikeSlip_linearElastic_qd_fd(Domain&D);
-  ~StrikeSlip_linearElastic_qd_fd();
+  StrikeSlip_LinearElastic_qd_fd(Domain&D);
+  ~StrikeSlip_LinearElastic_qd_fd();
 
   // estimating steady state conditions
   PetscErrorCode solveSS();
@@ -147,7 +148,7 @@ public:
   PetscErrorCode integrate_qd(int isFirstPhase);
   PetscErrorCode integrate_fd(int isFirstPhase);
   PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
-  PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand(); // allocate space for vars, guess steady-state initial conditions
   PetscErrorCode initiateIntegrand_qd(); // allocate space for varQDEx and varIm, guess steady-state initial conditions
   PetscErrorCode initiateIntegrand_fd(); // allocate space for varFD
   PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);

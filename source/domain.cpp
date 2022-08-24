@@ -9,7 +9,7 @@ using namespace std;
 Domain::Domain(const char *file)
   : _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir("data/"),
   _bulkDeformationType("linearElastic"),
-  _momentumBalanceType("quasidynamic"),
+  _momentumBalanceType("quasidynamic"),_systemEvolutionType("transient"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
   _gridSpacingType("variableGridSpacing"),_isMMS(0),
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
@@ -56,7 +56,7 @@ Domain::Domain(const char *file)
 // second type of constructor with 3 parameters
 Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   : _file(file),_delim(" = "),_inputDir("unspecified_"),_outputDir("data/"),
-  _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),
+  _bulkDeformationType("linearElastic"),_momentumBalanceType("quasidynamic"),_systemEvolutionType("transient"),
   _operatorType("matrix-based"),_sbpCompatibilityType("fullyCompatible"),
   _gridSpacingType("variableGridSpacing"),_isMMS(0),
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),_vL(1e-9),
@@ -179,6 +179,7 @@ PetscErrorCode Domain::loadSettings(const char *file)
     else if (var.compare("gridSpacingType")==0) { _gridSpacingType = rhs; }
     else if (var.compare("bulkDeformationType")==0) { _bulkDeformationType = rhs; }
     else if (var.compare("momentumBalanceType")==0) { _momentumBalanceType = rhs; }
+    else if (var.compare("systemEvolutionType")==0) { _systemEvolutionType = rhs; }
     else if (var.compare("isMMS") == 0) { _isMMS = atoi(rhs.c_str()); }
 
 
@@ -275,6 +276,10 @@ PetscErrorCode Domain::checkInput()
 
   assert(_ckpt >= 0 && _ckptNumber >= 0);
   assert(_interval >= 0);
+
+  if (_systemEvolutionType == "steadyStateIts") {
+    assert(_restartFromChkpt == 0);
+  }
 
   #if VERBOSE > 1
     ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

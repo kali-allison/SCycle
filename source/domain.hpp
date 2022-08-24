@@ -36,7 +36,8 @@ public:
   string         _inputDir; // directory for optional input vectors
   string         _outputDir; // directory for output
   string         _bulkDeformationType; // options: linearElastic, powerLaw
-  string         _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic, steadyStateIts
+  string         _momentumBalanceType; // options: quasidynamic, dynamic, quasidynamic_and_dynamic
+  string         _systemEvolutionType; // options: steadyStateIts, transient (e.g. eq cycles or single eqs)
   string         _sbpType; // matrix or matrix-free, compatible or fully compatible
   string         _operatorType; // matrix-based or matrix-free
   string         _sbpCompatibilityType; // compatible or fullyCompatible

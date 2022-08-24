@@ -13,6 +13,7 @@
 #include "integratorContextImex.hpp"
 #include "integratorContext_WaveEq.hpp"
 #include "integratorContext_WaveEq_Imex.hpp"
+#include "problemContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -37,7 +38,7 @@ using namespace std;
  */
 
 
-class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq
+class StrikeSlip_PowerLaw_qd_fd: public IntegratorContextEx, public IntegratorContextImex, public IntegratorContext_WaveEq, public ProblemContext
 {
 
 private:
@@ -58,12 +59,14 @@ public:
   string          _outputDir; // output data
   PetscScalar     _vL;
   string          _thermalCoupling,_heatEquationType; // thermomechanical coupling
-  string          _grainSizeEvCoupling,_grainSizeEvCouplingSS; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
+  string          _grainSizeEvCoupling,_grainSizeEvCouplingSS; // grain size evolution: no, uncoupled, coupled
   string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string          _stateLaw;
   int             _guessSteadyStateICs; // 0 = no, 1 = yes
   string          _forcingType; // what body forcing term to include (i.e. iceStream)
   PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
+  int             _evolveTemperature,_evolveGrainSize;
+  int             _computeSSTemperature,_computeSSGrainSize;
 
   PetscInt        _cycleCount,_maxNumCycles,_phaseCount;
   PetscScalar     _deltaT, _deltaT_fd, _CFL; // current time step size, time step for fully dynamic, CFL factor
@@ -73,13 +76,22 @@ public:
   bool            _inDynamic,_allowed;
   PetscScalar     _trigger_qd2fd, _trigger_fd2qd, _limit_qd, _limit_fd, _limit_stride_fd;
 
+  // estimating steady state conditions
+  map <string,Vec>   _varSS; // holds variables for steady state iteration
+  Vec                _JjSSVec; // Vec containing current index (Ii) for steady state iteration
+  PetscScalar        _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
+  PetscScalar        _gss_t; // guess steady state strain rate
+  PetscInt           _maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
+  PetscScalar        _atolSS_effVisc;
+  PetscScalar        _maxSSIts_time; // (s) max time during time integration phase
+
   // time stepping data
   map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
   map <string,Vec>  _varQSEx; // holds variables for explicit integration in time
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   Vec               _u0; // total displacement at start of fd
   string            _timeIntegrator,_timeControlType;
-  PetscInt          _stride1D,_stride2D; // current stride
+  PetscInt          _stride1D,_stride2D,_strideChkpt; // current stride
   PetscInt          _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_maxTime,_minDeltaT,_maxDeltaT;
@@ -94,7 +106,7 @@ public:
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime, _propagateTime, _dynTime, _qdTime;
 
-    // Vecs and viewers for output
+  // Vecs and viewers for output
   Vec               _time1DVec, _dtime1DVec,_time2DVec, _dtime2DVec, _regime1DVec, _regime2DVec; // Vecs to hold current time and time step for output
   PetscViewer       _viewer_context, _viewer1D, _viewer2D,_viewerSS,_viewer_chkpt;
 
@@ -113,17 +125,16 @@ public:
   // for mapping from body fields to the fault
   VecScatter* _body2fault;
 
-  OdeSolver                  *_quadEx; // explicit adaptive time stepping
-  OdeSolverImex              *_quadImex; // IMEX adaptive time stepping
-  OdeSolver_WaveEq           *_quadWaveEx; // explicit, constant time step, time stepping
-  OdeSolver_WaveEq_Imex      *_quadWaveImex; // IMEX, constant time step, time stepping
-
-  Fault_qd                   *_fault_qd;
-  Fault_fd                   *_fault_fd;
-  PowerLaw                   *_material; // power-law viscoelastic off-fault material properties
-  HeatEquation               *_he;
-  PressureEq                 *_p;
-  GrainSizeEvolution         *_grainDist;
+  OdeSolver                 *_quadEx_qd; // explicit time stepping
+  OdeSolverImex             *_quadImex_qd; // implicit time stepping
+  OdeSolver_WaveEq          *_quadWaveEx; // explicit, constant time step, time stepping
+  Fault_qd                  *_fault=NULL; //!!!!!! REMOVE LATER
+  Fault_qd                  *_fault_qd;
+  Fault_fd                  *_fault_fd;
+  PowerLaw                  *_material; // power-law viscoelastic off-fault material properties
+  HeatEquation              *_he;
+  PressureEq                *_p;
+  GrainSizeEvolution        *_grainDist;
 
 
   StrikeSlip_PowerLaw_qd_fd(Domain&D);
@@ -132,30 +143,32 @@ public:
   PetscErrorCode loadSettings(const char *file);
   PetscErrorCode checkInput();
   PetscErrorCode parseBCs(); // parse boundary conditions
+  PetscErrorCode allocateFields();
   PetscErrorCode computeTimeStep();
   PetscErrorCode computePenaltyVectors(); // computes alphay and alphaz
   PetscErrorCode constructIceStreamForcingTerm(); // ice stream forcing term
 
-  // estimating steady state conditions
-  // viewers:
-  // 1st string = key naming relevant field, e.g. "slip"
-  // 2nd PetscViewer = PetscViewer object for file IO
-  // 3rd string = full file path name for output
-  //~ map <string,PetscViewer>  _viewers;
-  map <string,pair<PetscViewer,string> >  _viewers;
-  map <string,Vec> _varSS; // holds variables for steady state iteration
-  PetscScalar      _fss_T,_fss_EffVisc; // damping coefficients, must be < 1
-  PetscScalar      _gss_t; // guess steady state strain rate
-  PetscInt         _maxSSIts_effVisc,_maxSSIts_tau,_maxSSIts_timesteps; // max iterations allowed
-  PetscScalar      _atolSS_effVisc;
+  // steady-state iteration methods
+  PetscErrorCode writeSS(const int Ii);
+  PetscErrorCode guessTauSS(map<string,Vec>& varSS);
+  PetscErrorCode solveSSb();
+  PetscErrorCode integrateSS();
+  PetscErrorCode solveSS(const PetscInt Jj);
+  PetscErrorCode setSSBCs();
+  PetscErrorCode solveSSViscoelasticProblem(const PetscInt Jj); // iterate for effective viscosity
+  PetscErrorCode solveSStau(const PetscInt Jj); // brute force for steady-state shear stress on fault
+  PetscErrorCode solveSSHeatEquation(const PetscInt Jj); // brute force for steady-state temperature
+  PetscErrorCode solveSSGrainSize(const PetscInt Jj); // solve for steady-state grain size distribution
 
 
   // time integration functions
   PetscErrorCode integrate(); // will call OdeSolver method by same name
-  PetscErrorCode integrate_qd();
-  PetscErrorCode integrate_fd();
+  PetscErrorCode integrate_qd(int isFirstPhase);
+  PetscErrorCode integrate_fd(int isFirstPhase);
   PetscErrorCode integrate_singleQDTimeStep(); // take 1 quasidynamic time step with deltaT = deltaT_fd
-  PetscErrorCode initiateIntegrands(); // allocate space for vars, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand(); // allocate space for vars, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand_qd(); // allocate space for vars, guess steady-state initial conditions
+  PetscErrorCode initiateIntegrand_fd(); // allocate space for vars
   PetscErrorCode solveMomentumBalance(const PetscScalar time,const map<string,Vec>& varEx,map<string,Vec>& dvarEx);
   PetscErrorCode propagateWaves(const PetscScalar time, const PetscScalar deltaT,
         map<string,Vec>& varNext, const map<string,Vec>& var, const map<string,Vec>& varPrev);
@@ -180,8 +193,10 @@ public:
   PetscErrorCode view();
   PetscErrorCode writeContext();
   PetscErrorCode timeMonitor(PetscScalar time, PetscScalar deltaT, PetscInt stepCount, int& stopIntegration);
-  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time,const string outputDir);
-  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time,const string outputDir);
+  PetscErrorCode writeStep1D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
+  PetscErrorCode loadCheckpoint();
+  PetscErrorCode writeCheckpoint();
 
 };
 

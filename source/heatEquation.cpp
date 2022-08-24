@@ -9,7 +9,7 @@ HeatEquation::HeatEquation(Domain& D)
   _Ly(D._Ly),_Lz(D._Lz),_dy(D._dq),_dz(D._dr),_Lz_lab(D._Lz),_y(&D._y),_z(&D._z),
   _heatEquationType("transient"),_isMMS(D._isMMS),_loadICs(0),
   _file(D._file),_inputDir(D._inputDir),_outputDir(D._outputDir),_delim(D._delim),
-  _kTz_z0(NULL),_kTz(NULL),_maxdTVec(NULL),_viewer1D_hdf5(NULL),
+  _kTz_z0(NULL),_kTz(NULL),_maxdTVec(NULL),
   _wViscShearHeating("yes"),_wFrictionalHeating("yes"),_wRadioHeatGen("yes"),
   _sbp(NULL),
   _bcR(NULL),_bcT(NULL),_bcL(NULL),_bcB(NULL),
@@ -80,10 +80,10 @@ HeatEquation::~HeatEquation()
   VecDestroy(&_bcL);
   VecDestroy(&_bcB);
 
-  for (map<string,pair<PetscViewer,string> >::iterator it=_viewers2D.begin(); it !=_viewers2D.end(); it++) {
-    PetscViewerDestroy(&_viewers2D[it->first].first);
-  }
-  PetscViewerDestroy(&_viewer1D_hdf5);
+  //~ for (map<string,pair<PetscViewer,string> >::iterator it=_viewers2D.begin(); it !=_viewers2D.end(); it++) {
+    //~ PetscViewerDestroy(&_viewers2D[it->first].first);
+  //~ }
+  //~ PetscViewerDestroy(&_viewer1D_hdf5);
 
   map<string,VecScatter>::iterator it;
   for (it = _scatters.begin(); it!=_scatters.end(); it++ ) {
@@ -703,8 +703,10 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
   if (_kspSS != NULL) { return ierr; }
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&_kspSS); CHKERRQ(ierr);
+  ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
   PC pc;
-  if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
+
+  if (_linSolver == "AMG") { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(_kspSS,KSPRICHARDSON); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
@@ -716,7 +718,7 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
     ierr = PCFactorSetLevels(pc,4); CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspSS,PETSC_TRUE); CHKERRQ(ierr);
   }
-  else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
+  else if (_linSolver == "MUMPSLU") { // direct LU from MUMPS
     // use direct LU from MUMPS
     ierr = KSPSetType(_kspSS,KSPPREONLY); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
@@ -732,7 +734,7 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
       ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
     #endif
   }
-  else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
+  else if (_linSolver == "MUMPSCHOLESKY") { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(_kspSS,KSPPREONLY); CHKERRQ(ierr);
     ierr = KSPSetOperators(_kspSS,A,A); CHKERRQ(ierr);
@@ -748,12 +750,11 @@ PetscErrorCode HeatEquation::setupKSP_SS(Mat& A)
       ierr = PCFactorSetUpMatSolverPackage(pc);                           CHKERRQ(ierr); // old PETSc
     #endif
   }
-  else if (_linSolver.compare("CG_PCAMG")==0) { // conjugate gradient
-    ierr = KSPSetType(_kspSS,KSPCG);                                    CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspSS,A,A);                                 CHKERRQ(ierr);;
-    ierr = KSPSetInitialGuessNonzero(_kspSS,PETSC_TRUE);                CHKERRQ(ierr);
-    ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE);                CHKERRQ(ierr);
-    ierr = KSPGetPC(_kspSS,&pc);                                       CHKERRQ(ierr);
+  else if (_linSolver == "CG_PCAMG") { // conjugate gradient
+    ierr = KSPSetType(_kspSS,KSPCG);                                       CHKERRQ(ierr);
+    ierr = KSPSetInitialGuessNonzero(_kspSS, PETSC_TRUE);                  CHKERRQ(ierr);
+    ierr = KSPSetReusePreconditioner(_kspSS,PETSC_TRUE);                   CHKERRQ(ierr);
+    ierr = KSPGetPC(_kspSS,&pc);                                           CHKERRQ(ierr);
     ierr = KSPSetTolerances(_kspSS,_kspTol,_kspTol,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
     ierr = PCSetType(pc,PCHYPRE);                                       CHKERRQ(ierr);
     ierr = PCHYPRESetType(pc,"boomeramg");                              CHKERRQ(ierr);
@@ -790,12 +791,12 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   #endif
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&_kspTrans); CHKERRQ(ierr);
+  ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
   PC pc;
 
   if (_linSolver.compare("AMG")==0) { // algebraic multigrid from HYPRE
     // uses HYPRE's solver AMG (not HYPRE's preconditioners)
     ierr = KSPSetType(_kspTrans,KSPRICHARDSON); CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCHYPRE); CHKERRQ(ierr);
@@ -807,7 +808,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   else if (_linSolver.compare("MUMPSLU")==0) { // direct LU from MUMPS
     // use direct LU from MUMPS
     ierr = KSPSetType(_kspTrans,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCLU); CHKERRQ(ierr);
@@ -823,7 +823,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   else if (_linSolver.compare("MUMPSCHOLESKY")==0) { // direct Cholesky (RR^T) from MUMPS
     // use direct LL^T (Cholesky factorization) from MUMPS
     ierr = KSPSetType(_kspTrans,KSPPREONLY); CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspTrans,A,A); CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_TRUE); CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc); CHKERRQ(ierr);
     ierr = PCSetType(_pc,PCCHOLESKY); CHKERRQ(ierr);
@@ -838,7 +837,6 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
   }
   else if (_linSolver.compare("CG_PCAMG")==0) { // conjugate gradient
     ierr = KSPSetType(_kspTrans,KSPCG);                                 CHKERRQ(ierr);
-    ierr = KSPSetOperators(_kspTrans,A,A);                              CHKERRQ(ierr);
     ierr = KSPSetInitialGuessNonzero(_kspTrans,PETSC_TRUE);             CHKERRQ(ierr);
     ierr = KSPSetReusePreconditioner(_kspTrans,PETSC_FALSE);            CHKERRQ(ierr);
     ierr = KSPGetPC(_kspTrans,&_pc);                                    CHKERRQ(ierr);
@@ -855,7 +853,7 @@ PetscErrorCode HeatEquation::setupKSP(Mat& A)
 
   // accept command line options
   ierr = KSPSetFromOptions(_kspTrans);CHKERRQ(ierr);
-  ierr = KSPSetUp(_kspTrans);CHKERRQ(ierr);
+  //~ ierr = KSPSetUp(_kspTrans);CHKERRQ(ierr);
 
   // perform computation of preconditioners now, rather than on first use
   double startTime = MPI_Wtime();
@@ -879,10 +877,8 @@ PetscErrorCode HeatEquation::initiateIntegrand(const PetscScalar time,map<string
   #endif
 
   // put variables to be integrated implicity into varIm
-  Vec T;
-  VecDuplicate(_Tamb,&T);
-  VecCopy(_T,T);
-  varIm["Temp"] = T;
+  if (varIm.find("Temp") != varIm.end() ) { VecCopy(_T,varIm["Temp"]); }
+  else { Vec varTemp; VecDuplicate(_T,&varTemp); VecCopy(_T,varTemp); varIm["Temp"] = varTemp; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

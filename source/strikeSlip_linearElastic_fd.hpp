@@ -9,7 +9,9 @@
 #include <vector>
 #include <map>
 
+#include "problemContext.hpp"
 #include "integratorContext_WaveEq.hpp"
+
 #include "odeSolver_WaveEq.hpp"
 #include "genFuncs.hpp"
 #include "domain.hpp"
@@ -29,13 +31,13 @@ using namespace std;
  */
 
 
-class strikeSlip_linearElastic_fd: public IntegratorContext_WaveEq
+class StrikeSlip_LinearElastic_fd: public IntegratorContext_WaveEq, public ProblemContext
 {
 private:
 
   // disable default copy constructor and assignment operator
-  strikeSlip_linearElastic_fd(const strikeSlip_linearElastic_fd &that);
-  strikeSlip_linearElastic_fd& operator=(const strikeSlip_linearElastic_fd &rhs);
+  StrikeSlip_LinearElastic_fd(const StrikeSlip_LinearElastic_fd &that);
+  StrikeSlip_LinearElastic_fd& operator=(const StrikeSlip_LinearElastic_fd &rhs);
 
   Domain *_D;
   // IO information
@@ -96,8 +98,8 @@ public:
   LinearElastic         *_material; // linear elastic off-fault material properties
 
 
-  strikeSlip_linearElastic_fd(Domain&D);
-  ~strikeSlip_linearElastic_fd();
+  StrikeSlip_LinearElastic_fd(Domain&D);
+  ~StrikeSlip_LinearElastic_fd();
 
   // time stepping functions
   PetscErrorCode integrate(); // will call OdeSolver method by same name

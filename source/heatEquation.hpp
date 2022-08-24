@@ -76,8 +76,8 @@ public:
   // 1st string = key naming relevant field, e.g. "slip"
   // 2nd PetscViewer = PetscViewer object for file IO
   // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> >  _viewers2D;
-  PetscViewer                             _viewer1D_hdf5;
+  //~ map <string,pair<PetscViewer,string> >  _viewers2D;
+  //~ PetscViewer                             _viewer1D_hdf5;
 
   // which factors to include: viscous and frictional shear heating, and radioactive heat generation
   string          _wViscShearHeating,_wFrictionalHeating,_wRadioHeatGen;

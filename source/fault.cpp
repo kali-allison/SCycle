@@ -1361,15 +1361,11 @@ PetscErrorCode Fault_fd::initiateIntegrand(const PetscScalar time,map<string,Vec
   #endif
 
   // put variables to be integrated explicitly into varEx
-  Vec varPsi;
-  VecDuplicate(_psi,&varPsi);
-  VecCopy(_psi,varPsi);
-  varEx["psi"] = varPsi;
+  if (varEx.find("psi") != varEx.end() ) { VecCopy(_psi,varEx["psi"]); }
+  else { Vec varPsi; VecDuplicate(_psi,&varPsi); VecCopy(_psi,varPsi); varEx["psi"] = varPsi; }
 
-  Vec varSlip;
-  VecDuplicate(_slip,&varSlip);
-  VecCopy(_slip,varSlip);
-  varEx["slip"] = varSlip;
+  if (varEx.find("slip") != varEx.end() ) { VecCopy(_slip,varEx["slip"]); }
+  else { Vec varSlip; VecDuplicate(_slip,&varSlip); VecCopy(_slip,varSlip); varEx["slip"] = varSlip; }
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);

@@ -11,6 +11,7 @@
 
 #include "integratorContextEx.hpp"
 #include "integratorContextImex.hpp"
+#include "problemContext.hpp"
 
 #include "odeSolver.hpp"
 #include "odeSolverImex.hpp"
@@ -33,7 +34,7 @@ using namespace std;
  */
 
 
-class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorContextImex
+class StrikeSlip_PowerLaw_qd: public IntegratorContextEx, public IntegratorContextImex, public ProblemContext
 {
 
 private:
@@ -53,12 +54,13 @@ public:
   // problem properties
   int             _guessSteadyStateICs; // 0 = no, 1 = yes
   const bool      _isMMS; // true if running mms test
-  string          _thermalCoupling,_thermalCouplingSS; // thermomechanical coupling
-  string          _grainSizeEvCoupling,_grainSizeEvCouplingSS; // grain size evolution: no, uncoupled, coupled (latter is only relevant if grain-size sensitive flow, such as diffusion creep, is used)
+  string          _thermalCoupling; // thermomechanical coupling
+  string          _grainSizeEvCoupling; // grain size evolution: no, uncoupled, coupled
   string          _hydraulicCoupling,_hydraulicTimeIntType; // coupling to hydraulic fault
   string          _stateLaw;
   string          _forcingType; // what body forcing term to include (i.e. iceStream)
-  string          _wLinearMaxwell; // if linear Maxwell, do not create a heat equation data member
+  int             _evolveTemperature,_evolveGrainSize;
+  int             _computeSSTemperature,_computeSSGrainSize;
 
   PetscScalar     _vL;
   PetscScalar     _faultTypeScale; // = 2 if symmetric fault, 1 if one side of fault is rigid
@@ -78,6 +80,16 @@ public:
   vector<double>    _scale; // scale factor for entries in _timeIntInds
   string            _normType;
   PetscInt          _chkptTimeStep1D, _chkptTimeStep2D;
+
+  // estimating steady state conditions
+  map <string,Vec>                       _varSS; // holds variables for steady state iteration
+  Vec                                    _JjSSVec; // Vec containing current index (Ii) for steady state iteration
+  PetscScalar                            _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
+  PetscScalar                            _gss_t; // guess steady state strain rate
+  PetscInt                               _maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
+  PetscScalar                            _atolSS_effVisc;
+  PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
+
 
   // runtime data
   double       _integrateTime,_writeTime,_linSolveTime,_factorTime,_startTime,_miscTime,_startIntegrateTime;
@@ -124,24 +136,9 @@ public:
   PetscErrorCode updateBCT_atan_v(); // bcT = atan term (velocity)
   PetscErrorCode updateBCT_atan_u(const PetscScalar time); // bcT = atan term (displacement)
 
-  // estimating steady state conditions
-  // viewers:
-  // 1st string = key naming relevant field, e.g. "slip"
-  // 2nd PetscViewer = PetscViewer object for file IO
-  // 3rd string = full file path name for output
-  map <string,pair<PetscViewer,string> > _viewers;
-  map <string,Vec>                       _varSS; // holds variables for steady state iteration
-  Vec                                    _JjSSVec; // Vec containing current index (Ii) for steady state iteration
-  PetscScalar                            _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
-  PetscScalar                            _gss_t; // guess steady state strain rate
-  PetscInt                               _maxSSIts_effVisc,_maxSSIts_tot,_maxSSIts_timesteps; // max iterations allowed
-  PetscScalar                            _atolSS_effVisc;
-  PetscScalar                            _maxSSIts_time; // (s) max time during time integration phase
 
+  // steady-state iteration methods
   PetscErrorCode writeSS(const int Ii, const string outputDir);
-  PetscErrorCode writeSS_old(const int Ii, const string outputDir);
-  PetscErrorCode writeSS_viscLoop(const int Ii, const string outputDir);
-  PetscErrorCode computeSSEffVisc();
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();
   PetscErrorCode integrateSS();

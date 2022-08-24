@@ -54,7 +54,7 @@ linearElastic.o: linearElastic.cpp linearElastic.hpp genFuncs.hpp \
 main.o: main.cpp genFuncs.hpp spmat.hpp domain.hpp sbpOps.hpp fault.hpp \
  rootFinderContext.hpp rootFinder.hpp linearElastic.hpp \
  sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp powerLaw.hpp heatEquation.hpp \
- integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
+ problemContext.hpp integratorContextEx.hpp odeSolver.hpp integratorContextImex.hpp \
  odeSolverImex.hpp pressureEq.hpp \
  strikeSlip_linearElastic_qd.hpp strikeSlip_linearElastic_fd.hpp \
  integratorContext_WaveEq.hpp odeSolver_WaveEq.hpp \
@@ -94,29 +94,29 @@ strikeSlip_linearElastic_fd.o: strikeSlip_linearElastic_fd.cpp \
  genFuncs.hpp odeSolver.hpp integratorContextEx.hpp odeSolver_WaveEq.hpp \
  domain.hpp sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp \
  sbpOps_m_varGrid.hpp fault.hpp rootFinderContext.hpp rootFinder.hpp \
- pressureEq.hpp integratorContextImex.hpp heatEquation.hpp \
+ pressureEq.hpp problemContext.hpp integratorContextImex.hpp heatEquation.hpp \
  odeSolverImex.hpp linearElastic.hpp
 strikeSlip_linearElastic_qd.o: strikeSlip_linearElastic_qd.cpp \
- strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp genFuncs.hpp \
+ strikeSlip_linearElastic_qd.hpp integratorContextEx.hpp problemContext.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
  heatEquation.hpp linearElastic.hpp
 strikeSlip_linearElastic_qd_fd.o: strikeSlip_linearElastic_qd_fd.cpp \
- strikeSlip_linearElastic_qd_fd.hpp integratorContextEx.hpp genFuncs.hpp \
+ strikeSlip_linearElastic_qd_fd.hpp integratorContextEx.hpp problemContext.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp integratorContext_WaveEq.hpp \
  integratorContext_WaveEq_Imex.hpp odeSolverImex.hpp odeSolver_WaveEq.hpp \
  odeSolver_WaveImex.hpp domain.hpp sbpOps.hpp spmat.hpp \
  sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp fault.hpp rootFinderContext.hpp \
  rootFinder.hpp pressureEq.hpp heatEquation.hpp linearElastic.hpp
 strikeSlip_powerLaw_qd.o: strikeSlip_powerLaw_qd.cpp \
- strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp genFuncs.hpp \
+ strikeSlip_powerLaw_qd.hpp integratorContextEx.hpp problemContext.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \
  heatEquation.hpp powerLaw.hpp grainSizeEvolution.hpp
 strikeSlip_powerLaw_qd_fd.o: strikeSlip_powerLaw_qd_fd.cpp \
- strikeSlip_powerLaw_qd_fd.hpp integratorContextEx.hpp genFuncs.hpp \
+ strikeSlip_powerLaw_qd_fd.hpp integratorContextEx.hpp problemContext.hpp genFuncs.hpp \
  odeSolver.hpp integratorContextImex.hpp odeSolverImex.hpp domain.hpp \
  sbpOps.hpp spmat.hpp sbpOps_m_constGrid.hpp sbpOps_m_varGrid.hpp \
  fault.hpp rootFinderContext.hpp rootFinder.hpp pressureEq.hpp \

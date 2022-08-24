@@ -10,6 +10,7 @@ StrikeSlip_LinearElastic_qd::StrikeSlip_LinearElastic_qd(Domain &D)
   _thermalCoupling("no"),_heatEquationType("transient"),
   _hydraulicCoupling("no"),_hydraulicTimeIntType("explicit"),
   _guessSteadyStateICs(0),_forcingType("no"),_faultTypeScale(2.0),
+  _evolveTemperature(0),_computeSSHeatEq(0),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_strideChkpt(1e4),
   _maxStepCount(1e8),_initTime(0),_currTime(0),_maxTime(1e15),
@@ -155,6 +156,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("guessSteadyStateICs")==0) { _guessSteadyStateICs = atoi( rhs.c_str() ); }
     else if (var.compare("forcingType")==0) { _forcingType = rhs.c_str(); }
 
+    else if (var.compare("evolveTemperature")==0) { _evolveTemperature = (int) atoi( rhs.c_str() ); }
+    else if (var.compare("computeSSHeatEq")==0) { _computeSSHeatEq = (int) atoi( rhs.c_str() ); }
+
     // time integration properties
     else if (var.compare("timeIntegrator")==0) { _timeIntegrator = rhs; }
     else if (var.compare("timeControlType")==0) { _timeControlType = rhs; }
@@ -173,6 +177,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::loadSettings(const char *file)
     else if (var.compare("normType")==0) { _normType = rhs.c_str(); }
     else if (var.compare("vL")==0) { _vL = atof( rhs.c_str() ); }
     else if (var.compare("bodyForce")==0) { _forcingVal = atof( rhs.c_str() ); }
+
 
     // boundary condition types for momentum balance equation
     else if (var.compare("momBal_bcR_qd")==0) { _bcRType = rhs.c_str(); }
@@ -439,7 +444,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::initiateIntegrand()
 
   _fault->initiateIntegrand(_initTime,_varEx);
 
-  if (_thermalCoupling != "no") {
+  if (_evolveTemperature == 1) {
      _he->initiateIntegrand(_initTime,_varEx,_varIm);
      _fault->updateTemperature(_he->_T);
   }
@@ -859,9 +864,9 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::writeContext()
   _material->writeContext(_outputDir, _viewer_context);
 
 
-  if (_thermalCoupling.compare("no")!=0) { _he->writeContext(_outputDir, _viewer_context); }
-  if (_hydraulicCoupling.compare("no")!=0) { _p->writeContext(_outputDir, _viewer_context); }
-  if (_forcingType.compare("iceStream")==0) {
+  if (_thermalCoupling!="no") { _he->writeContext(_outputDir, _viewer_context); }
+  if (_hydraulicCoupling!="no") { _p->writeContext(_outputDir, _viewer_context); }
+  if (_forcingType=="iceStream") {
     ierr = PetscViewerHDF5PushGroup(viewer, "/momBal");                 CHKERRQ(ierr);
     ierr = VecView(_forcingTermPlain, viewer);                          CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(viewer);                             CHKERRQ(ierr);
@@ -962,11 +967,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // 1. update state of each class from integrated variables varEx
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
+  if (_bcLType=="symmFault" || _bcLType=="rigidFault") {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  if (_bcRType.compare("remoteLoading")==0) {
+  if (_bcRType=="remoteLoading") {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
   }
@@ -976,7 +981,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   if ((varEx.find("pressure") != varEx.end() || varEx.find("permeability") != varEx.end()) && _hydraulicCoupling.compare("no")!=0){
     _p->updateFields(time,varEx);
   }
-  if (_hydraulicCoupling.compare("coupled")==0 && varEx.find("pressure") != varEx.end()) {
+  if (_hydraulicCoupling=="coupled" && varEx.find("pressure") != varEx.end()) {
     _fault->setSNEff(varEx.find("pressure")->second);
   }
 
@@ -1012,21 +1017,21 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // 1. update state of each class from integrated variables varEx and varImo
 
   // update for momBal; var holds slip, bcL is displacement at y=0+
-  if (_bcLType.compare("symmFault")==0 || _bcLType.compare("rigidFault")==0) {
+  if (_bcLType=="symmFault" || _bcLType=="rigidFault") {
     ierr = VecCopy(varEx.find("slip")->second,_material->_bcL);CHKERRQ(ierr);
     ierr = VecScale(_material->_bcL,1.0/_faultTypeScale);CHKERRQ(ierr);
   }
-  if (_bcRType.compare("remoteLoading")==0) {
+  if (_bcRType=="remoteLoading") {
     ierr = VecSet(_material->_bcR,_vL*time/_faultTypeScale);CHKERRQ(ierr);
     ierr = VecAXPY(_material->_bcR,1.0,_material->_bcRShift);CHKERRQ(ierr);
     }
 
   _fault->updateFields(time,varEx);
 
-  if ( _hydraulicCoupling.compare("no")!=0 ) {
+  if ( _hydraulicCoupling!="no" ) {
     _p->updateFields(time,varEx,varImo);
   }
-  if (varImo.find("Temp") != varImo.end() && _thermalCoupling.compare("coupled")==0) {
+  if (varImo.find("Temp") != varImo.end() && _thermalCoupling == "coupled") {
     _fault->updateTemperature(varImo.find("Temp")->second);
   }
 
@@ -1047,7 +1052,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::d_dt(const PetscScalar time,const ma
   // rates for fault
   ierr = _fault->d_dt(time,varEx,dvarEx); // sets rates for slip and state
 
-  if ( _hydraulicCoupling.compare("no")!=0 ) {
+  if ( _hydraulicCoupling != "no" ) {
     _p->d_dt(time,varEx,dvarEx,varIm,varImo,dt);
   }
 
@@ -1138,7 +1143,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd::solveSS()
   _material->changeBCTypes(_mat_bcRType,_mat_bcTType,_mat_bcLType,_mat_bcBType);
 
   // steady state temperature
-  if (_thermalCoupling.compare("no")!=0) {
+  if (_computeSSHeatEq == 1) {
     _material->getStresses(sxy,sxz,sdev);
     Vec T;
     VecDuplicate(sxy,&T);
