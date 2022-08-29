@@ -851,8 +851,11 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
 
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
-    if (_varFD.find(it->first) == _varFD.end() ) { ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr); }
-    //~ VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]);
+    if (_varFDPrev.find(it->first) == _varFDPrev.end() ) {
+      Vec var;
+      VecDuplicate(_varFD[it->first],&var);
+      _varFDPrev[it->first] = var;
+    }
     VecCopy(_varFD[it->first],_varFDPrev[it->first]);
   }
 
@@ -1277,7 +1280,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeCheckpoint()
   ierr = VecView(_regime1DVec, _viewer_chkpt);                          CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "cycleCount", PETSC_SCALAR, &_cycleCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "cycleCount", PETSC_INT, &_cycleCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "phaseCount", PETSC_INT, &_phaseCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "inDynamic", PETSC_INT, &_inDynamic); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "allowed", PETSC_INT, &_allowed); CHKERRQ(ierr);

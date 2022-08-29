@@ -128,7 +128,6 @@ public:
   OdeSolver                 *_quadEx_qd; // explicit time stepping
   OdeSolverImex             *_quadImex_qd; // implicit time stepping
   OdeSolver_WaveEq          *_quadWaveEx; // explicit, constant time step, time stepping
-  Fault_qd                  *_fault=NULL; //!!!!!! REMOVE LATER
   Fault_qd                  *_fault_qd;
   Fault_fd                  *_fault_fd;
   PowerLaw                  *_material; // power-law viscoelastic off-fault material properties
