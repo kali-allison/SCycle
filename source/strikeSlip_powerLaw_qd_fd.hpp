@@ -83,7 +83,6 @@ public:
   PetscScalar        _gss_t; // guess steady state strain rate
   PetscInt           _maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
   PetscScalar        _atolSS_effVisc;
-  PetscScalar        _maxSSIts_time; // (s) max time during time integration phase
 
   // time stepping data
   map <string,Vec>  _varFD,_varFDPrev; // holds variables for time step: n+1, n (current), n-1
@@ -128,7 +127,6 @@ public:
   OdeSolver                 *_quadEx_qd; // explicit time stepping
   OdeSolverImex             *_quadImex_qd; // implicit time stepping
   OdeSolver_WaveEq          *_quadWaveEx; // explicit, constant time step, time stepping
-  Fault_qd                  *_fault=NULL; //!!!!!! REMOVE LATER
   Fault_qd                  *_fault_qd;
   Fault_fd                  *_fault_fd;
   PowerLaw                  *_material; // power-law viscoelastic off-fault material properties

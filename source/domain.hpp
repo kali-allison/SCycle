@@ -56,11 +56,11 @@ public:
   PetscScalar _bCoordTrans; // scalar for how aggressive the coordinate transform is
 
   // checkpoint enabling
-  int             _saveChkpts, _restartFromChkpt;
+  int             _saveChkpts, _restartFromChkpt, _restartFromChkptSS;
   PetscFileMode   _outputFileMode; // maybe change to outFileMode after getting rid of Yuyun's implementation (don't want to get them confused right now)
   PetscInt        _prevChkptTimeStep1D,_prevChkptTimeStep2D; // time step index of simulation data that corresponds to checkpoint data
   PetscInt _ckpt, _ckptNumber, _interval;
-  PetscFileMode _outFileMode; // FILE_MODE_WRITE or FILE_MODE_APPEND
+  PetscFileMode   _outFileMode; // FILE_MODE_WRITE or FILE_MODE_APPEND
 
   // scatters to take values from body field(s) to 1D fields
   // naming convention for key (string): body2<boundary>, example: "body2L>"

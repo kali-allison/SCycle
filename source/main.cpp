@@ -382,11 +382,11 @@ int runEqCycle(Domain& d)
     if (d._restartFromChkpt == 0) { ierr = m->writeContext(); CHKERRQ(ierr); }
     PetscPrintf(PETSC_COMM_WORLD,"\n\n\n");
 
-    if (d._systemEvolutionType == "steadyStateIts") { ierr = m->integrateSS(); CHKERRQ(ierr); }
-    if (d._systemEvolutionType == "transient") {
+    //~ if (d._systemEvolutionType == "steadyStateIts") { ierr = m->integrateSS(); CHKERRQ(ierr); }
+    //~ if (d._systemEvolutionType == "transient") {
       ierr = m->initiateIntegrand(); CHKERRQ(ierr);
       ierr = m->integrate(); CHKERRQ(ierr);
-    }
+    //~ }
 
     ierr = m->view(); CHKERRQ(ierr);
     delete m;

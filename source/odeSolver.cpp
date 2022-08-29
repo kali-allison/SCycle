@@ -851,7 +851,6 @@ PetscErrorCode RK43::setInitialConds(map<string,Vec>& var)
   _var = var;
 
   // initialize _dvar and various RK43 intermediate vectors to zero
-  // only doing shallow copies
   for (map<string,Vec>::iterator it=var.begin(); it!=var.end(); it++ ) {
     Vec dvar;
     ierr = VecDuplicate(_var[it->first],&dvar); CHKERRQ(ierr);

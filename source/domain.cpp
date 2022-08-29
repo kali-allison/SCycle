@@ -15,7 +15,7 @@ Domain::Domain(const char *file)
   _order(4),_Ny(-1),_Nz(-1),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
-  _saveChkpts(1), _restartFromChkpt(1),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
+  _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(1),_outputFileMode(FILE_MODE_WRITE),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
   _ckpt(0), _ckptNumber(0), _interval(1e4),_outFileMode(FILE_MODE_APPEND)
 {
   #if VERBOSE > 1
@@ -41,7 +41,6 @@ Domain::Domain(const char *file)
   #endif
 
   allocateFields();
-  //~ setFields();
   if (_restartFromChkpt == 1) { loadCheckpoint(); }
   if (_restartFromChkpt == 0) { setFields(); }
   setScatters();
@@ -62,8 +61,8 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
   _order(4),_Ny(Ny),_Nz(Nz),_Ly(-1),_Lz(-1),_vL(1e-9),
   _q(NULL),_r(NULL),_y(NULL),_z(NULL),_y0(NULL),_z0(NULL),_dq(1),_dr(1),
   _bCoordTrans(-1),
-  _saveChkpts(1), _restartFromChkpt(1),_outputFileMode(FILE_MODE_APPEND),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
-  _ckpt(0), _ckptNumber(0), _interval(500),_outFileMode(FILE_MODE_WRITE)
+  _saveChkpts(1), _restartFromChkpt(1),_restartFromChkptSS(1),_outputFileMode(FILE_MODE_APPEND),_prevChkptTimeStep1D(0),_prevChkptTimeStep2D(0),
+  _ckpt(0), _ckptNumber(0),_interval(500),_outFileMode(FILE_MODE_WRITE)
 {
   #if VERBOSE > 1
     string funcName = "Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)";
@@ -89,11 +88,9 @@ Domain::Domain(const char *file,PetscInt Ny, PetscInt Nz)
     }
   #endif
 
-  if (_restartFromChkpt == 1) {
-    loadCheckpoint();
-  }
   allocateFields();
-  setFields();
+  if (_restartFromChkpt == 1) { loadCheckpoint(); }
+  if (_restartFromChkpt == 0) { setFields(); }
   setScatters();
 
   #if VERBOSE > 1
@@ -188,6 +185,7 @@ PetscErrorCode Domain::loadSettings(const char *file)
 
     else if (var.compare("saveChkpts") == 0) { _saveChkpts = atoi(rhs.c_str()); }
     else if (var.compare("restartFromChkpt") == 0) { _restartFromChkpt = atoi(rhs.c_str()); }
+    else if (var.compare("restartFromChkptSS") == 0) { _restartFromChkptSS = atoi(rhs.c_str()); }
 
     else if (var.compare("enableCheckpointing") == 0) { _ckpt = atoi(rhs.c_str()); }
     else if (var.compare("interval") == 0) { _interval = (int)atof(rhs.c_str()); }

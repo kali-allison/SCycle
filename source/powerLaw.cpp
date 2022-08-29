@@ -1585,11 +1585,11 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   #endif
 
   Vec Tmax;
-  VecDuplicate(_u,&Tmax);
-  VecSet(Tmax,0.0);
-  VecPointwiseDivide(Tmax,_effVisc,_mu);
+  ierr = VecDuplicate(_u,&Tmax); CHKERRQ(ierr);
+  ierr = VecSet(Tmax,0.0); CHKERRQ(ierr);
+  ierr = VecPointwiseDivide(Tmax,_effVisc,_mu); CHKERRQ(ierr);
   PetscScalar min_Tmax;
-  VecMin(Tmax,NULL,&min_Tmax);
+  ierr = VecMin(Tmax,NULL,&min_Tmax); CHKERRQ(ierr);
 
   maxTimeStep = min_Tmax;
 

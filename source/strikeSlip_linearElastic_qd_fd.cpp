@@ -851,9 +851,15 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
 
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
-    if (_varFD.find(it->first) == _varFD.end() ) { ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr); }
-    //~ VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]);
-    VecCopy(_varFD[it->first],_varFDPrev[it->first]);
+    if (_varFDPrev.find(it->first) == _varFDPrev.end() ) {
+      Vec var;
+      ierr = VecDuplicate(_varFD[it->first],&var); CHKERRQ(ierr);
+      ierr = VecCopy(_varFD[it->first],var); CHKERRQ(ierr);
+      _varFDPrev[it->first] = var;
+    }
+    else {
+      ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1
@@ -1226,7 +1232,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeSS(const int Ii)
     ierr = PetscViewerHDF5PopGroup(_viewerSS);                          CHKERRQ(ierr);
 
     ierr = _material->writeStep1D(_viewerSS);                           CHKERRQ(ierr);
-    ierr = _fault_qd->writeStep(_viewerSS);                                CHKERRQ(ierr);
+    ierr = _fault_qd->writeStep(_viewerSS);                             CHKERRQ(ierr);
     if (_hydraulicCoupling.compare("no")!=0) { _p->writeStep(_viewerSS); }
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 

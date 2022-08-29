@@ -19,8 +19,7 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(1e-2),
   _JjSSVec(NULL),
   _fss_T(0.15),_fss_EffVisc(0.2),_fss_grainSize(0.2),_gss_t(1e-10),
-  _maxSSIts_effVisc(50),_maxSSIts_tot(100),
-  _atolSS_effVisc(1e-4),_maxSSIts_time(5e10),
+  _maxSSIts_effVisc(50),_maxSSIts_tot(100),_atolSS_effVisc(1e-4),
   _u0(NULL),
   _timeIntegrator("RK43"),_timeControlType("PID"),
   _stride1D(1),_stride2D(1),_strideChkpt(10000),_maxStepCount(1e8),
@@ -55,7 +54,15 @@ StrikeSlip_PowerLaw_qd_fd::StrikeSlip_PowerLaw_qd_fd(Domain&D)
   }
 
   // initiate momentum balance equation
-  _material = new PowerLaw(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  /*
+  if (_inDynamic && _guessSteadyStateICs==0 && _D->_restartFromChkpt) {
+    _material = new PowerLaw(D,_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
+  }
+  else {
+    _material = new PowerLaw(D,_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  }
+ */
+  _material = new PowerLaw(D,_mat_qd_bcRType,_mat_qd_bcTType,"Neumann",_mat_qd_bcBType);
 
   _he = new HeatEquation(D); // heat equation
   if (_thermalCoupling == "coupled") { VecCopy(_he->_T,_material->_T); }
@@ -188,7 +195,6 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::loadSettings(const char *file)
     else if (var.compare("maxSSIts_effVisc")==0) { _maxSSIts_effVisc = atoi( rhs.c_str() ); }
     else if (var.compare("maxSSIts_tot")==0) { _maxSSIts_tot = atoi( rhs.c_str() ); }
     else if (var.compare("atolSS_effVisc")==0) { _atolSS_effVisc = atof( rhs.c_str() ); }
-    else if (var.compare("maxSSIts_time")==0) { _maxSSIts_time = atof( rhs.c_str() ); }
     else if (var.compare("evolveTemperature")==0) { _evolveTemperature = (int) atoi( rhs.c_str() ); }
     else if (var.compare("evolveGrainSize")==0) { _evolveGrainSize = (int) atoi( rhs.c_str() ); }
     else if (var.compare("computeSSHeatEq")==0) { _computeSSTemperature = (int) atoi( rhs.c_str() ); }
@@ -595,17 +601,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_qd()
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  //~ VecSet(_material->_bcR,_vL*_initTime/_faultTypeScale); // why is this here?
-
-  if (_varQSEx.find("slip") == _varQSEx.end() ) { ierr = VecDuplicate(_material->_bcL, &_varQSEx["slip"]); CHKERRQ(ierr); }
-  VecCopy(_material->_bcL, _varQSEx["slip"]);
-  if (_qd_bcLType == "symmFault" || _qd_bcLType == "rigidFault") {
-    VecScale(_varQSEx["slip"],_faultTypeScale);
-  }
   if (!_D->_restartFromChkpt) {
+    if (_varQSEx.find("slip") == _varQSEx.end() ) { ierr = VecDuplicate(_material->_bcL, &_varQSEx["slip"]); CHKERRQ(ierr); }
+    ierr = VecCopy(_material->_bcL, _varQSEx["slip"]); CHKERRQ(ierr);
+    if (_qd_bcLType == "symmFault" || _qd_bcLType == "rigidFault") {
+      ierr = VecScale(_varQSEx["slip"],_faultTypeScale); CHKERRQ(ierr);
+    }
     ierr = loadVecFromInputFile(_varQSEx["slip"],_inputDir,"slip"); CHKERRQ(ierr);
+    ierr = VecCopy(_varQSEx["slip"],_fault_qd->_slip);
   }
-  VecCopy(_varQSEx["slip"],_fault_qd->_slip);
 
 
   if (_guessSteadyStateICs) {
@@ -614,29 +618,29 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_qd()
     VecDestroy(&_JjSSVec); _JjSSVec = NULL;
 
     // ensure fault_fd == fault_qd
-    VecCopy(_fault_qd->_psi,      _fault_fd->_psi);
-    VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel);
-    VecCopy(_fault_qd->_slip,     _fault_fd->_slip);
-    VecCopy(_fault_qd->_slip,     _fault_fd->_slip0);
-    VecCopy(_fault_qd->_tauP,     _fault_fd->_tau0);
-    VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP);
-    VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP);
+    ierr = VecCopy(_fault_qd->_psi,      _fault_fd->_psi); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_slipVel,  _fault_fd->_slipVel); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_slip,     _fault_fd->_slip); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_slip,     _fault_fd->_slip0); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_tauP,     _fault_fd->_tau0); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_tauQSP,   _fault_fd->_tauQSP); CHKERRQ(ierr);
+    ierr = VecCopy(_fault_qd->_tauP,     _fault_fd->_tauP); CHKERRQ(ierr);
   }
 
-  _material->initiateIntegrand(_initTime,_varQSEx);
-  _fault_qd->initiateIntegrand(_initTime,_varQSEx);
+  ierr = _material->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
+  ierr = _fault_qd->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
 
-  if (_evolveTemperature == 1) {
-     _he->initiateIntegrand(_initTime,_varQSEx,_varIm);
-     _fault_qd->updateTemperature(_he->_T);
-     _fault_fd->updateTemperature(_he->_T);
-  }
-  if (_evolveGrainSize == 1) {
-    _grainDist->initiateIntegrand(_initTime,_varQSEx,_varIm);
-  }
-  if (_hydraulicCoupling!="no" ) {
-     _p->initiateIntegrand(_initTime,_varQSEx,_varIm);
-  }
+  //~ if (_evolveTemperature == 1) {
+     //~ ierr = _he->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
+     //~ ierr = _fault_qd->updateTemperature(_he->_T); CHKERRQ(ierr);
+     //~ ierr = _fault_fd->updateTemperature(_he->_T); CHKERRQ(ierr);
+  //~ }
+  //~ if (_evolveGrainSize == 1) {
+    //~ ierr = _grainDist->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
+  //~ }
+  //~ if (_hydraulicCoupling!="no" ) {
+     //~ ierr = _p->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr);
+  //~ }
 
 
   #if VERBOSE > 1
@@ -654,29 +658,43 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::initiateIntegrand_fd()
   #endif
 
   // add psi and slip to varFD
-  _fault_fd->initiateIntegrand(_initTime,_varFD); // adds psi and slip
+  ierr = _fault_fd->initiateIntegrand(_initTime,_varFD); CHKERRQ(ierr); // adds psi and slip
 
   // add u
-  if (_varFD.find("u") != _varFD.end() ) { VecCopy(_material->_u,_varFD["u"]); }
-  else { Vec var; VecDuplicate(_material->_u,&var); VecCopy(_material->_u,var); _varFD["u"] = var; }
-  VecSet(_u0,0.0);
+  if (_varFD.find("u") != _varFD.end() ) { ierr = VecCopy(_material->_u,_varFD["u"]); CHKERRQ(ierr); }
+  else {
+    Vec var;
+    ierr = VecDuplicate(_material->_u,&var);
+    ierr = VecCopy(_material->_u,var);
+    _varFD["u"] = var;
+  }
+  //~ if (!_D->_restartFromChkpt) {
+    VecSet(_u0,0.0);
+  //~ }
+
 
   // if solving the heat equation, add temperature to varFD
   if (_evolveTemperature == 1) {
     if (_varFD.find("u") == _varFD.end() ) { ierr = VecDuplicate(_he->_T, &_varFD["Temp"]); CHKERRQ(ierr); }
-    VecCopy(_he->_T, _varFD["Temp"]);
+    ierr = VecCopy(_he->_T, _varFD["Temp"]); CHKERRQ(ierr);
   }
 
   // if solving the grain size evolution equation, add to varFD
   if (_evolveGrainSize == 1) {
-    _grainDist->initiateIntegrand(_initTime,_varFD,_varIm);
+    ierr = _grainDist->initiateIntegrand(_initTime,_varFD,_varIm); CHKERRQ(ierr);
   }
 
    // copy varFD into varFDPrev
   for (map<string,Vec>::iterator it = _varFD.begin(); it != _varFD.end(); it++ ) {
-    if (_varFD.find(it->first) == _varFD.end() ) { ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr); }
-    //~ VecDuplicate(_varFD[it->first],&_varFDPrev[it->first]);
-    VecCopy(_varFD[it->first],_varFDPrev[it->first]);
+    if (_varFDPrev.find(it->first) == _varFDPrev.end() ) {
+      Vec var;
+      ierr = VecDuplicate(_varFD[it->first],&var); CHKERRQ(ierr);
+      ierr = VecCopy(_varFD[it->first],var); CHKERRQ(ierr);
+      _varFDPrev[it->first] = var;
+    }
+    else {
+      ierr = VecCopy(_varFD[it->first],_varFDPrev[it->first]); CHKERRQ(ierr);
+    }
   }
 
   #if VERBOSE > 1
@@ -744,13 +762,13 @@ double startTime = MPI_Wtime();
 
   // prevent adaptive time stepper from taking time steps > Maxwell time
   PetscScalar maxTimeStep_tot, maxDeltaT_momBal = 0.0;
-  _material->computeMaxTimeStep(maxDeltaT_momBal);
+  ierr = _material->computeMaxTimeStep(maxDeltaT_momBal);CHKERRQ(ierr);
   maxTimeStep_tot = min(_maxDeltaT,0.9*maxDeltaT_momBal);
-  if (_timeIntegrator.compare("RK32_WBE")==0 || _timeIntegrator.compare("RK43_WBE")==0) {
-    _quadImex_qd->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+  if (!_inDynamic && _quadImex_qd!=NULL ) {
+    ierr = _quadImex_qd->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
-  else {
-    _quadEx_qd->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
+  else if  (!_inDynamic && _quadEx_qd!=NULL) {
+    ierr = _quadEx_qd->setTimeStepBounds(_minDeltaT,maxTimeStep_tot);CHKERRQ(ierr);
   }
 
   // check if time to switch from quasidynamic to fully dynamic
@@ -775,7 +793,8 @@ double startTime = MPI_Wtime();
     //~ double _currIntegrateTime = MPI_Wtime() - _startIntegrateTime;
     std::string regime = "quasidynamic";
     if(_inDynamic){ regime = "fully dynamic"; }
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s\n",stepCount,_currTime,_deltaT,regime.c_str());CHKERRQ(ierr);
+    //~ ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s\n",stepCount,_currTime,_deltaT,regime.c_str());CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"%i: t = %.15e s, dt = %.5e %s, allowed = %i\n",stepCount,_currTime,_deltaT,regime.c_str(),_allowed);CHKERRQ(ierr);
   #endif
 _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
@@ -795,12 +814,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep1D(PetscInt stepCount, PetscS
   if (_viewer1D == NULL ) {
     // initiate viewer
     string outFileName = _outputDir + "data_1D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer1D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer1D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer1D, PETSC_TRUE);CHKERRQ(ierr);
 
-    // write time
     ierr = PetscViewerHDF5PushGroup(_viewer1D, "/time");                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewer1D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer1D, _D->_prevChkptTimeStep1D +1); CHKERRQ(ierr);
+    }
+
     ierr = VecView(_time1DVec, _viewer1D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime1DVec, _viewer1D);                             CHKERRQ(ierr);
     ierr = VecView(_regime1DVec, _viewer1D);                            CHKERRQ(ierr);
@@ -836,12 +858,15 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep2D(PetscInt stepCount, PetscS
   if (_viewer2D == NULL ) {
     // initiate viewer
     string outFileName = _outputDir + "data_2D.h5";
-    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), FILE_MODE_APPEND, &_viewer2D);CHKERRQ(ierr);
+    ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, outFileName.c_str(), _D->_outputFileMode, &_viewer2D);CHKERRQ(ierr);
     ierr = PetscViewerHDF5SetBaseDimension2(_viewer2D, PETSC_TRUE);CHKERRQ(ierr);
 
-    // write time
     ierr = PetscViewerHDF5PushGroup(_viewer2D, "/time");                CHKERRQ(ierr);
     ierr = PetscViewerHDF5PushTimestepping(_viewer2D);                  CHKERRQ(ierr);
+    if (_D->_restartFromChkpt) {
+      ierr = PetscViewerHDF5SetTimestep(_viewer2D, _D->_prevChkptTimeStep2D +1); CHKERRQ(ierr);
+    }
+
     ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
     ierr = VecView(_regime2DVec, _viewer2D);                            CHKERRQ(ierr);
@@ -854,6 +879,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeStep2D(PetscInt stepCount, PetscS
     ierr = PetscViewerHDF5IncrementTimestep(_viewer2D);                 CHKERRQ(ierr);
     ierr = VecView(_time2DVec, _viewer2D);                              CHKERRQ(ierr);
     ierr = VecView(_dtime2DVec, _viewer2D);                             CHKERRQ(ierr);
+    ierr = VecView(_regime2DVec, _viewer2D);                            CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopTimestepping(_viewer2D);                   CHKERRQ(ierr);
     ierr = PetscViewerHDF5PopGroup(_viewer2D);                          CHKERRQ(ierr);
   }
@@ -898,7 +924,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeCheckpoint()
   ierr = VecView(_regime1DVec, _viewer_chkpt);                          CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "cycleCount", PETSC_SCALAR, &_cycleCount); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "cycleCount", PETSC_INT, &_cycleCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "phaseCount", PETSC_INT, &_phaseCount); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "inDynamic", PETSC_INT, &_inDynamic); CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time1D", "allowed", PETSC_INT, &_allowed); CHKERRQ(ierr);
@@ -1008,7 +1034,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeContext()
   #endif
 
   // output scalar fields
-  std::string str = _outputDir + "mediator_context.txt";
+  std::string str = _outputDir + "mediator.txt";
   PetscViewer    viewer;
   PetscViewerCreate(PETSC_COMM_WORLD, &viewer);
   PetscViewerSetType(viewer, PETSCVIEWERASCII);
@@ -1111,7 +1137,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate(){
 
   int isFirstPhase = 1;
 
-  // first phase
+  //~ // first phase
   if (_inDynamic) {
     double startTime_fd = MPI_Wtime();
     _inDynamic = true;
@@ -1170,6 +1196,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_qd(int isFirstPhase)
     std::string funcName = "StrikeSlip_PowerLaw_qd_fd::integrate";
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
+
+  // _material does not set up its KSP, so must set it up here
+  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
 
   delete _quadEx_qd; _quadEx_qd = NULL;
   delete _quadImex_qd; _quadImex_qd = NULL;
@@ -1249,6 +1280,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::integrate_fd(int isFirstPhase)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
+  // update momentum balance equation boundary conditions
+  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
+
   delete _quadWaveEx; _quadWaveEx = NULL;
 
   // initialize time integrator
@@ -1307,6 +1343,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_fd2qd()
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
 
   #if VERBOSE > 1
     PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1371,6 +1409,8 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::prepare_qd2fd()
 
   // update momentum balance equation boundary conditions
   _material->changeBCTypes(_mat_fd_bcRType,_mat_fd_bcTType,_mat_fd_bcLType,_mat_fd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverTrans); CHKERRQ(ierr);
 
 
   #if VERBOSE > 1
@@ -1921,7 +1961,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::computePenaltyVectors()
   }
   VecRestoreArray(_ay,&ay);
 
-  ierr = VecPointwiseMult(_ay, _ay, _material->_cs);
+  ierr = VecPointwiseMult(_ay, _ay, _material->_cs); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -1941,22 +1981,22 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::guessTauSS(map<string,Vec>& varSS)
 
   // steady-state shear stress on fault
   bool loadTauSS = 0;
-  loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS",loadTauSS);
+  ierr = loadVecFromInputFile(_fault_qd->_tauP,_inputDir,"tauSS",loadTauSS); CHKERRQ(ierr);
 
   // if steady-state shear stress not provided: tauSS = min(tauRS,tauVisc)
   if (loadTauSS == 0) {
     // viscous strength of material, evaluated only at fault
     Vec tauVisc = NULL;
-    VecDuplicate(_fault->_tauP,&tauVisc);
-    VecScatterBegin(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
-    VecScatterEnd(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD);
-    VecScale(tauVisc,_gss_t);
+    ierr = VecDuplicate(_fault_qd->_tauP,&tauVisc); CHKERRQ(ierr);
+    ierr = VecScatterBegin(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScatterEnd(_D->_scatters["body2L"], _material->_effVisc, tauVisc, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+    ierr = VecScale(tauVisc,_gss_t); CHKERRQ(ierr);
 
-    VecPointwiseMin(_fault->_tauP,_fault->_tauP,tauVisc);
-    VecDestroy(&tauVisc);
+    ierr = VecPointwiseMin(_fault_qd->_tauP,_fault_qd->_tauP,tauVisc); CHKERRQ(ierr);
+    ierr = VecDestroy(&tauVisc); CHKERRQ(ierr);
   }
-  VecCopy(_fault_qd->_tauP,_fault_qd->_tauQSP);
-  _fault_qd->computeVel();
+  ierr = VecCopy(_fault_qd->_tauP,_fault_qd->_tauQSP); CHKERRQ(ierr);
+  ierr = _fault_qd->computeVel(); CHKERRQ(ierr);
 
   #if VERBOSE > 1
      PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
@@ -2085,9 +2125,9 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSStau(const PetscInt Jj)
   _currTime = _initTime;
 
   // ensure varQSSEx, varIm, and varFD contain updated versions of all fields
-  _material->initiateIntegrand(_initTime,_varQSEx);
-  _fault_qd->initiateIntegrand(_initTime,_varQSEx);
-  if (_evolveTemperature == 1) { ierr = _he->initiateIntegrand(_initTime,_varQSEx,_varIm);  CHKERRQ(ierr); }
+  ierr = _material->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
+  ierr = _fault_qd->initiateIntegrand(_initTime,_varQSEx); CHKERRQ(ierr);
+  if (_evolveTemperature == 1) { ierr = _he->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr); }
   if (_evolveGrainSize == 1) { ierr = _grainDist->initiateIntegrand(_initTime,_varQSEx,_varIm); CHKERRQ(ierr); }
 
   if (_varQSEx.find("slip") != _varQSEx.end() ) { VecCopy(_material->_bcL,_varQSEx["slip"]); }
@@ -2108,6 +2148,11 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSStau(const PetscInt Jj)
   delete _quadImex_qd; _quadImex_qd = NULL;
   delete _quadWaveEx; _quadWaveEx = NULL;
 
+  // update momentum balance equation boundary conditions to be compatible with steady-state solve step
+  _material->changeBCTypes(_mat_qd_bcRType,_mat_qd_bcTType,_mat_qd_bcLType,_mat_qd_bcBType);
+  Mat A; _material->_sbp->getA(A);
+  ierr = _material->setupKSP(_material->_ksp,_material->_pc,A,_material->_linSolverSS); CHKERRQ(ierr);
+
   // identify which phase the integrate ended in and sync up fault_qd and fault_fd
   if (_inDynamic == true) {
     ierr = VecCopy(_fault_fd->_psi,       _fault_qd->_psi); CHKERRQ(ierr);
@@ -2123,6 +2168,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSStau(const PetscInt Jj)
     }
   }
   else {
+
     ierr = VecCopy(_fault_qd->_psi,       _fault_fd->_psi); CHKERRQ(ierr);
     ierr = VecCopy(_fault_qd->_slipVel,   _fault_fd->_slipVel); CHKERRQ(ierr);
     ierr = VecCopy(_fault_qd->_slip,      _fault_fd->_slip); CHKERRQ(ierr);
@@ -2279,7 +2325,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::solveSSHeatEquation(const PetscInt Jj)
   }
 
   // compute new steady-state temperature
-  _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault->_tauP,_material->_sdev,dgV_sh,_varSS["Temp"]);
+  _he->computeSteadyStateTemp(_currTime,_varSS["slipVel"],_fault_qd->_tauP,_material->_sdev,dgV_sh,_varSS["Temp"]);
   VecDestroy(&dgV_sh);
 
   // If this is first iteration, keep Temp.
@@ -2383,7 +2429,7 @@ PetscErrorCode StrikeSlip_PowerLaw_qd_fd::writeSS(const int Ii)
   ierr = PetscViewerHDF5PopGroup(_viewerSS);                            CHKERRQ(ierr);
 
   ierr = _material->writeStep1D(_viewerSS);                             CHKERRQ(ierr);
-  ierr = _fault->writeStep(_viewerSS);                               CHKERRQ(ierr);
+  ierr = _fault_qd->writeStep(_viewerSS);                               CHKERRQ(ierr);
   if (_hydraulicCoupling.compare("no")!=0) { ierr = _p->writeStep(_viewerSS); CHKERRQ(ierr);}
   if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep1D(_viewerSS); CHKERRQ(ierr); }
 
