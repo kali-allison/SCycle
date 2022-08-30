@@ -75,7 +75,7 @@ private:
   map <string,Vec>  _varIm; // holds variables for implicit integration in time
   Vec               _u0; // total displacement at start of fd
   string            _timeIntegrator,_timeControlType;
-  PetscInt          _stride1D,_stride2D, _strideChkpt; // stride
+  PetscInt          _stride1D,_stride2D, _strideChkpt_qd, _strideChkpt_fd; // stride
   PetscInt          _stride1D_qd, _stride2D_qd, _stride1D_fd, _stride2D_fd, _stride1D_fd_end, _stride2D_fd_end;
   PetscInt          _maxStepCount; // largest number of time steps
   PetscScalar       _initTime,_currTime,_minDeltaT,_maxDeltaT, _maxTime;

@@ -1580,7 +1580,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::computeMaxTimeStep";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1596,7 +1596,7 @@ PetscErrorCode PowerLaw::computeMaxTimeStep(PetscScalar& maxTimeStep)
   VecDestroy(&Tmax);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -1950,8 +1950,8 @@ PetscErrorCode PowerLaw::computeSDev()
 {
     PetscErrorCode ierr = 0;
   #if VERBOSE > 1
-    string funcName = "PowerLaw::computeStresses";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    string funcName = "PowerLaw::computeSDev";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -1971,7 +1971,7 @@ PetscErrorCode PowerLaw::computeSDev()
   VecSqrtAbs(_sdev);
 
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s: time=%.15e\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -2383,7 +2383,7 @@ PetscErrorCode PowerLaw::writeStep1D(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::writeStep1D";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 
@@ -2404,7 +2404,7 @@ PetscErrorCode PowerLaw::writeStep1D(PetscViewer& viewer)
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -2415,7 +2415,7 @@ PetscErrorCode PowerLaw::writeStep2D(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::writeStep2D";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 double startTime = MPI_Wtime();
@@ -2454,7 +2454,7 @@ double startTime = MPI_Wtime();
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -2465,7 +2465,7 @@ PetscErrorCode PowerLaw::writeCheckpoint(PetscViewer& viewer)
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::writeCheckpoint";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 double startTime = MPI_Wtime();
@@ -2516,7 +2516,7 @@ double startTime = MPI_Wtime();
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;
@@ -2528,7 +2528,7 @@ PetscErrorCode PowerLaw::loadCheckpoint()
   PetscErrorCode ierr = 0;
   #if VERBOSE > 1
     string funcName = "PowerLaw::writeCheckpoint";
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
 double startTime = MPI_Wtime();
@@ -2586,7 +2586,7 @@ double startTime = MPI_Wtime();
 
   _writeTime += MPI_Wtime() - startTime;
   #if VERBOSE > 1
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s at time %g\n",funcName.c_str(),FILENAME,time);
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s\n",funcName.c_str(),FILENAME);
     CHKERRQ(ierr);
   #endif
   return ierr;

@@ -17,7 +17,7 @@ StrikeSlip_LinearElastic_qd_fd::StrikeSlip_LinearElastic_qd_fd(Domain&D)
     _trigger_qd2fd(1e-3), _trigger_fd2qd(1e-3),
     _limit_qd(10*_vL), _limit_fd(1e-1),_limit_stride_fd(-1),_u0(NULL),
     _timeIntegrator("RK43"),_timeControlType("PID"),
-    _stride1D(10),_stride2D(10),_strideChkpt(1e4),
+    _stride1D(10),_stride2D(10),_strideChkpt_qd(1e4), _strideChkpt_fd(1e4),
     _stride1D_qd(10),_stride2D_qd(10),_stride1D_fd(10),
     _stride2D_fd(10),_stride1D_fd_end(10),_stride2D_fd_end(10),
     _maxStepCount(1e8),
@@ -190,7 +190,8 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::loadSettings(const char *file)
     else if (var.compare("stride2D_fd")==0){ _stride2D_fd = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride1D_fd_end")==0){ _stride1D_fd_end = (int)atof(rhs.c_str() ); }
     else if (var.compare("stride2D_fd_end")==0){ _stride2D_fd_end = (int)atof(rhs.c_str() ); }
-    else if (var.compare("strideChkpt")==0){ _strideChkpt = (int)atof(rhs.c_str()); }
+    else if (var.compare("strideChkpt")==0){ _strideChkpt_qd = (int)atof(rhs.c_str()); }
+    else if (var.compare("strideChkpt_fd")==0){ _strideChkpt_fd = (int)atof(rhs.c_str()); }
     else if (var.compare("initTime")==0) {
       _initTime = atof(rhs.c_str() );
       _currTime = _initTime;
@@ -833,7 +834,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::initiateIntegrand_fd()
   // add u
   if (_varFD.find("u") != _varFD.end() ) { VecCopy(_material->_u,_varFD["u"]); }
   else { Vec var; VecDuplicate(_material->_u,&var); VecCopy(_material->_u,var); _varFD["u"] = var; }
-  VecSet(_u0,0.0);
+  VecSet(_u0,0.0); // !!! Only do this if not restarting from checkpoint???
 
   // if solving the heat equation, add temperature to varFD
   if (_he != NULL) {
@@ -1292,7 +1293,7 @@ PetscErrorCode StrikeSlip_LinearElastic_qd_fd::writeCheckpoint()
   ierr = VecView(_regime2DVec, _viewer_chkpt);                          CHKERRQ(ierr);
   ierr = VecView(_u0, _viewer_chkpt);                                   CHKERRQ(ierr);
   ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "currTime", PETSC_SCALAR, &_currTime); CHKERRQ(ierr);
-  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep1D); CHKERRQ(ierr);
+  ierr = PetscViewerHDF5WriteAttribute(_viewer_chkpt, "time2D", "chkptTimeStep", PETSC_INT, &_chkptTimeStep2D); CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(_viewer_chkpt);                      CHKERRQ(ierr);
 
   #if VERBOSE > 1
@@ -2232,8 +2233,10 @@ double startTime = MPI_Wtime();
     if (_thermalCoupling.compare("no")!=0) { ierr =  _he->writeStep2D(_viewer2D);CHKERRQ(ierr); }
   }
 
-  // only support checkpointing during interseismic period for now
-  if ( _D->_saveChkpts== 1 && ((_strideChkpt > 0 && stepCount % _strideChkpt == 0) || (_currTime == _maxTime)) ) {
+  // checkpointing
+  PetscInt strideChkpt = _strideChkpt_qd;
+  if (_inDynamic) {strideChkpt = _strideChkpt_fd;}
+  if ( _D->_saveChkpts== 1 && ((strideChkpt > 0 && stepCount % strideChkpt == 0) || (_currTime == _maxTime)) ) {
     ierr = writeCheckpoint();                                           CHKERRQ(ierr);
     ierr = _D->writeCheckpoint(_viewer_chkpt);                          CHKERRQ(ierr);
     ierr = _material->writeCheckpoint(_viewer_chkpt);                   CHKERRQ(ierr);
