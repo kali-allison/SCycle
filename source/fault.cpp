@@ -171,7 +171,7 @@ PetscErrorCode Fault::loadCheckpoint()
   ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
 
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "fault");                    CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                    CHKERRQ(ierr);
 
   ierr = VecLoad(_z, viewer);                                           CHKERRQ(ierr);
   ierr = VecLoad(_a, viewer);                                           CHKERRQ(ierr);
@@ -598,7 +598,7 @@ PetscErrorCode Fault::writeCheckpoint(PetscViewer& viewer)
     PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s\n",funcName.c_str(),FILENAME);
   #endif
 
-  ierr = PetscViewerHDF5PushGroup(viewer, "fault");                     CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/fault");                     CHKERRQ(ierr);
 
   ierr = VecView(_z, viewer);                                           CHKERRQ(ierr);
   ierr = VecView(_a, viewer);                                           CHKERRQ(ierr);
