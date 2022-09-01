@@ -31,6 +31,11 @@ PressureEq::PressureEq(Domain &D)
   setFields(D);
 
   if (_D->_restartFromChkpt) {
+    assert(0);
+    _guessSteadyStateICs = 0;
+  }
+  else if (_D->_restartFromChkptSS) {
+    assert(0);
     _guessSteadyStateICs = 0;
   }
 

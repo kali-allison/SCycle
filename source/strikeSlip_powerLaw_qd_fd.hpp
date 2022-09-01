@@ -81,7 +81,7 @@ public:
   Vec                _JjSSVec; // Vec containing current index (Ii) for steady state iteration
   PetscScalar        _fss_T,_fss_EffVisc,_fss_grainSize; // damping coefficients, must be < 1
   PetscScalar        _gss_t; // guess steady state strain rate
-  PetscInt           _maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
+  PetscInt           _SS_index,_maxSSIts_effVisc,_maxSSIts_tot; // max iterations allowed
   PetscScalar        _atolSS_effVisc;
   PetscScalar        _maxSSIts_time; // (s) max time during time integration phase
 
@@ -152,6 +152,7 @@ public:
   PetscErrorCode guessTauSS(map<string,Vec>& varSS);
   PetscErrorCode solveSSb();
   PetscErrorCode integrateSS();
+  PetscErrorCode initiateIntegrandSS();
   PetscErrorCode solveSS(const PetscInt Jj);
   PetscErrorCode setSSBCs();
   PetscErrorCode solveSSViscoelasticProblem(const PetscInt Jj); // iterate for effective viscosity
@@ -196,6 +197,8 @@ public:
   PetscErrorCode writeStep2D(PetscInt stepCount, PetscScalar time);
   PetscErrorCode loadCheckpoint();
   PetscErrorCode writeCheckpoint();
+  PetscErrorCode loadCheckpointSS();
+  PetscErrorCode writeCheckpointSS();
 
 };
 

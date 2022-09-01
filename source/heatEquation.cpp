@@ -34,6 +34,7 @@ HeatEquation::HeatEquation(Domain& D)
   setFields();
 
   if (_D->_restartFromChkpt) { loadCheckpoint(); }
+  else if (_D->_restartFromChkptSS) { loadCheckpoint(); }
   else { loadFieldsFromFiles(); }
 
   if (_D->_restartFromChkpt == 0 &&_loadICs == 0 && _isMMS == 0 ) { computeInitialSteadyStateTemp(); }
@@ -1883,6 +1884,62 @@ PetscErrorCode HeatEquation::loadCheckpoint()
   ierr = VecLoad(_Qvisc,viewer);                                        CHKERRQ(ierr);
   ierr = VecLoad(_Q,viewer);                                            CHKERRQ(ierr);
   ierr = PetscViewerHDF5PopGroup(viewer);                               CHKERRQ(ierr);
+
+  PetscViewerDestroy(&viewer);
+
+  #if VERBOSE > 1
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Ending %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+  return ierr;
+}
+
+PetscErrorCode HeatEquation::loadCheckpointSS()
+{
+  PetscErrorCode ierr = 0;
+  #if VERBOSE > 1
+    string funcName = "HeatEquation::loadCheckpointSS";
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"Starting %s in %s.\n",funcName.c_str(),FILENAME);
+    CHKERRQ(ierr);
+  #endif
+
+  PetscViewer viewer;
+
+  string fileName = _outputDir + "data_context.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
+  ierr = VecLoad(_k, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_rho, viewer);                                         CHKERRQ(ierr);
+  ierr = VecLoad(_Qrad, viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_c, viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_Tamb, viewer);                                        CHKERRQ(ierr);
+  if (_wFrictionalHeating.compare("yes")==0) {
+    ierr = VecLoad(_Gw, viewer);                                         CHKERRQ(ierr);
+    VecScale(_w,1e3); // output w in m
+    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+    VecScale(_w,1e-3); // convert w from m to km
+  }
+  if (_wRadioHeatGen.compare("yes")==0) {
+    ierr = VecLoad(_w, viewer);                                         CHKERRQ(ierr);
+  }
+  PetscViewerDestroy(&viewer);
+
+  fileName = _outputDir + "data_steadyState.h5";
+  ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, fileName.c_str(), FILE_MODE_READ, &viewer);CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushTimestepping(viewer);                       CHKERRQ(ierr);
+  ierr = PetscViewerHDF5PushGroup(viewer, "/heatEquation");             CHKERRQ(ierr);
+
+  ierr = VecLoad(_bcR,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcT,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcL,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_bcB,viewer);                                          CHKERRQ(ierr);
+
+  ierr = VecLoad(_T,viewer);                                            CHKERRQ(ierr);
+  ierr = VecLoad(_dT,viewer);                                           CHKERRQ(ierr);
+  ierr = VecLoad(_kTz,viewer);                                          CHKERRQ(ierr);
+  ierr = VecLoad(_Qfric,viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_Qvisc,viewer);                                        CHKERRQ(ierr);
+  ierr = VecLoad(_Q,viewer);                                            CHKERRQ(ierr);
 
   PetscViewerDestroy(&viewer);
 
